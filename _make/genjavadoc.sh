@@ -7,8 +7,10 @@
 if test "$JAVA_JDK" = "";  then export JAVA_JDK="/usr/share/JDK"; fi
 
 
-export DST="../../javadocZbnf"
-export DST_priv="../../javadocZbnf_priv"
+export DST="../../docuSrcJava_vishiaBase"
+export DST_priv="../../docuSrcJava_vishiaBase_priv"
+
+export SRC="-subpackages org.vishia"
 
 rm -f -r $DST
 rm -f -r $DST_priv
@@ -16,26 +18,13 @@ rm -f -r $DST_priv
 mkdir $DST
 mkdir $DST_priv
 
-export SRC=""
-export SRC="$SRC  ../org/vishia/ant/*.java"
-export SRC="$SRC  ../org/vishia/bridgeC/*.java"
-export SRC="$SRC  ../org/vishia/byteData/*.java"
-export SRC="$SRC  ../org/vishia/byteData/reflection_Jc/*.java"
-export SRC="$SRC  ../org/vishia/cmd/*.java"
-export SRC="$SRC  ../org/vishia/header2Reflection/*.java"
-export SRC="$SRC  ../org/vishia/mainCmd/*.java"
-export SRC="$SRC  ../org/vishia/msgDispatch/*.java"
-export SRC="$SRC  ../org/vishia/util/*.java"
-export SRC="$SRC  ../org/vishia/xml/*.java"
-export SRC="$SRC  ../org/vishia/xmlSimple/*.java"
-export SRC="$SRC  ../org/vishia/zbnf/*.java"
-export SRC="$SRC  ../org/vishia/zmake/*.java"
-
 echo generate docu: $SRC
+echo javadoc -d $DST -linksource -notimestamp -sourcepath ..
+$JAVA_JDK/bin/javadoc -d $DST -linksource -notimestamp -sourcepath .. $SRC   1>$DST/javadoc.rpt 2>$DST/javadoc.err
+echo javadoc -d $DST_priv -private -linksource -notimestamp -sourcepath ..
+$JAVA_JDK/bin/javadoc -d $DST_priv -private -linksource -notimestamp -sourcepath .. $SRC   1>$DST_priv/javadoc.rpt 2>$DST_priv/javadoc.err
 
-$JAVA_JDK/bin/javadoc -d $DST -linksource -notimestamp $SRC   1>$DST/javadoc.rpt 2>$DST/javadoc.err
-$JAVA_JDK/bin/javadoc -d $DST_priv -private -linksource -notimestamp $SRC   1>$DST_priv/javadoc.rpt 2>$DST_priv/javadoc.err
-
+echo copy img
 mkdir $DST/img
 cp -r ../img $DST
 

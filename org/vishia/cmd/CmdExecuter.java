@@ -341,7 +341,9 @@ public class CmdExecuter implements Closeable
             String sLine;
             if(out != null && processOut.ready()){
               if( (sLine= processOut.readLine()) !=null){
+                if(out !=null){
                 out.append(sLine).append('\n');
+                }
               } else {
                 //Because processOut returns null, it is "end of file" for the output stream of the started process.
                 //It means, the process is terminated now.
