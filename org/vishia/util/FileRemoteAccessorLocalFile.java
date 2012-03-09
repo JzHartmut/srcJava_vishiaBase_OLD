@@ -17,8 +17,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
 {
   
-  /**Version and history.
+  /**Version, history and license.
    * <ul>
+   * <li>2012-03-10 Hartmut new: implementation of the {@link FileRemote#chgProps(String, int, int, long, org.vishia.util.FileRemote.Callback)} etc.
    * <li>2012-02-02 Hartmut chg: {@link #setFileProperties(FileRemote, File)}: There was an faulty recursive loop,
    *   more checks. 
    * <li>2012-01-09 Hartmut new: {@link #close()} terminates the thread.
@@ -28,8 +29,32 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
    * <li>2011-12-31 Hartmut new {@link #runCommissions} as extra thread.  
    * <li>2011-12-10 Hartmut creation: See {@link FileRemoteAccessor}.
    * </ul>
+   * <br><br>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
    */
-  public static final int version = 0x20111210;
+  public static final int version = 20120310;
 
   private static FileRemoteAccessor instance;
   
@@ -45,7 +70,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   
   
   /**The thread to run all commissions. */
-  private Runnable runCommissions = new Runnable(){
+  protected Runnable runCommissions = new Runnable(){
     @Override public void run(){
       runCommissions();
     }
@@ -225,7 +250,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
           }
         }
       } catch(Exception exc){
-        System.err.println("Unexpected exception " + exc.getLocalizedMessage());
+        System.err.println("Unexpected exception " + exc.getMessage());
         exc.printStackTrace(System.err);
       }
     }
@@ -237,14 +262,140 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
     case Commission.kCheckFile: copy.checkCopy(commission); break;
     case Commission.kCopy: copy.execCopy(commission); break;
     case Commission.kMove: copy.execMove(commission); break;
+    case Commission.kChgProps:  execChgProps(commission); break;
+    case Commission.kChgPropsRec:  execChgPropsRecurs(commission); break;
+    case Commission.kCountLength:  execCountLength(commission); break;
     case Commission.kDel:  execDel(commission); break;
-    
+      
+    }
+  }
+  
+  
+  private void execChgProps(Commission co){
+    File dst;
+    FileRemote.Callback callBack = co.callBack;  //access only 1 time, check callBack. co.callBack may be changed from another thread.
+    boolean ok = callBack !=null;
+    if(co.newName !=null && ! co.newName.equals(co.src.getName())){
+      dst = new File(co.src.getParent(), co.newName);
+      ok &= co.src.renameTo(dst);
+    } else {
+      dst = co.src;
+    }
+    ok = chgFile(dst, co, ok);
+    if(callBack !=null){
+      if(ok){
+        callBack.id = FileRemoteAccessor.kFinishOk; 
+      } else {
+        callBack.id = FileRemoteAccessor.kFinishNok; 
+      }
+      callBack.sendtoDst();
+    }
+  }
+  
+  
+  private void execChgPropsRecurs(Commission co){
+    File dst;
+    FileRemote.Callback callBack = co.callBack;  //access only 1 time, check callBack. co.callBack may be changed from another thread.
+    boolean ok = callBack !=null;
+    if(co.newName !=null && ! co.newName.equals(co.src.getName())){
+      dst = new File(co.src.getParent(), co.newName);
+      ok &= co.src.renameTo(dst);
+    } else {
+      dst = co.src;
+    }
+    ok = chgPropsRecursive(dst, co, ok, 0);
+    if(callBack !=null){
+      if(ok){
+        callBack.id = FileRemoteAccessor.kFinishOk; 
+      } else {
+        callBack.id = FileRemoteAccessor.kFinishNok; 
+      }
+      callBack.sendtoDst();
     }
   }
   
   
   
-  private class Copy
+  private boolean chgPropsRecursive(File dst, Commission co, boolean ok, int recursion){
+    if(recursion > 100){
+      throw new IllegalArgumentException("FileRemoteAccessorLocal.chgProsRecursive: too many recursions ");
+    }
+    if(dst.isDirectory()){
+      File[] filesSrc = dst.listFiles();
+      for(File fileSrc: filesSrc){
+        ok = chgPropsRecursive(dst, co, ok, recursion +1);
+      }
+    } else {
+      ok = chgFile(dst, co, ok);
+    }
+    return ok;
+  }
+  
+
+  
+  private boolean chgFile(File dst, Commission co, boolean ok){
+    if(ok && (co.maskFlags & FileRemote.mCanWrite) !=0){ ok = dst.setWritable((co.newFlags & FileRemote.mCanWrite) !=0, true); }
+    if(ok && (co.maskFlags & FileRemote.mCanWriteAny) !=0){ ok = dst.setWritable((co.newFlags & FileRemote.mCanWriteAny) !=0); }
+    if(ok && (co.maskFlags & FileRemote.mCanWriteAny) !=0){ ok = dst.setReadable((co.newFlags & FileRemote.mCanWriteAny) !=0, true); }
+    if(ok && (co.maskFlags & FileRemote.mCanWriteAny) !=0){ ok = dst.setReadable((co.newFlags & FileRemote.mCanWriteAny) !=0); }
+    if(ok && (co.maskFlags & FileRemote.mCanWriteAny) !=0){ ok = dst.setExecutable((co.newFlags & FileRemote.mCanWriteAny) !=0, true); }
+    if(ok && (co.maskFlags & FileRemote.mCanWriteAny) !=0){ ok = dst.setExecutable((co.newFlags & FileRemote.mCanWriteAny) !=0); }
+    if(ok && co.newDate !=0 && co.newDate !=-1 ){ ok = dst.setLastModified(co.newDate); }
+    return ok;
+  }
+  
+  
+  
+  private void execCountLength(Commission co){
+    long length = countLengthDir(co.src, 0, 0);    
+    FileRemote.Callback callBack = co.callBack;  //access only 1 time, check callBack. co.callBack may be changed from another thread.
+    if(callBack !=null){
+      if(length >=0){
+        callBack.id = FileRemoteAccessor.kFinishOk;
+        callBack.nrofBytesAll = length;
+      } else {
+        callBack.id = FileRemoteAccessor.kFinishNok; 
+      }
+      callBack.sendtoDst();
+    }
+  }
+  
+  
+  private long countLengthDir(File file, long sum, int recursion){
+    if(recursion > 100){
+      throw new IllegalArgumentException("FileRemoteAccessorLocal.chgProsRecursive: too many recursions ");
+    }
+    if(file.isDirectory()){
+      File[] filesSrc = file.listFiles();
+      for(File fileSrc: filesSrc){
+        sum = countLengthDir(fileSrc, sum, recursion+1);
+      }
+    } else {
+      sum += file.length();
+    }
+    return sum;
+  }
+  
+  
+  
+  void execDel(Commission co){
+    
+  }
+
+
+  @Override public void close() throws IOException
+  {
+    synchronized(this){
+      if(commissionState == 'w'){ notify(); }
+      commissionState = 'x';
+    }
+  }
+  
+  
+  
+  
+  
+  protected class Copy
   {
   
     long timestart;
@@ -418,23 +569,5 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
       zFilesCopy +=1;
     }
   }  
-  
-  
-  
-  
-  void execDel(Commission commission){
-    
-  }
-
-
-  @Override public void close() throws IOException
-  {
-    synchronized(this){
-      if(commissionState == 'w'){ notify(); }
-      commissionState = 'x';
-    }
-  }
-  
-  
   
 }

@@ -25,8 +25,10 @@ public class FileRemote extends File
 {
   private static final long serialVersionUID = -5568304770699633308L;
 
-  /**Version and history.
+  /**Version, history and license.
    * <ul>
+   * <li>2012-03-10 Hartmut new: {@link #chgProps(String, int, int, long, Callback)}, {@link #countAllFileLength(Callback)}.
+   *   Enhancements.
    * <li>2012-02-02 Hartmut chg: Now the {@link #sFile} (renamed from name) is empty if this describes
    *   an directory and it is known that it is an directory. The ctor is adapted therefore.
    *   {@link #getParent()} is changed. Some assertions are set.
@@ -51,8 +53,32 @@ public class FileRemote extends File
    *   <li>The access to local files are done with this class directly.
    *   </ul>
    * </ul>
+   * <br><br>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
    */
-  public static final int version = 0x20111210;
+  public static final int version = 20120310;
 
   
   protected FileRemoteAccessor device;
@@ -95,17 +121,23 @@ public class FileRemote extends File
   int flags;
 
   
-  protected final static int  mExist =   1;
-  protected final static int  mCanRead =  2;
-  protected final static int  mCanWrite =  4;
-  protected final static int  mHidden = 0x08;
-  protected final static int  mDirectory = 0x10;
-  protected final static int  mFile =     0x20;
-  protected final static int  mExecute =     0x40;
-  protected final static int  mRelativePath = 0x100;
-  protected final static int  mAbsPath = 0x200;
-  protected final static int  mSymLinkedPath = 0x400;
+  public final static int  mExist =   1;
+  public final static int  mCanRead =  2;
+  public final static int  mCanWrite =  4;
+  public final static int  mHidden = 0x08;
+  public final static int  mDirectory = 0x10;
+  public final static int  mFile =     0x20;
+  public final static int  mExecute =     0x40;
+  public final static int  mExecuteAny =     0x80;
+  public final static int  mRelativePath = 0x100;
+  public final static int  mAbsPath = 0x200;
+  public final static int  mSymLinkedPath = 0x400;
   
+  public final static int  mCanReadGrp =  0x0800;
+  public final static int  mCanWriteGrp = 0x1000;
+  public final static int  mExecuteGrp = 0x2000;
+  public final static int  mCanReadAny =  0x4000;
+  public final static int  mCanWriteAny = 0x8000;
 
   protected final static int  mAbsPathTested = 0x10000;
   protected final static int  mTested =       0x20000;
@@ -359,6 +391,10 @@ public class FileRemote extends File
     return date; 
   }
   
+  
+  public int getFlags(){ return flags; }
+  
+  
   @Override public String getName(){ return sFile; }
   
   /**Returns the parent path, it is the directory path. 
@@ -528,9 +564,19 @@ public class FileRemote extends File
   
   
   
-  /**Copies a file maybe in a remote device to another file in the same device. 
-   * This is a send-only routine without feedback, because the calling thread should not be waiting 
-   * for success. The success is notified with invocation of the 
+  /**Moves a file maybe in a remote device to another file.
+   * If the devices are the same, it sends a commission only to the device. The action is done in the
+   * other device respectively in another thread {@link FileRemoteAccessorLocalFile#runCommissions}
+   * if this is a local file on this computer.<br><br>
+   * Depending on the file system the moving is a copy with deleting the source if this and dst are
+   * at the same partition, then it is a lightweight operation. If this and dst are at different 
+   * partitions, the operation file system will be copy it and then delete this. It means,
+   * this operation can be need some time for large files.
+   * <br><br> 
+   * If this and dst are at different devices, this routine copies and deletes.
+   * <br><br>
+   * It is a send-only routine without feedback in this routine, 
+   * because the calling thread should not be waiting for success. The success is notified with invocation of the 
    * {@link Event#dst}.{@link EventConsumer#processEvent(Event)} method. 
    * 
    * @param dst This file will be created or filled newly. If it is existing but read only,
@@ -552,13 +598,97 @@ public class FileRemote extends File
   
   
   
+  
+  
+  
+  
+  /**Change the file properties maybe in a remote device.
+   * A new name may be given as parameter. Some properties may be changed calling
+   * {@link #setWritable(boolean)} etc. or they are given as parameter.
+   * <br><br>
+   * It is a send-only routine without feedback in this routine, 
+   * because the calling thread should not be waiting for success. The success is notified with invocation of the 
+   * {@link Event#dst}.{@link EventConsumer#processEvent(Event)} method. 
+   * 
+   * @param newName A new name for the file. This parameter may be null, then the old name remain.
+   * @param backEvent The event for success.
+   */
+  public void chgProps(String newName, int maskFlags, int newFlags, long newDate, FileRemote.Callback backEvent){
+      FileRemoteAccessor.Commission com = new FileRemoteAccessor.Commission();
+      com.callBack = backEvent;
+      com.cmd = FileRemoteAccessor.Commission.kChgProps;
+      com.src = this;
+      com.dst = null;
+      com.newName = newName;
+      com.maskFlags = maskFlags;
+      com.newFlags = newFlags;
+      com.newDate = newDate;
+      device.addCommission(com);
+  }
+  
+  
+  
+  /**Change the file properties maybe in a remote device.
+   * A new name may be given as parameter. Some properties may be changed calling
+   * {@link #setWritable(boolean)} etc. or they are given as parameter.
+   * <br><br>
+   * It is a send-only routine without feedback in this routine, 
+   * because the calling thread should not be waiting for success. The success is notified with invocation of the 
+   * {@link Event#dst}.{@link EventConsumer#processEvent(Event)} method. 
+   * 
+   * @param newName A new name for the file. This parameter may be null, then the old name remain.
+   * @param backEvent The event for success.
+   */
+  public void chgPropsRecursive(int maskFlags, int newFlags, long newDate, FileRemote.Callback backEvent){
+      FileRemoteAccessor.Commission com = new FileRemoteAccessor.Commission();
+      com.callBack = backEvent;
+      com.cmd = FileRemoteAccessor.Commission.kChgPropsRec;
+      com.src = this;
+      com.dst = null;
+      com.newName = null;
+      com.maskFlags = maskFlags;
+      com.newFlags = newFlags;
+      com.newDate = newDate;
+      device.addCommission(com);
+  }
+  
+  
+  
+  
+  
+  /**Count the sum of length of all files in this directory tree.
+   * <br><br>
+   * It is a send-only routine without feedback in this routine, 
+   * because the calling thread should not be waiting for success. The success is notified with invocation of the 
+   * {@link Event#dst}.{@link EventConsumer#processEvent(Event)} method. 
+   * 
+   * @param newName A new name for the file. This parameter may be null, then the old name remain.
+   * @param backEvent The event for success.
+   */
+  public void countAllFileLength(FileRemote.Callback backEvent){
+      FileRemoteAccessor.Commission com = new FileRemoteAccessor.Commission();
+      com.callBack = backEvent;
+      com.cmd = FileRemoteAccessor.Commission.kCountLength;
+      com.src = this;
+      com.dst = null;
+      device.addCommission(com);
+  }
+  
+  
+  
+  
+  
+  
+  
+  
+  
   public static class Callback extends Event{
 
     public char[] fileName = new char[100];
     
-    public int nrofBytesInFile;
+    public long nrofBytesInFile;
     
-    public int nrofBytesAll;
+    public long nrofBytesAll;
     
     public int nrofFiles;
     

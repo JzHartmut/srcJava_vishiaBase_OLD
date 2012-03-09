@@ -179,15 +179,42 @@ import java.util.concurrent.atomic.AtomicLong;
 public class Event
 {
   
-  /**Version and history
+  /**Version, history and license
    * <ul>
+   * <li>2012-03-10 Hartmut new: {@link #owner}, {@link #forceRelease()}. 
+   *   It is a problem if a request may be crased in a remote device, but the event is reserved 
+   *   for answer in the proxy. It should be freed. Events may be re-used. 
    * <li>2012-01-22 Hartmut chg: {@link #use(long, int, Object, EventConsumer)} needs the dst as parameter.
    * <li>2012-01-05 Hartmut improved: {@link #dstThread}, {@link #commisionId} instead order, more {@link #data2} 
    * <li>2011-12-27 Hartmut created, concept of event queue, callback need for remote copy and delete of files
    *   (in another thread too). A adequate universal class in java.lang etc wasn't found.
    * </ul>
+   * <br><br>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
    */
-  public static final int version = 0x20120122;
+  public static final int version = 20120311;
   
   /**The src instance for the event. This reference should not be used for processing, it is only
    * a hint while debugging. The creator of the event knows the type of the src and can use it 
@@ -198,6 +225,9 @@ public class Event
    * in a really event driven system (without directly callback). 
    * If it is null, the dst.{@link EventConsumer#processEvent(Event)} should be called immediately. */
   protected EventThread dstThread;
+  
+  
+  protected EventOwner owner;
   
   /**The destination instance for the Event. If the event is stored in a common queue, 
    * the dst is invoked while polling the queue. Elsewhere the dst is the callback instance. */
@@ -246,6 +276,24 @@ public class Event
   }
   
   
+  
+  public boolean isOccupied(){ return dateCreation.get() !=0; }
+  
+  
+  /**Forces the re-usage of the event. If the event is in use, the owner will be notified
+   * calling {@link EventOwner#remove(Event)} that the event should be released.
+   * @return false only if the event is not released from the owner. Then the action should be repeated.
+   */
+  public boolean forceRelease() {
+    boolean bOk = true;
+    if(owner !=null){ bOk = owner.remove(this); }
+    if(bOk){
+      consumed();
+    }
+    return bOk;
+  }
+  
+  
   /**Releases the event instance. It is the opposite to the {@link #consumed()} method.
    * The {@link #dateCreation} is set to 0 especially to designate the free-state of the Event instance.
    * All other data are reseted, so no unused references are hold.  
@@ -258,6 +306,7 @@ public class Event
     this.commisionId = 0;
     data1 = data2 = 0;
     oData = null;
+    owner = null;
     dateCreation.set(0);
   }
 

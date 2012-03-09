@@ -12,8 +12,10 @@ import java.nio.channels.WritableByteChannel;
  */
 public interface FileRemoteAccessor extends Closeable
 {
-  /**Version and history.
+  /**Version, history and license.
    * <ul>
+   * <li>2012-03-10 Hartmut new: {@link Commission#newDate} etc. 
+   *   for {@link FileRemote#chgProps(String, int, int, long, org.vishia.util.FileRemote.Callback)}.
    * <li>2012-01-09 Hartmut new: This class extends from Closeable, because an implementation 
    *  may have an running thread which is need to close. A device should be closeable any time.
    * <li>2012-01-06 Hartmut new {@link #setFileProperties(FileRemote)}. 
@@ -22,8 +24,32 @@ public interface FileRemoteAccessor extends Closeable
    * <li>2011-12-10 Hartmut creation: Firstly only the {@link FileRemoteAccessorLocalFile} is written.
    *   
    * </ul>
+   * <br><br>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
    */
-  public static final int version = 0x20111210;
+  public static final int version = 20120310;
   
   public final static int kOperation = 0xd00000, kFinishOk = 0xf10000, kFinishNok = 0xf10001
   , kFinishError = 0xf1e3303, kNrofFilesAndBytes = 0xd00001;
@@ -55,8 +81,8 @@ public interface FileRemoteAccessor extends Closeable
   public class Commission
   {
     public final static int kCheckFile = 0xcecf1e, kCheck = 0xcec, kCopy = 0xc0b7, kDel = 0xde1ede
-    , kMove = 0x307e;
-    
+    , kMove = 0x307e, kChgProps = 0xc5a9e, kChgPropsRec = 0xc595ec
+    , kCountLength = 0xc0311e39;
     
     
     int cmd;
@@ -64,6 +90,15 @@ public interface FileRemoteAccessor extends Closeable
     FileRemote src, dst;
     
     FileRemote.Callback callBack;
+    
+    /**For {@link #kChgProps}: a new name. */
+    String newName;
+    
+    /**For {@link #kChgProps}: new properties with bit designation see {@link FileRemote#flags}. 
+     * maskFlags contains bits which properties should change, newFlags contains the value of that bit. */
+    int maskFlags, newFlags;
+    
+    long newDate;
     
   }
   
