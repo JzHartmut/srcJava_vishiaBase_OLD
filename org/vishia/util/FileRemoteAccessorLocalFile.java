@@ -323,7 +323,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
     if(dst.isDirectory()){
       File[] filesSrc = dst.listFiles();
       for(File fileSrc: filesSrc){
-        ok = chgPropsRecursive(dst, co, ok, recursion +1);
+        ok = chgPropsRecursive(fileSrc, co, ok, recursion +1);
       }
     } else {
       ok = chgFile(dst, co, ok);
@@ -413,26 +413,27 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
     
     /**List of files to handle between {@link #checkCopy(org.vishia.util.FileRemoteAccessor.Commission)}
      * and {@link #execCopy(org.vishia.util.FileRemoteAccessor.Commission)}. */
-    private final List<File> listFiles = new LinkedList<File>();
+    private final List<File> listCopyFiles = new LinkedList<File>();
     
     private File currentFile;
 
-    
+    private int ctWorkingId = 0;
 
-    
+    private int checkId;
     
     void checkCopy(Commission co){
       this.currentFile= co.src;
-      listFiles.clear();
+      listCopyFiles.clear();
       if(currentFile.isDirectory()){ 
         zBytesCheck = 0;
         zFilesCheck = 0;
         checkDir(currentFile, 1);
       } else {
-        listFiles.add(currentFile);
+        listCopyFiles.add(currentFile);
         zBytesCheck = co.src.length();
         zFilesCheck = 1;
       }
+      co.callBack.data1 = checkId = ++ctWorkingId;
       co.callBack.nrofBytesAll = (int)zBytesCheck;  //number between 0...1000
       co.callBack.nrofFiles = zFilesCheck;  //number between 0...1000
       co.callBack.id = FileRemoteAccessor.kNrofFilesAndBytes;
@@ -450,7 +451,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
               checkDir(file, recursion+1);  //recursively
             }
           } else {
-            listFiles.add(file);
+            listCopyFiles.add(file);
             zFilesCheck +=1;
             zBytesCheck += file.length();
           }

@@ -216,10 +216,10 @@ public class Event
    */
   public static final int version = 20120311;
   
-  /**The src instance for the event. This reference should not be used for processing, it is only
-   * a hint while debugging. The creator of the event knows the type of the src and can use it 
-   * for any message especially if any negative callback is gotten. */
-  protected Object src;
+  /**The src instance for the event. This reference It is private because it should only be set
+   * calling {@link #Event(Object, EventConsumer)} or {@link #use(long, int, Object, EventConsumer)}. 
+   * see {@link #getSrc()}. */
+  private Object src;
   
   /**The queue for events of the {@link EventThread} if this event should be used
    * in a really event driven system (without directly callback). 
@@ -227,7 +227,12 @@ public class Event
   protected EventThread dstThread;
   
   
-  protected EventOwner owner;
+  /**The current owner of the event. It is that instance, which has gotten the event instance
+   * by any method invocation as parameter,
+   * and stores this event till it is need for answer.
+   * TODO not used yet. Maybe a List<EventOwner>
+   */
+  private EventOwner owner;
   
   /**The destination instance for the Event. If the event is stored in a common queue, 
    * the dst is invoked while polling the queue. Elsewhere the dst is the callback instance. */
@@ -277,6 +282,13 @@ public class Event
   
   
   
+  /**Returns true if the event is in use. Events may be re-used. That may be necessary if a non-dynamic
+   * memory organization may be need, for example in C-like programming. It is possible anyway if actions
+   * are done only one after another. In that kind the event instanc is created one time,
+   * and re-used whenever it is needed. A re-using should wait for answer and set {@link #consumed()}.
+   * If the answer hangs, {@link #forceRelease()} may be called.
+   * @return true if it is ready to re-use.
+   */
   public boolean isOccupied(){ return dateCreation.get() !=0; }
   
   
@@ -313,7 +325,7 @@ public class Event
   
   
   /**Sends this event to the destination instance.
-   * Either the element {@link #dstQueue} is not null, then the event is put in the queue
+   * Either the element {@link #dstThread} is not null, then the event is put in the queue
    * and the event thread is notified.
    * Or the dstQueue is null, then a callback is invoked using {@link #dst}.{@link EventConsumer#processEvent(Event this)}
    */
@@ -327,10 +339,18 @@ public class Event
   
   
   /**Returns the stored src argument of construction.
-   * This argument should not be used in functionality. It should only be used
-   * for logs, error report or debugging. Especially the creator of the event knows the type
-   * of src and can re-cast to it.
-   * @return
+   * Especially the creator of this Event instance knows the instance type
+   * of src because one have written in it. The creator can re-cast to that instance type 
+   * and read out any information. This approach is proper because the event was created in the past
+   * with a designated data constellation. That constellation is stored with the src-reference
+   * in the event till the callback execution. There isn't any other mechanism necessary to store
+   * that data constellation.
+   * <br><br>
+   * A receiver of the event may deal with the src if the event id describes a defined type
+   * and a 'instanceof' call is done.
+   * 
+   * @return the source instance which was stored either calling the ctor {@link #Event(Object, EventConsumer)}
+   *   or calling re-usage of an event instance: {@link #use(long, int, Object, EventConsumer)}.  
    */
   public Object getSrc(){ return src; }
   
