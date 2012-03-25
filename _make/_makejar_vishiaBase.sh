@@ -2,7 +2,7 @@
 
 ## The java-copiler may be located at a user-specified position.
 ## Set the environment variable JAVA_HOME, where bin/javac will be found.
-if test "$JAVA_JDK" = "";  then export JAVA_JDK="/usr/share/JDK"; fi
+##if test "$JAVA_JDK" = "";  then export JAVA_JDK="/usr/share/JDK"; fi
 #set PATH="$JAVA_JDK_HOME\bin:$PATH"
 
 ## The TMP_JAVAC is a directory, which contains only this compiling results. It will be clean in the batch processing.
@@ -37,5 +37,5 @@ export SRCPATH_JAVAC=".."
 
 ## Call java-compilation and jar within zbnfjax with given input environment:
 #zbnfjax javacjar
-./javacjar.sh
+./+javacjarbase.sh
 

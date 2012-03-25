@@ -7,7 +7,7 @@ if test -z "$INPUT_JAVAC"; then
   echo The environment variables should be export as Input for this script:
   echo ---------------------------------------------------------------------------------------------
   echo JAVA_JDK: Directory where bin/javac is found. This java version will taken for compilation
-  echo   if not set, the it will be initalized with "/usr/share/JDK"
+  echo   if not set, it searches the JDK in some directories and set it so proper as well.
   echo TMP_JAVAC: Directory for all class files and logs: The directory will be cleaned and created
   echo INPUT_JAVAC: All primary input java files to compile separated with space
   echo CLASSPATH_JAVAC: PATH where compiled classes are found, relativ from current dir or absolute
@@ -25,7 +25,11 @@ fi
 
 ## The java-copiler may be located at a user-specified position.
 ## Set the environment variable JAVA_HOME, where bin/javac will be found.
-if test "$JAVA_JDK" = "";  then export JAVA_JDK="/usr/share/JDK"; fi
+if test -z "$JAVA_JDK";  then
+  if test -d /usr/share/JDK; then export JAVA_JDK="/usr/share/JDK"; fi
+  if test -d /d/Progs/JAVA/jdk1.6.0_21; then export JAVA_JDK="/d/Progs/JAVA/jdk1.6.0_21"; fi
+fi
+echo JAVA_JDK=$JAVA_JDK
 #set PATH="$JAVA_JDK_HOME\bin:$PATH"
 
 
@@ -38,6 +42,7 @@ mkdir -p $TMP_JAVAC/bin
 ## Delete the result jar-file
 rm -f $OUTDIR_JAVAC/$JAR_JAVAC
 rm -f $OUTDIR_JAVAC/$JAR_JAVAC.compile.log
+rm -f $OUTDIR_JAVAC/$JAR_JAVAC.compile_error.log
 
 echo === javac -sourcepath $SRCPATH_JAVAC -classpath $CLASSPATH_JAVAC $INPUT_JAVAC
 
@@ -45,7 +50,7 @@ $JAVA_JDK/bin/javac -deprecation -d $TMP_JAVAC/bin -sourcepath $SRCPATH_JAVAC -c
 if test $? -ge 1; then
   echo ===Compiler error
   cat $TMP_JAVAC/javac_ok.txt $TMP_JAVAC/javac_error.txt
-  cat $TMP_JAVAC/javac_ok.txt $TMP_JAVAC/javac_error.txt >$OUTPUTFILE_JAVAC.ERROR.txt
+  cat $TMP_JAVAC/javac_ok.txt $TMP_JAVAC/javac_error.txt >$OUTDIR_JAVAC/$JAR_JAVAC.compile_error.log
   exit 1
 fi
 
@@ -53,11 +58,11 @@ fi
 ## Store the actual directory to submit restoring on end
 ENTRYDIR=$PWD
 cd $TMP_JAVAC/bin
-echo === SUCCESS compiling, generate jar: $ENTRYDIR/$OUTPUTDIR_JAVAC/$JAR_JAVAC
+echo === SUCCESS compiling, generate jar: $ENTRYDIR/$OUTDIR_JAVAC/$JAR_JAVAC
 
-$JAVA_JDK/bin/jar -cvfm $ENTRYDIR/$OUTPUTDIR_JAVAC/$JAR_JAVAC $ENTRYDIR/$MANIFEST_JAVAC *  1>../jar_ok.txt 2>../jar_error.txt
+$JAVA_JDK/bin/jar -cvfm $ENTRYDIR/$OUTDIR_JAVAC/$JAR_JAVAC $ENTRYDIR/$MANIFEST_JAVAC *  1>../jar_ok.txt 2>../jar_error.txt
 
-cat ../jar_ok.txt ../jar_error.txt >$ENTRYDIR/$OUTPUTDIR_JAVAC/$JAR_JAVAC.compile.log
+cat ../jar_ok.txt ../jar_error.txt >$ENTRYDIR/$OUTDIR_JAVAC/$JAR_JAVAC.compile.log
 
 if test $? -ge 1; then
   echo === ERROR jar
