@@ -125,6 +125,7 @@ public abstract class MainCmd implements MainCmd_ifc
   /**Version, able to read as hex yyyymmdd.
    * Changes:
    * <ul>
+   * <li>2012-03-30 Hartmut new {@link #getLogMessageErrorConsole()}
    * <li>2011-10-11 Hartmut new {@link #setOutputChannels(Appendable, Appendable)}. All outputs are redirect-able now.
    *   Used for output in a graphical text box.
    * <li>2011-07-10 JcHartmut bugfix: The method {@link #executeCmdLine(ProcessBuilder, String, String, int, Appendable, Appendable)}
@@ -183,6 +184,9 @@ public abstract class MainCmd implements MainCmd_ifc
   Appendable out,err;
   
 
+  protected SimpleDateFormat dateFormatMsg = new SimpleDateFormat("MMM-dd HH:mm:ss.SSS: ");
+
+  
   /*===========================================================================================================*/
   /** Class to write any readed stream to the output, running in a separate thread.
    *  Used especially by command invokation
@@ -1122,10 +1126,34 @@ public abstract class MainCmd implements MainCmd_ifc
   { return sFileReport;
   }
   
+
+  
+  protected boolean sendMsgTimeToReport(int identNumber, int reportLevel, OS_TimeStamp creationTime,
+    String text, Object... args) {
+    if(false && args.length == 0){
+      //no arguments, no formatting!
+      if(fReport != null)
+      { String line = dateFormatMsg.format(creationTime) + "; " + identNumber + "; ";
+        fReport.writeln("");
+        fReport.write(line);
+        fReport.write(text);  //may be more as one line.
+      }
+    } else {
+      final String line;
+      if(args.length == 0){
+        line = dateFormatMsg.format(creationTime) + "; " + identNumber + "; " + text;
+      } else {
+        line = dateFormatMsg.format(creationTime) + "; " + identNumber + "; " + String.format(text,args);
+      }
+      reportln(reportLevel, line);
+    }
+    return false;
+  }
+
+  
   
   class LogMessageImplConsole implements LogMessage
   {
-    final private SimpleDateFormat dateFormat = new SimpleDateFormat("MMM-dd HH:mm:ss.SSS: ");
 
 		@Override
 		public void close() {}
@@ -1139,9 +1167,8 @@ public abstract class MainCmd implements MainCmd_ifc
 		@Override
 		public boolean sendMsgVaList(int identNumber, OS_TimeStamp creationTime,
 				String text, Va_list args) {
-			String line = dateFormat.format(creationTime) + "; " + identNumber + "; " + String.format(text,args.get());
-	    reportln(Report.info, line);
-			return false;
+		  Object oArgs = args.get();
+		  return sendMsgTime(identNumber, creationTime, text, oArgs);
 		}
 
 		@Override
@@ -1152,28 +1179,46 @@ public abstract class MainCmd implements MainCmd_ifc
 		@Override
 		public boolean sendMsgTime(int identNumber, OS_TimeStamp creationTime,
 				String text, Object... args) {
-			if(false && args.length == 0){
-				//no arguments, no formatting!
-			  if(fReport != null)
-		    { String line = dateFormat.format(creationTime) + "; " + identNumber + "; ";
-		      fReport.writeln("");
-		      fReport.write(line);
-		      fReport.write(text);  //may be more as one line.
-		    }
-			} else {
-				final String line;
-				if(args.length == 0){
-				  line = dateFormat.format(creationTime) + "; " + identNumber + "; " + text;
-				} else {
-				  line = dateFormat.format(creationTime) + "; " + identNumber + "; " + String.format(text,args);
-				}
-				final int reportLevel = identNumber == 0 ? Report.info :
-					identNumber <= Report.fineDebug ? identNumber : Report.info;
-				reportln(reportLevel, line);
-		  }
-			return false;
+      final int reportLevel = identNumber == 0 ? Report.info :
+        identNumber <= Report.fineDebug ? identNumber : Report.info;
+			return sendMsgTimeToReport(identNumber, reportLevel, creationTime, text, args);  	
 		}
   	
+  }
+  
+
+  
+  
+  class LogMessageImplErrConsole implements LogMessage
+  {
+
+    @Override
+    public void close() {}
+  
+    @Override
+    public void flush() {}
+  
+    @Override
+    public boolean isOnline() { return true; }
+
+    @Override
+    public boolean sendMsgVaList(int identNumber, OS_TimeStamp creationTime,
+        String text, Va_list args) {
+      Object oArgs = args.get();
+      return sendMsgTime(identNumber, creationTime, text, oArgs);
+    }
+
+    @Override
+    public boolean sendMsg(int identNumber, String text, Object... args) {
+      return sendMsgTime(identNumber, OS_TimeStamp.os_getDateTime(), text, args);
+    }
+
+    @Override
+    public boolean sendMsgTime(int identNumber, OS_TimeStamp creationTime,
+        String text, Object... args) {
+      return sendMsgTimeToReport(identNumber, Report.error, creationTime, text, args);   
+    }
+    
   }
   
   class LogMessageImplFile implements LogMessage
@@ -1224,9 +1269,13 @@ public abstract class MainCmd implements MainCmd_ifc
   
   LogMessageImplConsole logMessageConsole = new LogMessageImplConsole();
   
+  LogMessageImplErrConsole logMessageErrConsole = new LogMessageImplErrConsole();
+  
   LogMessageImplFile logMessageFile = new LogMessageImplFile();
   
   @Override public LogMessage getLogMessageOutputConsole(){ return logMessageConsole; }
+  
+  @Override public LogMessage getLogMessageErrorConsole(){ return logMessageErrConsole; }
   
   @Override public LogMessage getLogMessageOutputFile(){ return logMessageFile; }
 

@@ -38,6 +38,12 @@ public class ReportWrapperLog implements Report
   }
 
   @Override
+  public LogMessage getLogMessageErrorConsole()
+  {
+    return log;
+  }
+
+  @Override
   public LogMessage getLogMessageOutputFile()
   {
     return log;

@@ -51,6 +51,7 @@ public interface Report
 {
   /**Version and history:
    * <ul>
+   * <li>2012-03-30 Hartmut new {@link #getLogMessageErrorConsole()}
    * <li>2011-10-11 Hartmut new {@link #setOutputChannels(Appendable, Appendable)}. All outputs are redirect-able now.
    *   Used for output in a graphical text box.
    * <li>2007-12-29 Hartmut  some methods from mainCmd_ifc are displaced here. 
@@ -267,6 +268,11 @@ public interface Report
    * @return never null. 
    */
   LogMessage getLogMessageOutputConsole();
+  
+  /**Gets a LogMessage error output.
+   * @return never null. 
+   */
+  LogMessage getLogMessageErrorConsole();
   
   /**Gets a LogMessage output.
    * @return never null. 
