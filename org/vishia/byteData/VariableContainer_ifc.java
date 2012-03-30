@@ -22,6 +22,8 @@
  *******************************************************************************/ 
 package org.vishia.byteData;
 
+import org.vishia.util.Event;
+
 
 /**This interface defines the access to search a variable in any container. 
  * It is used as universal concept to hold named variables.
@@ -30,6 +32,39 @@ package org.vishia.byteData;
 public interface VariableContainer_ifc
 {
 
+  /**Version, history and license
+   * <ul>
+   * <li>2012-03-31 Hartmut new: {@link #setCallbackOnReceivedData(Runnable)}. It is used for the
+   *   {@link org.vishia.inspectorAccessor.InspcMng} and {@link org.vishia.guiInspc.InspcGui} now. 
+   * <li>2010-06-00 Hartmut created. 
+   * </ul>
+   * <br><br>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   */
+  public static final int version = 20120331;
+  
 	/**Searches a variable in the given container by textual given name.
 	 * @param name The name of the variable. It may contain indices in textual form
 	 *             written in [index,index,...] whereby index is a numerical value.
@@ -41,4 +76,9 @@ public interface VariableContainer_ifc
 	 * @return null if the variable not found, else the variable access description.
 	 */
 	VariableAccess_ifc getVariable(String name, int[] index);
+	
+	/**Ensures that the variables will get the actual values, maybe forces communication with any device. */
+	//void refreshValues();
+	
+	void setCallbackOnReceivedData(Runnable callback);
 }

@@ -88,7 +88,7 @@ public class MsgPrintStream
             int nextGrpIdent;
             int catastrophicCount = 0;
             do{
-              if(++catastrophicCount > 10000) new IllegalArgumentException("Atomic");
+              if(++catastrophicCount > 10000) throw new IllegalArgumentException("Atomic");
               nextGrpIdent = nextGroupIdent.get();
             } while( !nextGroupIdent.compareAndSet(nextGrpIdent, nextGrpIdent + zGroup));
             grpIdent = new GroupIdent(nextGrpIdent);
@@ -96,15 +96,15 @@ public class MsgPrintStream
           }
           int catastrophicCount = 0;
           do{
-            if(++catastrophicCount > 10000) new IllegalArgumentException("Atomic");
+            if(++catastrophicCount > 10000) throw new IllegalArgumentException("Atomic");
             nIdent1 = grpIdent.nextIdentInGroup.get();
           } while( !grpIdent.nextIdentInGroup.compareAndSet(nIdent1, nIdent1 + 1));
         } else {  //no group 
           int catastrophicCount = 0;
           do{
-            if(++catastrophicCount > 10000) new IllegalArgumentException("Atomic");
+            if(++catastrophicCount > 10000) throw new IllegalArgumentException("Atomic");
             nIdent1 = nextIdent.get();
-          } while( nextIdent.compareAndSet(nIdent1, nIdent1 + 1));
+          } while( !nextIdent.compareAndSet(nIdent1, nIdent1 + 1));
           
         }
         nIdent = new Integer(nIdent1);
