@@ -46,9 +46,10 @@ import org.vishia.mainCmd.Report;
  */
 public class ByteDataSymbolicAccess {
 
-	/**Version, able to read as hex yyyymmdd.
-	 * Changes:
+  /**Version, history and license. The version number is a date written as yyyymmdd as decimal number.
 	 * <ul>
+	 * <li>2012-04-01 Hartmut new: Because enhanced {@link VariableAccess_ifc} new {@link Variable#getType()}
+	 *   and {@link Variable#getDimension(int)}.
 	 * <li>2012-03-02 Hartmut chg: Dissolving the readConfig because it needs the ZBNF parser
 	 *   which isn't part of this component up to now. It may be seen as additional functionality.
 	 *   Base functionality is gotten without the more complex parser.
@@ -65,8 +66,31 @@ public class ByteDataSymbolicAccess {
 	 * <li>nice: Only a nice correction, without changing of functionality, without changing of syntax.
 	 * <li>descr: Change of description of elements.
 	 * </ul> 
+   * <br><br> 
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
 	 */
-	public final static int versionStamp = 0x20101203;
+	public final static int versionStamp = 20120401;
 	
 	/**An instance is created and filled from ZBNF-parser using reflection.
 	 */
@@ -100,6 +124,17 @@ public class ByteDataSymbolicAccess {
 			this.bytes = bytes;
 		}
 
+		
+	  @Override public char getType(){ return typeChar; }
+	  
+	  @Override public int getDimension(int dimension){
+	    if(dimension == 0){ return nrofArrayElements <=1 ? 0 : 1; }
+	    else if(dimension == 1){ return nrofArrayElements <=1 ? 0 : nrofArrayElements; }
+	    else return 0;
+	  }
+	  
+
+		
 		@Override public int getInt(int ...ixArray)
 		{ int value = 0;
 			int nrofBytes = getNrofBytes();
@@ -137,14 +172,14 @@ public class ByteDataSymbolicAccess {
 		}
 
 		@Override
-		public String getString(int ixArray)
+		public String getString(int ...ixArray)
 		{
 			// TODO Auto-generated method stub
 			return null;
 		}
 
 		@Override
-		public String setString(String value, int ixArray)
+		public String setString(String value, int ...ixArray)
 		{
 			// TODO Auto-generated method stub
 			return null;

@@ -37,6 +37,39 @@ package org.vishia.byteData;
  */
 public interface VariableAccess_ifc
 {
+  
+  /**Version, history and license
+   * <ul>
+   * <li>2012-03-31 Hartmut enhanced {@link #getType()}
+   * <li>2010-06-00 Hartmut created to access values in an UDP-telegram with given positions.
+   *   The interface permits an access independent of the concrete implementation. 
+   * </ul>
+   * <br><br>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   */
+  public static final int version = 20120331;
 
 	/**Gets a integer-type value from this variable. The variable contains the information, 
 	 * whether it is long, short etc. If the variable contains a long value greater as the integer range,
@@ -87,15 +120,24 @@ public interface VariableAccess_ifc
 	 * @param ixArray unused if it isn't an indexed variable.
 	 * @return the value.
 	 */
-	String getString(int ixArray);
+	String getString(int ...ixArray);
 	
 	/**Sets the value into the variable
 	 * @param value The value given as String.
 	 * @param ixArray unused if it isn't an indexed variable.
 	 * @return The value really set (maybe shortened).
 	 */
-	String setString(String value, int ixArray);
+	String setString(String value, int ...ixArray);
 	
+	/**Returns the type of the variable:
+	 * @return B, S, I, J, F, D, s for byte, short, integer, long, float, double and string.
+	 */
+	char getType();
 	
+	/**Returns the number of dimension if it is an array or its number of elements.
+	 * @param dimension 0 to get number of dimension, 1... to get the length of the dimension.
+	 * @return 0 if it hasn't such an dimension.
+	 */
+	int getDimension(int dimension);
 	
 }

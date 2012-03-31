@@ -75,7 +75,14 @@ public interface VariableContainer_ifc
 	 *        but the array-variable is returned correctly. The information about the index is lost then.
 	 * @return null if the variable not found, else the variable access description.
 	 */
-	VariableAccess_ifc getVariable(String name, int[] index);
+	//VariableAccess_ifc getVariable(String name, int[] index);
+	
+	
+	
+	
+	VariableAccessWithIdx getVariable(String dataPath);
+	
+	
 	
 	/**Ensures that the variables will get the actual values, maybe forces communication with any device. */
 	//void refreshValues();
