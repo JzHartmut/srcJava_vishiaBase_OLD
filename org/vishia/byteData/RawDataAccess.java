@@ -27,6 +27,7 @@
 package org.vishia.byteData;
 
 /**This class is use-able to free access to data.
+ * @deprecated, use {@link ByteDataAccessSimple} instead.
  */ 
 public class RawDataAccess  extends ByteDataAccess
 {

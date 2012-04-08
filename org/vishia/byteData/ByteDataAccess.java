@@ -114,6 +114,8 @@ public abstract class ByteDataAccess
 {
 	/**The version. 
 	 * <ul>
+	 * <li>2012-04-07 Hartmut new: {@link #reset(int)}, some comments.
+	 * <li>2012-03-00 Hartmut Note: compare it with java.nio.ByteBuffer. But a ByteBuffer is abstract.
 	 * <li>2010-12-20: Hartmut chg: remove the toString-method using StringFormatter, because it is too complex for C-usage.
 	 *   The toString was only able to use for debugging.
 	 * <li>2010-02-02: Hartmut new:  getChildFloat(), getChildDouble().
@@ -187,16 +189,17 @@ public abstract class ByteDataAccess
   //protected static final String sConvertHiChars = "���?���^�~{}[|]���\\.............................................";
 
 
-  /**returns the length of the head. It is specified by {@link specifyLengthElementHead()}
-   * of the derivated class.
+  /**returns the length of the head. It is specified lastly by {@link specifyLengthElementHead()}
+   * of the derived class. But this method returns the difference between (idxFirstChild - idxBegin),
+   * which is initialized in construction or {@link #assignData(byte[], int)}-invocations and not changed normally.
    */ 
   public final int getLengthHead(){ return idxFirstChild - idxBegin; }
   
 
   /** Sets the elements data to the default empty data.
-   * This method should not called outside of this base class, likewise not in the derivated class itself.
+   * This method should not called outside of this base class, likewise not in the derived class itself.
    * This method is only called inside this base class itself inside the methods addChild() and assignEmpty().
-   * But only the derivated class knows how to set empty data.
+   * But only the derived class knows how to set empty data.
    * It must specify that like the followed sample:
    * <pre>
    *protected void specifyEmptyDefaultData()
@@ -206,43 +209,43 @@ public abstract class ByteDataAccess
    *  data[idxBegin + kIdxMax] = kNotAValue;
    *}
    *</pre>
+   * The default implementation is empty.
    */
-  abstract protected void specifyEmptyDefaultData();
+  protected abstract void specifyEmptyDefaultData();
 
 
 
   /** Specifies the length of the head data. This is the index of the first child relative to the start position of the element.
    * This method is called inside this base class itself inside some methods. Outside the method may be called
-   * at example to calculate the size of data.</br>
-   * Only the derivated class knows the position of the first child element.
+   * for example to calculate the size of data.</br>
+   * Only the derived class knows the position of the first child element.
    * It must specify that like the followed sample:
    * <pre>
    *protected void specifyLengthElementHead()
    *{ return kIdxFirstChild;  //kIdxFistChild should be defined as static final int.
    *}
    *</pre>
-   *  @return Position of the first child element relative to the start position or -1.
+   *  @return Position of the first child element relative to the start position.
    */
   public abstract int specifyLengthElementHead();
 
 
-  /** Returns the actual length of the whole element presenting with this class.
-   * This method should be specified in the derivated class.
+  /** Returns the actual length of the whole data presenting with this instance.
+   * This method should be specified in the derived class.
    * The method is called inside this base class in the methods assignAsChild()
    * to calculate the {@link idxEnd}.
    * <br>
    * The calculation of the whole length of the element should be considered
-   * all children inside this element. The structure is user-specific. Only some examples
+   * all existing children inside this element. The structure is user-specific. Only some examples
    * may be given here:
    * <ul><li>If all children have a constant length and the number of children is known,
    *   the calculation of the length is simple: lengthOfHead + nrofChilds * lengthOfChilds.</li>
    * <li>If the children have a variably length, all children should be checked
    *   about its length.<li>
    * </ul>
-   * If the actual element are TODO better explain when and why.
    *
    * @return The length of this existing element or -1, if the length is not fix yet.
-   * @throws XmlBinCodeElementException If the data inside are corrupted, the user can throw this exception.
+   * @throws IllegalArgumentException If the data inside are corrupted, the user can throw this exception.
    */
   protected abstract int specifyLengthElement()
   throws IllegalArgumentException;
@@ -277,7 +280,7 @@ public abstract class ByteDataAccess
 
 
   /** Constructs a new empty instance. Use assign() to work with it. */
-  public ByteDataAccess()
+  protected ByteDataAccess()
   { this.data = null;
     this.bBigEndian = false;
     bExpand = false;
@@ -320,7 +323,8 @@ public abstract class ByteDataAccess
   
   /**Assigns new data to this element at given index in data. <br>
    * The user may overwrite this method and call super.assignData(data, length) inside
-   * if some additional actions should be done.<br/>
+   * if some additional actions should be done.
+   * <br/>
    * This method is also usefull to deassign a current data buffer, call <code>assign(null, 0);</code>.
    * <br>
    * If the element are using before, its connection to an other parent is dissolved.
@@ -342,23 +346,56 @@ public abstract class ByteDataAccess
     if(index < 0)
     { throw new RuntimeException("idx have to be >=0");
     }
-    if(lengthData == 0)
-    { throw new RuntimeException("length ==0 is not accepted, it may be a argument mistake.");
-    }
-    bExpand = (lengthData <= 0);
     idxBegin = index; 
-    idxCurrentChild = -1;
-    idxFirstChild = idxCurrentChildEnd = index + specifyLengthElementHead(); //-1;         //no length of element is known, it means, no child is appended yet.
-    idxEnd = bExpand ? idxFirstChild : lengthData;
-    if(idxEnd > data.length)
-    { throw new IllegalArgumentException("not enough data bytes, requested=" + idxEnd + ", buffer-length=" + data.length);
-    }
     if(parent!= null && parent.currentChild == this)
     { parent.currentChild = null;  //the child is invalid because it is new assigned.
     }
     parent = null;
-    currentChild = null;
+    reset(lengthData);
     assignDataToFixChilds();
+  }
+  
+  
+  /**Resets the view to the buffer. The data in the buffer may be set newly. Either they are declared
+   * as empty, then call <pre>
+   * reset(0);  //all data are invalid.
+   * <pre>
+   * In that case the head data are initialized calling {@link #specifyEmptyDefaultData()}
+   * from the derived class.
+   * <br><br>
+   * Or the data are set newly with any designated content, then call <pre>
+   * reset(length);
+   * with the known length. Then the data can be evaluate by calling {@link #addChild(ByteDataAccess)}.
+   * or by getting data from the head only if children should ot be used.
+   * <br><br>
+   * See {@link #assignEmpty(byte[])}, {@link #assignData(byte[], int)}. This routine
+   * is called there after setting the data reference and the {@link #idxBegin}. In opposite to the
+   * newly assignment of data, the {@link #data}-reference is not changed, the {@link #idxBegin}
+   * is not changed and a {@link #parent} is not changed. It means, a reset can be invoked for any child
+   * of data without changing the context.
+   * 
+   * @param lengthData Number of valid designated content in the associated buffer.
+   *   
+   */
+  public void reset(int lengthData){
+    int lengthHeadSpecified = specifyLengthElementHead();
+    if(lengthData <= 0){
+      specifyEmptyDefaultData();
+      bExpand = true;
+    } else {
+      bExpand = lengthData <= 0;  //expand if the data have no head.
+    }
+    if(currentChild !=null){
+      currentChild.detach();
+      currentChild = null;
+    }
+    idxCurrentChild = -1;
+    idxFirstChild = idxCurrentChildEnd = idxBegin + lengthHeadSpecified; 
+    idxEnd = bExpand ? idxFirstChild : lengthData;
+    if(idxEnd > data.length)
+    { throw new IllegalArgumentException("not enough data bytes, requested=" + idxEnd + ", buffer-length=" + data.length);
+    }
+    
   }
   
   
@@ -743,6 +780,7 @@ public abstract class ByteDataAccess
     { //do it only in expand mode
       idxEnd = idxCurrentChildEndNew;
     }
+    assert(idxCurrentChildEndNew >= idxFirstChild);
     idxCurrentChildEnd = idxCurrentChildEndNew;
     if(parent != null)
     { parent.correctIdxChildEnd(idxCurrentChildEndNew);
@@ -779,7 +817,7 @@ public abstract class ByteDataAccess
   throws IllegalArgumentException
   { //NOTE: there is no instance for this child, but it is the current child anyway.
     setIdxtoNextCurrentChild();
-    if(!setIdxCurrentChildEnd(nrofBytes))
+    if(!setIdxCurrentChildEnd(Math.abs(nrofBytes)))
     { //NOTE: to read from idxInChild = 0, build the difference as shown:
       long value = _getLong(idxCurrentChild - idxBegin, nrofBytes);  
       return value;
@@ -1179,11 +1217,16 @@ public abstract class ByteDataAccess
 
 
   
-  /**Sets the length of the current element, considering all children.
-   * If the element is the current child of its parent, the idxChildEnd of parent is set.
-   * Therefore a call of next() or addChild uses the idxChildEnd-position for a new child.
+  /**Sets the length of the element in this and all {@link #parent} of this. 
+   * If the element is a child of any parent, it should be the current child of the parent. 
+   * The {@link #idxEnd} and the {@link #idxCurrentChildEnd} of this and all its parents is set
+   * with the (this.{@link #idxBegin}+length).
+   * <br><br>
+   * This routine is usefully if data are set in a child directly without sub-tree child structure
+   * (without using {@link #addChild(ByteDataAccess)}).
+   * It is if the element has data after the head with different length without an own children structure.
    * 
-   * @param length The length inclusive all children.
+   * @param length The length of data of this current (last) child.
    */
   final public void setLengthElement(int length)
   { //if(!bExpand && )
