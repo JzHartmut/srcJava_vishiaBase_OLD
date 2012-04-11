@@ -311,7 +311,7 @@ public StringPart assignReplaceEnv(StringBuilder input)
     input.replace(pos1, pos9, sEnv);
     zInput = input.length();
   }
-  this.content = content.toString();
+  this.content =  input.toString();
   startMin = startLast = start = 0;
   endMax = end = endLast = content.length();
   bStartScan = bCurrentOk = true;

@@ -377,7 +377,7 @@ public abstract class ByteDataAccess
    * @param lengthData Number of valid designated content in the associated buffer.
    *   
    */
-  public void reset(int lengthData){
+  public final void reset(int lengthData){
     int lengthHeadSpecified = specifyLengthElementHead();
     if(lengthData <= 0){
       specifyEmptyDefaultData();

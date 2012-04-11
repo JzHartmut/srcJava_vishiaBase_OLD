@@ -104,6 +104,7 @@ public class CmdStore
       try{ 
         while( (sLine = reader.readLine()) !=null){
           if(sLine.contains("$")){
+            uLine.setLength(0);
             uLine.append(sLine.trim());
             spLine.assignReplaceEnv(uLine);
             sLine = uLine.toString();

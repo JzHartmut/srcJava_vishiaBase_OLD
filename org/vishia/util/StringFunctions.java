@@ -187,7 +187,7 @@ public class StringFunctions {
    * @param parsedCharsP
    * @return
    */
-  public static float parseFloat_Fwc(String src, int pos, int sizeP, int[] parsedCharsP)
+  public static float parseFloat(String src, int pos, int sizeP, int[] parsedCharsP)
   {
     int parsedChars = 0;
     float ret;
@@ -205,17 +205,17 @@ public class StringFunctions {
         case 2: fracPart *= 0.01f; break;
         case 3: fracPart *= 0.001f; break;
         case 4: fracPart *= 0.0001f; break;
-        case 5: fracPart *= 1e-5f; break;
-        case 6: fracPart *= 1e-6f; break;
-        case 7: fracPart *= 1e-7f; break;
-        case 8: fracPart *= 1e-8f; break;
-        case 9: fracPart *= 1e-9f; break;
-        case 10: fracPart *= 1e-10f; break;
+        case 5: fracPart *= 1.0e-5f; break;
+        case 6: fracPart *= 1.0e-6f; break;
+        case 7: fracPart *= 1.0e-7f; break;
+        case 8: fracPart *= 1.0e-8f; break;
+        case 9: fracPart *= 1.0e-9f; break;
+        case 10: fracPart *= 1.0e-10f; break;
         }
         ret += fracPart;
       }
       parsedChars += zParsed[0]+1;  //maybe 0 if .123 is written
-      src += zParsed[0]+1; size -= zParsed[0]-1;
+      size -= zParsed[0]-1;
     }
     //TODO exponent
     if(parsedCharsP !=null){
