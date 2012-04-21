@@ -48,6 +48,8 @@ public class ByteDataSymbolicAccess {
 
   /**Version, history and license. The version number is a date written as yyyymmdd as decimal number.
 	 * <ul>
+	 * <li>2012-04-22 Hartmut minor change: {@link Variable#nrofBytes} is necessary for ZBNF parse result.
+	 *   But it isn't used yet.
 	 * <li>2012-04-01 Hartmut new: Because enhanced {@link VariableAccess_ifc} new {@link Variable#getType()}
 	 *   and {@link Variable#getDimension(int)}.
 	 * <li>2012-03-02 Hartmut chg: Dissolving the readConfig because it needs the ZBNF parser
@@ -90,7 +92,7 @@ public class ByteDataSymbolicAccess {
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
 	 */
-	public final static int versionStamp = 20120401;
+	public final static int versionStamp = 20120422;
 	
 	/**An instance is created and filled from ZBNF-parser using reflection.
 	 */
@@ -114,7 +116,10 @@ public class ByteDataSymbolicAccess {
 		
 		public int bitMask;
 		
-		public int XXXnrofBytes;
+		/**From ZBNF parsing.
+		 * 
+		 */
+		public int nrofBytes;
 		
 		public int nrofArrayElements;
 
@@ -137,13 +142,13 @@ public class ByteDataSymbolicAccess {
 		
 		@Override public int getInt(int ...ixArray)
 		{ int value = 0;
-			int nrofBytes = getNrofBytes();
-			int bytePos = ixArray.length ==0 || ixArray[0] < 0 ? this.bytePos : this.bytePos + ixArray[0] * nrofBytes;  //sizeof(int) is 4.
-			if(bytePos > data.length-nrofBytes) throw new IllegalArgumentException("file to short: " + data.length + ", requested: " + bytePos + nrofBytes);
+			int nrofBytes1 = getNrofBytes();
+			int bytePos = ixArray.length ==0 || ixArray[0] < 0 ? this.bytePos : this.bytePos + ixArray[0] * nrofBytes1;  //sizeof(int) is 4.
+			if(bytePos > data.length-nrofBytes1) throw new IllegalArgumentException("file to short: " + data.length + ", requested: " + bytePos + nrofBytes1);
 			switch(this.typeChar){
 			case 'D': value = (int)dataAccess.getDoubleVal(bytePos); break;
 			case 'F': value = (int)dataAccess.getFloatVal(bytePos); break;
-			case 'I': case 'J': case 'S': case 'B': value = dataAccess.getIntVal(bytePos, -nrofBytes); break;
+			case 'I': case 'J': case 'S': case 'B': value = dataAccess.getIntVal(bytePos, -nrofBytes1); break;
 			case 'Z': value = (dataAccess.getIntVal(bytePos, 1) & this.bitMask) == 0 ? 0: 1; break;
 			default: new IllegalArgumentExceptionJc("fault type, expected: int, found: ", typeChar);
 			}//switch
@@ -152,13 +157,13 @@ public class ByteDataSymbolicAccess {
 		
 		
 		@Override public int setInt(int value, int ...ixArray)
-		{ int nrofBytes = getNrofBytes();
-			int bytePos = ixArray.length ==0 || ixArray[0] < 0 ? this.bytePos : this.bytePos + ixArray[0] * nrofBytes;  //sizeof(int) is 4.
-			if(bytePos > data.length-nrofBytes) throw new IllegalArgumentException("file to short: " + data.length + ", requested: " + bytePos + nrofBytes);
+		{ int nrofBytes1 = getNrofBytes();
+			int bytePos = ixArray.length ==0 || ixArray[0] < 0 ? this.bytePos : this.bytePos + ixArray[0] * nrofBytes1;  //sizeof(int) is 4.
+			if(bytePos > data.length-nrofBytes1) throw new IllegalArgumentException("file to short: " + data.length + ", requested: " + bytePos + nrofBytes1);
 			switch(typeChar){
 			case 'D': dataAccess.setDoubleVal(bytePos, value); break;
 			case 'F': dataAccess.setFloatVal(bytePos, value); break;
-			case 'I': case 'J': case 'S': case 'B': dataAccess.setIntVal(bytePos, nrofBytes, value); break;
+			case 'I': case 'J': case 'S': case 'B': dataAccess.setIntVal(bytePos, nrofBytes1, value); break;
 			case 'Z': {
 				byte byteVal = (byte)dataAccess.getIntVal(bytePos, 1);
 				if(value == 0){ byteVal &= ~bitMask; }
@@ -188,13 +193,13 @@ public class ByteDataSymbolicAccess {
 		//@Override
 		public float getFloat(int... ixArray)
 		{ float value = 0.0f;
-			int nrofBytes = getNrofBytes();
-			int bytePos = ixArray.length ==0 || ixArray[0] < 0 ? this.bytePos : this.bytePos + ixArray[0] * nrofBytes;  //sizeof(int) is 4.
-			if(bytePos > data.length-nrofBytes) throw new IllegalArgumentException("file to short: " + data.length + ", requested: " + bytePos + nrofBytes);
+			int nrofBytes1 = getNrofBytes();
+			int bytePos = ixArray.length ==0 || ixArray[0] < 0 ? this.bytePos : this.bytePos + ixArray[0] * nrofBytes1;  //sizeof(int) is 4.
+			if(bytePos > data.length-nrofBytes1) throw new IllegalArgumentException("file to short: " + data.length + ", requested: " + bytePos + nrofBytes1);
 			switch(typeChar){
 			case 'D': value = (float)dataAccess.getDoubleVal(bytePos); break;
 			case 'F': value = dataAccess.getFloatVal(bytePos); break;
-			case 'I': case 'J': case 'S': case 'B': value = dataAccess.getIntVal(bytePos, -nrofBytes); break;
+			case 'I': case 'J': case 'S': case 'B': value = dataAccess.getIntVal(bytePos, -nrofBytes1); break;
 			default: new IllegalArgumentException("fault type, expected: float, found: " + typeChar);
 			}//switch
 			return value;
@@ -202,15 +207,15 @@ public class ByteDataSymbolicAccess {
 
 		//@Override 
 		public float setFloat(float value, int ...ixArray)
-		{ int nrofBytes = getNrofBytes();
-			int bytePos = ixArray.length ==0 || ixArray[0] < 0 ? this.bytePos : this.bytePos + ixArray[0] * nrofBytes;  //sizeof(int) is 4.
-			if(bytePos > data.length-nrofBytes) throw new IllegalArgumentException("file to short: " + data.length + ", requested: " + bytePos + nrofBytes);
+		{ int nrofBytes1 = getNrofBytes();
+			int bytePos = ixArray.length ==0 || ixArray[0] < 0 ? this.bytePos : this.bytePos + ixArray[0] * nrofBytes1;  //sizeof(int) is 4.
+			if(bytePos > data.length-nrofBytes1) throw new IllegalArgumentException("file to short: " + data.length + ", requested: " + bytePos + nrofBytes1);
 			switch(typeChar){
 			case 'D': dataAccess.setDoubleVal(bytePos, value); break;
 			case 'F': dataAccess.setFloatVal(bytePos, value); break;
 			case 'I': case 'J': case 'S': case 'B': 
 				//TODO check whether the value matches
-				dataAccess.setIntVal(bytePos, nrofBytes, (int)value); break;
+				dataAccess.setIntVal(bytePos, nrofBytes1, (int)value); break;
 			//TODO case 'Z': (dataAccess.setIntVal(bytePos, 1) & variable.bitMask) == 0 ? 0: 1; break;
 			default: new IllegalArgumentException("fault type, expected: float, found: " + typeChar);
 			}//switch
@@ -220,13 +225,13 @@ public class ByteDataSymbolicAccess {
 		@Override
 		public double getDouble(int... ixArray)
 		{ double value = 0.0;
-			int nrofBytes = getNrofBytes();
-			int bytePos = ixArray.length ==0 || ixArray[0] < 0 ? this.bytePos : this.bytePos + ixArray[0] * nrofBytes;  //sizeof(int) is 4.
-			if(bytePos > data.length-nrofBytes) throw new IllegalArgumentException("file to short: " + data.length + ", requested: " + bytePos + nrofBytes);
+			int nrofBytes1 = getNrofBytes();
+			int bytePos = ixArray.length ==0 || ixArray[0] < 0 ? this.bytePos : this.bytePos + ixArray[0] * nrofBytes1;  //sizeof(int) is 4.
+			if(bytePos > data.length-nrofBytes1) throw new IllegalArgumentException("file to short: " + data.length + ", requested: " + bytePos + nrofBytes1);
 			switch(typeChar){
 			case 'D': value = dataAccess.getDoubleVal(bytePos); break;
 			case 'F': value = dataAccess.getFloatVal(bytePos); break;
-			case 'I': case 'J': case 'S': case 'B': value = dataAccess.getIntVal(bytePos, -nrofBytes); break;
+			case 'I': case 'J': case 'S': case 'B': value = dataAccess.getIntVal(bytePos, -nrofBytes1); break;
 			default: new IllegalArgumentException("fault type, expected: float, found: " + typeChar);
 			}//switch
 			return value;
@@ -240,16 +245,16 @@ public class ByteDataSymbolicAccess {
 		}
 		
 		private int getNrofBytes()
-		{ int nrofBytes = 0;  //for unexpected types: nrofBytes may be unused.
+		{ int nrofBytes1 = 0;  //for unexpected types: nrofBytes may be unused.
 			switch(typeChar){
-			case 'D': nrofBytes = 8; break;
-			case 'F': nrofBytes = 4; break;
-			case 'J': nrofBytes = 8; break;
-			case 'I': nrofBytes = 4; break;
-			case 'S': nrofBytes = 2; break;
-			case 'B': nrofBytes = 1; break;
+			case 'D': nrofBytes1 = 8; break;
+			case 'F': nrofBytes1 = 4; break;
+			case 'J': nrofBytes1 = 8; break;
+			case 'I': nrofBytes1 = 4; break;
+			case 'S': nrofBytes1 = 2; break;
+			case 'B': nrofBytes1 = 1; break;
 			}
-			return nrofBytes;
+			return nrofBytes1;
 			
 		}
 

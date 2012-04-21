@@ -106,6 +106,8 @@ public class VariableAccessWithIdx
     return bValue;
   }
 
+  public void setFloat(float value){ variable.setFloat(value, ixArray); }
+
   
   public void setString(String src){ variable.setString(src, ixArray); }
   
