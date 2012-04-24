@@ -49,25 +49,6 @@ public class VariableAccessWithIdx
    */
   public static final int version = 20120331;
 
-  public VariableAccessWithIdx(VariableAccess_ifc variable, int[] idx, int bit, int mask){
-    this.variable = variable;
-    this.ixArray = idx;
-    this.bit = bit;
-    this.mask = mask;
-  }
-  
-  public VariableAccessWithIdx(VariableAccess_ifc variable, int[] idx){
-    this(variable, idx, 0, -1);
-  }
-  
-  public VariableAccessWithIdx(VariableAccess_ifc variable){
-    this(variable, null, 0, -1);
-  }
-  
-  public VariableAccessWithIdx(VariableAccess_ifc variable, int bit, int mask){
-    this(variable, null, bit, mask);
-  }
-  
   /**The entity of a variable. */
   protected final VariableAccess_ifc variable;
   
@@ -86,14 +67,50 @@ public class VariableAccessWithIdx
    */
   protected final int bit;
 
+  public VariableAccessWithIdx(VariableAccess_ifc variable, int[] idx, int bit, int mask){
+    if(variable ==null){
+      throw new IllegalArgumentException("Variable is not given");
+    }
+    this.variable = variable;
+    this.ixArray = idx;
+    this.bit = bit;
+    this.mask = mask;
+  }
+  
+  public VariableAccessWithIdx(VariableAccess_ifc variable, int[] idx){
+    this(variable, idx, 0, -1);
+  }
+  
+  public VariableAccessWithIdx(VariableAccess_ifc variable){
+    this(variable, null, 0, -1);
+  }
+  
+  public VariableAccessWithIdx(VariableAccess_ifc variable, int bit, int mask){
+    this(variable, null, bit, mask);
+  }
+  
   public double getDouble(){ return variable.getDouble(ixArray); }
 
   public float getFloat(){ return variable.getFloat(ixArray); }
 
   public String getString(){ return variable.getString(ixArray); }
+  
+  public long getLastRefreshTime(){ 
+    if(variable == null){
+      return -1;
+    } else {
+      return variable.getLastRefreshTime(); 
+    }
+  }
 
-  public char getType(){ return variable.getType(); }
-
+  public char getType(){ 
+    if(variable == null){
+      return '?';
+    } else {
+      return variable.getType();
+    }
+  }
+ 
   /**Returns the integer representation of the value of the variable.
    * Note: If the variable itself is a byte or 16-bit-type, only 1 or 2 bytes are gotten from the variable
    * respectively the index is regarded to the length of the variable.
@@ -105,6 +122,8 @@ public class VariableAccessWithIdx
     int bValue = (value >> bit) & mask;
     return bValue;
   }
+  
+  public VariableAccess_ifc getVariable(){ return variable; }
 
   public void setFloat(float value){ variable.setFloat(value, ixArray); }
 

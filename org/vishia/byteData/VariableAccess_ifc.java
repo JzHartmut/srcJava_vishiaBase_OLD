@@ -38,8 +38,11 @@ package org.vishia.byteData;
 public interface VariableAccess_ifc
 {
   
-  /**Version, history and license
+  /**Version, history and license.
    * <ul>
+   * <li>2012-04-25 Hartmut new {@link #requestValue(long)}, {@link #getLastRefreshTime()}:
+   *   A variable should be refreshed by determined call of {@link #requestValue(long)} if it holds
+   *   a value from a remote device.
    * <li>2012-03-31 Hartmut enhanced {@link #getType()}
    * <li>2010-06-00 Hartmut created to access values in an UDP-telegram with given positions.
    *   The interface permits an access independent of the concrete implementation. 
@@ -69,7 +72,7 @@ public interface VariableAccess_ifc
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20120331;
+  public static final int version = 20120425;
 
 	/**Gets a integer-type value from this variable. The variable contains the information, 
 	 * whether it is long, short etc. If the variable contains a long value greater as the integer range,
@@ -128,6 +131,17 @@ public interface VariableAccess_ifc
 	 * @return The value really set (maybe shortened).
 	 */
 	String setString(String value, int ...ixArray);
+	
+	
+	/**Requests a new value from the target device.
+	 */
+	void requestValue(long timeRequested);
+	
+	
+	/**Gets the time stamp when this variable was refreshed lastly.
+	 * @return -1 if this function is not supported, 0 if this variable was never set.
+	 */
+	long getLastRefreshTime();
 	
 	/**Returns the type of the variable:
 	 * @return B, S, I, J, F, D, s for byte, short, integer, long, float, double and string.

@@ -258,7 +258,12 @@ public class ByteDataSymbolicAccess {
 			
 		}
 
-		
+    @Override public void requestValue(long timeRequested)
+    {
+      ByteDataSymbolicAccess.this.timeRequestNewValue = timeRequested;
+    }
+
+    @Override public long getLastRefreshTime(){ return ByteDataSymbolicAccess.this.timeSetNewValue; }
 		
 	}
 	
@@ -273,6 +278,10 @@ public class ByteDataSymbolicAccess {
 	
 	int nrofData;
 	
+	long timeRequestNewValue;
+	
+	long timeSetNewValue;
+	
 	private RawDataAccess dataAccess = new RawDataAccess();
 	
 	public ByteDataSymbolicAccess(Report log)
@@ -285,23 +294,36 @@ public class ByteDataSymbolicAccess {
 	}
   
 	
-	public void assignData(byte[] data)
+	public void assignData(byte[] dataP)
 	{
-		assignData(data, data.length, 0);
+		assignData(dataP, dataP.length, 0);
 	}
 	
-	public void assignData(byte[] data, int length, int from)
-  { this.data = data;
+	public void assignData(byte[] dataP, int length, int from)
+  { this.data = dataP;
     this.ixStartData = from;
     this.nrofData = length;
     assert( (from + length) <= data.length);
     try{	dataAccess.assignData(data, length, from);
 		} catch (IllegalArgumentException exc) { }
 		dataAccess.setBigEndian(true);
+    timeRequestNewValue = 0;
   }
 	
-  
+
+	public void setRefreshTime(long time){ timeSetNewValue = time; timeRequestNewValue = 0; }
+	
+	
+	
   public int lengthData(){ return data ==null ? 0 : data.length; }
+  
+  /**Returns the time stamp (seconds after 1970) of the last call of {@link VariableAccess_ifc#requestValue(long)}
+   * for any variable of this container.
+   * @return 0 if no request is called after the last call of {@link #assignData(byte[])} or
+   *   {@link #assignData(byte[], int, int)}.
+   */
+  public long isRequestedNewData(){ return timeRequestNewValue; }
+  
   
   /**Searches a variable by name and returns it.
    * A variable is a description of the byte position. length, type in a byte[]-Array.

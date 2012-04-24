@@ -1,0 +1,3 @@
+--------------------------------------------------------------------------------------------------------------
+2012-04-25 Hartmut Schorrig
+* byteData.VariableAccess_ifc and its implementations: A variable should be refreshed by determined call of {@link #requestValue(long)} if it holds a value from a remote device.
