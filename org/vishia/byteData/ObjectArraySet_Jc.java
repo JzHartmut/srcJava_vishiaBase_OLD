@@ -57,7 +57,7 @@ public class ObjectArraySet_Jc extends ObjectArray_Jc
         super.assignData(imageData, imageData.length);
         //  super.assignFromParentsChild();
          //counts the number of classes
-          //Schleife über alle Elemente:
+          //loop over all elements:
           /** Test the image. If any problem with the offset, an exception is thrown.
            * The idxChild after last child have to hit exactly the idxEnd.
            * NOTE: The offset is always positiv, because it is masked.
