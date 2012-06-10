@@ -115,7 +115,7 @@ public class ReportWrapperLog implements Report
   @Override
   public void writeError(String sError)
   {
-    // TODO Auto-generated method stub
+    log.sendMsg(0, sError);
     
   }
 
