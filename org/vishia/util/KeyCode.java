@@ -35,6 +35,7 @@ public class KeyCode
   
   /**The version
    * <ul>
+   * <li>2012-06-17 new {@link #isControlFunctionMouseUpOrMenu(int)} etc. cluster of keys and actions.
    * <li>2011-11-18 new {@link #mouse1UpMoved}
    * <li>2011-09-30 improved
    * </ul>
@@ -62,7 +63,7 @@ public class KeyCode
    * <li>b: mouse button, menu
    * <li>d: drag and drop
    * <li>e: enter, esc etc.
-   * <li>f: function key
+   * <li>f: function key {@link #F}
    * <li>Use letter, not digits to recognize it well.
    * <li>Don't use a, e, 5 to distinguish with the alt, control, shift
    * 
@@ -72,9 +73,19 @@ public class KeyCode
   
   public final static int mAddKeys = 0xfff00000;
   
-  public final static int cursor = 0x000c0000;
+  /**Any of control or alt is pressed. */
+  public final static int mCtrlAlt = 0x0ff00000;
   
-  public static final int F =             0x000f0000;
+  //public final static int cursor = 0x000c0000;
+  
+  /**Function keys in {@link #mSpecialKeys}. */
+  public static final int function=      0x000f0000;
+  
+  /**Non-alpha-numeric keys in {@link #mSpecialKeys}. */
+  public static final int nonAlphanum =  0x000e0000;
+  
+  /**Alpha-numeric keys in {@link #mSpecialKeys}. */
+  public static final int alphanum =      0x00000000;
   
   public static final int F1 = 0x000f0031;
   
@@ -186,7 +197,7 @@ public class KeyCode
     if((code & 0xf0000000) == shift){ u.append("shift-"); }
     if((code & 0x0f000000) == alt){ u.append("alt-"); }
     if((code & 0x00f00000) == ctrl){ u.append("ctrl-"); }
-    if((code & 0x000f0000) == F){ u.append("F"); }
+    if((code & 0x000f0000) == function){ u.append("F"); }
     u.append((char)(code & 0x000000ff)); 
     this.str = u.toString();
   }
@@ -220,7 +231,7 @@ public class KeyCode
       //ends with F1..F9, F0, Fa, FB for F10, F11, F12
       if(test == 0){ test = 10;}
       else if(test >=13){ test -=3; }
-      ret |= F;
+      ret |= function;
       ret |= '0' + test;
       //TODO how to present F10, F11, F12?
     } else {
@@ -234,6 +245,39 @@ public class KeyCode
     if((key & (mAddKeys | mSpecialKeys))==0) return true; 
     if(key == del) return true;
     return false;
+  }
+  
+  /**returns true if it is a control or function key. Either function or ctrl combination.
+   * A control key controls actions of the user. The original control keys in the 1960-80 age were associated
+   * with the control key button. On PCs the function keys enhances this concept.
+   * Usual keys with ctrl-button and all function keys maybe in combination with ctrl, shift, alt are used for user-control of an application
+   * via keyboard. This combinations returns true.<br>
+   * A alphanumeric key only in combination with alt is not a control key. It is intended for menu actions. 
+   *   
+   * @param key
+   * @return
+   */
+  public static boolean isControlOrFunction(int key){
+    int type = key & mSpecialKeys;
+    return type == function || (type == alphanum && (key & ctrl) !=0);
+  }
+  
+  
+  /**Returns true if it is a control, function or graphical control key.
+   * It supports the typical situation for an action which should be invoked by a control or function key from the keyboard
+   * or only on mouse-up in any widget, or from an menu click.
+   * Usual a graphical button should act on mouse-up, not on mouse-down. That is because on touch screen a mouse down
+   * shows maybe a fault position or fault button activation. If the cursor will be move away, the button is not activated.  
+   * @param key
+   * @return
+   */
+  public static boolean isControlFunctionMouseUpOrMenu(int key){
+    int type = key & mSpecialKeys;
+    return key == KeyCode.menuEntered 
+      || key == KeyCode.mouse1Up 
+      || type == function 
+      || (type == alphanum && (key & mCtrlAlt) !=0);
+    
   }
 
   
