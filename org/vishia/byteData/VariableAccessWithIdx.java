@@ -15,7 +15,7 @@ public class VariableAccessWithIdx
   
   /**Version, history and license
    * <ul>
-   * <li>2012-03-31 Hartmut created. The problem was: In a {@link org.vishia.gral.ifc.GralWidget}
+   * <li>2012-03-31 Hartmut created. The problem was: In a {@link org.vishia.gral.base.GralWidget}
    *   the element {@link #idx} was contained but not any mask. The mask will be used now. But indices
    *   and masks are not a problem of the widget in a GUI, it is a problem of access to the variable.
    *   But the implementation of {@link VariableAccess_ifc} should not containt this things

@@ -241,9 +241,9 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
         } else {
           synchronized(this){
             if(commissionState != 'x'){  //exit?
-              commissionState = 'w';
+              commissionState = 'w';      //w = waiting, notify necessary
               try{ wait(1000); } catch(InterruptedException exc){}
-              if(commissionState == 'w'){ //can be changed while waiting
+              if(commissionState == 'w'){ //can be changed while waiting, set only to 'r' if 'w' is still present
                 commissionState = 'r';
               }
             }
