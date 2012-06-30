@@ -276,6 +276,7 @@ public class KeyCode
     return key == KeyCode.menuEntered 
       || key == KeyCode.mouse1Up 
       || type == function 
+      || type == nonAlphanum 
       || (type == alphanum && (key & mCtrlAlt) !=0);
     
   }

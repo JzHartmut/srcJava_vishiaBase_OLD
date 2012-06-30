@@ -3,12 +3,13 @@ package org.vishia.cmd;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.vishia.cmd.CmdStore.CmdBlock;
-import org.vishia.mainCmd.MainCmd_ifc;
-import org.vishia.mainCmd.Report;
+//import org.vishia.mainCmd.MainCmd_ifc;
+//import org.vishia.mainCmd.Report;
 
 /**This class stores some prepared commands for execution and executes it one after another.
  * The commands can contain placeholder for files.
@@ -70,8 +71,9 @@ public class CmdQueue implements Closeable
   
   private final CmdExecuter executer = new CmdExecuter();
   
-  private final MainCmd_ifc mainCmd;
+  //private final MainCmd_ifc mainCmd;
 
+  private PrintStream log;
   
   private boolean busy;
   
@@ -81,9 +83,9 @@ public class CmdQueue implements Closeable
   
   private Appendable cmdError = System.err;
   
-  public CmdQueue(MainCmd_ifc mainCmd)
+  public CmdQueue(PrintStream log)
   {
-    this.mainCmd = mainCmd;
+    this.log = log;
   }
   
 
@@ -156,8 +158,11 @@ public class CmdQueue implements Closeable
       busy = true;
       someExecute = true;
       try{
+        StringBuilder sCmdShow = new StringBuilder(120);
+        sCmdShow.append("CmdQueue - exec; ");
         if(cmd1.currentDir !=null){
           executer.setCurrentDir(cmd1.currentDir);
+          sCmdShow.append(cmd1.currentDir).append(">");
         }
         Class<?> javaClass = cmd1.cmd.getJavaClass();
         if(javaClass !=null){
@@ -165,6 +170,9 @@ public class CmdQueue implements Closeable
         } else {
           //a operation system command:
           String[] sCmd = cmd1.cmd.prepareCmd(cmd1);
+          for(String s1: sCmd){
+            sCmdShow.append(s1).append(" ");
+          }
           char kindOfExecution = cmd1.cmd.getKindOfExecution();
           if(">%".indexOf(kindOfExecution) >=0){
             if(outStatus !=null){ outStatus.append(">" + sCmd[0]); }
@@ -176,17 +184,22 @@ public class CmdQueue implements Closeable
               }
               cmdOutput.append("\n");
             }
-            mainCmd.writeInfoln("executes " + sCmd[0]);
+            log.println(sCmdShow);
+            //mainCmd.writeInfoln(sCmdShow.toString());
+            
             int exitCode = executer.execute(sCmd, null, cmdOutput, cmdError, false);
             if(exitCode == 0){ cmdOutput.append("JavaCmd: cmd execution successfull\n"); }
             else {cmdOutput.append("JavaCmd: cmd execution errorlevel = " + exitCode + "\n"); }
           } else if(kindOfExecution == '&'){
-            mainCmd.writeInfoln("executes " + sCmd[0]);
+            log.println(sCmdShow);
+            //mainCmd.writeInfoln(sCmdShow.toString());
             if(outStatus !=null){ outStatus.append("&" + sCmd[0]); }
             executer.execute(sCmd, null, null, null, false);
             //cmdOutput.append("JavaCmd; started; " + sCmd + "\n");
           } else {
-            mainCmd.writeInfoln("CmdQueue - unexpected kind of execution; " + kindOfExecution);
+            //mainCmd.writeInfoln("CmdQueue - unexpected kind of execution; " + kindOfExecution);
+            log.println("CmdQueue - unexpected kind of execution; " + kindOfExecution);
+            
           }
         }
       } catch(Exception exc){ System.out.println("Exception " + exc.getMessage()); }

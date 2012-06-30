@@ -64,6 +64,8 @@ public class CmdStore
     /**Returns all commands which are contained in this CmdBlock. */
     public final List<PrepareCmd> getCmds(){ return listBlockCmds; }
     
+    @Override public String toString(){ return name + listBlockCmds; }
+    
   }
   
   /**Contains all commands read from the configuration file in the read order. */
