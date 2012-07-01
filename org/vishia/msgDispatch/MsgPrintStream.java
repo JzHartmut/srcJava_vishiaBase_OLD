@@ -69,20 +69,88 @@ public class MsgPrintStream
   
   /**Map of all Strings to an message ident number.
    */
-  Map<String, Integer> idxIdent = new TreeMap<String, Integer>();
+  private final Map<String, Integer> idxIdent = new TreeMap<String, Integer>();
   
-  Map<String, GroupIdent> idxGroupIdent = new TreeMap<String, GroupIdent>();
+  private final Map<String, GroupIdent> idxGroupIdent = new TreeMap<String, GroupIdent>();
+  
+  private final PrintStream printStreamLog;
+
   
   
+  public MsgPrintStream(LogMessage logOut, int identStart, int sizeNoGroup, int sizeGroup) {
+    this.logOut = logOut;
+    this.nextIdent = new AtomicInteger(identStart);
+    
+    this.nextGroupIdent = new AtomicInteger(identStart + sizeNoGroup);
+
+    this.zGroup = sizeGroup;
+    printStreamLog = new PrintStreamAdapter();
+    //outStream = System.err;  //all not translated outputs
+    //System.setErr(printStreamLog);  //redirect all System.err.println to the MsgDispatcher or the other given logOut
+  }
+  
+  public PrintStream getPrintStreamLog(){ return printStreamLog; }
+
+
+  
+  private void convertToMsg(String s, Object... args) {
+    int posSemicolon = s.indexOf(';');
+    int posColon = s.indexOf(':');
+    int posSep = posColon < 0 || posSemicolon < posColon ? posSemicolon : posColon;  //more left char of ; :
+    final String sIdent;
+    if(posSep >0){ sIdent = s.substring(0, posSep); }
+    else { sIdent = s; }
+    
+    Integer nIdent = idxIdent.get(sIdent);
+    if(nIdent == null){
+      int nIdent1;
+      int posGrp = sIdent.indexOf('-');
+      
+      if(posGrp >0){
+        String sGrp = sIdent.substring(0, posGrp).trim();
+        GroupIdent grpIdent = idxGroupIdent.get(sGrp);
+        if(grpIdent == null){
+          int nextGrpIdent;
+          int catastrophicCount = 0;
+          do{
+            if(++catastrophicCount > 10000) throw new IllegalArgumentException("Atomic");
+            nextGrpIdent = nextGroupIdent.get();
+          } while( !nextGroupIdent.compareAndSet(nextGrpIdent, nextGrpIdent + zGroup));
+          grpIdent = new GroupIdent(nextGrpIdent);
+          idxGroupIdent.put(sGrp, grpIdent);
+        }
+        int catastrophicCount = 0;
+        do{
+          if(++catastrophicCount > 10000) throw new IllegalArgumentException("Atomic");
+          nIdent1 = grpIdent.nextIdentInGroup.get();
+        } while( !grpIdent.nextIdentInGroup.compareAndSet(nIdent1, nIdent1 + 1));
+      } else {  //no group 
+        int catastrophicCount = 0;
+        do{
+          if(++catastrophicCount > 10000) throw new IllegalArgumentException("Atomic");
+          nIdent1 = nextIdent.get();
+        } while( !nextIdent.compareAndSet(nIdent1, nIdent1 + 1));
+        
+      }
+      nIdent = new Integer(nIdent1);
+      idxIdent.put(sIdent, nIdent);
+    } //nIdent == null
+    logOut.sendMsg(nIdent, s, args);
+  }
+
   
   
+  /**This class is used for all outputs to the {@link PrintStreamAdapter} which are not
+   * gathered by the overridden methods of PrintStream.
+   * There should not be such methods. Therefore the write-methods is not called.
+   * But the outStream should not be empty.
+   * 
+   */
   OutputStream outStream = new OutputStream() {
     
     @Override
     public void write(int b) throws IOException
     {
-      // TODO Auto-generated method stub
-      
     }
   }; //outStream 
   
@@ -101,63 +169,18 @@ public class MsgPrintStream
      * 
      * @see java.io.PrintStream#print(java.lang.String)
      */
-    @Override public void print(String s) {
-      int posSemicolon = s.indexOf(';');
-      int posColon = s.indexOf(':');
-      int posSep = posColon < 0 || posSemicolon < posColon ? posSemicolon : posColon;  //more left char of ; :
-      final String sIdent;
-      if(posSep >0){ sIdent = s.substring(0, posSep); }
-      else { sIdent = s; }
-      
-      Integer nIdent = idxIdent.get(sIdent);
-      if(nIdent == null){
-        int nIdent1;
-        int posGrp = sIdent.indexOf('-');
-        
-        if(posGrp >0){
-          String sGrp = sIdent.substring(0, posGrp).trim();
-          GroupIdent grpIdent = idxGroupIdent.get(sGrp);
-          if(grpIdent == null){
-            int nextGrpIdent;
-            int catastrophicCount = 0;
-            do{
-              if(++catastrophicCount > 10000) throw new IllegalArgumentException("Atomic");
-              nextGrpIdent = nextGroupIdent.get();
-            } while( !nextGroupIdent.compareAndSet(nextGrpIdent, nextGrpIdent + zGroup));
-            grpIdent = new GroupIdent(nextGrpIdent);
-            idxGroupIdent.put(sGrp, grpIdent);
-          }
-          int catastrophicCount = 0;
-          do{
-            if(++catastrophicCount > 10000) throw new IllegalArgumentException("Atomic");
-            nIdent1 = grpIdent.nextIdentInGroup.get();
-          } while( !grpIdent.nextIdentInGroup.compareAndSet(nIdent1, nIdent1 + 1));
-        } else {  //no group 
-          int catastrophicCount = 0;
-          do{
-            if(++catastrophicCount > 10000) throw new IllegalArgumentException("Atomic");
-            nIdent1 = nextIdent.get();
-          } while( !nextIdent.compareAndSet(nIdent1, nIdent1 + 1));
-          
-        }
-        nIdent = new Integer(nIdent1);
-        idxIdent.put(sIdent, nIdent);
-      } //nIdent == null
-      logOut.sendMsg(nIdent, s);
-    }
+    @Override public void print(String s) { convertToMsg(s); }
+    
+    /**The println method is used usually. 
+     * 
+     * @see java.io.PrintStream#println(java.lang.String)
+     */
+    @Override public void println(String s) { convertToMsg(s); }
 
+    @Override public PrintStream printf(String s, Object... args) { 
+      convertToMsg(s, args); return this; 
+    }
     
   } //class PrintStreamAdapter
   
-  PrintStream printStreamLog = new PrintStreamAdapter();
-
-  
-  
-  public MsgPrintStream(LogMessage logOut) {
-    this.logOut = logOut;
-    outStream = System.err;  //all not translated outputs
-    //System.setErr(printStreamLog);  //redirect all System.err.println to the MsgDispatcher or the other given logOut
-  }
-  
-  public PrintStream getPrintStreamLog(){ return printStreamLog; }
 }

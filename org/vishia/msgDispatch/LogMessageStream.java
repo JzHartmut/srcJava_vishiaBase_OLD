@@ -49,14 +49,18 @@ public class LogMessageStream implements LogMessage
    */
   @Override
   public boolean sendMsgVaList(int identNumber, OS_TimeStamp creationTime, String text, Va_list args)
-  {
-    String line = dateFormat.format(creationTime) + "; " + identNumber + "; " + String.format(text,args.get());
-    try{ 
+  { String line = "?";
+    try{
+      line = dateFormat.format(creationTime) + "; " + identNumber + "; " + String.format(text,args.get());
+    } catch(Exception exc){
+      line = dateFormat.format(creationTime) + "; " + identNumber + "; " + text;
+    }
+      try{ 
     	out.write(line.getBytes()); 
     	out.write(sNewLine);
     }
-    catch(IOException exc){ }
-    //System.out.println(line);
+    catch(Exception exc){ 
+    }
     return true;
   }
 
