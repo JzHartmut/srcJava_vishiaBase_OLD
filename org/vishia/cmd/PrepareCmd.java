@@ -38,12 +38,38 @@ public final class PrepareCmd
 {
   
   
-  /**Version and history:
+  /**Version, history and license:
    * <ul>
-   * <li>2011-10-08 Hartmut new Detection of >&� to select kind of command, {@link #getJavaClass()} prepared (not ready)
+   * <li>2012-06-09 Hartmut bugfix the detection of <*file1> 2 or 3 may be erroneous.
+   * <li>2012-06-09 Hartmut new or bugfix for windows: Now the slashs are converted to backslash in file paths, see {@link #checkIsWindows()}.
+   *   The environment variabls "os" will be tested whether it starts with "windows" (converted non-case sensitive).
+   * <li>2011-10-08 Hartmut new Detection of >& to select kind of command, {@link #getJavaClass()} prepared (not ready)
    * </ul>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+
    */
-  public static int version = 0x20111011;
+  public static int version = 20120609;
   
   
   /**Kind of command execution: A system shell should be opened and let open after execution. 
@@ -108,11 +134,11 @@ public final class PrepareCmd
     }
     
     void getFile(){
-      switch(what){
-      case 0: file = args.getFileSelect(); break;
-      case 1: file = args.getFile1(); break;
-      case 2: file = args.getFile2(); break;
-      case 3: file = args.getFile3(); break;
+      switch(what & 0x000f0000){
+      case 0x00000: file = args.getFileSelect(); break;
+      case 0x10000: file = args.getFile1(); break;
+      case 0x20000: file = args.getFile2(); break;
+      case 0x30000: file = args.getFile3(); break;
       }
     }
     
@@ -214,6 +240,10 @@ public final class PrepareCmd
   /**Kind of the execution as default value given on ctor */
   private final char cKindOfExecutionDefault;
   
+  
+  private final boolean isWindows;
+  
+  
   /**Kind of the execution of the prepared command */
   private char cKindOfExecutionPrepared;
   
@@ -243,11 +273,21 @@ public final class PrepareCmd
    */
   PrepareCmd(char cKindOfExecution){
     this.cKindOfExecutionDefault = cKindOfExecution;
+    this.isWindows = checkIsWindows();
   }
   
   PrepareCmd(){
     this.cKindOfExecutionDefault = executeLocalPipes;  //use pipes
+    this.isWindows = checkIsWindows();
   }
+  
+  
+  
+  private final boolean checkIsWindows(){
+    String os = System.getenv("OS");
+    return os !=null && os.toLowerCase().startsWith("windows");
+  }
+  
   
   /**Prepares the string given {@link #cmd} with placeholder in the internal form.
    * This method can be invoked on creation of this class or if  a new cmd is assigned.
@@ -311,6 +351,7 @@ public final class PrepareCmd
       }
       cmdArgsTemplate[ixCmd] = sCmd2.toString();
     }
+    System.out.println("PrepareCmd - prepareListCmdReplace;" + toString());
     
   }
   
@@ -368,18 +409,26 @@ public final class PrepareCmd
       case 0x00030000: parts = part.file3; break;
       default: throw new IllegalArgumentException("faulty part designation:" + Integer.toHexString(repl.what));
       }//switch parts
-      //get the requestet representation of file:   
+      //get the requestet representation of file:
+      String sFile = null;
       switch(repl.what & 0xffff){
-      case 'f': sCmd2.insert(repl.pos, parts.getGivenFile()); break;
-      case 'd': sCmd2.insert(repl.pos, parts.getGivenDir()); break;  //dir
-      case 'm': sCmd2.insert(repl.pos, parts.getNameOnly()); break;
-      case 'n': sCmd2.insert(repl.pos, parts.getNameExt()); break;
-      case 'e': sCmd2.insert(repl.pos, parts.getNameExt()); break;
-      case 'l': sCmd2.insert(repl.pos, parts.getLocalFile()); break;
-      case 'a': sCmd2.insert(repl.pos, parts.getCanonicalFile()); break;
-      case 'c': sCmd2.insert(repl.pos, parts.getLocalDir()); break;  //dir
-      case 'b': sCmd2.insert(repl.pos, parts.getCanonicalDir()); break; 
+      case 'f': sFile = parts.getGivenFile(); break;
+      case 'd': sFile = parts.getGivenDir(); break;  //dir
+      case 'm': sFile = parts.getNameOnly(); break;
+      case 'n': sFile = parts.getNameExt(); break;
+      case 'e': sFile = parts.getNameExt(); break;
+      case 'l': sFile = parts.getLocalFile(); break;
+      case 'a': sFile = parts.getCanonicalFile(); break;
+      case 'c': sFile = parts.getLocalDir(); break;  //dir
+      case 'b': sFile = parts.getCanonicalDir(); break; 
       } //switch
+      if(sFile == null){ 
+        sFile = "??";
+      }
+      if(isWindows){
+        sFile = sFile.replace('/', '\\');
+      }
+      sCmd2.insert(repl.pos, sFile);
       cmdArgs[ixArg] = sCmd2.toString();
       ixArg +=1;
     }
@@ -409,5 +458,7 @@ public final class PrepareCmd
   
   public char getKindOfExecution(){ return cKindOfExecutionPrepared; }
   
+  
+  @Override public String toString(){ return cKindOfExecutionPrepared + cmdSrc[0]; }
   
 }

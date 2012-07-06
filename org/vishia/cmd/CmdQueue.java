@@ -19,7 +19,7 @@ import org.vishia.cmd.CmdStore.CmdBlock;
 public class CmdQueue implements Closeable
 {
   
-  /**Version and history
+  /**Version, history and license:
    * <ul>
    * <li>2011-12-03 Hartmut chg: The {@link #pendingCmds}-queue contains {@link PendingCmd} instead
    *   {@link CmdStore.CmdBlock} now. It is one level near on the really execution. A queued
@@ -27,8 +27,31 @@ public class CmdQueue implements Closeable
    * <li>2011-11-17 Hartmut new {@link #close()} to stop threads.
    * <li>2011-07-00 created
    * </ul>
+   * 
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
-  public static final int version = 0x20111009;
+  public static int version = 20120609;
   
   private static class PendingCmd implements CmdGetFileArgs_ifc
   {
@@ -188,8 +211,8 @@ public class CmdQueue implements Closeable
             //mainCmd.writeInfoln(sCmdShow.toString());
             
             int exitCode = executer.execute(sCmd, null, cmdOutput, cmdError, false);
-            if(exitCode == 0){ cmdOutput.append("JavaCmd: cmd execution successfull\n"); }
-            else {cmdOutput.append("JavaCmd: cmd execution errorlevel = " + exitCode + "\n"); }
+            if(exitCode == 0){ cmdOutput.append("\nJavaCmd: cmd execution successfull\n"); }
+            else {cmdOutput.append("\nJavaCmd: cmd execution errorlevel = " + exitCode + "\n"); }
           } else if(kindOfExecution == '&'){
             log.println(sCmdShow);
             //mainCmd.writeInfoln(sCmdShow.toString());
@@ -198,7 +221,7 @@ public class CmdQueue implements Closeable
             //cmdOutput.append("JavaCmd; started; " + sCmd + "\n");
           } else {
             //mainCmd.writeInfoln("CmdQueue - unexpected kind of execution; " + kindOfExecution);
-            log.println("CmdQueue - unexpected kind of execution; " + kindOfExecution);
+            log.println("\nCmdQueue - unexpected kind of execution; " + kindOfExecution);
             
           }
         }
