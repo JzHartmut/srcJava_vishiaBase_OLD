@@ -9,11 +9,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
-import org.vishia.cmd.CmdQueue.PendingCmd;
-import org.vishia.mainCmd.MainCmd_ifc;
-import org.vishia.mainCmd.Report;
 import org.vishia.util.StringPart;
 
 

@@ -110,7 +110,7 @@ public final class PrepareCmd
    */
   private static class FileParts
   { /**what part from args, 1..3 or 0 for fileSelect. */
-    final int what;
+    final int whichFile;
     /**Reference set on clean. */
     private CmdGetFileArgs_ifc args;
     /**Get from args if firstly used. */
@@ -124,7 +124,7 @@ public final class PrepareCmd
     String sName;
     int posExt;
     
-    FileParts(int what){ this.what = what; }
+    FileParts(int what){ this.whichFile = what; }
     
     /**called on new prepareCmd invocation: */
     void clean(CmdGetFileArgs_ifc args){ 
@@ -134,11 +134,11 @@ public final class PrepareCmd
     }
     
     void getFile(){
-      switch(what & 0x000f0000){
-      case 0x00000: file = args.getFileSelect(); break;
-      case 0x10000: file = args.getFile1(); break;
-      case 0x20000: file = args.getFile2(); break;
-      case 0x30000: file = args.getFile3(); break;
+      switch(whichFile){
+      case 0: file = args.getFileSelect(); break;
+      case 1: file = args.getFile1(); break;
+      case 2: file = args.getFile2(); break;
+      case 3: file = args.getFile3(); break;
       }
     }
     
