@@ -35,6 +35,7 @@ public class KeyCode
   
   /**The version
    * <ul>
+   * <li>2012-07-15 Hartmut new: {@link #isAsciiTextKey(int)}
    * <li>2012-06-17 new {@link #isControlFunctionMouseUpOrMenu(int)} etc. cluster of keys and actions.
    * <li>2011-11-18 new {@link #mouse1UpMoved}
    * <li>2011-09-30 improved
@@ -241,10 +242,30 @@ public class KeyCode
   }
   
   
+  /**A key which is used in an text field to write something. It includes the del key. 
+   * @param key
+   * @return
+   */
   public static boolean isWritingKey(int key){
     if((key & (mAddKeys | mSpecialKeys))==0) return true; 
     if(key == del) return true;
     return false;
+  }
+  
+  /**Any key between the codes 0x20 .. 0x7e, it is an ASCII text key.
+   * @param key
+   * @return
+   */
+  public static boolean isAsciiTextKey(int key){
+    return key >= ' ' && key <= 0x7e;
+  }
+  
+  /**Any text key, in UTF16 range but not a ASCII control key (0x0 .. 0x1f)
+   * @param key
+   * @return
+   */
+  public static boolean isTextKey(int key){
+    return (key & (mAddKeys | mSpecialKeys))==0 && key >=' ';
   }
   
   /**returns true if it is a control or function key. Either function or ctrl combination.
