@@ -1,8 +1,11 @@
 package org.vishia.util;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.LinkedList;
+import java.util.List;
 
 
 /**This class describes a File, which may be localized at any maybe remote device or which may be a normal local file. 
@@ -512,6 +515,39 @@ public class FileRemote extends File
       backEvent.dst.processEvent(backEvent);
     } else {
       //TODO
+    }
+  }
+  
+  
+  
+  /**Deletes a files given by path maybe in a remote device. This is a send-only routine without feedback,
+   * because the calling thread should not be waiting for success.
+   * The success is notified with invocation of the 
+   * {@link Event#dst}.{@link EventConsumer#processEvent(Event)} method. 
+   * @param backEvent The event for success.
+   */
+  public void delete(String sPath, boolean deleteReadOnly, Event backEvent){
+    boolean bOk;
+    List<File> listFiles = new LinkedList<File>();
+    try{
+      FileSystem.addFileToList(this, sPath, listFiles);
+      bOk = true;
+      for(File file: listFiles){
+        if(file.isDirectory()){
+          if(!FileSystem.rmdir(file)){ bOk = false; };
+        } else {
+          if(!file.canWrite()){
+            file.setWritable(true);
+          }
+          if(!file.delete()){ bOk = false; };
+        }
+      }
+    } catch(FileNotFoundException exc){
+      bOk = false;
+    }
+    if(backEvent !=null){
+      backEvent.data1 = bOk? 0 : -1;
+      backEvent.dst.processEvent(backEvent);
     }
   }
   
