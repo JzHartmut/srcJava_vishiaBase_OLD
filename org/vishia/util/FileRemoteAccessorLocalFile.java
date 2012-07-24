@@ -54,7 +54,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20120310;
+  public static final int version = 20120721;
 
   private static FileRemoteAccessor instance;
   

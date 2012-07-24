@@ -20,8 +20,9 @@
  * @author JcHartmut = hartmut.schorrig@vishia.de
  * @version 2006-06-15  (year-month-day)
  * list of changes:
- * 2007-09-15: JcHartmut www.vishia.de creation
+ * 2012-07-22: Hartmut documentation, creation of Node4Tree and comparison with this implementation.
  * 2008-04-02: JcHartmut some changes
+ * 2007-09-15: JcHartmut www.vishia.de creation
  *
  ****************************************************************************/
 package org.vishia.util;
@@ -37,7 +38,27 @@ import java.util.TreeMap;
  * The found children with the same key may be sorted
  * in its originally order on input by building the tree.
  * 
- * @author JcHartmut
+ * UML-Diagramm, presentation style see {@link Docu_UML_simpleNotation}:
+ * <pre>
+ * 
+ * SortedTreeNode
+ *     -key
+ *       |-------obj------>Type (data)
+ *       |
+ *       |-------------key*>-------------*>|
+ *       |                                Type (children)
+ *       |-------------------------------*>|
+ *                                         |--------------> SortedTreeNode
+ * </pre>
+ * The node refers to some Instances from Type. The instances can be selected by a key, whereby more as one instance
+ * with the same key is possible. 
+ * <br><br>
+ * If the Type contains a reference to a SortedTree in turn, then a tree of nodes is built.
+ * <br><br>
+ * See {@link TreeNodeUniqueKey}, it is another implementation of a node for a tree.
+ * 
+ * 
+ * @author Hartmut Schorrig
  *
  * @param <Type> Type of the children.
  */
@@ -82,7 +103,7 @@ public class SortedTreeNode<Type> implements SortedTree<Type>
   
   /**implements the interface method from {@link org.vishia.util.SortedTree}.
    */
-  public Type getChild(String key) 
+  @Override public Type getChild(String key) 
   {
     List<Type> childrenNode = sortedChildren.get(key);
     if(childrenNode == null)
@@ -95,7 +116,7 @@ public class SortedTreeNode<Type> implements SortedTree<Type>
   
   /**implements the interface method from {@link org.vishia.util.SortedTree}.
    */
-  public Iterator<Type> iterChildren() 
+  @Override public Iterator<Type> iterChildren() 
   {
     if(unsortedChildren == null)
     { return null;
@@ -107,7 +128,7 @@ public class SortedTreeNode<Type> implements SortedTree<Type>
   
   /**implements the interface method from {@link org.vishia.util.SortedTree}.
    */
-  public Iterator<Type> iterChildren(String key) 
+  @Override public Iterator<Type> iterChildren(String key) 
   {
     List<Type> childrenNode = sortedChildren.get(key);
     if(childrenNode == null)
@@ -120,7 +141,7 @@ public class SortedTreeNode<Type> implements SortedTree<Type>
 
   /**implements the interface method from {@link org.vishia.util.SortedTree}.
    */
-  public List<Type> listChildren() 
+  @Override public List<Type> listChildren() 
   {
     if(unsortedChildren == null)
     { return null;
@@ -132,7 +153,7 @@ public class SortedTreeNode<Type> implements SortedTree<Type>
   
   /**implements the interface method from {@link org.vishia.util.SortedTree}.
    */
-  public List<Type> listChildren(String key) 
+  @Override public List<Type> listChildren(String key) 
   {
     return sortedChildren.get(key);  //null if key is not found.
   }

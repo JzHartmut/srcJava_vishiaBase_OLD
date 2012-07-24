@@ -30,6 +30,8 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2012-07-21 Hartmut new: {@link #delete(String, boolean, Event)} with given mask. TODO: It should done in 
+   *   {@link org.vishia.util.FileRemoteAccessorLocalFile} in an extra thread.
    * <li>2012-03-10 Hartmut new: {@link #chgProps(String, int, int, long, Callback)}, {@link #countAllFileLength(Callback)}.
    *   Enhancements.
    * <li>2012-02-02 Hartmut chg: Now the {@link #sFile} (renamed from name) is empty if this describes
@@ -37,7 +39,7 @@ public class FileRemote extends File
    *   {@link #getParent()} is changed. Some assertions are set.
    * <li>2012-02-02 Hartmut chg: Handling of relative paths: It is detected in ctor. TODO relative paths are not tested well. 
    * <li>2012-01-14 Hartmut chg: The toplevel directory contains only one slash in the {@link #sDir}
-   *   and an empty name in {@link #name}. 
+   *   and an empty name in {@link #key}. 
    * <li>2012-01-14 Hartmut new: {@link #getParentFile()} now implemented here.  
    * <li>2012-01-14 Hartmut new: {@link #fromFile(File)} to convert from a normal File instance.
    * <li>2012-01-06 Hartmut new: Some functionality for {@link #_setProperties(long, long, int, Object)}
