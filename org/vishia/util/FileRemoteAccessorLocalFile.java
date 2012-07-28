@@ -12,6 +12,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.vishia.util.FileRemote.FileRemoteAccessorSelector;
+
 /**Implementation for a standard local file.
  */
 public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
@@ -19,11 +21,13 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   
   /**Version, history and license.
    * <ul>
+   * <li>2012-07-28 Hartmut new: Concept of remote files enhanced with respect to {@link FileAccessZip},
+   *   see {@link FileRemote}
    * <li>2012-03-10 Hartmut new: implementation of the {@link FileRemote#chgProps(String, int, int, long, org.vishia.util.FileRemote.Callback)} etc.
-   * <li>2012-02-02 Hartmut chg: {@link #setFileProperties(FileRemote, File)}: There was an faulty recursive loop,
+   * <li>2012-02-02 Hartmut chg: {@link #refreshFileProperties(FileRemote, File)}: There was an faulty recursive loop,
    *   more checks. 
    * <li>2012-01-09 Hartmut new: {@link #close()} terminates the thread.
-   * <li>2012-01-06 Hartmut new: {@link #setFileProperties(FileRemote)} etc.
+   * <li>2012-01-06 Hartmut new: {@link #refreshFileProperties(FileRemote)} etc.
    * <li>2012-01-04 Hartmut new: copy file trees started from a given directory
    * <li>2011-12-31 Hartmut new {@link #execCopy(org.vishia.util.FileRemoteAccessor.Commission)}. 
    * <li>2011-12-31 Hartmut new {@link #runCommissions} as extra thread.  
@@ -108,21 +112,18 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   /**Sets the file properties from the local file.
    * checks whether the file exists and set the {@link FileRemote#mTested} flag any time.
    * If the file exists, the properties of the file were set, elsewhere they were set to 0.
-   * @see {@link org.vishia.util.FileRemoteAccessor#setFileProperties(org.vishia.util.FileRemote)}
+   * @see {@link org.vishia.util.FileRemoteAccessor#refreshFileProperties(org.vishia.util.FileRemote)}
    */
-  @Override public boolean setFileProperties(FileRemote fileRemote)
-  { String path = fileRemote.getPath();
-    File fileLocal = new File(path);
-    setFileProperties(fileRemote, fileLocal);
-    return true;
-  }
-
-  /**Sets the file properties from the local file.
-   * Called from {@link #setFileProperties(FileRemote)}, description see there.
-   * @param fileRemote
-   * @param fileLocal
-   */
-  private void setFileProperties(FileRemote fileRemote, File fileLocal){
+  @Override public boolean refreshFileProperties(FileRemote fileRemote)
+  { File fileLocal;
+    //NOTE: use the superclass File only as interface, use a second instance.
+    //the access to super methods does not work. Therefore access to non-inherited File.methods.
+    if(fileRemote.oFile == null){
+      String path = fileRemote.getPath();
+      fileRemote.oFile = fileLocal = new File(path);
+    } else {
+      fileLocal = (File)fileRemote.oFile;
+    }
     String path = fileRemote.getPath();
     if(fileLocal.exists()){
       String canonicalPath = FileSystem.getCanonicalPath(fileLocal);
@@ -154,8 +155,29 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
       //designate it as tested, mExists isn't set.
       fileRemote._setProperties(0, 0, FileRemote.mTested, fileLocal);
     }
+    return true;    
   }
 
+  
+  @Override public boolean refreshFilePropertiesAndChildren(FileRemote fileRemote){
+    refreshFileProperties(fileRemote);
+    File fileLocal = (File)fileRemote.oFile;
+    if(fileLocal.exists()){
+      File[] files = fileLocal.listFiles();
+      if(files !=null){
+        fileRemote.children = new FileRemote[files.length];
+        int iFile = -1;
+        for(File file1: files){
+          fileRemote.children[++iFile] = newFile(file1);
+        }
+      }
+    }
+    return true;
+  }
+
+  
+  
+  
   
   @Override public ReadableByteChannel openRead(FileRemote file, long passPhase)
   { try{ 
@@ -177,8 +199,12 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   }
 
   
-  @Override public FileRemote[] listFiles(FileRemote parent){
+  //@Override 
+  public FileRemote[] XXXlistFiles(FileRemote parent){
     FileRemote[] retFiles = null;
+    if(parent.oFile == null){
+      
+    }
     File dir = (File)parent.oFile;
     if(dir.exists()){
       File[] files = dir.listFiles();
@@ -197,8 +223,9 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   public FileRemote newFile(File fileLocal){
     String name = fileLocal.getName();
     String sDir = fileLocal.getParent().replace('\\', '/');
-    FileRemote fileRemote = new FileRemote(this, sDir, name, 0, 0, 0, null);
-    setFileProperties(fileRemote, fileLocal);  
+    FileRemote dir = FileRemote.fromFile(fileLocal.getParentFile());
+    FileRemote fileRemote = new FileRemote(this, dir, sDir, name, 0, 0, 0, fileLocal);
+    refreshFileProperties(fileRemote);  
     return fileRemote;
   }
   
@@ -570,5 +597,12 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
       zFilesCopy +=1;
     }
   }  
+
+  
+  public static FileRemoteAccessorSelector selectLocalFileAlways = new FileRemoteAccessorSelector() {
+    @Override public FileRemoteAccessor selectFileRemoteAccessor(String sPath) {
+      return FileRemoteAccessorLocalFile.getInstance();
+    }
+  };
   
 }

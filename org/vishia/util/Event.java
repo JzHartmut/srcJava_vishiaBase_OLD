@@ -1,6 +1,5 @@
 package org.vishia.util;
 
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**Base class for all events in a event driven software or for communications.
@@ -181,6 +180,10 @@ public class Event
   
   /**Version, history and license
    * <ul>
+   * <li>2012-07-28 renamed src, now {@link #refData}. It is not the source (creator) of the event
+   *   but a value reference which may be used especially in the callback ({@link #dst}).
+   *   Because it is private and the getter method {@link #getRefData()} is duplicated, the
+   *   old routine {@link #getSrc()} is deprecated, it is downward compatible still. 
    * <li>2012-03-10 Hartmut new: {@link #owner}, {@link #forceRelease()}. 
    *   It is a problem if a request may be crased in a remote device, but the event is reserved 
    *   for answer in the proxy. It should be freed. Events may be re-used. 
@@ -216,10 +219,11 @@ public class Event
    */
   public static final int version = 20120311;
   
-  /**The src instance for the event. This reference It is private because it should only be set
-   * calling {@link #Event(Object, EventConsumer)} or {@link #use(long, int, Object, EventConsumer)}. 
-   * see {@link #getSrc()}. */
-  private Object src;
+  /**A referenced instance for the event. This reference is private because it should be set
+   * calling {@link #Event(Object, EventConsumer)} or {@link #use(long, int, Object, EventConsumer)}
+   * only. The calling environment determines the type. 
+   * see {@link #getRefData()}. */
+  private Object refData;
   
   /**The queue for events of the {@link EventThread} if this event should be used
    * in a really event driven system (without directly callback). 
@@ -251,14 +255,11 @@ public class Event
   /**Any value of this event. Mostly it is a return value. */
   public int data1, data2;
   
-  /**Any value of this event. */
-  //public long data3, data4, data5, data6;
-  
-  /**Any value reference. */ 
+  /**Any value reference especially to return any information in the {@link #sendtoDst()}. */ 
   public Object oData;
   
-  public Event(Object src, EventConsumer dst){
-    this.src = src; this.dst = dst;
+  public Event(Object refData, EventConsumer consumer){
+    this.refData = refData; this.dst = consumer;
   }
   
   /**Check whether this event is in use and use it. An event instance can be re-used. If the order or the dateOrder
@@ -269,11 +270,11 @@ public class Event
    *  
    * @return true if the event instance is able to use.
    */
-  public boolean use(long order, int id, Object src, EventConsumer dst){ 
+  public boolean use(long order, int id, Object refData, EventConsumer dst){ 
     if(dateCreation.compareAndSet(0, System.currentTimeMillis())){
       this.commisionId = order;
       this.id = id;
-      this.src = src;
+      this.refData = refData;
       this.dst = dst;
       return true;
     }
@@ -292,9 +293,11 @@ public class Event
   public boolean isOccupied(){ return dateCreation.get() !=0; }
   
   
-  /**Forces the re-usage of the event. If the event is in use, the owner will be notified
+  /**Forces the release of the event instance to re-usage the event. 
+   * If the event is in use, the owner will be notified
    * calling {@link EventOwner#remove(Event)} that the event should be released.
-   * @return false only if the event is not released from the owner. Then the action should be repeated.
+   * @return false only if the event is not released from the owner. 
+   * Then the action should be repeated.
    */
   public boolean forceRelease() {
     boolean bOk = true;
@@ -312,7 +315,7 @@ public class Event
    */
   public void consumed(){
     this.id = 0;
-    this.src = null;
+    this.refData = null;
     this.dst = null;
     this.dstThread = null;
     this.commisionId = 0;
@@ -352,6 +355,13 @@ public class Event
    * @return the source instance which was stored either calling the ctor {@link #Event(Object, EventConsumer)}
    *   or calling re-usage of an event instance: {@link #use(long, int, Object, EventConsumer)}.  
    */
-  public Object getSrc(){ return src; }
+  public Object getRefData(){ return refData; }
+  
+  /**@deprecated use {@link #getRefData()}
+   * @return
+   */
+  public Object getSrc(){ return refData; }
+  
+  
   
 }

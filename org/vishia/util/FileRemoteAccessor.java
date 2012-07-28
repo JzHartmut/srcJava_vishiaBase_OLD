@@ -14,11 +14,13 @@ public interface FileRemoteAccessor extends Closeable
 {
   /**Version, history and license.
    * <ul>
+   * <li>2012-07-28 Hartmut new: Concept of remote files enhanced with respect to {@link FileAccessZip},
+   *   see {@link FileRemote}
    * <li>2012-03-10 Hartmut new: {@link Commission#newDate} etc. 
    *   for {@link FileRemote#chgProps(String, int, int, long, org.vishia.util.FileRemote.Callback)}.
    * <li>2012-01-09 Hartmut new: This class extends from Closeable, because an implementation 
    *  may have an running thread which is need to close. A device should be closeable any time.
-   * <li>2012-01-06 Hartmut new {@link #setFileProperties(FileRemote)}. 
+   * <li>2012-01-06 Hartmut new {@link #refreshFileProperties(FileRemote)}. 
    * <li>2011-12-31 Hartmut new {@link Commission} and {@link #addCommission(Commission)}. It is used
    *   to add commissions to the implementation class to do in another thread/via communication.
    * <li>2011-12-10 Hartmut creation: Firstly only the {@link FileRemoteAccessorLocalFile} is written.
@@ -55,13 +57,21 @@ public interface FileRemoteAccessor extends Closeable
   , kFinishError = 0xf1e3303, kNrofFilesAndBytes = 0xd00001;
 
   
-  public boolean setFileProperties(FileRemote file);
+  /**Gets the properties of the file from the physical file.
+   * @param file the destination file object.
+   */
+  public boolean refreshFileProperties(FileRemote file);
+
+  /**Gets the properties and the children of the file from the physical file.
+   * @param file the destination file object.
+   */
+  public boolean refreshFilePropertiesAndChildren(FileRemote file);
 
   ReadableByteChannel openRead(FileRemote file, long passPhase);
   
   WritableByteChannel openWrite(FileRemote file, long passPhase);
  
-  FileRemote[] listFiles(FileRemote parent);
+  //FileRemote[] listFiles(FileRemote parent);
   
   
   void addCommission(Commission com);

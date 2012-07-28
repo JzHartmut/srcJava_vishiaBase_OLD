@@ -26,10 +26,55 @@ import java.util.List;
  */
 public class FileRemote extends File
 {
+  public interface FileRemoteAccessorSelector
+  {
+    FileRemoteAccessor selectFileRemoteAccessor(String sPath);
+  }
+
   private static final long serialVersionUID = -5568304770699633308L;
 
   /**Version, history and license.
    * <ul>
+   * <li>2012-07-28 Hartmut chg: Concept of remote files enhanced with respect to {@link FileAccessZip}.
+   *   <ul>
+   *   <li>New references {@link #parent} and {@link #children}. They are filled calling {@link #refreshPropertiesAndChildren(Callback)}.
+   *   <li>More separation of java.io.File accesses. In the past only the local files were supported really.
+   *   <li>new interface {@link FileRemoteAccessorSelector} and {@link #setAccessorSelector(FileRemoteAccessorSelector)}.
+   *     The user can have any algorithm to select a {@link FileRemoteAccessor} depending on the
+   *     path of the file. A prefix String may determine how the file is to access. If that routine
+   *     is not called, the {@link FileRemoteAccessorLocalFile#selectLocalFileAlways}.
+   *   <li>{@link #FileRemote(FileRemoteAccessor, FileRemote, String, String, long, long, int, Object)}
+   *     has the parent as parameter. The parameter oFileP is stored now. It is any data to access the file object.
+   *   <li>The constructor had access the file if length=-1 was given. But that is not the convention.
+   *     An access may need execution and waiting time for a remote communication. The constructor
+   *     should never wait. Instead the methods:
+   *   <li>{@link #refreshProperties(Callback)} and {@link #refreshPropertiesAndChildren(Callback)}
+   *     have to be called if the properties of the real file on the local system (java.io.File)
+   *     or any remote system are need. That routines envisages the continuation of working
+   *     with a callback event are invocation mechanism. For example if the file properties
+   *     should be shown in a graphic application, the building of the graphic can't stop and wait 
+   *     for more as some 100 milliseconds. It is better to clear a table and continue working in graphic. 
+   *     If the properties are gotten from the remote system then the table will be filled.
+   *     That may be invoked from another thread, the communication thread for the remote device
+   *     or by an event mechanism (see {@link FileRemote.Callback} respectively {@link org.vishia.util.Event}.
+   *   <li>The routine {@link #fromFile(File)} reads are properties of a local file if one is given.
+   *     In that case the {@link #refreshProperties(Callback)} need not be invoked additionally.
+   *   <li>{@link #openRead(long)} and {@link #openWrite(long)} accepts a non-given device.
+   *     They select it calling {@link FileRemoteAccessorSelector#selectFileRemoteAccessor(String)}
+   *   <li>All get methods {@link #length}, {@link #lastModified()}, {@link #isDirectory()} etc.
+   *     now returns only the stored values. It may necessary to invoke {@link #refreshProperties(Callback)}
+   *     in the application before they are called to get the correct values. The refreshing
+   *     can't be called in that getter routines because they should not wait for communication.
+   *     In the case of local files that access may be shorten in time, but it isn't known
+   *     whether it is a local file. The user algorithm should work with remote files too if they are
+   *     tested locally only. Therefore a different strategy to access properties are not proper to use.
+   *   <li>{@link #getParentFile()} now uses the {@link #parent} reference. If it is null,
+   *     a new FileRemote instance for the parent is created, but without access to the file,
+   *     only with knowledge of the path string. Because the {@link #FileRemote(FileRemoteAccessor, FileRemote, String, String, long, long, int, Object)}
+   *     will be gotten the parent of it too, all parent instances will be set recursively then.
+   *   <li>{@link #listFiles()} now returns the {@link #children} only. If the user has not called
+   *     {@link #refreshPropertiesAndChildren(Callback)}, it is empty.           
+   *   </ul>
    * <li>2012-07-21 Hartmut new: {@link #delete(String, boolean, Event)} with given mask. TODO: It should done in 
    *   {@link org.vishia.util.FileRemoteAccessorLocalFile} in an extra thread.
    * <li>2012-03-10 Hartmut new: {@link #chgProps(String, int, int, long, Callback)}, {@link #countAllFileLength(Callback)}.
@@ -83,8 +128,9 @@ public class FileRemote extends File
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20120310;
+  public static final int version = 20120728;
 
+  private static FileRemoteAccessorSelector accessorSelector;
   
   protected FileRemoteAccessor device;
   
@@ -120,11 +166,16 @@ public class FileRemote extends File
   
   /**Timestamp of the file. */
   protected long date;
+  
+  /**Length of the file. */
   protected long length;
   
   /**Some flag bits. @see constants #mExist etc.*/
   int flags;
 
+  FileRemote parent;
+  
+  File[] children;
   
   public final static int  mExist =   1;
   public final static int  mCanRead =  2;
@@ -152,22 +203,34 @@ public class FileRemote extends File
   Object oFile;
   
   
-  /**Creates an instance without access to the physical file. Only The path is stored. 
+  /**Creates an instance without access to the physical file. Only The directory path and the name 
+   * is stored and the device is identified by analysis of the prefix string of path. 
    * @param pathname device, path and name. The path may be relative. 
+   *   Then the systems current directory is used as reference file. (TODO)
    */
   public FileRemote(String pathname)
   {
-    this(FileRemoteAccessorLocalFile.getInstance(), pathname, null, -1, 0, 0, null);
+    this(getAccessorSelector().selectFileRemoteAccessor(pathname) //identify device by analyse of path.
+        , null //parent is unknown without access
+        , pathname, null   //identify the name by analyse of path.
+        , 0, 0, 0, null);  //size etc. and  file object is unknown yet.
   }
 
   
   /**Creates an instance without access to the physical file. Only The path is stored. 
+   */
+  /**Creates an instance without access to the physical file. Only The directory path and the name 
+   * is stored and the device is identified by analysis of the prefix string of path. 
    * @param dir device and path to the directory (parent). The dir may be relative.
+   *   Then the systems current directory is used as reference file. (TODO)
    * @param name name of the file inside the given dir. 
    */
   public FileRemote(String dir, String name)
   {
-    this(FileRemoteAccessorLocalFile.getInstance(), dir, name, -1, 0, 0, null);
+    this(getAccessorSelector().selectFileRemoteAccessor(dir) //identify device by analyse of path.
+        , null //parent is unknown without access
+        , dir, name
+        , 0, 0, 0, null);  //size etc. and  file object is unknown yet.
   }
 
   
@@ -177,7 +240,7 @@ public class FileRemote extends File
    */
   public FileRemote(FileRemote dir, String name)
   {
-    this(dir.device, dir.getPath(), name, -1, 0, 0, null);
+    this(dir.device, dir, dir.getPath(), name, 0, 0, 0, null);
   }
 
   
@@ -185,11 +248,15 @@ public class FileRemote extends File
   
   /**Constructs the instance. If the length parameter is given or it is 0, 
    * this invocation does not force any access to the file system. The parameter may be given
-   * by a complete communication or file access before construction of this. Then they are given
-   * as parameter for this constructor.<br>
-   * If the length ==-1, then the fields of this are initialized via access to
-   * {@link FileRemoteAccessor#setFileProperties(FileRemote)}. This forces an access to the file system,
-   * maybe a remote communication (depending on the implementation of that method).
+   * by a complete communication or file access before construction of this. 
+   * Then they are given as parameter for this constructor.
+   * <br><br>
+   * The parameter of the file (properties, length, date) can be given as 'undefined' 
+   * using the 0 as value. Then the quest {@link #exists()} returns false. This instance
+   * describes a File object only, it does not access to the file system.
+   * The properties of the real file inclusively the length and date can be gotten 
+   * from the file system calling {@link #refreshProperties(Callback)}. This operation may be
+   * invoked in another thread (depending on the device) and may be need some operation time.
    *  
    * @param device The device which organizes the access to the file system.
    * @param sDirP The path to the directory.
@@ -199,18 +266,22 @@ public class FileRemote extends File
    *   as an directory descriptor. {@link #mDirectory} will be set in {@link #flags}.
    * @param sName Name of the file. If null then the name is gotten from the last part of path
    *   after the last slash or backslash.
-   * @param length The length of the file. ==-1 then all other parameter are gotten from the file
-   * @param date Timestamp of the file. 
-   * @param flags Properties of the file.
+   * @param length The length of the file. Maybe 0 if unknown. 
+   * @param date Timestamp of the file. Maybe 0 if unknown.
+   * @param flags Properties of the file. Maybe 0 if unknown.
+   * @param oFileP an system file Object, may be null.
    */
   public FileRemote(final FileRemoteAccessor device
+      , final FileRemote parent
       , final String sDirP, final String sName
       , final long length, final long date, final int flags
       , Object oFileP) {
-    super(sDirP + (sName ==null ? "" : ("/" + sName)));  //it is correct if it is a local file. 
+    //super(sDirP + (sName ==null ? "" : ("/" + sName)));  //it is correct if it is a local file. 
+    super("?");  //NOTE: use the superclass File only as interface. Don't use it as local file instance.
     String sPath = sDirP.replace('\\', '/');
     this.device = device;
     this.flags = flags;
+    this.parent = parent;
     String name1;
     if(sName == null){
       int lenPath = sPath.length();
@@ -241,15 +312,29 @@ public class FileRemote extends File
     Assert.check(!name1.contains("/"));
     Assert.check(this.sDir.length() == 0 || this.sDir.endsWith("/"));
     //TODO Assert.check(!this.sDir.endsWith("//"));
-    if(length == -1){
-      device.setFileProperties(this);   ////
-    } else {
-    //oFile = oFileP !=null ? oFileP : device.createFileObject(this);
-      this.length = length;
-      this.date = date;
-      this.sCanonicalPath = this.sDir + this.sFile;  //maybe overwrite from setSymbolicLinkedPath
-    }
+    Assert.check(length >=0);
+    oFile = oFileP;
+    this.length = length;
+    this.date = date;
+    this.sCanonicalPath = this.sDir + this.sFile;  //maybe overwrite from setSymbolicLinkedPath
   }
+  
+ 
+  
+  public static boolean setAccessorSelector(FileRemoteAccessorSelector accessorSelectorP){
+    boolean wasSetAlready = accessorSelector !=null;
+    accessorSelector = accessorSelectorP;
+    return wasSetAlready;
+  }
+  
+  
+  private static FileRemoteAccessorSelector getAccessorSelector(){
+    if(accessorSelector == null){
+      accessorSelector = FileRemoteAccessorLocalFile.selectLocalFileAlways;
+    }
+    return accessorSelector;
+  }
+  
   
   
   
@@ -262,7 +347,31 @@ public class FileRemote extends File
    */
   public static FileRemote fromFile(File src){
     if(src instanceof FileRemote){ return (FileRemote)src; }
-    else return new FileRemote(src.getAbsolutePath());
+    else {
+      //it is a file description of standard java in the local file system.
+      String sPath = src.getAbsolutePath();
+      long len = 0;
+      long date = 0;
+      int fileProps = 0;
+      if(src.exists()){ fileProps |= mExist; 
+        len = src.length();
+        date = src.lastModified();
+        if(src.isDirectory()){ fileProps |= mDirectory; }
+        if(src.canRead()){ fileProps |= mCanRead | mCanReadGrp | mCanReadAny; }
+        if(src.canWrite()){ fileProps |= mCanWrite | mCanWriteGrp | mCanWriteAny; }
+        if(src.canExecute()){ fileProps |= mExecute | mExecuteGrp | mExecuteAny; }
+        if(src.isHidden()){ fileProps |= mHidden; }
+      }
+      FileRemoteAccessor accessor = FileRemoteAccessorLocalFile.getInstance();
+      File dir1 = src.getParentFile();
+      FileRemote dir;
+      if(dir1 !=null){
+        dir= FileRemote.fromFile(dir1);
+      } else {
+        dir = null;
+      }
+      return new FileRemote(accessor, dir, sPath, null, len, date, fileProps, src);
+    }
   }
   
   
@@ -284,6 +393,34 @@ public class FileRemote extends File
     this.date = date;
     this.flags = flags;
     this.oFile = oFileP;
+  }
+  
+  
+  /**Gets the properties of the file from the physical file.
+   * @param callback
+   */
+  public void refreshProperties(Callback callback){
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
+    device.refreshFileProperties(this);
+    if(callback !=null){
+      callback.sendtoDst();
+    }
+  }
+  
+  
+  /**Gets the properties of the file from the physical file.
+   * @param callback
+   */
+  public void refreshPropertiesAndChildren(Callback callback){
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
+    device.refreshFilePropertiesAndChildren(this);
+    if(callback !=null){
+      callback.sendtoDst();
+    }
   }
   
   
@@ -368,6 +505,9 @@ public class FileRemote extends File
    * @return The channel to access.
    */
   public ReadableByteChannel openRead(long passPhrase){
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
     return device.openRead(this, passPhrase);
   }
   
@@ -376,23 +516,36 @@ public class FileRemote extends File
    * @return The channel to access.
    */
   public WritableByteChannel openWrite(long passPhrase){
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
     return device.openWrite(this, passPhrase);
   }
   
   
   @Override public long length(){ 
+    /*
     if(length ==-1){
+      if(device == null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+      }
       if(device.isLocalFileSystem()) length = super.length();
       else device.setFileProperties(this);  //maybe wait for communication.
     }
+    */
     return length; 
   }
   
   @Override public long lastModified(){ 
+    /*
     if(date ==0){
+      if(device == null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+      }
       if(device.isLocalFileSystem()) date = super.lastModified();
       else device.setFileProperties(this);  //maybe wait for communication.
     }
+    */
     return date; 
   }
   
@@ -408,36 +561,8 @@ public class FileRemote extends File
    * @return path without ending slash.
    */
   @Override public String getParent(){ 
-    String sParent;
-    int zDir = sDir.length();
-    int pDir;
-    Assert.check(sDir.charAt(zDir-1) == '/'); //Should end with slash
-    if(sFile == null || sFile.length() == 0){
-      //it is a directory, get its parent path
-      if(zDir > 1){
-        pDir = sDir.lastIndexOf('/', zDir-2);
-        if(pDir == 0 || (pDir == 2 && sDir.charAt(1) == ':')){
-          //the root. 
-          pDir +=1; //return inclusive the /
-        }
-        if(pDir >0){
-          sParent = sDir.substring(0, pDir);  //without ending slash
-        } else {
-          sParent = null;  //sDir is forex "D:/", or "/" it hasn't a parent.
-        }
-      } else {
-        sParent = null;    //sDir has only one char, it may be a "/", it hasn't a parent.
-      }
-    } else { //a sFile is given, the sDir is the parent.
-      if(zDir == 1 || (zDir == 3 && sDir.charAt(1) == ':')){
-        //the root. 
-        pDir = zDir; //return inclusive the /
-      } else {
-        pDir = zDir -1;
-      }
-      sParent = sDir.substring(0, pDir);
-    }
-    return sParent;
+    File parentFile = getParentFile();  //
+    return parentFile.getAbsolutePath();
     //int posSlash = sDir.indexOf('/');  //the first slash
     //if only one slash is present, return it. Elsewhere don't return the terminating slash.
     //String sParent = zDir > posSlash+1 ? sDir.substring(0, zDir-1): sDir;
@@ -473,7 +598,44 @@ public class FileRemote extends File
    * @return null if this is the toplevel directory.
    */
   @Override public FileRemote getParentFile(){
-    final FileRemote parent;
+    //final FileRemote parent;
+    if(parent == null){
+      String sParent;
+      int zDir = sDir.length();
+      int pDir;
+      Assert.check(sDir.charAt(zDir-1) == '/'); //Should end with slash
+      if(sFile == null || sFile.length() == 0){
+        //it is a directory, get its parent path
+        if(zDir > 1){
+          pDir = sDir.lastIndexOf('/', zDir-2);
+          if(pDir == 0 || (pDir == 2 && sDir.charAt(1) == ':')){
+            //the root. 
+            pDir +=1; //return inclusive the /
+          }
+          if(pDir >0){
+            sParent = sDir.substring(0, pDir);  //without ending slash
+          } else {
+            sParent = null;  //sDir is forex "D:/", or "/" it hasn't a parent.
+          }
+        } else {
+          sParent = null;    //sDir has only one char, it may be a "/", it hasn't a parent.
+        }
+      } else { //a sFile is given, the sDir is the parent.
+        if(zDir == 1 || (zDir == 3 && sDir.charAt(1) == ':')){
+          //the root. 
+          pDir = zDir; //return inclusive the /
+        } else {
+          pDir = zDir -1;
+        }
+        sParent = sDir.substring(0, pDir);
+      }
+      if(sParent !=null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+        this.parent = new FileRemote(device, null, sParent, null, 0, 0, 0, null); 
+      }
+    }
+    return this.parent;
+    /*
     String sParent = getParent();
     if(sParent !=null){
       parent = new FileRemote(sParent);
@@ -484,19 +646,62 @@ public class FileRemote extends File
       parent = null;
     }
     return parent;
+    */
   }
   
   
-  @Override public boolean isDirectory(){ return (flags & mDirectory) !=0; }
+  @Override public boolean exists(){ 
+    return (flags & mExist) !=0; 
+  }
+  
+  @Override public boolean isFile(){ 
+    return (flags & mFile) !=0; 
+  }
+  
+  @Override public boolean isDirectory(){ 
+    return (flags & mDirectory) !=0; 
+  }
+  
+  @Override public boolean canWrite(){ 
+    return (flags & mCanWrite) !=0; 
+  }
+  
+  @Override public boolean canRead(){ 
+    return (flags & mCanRead) !=0; 
+  }
+  
+  @Override public boolean canExecute(){ 
+    return (flags & mExecute) !=0; 
+  }
   
   public boolean isSymbolicLink(){ return (flags & mSymLinkedPath) !=0; }
+  
+  
+  @Override public String getAbsolutePath(){
+    File ref = referenceFileRef !=null && referenceFileRef.length >=1 && referenceFileRef[0] !=null 
+        ? referenceFileRef[0] : referenceFile;
+    String sAbsPath;
+    if(ref !=null){
+      sAbsPath = ref.getAbsolutePath() + '/' + sDir + sFile;
+    } else {
+      sAbsPath = sDir + sFile;
+    }
+    return sAbsPath;
+  }
+  
   
   
   /**This method overrides java.io.File.listFiles() but returns Objects from this class type.
    * @see java.io.File#listFiles()
    */
-  @Override public FileRemote[] listFiles(){
+  @Override public File[] listFiles(){
+    return children;
+    /*
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
     return device.listFiles(this);
+    */
   }
   
   /**Deletes a file maybe in a remote device. This is a send-only routine without feedback,
@@ -506,6 +711,9 @@ public class FileRemote extends File
    * @param backEvent The event for success.
    */
   public void delete(Event backEvent){
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
     if(device.isLocalFileSystem()){
       boolean bOk;
       if(super.isDirectory()){
@@ -565,6 +773,9 @@ public class FileRemote extends File
    * @param backEvent The event for success.
    */
   public void check(FileRemote.Callback backEvent){
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
     if(device.isLocalFileSystem()){
       FileRemoteAccessor.Commission com = new FileRemoteAccessor.Commission();
       com.callBack = backEvent;
@@ -588,6 +799,9 @@ public class FileRemote extends File
    * @param backEvent The event for success.
    */
   public void copyTo(FileRemote dst, FileRemote.Callback backEvent){
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
     if(device.isLocalFileSystem() && dst.device.isLocalFileSystem()){
       FileRemoteAccessor.Commission com = new FileRemoteAccessor.Commission();
       com.callBack = backEvent;
@@ -622,6 +836,9 @@ public class FileRemote extends File
    * @param backEvent The event for success.
    */
   public void moveTo(FileRemote dst, FileRemote.Callback backEvent){
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
     if(device.isLocalFileSystem() && dst.device.isLocalFileSystem()){
       FileRemoteAccessor.Commission com = new FileRemoteAccessor.Commission();
       com.callBack = backEvent;
@@ -720,7 +937,8 @@ public class FileRemote extends File
   
   
   
-  public static class Callback extends Event{
+  public static class Callback extends Event
+  {
 
     public char[] fileName = new char[100];
     
@@ -730,12 +948,14 @@ public class FileRemote extends File
     
     public int nrofFiles;
     
-    public Callback(Object src, EventConsumer dst){ super(src, dst); }
+    //public FileRemote getRefData(){ return (FileRemote)super.getRefData(); }
+    
+    public Callback(Object refData, EventConsumer dst){ super(refData, dst); }
     
   }
   
   
-
+  
   
   
 }
