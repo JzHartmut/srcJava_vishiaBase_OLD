@@ -88,7 +88,7 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
   public static FileRemote openZipFile(FileRemote fileZip){
     FileZipData dataParent = new FileZipData();
     FileAccessZip zipAccess = getInstance();
-    int parentProperties = FileRemote.mDirectory | FileRemote.mExist | FileRemote.mCanRead;
+    int parentProperties = FileRemote.mDirectory | FileRemote.mExist | FileRemote.mCanRead | FileRemote.mChildrenGotten;
     String sDirParent = fileZip.getAbsolutePath() + '/';
     FileRemote fileParent = new FileRemote(zipAccess, fileZip, sDirParent, null, fileZip.length(),fileZip.lastModified(), parentProperties, dataParent);
     dataParent.children = new TreeNodeUniqueKey<FileRemote>(null, "/", fileParent);
@@ -114,7 +114,7 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
         sNameChild = sPathEntry.substring(sep + 1); //after '/'
         if(sNameChild.length() ==0){
           //a directory in the zip file, it ends with '/'
-          zipEntryProperties |= FileRemote.mDirectory;
+          zipEntryProperties |= FileRemote.mDirectory | FileRemote.mChildrenGotten;
           sep = sDirInZip.lastIndexOf('/');
           sNameChild = sDirInZip.substring(sep + 1); //after '/'
           if(sep >=0){
@@ -161,12 +161,14 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
   }
 
   @Override
-  public boolean refreshFileProperties(FileRemote file) {
+  public void refreshFileProperties(FileRemote file, Event callback) {
     // TODO Auto-generated method stub
-    return false;
+    if(callback !=null){
+      callback.sendtoDst();
+    }
   }
 
-  @Override public boolean refreshFilePropertiesAndChildren(FileRemote file) {
+  @Override public void refreshFilePropertiesAndChildren(FileRemote file, Event callback) {
     FileZipData data = (FileZipData)file.oFile;
     int zChildren = data == null ? 0 : data.children == null ? 0 : (data.children.childNodes == null ? 0
         : data.children.childNodes.size())
@@ -183,7 +185,9 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
           file.children[++ii] = node1;
       } }
     }
-    return true;
+    if(callback !=null){
+      callback.sendtoDst();
+    }
   }
 
   @Override

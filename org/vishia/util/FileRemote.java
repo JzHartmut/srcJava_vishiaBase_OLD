@@ -191,12 +191,13 @@ public class FileRemote extends File
   
   public final static int  mCanReadGrp =  0x0800;
   public final static int  mCanWriteGrp = 0x1000;
-  public final static int  mExecuteGrp = 0x2000;
+  public final static int  mExecuteGrp =  0x2000;
   public final static int  mCanReadAny =  0x4000;
   public final static int  mCanWriteAny = 0x8000;
 
   protected final static int  mAbsPathTested = 0x10000;
-  protected final static int  mTested =       0x20000;
+  protected final static int  mTested =        0x20000;
+  protected final static int mChildrenGotten =0x40000;
 
   
   /**This is the internal file object. It is handled by the device only. */
@@ -403,10 +404,7 @@ public class FileRemote extends File
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    device.refreshFileProperties(this);
-    if(callback !=null){
-      callback.sendtoDst();
-    }
+    device.refreshFileProperties(this, callback);
   }
   
   
@@ -417,10 +415,7 @@ public class FileRemote extends File
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    device.refreshFilePropertiesAndChildren(this);
-    if(callback !=null){
-      callback.sendtoDst();
-    }
+    device.refreshFilePropertiesAndChildren(this, callback);
   }
   
   
@@ -651,30 +646,81 @@ public class FileRemote extends File
   
   
   @Override public boolean exists(){ 
+    if((flags & mTested) ==0){
+      //The children are not known yet, get it:
+      if(device == null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+      }
+      device.refreshFileProperties(this, null);
+    }
     return (flags & mExist) !=0; 
   }
   
   @Override public boolean isFile(){ 
+    if((flags & mTested) ==0){
+      //The children are not known yet, get it:
+      if(device == null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+      }
+      device.refreshFileProperties(this, null);
+    }
     return (flags & mFile) !=0; 
   }
   
   @Override public boolean isDirectory(){ 
+    if((flags & mTested) ==0){
+      //The children are not known yet, get it:
+      if(device == null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+      }
+      device.refreshFileProperties(this, null);
+    }
     return (flags & mDirectory) !=0; 
   }
   
   @Override public boolean canWrite(){ 
+    if((flags & mTested) ==0){
+      //The children are not known yet, get it:
+      if(device == null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+      }
+      device.refreshFileProperties(this, null);
+    }
     return (flags & mCanWrite) !=0; 
   }
   
   @Override public boolean canRead(){ 
+    if((flags & mTested) ==0){
+      //The children are not known yet, get it:
+      if(device == null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+      }
+      device.refreshFileProperties(this, null);
+    }
     return (flags & mCanRead) !=0; 
   }
   
   @Override public boolean canExecute(){ 
+    if((flags & mTested) ==0){
+      //The children are not known yet, get it:
+      if(device == null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+      }
+      device.refreshFileProperties(this, null);
+    }
     return (flags & mExecute) !=0; 
   }
   
-  public boolean isSymbolicLink(){ return (flags & mSymLinkedPath) !=0; }
+  public boolean isSymbolicLink(){ 
+    if((flags & mTested) ==0){
+      //The children are not known yet, get it:
+      if(device == null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+      }
+      device.refreshFileProperties(this, null);
+    }
+    return (flags & mSymLinkedPath) !=0; 
+  }
   
   
   @Override public String getAbsolutePath(){
@@ -693,15 +739,22 @@ public class FileRemote extends File
   
   /**This method overrides java.io.File.listFiles() but returns Objects from this class type.
    * @see java.io.File#listFiles()
+   * If the children files are gotten from the maybe remote file system, this method returns immediately
+   * with that result. But it may be out of date. The user can call {@link #refreshPropertiesAndChildren(Callback)}
+   * to get the new situation.
+   * <br><br>
+   * If the children are not gotten up to now they are gotten yet. The method blocks until the information is gotten,
+   * see {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, Event)} with null as event parameter.
    */
   @Override public File[] listFiles(){
-    return children;
-    /*
-    if(device == null){
-      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    if((flags & mChildrenGotten) ==0){
+      //The children are not known yet, get it:
+      if(device == null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+      }
+      device.refreshFilePropertiesAndChildren(this, null);
     }
-    return device.listFiles(this);
-    */
+    return children;
   }
   
   /**Deletes a file maybe in a remote device. This is a send-only routine without feedback,

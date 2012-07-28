@@ -114,7 +114,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
    * If the file exists, the properties of the file were set, elsewhere they were set to 0.
    * @see {@link org.vishia.util.FileRemoteAccessor#refreshFileProperties(org.vishia.util.FileRemote)}
    */
-  @Override public boolean refreshFileProperties(FileRemote fileRemote)
+  @Override public void refreshFileProperties(FileRemote fileRemote, Event callback)
   { File fileLocal;
     //NOTE: use the superclass File only as interface, use a second instance.
     //the access to super methods does not work. Therefore access to non-inherited File.methods.
@@ -155,13 +155,16 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
       //designate it as tested, mExists isn't set.
       fileRemote._setProperties(0, 0, FileRemote.mTested, fileLocal);
     }
-    return true;    
+    if(callback !=null){
+      callback.sendtoDst();
+    }
   }
 
   
-  @Override public boolean refreshFilePropertiesAndChildren(FileRemote fileRemote){
-    refreshFileProperties(fileRemote);
+  @Override public void refreshFilePropertiesAndChildren(FileRemote fileRemote, Event callback){
+    refreshFileProperties(fileRemote, null);
     File fileLocal = (File)fileRemote.oFile;
+    fileRemote.flags |= FileRemote.mChildrenGotten;
     if(fileLocal.exists()){
       File[] files = fileLocal.listFiles();
       if(files !=null){
@@ -172,7 +175,9 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
         }
       }
     }
-    return true;
+    if(callback !=null){
+      callback.sendtoDst();
+    }
   }
 
   
@@ -225,7 +230,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
     String sDir = fileLocal.getParent().replace('\\', '/');
     FileRemote dir = FileRemote.fromFile(fileLocal.getParentFile());
     FileRemote fileRemote = new FileRemote(this, dir, sDir, name, 0, 0, 0, fileLocal);
-    refreshFileProperties(fileRemote);  
+    refreshFileProperties(fileRemote, null);  
     return fileRemote;
   }
   

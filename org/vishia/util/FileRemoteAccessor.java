@@ -59,13 +59,23 @@ public interface FileRemoteAccessor extends Closeable
   
   /**Gets the properties of the file from the physical file.
    * @param file the destination file object.
+   * @param callback If null then the method waits for response from the maybe remote file system
+   *   with a suitable timeout. 
+   *   If not null then the method may return immediately without any waiting
+   *   and the callback method in the {@link Event#sendtoDst()} is invoked maybe in another thread
+   *   if the answer is gotten. 
    */
-  public boolean refreshFileProperties(FileRemote file);
+  public void refreshFileProperties(FileRemote file, Event callback);
 
   /**Gets the properties and the children of the file from the physical file.
    * @param file the destination file object.
+   * @param callback If null then the method waits for response from the maybe remote file system
+   *   with a suitable timeout. 
+   *   If not null then the method may return immediately without any waiting
+   *   and the callback method in the {@link Event#sendtoDst()} is invoked maybe in another thread
+   *   if the answer is gotten. 
    */
-  public boolean refreshFilePropertiesAndChildren(FileRemote file);
+  public void refreshFilePropertiesAndChildren(FileRemote file, Event callback);
 
   ReadableByteChannel openRead(FileRemote file, long passPhase);
   
