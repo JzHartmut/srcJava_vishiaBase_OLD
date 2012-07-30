@@ -197,7 +197,8 @@ public class FileRemote extends File
 
   protected final static int  mAbsPathTested = 0x10000;
   protected final static int  mTested =        0x20000;
-  protected final static int mChildrenGotten =0x40000;
+  protected final static int mChildrenGotten = 0x40000;
+  protected final static int mThreadIsRunning =0x80000;
 
   
   /**This is the internal file object. It is handled by the device only. */

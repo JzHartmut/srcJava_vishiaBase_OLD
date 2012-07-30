@@ -21,6 +21,9 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   
   /**Version, history and license.
    * <ul>
+   * <li>2012-07-30 Hartmut new: execution of {@link #refreshFileProperties(FileRemote, Event)} and {@link #refreshFilePropertiesAndChildren(FileRemote, Event)}
+   *   in an extra thread if a callback is given. It is substantial for a fluently working with files, if an access
+   *   for example in network hangs.
    * <li>2012-07-28 Hartmut new: Concept of remote files enhanced with respect to {@link FileAccessZip},
    *   see {@link FileRemote}
    * <li>2012-03-10 Hartmut new: implementation of the {@link FileRemote#chgProps(String, int, int, long, org.vishia.util.FileRemote.Callback)} etc.
@@ -114,69 +117,110 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
    * If the file exists, the properties of the file were set, elsewhere they were set to 0.
    * @see {@link org.vishia.util.FileRemoteAccessor#refreshFileProperties(org.vishia.util.FileRemote)}
    */
-  @Override public void refreshFileProperties(FileRemote fileRemote, Event callback)
-  { File fileLocal;
-    //NOTE: use the superclass File only as interface, use a second instance.
-    //the access to super methods does not work. Therefore access to non-inherited File.methods.
-    if(fileRemote.oFile == null){
-      String path = fileRemote.getPath();
-      fileRemote.oFile = fileLocal = new File(path);
-    } else {
-      fileLocal = (File)fileRemote.oFile;
-    }
-    String path = fileRemote.getPath();
-    if(fileLocal.exists()){
-      String canonicalPath = FileSystem.getCanonicalPath(fileLocal);
-      long date = fileLocal.lastModified();
-      long length = fileLocal.length();
-      int flags = FileRemote.mExist | FileRemote.mTested;
-      if(fileLocal.isDirectory()){ flags |= FileRemote.mDirectory; }
-      if(fileLocal.isHidden()){ flags |= FileRemote.mHidden; }
-      if(fileLocal.canWrite()){ flags |= FileRemote.mCanWrite; }
-      if(fileLocal.canRead()){ flags |= FileRemote.mCanRead; }
-      if(fileLocal.canExecute()){ flags |= FileRemote.mExecute; }
-      if(fileLocal.isDirectory()){ flags |= FileRemote.mDirectory; }
-      if(fileLocal.isDirectory()){ flags |= FileRemote.mDirectory; }
-      fileRemote._setProperties(length, date, flags, fileLocal);
-      if(fileLocal.isAbsolute()){
-        String pathCleaned = FileSystem.cleanAbsolutePath(path);
-        if(!canonicalPath.startsWith(pathCleaned)){
-          fileRemote.setSymbolicLinkedPath(canonicalPath);
+  @Override public void refreshFileProperties(final FileRemote fileRemote, final Event callback)
+  { 
+  
+    
+    /**Strategy: use an inner private routine which is encapsulated in a Runnable instance.
+     * either run it locally or run it in an extra thread.
+     */
+    Runnable thread = new Runnable(){
+      public void run(){
+        File fileLocal;
+        //NOTE: use the superclass File only as interface, use a second instance.
+        //the access to super methods does not work. Therefore access to non-inherited File.methods.
+        if(fileRemote.oFile == null){
+          String path = fileRemote.getPath();
+          fileRemote.oFile = fileLocal = new File(path);
         } else {
-          fileRemote.setCanonicalAbsPath(canonicalPath);
+          fileLocal = (File)fileRemote.oFile;
         }
-      } else { //relative path
-        if(workingDir == null){
-          workingDir = new FileRemote(FileSystem.getCanonicalPath(new File(".")));  //NOTE: should be absolute
+        String path = fileRemote.getPath();
+        if(fileLocal.exists()){
+          String canonicalPath = FileSystem.getCanonicalPath(fileLocal);
+          long date = fileLocal.lastModified();
+          long length = fileLocal.length();
+          int flags = FileRemote.mExist | FileRemote.mTested;
+          if(fileLocal.isDirectory()){ flags |= FileRemote.mDirectory; }
+          if(fileLocal.isHidden()){ flags |= FileRemote.mHidden; }
+          if(fileLocal.canWrite()){ flags |= FileRemote.mCanWrite; }
+          if(fileLocal.canRead()){ flags |= FileRemote.mCanRead; }
+          if(fileLocal.canExecute()){ flags |= FileRemote.mExecute; }
+          if(fileLocal.isDirectory()){ flags |= FileRemote.mDirectory; }
+          if(fileLocal.isDirectory()){ flags |= FileRemote.mDirectory; }
+          fileRemote._setProperties(length, date, flags, fileLocal);
+          if(fileLocal.isAbsolute()){
+            String pathCleaned = FileSystem.cleanAbsolutePath(path);
+            if(!canonicalPath.startsWith(pathCleaned)){
+              fileRemote.setSymbolicLinkedPath(canonicalPath);
+            } else {
+              fileRemote.setCanonicalAbsPath(canonicalPath);
+            }
+          } else { //relative path
+            if(workingDir == null){
+              workingDir = new FileRemote(FileSystem.getCanonicalPath(new File(".")));  //NOTE: should be absolute
+            }
+            fileRemote.setReferenceFile(workingDir);  
+          }
+        } else { //fileLocal not exists:
+          //designate it as tested, mExists isn't set.
+          fileRemote._setProperties(0, 0, FileRemote.mTested, fileLocal);
         }
-        fileRemote.setReferenceFile(workingDir);  
+        if(callback !=null){
+          callback.sendtoDst();
+        }
       }
-    } else { //fileLocal not exists:
-      //designate it as tested, mExists isn't set.
-      fileRemote._setProperties(0, 0, FileRemote.mTested, fileLocal);
+    };
+  
+    //the method body:
+    if(callback == null){
+      thread.run(); //run direct
+    } else {
+      Thread threadObj = new Thread(thread);
+      threadObj.start(); //run in an exttra thread, the caller doesn't wait.
     }
-    if(callback !=null){
-      callback.sendtoDst();
-    }
-  }
+  
+  }  
+    
 
   
-  @Override public void refreshFilePropertiesAndChildren(FileRemote fileRemote, Event callback){
-    refreshFileProperties(fileRemote, null);
-    File fileLocal = (File)fileRemote.oFile;
-    fileRemote.flags |= FileRemote.mChildrenGotten;
-    if(fileLocal.exists()){
-      File[] files = fileLocal.listFiles();
-      if(files !=null){
-        fileRemote.children = new FileRemote[files.length];
-        int iFile = -1;
-        for(File file1: files){
-          fileRemote.children[++iFile] = newFile(file1);
+  @Override public void refreshFilePropertiesAndChildren(final FileRemote fileRemote, final Event callback){
+    /**Strategy: use an inner private routine which is encapsulated in a Runnable instance.
+     * either run it locally or run it in an extra thread.
+     */
+    Runnable thread = new Runnable(){
+      public void run(){
+        refreshFileProperties(fileRemote, null);
+        File fileLocal = (File)fileRemote.oFile;
+        fileRemote.flags |= FileRemote.mChildrenGotten;
+        if(fileLocal.exists()){
+          File[] files = fileLocal.listFiles();
+          if(files !=null){
+            fileRemote.children = new FileRemote[files.length];
+            int iFile = -1;
+            for(File file1: files){
+              fileRemote.children[++iFile] = newFile(file1);
+            }
+          }
         }
+        if(callback !=null){
+          callback.sendtoDst();
+        }
+        fileRemote.flags &= ~FileRemote.mThreadIsRunning;
       }
-    }
-    if(callback !=null){
-      callback.sendtoDst();
+    };
+      
+    //the method body:
+    if(callback == null){
+      thread.run(); //run direct
+    } else {
+      if((fileRemote.flags & FileRemote.mThreadIsRunning) ==0) {
+        fileRemote.flags |= FileRemote.mThreadIsRunning;
+        Thread threadObj = new Thread(thread);
+        threadObj.start(); //run in an exttra thread, the caller doesn't wait.
+      } else {
+        callback.consumed(); //ignore it.
+      }
     }
   }
 
