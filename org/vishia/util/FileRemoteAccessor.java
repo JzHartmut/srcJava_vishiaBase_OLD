@@ -14,10 +14,12 @@ public interface FileRemoteAccessor extends Closeable
 {
   /**Version, history and license.
    * <ul>
+   * <li>2012-08-03 Hartmut chg: Usage of Event in FileRemote. 
+   *   The FileRemoteAccessor.Commission is removed yet. The same instance FileRemote.Callback, now named FileRemote.FileRemoteEvent is used for forward event (commision) and back event.
    * <li>2012-07-28 Hartmut new: Concept of remote files enhanced with respect to {@link FileAccessZip},
    *   see {@link FileRemote}
    * <li>2012-03-10 Hartmut new: {@link Commission#newDate} etc. 
-   *   for {@link FileRemote#chgProps(String, int, int, long, org.vishia.util.FileRemote.Callback)}.
+   *   for {@link FileRemote#chgProps(String, int, int, long, org.vishia.util.FileRemote.FileRemoteEvent)}.
    * <li>2012-01-09 Hartmut new: This class extends from Closeable, because an implementation 
    *  may have an running thread which is need to close. A device should be closeable any time.
    * <li>2012-01-06 Hartmut new {@link #refreshFileProperties(FileRemote)}. 
@@ -62,7 +64,7 @@ public interface FileRemoteAccessor extends Closeable
    * @param callback If null then the method waits for response from the maybe remote file system
    *   with a suitable timeout. 
    *   If not null then the method may return immediately without any waiting
-   *   and the callback method in the {@link Event#sendtoDst()} is invoked maybe in another thread
+   *   and the callback method in the {@link Event#callback()} is invoked maybe in another thread
    *   if the answer is gotten. 
    */
   public void refreshFileProperties(FileRemote file, Event callback);
@@ -72,7 +74,7 @@ public interface FileRemoteAccessor extends Closeable
    * @param callback If null then the method waits for response from the maybe remote file system
    *   with a suitable timeout. 
    *   If not null then the method may return immediately without any waiting
-   *   and the callback method in the {@link Event#sendtoDst()} is invoked maybe in another thread
+   *   and the callback method in the {@link Event#callback()} is invoked maybe in another thread
    *   if the answer is gotten. 
    */
   public void refreshFilePropertiesAndChildren(FileRemote file, Event callback);
@@ -84,7 +86,7 @@ public interface FileRemoteAccessor extends Closeable
   //FileRemote[] listFiles(FileRemote parent);
   
   
-  void addCommission(Commission com);
+  void addCommission(FileRemote.FileRemoteEvent com);
   
   boolean isLocalFileSystem();
 
@@ -98,18 +100,19 @@ public interface FileRemoteAccessor extends Closeable
   
   
   
-  public class Commission
+  public class XXXCommission
   {
     public final static int kCheckFile = 0xcecf1e, kCheck = 0xcec, kCopy = 0xc0b7, kDel = 0xde1ede
     , kMove = 0x307e, kChgProps = 0xc5a9e, kChgPropsRec = 0xc595ec
-    , kCountLength = 0xc0311e39;
+    , kCountLength = 0xc0311e39
+    , kAbortFile = 0xab03df1e, kAbortDir = 0xab03dd13, kAbortAll = 0xab03da11;
     
     
     int cmd;
     
     FileRemote src, dst;
     
-    FileRemote.Callback callBack;
+    FileRemote.FileRemoteEvent callBack;
     
     /**For {@link #kChgProps}: a new name. */
     String newName;

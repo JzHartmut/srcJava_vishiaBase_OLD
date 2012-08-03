@@ -21,12 +21,14 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   
   /**Version, history and license.
    * <ul>
+   * <li>2012-08-03 Hartmut chg: Usage of Event in FileRemote. 
+   *   The FileRemoteAccessor.Commission is removed yet. The same instance FileRemote.Callback, now named FileRemote.FileRemoteEvent is used for forward event (commision) and back event.
    * <li>2012-07-30 Hartmut new: execution of {@link #refreshFileProperties(FileRemote, Event)} and {@link #refreshFilePropertiesAndChildren(FileRemote, Event)}
    *   in an extra thread if a callback is given. It is substantial for a fluently working with files, if an access
    *   for example in network hangs.
    * <li>2012-07-28 Hartmut new: Concept of remote files enhanced with respect to {@link FileAccessZip},
    *   see {@link FileRemote}
-   * <li>2012-03-10 Hartmut new: implementation of the {@link FileRemote#chgProps(String, int, int, long, org.vishia.util.FileRemote.Callback)} etc.
+   * <li>2012-03-10 Hartmut new: implementation of the {@link FileRemote#chgProps(String, int, int, long, org.vishia.util.FileRemote.FileRemoteEvent)} etc.
    * <li>2012-02-02 Hartmut chg: {@link #refreshFileProperties(FileRemote, File)}: There was an faulty recursive loop,
    *   more checks. 
    * <li>2012-01-09 Hartmut new: {@link #close()} terminates the thread.
@@ -72,7 +74,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   
   
   /**List of all commissions to do. */
-  private final ConcurrentLinkedQueue<Commission> commissions = new ConcurrentLinkedQueue<Commission>();
+  private final ConcurrentLinkedQueue<FileRemote.FileRemoteEvent> commissions = new ConcurrentLinkedQueue<FileRemote.FileRemoteEvent>();
   
   
   
@@ -167,7 +169,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
           fileRemote._setProperties(0, 0, FileRemote.mTested, fileLocal);
         }
         if(callback !=null){
-          callback.sendtoDst();
+          callback.callback();
         }
       }
     };
@@ -204,7 +206,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
           }
         }
         if(callback !=null){
-          callback.sendtoDst();
+          callback.callback();
         }
         fileRemote.flags &= ~FileRemote.mThreadIsRunning;
       }
@@ -286,14 +288,22 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   }
   
   
-  @Override public void addCommission(Commission com){ 
-    commissions.add(com);
-    synchronized(this){
-      if(commissionState == 'w'){
-        notify();
-      } else {
-        commissionState = 'c';
-      }
+  @Override public void addCommission(FileRemote.FileRemoteEvent com){ 
+    switch(com.cmd){
+    case FileRemote.FileRemoteEvent.kAbortAll: copy.bAbortAll = true; break;
+    case FileRemote.FileRemoteEvent.kAbortDir: copy.bAbortDir = true; break;
+    case FileRemote.FileRemoteEvent.kAbortFile: copy.bAbortFile = true; break;
+    default: {
+      //write commission in queue:
+        commissions.add(com);
+        synchronized(this){
+          if(commissionState == 'w'){
+            notify();
+          } else {
+            commissionState = 'c';
+          }
+        }
+      } 
     }
   }
   
@@ -304,7 +314,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   
     while(commissionState != 'x'){ //exit?
       try{ //never let the thread crash
-        Commission commission;
+        FileRemote.FileRemoteEvent commission;
         if( (commission = commissions.poll()) !=null){
           synchronized(this){
             if(commissionState != 'x'){
@@ -333,23 +343,23 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   }
   
   
-  void execCommission(Commission commission){
+  void execCommission(FileRemote.FileRemoteEvent commission){
     switch(commission.cmd){
-    case Commission.kCheckFile: copy.checkCopy(commission); break;
-    case Commission.kCopy: copy.execCopy(commission); break;
-    case Commission.kMove: copy.execMove(commission); break;
-    case Commission.kChgProps:  execChgProps(commission); break;
-    case Commission.kChgPropsRec:  execChgPropsRecurs(commission); break;
-    case Commission.kCountLength:  execCountLength(commission); break;
-    case Commission.kDel:  execDel(commission); break;
+    case FileRemote.FileRemoteEvent.kCheckFile: copy.checkCopy(commission); break;
+    case FileRemote.FileRemoteEvent.kCopy: copy.execCopy(commission); break;
+    case FileRemote.FileRemoteEvent.kMove: copy.execMove(commission); break;
+    case FileRemote.FileRemoteEvent.kChgProps:  execChgProps(commission); break;
+    case FileRemote.FileRemoteEvent.kChgPropsRec:  execChgPropsRecurs(commission); break;
+    case FileRemote.FileRemoteEvent.kCountLength:  execCountLength(commission); break;
+    case FileRemote.FileRemoteEvent.kDel:  execDel(commission); break;
       
     }
   }
   
   
-  private void execChgProps(Commission co){
+  private void execChgProps(FileRemote.FileRemoteEvent co){
     File dst;
-    FileRemote.Callback callBack = co.callBack;  //access only 1 time, check callBack. co.callBack may be changed from another thread.
+    FileRemote.FileRemoteEvent callBack = co;  //access only 1 time, check callBack. co may be changed from another thread.
     boolean ok = callBack !=null;
     if(co.newName !=null && ! co.newName.equals(co.src.getName())){
       dst = new File(co.src.getParent(), co.newName);
@@ -360,18 +370,18 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
     ok = chgFile(dst, co, ok);
     if(callBack !=null){
       if(ok){
-        callBack.id = FileRemoteAccessor.kFinishOk; 
+        callBack.answer = FileRemoteAccessor.kFinishOk; 
       } else {
-        callBack.id = FileRemoteAccessor.kFinishNok; 
+        callBack.answer = FileRemoteAccessor.kFinishNok; 
       }
-      callBack.sendtoDst();
+      callBack.callback();
     }
   }
   
   
-  private void execChgPropsRecurs(Commission co){
+  private void execChgPropsRecurs(FileRemote.FileRemoteEvent co){
     File dst;
-    FileRemote.Callback callBack = co.callBack;  //access only 1 time, check callBack. co.callBack may be changed from another thread.
+    FileRemote.FileRemoteEvent callBack = co;  //access only 1 time, check callBack. co may be changed from another thread.
     boolean ok = callBack !=null;
     if(co.newName !=null && ! co.newName.equals(co.src.getName())){
       dst = new File(co.src.getParent(), co.newName);
@@ -382,17 +392,17 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
     ok = chgPropsRecursive(dst, co, ok, 0);
     if(callBack !=null){
       if(ok){
-        callBack.id = FileRemoteAccessor.kFinishOk; 
+        callBack.answer = FileRemoteAccessor.kFinishOk; 
       } else {
-        callBack.id = FileRemoteAccessor.kFinishNok; 
+        callBack.answer = FileRemoteAccessor.kFinishNok; 
       }
-      callBack.sendtoDst();
+      callBack.callback();
     }
   }
   
   
   
-  private boolean chgPropsRecursive(File dst, Commission co, boolean ok, int recursion){
+  private boolean chgPropsRecursive(File dst, FileRemote.FileRemoteEvent co, boolean ok, int recursion){
     if(recursion > 100){
       throw new IllegalArgumentException("FileRemoteAccessorLocal.chgProsRecursive: too many recursions ");
     }
@@ -409,7 +419,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   
 
   
-  private boolean chgFile(File dst, Commission co, boolean ok){
+  private boolean chgFile(File dst, FileRemote.FileRemoteEvent co, boolean ok){
     if(ok && (co.maskFlags & FileRemote.mCanWrite) !=0){ ok = dst.setWritable((co.newFlags & FileRemote.mCanWrite) !=0, true); }
     if(ok && (co.maskFlags & FileRemote.mCanWriteAny) !=0){ ok = dst.setWritable((co.newFlags & FileRemote.mCanWriteAny) !=0); }
     if(ok && (co.maskFlags & FileRemote.mCanWriteAny) !=0){ ok = dst.setReadable((co.newFlags & FileRemote.mCanWriteAny) !=0, true); }
@@ -422,17 +432,17 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   
   
   
-  private void execCountLength(Commission co){
+  private void execCountLength(FileRemote.FileRemoteEvent co){
     long length = countLengthDir(co.src, 0, 0);    
-    FileRemote.Callback callBack = co.callBack;  //access only 1 time, check callBack. co.callBack may be changed from another thread.
+    FileRemote.FileRemoteEvent callBack = co;  //access only 1 time, check callBack. co may be changed from another thread.
     if(callBack !=null){
       if(length >=0){
-        callBack.id = FileRemoteAccessor.kFinishOk;
+        callBack.answer = FileRemoteAccessor.kFinishOk;
         callBack.nrofBytesAll = length;
       } else {
-        callBack.id = FileRemoteAccessor.kFinishNok; 
+        callBack.answer = FileRemoteAccessor.kFinishNok; 
       }
-      callBack.sendtoDst();
+      callBack.callback();
     }
   }
   
@@ -454,7 +464,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   
   
   
-  void execDel(Commission co){
+  void execDel(FileRemote.FileRemoteEvent co){
     
   }
 
@@ -476,6 +486,8 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   
     long timestart;
     
+    boolean bAbortFile, bAbortDir, bAbortAll;
+    
     int zFilesCheck, zFilesCopy;
     
     long zBytesCheck, zBytesCopy;
@@ -487,8 +499,8 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
     byte[] buffer = new byte[0x100000];  //1 MByte 16 kByte buffer
     
     
-    /**List of files to handle between {@link #checkCopy(org.vishia.util.FileRemoteAccessor.Commission)}
-     * and {@link #execCopy(org.vishia.util.FileRemoteAccessor.Commission)}. */
+    /**List of files to handle between {@link #checkCopy(org.vishia.util.FileRemoteAccessor.FileRemote.FileRemoteEvent)}
+     * and {@link #execCopy(org.vishia.util.FileRemoteAccessor.FileRemote.FileRemoteEvent)}. */
     private final List<File> listCopyFiles = new LinkedList<File>();
     
     private File currentFile;
@@ -497,7 +509,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
 
     private int checkId;
     
-    void checkCopy(Commission co){
+    void checkCopy(FileRemote.FileRemoteEvent co){
       this.currentFile= co.src;
       listCopyFiles.clear();
       if(currentFile.isDirectory()){ 
@@ -509,11 +521,11 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
         zBytesCheck = co.src.length();
         zFilesCheck = 1;
       }
-      co.callBack.data1 = checkId = ++ctWorkingId;
-      co.callBack.nrofBytesAll = (int)zBytesCheck;  //number between 0...1000
-      co.callBack.nrofFiles = zFilesCheck;  //number between 0...1000
-      co.callBack.id = FileRemoteAccessor.kNrofFilesAndBytes;
-      co.callBack.sendtoDst();
+      co.data1 = checkId = ++ctWorkingId;
+      co.nrofBytesAll = (int)zBytesCheck;  //number between 0...1000
+      co.nrofFiles = zFilesCheck;  //number between 0...1000
+      co.answer = FileRemoteAccessor.kNrofFilesAndBytes;
+      co.callback();
     }
     
     
@@ -539,20 +551,20 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
 
     
     
-    private void execMove(Commission co){
+    private void execMove(FileRemote.FileRemoteEvent co){
       timestart = System.currentTimeMillis();
       if(co.src.renameTo(co.dst)){
-        co.callBack.id = FileRemoteAccessor.kFinishOk; 
+        co.answer = FileRemoteAccessor.kFinishOk; 
       } else {
-        co.callBack.id = FileRemoteAccessor.kFinishNok; 
+        co.answer = FileRemoteAccessor.kFinishNok; 
       }
-      co.callBack.sendtoDst();
+      co.callback();
     }
 
     
 
     
-    private void execCopy(Commission co){
+    private void execCopy(FileRemote.FileRemoteEvent co){
       timestart = System.currentTimeMillis();
       zFilesCopy = 0;
       zBytesCopy = 0;
@@ -561,12 +573,15 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
       } else {
         copy.execCopyFile(co, co.src, co.dst);
       }
-      co.callBack.id = FileRemoteAccessor.kFinishOk; //zBytesCopyFile == zBytesMax ? FileRemoteAccessor.kFinishOk : FileRemoteAccessor.kFinishNok;
-      co.callBack.sendtoDst();
+      if(bAbortAll){
+        bAbortAll = false;
+      }
+      co.answer = FileRemoteAccessor.kFinishOk; //zBytesCopyFile == zBytesMax ? FileRemoteAccessor.kFinishOk : FileRemoteAccessor.kFinishNok;
+      co.callback();
     }
 
     
-    private void execCopyDir(Commission co, File src, File dst){
+    private void execCopyDir(FileRemote.FileRemoteEvent co, File src, File dst){
       assert(src.isDirectory());
       dst.mkdirs();
       File[] filesSrc = src.listFiles();
@@ -578,11 +593,18 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
           File fileDst = new File(dst, fileSrc.getName());
           execCopyFile(co, fileSrc, fileDst);
         }
+        if(bAbortDir || bAbortAll){
+          if(bAbortDir){
+            FileSystem.rmdir(dst);
+          }
+          bAbortDir = false;
+          break;
+        }
       }
     }
     
     
-    private void execCopyFile(Commission co, File src, File dst){
+    private void execCopyFile(FileRemote.FileRemoteEvent co, File src, File dst){
       FileInputStream in = null;
       FileOutputStream out = null;
       final long zBytesMax = src.length();
@@ -602,19 +624,19 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
             //
             //feedback of progression after about 0.3 second. 
             if(time > timestart + 300){
-              co.callBack.data1 = (int)((float)zBytesCopyFile / zBytesMax * 1000);  //number between 0...1000
-              co.callBack.data2 = (int)((float)zBytesCopy / zBytesCheck * 1000);  //number between 0...1000
-              co.callBack.nrofFiles = zFilesCheck - zFilesCopy;
-              co.callBack.nrofBytesInFile = (int)zBytesCopy;
+              co.data1 = (int)((float)zBytesCopyFile / zBytesMax * 1000);  //number between 0...1000
+              co.data2 = (int)((float)zBytesCopy / zBytesCheck * 1000);  //number between 0...1000
+              co.nrofFiles = zFilesCheck - zFilesCopy;
+              co.nrofBytesInFile = (int)zBytesCopy;
               String name = src.getName();
               int zName = name.length();
-              if(zName > co.callBack.fileName.length){ 
-                zName = co.callBack.fileName.length;    //shorten the name, it is only an info 
+              if(zName > co.fileName.length){ 
+                zName = co.fileName.length;    //shorten the name, it is only an info 
               }
-              System.arraycopy(name.toCharArray(), 0, co.callBack.fileName, 0, zName);
-              Arrays.fill(co.callBack.fileName, zName, co.callBack.fileName.length, '\0');
-              co.callBack.id = FileRemoteAccessor.kOperation;
-              co.callBack.sendtoDst();
+              System.arraycopy(name.toCharArray(), 0, co.fileName, 0, zName);
+              Arrays.fill(co.fileName, zName, co.fileName.length, '\0');
+              co.answer = FileRemoteAccessor.kOperation;
+              co.callback();
               timestart = time;
             }
           } else if(zBytes == -1){
@@ -624,18 +646,25 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
             //0 bytes ?
             bContCopy = true;
           }
-        }while(bContCopy);
+        }while(bContCopy && ! bAbortFile && ! bAbortDir && ! bAbortAll);
       } catch(IOException exc){
         System.err.println("Copy exc "+ exc.getMessage());
-        co.callBack.data1 = (int)((float)zBytesCopyFile / zBytesMax * 1000);  //number between 0...1000
-        co.callBack.data2 = (int)((float)zBytesCopy / zBytesCheck * 1000);  //number between 0...1000
-        co.callBack.nrofFiles = zFilesCheck - zFilesCopy;
-        co.callBack.id = FileRemoteAccessor.kFinishError;
-        co.callBack.sendtoDst();
+        co.data1 = (int)((float)zBytesCopyFile / zBytesMax * 1000);  //number between 0...1000
+        co.data2 = (int)((float)zBytesCopy / zBytesCheck * 1000);  //number between 0...1000
+        co.nrofFiles = zFilesCheck - zFilesCopy;
+        co.answer = FileRemoteAccessor.kFinishError;
+        co.callback();
       }
       try{
         if(in !=null) { in.close(); }
         if(out !=null) { out.close(); }
+        if(bAbortFile){
+          boolean bOkdel = dst.delete();
+          if(bOkdel){
+            
+          }
+          bAbortFile = false;
+        }
       }catch(IOException exc){}
       try {
         long date = src.lastModified();

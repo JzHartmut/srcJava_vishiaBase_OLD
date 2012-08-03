@@ -5,7 +5,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.TreeMap;
 
-import org.vishia.util.FileRemote.Callback;
+import org.vishia.util.FileRemote.FileRemoteEvent;
 import org.vishia.util.FileRemote.FileRemoteAccessorSelector;
 
 /**

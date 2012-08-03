@@ -164,7 +164,7 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
   public void refreshFileProperties(FileRemote file, Event callback) {
     // TODO Auto-generated method stub
     if(callback !=null){
-      callback.sendtoDst();
+      callback.callback();
     }
   }
 
@@ -186,7 +186,7 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
       } }
     }
     if(callback !=null){
-      callback.sendtoDst();
+      callback.callback();
     }
   }
 
@@ -203,7 +203,7 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
   }
 
   @Override
-  public void addCommission(Commission com) {
+  public void addCommission(FileRemote.FileRemoteEvent com) {
     // TODO Auto-generated method stub
     
   }

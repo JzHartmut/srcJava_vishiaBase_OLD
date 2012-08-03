@@ -35,9 +35,11 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2012-08-03 Hartmut chg: Usage of Event in FileRemote. 
+   *   The FileRemoteAccessor.Commission is removed yet. The same instance FileRemote.Callback, now named FileRemote.FileRemoteEvent is used for forward event (commision) and back event.
    * <li>2012-07-28 Hartmut chg: Concept of remote files enhanced with respect to {@link FileAccessZip}.
    *   <ul>
-   *   <li>New references {@link #parent} and {@link #children}. They are filled calling {@link #refreshPropertiesAndChildren(Callback)}.
+   *   <li>New references {@link #parent} and {@link #children}. They are filled calling {@link #refreshPropertiesAndChildren(FileRemoteEvent)}.
    *   <li>More separation of java.io.File accesses. In the past only the local files were supported really.
    *   <li>new interface {@link FileRemoteAccessorSelector} and {@link #setAccessorSelector(FileRemoteAccessorSelector)}.
    *     The user can have any algorithm to select a {@link FileRemoteAccessor} depending on the
@@ -48,7 +50,7 @@ public class FileRemote extends File
    *   <li>The constructor had access the file if length=-1 was given. But that is not the convention.
    *     An access may need execution and waiting time for a remote communication. The constructor
    *     should never wait. Instead the methods:
-   *   <li>{@link #refreshProperties(Callback)} and {@link #refreshPropertiesAndChildren(Callback)}
+   *   <li>{@link #refreshProperties(FileRemoteEvent)} and {@link #refreshPropertiesAndChildren(FileRemoteEvent)}
    *     have to be called if the properties of the real file on the local system (java.io.File)
    *     or any remote system are need. That routines envisages the continuation of working
    *     with a callback event are invocation mechanism. For example if the file properties
@@ -56,13 +58,13 @@ public class FileRemote extends File
    *     for more as some 100 milliseconds. It is better to clear a table and continue working in graphic. 
    *     If the properties are gotten from the remote system then the table will be filled.
    *     That may be invoked from another thread, the communication thread for the remote device
-   *     or by an event mechanism (see {@link FileRemote.Callback} respectively {@link org.vishia.util.Event}.
+   *     or by an event mechanism (see {@link FileRemote.FileRemoteEvent} respectively {@link org.vishia.util.Event}.
    *   <li>The routine {@link #fromFile(File)} reads are properties of a local file if one is given.
-   *     In that case the {@link #refreshProperties(Callback)} need not be invoked additionally.
+   *     In that case the {@link #refreshProperties(FileRemoteEvent)} need not be invoked additionally.
    *   <li>{@link #openRead(long)} and {@link #openWrite(long)} accepts a non-given device.
    *     They select it calling {@link FileRemoteAccessorSelector#selectFileRemoteAccessor(String)}
    *   <li>All get methods {@link #length}, {@link #lastModified()}, {@link #isDirectory()} etc.
-   *     now returns only the stored values. It may necessary to invoke {@link #refreshProperties(Callback)}
+   *     now returns only the stored values. It may necessary to invoke {@link #refreshProperties(FileRemoteEvent)}
    *     in the application before they are called to get the correct values. The refreshing
    *     can't be called in that getter routines because they should not wait for communication.
    *     In the case of local files that access may be shorten in time, but it isn't known
@@ -73,11 +75,11 @@ public class FileRemote extends File
    *     only with knowledge of the path string. Because the {@link #FileRemote(FileRemoteAccessor, FileRemote, String, String, long, long, int, Object)}
    *     will be gotten the parent of it too, all parent instances will be set recursively then.
    *   <li>{@link #listFiles()} now returns the {@link #children} only. If the user has not called
-   *     {@link #refreshPropertiesAndChildren(Callback)}, it is empty.           
+   *     {@link #refreshPropertiesAndChildren(FileRemoteEvent)}, it is empty.           
    *   </ul>
    * <li>2012-07-21 Hartmut new: {@link #delete(String, boolean, Event)} with given mask. TODO: It should done in 
    *   {@link org.vishia.util.FileRemoteAccessorLocalFile} in an extra thread.
-   * <li>2012-03-10 Hartmut new: {@link #chgProps(String, int, int, long, Callback)}, {@link #countAllFileLength(Callback)}.
+   * <li>2012-03-10 Hartmut new: {@link #chgProps(String, int, int, long, FileRemoteEvent)}, {@link #countAllFileLength(FileRemoteEvent)}.
    *   Enhancements.
    * <li>2012-02-02 Hartmut chg: Now the {@link #sFile} (renamed from name) is empty if this describes
    *   an directory and it is known that it is an directory. The ctor is adapted therefore.
@@ -257,7 +259,7 @@ public class FileRemote extends File
    * using the 0 as value. Then the quest {@link #exists()} returns false. This instance
    * describes a File object only, it does not access to the file system.
    * The properties of the real file inclusively the length and date can be gotten 
-   * from the file system calling {@link #refreshProperties(Callback)}. This operation may be
+   * from the file system calling {@link #refreshProperties(FileRemoteEvent)}. This operation may be
    * invoked in another thread (depending on the device) and may be need some operation time.
    *  
    * @param device The device which organizes the access to the file system.
@@ -401,7 +403,7 @@ public class FileRemote extends File
   /**Gets the properties of the file from the physical file.
    * @param callback
    */
-  public void refreshProperties(Callback callback){
+  public void refreshProperties(FileRemoteEvent callback){
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
@@ -412,7 +414,7 @@ public class FileRemote extends File
   /**Gets the properties of the file from the physical file.
    * @param callback
    */
-  public void refreshPropertiesAndChildren(Callback callback){
+  public void refreshPropertiesAndChildren(FileRemoteEvent callback){
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
@@ -741,7 +743,7 @@ public class FileRemote extends File
   /**This method overrides java.io.File.listFiles() but returns Objects from this class type.
    * @see java.io.File#listFiles()
    * If the children files are gotten from the maybe remote file system, this method returns immediately
-   * with that result. But it may be out of date. The user can call {@link #refreshPropertiesAndChildren(Callback)}
+   * with that result. But it may be out of date. The user can call {@link #refreshPropertiesAndChildren(FileRemoteEvent)}
    * to get the new situation.
    * <br><br>
    * If the children are not gotten up to now they are gotten yet. The method blocks until the information is gotten,
@@ -761,7 +763,7 @@ public class FileRemote extends File
   /**Deletes a file maybe in a remote device. This is a send-only routine without feedback,
    * because the calling thread should not be waiting for success.
    * The success is notified with invocation of the 
-   * {@link Event#dst}.{@link EventConsumer#processEvent(Event)} method. 
+   * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * @param backEvent The event for success.
    */
   public void delete(Event backEvent){
@@ -776,7 +778,7 @@ public class FileRemote extends File
         bOk = super.delete();
       }
       backEvent.data1 = bOk? 0 : -1;
-      backEvent.dst.processEvent(backEvent);
+      backEvent.callback.processEvent(backEvent);
     } else {
       //TODO
     }
@@ -787,7 +789,7 @@ public class FileRemote extends File
   /**Deletes a files given by path maybe in a remote device. This is a send-only routine without feedback,
    * because the calling thread should not be waiting for success.
    * The success is notified with invocation of the 
-   * {@link Event#dst}.{@link EventConsumer#processEvent(Event)} method. 
+   * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * @param backEvent The event for success.
    */
   public void delete(String sPath, boolean deleteReadOnly, Event backEvent){
@@ -811,7 +813,7 @@ public class FileRemote extends File
     }
     if(backEvent !=null){
       backEvent.data1 = bOk? 0 : -1;
-      backEvent.dst.processEvent(backEvent);
+      backEvent.callback.processEvent(backEvent);
     }
   }
   
@@ -820,49 +822,41 @@ public class FileRemote extends File
   /**Checks a file maybe in a remote device maybe a directory. 
    * This is a send-only routine without feedback, because the calling thread should not be waiting 
    * for success. The success is notified with invocation of the 
-   * {@link Event#dst}.{@link EventConsumer#processEvent(Event)} method. 
+   * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * 
-   * @param dst This file will be created or filled newly. If it is existing but read only,
+   * @param callback This file will be created or filled newly. If it is existing but read only,
    *   nothing is copied and an error message is fed back.
    * @param backEvent The event for success.
    */
-  public void check(FileRemote.Callback backEvent){
+  public void check(FileRemote.FileRemoteEvent ev){
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    if(device.isLocalFileSystem()){
-      FileRemoteAccessor.Commission com = new FileRemoteAccessor.Commission();
-      com.callBack = backEvent;
-      com.cmd = FileRemoteAccessor.Commission.kCheckFile;
-      com.src = this;
-      com.dst = null;
-      device.addCommission(com);
-    } else {
-      //TODO
-    }
+    ev.cmd = FileRemote.FileRemoteEvent.kCheckFile;
+    ev.src = this;
+    ev.dst = null;
+    device.addCommission(ev);
   }
   
   
   /**Copies a file maybe in a remote device to another file in the same device. 
    * This is a send-only routine without feedback, because the calling thread should not be waiting 
    * for success. The success is notified with invocation of the 
-   * {@link Event#dst}.{@link EventConsumer#processEvent(Event)} method. 
+   * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * 
    * @param dst This file will be created or filled newly. If it is existing but read only,
    *   nothing is copied and an error message is fed back.
    * @param backEvent The event for success.
    */
-  public void copyTo(FileRemote dst, FileRemote.Callback backEvent){
+  public void copyTo(FileRemote dst, FileRemote.FileRemoteEvent ev){
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
     if(device.isLocalFileSystem() && dst.device.isLocalFileSystem()){
-      FileRemoteAccessor.Commission com = new FileRemoteAccessor.Commission();
-      com.callBack = backEvent;
-      com.cmd = FileRemoteAccessor.Commission.kCopy;
-      com.src = this;
-      com.dst = dst;
-      device.addCommission(com);
+      ev.cmd = FileRemote.FileRemoteEvent.kCopy;
+      ev.src = this;
+      ev.dst = dst;
+      device.addCommission(ev);
     } else {
       //TODO
     }
@@ -883,23 +877,21 @@ public class FileRemote extends File
    * <br><br>
    * It is a send-only routine without feedback in this routine, 
    * because the calling thread should not be waiting for success. The success is notified with invocation of the 
-   * {@link Event#dst}.{@link EventConsumer#processEvent(Event)} method. 
+   * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * 
    * @param dst This file will be created or filled newly. If it is existing but read only,
    *   nothing is copied and an error message is fed back.
    * @param backEvent The event for success.
    */
-  public void moveTo(FileRemote dst, FileRemote.Callback backEvent){
+  public void moveTo(FileRemote dst, FileRemote.FileRemoteEvent ev){
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
     if(device.isLocalFileSystem() && dst.device.isLocalFileSystem()){
-      FileRemoteAccessor.Commission com = new FileRemoteAccessor.Commission();
-      com.callBack = backEvent;
-      com.cmd = FileRemoteAccessor.Commission.kMove;
-      com.src = this;
-      com.dst = dst;
-      device.addCommission(com);
+      ev.cmd = FileRemote.FileRemoteEvent.kMove;
+      ev.src = this;
+      ev.dst = dst;
+      device.addCommission(ev);
     } else {
       //TODO
     }
@@ -917,22 +909,20 @@ public class FileRemote extends File
    * <br><br>
    * It is a send-only routine without feedback in this routine, 
    * because the calling thread should not be waiting for success. The success is notified with invocation of the 
-   * {@link Event#dst}.{@link EventConsumer#processEvent(Event)} method. 
+   * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * 
    * @param newName A new name for the file. This parameter may be null, then the old name remain.
    * @param backEvent The event for success.
    */
-  public void chgProps(String newName, int maskFlags, int newFlags, long newDate, FileRemote.Callback backEvent){
-      FileRemoteAccessor.Commission com = new FileRemoteAccessor.Commission();
-      com.callBack = backEvent;
-      com.cmd = FileRemoteAccessor.Commission.kChgProps;
-      com.src = this;
-      com.dst = null;
-      com.newName = newName;
-      com.maskFlags = maskFlags;
-      com.newFlags = newFlags;
-      com.newDate = newDate;
-      device.addCommission(com);
+  public void chgProps(String newName, int maskFlags, int newFlags, long newDate, FileRemote.FileRemoteEvent ev){
+      ev.cmd = FileRemote.FileRemoteEvent.kChgProps;
+      ev.src = this;
+      ev.dst = null;
+      ev.newName = newName;
+      ev.maskFlags = maskFlags;
+      ev.newFlags = newFlags;
+      ev.newDate = newDate;
+      device.addCommission(ev);
   }
   
   
@@ -943,22 +933,20 @@ public class FileRemote extends File
    * <br><br>
    * It is a send-only routine without feedback in this routine, 
    * because the calling thread should not be waiting for success. The success is notified with invocation of the 
-   * {@link Event#dst}.{@link EventConsumer#processEvent(Event)} method. 
+   * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * 
    * @param newName A new name for the file. This parameter may be null, then the old name remain.
    * @param backEvent The event for success.
    */
-  public void chgPropsRecursive(int maskFlags, int newFlags, long newDate, FileRemote.Callback backEvent){
-      FileRemoteAccessor.Commission com = new FileRemoteAccessor.Commission();
-      com.callBack = backEvent;
-      com.cmd = FileRemoteAccessor.Commission.kChgPropsRec;
-      com.src = this;
-      com.dst = null;
-      com.newName = null;
-      com.maskFlags = maskFlags;
-      com.newFlags = newFlags;
-      com.newDate = newDate;
-      device.addCommission(com);
+  public void chgPropsRecursive(int maskFlags, int newFlags, long newDate, FileRemote.FileRemoteEvent ev){
+      ev.cmd = FileRemote.FileRemoteEvent.kChgPropsRec;
+      ev.src = this;
+      ev.dst = null;
+      ev.newName = null;
+      ev.maskFlags = maskFlags;
+      ev.newFlags = newFlags;
+      ev.newDate = newDate;
+      device.addCommission(ev);
   }
   
   
@@ -969,18 +957,16 @@ public class FileRemote extends File
    * <br><br>
    * It is a send-only routine without feedback in this routine, 
    * because the calling thread should not be waiting for success. The success is notified with invocation of the 
-   * {@link Event#dst}.{@link EventConsumer#processEvent(Event)} method. 
+   * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * 
    * @param newName A new name for the file. This parameter may be null, then the old name remain.
    * @param backEvent The event for success.
    */
-  public void countAllFileLength(FileRemote.Callback backEvent){
-      FileRemoteAccessor.Commission com = new FileRemoteAccessor.Commission();
-      com.callBack = backEvent;
-      com.cmd = FileRemoteAccessor.Commission.kCountLength;
-      com.src = this;
-      com.dst = null;
-      device.addCommission(com);
+  public void countAllFileLength(FileRemote.FileRemoteEvent ev){
+      ev.cmd = FileRemote.FileRemoteEvent.kCountLength;
+      ev.src = this;
+      ev.dst = null;
+      device.addCommission(ev);
   }
   
   
@@ -991,20 +977,39 @@ public class FileRemote extends File
   
   
   
-  public static class Callback extends Event
+  public static class FileRemoteEvent extends Event
   {
+    public final static int kCheckFile = 0xcecf1e, kCheck = 0xcec, kCopy = 0xc0b7, kDel = 0xde1ede
+    , kMove = 0x307e, kChgProps = 0xc5a9e, kChgPropsRec = 0xc595ec
+    , kCountLength = 0xc0311e39
+    , kAbortFile = 0xab03df1e, kAbortDir = 0xab03dd13, kAbortAll = 0xab03da11;
 
+    FileRemote src, dst;
+
+    /**For {@link #kChgProps}: a new name. */
+    String newName;
+    
+    /**For {@link #kChgProps}: new properties with bit designation see {@link FileRemote#flags}. 
+     * maskFlags contains bits which properties should change, newFlags contains the value of that bit. */
+    int maskFlags, newFlags;
+    
+    long newDate;
+    
+    /**callback data: the yet handled file. It is a character array because it should not need a new instance. */
     public char[] fileName = new char[100];
     
+    /**callback data: number of bytes in the yet handled file.  */
     public long nrofBytesInFile;
     
+    /**callback data: number of bytes for the command.  */
     public long nrofBytesAll;
     
+    /**callback data: number of files in the yet handled command.  */
     public int nrofFiles;
     
     //public FileRemote getRefData(){ return (FileRemote)super.getRefData(); }
     
-    public Callback(Object refData, EventConsumer dst){ super(refData, dst); }
+    public FileRemoteEvent(Object refData, EventConsumer dst){ super(refData, dst); }
     
   }
   

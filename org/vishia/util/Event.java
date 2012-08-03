@@ -82,9 +82,9 @@ import java.util.concurrent.atomic.AtomicLong;
  * <br><br>
  * <b>Usage for callback</b>:<br>
  * A request should be called with an reference to an instance to this Event class as parameter. 
- * This Event class contains the reference to the callback instance {@link #dst}. 
+ * This Event class contains the reference to the callback instance {@link #callback}. 
  * The callback instance implements the {@link EventConsumer}-interface. In this manner the request receiver
- * can invoke a callback using {@link #dst}.{@link EventConsumer#processEvent(Event)}. Note that this callback
+ * can invoke a callback using {@link #callback}.{@link EventConsumer#processEvent(Event)}. Note that this callback
  * is executed in the request receiver's thread.
  * <br><pre>
  *   Thread                     class             another Thread             
@@ -131,7 +131,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * In a common event driven system their isn't a thinking of 'request' and 'response'. Any event inducing
  * is independent of any other event. But usual mechanism uses 'request' and the associated 'response'.
  * For that methodology it is possible to give the event instance as parameter of the request already.
- * The event parameter contains the {@link #dst} for the response. This may be a instance in knowledge
+ * The event parameter contains the {@link #callback} for the response. This may be a instance in knowledge
  * of the requesting instance (maybe an inner class for implementation of {@link EventConsumer})
  * or the requesting instance itself. So the requested instance should not be known the requester permanently,
  * but only for the pending request.
@@ -180,15 +180,16 @@ public class Event
   
   /**Version, history and license
    * <ul>
+   * <li>2012-08-03 Hartmut chg: Usage of Event in FileRemote. The event has more elements for forward and backward now.
    * <li>2012-07-28 renamed src, now {@link #refData}. It is not the source (creator) of the event
-   *   but a value reference which may be used especially in the callback ({@link #dst}).
+   *   but a value reference which may be used especially in the callback ({@link #callback}).
    *   Because it is private and the getter method {@link #getRefData()} is duplicated, the
    *   old routine {@link #getSrc()} is deprecated, it is downward compatible still. 
    * <li>2012-03-10 Hartmut new: {@link #owner}, {@link #forceRelease()}. 
    *   It is a problem if a request may be crased in a remote device, but the event is reserved 
    *   for answer in the proxy. It should be freed. Events may be re-used. 
    * <li>2012-01-22 Hartmut chg: {@link #use(long, int, Object, EventConsumer)} needs the dst as parameter.
-   * <li>2012-01-05 Hartmut improved: {@link #dstThread}, {@link #commisionId} instead order, more {@link #data2} 
+   * <li>2012-01-05 Hartmut improved: {@link #callbackThread}, {@link #commisionId} instead order, more {@link #data2} 
    * <li>2011-12-27 Hartmut created, concept of event queue, callback need for remote copy and delete of files
    *   (in another thread too). A adequate universal class in java.lang etc wasn't found.
    * </ul>
@@ -219,18 +220,6 @@ public class Event
    */
   public static final int version = 20120311;
   
-  /**A referenced instance for the event. This reference is private because it should be set
-   * calling {@link #Event(Object, EventConsumer)} or {@link #use(long, int, Object, EventConsumer)}
-   * only. The calling environment determines the type. 
-   * see {@link #getRefData()}. */
-  private Object refData;
-  
-  /**The queue for events of the {@link EventThread} if this event should be used
-   * in a really event driven system (without directly callback). 
-   * If it is null, the dst.{@link EventConsumer#processEvent(Event)} should be called immediately. */
-  protected EventThread dstThread;
-  
-  
   /**The current owner of the event. It is that instance, which has gotten the event instance
    * by any method invocation as parameter,
    * and stores this event till it is need for answer.
@@ -238,29 +227,56 @@ public class Event
    */
   private EventOwner owner;
   
+  /**The queue for events of the {@link EventThread} if this event should be used
+   * in a really event driven system (without directly callback). 
+   * If it is null, the dst.{@link EventConsumer#processEvent(Event)} should be called immediately. */
+  private EventThread dstThread;
+  
+  
   /**The destination instance for the Event. If the event is stored in a common queue, 
    * the dst is invoked while polling the queue. Elsewhere the dst is the callback instance. */
-  protected EventConsumer dst;
+  /*package private*/ EventConsumer dst;
+  
+  /**The queue for events of the {@link EventThread} if this event should be used
+   * in a really event driven system (without directly callback). 
+   * If it is null, the dst.{@link EventConsumer#processEvent(Event)} should be called immediately. */
+  private EventThread callbackThread;
+  
+  
+  /**The destination instance for the Event. If the event is stored in a common queue, 
+   * the dst is invoked while polling the queue. Elsewhere the dst is the callback instance. */
+  /*package private*/ EventConsumer callback;
   
   /**Any number to identify. It is dst-specific. */
-  public int id;
+  protected int cmd;
+  
+  protected int answer;
   
   /**The commission number for the request, which may be answered by this event. */
-  public long commisionId;
+  protected long orderId;
   
   /**Timestamp of the request. It is atomic because the timestamp may be an identification
    * that the event instance is in use (for new-obviating usage like C-programming). */
-  public AtomicLong dateCreation = new AtomicLong();
+  private AtomicLong dateCreation = new AtomicLong();
   
   /**Any value of this event. Mostly it is a return value. */
   public int data1, data2;
   
-  /**Any value reference especially to return any information in the {@link #sendtoDst()}. */ 
+  /**Any value reference especially to return any information in the {@link #callback()}. */ 
   public Object oData;
   
+  /**A referenced instance for the event. This reference is private because it should be set
+   * calling {@link #Event(Object, EventConsumer)} or {@link #use(long, int, Object, EventConsumer)}
+   * only. The calling environment determines the type. 
+   * see {@link #getRefData()}. */
+  private Object refData;
+  
   public Event(Object refData, EventConsumer consumer){
-    this.refData = refData; this.dst = consumer;
+    this.refData = refData; this.callback = consumer;
   }
+  
+  
+  public int answer(){ return answer; }
   
   /**Check whether this event is in use and use it. An event instance can be re-used. If the order or the dateOrder
    * is set, the event is in use. In a target communication with embedded devices often the communication
@@ -270,12 +286,12 @@ public class Event
    *  
    * @return true if the event instance is able to use.
    */
-  public boolean use(long order, int id, Object refData, EventConsumer dst){ 
+  public boolean use(long order, int cmd, Object refData, EventConsumer dst){ 
     if(dateCreation.compareAndSet(0, System.currentTimeMillis())){
-      this.commisionId = order;
-      this.id = id;
+      this.orderId = order;
+      this.cmd = cmd;
       this.refData = refData;
-      this.dst = dst;
+      this.callback = dst;
       return true;
     }
     else return false;
@@ -314,11 +330,14 @@ public class Event
    * All other data are reseted, so no unused references are hold.  
    */
   public void consumed(){
-    this.id = 0;
+    this.cmd = 0;
+    this.answer = 0;
     this.refData = null;
     this.dst = null;
     this.dstThread = null;
-    this.commisionId = 0;
+    this.callback = null;
+    this.callbackThread = null;
+    this.orderId = 0;
     data1 = data2 = 0;
     oData = null;
     owner = null;
@@ -328,15 +347,15 @@ public class Event
   
   
   /**Sends this event to the destination instance.
-   * Either the element {@link #dstThread} is not null, then the event is put in the queue
+   * Either the element {@link #callbackThread} is not null, then the event is put in the queue
    * and the event thread is notified.
-   * Or the dstQueue is null, then a callback is invoked using {@link #dst}.{@link EventConsumer#processEvent(Event this)}
+   * Or the dstQueue is null, then a callback is invoked using {@link #callback}.{@link EventConsumer#processEvent(Event this)}
    */
-  public void sendtoDst(){
-    if(dstThread !=null){
-      dstThread.storeEvent(this);
+  public void callback(){
+    if(callbackThread !=null){
+      callbackThread.storeEvent(this);
     } else {
-      dst.processEvent(this);
+      callback.processEvent(this);
     }
   }
   
