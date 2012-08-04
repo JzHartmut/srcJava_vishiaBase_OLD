@@ -44,7 +44,7 @@ public class EventThread implements Runnable, Closeable
       if(stateOfThread == 'w'){
         notify();
       } else {
-        stateOfThread = 'c';
+        //stateOfThread = 'c';
       }
     }
   }

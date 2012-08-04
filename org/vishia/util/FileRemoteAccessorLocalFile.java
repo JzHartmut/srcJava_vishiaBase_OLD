@@ -640,7 +640,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
         int evCmd = co.cmd();
         if(evCmd == FileRemote.cmdAbortDir || evCmd == FileRemote.cmdAbortAll){
           if(evCmd == FileRemote.cmdAbortDir){
-            FileSystem.rmdir(dst);
+            //FileSystem.rmdir(dst);
             co.setCmd(0);
           }
           break;
@@ -706,7 +706,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
       try{
         if(in !=null) { in.close(); }
         if(out !=null) { out.close(); }
-        if(evCmd != FileRemote.cmdAbortFile){
+        if(evCmd == FileRemote.cmdAbortFile){
           boolean bOkdel = dst.delete();
           if(bOkdel){
             

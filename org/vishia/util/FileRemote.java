@@ -35,6 +35,8 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2012-08-05 Hartmut chg: The super class File needs the correct path. So it is able to use for a local file nevertheless.
+   *   What is with oFile if it is a FileRemote? should refer this? See change from 2012-01-01.
    * <li>2012-08-03 Hartmut chg: Usage of Event in FileRemote. 
    *   The FileRemoteAccessor.Commission is removed yet. The same instance FileRemote.Callback, now named FileRemote.FileRemoteEvent is used for forward event (commision) and back event.
    * <li>2012-07-28 Hartmut chg: Concept of remote files enhanced with respect to {@link FileAccessZip}.
@@ -295,8 +297,8 @@ public class FileRemote extends File
       , final String sDirP, final String sName
       , final long length, final long date, final int flags
       , Object oFileP) {
-    //super(sDirP + (sName ==null ? "" : ("/" + sName)));  //it is correct if it is a local file. 
-    super("?");  //NOTE: use the superclass File only as interface. Don't use it as local file instance.
+    super(sDirP + (sName ==null ? "" : ("/" + sName)));  //it is correct if it is a local file. 
+    //super("?");  //NOTE: use the superclass File only as interface. Don't use it as local file instance.
     String sPath = sDirP.replace('\\', '/');
     this.device = device;
     this.flags = flags;
