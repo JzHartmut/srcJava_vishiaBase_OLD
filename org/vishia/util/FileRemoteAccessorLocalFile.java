@@ -21,6 +21,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   
   /**Version, history and license.
    * <ul>
+   * <li>2012-08-05 Hartmut new: If the oFile reference is null, the java.io.File instance for the local file will be created anyway.
    * <li>2012-08-03 Hartmut chg: Usage of Event in FileRemote. 
    *   The FileRemoteAccessor.Commission is removed yet. The same instance FileRemote.Callback, now named FileRemote.FileRemoteEvent is used for forward event (commision) and back event.
    * <li>2012-07-30 Hartmut new: execution of {@link #refreshFileProperties(FileRemote, Event)} and {@link #refreshFilePropertiesAndChildren(FileRemote, Event)}
@@ -117,6 +118,18 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   }
   
   
+  
+  private File getLocalFile(FileRemote fileRemote){
+    //NOTE: use the superclass File only as interface, use a second instance.
+    //the access to super methods does not work. Therefore access to non-inherited File.methods.
+    if(fileRemote.oFile == null){
+      String path = fileRemote.getPath();
+      fileRemote.oFile = new File(path);
+    }
+    return (File)fileRemote.oFile;
+  }
+  
+  
   /*
   @Override public Object createFileObject(FileRemote file)
   { Object oFile = new File(file.path, file.name);
@@ -139,15 +152,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
      */
     Runnable thread = new Runnable(){
       public void run(){
-        File fileLocal;
-        //NOTE: use the superclass File only as interface, use a second instance.
-        //the access to super methods does not work. Therefore access to non-inherited File.methods.
-        if(fileRemote.oFile == null){
-          String path = fileRemote.getPath();
-          fileRemote.oFile = fileLocal = new File(path);
-        } else {
-          fileLocal = (File)fileRemote.oFile;
-        }
+        File fileLocal = getLocalFile(fileRemote);
         String path = fileRemote.getPath();
         if(fileLocal.exists()){
           String canonicalPath = FileSystem.getCanonicalPath(fileLocal);
@@ -204,7 +209,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
     Runnable thread = new Runnable(){
       public void run(){
         refreshFileProperties(fileRemote, null);
-        File fileLocal = (File)fileRemote.oFile;
+        File fileLocal = getLocalFile(fileRemote);
         fileRemote.flags |= FileRemote.mChildrenGotten;
         if(fileLocal.exists()){
           File[] files = fileLocal.listFiles();
@@ -293,10 +298,11 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   
   
   @Override public boolean delete(FileRemote file, FileRemote.FileRemoteEvent callback){
+    File fileLocal = getLocalFile(file);
     if(callback == null){
-      return ((File)file.oFile).delete();
+      return fileLocal.delete();
     } else {
-      boolean bOk = ((File)file.oFile).delete();
+      boolean bOk = fileLocal.delete();
       callback.cmd = bOk ? 0: FileRemote.acknErrorDelete; 
       callback.callback();
       return bOk;
