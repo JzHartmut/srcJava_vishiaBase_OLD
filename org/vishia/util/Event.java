@@ -230,12 +230,12 @@ public class Event
   /**The queue for events of the {@link EventThread} if this event should be used
    * in a really event driven system (without directly callback). 
    * If it is null, the dst.{@link EventConsumer#processEvent(Event)} should be called immediately. */
-  private EventThread dstThread;
+  private EventThread evDstThread;
   
   
   /**The destination instance for the Event. If the event is stored in a common queue, 
    * the dst is invoked while polling the queue. Elsewhere the dst is the callback instance. */
-  /*package private*/ EventConsumer dst;
+  private EventConsumer evDst;
   
   /**The queue for events of the {@link EventThread} if this event should be used
    * in a really event driven system (without directly callback). 
@@ -247,10 +247,23 @@ public class Event
    * the dst is invoked while polling the queue. Elsewhere the dst is the callback instance. */
   /*package private*/ EventConsumer callback;
   
+  /**State of the event: 
+   * <ul>
+   * <li>0 or '.': unused.
+   * <li>a: requested
+   * <li>q: queued in dstThread
+   * <li>e: executing
+   * <li>B: queued for callback
+   * <li>b: callback invoked
+   * 
+   * </ul> 
+   */
+  public char stateOfEvent;
+  
   /**Any number to identify. It is dst-specific. */
   protected int cmd;
   
-  protected int answer;
+  //protected int answer;
   
   /**The commission number for the request, which may be answered by this event. */
   protected long orderId;
@@ -276,7 +289,27 @@ public class Event
   }
   
   
-  public int answer(){ return answer; }
+  public int cmd(){ return cmd; }
+  
+  
+  /**Sets a new command for the event. If the event is queued yet, the changing of the command can only be able to accept
+   * if the new cmd changes the meaning of the whole request. For example request anything, then abort it.
+   * @param cmd The new command
+   * @return true if the event was not in use yet.
+   */
+  public boolean setCmd(int cmd){
+    boolean bOk = (this.cmd == 0);
+    this.cmd = cmd;
+    return bOk;
+  }
+  
+  public EventConsumer evDst() { return evDst; }
+  
+  
+  public void setDst(EventConsumer consumer, EventThread thread){
+    evDst = consumer;
+    evDstThread = thread;
+  }
   
   /**Check whether this event is in use and use it. An event instance can be re-used. If the order or the dateOrder
    * is set, the event is in use. In a target communication with embedded devices often the communication
@@ -330,11 +363,11 @@ public class Event
    * All other data are reseted, so no unused references are hold.  
    */
   public void consumed(){
+    this.stateOfEvent= '.';
     this.cmd = 0;
-    this.answer = 0;
     this.refData = null;
-    this.dst = null;
-    this.dstThread = null;
+    this.evDst = null;
+    this.evDstThread = null;
     this.callback = null;
     this.callbackThread = null;
     this.orderId = 0;
@@ -346,15 +379,33 @@ public class Event
 
   
   
-  /**Sends this event to the destination instance.
+  /**Sends this event to the callback instance.
+   * Either the element {@link #callbackThread} is not null, then the event is put in the queue
+   * and the event thread is notified.
+   * Or the dstQueue is null, then a callback is invoked using {@link #callback}.{@link EventConsumer#processEvent(Event this)}
+   */
+  public void sendEvent(){
+    if(evDst == null) throw new IllegalArgumentException("event should have a destination");
+    if(evDstThread !=null){
+      evDstThread.storeEvent(this);
+    } else {
+      evDst.processEvent(this);
+    }
+  }
+  
+
+  
+  /**Sends this event to the callback instance.
    * Either the element {@link #callbackThread} is not null, then the event is put in the queue
    * and the event thread is notified.
    * Or the dstQueue is null, then a callback is invoked using {@link #callback}.{@link EventConsumer#processEvent(Event this)}
    */
   public void callback(){
     if(callbackThread !=null){
+      stateOfEvent = 'B';
       callbackThread.storeEvent(this);
     } else {
+      stateOfEvent = 'b';
       callback.processEvent(this);
     }
   }

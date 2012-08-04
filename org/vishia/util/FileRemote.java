@@ -203,6 +203,21 @@ public class FileRemote extends File
   protected final static int mThreadIsRunning =0x80000;
 
   
+  
+  public final static int cmdCheckFile = 0xcecf1e, cmdCheck = 0xcec, cmdCopy = 0xc0b7, cmdDel = 0xde1ede
+  , cmdMove = 0x307e, cmdChgProps = 0xc5a9e, cmdChgPropsRec = 0xc595ec
+  , cmdCountLength = 0xc0311e39
+  , cmdAbortFile = 0xab03df1e, cmdAbortDir = 0xab03dd13, cmdAbortAll = 0xab03da11;
+
+  
+  
+
+  /**callback cmd */
+  public final static int acknSuccess = 0x50ce55
+  , acknErrorDelete = 0xede1ede;
+  
+  
+  
   /**This is the internal file object. It is handled by the device only. */
   Object oFile;
   
@@ -760,6 +775,14 @@ public class FileRemote extends File
     return children;
   }
   
+  
+  @Override public boolean delete(){
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
+    return device.delete(this, null);
+  }
+  
   /**Deletes a file maybe in a remote device. This is a send-only routine without feedback,
    * because the calling thread should not be waiting for success.
    * The success is notified with invocation of the 
@@ -772,10 +795,10 @@ public class FileRemote extends File
     }
     if(device.isLocalFileSystem()){
       boolean bOk;
-      if(super.isDirectory()){
+      if(isDirectory()){
         bOk = FileSystem.rmdir(this);
       } else {
-        bOk = super.delete();
+        bOk = ((File)oFile).delete();
       }
       backEvent.data1 = bOk? 0 : -1;
       backEvent.callback.processEvent(backEvent);
@@ -832,9 +855,9 @@ public class FileRemote extends File
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    ev.cmd = FileRemote.FileRemoteEvent.kCheckFile;
-    ev.src = this;
-    ev.dst = null;
+    ev.cmd = FileRemote.cmdCheckFile;
+    ev.filesrc = this;
+    ev.filedst = null;
     device.addCommission(ev);
   }
   
@@ -853,9 +876,9 @@ public class FileRemote extends File
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
     if(device.isLocalFileSystem() && dst.device.isLocalFileSystem()){
-      ev.cmd = FileRemote.FileRemoteEvent.kCopy;
-      ev.src = this;
-      ev.dst = dst;
+      ev.cmd = FileRemote.cmdCopy;
+      ev.filesrc = this;
+      ev.filedst = dst;
       device.addCommission(ev);
     } else {
       //TODO
@@ -888,9 +911,9 @@ public class FileRemote extends File
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
     if(device.isLocalFileSystem() && dst.device.isLocalFileSystem()){
-      ev.cmd = FileRemote.FileRemoteEvent.kMove;
-      ev.src = this;
-      ev.dst = dst;
+      ev.cmd = FileRemote.cmdMove;
+      ev.filesrc = this;
+      ev.filedst = dst;
       device.addCommission(ev);
     } else {
       //TODO
@@ -915,9 +938,9 @@ public class FileRemote extends File
    * @param backEvent The event for success.
    */
   public void chgProps(String newName, int maskFlags, int newFlags, long newDate, FileRemote.FileRemoteEvent ev){
-      ev.cmd = FileRemote.FileRemoteEvent.kChgProps;
-      ev.src = this;
-      ev.dst = null;
+      ev.cmd = FileRemote.cmdChgProps;
+      ev.filesrc = this;
+      ev.filedst = null;
       ev.newName = newName;
       ev.maskFlags = maskFlags;
       ev.newFlags = newFlags;
@@ -939,9 +962,9 @@ public class FileRemote extends File
    * @param backEvent The event for success.
    */
   public void chgPropsRecursive(int maskFlags, int newFlags, long newDate, FileRemote.FileRemoteEvent ev){
-      ev.cmd = FileRemote.FileRemoteEvent.kChgPropsRec;
-      ev.src = this;
-      ev.dst = null;
+      ev.cmd = FileRemote.cmdChgPropsRec;
+      ev.filesrc = this;
+      ev.filedst = null;
       ev.newName = null;
       ev.maskFlags = maskFlags;
       ev.newFlags = newFlags;
@@ -963,9 +986,9 @@ public class FileRemote extends File
    * @param backEvent The event for success.
    */
   public void countAllFileLength(FileRemote.FileRemoteEvent ev){
-      ev.cmd = FileRemote.FileRemoteEvent.kCountLength;
-      ev.src = this;
-      ev.dst = null;
+      ev.cmd = FileRemote.cmdCountLength;
+      ev.filesrc = this;
+      ev.filedst = null;
       device.addCommission(ev);
   }
   
@@ -979,12 +1002,7 @@ public class FileRemote extends File
   
   public static class FileRemoteEvent extends Event
   {
-    public final static int kCheckFile = 0xcecf1e, kCheck = 0xcec, kCopy = 0xc0b7, kDel = 0xde1ede
-    , kMove = 0x307e, kChgProps = 0xc5a9e, kChgPropsRec = 0xc595ec
-    , kCountLength = 0xc0311e39
-    , kAbortFile = 0xab03df1e, kAbortDir = 0xab03dd13, kAbortAll = 0xab03da11;
-
-    FileRemote src, dst;
+    FileRemote filesrc, filedst;
 
     /**For {@link #kChgProps}: a new name. */
     String newName;

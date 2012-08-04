@@ -79,6 +79,14 @@ public interface FileRemoteAccessor extends Closeable
    */
   public void refreshFilePropertiesAndChildren(FileRemote file, Event callback);
 
+  
+  /**Try to delete the file.
+   * @param callback
+   * @return If the callback is null, the method returns if the file is deleted or it can't be deleted.
+   *   The it returns true if the file is deleted successfully. If the callback is not null, it returns true.
+   */
+  boolean delete(FileRemote file, FileRemote.FileRemoteEvent callback);
+  
   ReadableByteChannel openRead(FileRemote file, long passPhase);
   
   WritableByteChannel openWrite(FileRemote file, long passPhase);

@@ -12,7 +12,7 @@ public interface EventConsumer
 
   /**Processes a event.
    * @param ev The event. It contains some data.
-   * @return true if this method can process this type of event. False if the event doesn't macht.
+   * @return true if this method can process this type of event. False if the event doesn't match.
    *   It is possible to build a queue of responsibility. It is possible too to process a event from 
    *   more as one instance. 
    */

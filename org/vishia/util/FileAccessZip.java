@@ -190,6 +190,15 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
     }
   }
 
+  
+  @Override public boolean delete(FileRemote file, FileRemote.FileRemoteEvent callback){
+    if(callback !=null){
+      callback.cmd = FileRemote.acknErrorDelete;
+      callback.callback();
+    }
+    return false;   // not implement: changing of file.
+  }
+  
   @Override
   public ReadableByteChannel openRead(FileRemote file, long passPhase) {
     // TODO Auto-generated method stub

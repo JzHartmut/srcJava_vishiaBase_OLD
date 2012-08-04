@@ -26,11 +26,11 @@ public class EventThread implements Runnable, Closeable
   protected char stateOfThread = '.';  
   
 
-  protected final Thread thread = new Thread(this, "EventQueue");
+  protected final Thread thread;
   
-  EventThread()
+  public EventThread(String threadName)
   {
-    //thread.start();
+    thread = new Thread(this, threadName);
   }
   
   
@@ -38,10 +38,13 @@ public class EventThread implements Runnable, Closeable
   
   
   public void storeEvent(Event ev){
+    ev.stateOfEvent = 'q';
     queueEvents.offer(ev);
     synchronized(this){
       if(stateOfThread == 'w'){
         notify();
+      } else {
+        stateOfThread = 'c';
       }
     }
   }
@@ -51,17 +54,35 @@ public class EventThread implements Runnable, Closeable
   
   @Override public void run()
   { stateOfThread = 'r';
-    while(stateOfThread != 'c'){
-      Event event = queueEvents.poll();
-      if(event !=null){
-        event.dst.processEvent(event);
-      } else {
-        synchronized(this){
-          stateOfThread = 'w';
-          try{ wait(); } catch(InterruptedException exc){}
-          if(stateOfThread == 'w') { stateOfThread = 'r'; }
+    while(stateOfThread != 'x'){
+      try{ //never let the thread crash
+        Event event;
+        if( (event = queueEvents.poll()) !=null){
+          synchronized(this){
+            if(stateOfThread != 'x'){
+              stateOfThread = 'b'; //busy
+            }
+          }
+          if(stateOfThread == 'b'){
+            event.stateOfEvent = 'e';
+            event.evDst().processEvent(event);
+          }
+        } else {
+          synchronized(this){
+            if(stateOfThread != 'x'){  //exit?
+              stateOfThread = 'w';      //w = waiting, notify necessary
+              try{ wait(1000); } catch(InterruptedException exc){}
+              if(stateOfThread == 'w'){ //can be changed while waiting, set only to 'r' if 'w' is still present
+                stateOfThread = 'r';
+              }
+            }
+          }
         }
+      } catch(Exception exc){
+        System.err.println("Unexpected exception " + exc.getMessage());
+        exc.printStackTrace(System.err);
       }
+
     }
     stateOfThread = 'x';
   }
