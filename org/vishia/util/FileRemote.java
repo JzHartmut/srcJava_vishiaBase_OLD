@@ -179,7 +179,17 @@ public class FileRemote extends File
 
   FileRemote parent;
   
+  /**The content of a directory. */
   File[] children;
+  
+  public final static int modeCopyReadOnlyMask = 0x00f
+  , modeCopyReadOnlyNever = 0x1, modeCopyReadOnlyOverwrite = 0x3, modeCopyReadOnlyAks = 0;
+
+  public final static int modeCopyExistMask = 0x0f0
+  , modeCopyExistNewer = 0x10, modeCopyExistOlder = 0x20, modeCopyExistAll = 0x30, modeCopyExistAsk = 0;
+  
+  public final static int modeCopyCreateMask = 0xf00
+  , modeCopyCreateNever = 0x200, modeCopyCreateYes = 0x300 , modeCopyCreateAsk = 0;
   
   public final static int  mExist =   1;
   public final static int  mCanRead =  2;
@@ -864,7 +874,7 @@ public class FileRemote extends File
   }
   
   
-  /**Copies a file maybe in a remote device to another file in the same device. 
+  /**Copies a file or directory maybe in a remote device to another file in the same device. 
    * This is a send-only routine without feedback, because the calling thread should not be waiting 
    * for success. The success is notified with invocation of the 
    * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
@@ -873,14 +883,18 @@ public class FileRemote extends File
    *   nothing is copied and an error message is fed back.
    * @param backEvent The event for success.
    */
-  public void copyTo(FileRemote dst, FileRemote.FileRemoteEvent ev){
+  public void copyTo(FileRemote dst, FileRemote.FileRemoteEvent ev, int mode){
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    if(device.isLocalFileSystem() && dst.device.isLocalFileSystem()){
+    if(dst.device == null){
+      dst.device = getAccessorSelector().selectFileRemoteAccessor(dst.getAbsolutePath());
+    }
+    if(device == dst.device){
       ev.cmd = FileRemote.cmdCopy;
       ev.filesrc = this;
       ev.filedst = dst;
+      ev.data1 = mode;
       device.addCommission(ev);
     } else {
       //TODO

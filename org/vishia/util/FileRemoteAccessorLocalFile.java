@@ -528,6 +528,15 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   protected class Copy
   {
   
+    private final int stateCopyInit = 0, stateCopyFile = 1, stateCopyDir = 2, stateCopyAsk = 3;
+    
+    private int stateCopy;
+    
+    /**Mode of copy, see {@link FileRemote#modeCopyCreateAsk}, {@link FileRemote#modeCopyReadOnlyAks}, {@link FileRemote#modeCopyExistAsk}. */
+    int mode; 
+    
+    boolean bSkip;
+    
     long timestart;
     
     //boolean bAbortFile, bAbortDir, bAbortAll;
@@ -555,6 +564,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
     
     void checkCopy(FileRemote.FileRemoteEvent co){
       this.currentFile= co.filesrc;
+      this.mode = co.data1;
       listCopyFiles.clear();
       if(currentFile.isDirectory()){ 
         zBytesCheck = 0;
@@ -608,20 +618,44 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
     
 
     
-    private void execCopy(FileRemote.FileRemoteEvent co){
+    private void execCopy(FileRemote.FileRemoteEvent ev){
       timestart = System.currentTimeMillis();
       zFilesCopy = 0;
       zBytesCopy = 0;
-      if(co.filesrc.isDirectory()){
-        copy.execCopyDir(co, co.filesrc, co.filedst);
+      
+      switch(stateCopy){
+      case stateCopyInit:
+        
+        break;
+      case stateCopyDir:
+        break;
+      case stateCopyFile:
+        //execCopyFile(co, src, dst);
+        break;
+      case stateCopyAsk:
+        if(ev.cmd == 1){
+          bSkip = true;
+          stateCopy = stateCopyFile;
+        } else if(ev.cmd == 2){
+          bSkip = true;
+          stateCopy = stateCopyFile;
+        } else {
+          
+        }
+        break;
+      default: throw new IllegalArgumentException("unexpected state");
+      }
+      
+      if(ev.filesrc.isDirectory()){
+        copy.execCopyDir(ev, ev.filesrc, ev.filedst);
       } else {
-        copy.execCopyFile(co, co.filesrc, co.filedst);
+        copy.execCopyFile(ev, ev.filesrc, ev.filedst);
       }
-      if(co.cmd()== FileRemote.cmdAbortAll){
-        co.setCmd(0);
+      if(ev.cmd()== FileRemote.cmdAbortAll){
+        ev.setCmd(0);
       }
-      co.cmd = FileRemoteAccessor.kFinishOk; //zBytesCopyFile == zBytesMax ? FileRemoteAccessor.kFinishOk : FileRemoteAccessor.kFinishNok;
-      co.callback();
+      ev.cmd = FileRemoteAccessor.kFinishOk; //zBytesCopyFile == zBytesMax ? FileRemoteAccessor.kFinishOk : FileRemoteAccessor.kFinishNok;
+      ev.callback();
     }
 
     
@@ -655,45 +689,77 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
       final long zBytesMax = src.length();
       long zBytesCopyFile = 0;
       int evCmd;
+      boolean bAsk, bSkip;
       try{
-        in = new FileInputStream(src);
-        out = new FileOutputStream(dst);
-        boolean bContCopy;
-        do {
-          int zBytes = in.read(buffer);
-          if(zBytes > 0){
-            bContCopy = true;
-            zBytesCopyFile += zBytes;
-            zBytesCopy += zBytes;
-            out.write(buffer, 0, zBytes);
-            long time = System.currentTimeMillis();
-            //
-            //feedback of progression after about 0.3 second. 
-            if(time > timestart + 300){
-              co.data1 = (int)((float)zBytesCopyFile / zBytesMax * 1000);  //number between 0...1000
-              co.data2 = (int)((float)zBytesCopy / zBytesCheck * 1000);  //number between 0...1000
-              co.nrofFiles = zFilesCheck - zFilesCopy;
-              co.nrofBytesInFile = (int)zBytesCopy;
-              String name = src.getName();
-              int zName = name.length();
-              if(zName > co.fileName.length){ 
-                zName = co.fileName.length;    //shorten the name, it is only an info 
-              }
-              System.arraycopy(name.toCharArray(), 0, co.fileName, 0, zName);
-              Arrays.fill(co.fileName, zName, co.fileName.length, '\0');
-              co.cmd = FileRemoteAccessor.kOperation;
-              co.callback();
-              timestart = time;
-            }
-          } else if(zBytes == -1){
-            bContCopy = false;
-            out.close();
-          } else {
-            //0 bytes ?
-            bContCopy = true;
+        if(dst.exists()){
+          if(!dst.canWrite()){
+            switch(mode & FileRemote.modeCopyReadOnlyMask){
+            case FileRemote.modeCopyReadOnlyNever: bSkip = true; bAsk = false; break;
+            case FileRemote.modeCopyReadOnlyOverwrite: bSkip = false; bAsk = false; break;
+            case FileRemote.modeCopyReadOnlyAks: bSkip = false; bAsk = true; break;
+            default: bSkip = true; bAsk = true;
+            } //switch
           }
-          evCmd = co.cmd();
-        }while(bContCopy && evCmd != FileRemote.cmdAbortFile && evCmd != FileRemote.cmdAbortDir && evCmd != FileRemote.cmdAbortAll);
+          switch(mode & FileRemote.modeCopyExistMask){
+          case FileRemote.modeCopyExistAll: bSkip = false; bAsk = false; break;
+          case FileRemote.modeCopyExistNewer: bSkip = src.lastModified() > dst.lastModified(); bAsk = false; break;
+          case FileRemote.modeCopyExistOlder: bSkip = src.lastModified() < dst.lastModified(); bAsk = false; break;
+          case FileRemote.modeCopyExistAsk: bSkip = false; bAsk = true; break;
+          default: bSkip = true; bAsk = true;
+          } //switch
+        } else {
+          switch(mode & FileRemote.modeCopyCreateMask){
+          case FileRemote.modeCopyCreateYes: bSkip = false; bAsk = false; break;
+          case FileRemote.modeCopyCreateNever: bSkip = true; bAsk = false; break;
+          case FileRemote.modeCopyCreateAsk: bSkip = false; bAsk = true; break;
+          default: bSkip = true; bAsk = true;
+          } //switch
+        }
+        if(bAsk){
+          
+        }
+        if(!bSkip){
+          in = new FileInputStream(src);
+          out = new FileOutputStream(dst);
+          boolean bContCopy;
+          do {
+            int zBytes = in.read(buffer);
+            if(zBytes > 0){
+              bContCopy = true;
+              zBytesCopyFile += zBytes;
+              zBytesCopy += zBytes;
+              out.write(buffer, 0, zBytes);
+              long time = System.currentTimeMillis();
+              //
+              //feedback of progression after about 0.3 second. 
+              if(time > timestart + 300){
+                co.data1 = (int)((float)zBytesCopyFile / zBytesMax * 1000);  //number between 0...1000
+                co.data2 = (int)((float)zBytesCopy / zBytesCheck * 1000);  //number between 0...1000
+                co.nrofFiles = zFilesCheck - zFilesCopy;
+                co.nrofBytesInFile = (int)zBytesCopy;
+                String name = src.getName();
+                int zName = name.length();
+                if(zName > co.fileName.length){ 
+                  zName = co.fileName.length;    //shorten the name, it is only an info 
+                }
+                System.arraycopy(name.toCharArray(), 0, co.fileName, 0, zName);
+                Arrays.fill(co.fileName, zName, co.fileName.length, '\0');
+                co.cmd = FileRemoteAccessor.kOperation;
+                co.callback();
+                timestart = time;
+              }
+            } else if(zBytes == -1){
+              bContCopy = false;
+              out.close();
+            } else {
+              //0 bytes ?
+              bContCopy = true;
+            }
+            evCmd = co.cmd();
+          }while(bContCopy && evCmd != FileRemote.cmdAbortFile && evCmd != FileRemote.cmdAbortDir && evCmd != FileRemote.cmdAbortAll);
+        } else { //bSkip
+          evCmd = 0;
+        }
       } catch(IOException exc){
         evCmd = 0;
         System.err.println("Copy exc "+ exc.getMessage());
