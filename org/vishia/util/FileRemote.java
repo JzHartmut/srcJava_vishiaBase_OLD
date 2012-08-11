@@ -1,7 +1,9 @@
 package org.vishia.util;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.LinkedList;
@@ -35,6 +37,11 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2012-ß8-11 Hartmut new: method {@link #openInputStream(long)}. An application may need that, for example to create
+   *   a {@link java.io.Reader} with the input stream. Some implementations, especially a local file and a {@link java.util.zip.ZipFile}
+   *   supports that. An {@link java.io.InputStream} may force a blocking if data are not available yet for file in a remote device
+   *   but that may be accepted. 
+   * <li> 2012-ß8-11 Hartmut new: {@link #listFiles(FileFilter)} now implemented here. 
    * <li>2012-08-05 Hartmut chg: The super class File needs the correct path. So it is able to use for a local file nevertheless.
    *   What is with oFile if it is a FileRemote? should refer this? See change from 2012-01-01.
    * <li>2012-08-03 Hartmut chg: Usage of Event in FileRemote. 
@@ -179,7 +186,12 @@ public class FileRemote extends File
 
   FileRemote parent;
   
-  /**The content of a directory. */
+  /**The content of a directory. It contains all files, proper for return {@link #listFiles()} without filter. 
+   * The content is valid at the time of calling {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, Event)}.
+   * It is possible that the content of the physical directory is changed meanwhile.
+   * If this field should be returned without null, especially on {@link #listFiles()} and the file is a directory, 
+   * the {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, Event)} will be called.  
+   * */
   File[] children;
   
   public final static int modeCopyReadOnlyMask = 0x00f
@@ -211,7 +223,7 @@ public class FileRemote extends File
 
   protected final static int  mAbsPathTested = 0x10000;
   protected final static int  mTested =        0x20000;
-  protected final static int mChildrenGotten = 0x40000;
+  //protected final static int mChildrenGotten = 0x40000;
   protected final static int mThreadIsRunning =0x80000;
 
   
@@ -526,6 +538,13 @@ public class FileRemote extends File
   
   
   /**Opens a read access to this file.
+   * If the file is remote, this method should return immediately with a prepared channel functionality (depending from implementation).
+   * A communication with the remote device will be initiated to get the first bytes parallel in an extra thread.
+   * If the first access will be done, that bytes will be returned without waiting.
+   * If a non-blocking mode is used for the device, a {@link java.nio.channels.ReadableByteChannel#read(java.nio.ByteBuffer)}
+   * invocation returns 0 if there are no bytes available in this moment. An polling invocation later may transfer that bytes.
+   * In this kind a non blocking mode is possible.
+   * 
    * @param passPhrase a pass phrase if the access is secured.
    * @return The channel to access.
    */
@@ -535,6 +554,29 @@ public class FileRemote extends File
     }
     return device.openRead(this, passPhrase);
   }
+  
+
+  /**Opens a read access to this file.
+   * If the file is remote, this method should return immediately with a prepared stream functionality (depending from implementation).
+   * A communication with the remote device will be initiated to get the first bytes parallel in an extra thread.
+   * If the first access will be done, that bytes will be returned without waiting. 
+   * But if the data are not supplied in this time, the InputStream.read() method blocks until data are available
+   * or the end of file or any error is detected. That is the contract for a InputStream.
+   * 
+   * 
+   * @param passPhrase a pass phrase if the access is secured.
+   * @return The byte input stream to access.
+   */
+  public InputStream openInputStream(long passPhrase){
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
+    return device.openInputStream(this, passPhrase);
+    
+  }
+  
+  
+  
   
   /**Opens a write access to this file.
    * @param passPhrase a pass phrase if the access is secured.
@@ -777,7 +819,7 @@ public class FileRemote extends File
    * see {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, Event)} with null as event parameter.
    */
   @Override public File[] listFiles(){
-    if((flags & mChildrenGotten) ==0){
+    if(children == null){
       //The children are not known yet, get it:
       if(device == null){
         device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
@@ -786,6 +828,22 @@ public class FileRemote extends File
     }
     return children;
   }
+  
+  
+  
+  @Override public File[] listFiles(FileFilter filter) {
+    if(children == null){
+      //The children are not known yet, get it:
+      if(device == null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+      }
+      device.refreshFilePropertiesAndChildren(this, null);
+    }
+    List<File> children = device.getChildren(this, filter);
+    File[] aChildren = new File[children.size()];
+    return children.toArray(aChildren);
+  }
+  
   
   
   @Override public boolean delete(){

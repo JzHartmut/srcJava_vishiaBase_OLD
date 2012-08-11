@@ -1,8 +1,15 @@
 package org.vishia.util;
 
 import java.io.Closeable;
+import java.io.File;
+import java.io.FileFilter;
+import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.vishia.util.FileAccessZip.FileZipData;
 
 /**Interface for instances, which organizes a remote access to files.
  * One instance per transfer protocol are need.
@@ -10,10 +17,14 @@ import java.nio.channels.WritableByteChannel;
  * @author Hartmut Schorrig
  *
  */
-public interface FileRemoteAccessor extends Closeable
+public abstract class FileRemoteAccessor implements Closeable
 {
   /**Version, history and license.
    * <ul>
+   * <li>2012-08-12 Hartmut new: {@link #openInputStream(FileRemote, long)}
+   * <li>2012-08-12 Hartmut new: {@link #getChildren(FileRemote, FileFilter)} implemented here.
+   * <li>2012-08-12 Hartmut chg: up to now this is not an interface but an abstract class. It contains common method implementation.
+   *   An derivation (or implementation of the interface before that change) may not need other base classes.
    * <li>2012-08-03 Hartmut chg: Usage of Event in FileRemote. 
    *   The FileRemoteAccessor.Commission is removed yet. The same instance FileRemote.Callback, now named FileRemote.FileRemoteEvent is used for forward event (commision) and back event.
    * <li>2012-07-28 Hartmut new: Concept of remote files enhanced with respect to {@link FileAccessZip},
@@ -67,7 +78,7 @@ public interface FileRemoteAccessor extends Closeable
    *   and the callback method in the {@link Event#callback()} is invoked maybe in another thread
    *   if the answer is gotten. 
    */
-  public void refreshFileProperties(FileRemote file, Event callback);
+  public abstract void refreshFileProperties(FileRemote file, Event callback);
 
   /**Gets the properties and the children of the file from the physical file.
    * @param file the destination file object.
@@ -77,26 +88,55 @@ public interface FileRemoteAccessor extends Closeable
    *   and the callback method in the {@link Event#callback()} is invoked maybe in another thread
    *   if the answer is gotten. 
    */
-  public void refreshFilePropertiesAndChildren(FileRemote file, Event callback);
+  public abstract void refreshFilePropertiesAndChildren(FileRemote file, Event callback);
 
   
+  //List<File> getChildren(FileRemote file, FileFilter filter);
+  public List<File> getChildren(FileRemote file, FileFilter filter){
+    FileZipData data = (FileZipData)file.oFile;
+    List<File> list = new ArrayList<File>();
+    int zChildren = data == null ? 0 : data.children == null ? 0 : (data.children.childNodes == null ? 0
+        : data.children.childNodes.size())
+        + (data.children.leafData == null ? 0 : data.children.leafData.size());
+    if (zChildren > 0) {
+      int ii = -1;
+      if (data.children.childNodes != null){
+        for (TreeNodeBase<FileRemote> node1 : data.children.childNodes) {
+          if ((filter == null) || filter.accept(node1.data)){
+            list.add(node1.data);
+          }
+      } }
+      if (data.children.leafData != null){
+        for (FileRemote node1 : data.children.leafData) {
+          if ((filter == null) || filter.accept(node1)){
+            list.add(node1);
+          }
+      } }
+    }
+    return list;
+  }
+  
+  
+
   /**Try to delete the file.
    * @param callback
    * @return If the callback is null, the method returns if the file is deleted or it can't be deleted.
    *   The it returns true if the file is deleted successfully. If the callback is not null, it returns true.
    */
-  boolean delete(FileRemote file, FileRemote.FileRemoteEvent callback);
+  public abstract boolean delete(FileRemote file, FileRemote.FileRemoteEvent callback);
   
-  ReadableByteChannel openRead(FileRemote file, long passPhase);
+  public abstract ReadableByteChannel openRead(FileRemote file, long passPhase);
   
-  WritableByteChannel openWrite(FileRemote file, long passPhase);
+  public abstract InputStream openInputStream(FileRemote file, long passPhase);
+  
+  public abstract WritableByteChannel openWrite(FileRemote file, long passPhase);
  
   //FileRemote[] listFiles(FileRemote parent);
   
   
-  void addCommission(FileRemote.FileRemoteEvent com);
+  public abstract void addCommission(FileRemote.FileRemoteEvent com);
   
-  boolean isLocalFileSystem();
+  public abstract boolean isLocalFileSystem();
 
   
   /**The file object is a java.io.File for the local file system. If it is a remote file system,

@@ -1,14 +1,20 @@
 package org.vishia.util;
 
 import java.io.File;
+import java.io.FileFilter;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAccessorLocalFile
+public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAccessorLocalFile
 {
   /**Version, history and license.
    * <ul>
@@ -88,7 +94,7 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
   public static FileRemote openZipFile(FileRemote fileZip){
     FileZipData dataParent = new FileZipData();
     FileAccessZip zipAccess = getInstance();
-    int parentProperties = FileRemote.mDirectory | FileRemote.mExist | FileRemote.mCanRead | FileRemote.mChildrenGotten;
+    int parentProperties = FileRemote.mDirectory | FileRemote.mExist | FileRemote.mCanRead ; //| FileRemote.mChildrenGotten;
     String sDirParent = fileZip.getAbsolutePath() + '/';
     FileRemote fileParent = new FileRemote(zipAccess, fileZip, sDirParent, null, fileZip.length(),fileZip.lastModified(), parentProperties, dataParent);
     dataParent.children = new TreeNodeUniqueKey<FileRemote>(null, "/", fileParent);
@@ -108,13 +114,13 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
       int sep = sPathEntry.lastIndexOf('/');
       String sDirInZip;
       String sNameChild;
-      int zipEntryProperties = FileRemote.mCanRead | FileRemote.mExist ;
+      int zipEntryProperties = FileRemote.mTested | FileRemote.mCanRead | FileRemote.mExist ;
       if (sep >= 0) {
         sDirInZip = sPathEntry.substring(0, sep);  //without '/'
         sNameChild = sPathEntry.substring(sep + 1); //after '/'
         if(sNameChild.length() ==0){
           //a directory in the zip file, it ends with '/'
-          zipEntryProperties |= FileRemote.mDirectory | FileRemote.mChildrenGotten;
+          zipEntryProperties |= FileRemote.mDirectory ; // | FileRemote.mChildrenGotten;
           sep = sDirInZip.lastIndexOf('/');
           sNameChild = sDirInZip.substring(sep + 1); //after '/'
           if(sep >=0){
@@ -122,8 +128,11 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
           } else {
             sDirInZip = "";
           }
+        } else {
+          zipEntryProperties |= FileRemote.mFile ;
         }
-      } else { //only a file in zipfile
+      } else { //a file in zipfile
+        zipEntryProperties |= FileRemote.mFile ;
         sNameChild = sPathEntry;
         sDirInZip = null;
       }
@@ -160,8 +169,7 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
     
   }
 
-  @Override
-  public void refreshFileProperties(FileRemote file, Event callback) {
+  @Override public void refreshFileProperties(FileRemote file, Event callback) {
     // TODO Auto-generated method stub
     if(callback !=null){
       callback.callback();
@@ -191,6 +199,34 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
   }
 
   
+  
+  
+  @Override public List<File> getChildren(FileRemote file, FileFilter filter){
+    FileZipData data = (FileZipData)file.oFile;
+    List<File> list = new ArrayList<File>();
+    int zChildren = data == null ? 0 : data.children == null ? 0 : (data.children.childNodes == null ? 0
+        : data.children.childNodes.size())
+        + (data.children.leafData == null ? 0 : data.children.leafData.size());
+    if (zChildren > 0) {
+      int ii = -1;
+      if (data.children.childNodes != null){
+        for (TreeNodeBase<FileRemote> node1 : data.children.childNodes) {
+          if ((filter == null) || filter.accept(node1.data)){
+            list.add(node1.data);
+          }
+      } }
+      if (data.children.leafData != null){
+        for (FileRemote node1 : data.children.leafData) {
+          if ((filter == null) || filter.accept(node1)){
+            list.add(node1);
+          }
+      } }
+    }
+    return list;
+  }
+  
+  
+  
   @Override public boolean delete(FileRemote file, FileRemote.FileRemoteEvent callback){
     if(callback !=null){
       callback.cmd = FileRemote.acknErrorDelete;
@@ -205,6 +241,23 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
     return null;
   }
 
+  
+  @Override public InputStream openInputStream(FileRemote file, long passPhase){
+    FileZipData data = (FileZipData)file.oFile;
+    ///
+    try{ 
+      InputStream stream = data.zipFile.getInputStream(data.zipEntry);
+      return stream;
+    } catch(IOException exc){
+      return null;
+    }
+    
+  }
+  
+
+
+  
+  
   @Override
   public WritableByteChannel openWrite(FileRemote file, long passPhase) {
     // TODO Auto-generated method stub

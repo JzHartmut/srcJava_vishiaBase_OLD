@@ -58,6 +58,7 @@ public class FileSystem
   /**Version, able to read as hex yyyymmdd.
    * Changes:
    * <ul>
+   * <li>2012-08-12 Hartmut chg: {@link #addFileToList(File, String, List)} some changes to support zipfiles.
    * <li>2012-01-26 Hartmut new: {@link #isSymbolicLink(File)} and {@link #cleanAbsolutePath(String)}.
    * <li>2012-01-05 Hartmut new: {@link #rmdir(File)}
    * <li>2011-08-13 Hartmut chg: {@link #addFilesWithBasePath(String, List)} now stores the localPath 
@@ -77,7 +78,7 @@ public class FileSystem
    * <li>2007 Hartmut: created
    * </ul>
    */
-  public final static int version = 0x20110617;
+  public final static int version = 20120812;
 
   public interface AddFileToList
   {
@@ -707,13 +708,18 @@ public class FileSystem
    */
   public static boolean addFileToList(File dir, String sPath, AddFileToList listFiles) throws FileNotFoundException
   { boolean bFound = true;
-    final String sDir, sDirSlash;
-    if(dir != null){ sDir = dir.getAbsolutePath(); sDirSlash = sDir + "/"; }
-    else { sDir = ""; sDirSlash = ""; }
+    //final String sDir, sDirSlash;
+    //if(dir != null){ sDir = dir.getAbsolutePath(); sDirSlash = sDir + "/"; }
+    //else { sDir = ""; sDirSlash = ""; }
     int posWildcard = sPath.indexOf('*');
     if(posWildcard < 0)
     {
-      File fFile = new File(sDirSlash + sPath);
+      File fFile;
+      if(dir == null){ 
+        fFile = new File(sPath);
+      } else {
+        fFile = new File(dir, sPath);  //based on given dir
+      }
       bFound = fFile.exists();
       if(bFound)
       { listFiles.add(fFile);
@@ -741,18 +747,20 @@ public class FileSystem
         }
         sPathBehind = sPathBehind.substring(posSepBehind+1);
         int posLastSlash = sPathBefore.lastIndexOf('/');
-        String sPathDir; //, sDirMask;
+        //String sPathDir; //, sDirMask;
         FileFilter dirMask = null;
         if(posLastSlash >=0)
-        { sPathDir = sDirSlash + sPathBefore.substring(0, posLastSlash);
+        { String sPathDir = sPathBefore.substring(0, posLastSlash);
           //sDirMask = sPathBefore.substring(posLastSlash+1);
+          dirBase = new File(sPathDir);
         }
         else
-        { sPathDir = sDir;
+        { //sPathDir = sDir;
           //sDirMask = sPathBefore;
+          dirBase = dir;
+        
         }
-        dirBase = new File(sPathDir);
-        if(!dirBase.isDirectory()) throw new FileNotFoundException("Dir not found:" + sPathDir);
+        if(!dirBase.isDirectory()) throw new FileNotFoundException("Dir not found:" + dirBase.getAbsolutePath());
         if(bAllTree)
         { addDirRecursivelyToList(dirBase, dirMask, sPathBehind, listFiles);
         }
@@ -760,15 +768,25 @@ public class FileSystem
       else
       { //file filter
         String sPathDir;
+        File fDir;
         if(posSepDir >= 0)
         {
-          sPathDir = sDirSlash + sPathBefore.substring(0, posSepDir);
+          sPathDir = sPathBefore.substring(0, posSepDir);
+          if(dir == null){ 
+            fDir = new File(sPathDir);
+          } else {
+            fDir = new File(dir, sPathDir);  //based on given dir
+          }
           sPathBefore = sPathBefore.substring(posSepDir+1);  //may be ""
         }
         else
-        { sPathDir = sDir.length()==0 ? "." : sDir; //current Dir if no Dir is given.
+        { 
+          if(dir == null){ 
+            fDir = new File(".");
+          } else {
+            fDir = dir;  //based on given dir
+          }
         }
-        File fDir = new File(sPathDir);
         if(fDir.exists())
         { FileFilter filter = new WildcardFilter(sPathBefore, sPathBehind);
           File[] files = fDir.listFiles(filter);

@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
@@ -16,7 +17,7 @@ import org.vishia.util.FileRemote.FileRemoteAccessorSelector;
 
 /**Implementation for a standard local file.
  */
-public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
+public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
 {
   
   /**Version, history and license.
@@ -210,7 +211,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
       public void run(){
         refreshFileProperties(fileRemote, null);
         File fileLocal = getLocalFile(fileRemote);
-        fileRemote.flags |= FileRemote.mChildrenGotten;
+        //fileRemote.flags |= FileRemote.mChildrenGotten;
         if(fileLocal.exists()){
           File[] files = fileLocal.listFiles();
           if(files !=null){
@@ -254,6 +255,19 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
       return null;
     }
   }
+
+  
+  
+  @Override public InputStream openInputStream(FileRemote file, long passPhase){
+    try{ 
+      FileInputStream stream = new FileInputStream(file);
+      return stream;
+    } catch(FileNotFoundException exc){
+      return null;
+    }
+    
+  }
+  
 
   
   @Override public WritableByteChannel openWrite(FileRemote file, long passPhase)
