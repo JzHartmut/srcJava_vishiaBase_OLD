@@ -37,11 +37,11 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
-   * <li>2012-ß8-11 Hartmut new: method {@link #openInputStream(long)}. An application may need that, for example to create
+   * <li>2012-08-11 Hartmut new: method {@link #openInputStream(long)}. An application may need that, for example to create
    *   a {@link java.io.Reader} with the input stream. Some implementations, especially a local file and a {@link java.util.zip.ZipFile}
    *   supports that. An {@link java.io.InputStream} may force a blocking if data are not available yet for file in a remote device
    *   but that may be accepted. 
-   * <li> 2012-ß8-11 Hartmut new: {@link #listFiles(FileFilter)} now implemented here. 
+   * <li> 2012-08-11 Hartmut new: {@link #listFiles(FileFilter)} now implemented here. 
    * <li>2012-08-05 Hartmut chg: The super class File needs the correct path. So it is able to use for a local file nevertheless.
    *   What is with oFile if it is a FileRemote? should refer this? See change from 2012-01-01.
    * <li>2012-08-03 Hartmut chg: Usage of Event in FileRemote. 

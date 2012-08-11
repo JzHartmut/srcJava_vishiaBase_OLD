@@ -7,12 +7,12 @@ if test -z "$JAVA_JDK";  then
   if test -d /d/Progs/JAVA/jdk1.6.0_21; then export JAVA_JDK="/d/Progs/JAVA/jdk1.6.0_21"; fi
 fi
 echo JAVA_JDK=$JAVA_JDK
+echo 2012-06-10
+rm -f -r $DST/*
+rm -f -r $DST_priv/*
 
-rm -f -r $DST
-rm -f -r $DST_priv
-
-mkdir $DST
-mkdir $DST_priv
+#mkdir $DST
+#mkdir $DST_priv
 
 echo generate docu: $SRC
 
