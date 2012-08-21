@@ -51,6 +51,20 @@ public class EventThread implements Runnable, Closeable
   
   
   
+  /**Removes this element from its queue if it is in the queue.
+   * If the element is found in the queue, it is designated with 
+   * @param ev
+   * @return
+   */
+  public boolean removeFromQueue(Event ev){
+    boolean found = queueEvents.remove(ev);
+    if(found){ 
+      ev.stateOfEvent = 'a'; 
+    }
+    return found;
+  }
+  
+  
   
   @Override public void run()
   { stateOfThread = 'r';

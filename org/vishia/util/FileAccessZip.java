@@ -172,7 +172,7 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
   @Override public void refreshFileProperties(FileRemote file, Event callback) {
     // TODO Auto-generated method stub
     if(callback !=null){
-      callback.callback();
+      callback.sendEvent(0);
     }
   }
 
@@ -194,7 +194,7 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
       } }
     }
     if(callback !=null){
-      callback.callback();
+      callback.sendEvent(0);
     }
   }
 
@@ -227,10 +227,9 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
   
   
   
-  @Override public boolean delete(FileRemote file, FileRemote.FileRemoteEvent callback){
+  @Override public boolean delete(FileRemote file, FileRemote.CallbackEvent callback){
     if(callback !=null){
-      callback.cmd = FileRemote.acknErrorDelete;
-      callback.callback();
+      callback.sendEvent(FileRemote.acknErrorDelete);
     }
     return false;   // not implement: changing of file.
   }
@@ -265,7 +264,7 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
   }
 
   @Override
-  public void addCommission(FileRemote.FileRemoteEvent com) {
+  public void addCommission(FileRemote.CallbackEvent com, int cmd) {
     // TODO Auto-generated method stub
     
   }

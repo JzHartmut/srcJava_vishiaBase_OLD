@@ -1,9 +1,12 @@
 package org.vishia.util;
 
-/**This is a universal interface to mark instances as select-able and to support selection. 
+/**This is a standard implementation of the universal interface to mark instances as select-able and to support selection. 
  * It supports up to 32 sources or users for selection. The management of users should be defined
- * at user level. A user is represented by a bit in the 32-bit-value of the mask.
- * Usual only one user may existing. The selection from 2 or less more sides are able to think.
+ * at user level. A source is represented by a bit in the 32-bit-value of the mask.
+ * Usual only one source may existing.
+ * 
+ * This class can be used either as super class for anything which should be marked as selected
+ * or as composition in that class whereby the data item {@link #selectMask} is the only one data of that composition.
  * 
  * @author Hartmut Schorrig
  *

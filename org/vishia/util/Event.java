@@ -1,11 +1,21 @@
 package org.vishia.util;
 
+import java.util.Date;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+
+import org.vishia.bridgeC.MemC;
 
 /**Base class for all events in a event driven software or for communications.
  * Events may contain data. Special data are contained in derived classes of this. The type of the event
  * can be checked using <code>event instanceof DerivedEvent</code>. The id may be only a hint.
  * <br><br>
+ * <a href="#whatis">What is a event driven software</a><br>
+ * <a href="#usage"> Where is this Event class able to use</a><br>
+ * <a href="#lifecycle">Life cycle of an event object</a><br>
+ * <a href="#conflicts"> Conflicts in usage of Event objects</a><br>
+ * <br><br>
+ * <a name="whatis" />
  * <b>What is a event driven software</b>?<br>
  * There are 4 types of organization of the cooperation in a multi thread system or in a distributed system:
  * <ol>
@@ -165,15 +175,259 @@ import java.util.concurrent.atomic.AtomicLong;
  *      |                                               |                     |
  *      |                                               |                     |
  * </pre>
- * <br><br>
- * Where is this Event class able to use:
+ * <br>
+ * <br>
+ * <br>
+ * <a name="usage" />
+ * <b>Where is this Event class able to use</b>:
  * <ul>
  * <li>As item in the event queue using the {@link EventThread}
  * <li>As callback item for communication for example in {@link FileRemote}.
- * </ul> 
+ * </ul> v
+ * <br>
+ * <br>
+ * <br>
+ * <a name="lifecycle" />
+ * <b>Life cycle of an event object</b>:<br><br>
+ * The standard and simple operation with an event object is:
+ * <pre>
+ *   src
+ *    |                                       dst
+ *    +ev = new Event(dst)                     |
+ *    |                                        |
+ *    |-------------ev.sendEvent(cmd)--------->|
+ *    |                                        + read data from event
+ *                                             + ev.consumed() 
+ *                                             |
+ * </pre>
+ * The event object is created on demand with {@link #Event(Object, EventConsumer, EventThread)}. Then it is {@link #sendEvent(int)}
+ * to the destination either with direct call of {@link EventConsumer#processEvent(Event)} or it is stored in the queue of the
+ * {@link EventThread} and then processed. <br>
+ * While processing, the data are gotten from the event. After them it is no more necessary. One should call {@link #consumed()}.
+ * Either the Garbage Collector removes the event object from memory because it is no more referenced, or 
+ * the {@link #consumedRetention()} method calls {@link MemC#free(Object)} internally for C/C++ usage without Garbage Collection.
+ * <br><br>
+ * It is a convention to <b>process events without blocking</b> (waiting for any resource) <b>in a short time</b>. Events are often used in a 
+ * cyclic loop maybe for a statemachine operation or inside interrupts. Therefore the calculation time between dequeue the event
+ * and start the {@link EventConsumer#processEvent(Event)} and the end of this routine respectively the time to call 
+ * {@link #consumed()} or {@link #consumedRetain()} is short. Short means a few milliseconds or less.
  * 
+ * <br><br>
+ * <b>Static event instances</b>:
+ * <br><br>
+ * Another approach is to use static instances. If a functionality between 2 classes should be used only one time simultaneously,
+ * then the usage of a static event object is the same like the allocation of a new instance, relinquish it
+ * and allocate a new one after them. If the functionality should be processed more as one time in the same time, 
+ * one static instance can't  used, of course. Static instances have disadvantages for free usages because a multiple 
+ * occupancy should be excluded. Therefore the dynamic data handling in Java with Garbage Collection is an important 
+ * advantage of this language and programming system. But the dynamic approach has a disadvantage: The amount of
+ * usage of any functionality is not limited, till the memory crashes. If the memory has crashed, all other functionality
+ * of the application may be blocked too. Therefore in safety critical applications a dynamic usage of memory may be prohibited.
+ * <br><br>
+ * <pre>
+ *   src
+ *    |
+ *    +this.ev = new Event()
+ *    |
+ *    ~
+ *    ~
+ *    |                                       dst
+ *    +ev.occupy(dst)                          |
+ *    |                                        |
+ *    |-------------ev.sendEvent(cmd)--------->|
+ *    |                                        + read data from event
+ *    |                                        + ev.consumed() 
+ *    |                                        |
+ *    |
+ *    |                               dst2
+ *    +ev.occupy(dst2)                  |
+ *    |                                 |
+ *    |------ev.sendEvent(cmd)--------->|
+ *    |                                 + read data from event
+ *    |                                 + ev.consumed() 
+ *    |                                 |
+ *    |
+ * </pre>
+ * 
+ * If an event object should be used statically, it should be created with {@link #Event()} at startup time
+ * and referenced in the source.
+ * If the event object is needed, the method {@link #occupy(Object, EventConsumer, EventThread)} has to be called 
+ * instead new {@link #Event(Object, EventConsumer, EventThread)}. This method returns false if the event object is in use.
+ * The handling on the destination side is the same. After read data from the event it should be described as
+ * {@link #consumedRetention()}. Then the occupying is relinquished. An internal flag {@link #isStatic} prevents the deletion from
+ * the memory for C/C++. Because the event is referred in the source, it isn't removed by the Garbage Collector in Java. 
+ *  
+ * <br><br> 
+ * <b>Re-use of an Event object in the context of one functionality</b>
+ * <br><br>
+ * Independent of the decision of static Event objects, an Event can be re-used inside the context of functionality.
+ * <pre>
+ *         ....for one functionality........
+ *   src
+ *    |                                       dst
+ *    |ev = new Event(dst)                     |
+ *    |----------ev.sendEvent(cmd)------------>|
+ *    |                                        + use the ev
+ *    |                                        + ev.consumedRetain();
+ *    |                                        |
+ *    |                                        + ev.reserve()
+ *    |                                        |----ev.sendEvent(cmd)-----+
+ *    |                                        |  (reused in destination) |
+ *    |                                        |<-------------------------+
+ *    |                                        + ev.consumedRetain();
+ *    |<----------callback---------------------|
+ *    |                                        |
+ *    +ev.reserve()                            |
+ *    |----------ev.sendEvent(cmd)------------>|  
+ *    |  (reuse the same event in src after    +ev.consumed() 
+ *    |   recognize a specific callback)       |
+ * </pre>
+ * That reusing is only done for the same destination and in the context of one functionality. 
+ * The destination inside the event object is not changed. Because it is done under the responsibility
+ * of the destination itself, it is a safe operation. The destination programming knows that the event is not used anymore. 
+ * It is the same operation to relinquish an instance and allocate a new one or to reuse it.
+ * <br><br>
+ * The reusing can be done also in interplay between the source and destination. An event may send back to the source especially
+ * by using the {@link #callbackEvent()} mechanism. The source may assume that the event from source to destination 
+ * which is referred in the callback event can be used once more. That property should be declared in the interface.
+ * <br><br>
+ * <ul>
+ * <li>After reading the data from the event {@link #consumedRetain()}. Therewith it is not relinquished but it is designated
+ *   as free for next usage.
+ * <li>Now either inside the destination or inside the source the event can be reused. If the destination sends a callback
+ *   and the event is referred in the callback event it should be used from the source for the answer after callback.
+ *   The event is reused inside the interaction between source and destination.
+ * <li>The event can be reused inside the destination especially for state switch stimuli inside a state machine.
+ * </ul>
+ * In both cases the programming of the destination knows that the event is reused, therefore {@link #consumedRetain()}
+ * instead {@link #consumed()} is called. Note that both programming algorithm may be independent, a library and an
+ * application, or independent modules, or reusing of software.
+ * <br><br>
+ * Before re-using the Event object after {@link #consumedRetain()} one should invoke {@link #reserve()} before data are
+ * stored in the event. That prevents a multiple usage.
+ * <br>
+ * <br>
+ * <br>
+ * <a name="conflicts" />
+ * <b>Conflicts in usage of Event objects</b>
+ * <br>
+ * Already the simple usage of events with new allocation without reusing may be conflictual. It may be possible that 
+ * the destination hangs for any other reason, and the source sends events to it. Because there is no answer, 
+ * the source sends once more. More and more event objects are created, and the destinations queue will be filled with them.
+ * There isn't a mechanism to detect that situation, and the application will crash somewhere along the way.
+ * <br><br>
+ * In some cases, an event is supposed to be sent only once in the same time from the same source to one destination. 
+ * In that case a static Event instance is more proper.
+ * Therewith the application detects that the event will be used twice and more because there is only one Event object.
+ * If there is no answer, it is conceivable that the event was sent 
+ * to the destination, but not processed there because the destination hangs. It is possible too that the event was not
+ * processed in this time because it needs more time to do that. The application should treat the situation. 
+ * That may not be a necessity of the static usage of the event object but a necessity of the application. 
+ * <br>
+ * If the call should be repeated, the previous event should be removed from the queue if it
+ * hangs there and it is not dequeued. That can be done by invoking {@link #forceRelinquish()} or {@link #reserveRecall(int)}.
+ * Both routines tries to dequeue the event. If it is succeed, then the event is not used furthermore, it can be reused.
+ * If the event is not in a queue, it seems to processed in the moment. It is able to expect that the event object is
+ * {@link #consumed()} in the next time. Therefore this routines wait a maximal timeout till the event is consumed. 
+ * Because of the convention, that a processing of an event should need only a less amount of time, the waiting time 
+ * should less than the timeout. If it isn't so and the timeout is reached, the only one assertion is that the software 
+ * may have an error.
+ * <br><br>
+ * The difference between {@link #forceRelinquish()} and {@link #reserveRecall(int)} is: {@link #forceRelinquish()} frees
+ * the event completely either to reuse the event object for any other or to remove the event. Whereby {@link #reserveRecall(int)}
+ * reserves the event for usage. The last one can be used in an interaction between callback:
+ * <pre>
+ *         ....for one functionality........
+ *   src
+ *    |                                       dst
+ *    |----------ev.sendEvent(cmd)------------>|
+ *    |                                        + use the ev
+ *    |                                        + ev.consumedRetain();
+ *    |<----------callback---------------------|
+ *    |                                        + ev.reserve()
+ *    |                                        |----ev.sendEvent(cmd)-----+
+ *    +ev.forceReserve()                       |  (reused in destination) |
+ *    |                                        |               ?<---------+
+ *    |----------ev.sendEvent(cmd)------------>|  
+ *    |                                        + use the ev
+ *    |                                        |
+ * </pre>
+ * Normally the Event object is used inside the destination to stimulate a state machine. The callback is only
+ * an information back to the source. It is not expected that the source reacts. But in a special situation
+ * the source can force the reservation of the event. That is proper if an abort event should sent for example.
+ * The usage of the event inside the destination is disabled in that time.
+ *  
+ * <br><br>
  * @author Hartmut Schorrig
  *
+ */
+
+
+
+
+
+
+/*
+ * 
+ * If the event is not able to reserve or relinquish, it is a problem
+ * of the software. The contract to process events is: The processing time should be short, in the processing time
+ * there should not be wait for any other things.
+ * If the event object is not found in its queue, it is processed yet. Because the processing of one event should need 
+ * 
+ * 
+ * 
+ * 
+ * If the call is repeated with the same event, the effect is that the event is further ahead in the queue. Then it may be
+ * processed promptly. But it can also be suitably to send another message with the same event instance, or dequeue
+ * and use another Event object or any other operation for messaging the destination. 
+ * <br><br>
+ * <b>Callback and sendEvent</b>:<br><br>
+ * A special case is a callback without expecting an answer (callback to inform the source) with reusing the event on
+ * destination side, but the source will be send the event for example to abort the action concurrently.
+ * 
+ * 
+ * 
+ * <br><br>
+ * There is a way to remove the event from a queue: One can call {@link #forceReserve(int)} if the event should be used
+ * for the same destination or {@link #forceRelinquish()} if the event should be used for another destination.
+ * Both routines checks whether the event is in a queue and removes it from them. In this case the event is not in process,
+ * it is the same as the event was never sent. Therefore it can be reused. 
+ * 
+ *  
+ *  
+ *  
+ *  
+ *  
+ *  
+ *  
+ *  
+ *  <br><br><br>
+ * <b>Allocated and remove by garbage collector</b>: An instance of this class can be allocated whenever a event should be send. On constructor the destination and 
+ * an optional destination thread have to be defined, it is not able to change. It means that event is only for the
+ * determined destination. The event is created and referred only locally in the stack. With executing of {@link #sendEvent(int)}
+ * the event is either stored in the event queue of the destination thread, it is not referenced in the creating context. 
+ * Or the event is referenced in the execution context (stack local) of the {@link EventConsumer#processEvent(Event)}
+ * routine in the destination. 
+ * <br><br>
+ * If the event is not necessary furthermore, the {@link #consumedRetention()} -routine should be called. This routine removes
+ * all references inside the event. Because the event is not referenced furthermore anywhere, in Java it is removed 
+ * from memory by the garbage collector.
+ * <br><br>
+ * <b>Allocated and removed in C/C++r</b>: For C/C++-usage without Garbage Collector the event will be remove 
+ * if the routine {@link #consumedRetention()} is called. This routine checks whether the event is allocated dynamically
+ * and calls {@link org.vishia.bridgeC.MemC#free(Object)} to remove the instance from memory. The application program
+ * should only call the {@link #consumedRetention()} after usage. The memory management is done therewith already.
+ * For software written in Java and translated to C/C++ no extra effort is necessary. 
+ * <br><br>
+ * <b>Allocated and used more as one time inside the destination</b>: It is possible to use the event for the same destination after it is processed.
+ * Don't call {@link #consumedRetention()}, instead set the data of the event for the new usage and call {@link #sendEvent(int)} once more.
+ * The the event instance is re-used. This is a possibility to continue processing the functionality especially in a state machine.
+ * It saves effort to free the event and allocate a new one. 
+ * <br><br>
+ * 
+ * 
+ * 
+ * 
  */
 public class Event
 {
@@ -218,7 +472,13 @@ public class Event
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20120311;
+  public static final int version = 20120819;
+  
+  /**It is an inner value for the cmd variable to designate the event as not reserved. */
+  public static final int cmdFree = 0;
+  
+  /**It is an inner value for the cmd variable to designate the event as reserved. */
+  public static final int cmdReserved = -1;
   
   /**The current owner of the event. It is that instance, which has gotten the event instance
    * by any method invocation as parameter,
@@ -226,6 +486,11 @@ public class Event
    * TODO not used yet. Maybe a List<EventOwner>
    */
   private EventOwner owner;
+  
+  
+  /**An event can have a counterpart for return information. The event and its counterpart may refer one together.
+   */
+  private Event callbackEvent;
   
   /**The queue for events of the {@link EventThread} if this event should be used
    * in a really event driven system (without directly callback). 
@@ -240,17 +505,18 @@ public class Event
   /**The queue for events of the {@link EventThread} if this event should be used
    * in a really event driven system (without directly callback). 
    * If it is null, the dst.{@link EventConsumer#processEvent(Event)} should be called immediately. */
-  private EventThread callbackThread;
+  //private EventThread callbackThread;
   
   
   /**The destination instance for the Event. If the event is stored in a common queue, 
    * the dst is invoked while polling the queue. Elsewhere the dst is the callback instance. */
-  /*package private*/ EventConsumer callback;
+  ///*package private*/ EventConsumer callback;
   
   /**State of the event: 
    * <ul>
    * <li>0 or '.': unused.
-   * <li>a: requested
+   * <li>a: requested or allocated. The {@link EventConsumer} and the {@link EventThread} is set, but the event 
+   *   is not in send to the consumer. It is not in a queue and not in process.
    * <li>q: queued in dstThread
    * <li>e: executing
    * <li>B: queued for callback
@@ -260,8 +526,13 @@ public class Event
    */
   public char stateOfEvent;
   
+  /**'s' if the event is static. Space or 0 if allocated. */
+  private boolean isStatic;
+  
+  boolean bAwaitReserve;
+  
   /**Any number to identify. It is dst-specific. */
-  protected int cmd;
+  private AtomicInteger cmd = new AtomicInteger();
   
   //protected int answer;
   
@@ -282,134 +553,68 @@ public class Event
    * calling {@link #Event(Object, EventConsumer)} or {@link #use(long, int, Object, EventConsumer)}
    * only. The calling environment determines the type. 
    * see {@link #getRefData()}. */
-  private Object refData;
-  
-  public Event(Object refData, EventConsumer consumer){
-    this.refData = refData; this.callback = consumer;
-  }
+  protected Object refData;
   
   
-  public int cmd(){ return cmd; }
   
   
-  /**Sets a new command for the event. If the event is queued yet, the changing of the command can only be able to accept
-   * if the new cmd changes the meaning of the whole request. For example request anything, then abort it.
-   * @param cmd The new command
-   * @return true if the event was not in use yet.
+  /**Creates an event as a static object for re-usage. Use {@link #occupy(Object, EventConsumer, EventThread)}
+   * before first usage. Use {@link #consumed()} to release the usage. 
+   * 
    */
-  public boolean setCmd(int cmd){
-    boolean bOk = (this.cmd == 0);
-    this.cmd = cmd;
-    return bOk;
+  public Event(){
+    dateCreation.set(0);
+    isStatic = true;
   }
+  
+  /**Creates an event as dynamic object for usage. Use {@link #consumed()} after the event is used and it is not referenced
+   * anymore. 
+   * @param refData Associated data to the event. It is the source of the event.
+   * @param consumer The destination object for the event.
+   * @param thread an optional thread to store the event in an event queue, maybe null.
+   */
+  public Event(Object refData, EventConsumer consumer, EventThread thread){
+    this.dateCreation.set(System.currentTimeMillis());
+    this.refData = refData; this.evDst = consumer; this.evDstThread = thread;
+    this.callbackEvent = null;
+    isStatic = false;
+  }
+  
+  
+  /**Creates an event as dynamic object for usage. Use {@link #consumed()} after the event is used and it is not referenced
+   * anymore. 
+   * @param refData Associated data to the event. It is the source of the event.
+   * @param consumer The destination object for the event.
+   * @param thread an optional thread to store the event in an event queue, maybe null.
+   * @param callback Another event to interplay with the source of this event.
+   */
+  public Event(Object refData, EventConsumer consumer, EventThread thread, Event callback){
+    this.dateCreation.set(System.currentTimeMillis());
+    this.refData = refData; this.evDst = consumer; this.evDstThread = thread;
+    this.callbackEvent = callback;
+    callback.callbackEvent = this;
+    isStatic = false;
+  }
+  
+  
+  public int cmd(){ return cmd.get(); }
+  
+  
+  public Event callbackEvent(){ return callbackEvent; }
+  
   
   public EventConsumer evDst() { return evDst; }
   
   
-  public void setDst(EventConsumer consumer, EventThread thread){
-    evDst = consumer;
-    evDstThread = thread;
-  }
-  
-  /**Check whether this event is in use and use it. An event instance can be re-used. If the order or the dateOrder
-   * is set, the event is in use. In a target communication with embedded devices often the communication
-   * resources are limited. It means that only one order can be requested at one time, and the execution
-   * should be awaited. The usage of an re-used event for such orders can be help to organize the
-   * requests step by step. If the answer-event instance is in use, a request is pending.
-   *  
-   * @return true if the event instance is able to use.
+  /**Returns the time stamp of creation or occupying the event.
+   * @return null if the event is not occupied, a free static object.
    */
-  public boolean use(long order, int cmd, Object refData, EventConsumer dst){ 
-    if(dateCreation.compareAndSet(0, System.currentTimeMillis())){
-      this.orderId = order;
-      this.cmd = cmd;
-      this.refData = refData;
-      this.callback = dst;
-      return true;
-    }
-    else return false;
-  }
+  public Date dateCreation(){ long date = dateCreation.get(); return date == 0 ? null : new Date(date); }
   
   
-  
-  /**Returns true if the event is in use. Events may be re-used. That may be necessary if a non-dynamic
-   * memory organization may be need, for example in C-like programming. It is possible anyway if actions
-   * are done only one after another. In that kind the event instanc is created one time,
-   * and re-used whenever it is needed. A re-using should wait for answer and set {@link #consumed()}.
-   * If the answer hangs, {@link #forceRelease()} may be called.
-   * @return true if it is ready to re-use.
-   */
-  public boolean isOccupied(){ return dateCreation.get() !=0; }
-  
-  
-  /**Forces the release of the event instance to re-usage the event. 
-   * If the event is in use, the owner will be notified
-   * calling {@link EventOwner#remove(Event)} that the event should be released.
-   * @return false only if the event is not released from the owner. 
-   * Then the action should be repeated.
-   */
-  public boolean forceRelease() {
-    boolean bOk = true;
-    if(owner !=null){ bOk = owner.remove(this); }
-    if(bOk){
-      consumed();
-    }
-    return bOk;
-  }
-  
-  
-  /**Releases the event instance. It is the opposite to the {@link #consumed()} method.
-   * The {@link #dateCreation} is set to 0 especially to designate the free-state of the Event instance.
-   * All other data are reseted, so no unused references are hold.  
-   */
-  public void consumed(){
-    this.stateOfEvent= '.';
-    this.cmd = 0;
-    this.refData = null;
-    this.evDst = null;
-    this.evDstThread = null;
-    this.callback = null;
-    this.callbackThread = null;
-    this.orderId = 0;
-    data1 = data2 = 0;
-    oData = null;
-    owner = null;
-    dateCreation.set(0);
-  }
-
-  
-  
-  /**Sends this event to the callback instance.
-   * Either the element {@link #callbackThread} is not null, then the event is put in the queue
-   * and the event thread is notified.
-   * Or the dstQueue is null, then a callback is invoked using {@link #callback}.{@link EventConsumer#processEvent(Event this)}
-   */
-  public void sendEvent(){
-    if(evDst == null) throw new IllegalArgumentException("event should have a destination");
-    if(evDstThread !=null){
-      evDstThread.storeEvent(this);
-    } else {
-      evDst.processEvent(this);
-    }
-  }
+  public boolean hasCallback(){ return callbackEvent !=null; }
   
 
-  
-  /**Sends this event to the callback instance.
-   * Either the element {@link #callbackThread} is not null, then the event is put in the queue
-   * and the event thread is notified.
-   * Or the dstQueue is null, then a callback is invoked using {@link #callback}.{@link EventConsumer#processEvent(Event this)}
-   */
-  public void callback(){
-    if(callbackThread !=null){
-      stateOfEvent = 'B';
-      callbackThread.storeEvent(this);
-    } else {
-      stateOfEvent = 'b';
-      callback.processEvent(this);
-    }
-  }
-  
   
   /**Returns the stored src argument of construction.
    * Especially the creator of this Event instance knows the instance type
@@ -431,6 +636,255 @@ public class Event
    * @return
    */
   public Object getSrc(){ return refData; }
+  
+  
+  
+  /**Check whether this event is free and occupies it. An event instance can be re-used. If the {@link #dateCreation()}
+   * is set, the event is occupied. In a target communication with embedded devices often the communication
+   * resources are limited. It means that only one order can be requested at one time, and the execution
+   * should be awaited. The usage of an re-used event for such orders can be help to organize the
+   * requests step by step. If the answer-event instance is in use, a request is pending.
+   *  
+   * @return true if the event instance is able to use.
+   */
+  public boolean occupy(Object refData, EventConsumer dst, EventThread thread){ 
+    if(dateCreation.compareAndSet(0, System.currentTimeMillis())){
+      this.refData = refData;
+      this.evDst = dst;
+      this.evDstThread = thread;
+      
+      this.stateOfEvent = 'a';
+      return true;
+    }
+    else return false;
+  }
+  
+  
+  
+  /**Returns true if the event is occupied. Events may be re-used. That may be necessary if a non-dynamic
+   * memory organization may be need, for example in C-like programming. It is possible anyway if actions
+   * are done only one after another. In that kind the event instanc is created one time,
+   * and re-used whenever it is needed. A re-using should wait for answer and set {@link #consumedRetention()}.
+   * If the answer hangs, {@link #forceRelease()} may be called.
+   * 
+   * @return false if it is ready to re-use.
+   */
+  public boolean isOccupied(){ return dateCreation.get() !=0; }
+  
+  
+  
+  /**Releases the event instance. It is the opposite to the {@link #occupy(Object, EventConsumer, EventThread)} method.
+   * The {@link #dateCreation} is set to 0 especially to designate the free-state of the Event instance.
+   * All other data are reseted, so no unused references are hold.  
+   */
+  public void consumed(){
+    consumedRetain();
+    this.stateOfEvent= '.';
+    this.refData = null;
+    this.evDst = null;
+    this.evDstThread = null;
+    this.callbackEvent = null;
+    oData = null;
+    owner = null;
+    dateCreation.set(0);
+    if(!isStatic) { 
+      MemC.free(this);
+    }
+  }
+
+  
+  
+  /**Forces the release of the event instance to re-usage the event. 
+   * If the event is in use, the owner will be notified
+   * calling {@link EventOwner#remove(Event)} that the event should be released.
+   * @return false only if the event is not released from the owner. 
+   * Then the action should be repeated.
+   */
+  public boolean forceRelinquish() {
+    boolean removed = false;
+    if(evDstThread !=null){
+      removed = evDstThread.removeFromQueue(this);
+    }
+    if(!removed){
+      
+    }
+    boolean bOk = true;
+    if(owner !=null){ bOk = owner.remove(this); }
+    if(bOk){
+      consumedRetain();
+    }
+    return bOk;
+  }
+  
+  
+  
+
+  
+  /**Reserves the event to prepare data and to send it.
+   * @return true if it is reserved. False if the event is in use at this time.
+   */
+  public boolean reserve(){
+    boolean bOk = this.cmd.compareAndSet(0, cmdReserved);
+    return bOk;
+  }
+  
+  
+  /**Reserves the event to prepare data and to send it or waits till it is able to reserve.
+   * This method may block if the event is in use, either in a queue or in processing, and the destination process hangs.
+   * Therefore a maximum of waiting time is given. If the method returns false the the reservation is failed.
+   * Then the application may repeat this method for example after query a operator or do any other proper operation.
+   */
+  public boolean reserve(int timeout){
+    boolean bOk = reserve();
+    if(!bOk){
+      synchronized(this){
+        bAwaitReserve = true;
+        try{ wait(timeout); } catch(InterruptedException exc){ }
+        bAwaitReserve = false;
+      }
+      bOk = reserve();
+    }
+    return bOk;
+  }
+  
+  
+  
+  /**Try to reserve the event for usage, recall it if it is in stored in an event queue.
+   * <ul>
+   * <li>If the event is free, it is reserved, the method returns true. 
+   * <li>If it is not free, but stored in any queue, it will be removed from the queue,
+   *   then reserved for this new usage. The method returns true.
+   * <li>If it is used and not found in any queue, then it is processed in this moment.
+   *   Then this method returns false. The method doesn't wait. See {@link #reserveRecall(int)}.   
+   * </ul>
+   * @return true if the event is reserved.
+   */
+  public boolean reserveRecall(){
+    boolean bOk = reserve();
+    if(!bOk){
+      if(evDstThread !=null){
+        bOk = evDstThread.removeFromQueue(this);
+        if(bOk){
+          //it was in the queue, it means it is not in process.
+          //therefore set it as consumed.
+          consumedRetain();
+          bOk = reserve();
+        }
+      }
+    }
+    return bOk;
+  }
+  
+  
+  /**Try to reserve the event for usage, recall it if it is in stored in an event queue, wait till it is available.
+   * This method may block if the event is yet processing. The method doesn't block forever because the destination process hangs.
+   * Therefore a maximum of waiting time is given. If the method returns false the the reservation is failed.
+   * Then the application may repeat this method for example after query a human operator or after done any other proper operation.
+   * <ul>
+   * <li>If the event is free, it is reserved, the method returns immediately with true. 
+   * <li>If it is not free, but stored in any queue, it will be removed from the queue,
+   *   then reserved for this new usage. The method returns imediately with true.
+   * <li>If it is used and not found in any queue, then it is processed in this moment.
+   *   This method waits the given timeout till the event is free. If it will be free in the timeout period,
+   *   the method reserves it and returns true. 
+   * <li>If the timeout is expired, the method returns false. That may be an unexpected situation, because the 
+   *   processing of an event should be a short non-blocking algorithm. It may be a hint to an software error. 
+   * </ul>
+   * See {@link #reserveRecall(int)}.   
+   * @return true if the event is reserved.
+   */
+  public boolean reserveRecall(int timeout){
+    boolean bOk = reserveRecall();
+    if(!bOk){
+      synchronized(this){
+        bAwaitReserve = true;
+        try{ wait(timeout); } catch(InterruptedException exc){ }
+        bAwaitReserve = false;
+      }
+      bOk = reserve();
+    }
+    return bOk;
+  }
+  
+  
+  
+  
+  
+  
+  /**Forces the reservation of the event object for usage.
+   * <ul>
+   * <li>If the event is free, it is reserved. 
+   * <li>If it is not free, but in any queue, it will be removed from the queue,
+   *   then set as consumed, and reserved then for this new usage.
+   * <li>If the event is in process yet, the method waits till it is consumed. It should be take only at least some milliseconds
+   *   because that is the contract to use events objects.
+   * If the event 
+   */
+  public boolean recall(){
+    boolean bOk = reserve();
+    if(!bOk){
+      if(evDstThread !=null){
+        bOk = evDstThread.removeFromQueue(this);
+        if(bOk){
+          //it was in the queue, it means it is not in process.
+          //therefore set it as consumed.
+          consumedRetain();
+          bOk = reserve();
+        }
+      }
+    }
+    return bOk;
+  }
+  
+  
+  
+  
+  
+  
+  
+  
+
+  
+  
+  ////
+  
+  /**Sends this event to its destination instance.
+   * Either the element {@link #evDstThread} is not null, then the event is put in the queue
+   * and the event thread is notified.
+   * Or the dstQueue is null, then a {@link #evDst}.{@link EventConsumer#processEvent(Event this)}.
+   * 
+   */
+  public boolean sendEvent(int cmd){
+    int cmd1 = this.cmd.get();
+    boolean bOk = (cmd1 == cmdFree || cmd1 == cmdReserved);
+    if(bOk) {
+      bOk = this.cmd.compareAndSet(cmd1, cmd);
+      if(bOk){
+        if(evDst == null) throw new IllegalArgumentException("event should have a destination");
+        if(evDstThread !=null){
+          evDstThread.storeEvent(this);
+        } else {
+          evDst.processEvent(this);
+        }
+      }
+    }
+    return bOk;
+  }
+  
+
+  /**Mark the event object as consumed, but not relinquished. The event keeps its destination, but frees the cmd and data.  
+   */
+  public void consumedRetain(){
+    this.stateOfEvent= 'a';
+    this.cmd.set(0);
+    this.orderId = 0;
+    data1 = data2 = 0;
+    if(bAwaitReserve){
+      synchronized(this){ notify(); }
+    }
+  }
+
+
   
   
   

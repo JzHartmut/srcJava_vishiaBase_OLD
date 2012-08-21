@@ -1,8 +1,5 @@
 package org.vishia.util;
 
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -85,6 +82,9 @@ public class TreeNodeUniqueKey <T> extends TreeNodeBase<T> // implements SortedT
     String[] elements = path.split(separator);
     TreeNodeUniqueKey<T> child = this;
     for(String name: elements){
+      if(child.idxChildren == null){
+        break;
+      }
       TreeNodeUniqueKey<T> child1 = child.idxChildren.get(name);
       if(child1 == null){ 
         break;

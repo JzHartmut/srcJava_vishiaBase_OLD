@@ -30,7 +30,7 @@ public abstract class FileRemoteAccessor implements Closeable
    * <li>2012-07-28 Hartmut new: Concept of remote files enhanced with respect to {@link FileAccessZip},
    *   see {@link FileRemote}
    * <li>2012-03-10 Hartmut new: {@link Commission#newDate} etc. 
-   *   for {@link FileRemote#chgProps(String, int, int, long, org.vishia.util.FileRemote.FileRemoteEvent)}.
+   *   for {@link FileRemote#chgProps(String, int, int, long, org.vishia.util.FileRemote.CallbackEvent)}.
    * <li>2012-01-09 Hartmut new: This class extends from Closeable, because an implementation 
    *  may have an running thread which is need to close. A device should be closeable any time.
    * <li>2012-01-06 Hartmut new {@link #refreshFileProperties(FileRemote)}. 
@@ -123,7 +123,7 @@ public abstract class FileRemoteAccessor implements Closeable
    * @return If the callback is null, the method returns if the file is deleted or it can't be deleted.
    *   The it returns true if the file is deleted successfully. If the callback is not null, it returns true.
    */
-  public abstract boolean delete(FileRemote file, FileRemote.FileRemoteEvent callback);
+  public abstract boolean delete(FileRemote file, FileRemote.CallbackEvent callback);
   
   public abstract ReadableByteChannel openRead(FileRemote file, long passPhase);
   
@@ -133,8 +133,14 @@ public abstract class FileRemoteAccessor implements Closeable
  
   //FileRemote[] listFiles(FileRemote parent);
   
-  
-  public abstract void addCommission(FileRemote.FileRemoteEvent com);
+  /**Adds a commission to the instance to execute.
+   * @param ev This event instance holds some information for that commission. It is prepared for callback operation. 
+   *   Either this is only the callback event itself. The the implementation of this routine should create a new
+   *   Event instance for the commission and referes this callback. Or this event refers a callback event already.
+   *   It means the {@link Event#hasCallback()} returns true. Then the event is used for event-controlled operation itself.
+   * @param cmd the command for the ev.
+   */
+  public abstract void addCommission(FileRemote.CallbackEvent ev, int cmd);
   
   public abstract boolean isLocalFileSystem();
 
@@ -160,7 +166,7 @@ public abstract class FileRemoteAccessor implements Closeable
     
     FileRemote src, dst;
     
-    FileRemote.FileRemoteEvent callBack;
+    FileRemote.CallbackEvent callBack;
     
     /**For {@link #kChgProps}: a new name. */
     String newName;
