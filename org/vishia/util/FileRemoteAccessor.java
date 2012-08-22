@@ -67,7 +67,7 @@ public abstract class FileRemoteAccessor implements Closeable
   public static final int version = 20120310;
   
   public final static int kOperation = 0xd00000, kFinishOk = 0xf10000, kFinishNok = 0xf10001
-  , kFinishError = 0xf1e3303, kNrofFilesAndBytes = 0xd00001;
+  , kFinishError = 0xf1e3303, kNrofFilesAndBytes = 0xd00001, kCopyDir = 0xd0cd13;
 
   
   /**Gets the properties of the file from the physical file.

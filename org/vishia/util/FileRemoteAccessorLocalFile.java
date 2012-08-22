@@ -99,7 +99,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   
   
   
-  private Copy copy = new Copy();
+  private final Copy copy = new Copy();
   
   private FileRemote workingDir;
   
@@ -705,6 +705,27 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
     }
     
     
+    /**Prepare copying the given file or directory.
+     * {@link #actData} is set with {@link DataSetCopy1Recurs#src} and {@link DataSetCopy1Recurs#src}.
+     * The {@link DataSetCopy1Recurs#listSrc} is not prepared yet.
+     * This state checks whether it is a file or directory. 
+     * <ul>
+     * <li>If it is a file, the file src and dst files will be opened.
+     *   <ul>
+     *   <li>If it is succeed, the state {@link StateCopyProcess#CopyFileContent} is entered immediately.
+     *   <li>If the open fails, the state {@link StateCopyProcess#Ask} is entered immediately.
+     *   </ul>
+     * <li>If it is a directory, first a backevent is sent which informs about the directory path.
+     *   Then the list of files are gotten. This may spend some time.
+     *   If it is ready, The first file is filled in a new instance of {@link DataSetCopy1Recurs} as {@link #actData}.
+     *   An event {@link #cmdCopyDirFile} is sent to this itself and the state remains.
+     *   <br>
+     *   It means that the program flow returns to the event queue (inversion of control). Therefore a abort or skip event
+     *   have a chance to processing.
+     * <li>      
+     * @param ev
+     * @return
+     */
     boolean entry_CopyDirFile(FileRemote.CmdEvent ev){
       if(stateCopy != StateCopy.Process){
         entry_CopyProcess(ev);
@@ -713,59 +734,54 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       if(actData.src.isDirectory()){
         //first send a callback
         if(evBack.reserveRecall()){
-          evBack.fileName[0] = 'x';
-          evBack.sendEvent(FileRemoteAccessor.kOperation);
+          String absPath = actData.src.getAbsolutePath();
+          if(absPath.length() > evBack.fileName.length-1){
+            absPath = "..." + absPath.substring(evBack.fileName.length -4);  //the trailing part.
+          }
+          StringFunctions.copyToBuffer(absPath, evBack.fileName);
+          evBack.sendEvent(FileRemoteAccessor.kCopyDir);
         }
         //This action may need some time.
         actData.listSrc = actData.src.listFiles();
         actData.ixSrc = 0;
-        
-        //evCpy.sendEvent(cmdCopyDir);
-        return entry_CopyDirList(ev);
+        FileRemote srcInDir = actData.listSrc[0];
+        FileRemote dstDir = actData.dst;
+        //
+        //use the first entry of the dir:
+        //
+        actData.dst.mkdirs();
+        recursDirs.push(actData);
+        actData = new DataSetCopy1Recurs();
+        actData.src = srcInDir;
+        actData.dst = new FileRemote(dstDir, srcInDir.getName());
+        ev.sendEvent(cmdCopyDirFile);
+        return false;
       } else {
-        //evCpy.sendEvent(cmdCopyFile);
-        return entry_CopyFileContent();
+        //It is a file. try to open/create
+        //
+        try{
+          actData.in = new FileInputStream(actData.src);
+          actData.out = new FileOutputStream(actData.dst);
+          ev.sendEvent(cmdCopyFile);
+          return entry_CopyFileContent();
+        
+        } catch(IOException exc){
+          if(evBack.reserveRecall(1000)){
+            evBack.sendEvent(FileRemote.acknErrorOpen);
+          }
+          return entry_CopyAsk();
+          
+        }
       }
-      //return true;
     }
     
     
     boolean trans_CopyDirFile(FileRemote.CmdEvent ev){
 
       if(ev.cmd() == cmdCopyDirFile){
-        ev.consumedRetain();
-        DataSetCopy1Recurs data = recursDirs.lastElement();
-        if(data.src.isDirectory()){
-          data.dst.mkdirs();
-          data.listSrc = data.src.listFiles();
-          data.ixSrc = 0;
-          DataSetCopy1Recurs data2 = new DataSetCopy1Recurs();
-          data2.src = data.listSrc[data.ixSrc];
-          data2.dst = new FileRemote(data.dst, data.src.getName());
-          ev.sendEvent(cmdCopyDirFile);
-          return false;
-        } else {
-          try{
-          data.in = new FileInputStream(data.src);
-          data.out = new FileOutputStream(data.dst);
-          ev.sendEvent(cmdCopyFile);
-          return entry_CopyFileContent();
-          
-          } catch(IOException exc){
-            Event evback = ev.callbackEvent();
-            evback.sendEvent(FileRemote.acknErrorOpen);
-            return entry_CopyAsk();
-            
-          }
-        }
+        return entry_CopyDirFile(ev);  //exit and entry in the same state.
       } else if(ev.cmd() == cmdCopyFile){
-        if(false ){ //openCreateFile(recursDirs.lastElement(), ev)){
-          ev.consumedRetain();
-          ev.sendEvent(cmdCopyFilePart);
-          return entry_CopyFileContent();
-        } else {
-          return entry_CopyAsk();
-        }
+        return false;
       } else {
         return false;
       }

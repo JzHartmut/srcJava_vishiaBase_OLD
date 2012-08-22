@@ -1,6 +1,10 @@
 
 package org.vishia.util;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetEncoder;
+
 /**This class contains static String functions without any other dependency. 
  * In C the functions are contained in the Fwc/fw_String.c.
  * @author Hartmut Schorrig
@@ -14,6 +18,9 @@ public class StringFunctions {
 
   /**Version, history and license
    * <ul>
+   * <li>2012-08-22 Hartmut new {@link #copyToBuffer(String, char[])} and {@link #copyToBuffer(String, byte[], Charset)}:
+   *   This methods are existent at the C-level. They are usefully if dynamic memory usage should be prevented.
+   *   They are need for Java-usage with static data too. 
    * <li>2012-04-01 Hartmut new {@link #parseIntRadix(String, int, int, int, int[])} etc.
    *   taken from C-Sources CRunntimeJavalike/source/Fwc/fw_Simple.c
    * <li>2012-02-19 Hartmut created: basic functions also existent in C (Java2C-usage).
@@ -42,7 +49,7 @@ public class StringFunctions {
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
-  public final static int version = 0x20120219; 
+  public final static int version = 20120822; 
   
   /**Returns the position of the end of an identifier.
    * @param src The input string
@@ -194,11 +201,11 @@ public class StringFunctions {
     int size = src.length() - pos;
     if(size > sizeP){ size = sizeP; }
     int[] zParsed = new int[1];
-    ret = (float)parseIntRadix(src, pos, size, 10, zParsed);
+    ret = parseIntRadix(src, pos, size, 10, zParsed);
     parsedChars += zParsed[0];  //maybe 0 if .123 is written
     int ixsrc = pos + zParsed[0]; size -= zParsed[0];
     if(src.charAt(ixsrc)=='.'){
-      float fracPart = (float)parseIntRadix(src, ixsrc +1, size-1, 10, zParsed);
+      float fracPart = parseIntRadix(src, ixsrc +1, size-1, 10, zParsed);
       if(zParsed[0] >0){
         switch(zParsed[0]){
         case 1: fracPart *= 0.1f; break;
@@ -224,4 +231,52 @@ public class StringFunctions {
     return ret;
   }
 
+  
+  /**Copies the content of a String in the given byte buffer with the requested encoding.
+   * If this method is used in a C/C++ environment, it is programmed in a special maybe more simple way
+   * because not all encodings are supported. Usual a String is only a byte array itself, it is copied.  
+   * @param src The src String
+   * @param buffer The desination buffer with given length. The last byte will be set to 0.
+   * @param encoding The encoding. If null, then use the UTF8-encoding.
+   * @return number of bytes in buffer.
+   */
+  @Java4C.exclude public static int copyToBuffer(String src, byte[] buffer, Charset encoding){
+    if(encoding == null){ 
+      encoding = Charset.forName("UTF8"); 
+    }
+    byte[] bytes = src.getBytes(encoding);
+    int nChars = bytes.length;
+    if(buffer.length < nChars){
+      nChars = buffer.length -1;
+      int ix;
+      for(ix=0; ix<nChars; ++ix){
+        char cc = src.charAt(ix);
+        buffer[ix] = bytes[ix];  
+      }
+      buffer[ix] = 0;
+    }
+    return nChars;
+  }
+  
+  
+  /**Copies the content of a String in the given char buffer.
+   * If this method is used in a C/C++ environment, the char buffer may be a byte buffer really. 
+   * @param src The src String
+   * @param buffer The desination buffer with given length. The last byte will be set to 0.
+   * @return number of chars in buffer.
+   */
+  @Java4C.exclude public static int copyToBuffer(String src, char[] buffer){
+    int nChars = src.length();
+    if(buffer.length < nChars){
+      nChars = buffer.length -1;
+      int ix;
+      for(ix=0; ix<nChars; ++ix){
+        char cc = src.charAt(ix);
+        buffer[ix] = src.charAt(ix);  
+      }
+      buffer[ix] = 0;
+    }
+    return nChars;
+  }
+  
 }
