@@ -1,11 +1,13 @@
 package org.vishia.byteData;
 
 /**This class supports the access to any type of variable with given indices and bit masks.
- * The indices and the bit mask are not part of a variable because a variable is an entity to
- * access from any target system. A variable is not a proper entity to get any value. 
+ * The indices and the bit mask are not part of a variable itself because a variable is an entity to
+ * access data in any target system. 
+ * <br>
  * Reason: If some bits should be read from a variable, and then other bits should be read,
  * the variable should be gotten from the target device only one time. Therefore it is only one
- * variable. But the access to several bits - or indices are described here.
+ * variable. But the access to several bits - or indices are controlled with this class.
+ * 
  * @author Hartmut Schorrig
  *
  */
@@ -15,12 +17,17 @@ public class VariableAccessWithIdx
   
   /**Version, history and license
    * <ul>
-   * <li>2012-03-31 Hartmut created. The problem was: In a {@link org.vishia.gral.base.GralWidget}
-   *   the element {@link #idx} was contained but not any mask. The mask will be used now. But indices
-   *   and masks are not a problem of the widget in a GUI, it is a problem of access to the variable.
-   *   But the implementation of {@link VariableAccess_ifc} should not containt this things
-   *   because a variable is an entity of access to a target device data element.
-   *   Therefore this meta class should be proper.
+   * <li>2012-08-23 Hartmut new {@link #setFloat(float, int...)} Access a variable with an index
+   *   if this describes the non-indexed variable. It is only implmented yet for the setFloat. TODO: for all others too.
+   * <li>2012-03-31 Hartmut created. Before that, a {@link org.vishia.gral.base.GralWidget}
+   *   has accessed a variable via {@link VariableAccess_ifc }and the necessary index {@link #idx} for an arry variable
+   *   was contained in the GralWidget. Secondary the possibility of {@link #mask} of some bits was impossible. 
+   *   The access to a array or bitfield variable is not a problem of the widget in a GUI, 
+   *   it is a problem of access to the variable. Therefore this class was created. 
+   *   <br>
+   *   A implementation of {@link VariableAccess_ifc} should not contain this details of access 
+   *   A variable accessed via {@link VariableAccess_ifc} is an entity of access to a whole data element.
+   *   This class controls the access to details of a variable.
    * </ul>
    * <br><br>
    * <b>Copyright/Copyleft</b>:
@@ -125,7 +132,18 @@ public class VariableAccessWithIdx
   
   public VariableAccess_ifc getVariable(){ return variable; }
 
+  /**Sets a float to the variable. 
+   * See {@link #setFloat(float, int...)}. The index may be stored here.
+   * @param value
+   */
   public void setFloat(float value){ variable.setFloat(value, ixArray); }
+
+  
+  /**Sets a value to the variable which is an array variable.
+   * @param value
+   * @param ix
+   */
+  public void setFloat(float value, int ...ix){ variable.setFloat(value, ix); }
 
   
   public void setString(String src){ variable.setString(src, ixArray); }
