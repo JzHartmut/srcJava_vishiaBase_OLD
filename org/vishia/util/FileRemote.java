@@ -228,6 +228,7 @@ public class FileRemote extends File
 
   
   
+  /*
   public final static int cmdCheckFile = 0xcecf1e, cmdCheck = 0xcec, cmdCopy = 0xc0b7, cmdDel = 0xde1ede
   , cmdMove = 0x307e, cmdChgProps = 0xc5a9e, cmdChgPropsRec = 0xc595ec
   , cmdCountLength = 0xc0311e39
@@ -235,15 +236,21 @@ public class FileRemote extends File
 
   
   
+  /**back event for ask * /
+  public final static int evAskErrorCopy = 0xa58ecb7
+  ;
+  
+  
+  
 
-  /**callback cmd */
+  /**callback cmd * /
   public final static int acknSuccess = 0x50ce55
   , acknErrorOpen = 0xe30be6
   , acknErrorDelete = 0xe3de1ede
   , acknAbortFile = 0xab03df1e
   , acknAbortDir = 0xab03dd13
   , acknAbortAll = 0xab03da11;
-  
+  */
   
   
   /**This is the internal file object. It is handled by the device only. */
@@ -863,7 +870,7 @@ public class FileRemote extends File
    * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * @param backEvent The event for success.
    */
-  public void delete(Event backEvent){
+  public void delete(FileRemote.CallbackEvent backEvent){
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
@@ -875,7 +882,8 @@ public class FileRemote extends File
         bOk = ((File)oFile).delete();
       }
       backEvent.data1 = bOk? 0 : -1;
-      backEvent.sendEvent(0);
+      backEvent.occupy(evSrc, true);
+      backEvent.sendEvent(FileRemote.CallbackCmd.done);
     } else {
       //TODO
     }
@@ -889,7 +897,7 @@ public class FileRemote extends File
    * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * @param backEvent The event for success.
    */
-  public void delete(String sPath, boolean deleteReadOnly, Event backEvent){
+  public void delete(String sPath, boolean deleteReadOnly, FileRemote.CallbackEvent backEvent){
     boolean bOk;
     List<File> listFiles = new LinkedList<File>();
     try{
@@ -909,8 +917,9 @@ public class FileRemote extends File
       bOk = false;
     }
     if(backEvent !=null){
+      backEvent.occupy(evSrc, true);
       backEvent.data1 = bOk? 0 : -1;
-      backEvent.sendEvent(0);
+      backEvent.sendEvent(FileRemote.CallbackCmd.done);
     }
   }
   
@@ -925,13 +934,16 @@ public class FileRemote extends File
    *   nothing is copied and an error message is fed back.
    * @param backEvent The event for success.
    */
-  public void check(FileRemote.CallbackEvent ev){
+  public void check(FileRemote.CallbackEvent evback){
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    ev.filesrc = this;
+    CmdEvent ev = device.prepareCmdEvent(evback);
+    
+    ev.filesrc =this;
     ev.filedst = null;
-    device.addCommission(ev, FileRemote.cmdCheckFile);
+    ev.data1 = 0;
+    ev.sendEvent(Cmd.check);
   }
   
   
@@ -951,14 +963,14 @@ public class FileRemote extends File
     if(dst.device == null){
       dst.device = getAccessorSelector().selectFileRemoteAccessor(dst.getAbsolutePath());
     }
-    if(device == dst.device){
-      evback.filesrc = this;
-      evback.filedst = dst;
-      evback.data1 = mode;
-      device.addCommission(evback, FileRemote.cmdCopy);
-    } else {
-      //TODO
-    }
+    
+    CmdEvent ev = device.prepareCmdEvent(evback);
+    
+    ev.filesrc =this;
+    ev.filedst = dst;
+    ev.data1 = mode;
+    ev.sendEvent(Cmd.copy);
+    
   }
   
   
@@ -982,17 +994,14 @@ public class FileRemote extends File
    *   nothing is copied and an error message is fed back.
    * @param backEvent The event for success.
    */
-  public void moveTo(FileRemote dst, FileRemote.CallbackEvent ev){
+  public void moveTo(FileRemote dst, FileRemote.CallbackEvent evback){
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    if(device.isLocalFileSystem() && dst.device.isLocalFileSystem()){
-      ev.filesrc = this;
-      ev.filedst = dst;
-      device.addCommission(ev, FileRemote.cmdMove);
-    } else {
-      //TODO
-    }
+    CmdEvent ev = device.prepareCmdEvent(evback);
+    ev.filesrc = this;
+    ev.filedst = dst;
+    ev.sendEvent(Cmd.move);
   }
   
   
@@ -1012,14 +1021,15 @@ public class FileRemote extends File
    * @param newName A new name for the file. This parameter may be null, then the old name remain.
    * @param backEvent The event for success.
    */
-  public void chgProps(String newName, int maskFlags, int newFlags, long newDate, FileRemote.CallbackEvent ev){
-      ev.filesrc = this;
-      ev.filedst = null;
-      ev.newName = newName;
-      ev.maskFlags = maskFlags;
-      ev.newFlags = newFlags;
-      ev.newDate = newDate;
-      device.addCommission(ev, FileRemote.cmdChgProps);
+  public void chgProps(String newName, int maskFlags, int newFlags, long newDate, FileRemote.CallbackEvent evback){
+    CmdEvent ev = device.prepareCmdEvent(evback);
+    ev.filesrc = this;
+    ev.filedst = null;
+    ev.newName = newName;
+    ev.maskFlags = maskFlags;
+    ev.newFlags = newFlags;
+    ev.newDate = newDate;
+    ev.sendEvent(Cmd.chgProps);
   }
   
   
@@ -1035,14 +1045,15 @@ public class FileRemote extends File
    * @param newName A new name for the file. This parameter may be null, then the old name remain.
    * @param backEvent The event for success.
    */
-  public void chgPropsRecursive(int maskFlags, int newFlags, long newDate, FileRemote.CallbackEvent ev){
-      ev.filesrc = this;
-      ev.filedst = null;
-      ev.newName = null;
-      ev.maskFlags = maskFlags;
-      ev.newFlags = newFlags;
-      ev.newDate = newDate;
-      device.addCommission(ev, FileRemote.cmdChgPropsRec);
+  public void chgPropsRecursive(int maskFlags, int newFlags, long newDate, FileRemote.CallbackEvent evback){
+    CmdEvent ev = device.prepareCmdEvent(evback);
+    ev.filesrc = this;
+    ev.filedst = null;
+    ev.newName = null;
+    ev.maskFlags = maskFlags;
+    ev.newFlags = newFlags;
+    ev.newDate = newDate;
+    ev.sendEvent(Cmd.chgPropsRecurs);
   }
   
   
@@ -1058,10 +1069,11 @@ public class FileRemote extends File
    * @param newName A new name for the file. This parameter may be null, then the old name remain.
    * @param backEvent The event for success.
    */
-  public void countAllFileLength(FileRemote.CallbackEvent ev){
-      ev.filesrc = this;
-      ev.filedst = null;
-      device.addCommission(ev, FileRemote.cmdCountLength);
+  public void countAllFileLength(FileRemote.CallbackEvent evback){
+    CmdEvent ev = device.prepareCmdEvent(evback);
+    ev.filesrc = this;
+    ev.filedst = null;
+    ev.sendEvent(Cmd.countLength);
   }
   
   
@@ -1069,8 +1081,37 @@ public class FileRemote extends File
   
   
   
+  public enum Cmd {
+    /**Ordinary value=0, same as {@link Event.Cmd#free}. */
+    free ,
+    /**Ordinary value=1, same as {@link Event.Cmd#reserve}. */
+    reserve,  //first 2 ordinaries from Event.Cmd
+    /**Check files. */
+    check,
+    move,
+    /**Copy to dst.*/
+    copy,
+    chgProps,
+    chgPropsRecurs,
+    countLength,
+    delete,
+    /**Abort the currently action. */
+    abortAll,
+    /**Abort the currently action. */
+    abortCopyDir,
+    /**Abort the currently action. */
+    abortCopyFile,
+    /**Last. */
+    last
+  }
   
-  
+  EventSource evSrc = new EventSource("FileLocalAccessor"){
+    @Override public void notifyDequeued(){}
+    @Override public void notifyConsumed(int ctConsumed){}
+    @Override public void notifyRelinquished(int ctConsumed){}
+  };
+
+
   
   public static class CmdEvent extends Event
   {
@@ -1086,9 +1127,25 @@ public class FileRemote extends File
     long newDate;
     
     
-    public CmdEvent(Object refData, EventConsumer dst, EventThread thread, Event callback){ 
-      super(refData, dst, thread, callback); 
+    public CmdEvent(EventSource evSrc, Object refData, EventConsumer dst, EventThread thread, Event callback){ 
+      super(evSrc, refData, dst, thread, callback); 
     }
+    
+    public CmdEvent(){ 
+      super(); 
+    }
+    
+    public CmdEvent(EventSource evSrc, Object refData, EventConsumer dst, EventThread thread){ 
+      super(evSrc, null, dst, thread, new CallbackEvent(refData, dst, thread)); 
+    }
+
+    @Override public CallbackEvent getOpponent(){ return (CallbackEvent)super.getOpponent(); }
+    
+
+    
+    public boolean sendEvent(FileRemote.Cmd cmd){ return super.sendEvent_(cmd); }
+    
+    @Override public FileRemote.Cmd getCmd(){ return (FileRemote.Cmd)super.getCmd(); }
     
     
   }
@@ -1097,6 +1154,12 @@ public class FileRemote extends File
   
   
   
+  /**Type for callback notification for any action with remote files.
+   * The callback type contains an opponent {@link CmdEvent} object which is not occupied initially
+   * to use for forward notification of the action. But the application need not know anything about it,
+   * the application should only concern with this object. 
+   * See {@link CallbackEvent#CallbackEvent(Object, EventConsumer, EventThread)}.
+   */
   public static class CallbackEvent extends Event
   {
     FileRemote filesrc, filedst;
@@ -1124,14 +1187,98 @@ public class FileRemote extends File
     
     //public FileRemote getRefData(){ return (FileRemote)super.getRefData(); }
     
+    /**Creates the object of a callback event inclusive the instance of the forward event (used internally).
+     * @param refData The referenced data for callback, used in the dst routine.
+     * @param dst The routine which should be invoked with this event object if the callback is forced.
+     * @param thread The thread which stores the event in its queue, or null if the dst can be called
+     *   in the transmitters thread.
+     */
     public CallbackEvent(Object refData, EventConsumer dst, EventThread thread){ 
-      super(refData, dst, thread); 
+      super(null, refData, dst, thread, new CmdEvent()); 
     }
+    
+    
+    
+    public boolean sendEvent(CallbackCmd cmd){ return super.sendEvent_(cmd); }
+    
+
+    @Override public CallbackCmd getCmd(){ return (CallbackCmd)super.getCmd(); }
+    
+    @Override public CmdEvent getOpponent(){ return (CmdEvent)super.getOpponent(); }
+    
+    
+    /**Aborts the action which was forced forward with this callback.
+     * @return true if the forward event was sent.
+     */
+    public boolean abort(FileRemote.Cmd cmd){
+      CmdEvent ev = getOpponent();
+      FileRemote fileSrc;
+      FileRemoteAccessor device;
+      if( ev !=null && (fileSrc = ev.filesrc) !=null && (device = fileSrc.device) !=null){
+        if((ev = device.prepareCmdEvent(this)) !=null){
+          return ev.sendEvent(cmd);
+        } 
+        else {
+          return false; //event occupying fails
+        } 
+      }
+      else {
+        return false; //event is not in use.
+      }
+      
+    }
+    
     
   }
   
   
-  
+  public enum CallbackCmd {
+    /**Ordinary value=0, same as {@link Event.Cmd#free}. */
+    free ,
+    /**Ordinary value=1, same as {@link Event.Cmd#reserve}. */
+    reserve,  //first 2 ordinaries from Event.Cmd
+    /**A simple done feedback*/
+    done,
+    /**The operation is executed, but not successfully. */
+    nok,
+    /**Feedback, the operation is not executed. */
+    error,
+    
+    /**Deletion error.*/
+    errorDelete,
+    
+    /**Done message for the {@link Cmd#check} event. The event contains the number of files and bytes.*/
+    doneCheck,
+    
+    /**Status event with processed number of files and bytes and the currently processed file path. 
+     * This is only an intermediate message. The event can be removed from queue if it isn't processed
+     * and replaced by a new event with the same Event object. 
+     */
+    nrofFilesAndBytes,
+    
+    /**Status event with the currently processed directory path. 
+     * This is only an intermediate message. The event can be removed from queue if it isn't processed
+     * and replaced by a new event with the same Event object. 
+     */
+    copyDir,
+
+    /**callback to ask what to do because the source file or directory is not able to open. */
+    askErrorSrcOpen,
+    
+    /**callback to ask what to do because the destination file or directory is not able to create. */
+    askErrorDstCreate,
+    
+    /**callback to ask what to do because an copy file part error is occured. */
+    askErrorCopy,
+    
+    acknAbortAll,
+    
+    acknAbortDir,
+    
+    acknAbortFile,
+    
+    last
+  }
   
   
 }

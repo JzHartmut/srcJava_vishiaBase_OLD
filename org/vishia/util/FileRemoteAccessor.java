@@ -66,8 +66,8 @@ public abstract class FileRemoteAccessor implements Closeable
    */
   public static final int version = 20120310;
   
-  public final static int kOperation = 0xd00000, kFinishOk = 0xf10000, kFinishNok = 0xf10001
-  , kFinishError = 0xf1e3303, kNrofFilesAndBytes = 0xd00001, kCopyDir = 0xd0cd13;
+  //public final static int kOperation = 0xd00000, kFinishOk = 0xf10000, kFinishNok = 0xf10001
+  //, kFinishError = 0xf1e3303, kNrofFilesAndBytes = 0xd00001, kCopyDir = 0xd0cd13;
 
   
   /**Gets the properties of the file from the physical file.
@@ -78,7 +78,7 @@ public abstract class FileRemoteAccessor implements Closeable
    *   and the callback method in the {@link Event#callback()} is invoked maybe in another thread
    *   if the answer is gotten. 
    */
-  public abstract void refreshFileProperties(FileRemote file, Event callback);
+  public abstract void refreshFileProperties(FileRemote file, FileRemote.CallbackEvent callback);
 
   /**Gets the properties and the children of the file from the physical file.
    * @param file the destination file object.
@@ -88,7 +88,7 @@ public abstract class FileRemoteAccessor implements Closeable
    *   and the callback method in the {@link Event#callback()} is invoked maybe in another thread
    *   if the answer is gotten. 
    */
-  public abstract void refreshFilePropertiesAndChildren(FileRemote file, Event callback);
+  public abstract void refreshFilePropertiesAndChildren(FileRemote file, FileRemote.CallbackEvent callback);
 
   
   //List<File> getChildren(FileRemote file, FileFilter filter);
@@ -133,14 +133,10 @@ public abstract class FileRemoteAccessor implements Closeable
  
   //FileRemote[] listFiles(FileRemote parent);
   
-  /**Adds a commission to the instance to execute.
-   * @param ev This event instance holds some information for that commission. It is prepared for callback operation. 
-   *   Either this is only the callback event itself. The the implementation of this routine should create a new
-   *   Event instance for the commission and referes this callback. Or this event refers a callback event already.
-   *   It means the {@link Event#hasCallback()} returns true. Then the event is used for event-controlled operation itself.
-   * @param cmd the command for the ev.
-   */
-  public abstract void addCommission(FileRemote.CallbackEvent ev, int cmd);
+  
+  public abstract FileRemote.CmdEvent prepareCmdEvent(FileRemote.CallbackEvent evBack);
+
+  
   
   public abstract boolean isLocalFileSystem();
 

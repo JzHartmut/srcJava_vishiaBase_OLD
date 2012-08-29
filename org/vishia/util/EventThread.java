@@ -79,7 +79,14 @@ public class EventThread implements Runnable, Closeable
           }
           if(stateOfThread == 'b'){
             event.stateOfEvent = 'e';
-            event.evDst().processEvent(event);
+            event.notifyDequeued();
+            try{
+              event.evDst().processEvent(event);
+            } catch(Exception exc) {
+              System.err.println("Exception while processing an event: " + exc.getMessage());
+              exc.printStackTrace(System.err);
+            }
+            event.relinquish();
           }
         } else {
           synchronized(this){

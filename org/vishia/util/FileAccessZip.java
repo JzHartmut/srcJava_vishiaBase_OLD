@@ -169,14 +169,14 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     
   }
 
-  @Override public void refreshFileProperties(FileRemote file, Event callback) {
+  @Override public void refreshFileProperties(FileRemote file, FileRemote.CallbackEvent callback) {
     // TODO Auto-generated method stub
     if(callback !=null){
-      callback.sendEvent(0);
+      callback.sendEvent(FileRemote.CallbackCmd.done);
     }
   }
 
-  @Override public void refreshFilePropertiesAndChildren(FileRemote file, Event callback) {
+  @Override public void refreshFilePropertiesAndChildren(FileRemote file, FileRemote.CallbackEvent callback) {
     FileZipData data = (FileZipData)file.oFile;
     int zChildren = data == null ? 0 : data.children == null ? 0 : (data.children.childNodes == null ? 0
         : data.children.childNodes.size())
@@ -194,7 +194,7 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
       } }
     }
     if(callback !=null){
-      callback.sendEvent(0);
+      callback.sendEvent(FileRemote.CallbackCmd.done);
     }
   }
 
@@ -229,7 +229,7 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
   
   @Override public boolean delete(FileRemote file, FileRemote.CallbackEvent callback){
     if(callback !=null){
-      callback.sendEvent(FileRemote.acknErrorDelete);
+      callback.sendEvent(FileRemote.CallbackCmd.errorDelete);
     }
     return false;   // not implement: changing of file.
   }
@@ -263,11 +263,13 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     return null;
   }
 
-  @Override
-  public void addCommission(FileRemote.CallbackEvent com, int cmd) {
-    // TODO Auto-generated method stub
-    
+  
+  @Override public FileRemote.CmdEvent prepareCmdEvent(FileRemote.CallbackEvent evBack){
+    return null; //TODO
   }
+
+
+  
 
   @Override
   public boolean isLocalFileSystem() {

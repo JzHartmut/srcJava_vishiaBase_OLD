@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Stack;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.vishia.util.FileRemote.CallbackCmd;
 import org.vishia.util.FileRemote.CmdEvent;
 import org.vishia.util.FileRemote.FileRemoteAccessorSelector;
 import org.vishia.util.FileRemote.CallbackEvent;
@@ -72,34 +73,44 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
 
   private static FileRemoteAccessor instance;
   
-  /**State of execution commissions.
-   * '?': not started. 'w': waiting for commission, 'b': busy, 'x': should finish, 'z': finished
-   */
-  private char commissionState = '?';
   
-  
-  /**List of all commissions to do. */
-  private final ConcurrentLinkedQueue<FileRemote.CallbackEvent> commissions = new ConcurrentLinkedQueue<FileRemote.CallbackEvent>();
-  
-  
-  /**The thread to run all commissions. */
-  /*
-  protected Runnable runCommissions = new Runnable(){
-    @Override public void run(){
-      runCommissions();
-    }
+  EventSource evSrc = new EventSource("FileLocalAccessor"){
+    @Override public void notifyDequeued(){}
+    @Override public void notifyConsumed(int ctConsumed){}
+    @Override public void notifyRelinquished(int ctConsumed){}
+    @Override public void notifyShouldSentButInUse(){ throw new RuntimeException("event usage error"); }
+
+    @Override public void notifyShouldOccupyButInUse(){throw new RuntimeException("event usage error"); }
+
   };
-  */
+
   
-  //private Thread thread = new Thread(runCommissions, "vishia.FileLocal");
-  //{ thread.start(); }
-  
+
   
   EventThread singleThreadForCommission = new EventThread("FileAccessor-local");
   
+  EventConsumer executerCommission = new EventConsumer("FileRemoteAccessorLocal - executerCommision"){
+    @Override public boolean processEvent(Event ev) {
+      if(ev instanceof Copy.EventCpy){
+        copy.trans_CopyState(ev);
+        return true;
+      } else if(ev instanceof FileRemote.CmdEvent){
+            execCommission((FileRemote.CmdEvent)ev);
+        return true;
+      } else {
+        return false;
+      }
+    }
+    
+  };
   
+
   
-  private final Copy copy = new Copy();
+  /**The state machine for executing over some directory trees is handled in this extra class.
+   * Note: the {@link Copy#Copy(FileRemoteAccessorLocalFile)} needs initialized references
+   * of {@link #singleThreadForCommission} and {@link #executerCommission}.
+   */
+  private final Copy copy = new Copy(this);  
   
   private FileRemote workingDir;
   
@@ -147,7 +158,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
    * If the file exists, the properties of the file were set, elsewhere they were set to 0.
    * @see {@link org.vishia.util.FileRemoteAccessor#refreshFileProperties(org.vishia.util.FileRemote)}
    */
-  @Override public void refreshFileProperties(final FileRemote fileRemote, final Event callback)
+  @Override public void refreshFileProperties(final FileRemote fileRemote, final FileRemote.CallbackEvent callback)
   { 
   
     
@@ -189,7 +200,8 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
           fileRemote._setProperties(0, 0, FileRemote.mTested, fileLocal);
         }
         if(callback !=null){
-          callback.sendEvent(0);
+          callback.occupy(evSrc, true);
+          callback.sendEvent(FileRemote.CallbackCmd.done);
         }
       }
     };
@@ -199,14 +211,14 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       thread.run(); //run direct
     } else {
       Thread threadObj = new Thread(thread);
-      threadObj.start(); //run in an exttra thread, the caller doesn't wait.
+      threadObj.start(); //run in an extra thread, the caller doesn't wait.
     }
   
   }  
     
 
   
-  @Override public void refreshFilePropertiesAndChildren(final FileRemote fileRemote, final Event callback){
+  @Override public void refreshFilePropertiesAndChildren(final FileRemote fileRemote, final FileRemote.CallbackEvent callback){
     /**Strategy: use an inner private routine which is encapsulated in a Runnable instance.
      * either run it locally or run it in an extra thread.
      */
@@ -226,7 +238,8 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
           }
         }
         if(callback !=null){
-          callback.sendEvent(0);
+          callback.occupy(evSrc, true);
+          callback.sendEvent(FileRemote.CallbackCmd.done);
         }
         fileRemote.flags &= ~FileRemote.mThreadIsRunning;
       }
@@ -241,7 +254,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
         Thread threadObj = new Thread(thread);
         threadObj.start(); //run in an exttra thread, the caller doesn't wait.
       } else {
-        callback.consumedRetain(); //ignore it.
+        callback.relinquish(); //ignore it.
       }
     }
   }
@@ -320,7 +333,8 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       return fileLocal.delete();
     } else {
       boolean bOk = fileLocal.delete();
-      callback.sendEvent(bOk ? 0: FileRemote.acknErrorDelete);
+      callback.occupy(evSrc, true);
+      callback.sendEvent(bOk ? FileRemote.CallbackCmd.done : FileRemote.CallbackCmd.errorDelete );
       return bOk;
     }
   }
@@ -331,32 +345,35 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   }
 
   
-  /**
-   * @see org.vishia.util.FileRemoteAccessor#addCommission(org.vishia.util.FileRemote.CallbackEvent, int)
-   */
-  @Override public void addCommission(FileRemote.CallbackEvent evBack, int cmd){ 
-    ////
-    if(evBack.hasCallback()){ 
-      throw new IllegalArgumentException("The event should only be a single callback event.");
+  
+  
+  @Override public FileRemote.CmdEvent prepareCmdEvent(FileRemote.CallbackEvent evBack){
+    Event cmdEvent1 = evBack.getOpponent();
+    if(cmdEvent1 !=null){
+      if(!cmdEvent1.occupy(evSrc, null, executerCommission, singleThreadForCommission, false)){
+        return null;
+      }
+    } else {
+      cmdEvent1 = new FileRemote.CmdEvent(evSrc, null, executerCommission, singleThreadForCommission, evBack);
     }
-    FileRemote.CmdEvent ev = new FileRemote.CmdEvent(null, executerCommission, singleThreadForCommission, evBack);
-    ev.filesrc = evBack.filesrc;
-    ev.filedst = evBack.filedst;
-    ev.data1 = evBack.data1;
-    ev.sendEvent(cmd);
-    //singleThreadForCommission.storeEvent(ev);
+    return (FileRemote.CmdEvent) cmdEvent1; 
   }
   
   
   void execCommission(FileRemote.CmdEvent commission){
-    switch(commission.cmd()){
-    case FileRemote.cmdCheckFile: copy.checkCopy(commission); break;
-    case FileRemote.cmdCopy: copy.execCopy(commission); break;
-    case FileRemote.cmdMove: copy.execMove(commission); break;
-    case FileRemote.cmdChgProps:  execChgProps(commission); break;
-    case FileRemote.cmdChgPropsRec:  execChgPropsRecurs(commission); break;
-    case FileRemote.cmdCountLength:  execCountLength(commission); break;
-    case FileRemote.cmdDel:  execDel(commission); break;
+    FileRemote.Cmd cmd = commission.getCmd();
+    switch(cmd){
+      case check: copy.checkCopy(commission); break;
+      case abortAll:
+      case abortCopyDir:
+      case abortCopyFile:
+      case copy: 
+        copy.trans_CopyState(commission); break;
+      case move: copy.execMove(commission); break;
+      case chgProps:  execChgProps(commission); break;
+      case chgPropsRecurs:  execChgPropsRecurs(commission); break;
+      case countLength:  execCountLength(commission); break;
+      case delete:  execDel(commission); break;
       
     }
   }
@@ -373,15 +390,16 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       dst = co.filesrc;
     }
     ok = chgFile(dst, co, ok);
-    int cmd;
+    FileRemote.CallbackCmd cmd;
     if(ok){
-      cmd = FileRemoteAccessor.kFinishOk; 
+      cmd = FileRemote.CallbackCmd.done; 
     } else {
-      cmd = FileRemoteAccessor.kFinishNok; 
+      cmd = FileRemote.CallbackCmd.nok; 
     }
-    FileRemote.CallbackEvent evback = (FileRemote.CallbackEvent)co.callbackEvent();
+    FileRemote.CallbackEvent evback = co.getOpponent();
     
-    evback.sendEvent(cmd);
+    evback.occupy(evSrc, true);
+    evback.sendEvent(cmd );
   }
   
   
@@ -396,14 +414,15 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       ok = true;
     }
     ok &= chgPropsRecursive(dst, co, ok, 0);
-    int cmd;
+    FileRemote.CallbackCmd cmd;
     if(ok){
-      cmd = FileRemoteAccessor.kFinishOk; 
+      cmd = FileRemote.CallbackCmd.done ; 
     } else {
-      cmd = FileRemoteAccessor.kFinishNok; 
+      cmd = FileRemote.CallbackCmd.error ; 
     }
-    FileRemote.CallbackEvent evback = (FileRemote.CallbackEvent)co.callbackEvent();
-    co.sendEvent(cmd);
+    FileRemote.CallbackEvent evback = co.getOpponent();
+    evback.occupy(evSrc, true);
+    evback.sendEvent(cmd);
   }
   
   
@@ -440,15 +459,16 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   
   private void execCountLength(FileRemote.CmdEvent co){
     long length = countLengthDir(co.filesrc, 0, 0);    
-    int cmd;
-    FileRemote.CallbackEvent evback = (FileRemote.CallbackEvent)co.callbackEvent();
+    FileRemote.CallbackEvent evback = co.getOpponent();
+    evback.occupy(evSrc, true);
+    FileRemote.CallbackCmd cmd;
     if(length >=0){
-      cmd = FileRemoteAccessor.kFinishOk;
+      cmd = FileRemote.CallbackCmd.done; 
       evback.nrofBytesAll = length;
     } else {
-      cmd = FileRemoteAccessor.kFinishNok; 
+      cmd = FileRemote.CallbackCmd.nok; 
     }
-    evback.sendEvent(cmd);
+    evback.sendEvent(cmd );
   }
   
   
@@ -475,56 +495,136 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
 
 
   @Override public void close() throws IOException
-  {
-    synchronized(this){
-      if(commissionState == 'w'){ notify(); }
-      commissionState = 'x';
-    }
+  { singleThreadForCommission.close();
   }
   
-  
-  EventConsumer executerCommission = new EventConsumer(){
-    @Override public boolean processEvent(Event ev) {
-      if(ev instanceof FileRemote.CmdEvent){
-        execCommission((FileRemote.CmdEvent)ev);
-        return true;
-      } else {
-        return false;
-      }
-    }
-    
-  };
   
   
   protected static class Copy
   {
   
+    /**This data set holds the information about the currently processed directory or file
+     * while copying.
+     *
+     */
     private class DataSetCopy1Recurs{
       FileRemote src;
       FileRemote dst;
       
-      /**null if this card describes a file only. The content of src*/
+      /**null if this card describes a file and not a directory. The content of src*/
       FileRemote[] listSrc;
+      /**current index in listSrc while in State {@link StateCopy#Process}.*/
       int ixSrc;
       FileInputStream in = null;
       FileOutputStream out = null;
+      int zBytesCopyFile;
+      
+      long zBytesFile;
       
     }
     
-    private final Event evCpy = new Event();
     
-    private FileRemote.CallbackEvent evBack;
+    
+    /**The event type for intern events. One permanent instance of this class will be created. */
+    private final class EventCpy extends Event{
+      
+      /**The simple constructor calls {@link Event#Event(Object, EventConsumer, EventThread)}
+       * with the {@link FileRemoteAccessorLocalFile#executerCommission}
+       * and the {@link FileRemoteAccessorLocalFile#singleThreadForCommission}
+       * because the event should be send to that.
+       */
+      EventCpy(FileRemoteAccessorLocalFile accessor){
+        super(null, null, accessor.executerCommission, accessor.singleThreadForCommission, new EventCpy(accessor,true));
+      }
+      
+      /**Creates a simple event as opponent. */
+      EventCpy(FileRemoteAccessorLocalFile accessor, boolean second){
+        super(null, null, accessor.executerCommission, accessor.singleThreadForCommission, null);
+      }
+      
+      /**Qualified sendEvent with the correct enum type of command code.
+       * @param cmd
+       * @return true if success.
+       */
+      boolean sendEvent(CmdCpyIntern cmd){ return super.sendEvent_(cmd); }
+      
+      /**Qualified getCmd with the correct enum type of command code.
+       * @return The command inside the received event.
+       */
+      @Override public CmdCpyIntern getCmd(){ return (CmdCpyIntern)super.getCmd(); }
+      
+      
+      @Override public EventCpy getOpponent(){ return (EventCpy)super.getOpponent(); }
+    };
+    
+    /**The only one instance for this event. It is used permanently. That is possible because the event is fired 
+     * only once at the same time in this class locally and private.
+     */
+    final EventCpy evCpy;
+    
+    /**Stored callback event when the state machine is in state {@link StateCopy#Process}. 
+     * 
+     */
+    private FileRemote.CallbackEvent evBackInfo;
     
     
     /**commands to send inside this state machine. */
-    private final static int cmdCopyDirFile = 0xc0b70001, cmdCopyFilePart = 0xc0b70002, cmdCopyFile = 0xc0b0003
-      , cmdCopyDir = 0xc0b7d13; 
+    //private final static int cmdCopyDirFile = 0xc0b70001, cmdCopyFilePart = 0xc0b70002, cmdCopyFile = 0xc0b0003
+    //  , cmdCopyDir = 0xc0b7d13, cmdCopyAsk = 0xc0b70a58; 
+    
+    
+    private enum CmdCpyIntern { //Event.Cmd {
+      free, reserve,
+      
+      /**Start a copy process. Event cmd for transition from {@link StateCopy#Start} to {@link StateCopyProcess#DirOrFile} */
+      start, 
+      
+      /**A new {@link DataSetCopy1Recurs} instance was created in {@link Copy#actData}. It should be checked
+       * whether it is a directory or file. Event cmd for transition to {@link StateCopyProcess#DirOrFile}. */
+      dirFile,
+      filePart, 
+      file,
+      dir, 
+      ask
+      
+    }
+
+    /**Local helper class (only instantiated local) to check which type of event.
+     */
+    private static class PrepareEventCmd{
+      final FileRemote.Cmd cmde;
+      final CmdCpyIntern cmdi;
+      final FileRemote.CmdEvent eve;
+      final EventCpy evi;
+      
+      PrepareEventCmd(Event evP){
+        if(evP instanceof FileRemote.CmdEvent){
+          eve = (FileRemote.CmdEvent) evP;
+          cmde = eve.getCmd();
+          evi = null;
+          cmdi = CmdCpyIntern.free;
+        } else if(evP instanceof EventCpy){
+          eve = null;
+          cmde = FileRemote.Cmd.free;
+          evi = (EventCpy) evP;
+          cmdi = evi.getCmd();
+        } else {
+          eve = null;
+          cmde = FileRemote.Cmd.free;
+          evi = null;
+          cmdi = CmdCpyIntern.free;
+        }
+      }
+    }
+
     
     /**Main state class*/
-    public enum StateCopy{ Null, Ready, Process };
+    public enum StateCopy{ Null, Ready, Start, Process };
     
     /**Inner state class inside Process. */
-    public enum StateCopyProcess{ Null, CopyDirFile, CopyFileContent, Ask, CopyFileFinished };
+    public enum StateCopyProcess{ Null, DirOrFile, Subdir, FileContent, Ask, FileFinished };
+    
+    final FileRemoteAccessorLocalFile outer;
     
     /**Main state. */
     StateCopy stateCopy = StateCopy.Null;
@@ -570,11 +670,34 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
 
     private int checkId;
     
+    
+    Copy(FileRemoteAccessorLocalFile accessor){
+      this.outer = accessor;
+      evCpy = new EventCpy(accessor);
+    }
+    
+    /**Creates a new entry for the file deepnes stack.
+     * @param src
+     * @param dst
+     */
+    void newDataSetCopy(FileRemote src, FileRemote dst){
+      if(actData !=null){ recursDirs.push(actData); }
+      actData = new DataSetCopy1Recurs();
+      actData.src = src;
+      actData.dst = dst;
+      ///
+    }
+    
+
+    
+    /**Cmd check
+     * @param ev
+     */
     void checkCopy(FileRemote.CmdEvent ev){
       this.currentFile= ev.filesrc;
       this.mode = ev.data1;
       listCopyFiles.clear();
-      FileRemote.CallbackEvent evback = (FileRemote.CallbackEvent)ev.callbackEvent();
+      FileRemote.CallbackEvent evback = ev.getOpponent();
       if(currentFile.isDirectory()){ 
         zBytesCheck = 0;
         zFilesCheck = 0;
@@ -585,14 +708,19 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
         zFilesCheck = 1;
       }
       
+      evback.occupy(outer.evSrc, true);
       evback.data1 = checkId = ++ctWorkingId;
       evback.nrofBytesAll = (int)zBytesCheck;  //number between 0...1000
       evback.nrofFiles = zFilesCheck;  //number between 0...1000
-      evback.sendEvent(FileRemoteAccessor.kNrofFilesAndBytes);
+      evback.sendEvent(FileRemote.CallbackCmd.doneCheck);
     }
     
     
     
+    /**subroutine for {@link #checkCopy(CmdEvent)}
+     * @param dir
+     * @param recursion
+     */
     void checkDir(File dir, int recursion){
       //try{
         File[] files = dir.listFiles();
@@ -614,256 +742,52 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
 
     
     
+    private void sendEv(CmdCpyIntern cmd){
+      final EventCpy ev;
+      if(evCpy.occupy(outer.evSrc, false)){
+        ev = evCpy;
+      } else {
+        ev = evCpy.getOpponent();
+        ev.occupy(outer.evSrc, true);
+      }
+      ev.sendEvent(cmd);
+    }
+    
+    
+    /**Prepares the callback event for ask anything.
+     * @param cmd
+     */
+    void sendEventAsk(FileRemote.CallbackCmd cmd){
+      Assert.check(evBackInfo !=null);
+      if(evBackInfo.occupyRecall(1000, outer.evSrc, true)){
+        String absPath = actData.src.getAbsolutePath();
+        if(absPath.length() > evBackInfo.fileName.length-1){
+          absPath = "..." + absPath.substring(evBackInfo.fileName.length -4);  //the trailing part.
+        }
+        StringFunctions.copyToBuffer(absPath, evBackInfo.fileName);
+          evBackInfo.sendEvent(cmd);
+      } else {
+        Assert.checkMsg (false, null);
+      }
+          
+    }
+    
+    
+    
+    
     private void execMove(FileRemote.CmdEvent co){
       timestart = System.currentTimeMillis();
-      int cmd;
-      FileRemote.CallbackEvent evback = (FileRemote.CallbackEvent)co.callbackEvent();
+      FileRemote.CallbackCmd cmd;
+      FileRemote.CallbackEvent evback = co.getOpponent();
       if(co.filesrc.renameTo(co.filedst)){
-        cmd = FileRemoteAccessor.kFinishOk; 
+        cmd = FileRemote.CallbackCmd.done ; 
       } else {
-        cmd = FileRemoteAccessor.kFinishNok; 
+        cmd = FileRemote.CallbackCmd.error ; 
       }
+      evback.occupy(outer.evSrc, true);
       evback.sendEvent(cmd);
     }
 
-    
-    private static class State{
-      boolean entry(FileRemote.CmdEvent ev){ return true; }
-      
-      boolean trans(FileRemote.CmdEvent ev){ return false; }
-        
-    }
-    
-    
-      
-    boolean entry_CopyDirList(FileRemote.CmdEvent ev){
-      ev.consumedRetain();
-      if(actData.ixSrc < actData.listSrc.length){
-        FileRemote src = actData.listSrc[actData.ixSrc++];
-        FileRemote dst = new FileRemote(actData.dst, src.getName());
-        
-        newDataSetCopy(src, dst);
-        entry_CopyDirFile(ev);
-      } else {
-        actData = recursDirs.pop();
-        if(actData.listSrc !=null){
-          evCpy.sendEvent(cmdCopyDir);
-          return true;
-        } else {
-          entry_CopyDirFile(ev);
-          return true;
-        }
-      }
-      return false; 
-    }
-    
-    
-    
-    boolean entry_CopyReady(FileRemote.CmdEvent ev){
-      stateCopy = StateCopy.Ready;
-      return true;
-    }
-    
-    
-    boolean trans_CopyReady(FileRemote.CmdEvent ev){
-      if(ev.cmd() == FileRemote.cmdCopy){
-        newDataSetCopy(ev.filesrc, ev.filedst);
-        evBack = (FileRemote.CallbackEvent) ev.callbackEvent();
-        entry_CopyProcess(ev);
-        entry_CopyDirFile(ev);
-        return true;
-      }
-      else {
-        return false;
-      }
-    }
-    
-    
-    boolean entry_CopyProcess(FileRemote.CmdEvent ev){
-      stateCopy = StateCopy.Process;
-      stateCopyProcess = StateCopyProcess.Null;
-      return true;
-    }
-    
-    
-    boolean trans_CopyProcess(FileRemote.CmdEvent ev){
-      if(ev.cmd() == FileRemote.cmdCopy){
-        storedCopyEvents.add(ev);  //save it, execute later if that cmdCopy is finished.
-      }
-      if(ev.cmd() == FileRemote.cmdAbortAll){
-        return entry_CopyReady(ev);
-      } else {
-        switch(stateCopyProcess){
-        case Null: return entry_CopyDirFile(ev);
-        case CopyDirFile: return trans_CopyDirFile(ev); 
-        case CopyFileContent: return trans_CopyFileContent(ev); 
-        case CopyFileFinished: return trans_CopyFileFinished(ev); 
-        case Ask: return trans_CopyAsk(ev);
-        default: return false;
-        }//switch
-      }
-    }
-    
-    
-    /**Prepare copying the given file or directory.
-     * {@link #actData} is set with {@link DataSetCopy1Recurs#src} and {@link DataSetCopy1Recurs#src}.
-     * The {@link DataSetCopy1Recurs#listSrc} is not prepared yet.
-     * This state checks whether it is a file or directory. 
-     * <ul>
-     * <li>If it is a file, the file src and dst files will be opened.
-     *   <ul>
-     *   <li>If it is succeed, the state {@link StateCopyProcess#CopyFileContent} is entered immediately.
-     *   <li>If the open fails, the state {@link StateCopyProcess#Ask} is entered immediately.
-     *   </ul>
-     * <li>If it is a directory, first a backevent is sent which informs about the directory path.
-     *   Then the list of files are gotten. This may spend some time.
-     *   If it is ready, The first file is filled in a new instance of {@link DataSetCopy1Recurs} as {@link #actData}.
-     *   An event {@link #cmdCopyDirFile} is sent to this itself and the state remains.
-     *   <br>
-     *   It means that the program flow returns to the event queue (inversion of control). Therefore a abort or skip event
-     *   have a chance to processing.
-     * <li>      
-     * @param ev
-     * @return
-     */
-    boolean entry_CopyDirFile(FileRemote.CmdEvent ev){
-      if(stateCopy != StateCopy.Process){
-        entry_CopyProcess(ev);
-      }
-      stateCopyProcess = StateCopyProcess.CopyDirFile;
-      if(actData.src.isDirectory()){
-        //first send a callback
-        if(evBack.reserveRecall()){
-          String absPath = actData.src.getAbsolutePath();
-          if(absPath.length() > evBack.fileName.length-1){
-            absPath = "..." + absPath.substring(evBack.fileName.length -4);  //the trailing part.
-          }
-          StringFunctions.copyToBuffer(absPath, evBack.fileName);
-          evBack.sendEvent(FileRemoteAccessor.kCopyDir);
-        }
-        //This action may need some time.
-        actData.listSrc = actData.src.listFiles();
-        actData.ixSrc = 0;
-        FileRemote srcInDir = actData.listSrc[0];
-        FileRemote dstDir = actData.dst;
-        //
-        //use the first entry of the dir:
-        //
-        actData.dst.mkdirs();
-        recursDirs.push(actData);
-        actData = new DataSetCopy1Recurs();
-        actData.src = srcInDir;
-        actData.dst = new FileRemote(dstDir, srcInDir.getName());
-        ev.sendEvent(cmdCopyDirFile);
-        return false;
-      } else {
-        //It is a file. try to open/create
-        //
-        try{
-          actData.in = new FileInputStream(actData.src);
-          actData.out = new FileOutputStream(actData.dst);
-          ev.sendEvent(cmdCopyFile);
-          return entry_CopyFileContent();
-        
-        } catch(IOException exc){
-          if(evBack.reserveRecall(1000)){
-            evBack.sendEvent(FileRemote.acknErrorOpen);
-          }
-          return entry_CopyAsk();
-          
-        }
-      }
-    }
-    
-    
-    boolean trans_CopyDirFile(FileRemote.CmdEvent ev){
-
-      if(ev.cmd() == cmdCopyDirFile){
-        return entry_CopyDirFile(ev);  //exit and entry in the same state.
-      } else if(ev.cmd() == cmdCopyFile){
-        return false;
-      } else {
-        return false;
-      }
-    }
-    
-    
-    boolean entry_CopyFileStart(FileRemote.CmdEvent ev){
-      boolean bOk = true;
-      FileRemote fileSrc, fileDst;
-      if(actData.listSrc !=null){
-        //File from list
-        fileSrc = actData.listSrc[actData.ixSrc++];
-        fileDst = new FileRemote(actData.dst, fileSrc.getName());
-        if(fileSrc.isDirectory()){
-          newDataSetCopy(fileSrc, fileDst);
-          entry_CopyDirFile(ev);
-        }
-      }
-      else {
-        
-      }
-      //newDataSetCopy(src, dst);
-      entry_CopyDirFile(ev);
-      try{
-        if(ev.reserve()){
-          actData.in = new FileInputStream(actData.src);
-          actData.out = new FileOutputStream(actData.dst);
-          ev.sendEvent(cmdCopyFilePart);
-          return entry_CopyFileContent();
-        }
-      } catch(IOException exc){
-        Event evback = ev.callbackEvent();
-        evback.sendEvent(FileRemote.acknErrorOpen);
-        return entry_CopyAsk();
-        
-      }
-      return bOk;
-    }
-    
-    
-    boolean entry_CopyFileContent(){
-      stateCopyProcess = StateCopyProcess.CopyFileContent;
-      return true;
-    }
-    
-    
-    boolean trans_CopyFileContent(FileRemote.CmdEvent ev){
-      return false;
-    }
-    
-    
-    boolean entry_CopyFileFinished(FileRemote.CmdEvent ev){
-      stateCopyProcess = StateCopyProcess.CopyFileFinished;
-      return true;
-    }
-    
-    
-    boolean trans_CopyFileFinished(FileRemote.CmdEvent ev){
-      return false;
-    }
-    
-    
-    
-    boolean entry_CopyAsk(){
-      stateCopyProcess = StateCopyProcess.Ask;
-      return true;
-    }
-    
-    
-    boolean trans_CopyAsk(FileRemote.CmdEvent ev){
-
-      if(ev.cmd() == 1){
-        bSkip = true;
-        return entry_CopyFileContent();
-      } else if(ev.cmd() == 2){
-        bSkip = true;
-        return entry_CopyFileContent();
-      }
-      return false;
-     
-    }
-    
     
     /**Executes copy for 1 file or 1 segment of file. State-controlled. 
      * <pre>
@@ -923,12 +847,14 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
      *      
      * </ul>                       
      * */
-    void execCopyState(FileRemote.CmdEvent ev){
+    void trans_CopyState(Event ev){
       boolean bChg = false;
       do{
+        System.out.println("FileRemote-Copy;" + (stateCopy == StateCopy.Process ? stateCopyProcess : stateCopy) + ";" + ev.toString());
         switch(stateCopy){
-        case Null:          bChg = entry_CopyReady(ev); break;
+        case Null:          bChg = entry_CopyReady(); break;
         case Ready:         bChg = trans_CopyReady(ev); break;
+        case Start:         bChg = trans_CopyStart(ev); break;
         case Process:       bChg = trans_CopyProcess(ev); break;
         } 
       } while(bChg);
@@ -937,19 +863,381 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
     
     
     
-    /**Creates a new entry for the file deepnes stack.
-     * @param src
-     * @param dst
-     */
-    void newDataSetCopy(FileRemote src, FileRemote dst){
-      if(actData !=null){ recursDirs.push(actData); }
-      actData = new DataSetCopy1Recurs();
-      actData.src = src;
-      actData.dst = dst;
-      ///
+    
+    boolean entry_CopyReady(){
+      stateCopy = StateCopy.Ready;
+      evBackInfo = null;
+      return true;
     }
     
     
+    boolean trans_CopyReady(Event evP){
+      if(evP instanceof FileRemote.CmdEvent){
+        FileRemote.CmdEvent ev = (FileRemote.CmdEvent)evP;
+        FileRemote.Cmd cmd = ev.getCmd();
+        if(cmd == FileRemote.Cmd.copy){
+          //gets and store data from the event:
+          newDataSetCopy(ev.filesrc, ev.filedst);
+          evBackInfo = ev.getOpponent();
+          entry_CopyStart(evCpy);
+          return true;
+        }
+        else {
+          return false;
+        }
+      }
+      else {
+        return false;
+      }
+        
+    }
+    
+    
+    /**sends the event {@link CmdCpyIntern#start} to enter the {@link StateCopyProcess#DirOrFile} state.
+     * @param ev use its opponent to send.
+     * @return true
+     */
+    boolean entry_CopyStart(EventCpy ev){
+      stateCopy = StateCopy.Start;
+      sendEv(CmdCpyIntern.start); 
+      return true;
+    }
+    
+    
+    /**The state Start blocks the event cmd {@link FileRemote.Cmd#copy}. The state {@link StateCopy#Process}
+     * will be entered with an internal even {@link CmdCpyIntern#start} from this state.
+     */
+    boolean trans_CopyStart(Event evP){
+      if(evP instanceof EventCpy && ((EventCpy)evP).getCmd() == CmdCpyIntern.start){
+        entry_CopyProcess(evP);
+        entry_CopyDirFile((EventCpy)evP);
+        return true;
+      }
+      else if(evP instanceof FileRemote.CmdEvent && ((FileRemote.CmdEvent)evP).getCmd() == FileRemote.Cmd.abortAll){
+        return entry_CopyReady();
+      }
+      else {
+        return false;
+      }
+        
+    }
+    
+    
+    boolean entry_CopyProcess(Event ev){
+      stateCopy = StateCopy.Process;
+      stateCopyProcess = StateCopyProcess.Null;
+      return true;
+    }
+    
+    
+    boolean trans_CopyProcess(Event evP){
+      PrepareEventCmd ev = new PrepareEventCmd(evP);
+      if(ev.cmde == FileRemote.Cmd.copy){
+        storedCopyEvents.add(ev.eve);  //save it, execute later if that cmdCopy is finished.
+        return false;
+      }
+      else if(ev.cmde == FileRemote.Cmd.abortAll){
+        if(stateCopyProcess == StateCopyProcess.FileContent){
+          //close and delete!
+        }
+        storedCopyEvents.clear();
+        return entry_CopyReady();
+      } else {
+        switch(stateCopyProcess){
+        case Null: return entry_CopyDirFile(ev.evi);
+        case DirOrFile: return trans_CopyDirFile(ev.evi); 
+        case Subdir: return trans_Subdir(ev.evi); 
+        case FileContent: return trans_CopyFileContent(ev.evi); 
+        case FileFinished: return trans_CopyFileFinished(ev.evi); 
+        case Ask: return trans_CopyAsk(ev.eve);
+        default: return false;
+        }//switch
+      }
+    }
+    
+    void exit_CopyProcess(){
+    }
+    
+    /**Prepare copying the given file or directory.
+     * {@link #actData} is set with {@link DataSetCopy1Recurs#src} and {@link DataSetCopy1Recurs#dst}.
+     * The {@link DataSetCopy1Recurs#listSrc} is not prepared yet.
+     * This state checks whether it is a file or directory. 
+     * <ul>
+     * <li>If it is a file, the file src and dst files will be opened.
+     *   <ul>
+     *   <li>If it is succeed, an self-event {@link #cmdCopyFile} was sent and the state {@link StateCopyProcess#FileContent} 
+     *     is entered immediately. In this state
+     *   <li>If the open fails, a callback is sent and the the state {@link StateCopyProcess#Ask} entered immediately.
+     *   </ul>
+     * <li>If it is a directory, first a backevent is sent which informs about the directory path.
+     *   Then the list of files are gotten. This may spend some time.
+     *   If it is ready, the first file of the list is processed. To do that, a new instance of {@link DataSetCopy1Recurs}
+     *   is created and stored as {@link #actData}.
+     *   An event {@link #cmdCopyDirFile} is sent to this itself and the state remains. It is the recursion in the directory.
+     *   <br>
+     *   It means that the program flow returns to the event queue (inversion of control). Therefore a abort or skip event
+     *   have a chance to processing.
+     * <li>      
+     * @param ev
+     * @return
+     */
+    boolean entry_CopyDirFile(EventCpy ev){
+      if(stateCopy != StateCopy.Process){
+        entry_CopyProcess(ev);
+      }
+      stateCopyProcess = StateCopyProcess.DirOrFile;
+      return true;
+    }
+    
+    
+    /**This state processes a new {@link DataSetCopy1Recurs} stored in {@link #actData}.
+     * It branches to the necessary next state:
+     * <ul>
+     * <li>
+     * </ul>
+     * @param ev
+     * @return
+     */
+    boolean trans_CopyDirFile(EventCpy ev){
+      //EventCpy ev = evP;
+      if(actData.src.isDirectory()){
+        return entry_Subdir(ev);
+      } else {
+        //It is a file. try to open/create
+        //
+        try{
+          actData.zBytesFile = actData.src.length();
+          actData.in = new FileInputStream(actData.src);
+          actData.zBytesCopyFile = 0;
+          actData.out = new FileOutputStream(actData.dst);
+          return entry_CopyFileContent();
+        } catch(IOException exc){
+          String absPath = actData.src.getAbsolutePath();
+          if(absPath.length() > evBackInfo.fileName.length-1){
+            absPath = "..." + absPath.substring(evBackInfo.fileName.length -4);  //the trailing part.
+          }
+          StringFunctions.copyToBuffer(absPath, evBackInfo.fileName);
+          sendEventAsk(FileRemote.CallbackCmd.askErrorDstCreate );
+          return entry_CopyAsk();
+        }
+      }
+    }
+    
+    boolean entry_Subdir(EventCpy ev){
+      stateCopyProcess = StateCopyProcess.Subdir;
+      //onentry action
+      //first send a callback
+      if(evBackInfo.occupyRecall(outer.evSrc, false)){
+        String absPath = actData.src.getAbsolutePath();
+        if(absPath.length() > evBackInfo.fileName.length-1){
+          absPath = "..." + absPath.substring(evBackInfo.fileName.length -4);  //the trailing part.
+        }
+        StringFunctions.copyToBuffer(absPath, evBackInfo.fileName);
+        evBackInfo.sendEvent(FileRemote.CallbackCmd.copyDir);
+      }
+      //This action may need some time.
+      actData.listSrc = actData.src.listFiles();
+      actData.ixSrc = 0;
+      FileRemote srcInDir = actData.listSrc[0];
+      FileRemote dstDir = actData.dst;
+      //
+      //use the first entry of the dir:
+      //
+      actData.dst.mkdirs();
+      recursDirs.push(actData);
+      actData = new DataSetCopy1Recurs();
+      actData.src = srcInDir;
+      actData.dst = new FileRemote(dstDir, srcInDir.getName());
+      sendEv(CmdCpyIntern.dirFile); 
+      return true;  //return to the queue
+    }
+    
+    
+    boolean trans_Subdir(EventCpy ev){
+      if(ev.getCmd() == CmdCpyIntern.dirFile){
+        return entry_CopyDirFile(ev);  //exit and entry in the same state.
+      /*
+      } else if(ev.getCmd() == CmdCpyIntern.file){
+        timestart = System.currentTimeMillis();
+        return entry_CopyFileContent();  //state switch, process them on entry action.
+      */
+      } else {
+        return false;
+      }
+    }
+    
+    
+    boolean entry_CopyFileContent(){
+      stateCopyProcess = StateCopyProcess.FileContent;
+      sendEv(CmdCpyIntern.file); 
+      return true;
+    }
+    
+    
+    
+    /**Executes copying the file or a part of the file for 300 ms or abort copying the file.
+     * <uL>
+     * <li>If the event cmd {@link #cmdCopyFile} is received, the file is copied or a part of the file is copied
+     *   till approximately 300 ms are exhausted. 
+     *   <ul>
+     *   <li>If the whole file is not processed  an event {@link #cmdCopyfile} is sent to itself
+     *     to continue the copying in a new cycle of the state machine.   
+     *   <li>If the file is processed, it will be closed and the state {@link #entry_CopyFileFinished(CmdEvent)}
+     *     will be entered without condition.
+     *   </ul>
+     * <li>If the event cmd {@link FileRemote#cmdAbortFile} is gotten, the dst file will be closed and deleted.
+     *   Then the {@link #entry_CopyFileFinished(CmdEvent)} will be entered unconditionally.
+     * </ul>
+     * @param ev
+     * @return
+     */
+    boolean trans_CopyFileContent(Event evP){
+      PrepareEventCmd ev = new PrepareEventCmd(evP);
+      if(ev.cmdi == CmdCpyIntern.file){
+        boolean bContCopy;
+        boolean bNewState;
+        do {
+          try{
+            int zBytes = actData.in.read(buffer);
+            if(zBytes > 0){
+              actData.zBytesCopyFile += zBytes;
+              zBytesCopy += zBytes;
+              actData.out.write(buffer, 0, zBytes);
+              long time = System.currentTimeMillis();
+              //
+              //feedback of progression after about 0.3 second. 
+              if(time > timestart + 300){
+                ////
+                if(evBackInfo.occupyRecall(outer.evSrc, false)){
+                    
+                  evBackInfo.data1 = (int)((float)actData.zBytesCopyFile / actData.zBytesFile * 1000);  //number between 0...1000
+                  evBackInfo.data2 = (int)((float)zBytesCopy / zBytesCheck * 1000);  //number between 0...1000
+                  evBackInfo.nrofFiles = zFilesCheck - zFilesCopy;
+                  evBackInfo.nrofBytesInFile = (int)zBytesCopy;
+                  String absPath = actData.src.getAbsolutePath();
+                  if(absPath.length() > evBackInfo.fileName.length-1){
+                    absPath = "..." + absPath.substring(evBackInfo.fileName.length -4);  //the trailing part.
+                  }
+                  StringFunctions.copyToBuffer(absPath, evBackInfo.fileName);
+                  evBackInfo.sendEvent(FileRemote.CallbackCmd.nrofFilesAndBytes );
+                }
+                timestart = time;
+                sendEv(CmdCpyIntern.file);
+                bContCopy = false;
+                bNewState = false;
+              } else {
+                bContCopy = true;
+                bNewState = false;
+              }
+            } else if(zBytes == -1){
+              bContCopy = false;
+              actData.out.close();
+              bNewState = entry_CopyFileFinished(ev.evi);
+              
+            } else {
+              //0 bytes ?
+              bContCopy = true;
+              bNewState = false;
+            }
+          } catch(IOException exc){
+            bContCopy = false;
+            sendEventAsk(FileRemote.CallbackCmd.askErrorCopy );
+            bNewState = entry_CopyAsk();
+          }
+        }while(bContCopy);
+
+        
+        return bNewState;
+        
+      } else if(ev.cmde == FileRemote.Cmd.abortCopyFile ){
+        try{
+          actData.out.close();
+          actData.out = null;
+          if(!actData.dst.delete()) {
+            System.err.println("FileRemoteAccessorLocalFile - Problem delete after abort; " + actData.dst.getAbsolutePath());
+          }
+        } catch(IOException exc){
+          System.err.println("FileRemoteAccessorLocalFile - Problem close; " + actData.dst.getAbsolutePath());
+        }
+        
+        return entry_CopyFileFinished(ev.evi);
+      } else {
+        return false;
+      }
+    }
+    
+    
+    boolean entry_CopyFileFinished(EventCpy ev){
+      stateCopyProcess = StateCopyProcess.FileFinished;
+      if(recursDirs.empty()) {
+        actData = null;
+      } else {
+        actData = recursDirs.pop();
+      }
+      return true;  //Note: executes trans_CopyFileFinished
+    }
+    
+    
+    boolean trans_CopyFileFinished(EventCpy ev){
+      if(actData == null){
+        if(evBackInfo.occupyRecall(1000, outer.evSrc, false)){
+          evBackInfo.sendEvent(FileRemote.CallbackCmd.done);
+          
+        }
+        return entry_CopyReady();
+      }
+      else if(   actData.listSrc !=null) { //copy a directory tree?
+        if(++actData.ixSrc < actData.listSrc.length){
+          FileRemote src = actData.listSrc[actData.ixSrc];
+          FileRemote dst = new FileRemote(actData.dst, src.getName());
+          newDataSetCopy(src, dst);
+          return entry_CopyDirFile(ev);
+        } else {
+          return entry_CopyFileFinished(ev);
+        }
+      } else {
+        return entry_CopyFileFinished(ev);
+      }
+      /*
+        if(recursDirs.empty()) {
+        } else {
+          actData = recursDirs.pop();
+          if(actData.listSrc !=null){
+            ev.getOpponent().sendEvent(CmdCpyIntern.dir);
+            return true;
+          } else {
+            entry_CopyDirFile(ev);
+            return true;
+          }
+        }
+      }
+      */
+    }
+    
+    
+    
+    boolean entry_CopyAsk(){
+      stateCopyProcess = StateCopyProcess.Ask;
+      return true;
+    }
+    
+    
+    boolean trans_CopyAsk(FileRemote.CmdEvent ev){
+      FileRemote.Cmd cmd = ev.getCmd();
+      if(cmd == FileRemote.Cmd.abortCopyFile){
+        bSkip = true;
+        return entry_CopyFileFinished(null);
+      } else if(cmd == FileRemote.Cmd.abortCopyDir){
+        bSkip = true;
+        return entry_CopyFileContent();
+      }
+      return false;
+     
+    }
+    
+    
+    
+/*    
     private void execCopy(FileRemote.CmdEvent ev){
       timestart = System.currentTimeMillis();
       zFilesCopy = 0;
@@ -963,10 +1251,10 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       }
       FileRemote.CallbackEvent evback = (FileRemote.CallbackEvent)ev.callbackEvent();
       if(ev.cmd()== FileRemote.cmdAbortAll){
-        evback.sendEvent(FileRemote.acknAbortAll);
+        evback.sendEvent(FileRemote.CallbackCmd.acknAbortAll);
       } else {
         //ev.cmd = FileRemoteAccessor.kFinishOk; //zBytesCopyFile == zBytesMax ? FileRemoteAccessor.kFinishOk : FileRemoteAccessor.kFinishNok;
-        evback.sendEvent(FileRemoteAccessor.kFinishOk);
+        evback.sendEvent(FileRemote.CallbackCmd.done);
       }
     }
 
@@ -988,7 +1276,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
         if(evCmd == FileRemote.cmdAbortDir || evCmd == FileRemote.cmdAbortAll){
           if(evCmd == FileRemote.cmdAbortDir){
             //FileSystem.rmdir(dst);
-            evback.sendEvent(FileRemote.acknAbortDir);
+            evback.sendEvent(FileRemote.CallbackCmd.acknAbortDir);
           }
           break;
         }
@@ -1059,7 +1347,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
                 }
                 System.arraycopy(name.toCharArray(), 0, evback.fileName, 0, zName);
                 Arrays.fill(evback.fileName, zName, evback.fileName.length, '\0');
-                evback.sendEvent(FileRemoteAccessor.kOperation);
+                evback.sendEvent(FileRemote.CallbackCmd.nrofFilesAndBytes);
                 timestart = time;
               }
             } else if(zBytes == -1){
@@ -1069,7 +1357,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
               //0 bytes ?
               bContCopy = true;
             }
-            evCmd = evback.cmd();
+            evCmd = 0; //evback.cmd();
           }while(bContCopy && evCmd != FileRemote.cmdAbortFile && evCmd != FileRemote.cmdAbortDir && evCmd != FileRemote.cmdAbortAll);
         } else { //bSkip
           evCmd = 0;
@@ -1080,7 +1368,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
         evback.data1 = (int)((float)zBytesCopyFile / zBytesMax * 1000);  //number between 0...1000
         evback.data2 = (int)((float)zBytesCopy / zBytesCheck * 1000);  //number between 0...1000
         evback.nrofFiles = zFilesCheck - zFilesCopy;
-        evback.sendEvent(FileRemoteAccessor.kFinishError);
+        evback.sendEvent(FileRemote.CallbackCmd.error);
       }
       try{
         if(in !=null) { in.close(); }
@@ -1090,7 +1378,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
           if(bOkdel){
             
           }
-          evback.sendEvent(0);
+          evback.sendEvent(FileRemote.CallbackCmd.acknAbortFile );
         }
       }catch(IOException exc){}
       try {
@@ -1101,8 +1389,8 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       }
       zFilesCopy +=1;
     }
+    */
   }  
-
   
   public static FileRemoteAccessorSelector selectLocalFileAlways = new FileRemoteAccessorSelector() {
     @Override public FileRemoteAccessor selectFileRemoteAccessor(String sPath) {
