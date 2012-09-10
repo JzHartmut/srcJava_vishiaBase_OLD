@@ -11,6 +11,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class EventThread implements Runnable, Closeable
 {
   
+  
+  
+  
   protected final ConcurrentLinkedQueue<Event> queueEvents = new ConcurrentLinkedQueue<Event>();
 
   /**The state of the thread

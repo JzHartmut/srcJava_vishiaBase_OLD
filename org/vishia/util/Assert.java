@@ -28,6 +28,8 @@ public class Assert
 
   /**Version, history and license
    * <ul>
+   * <li>2012-09-02 Hartmut new {@link #exceptionInfo(String, Throwable, int, int)} and {@link #stackInfo(String, int)}
+   *   to support a short info output for example for messages. Not the whole stacktrace!
    * <li>2012-08-30 Hartmut some enhancements, especially assert with send a message to System.err.
    * <li>2012-01-19 Hartmut created. The reason was: set an individual breakpoint on assertion statement.
    *   The second reason: flexibility for debugging. The java language 'assert' is too less in functionality. 
@@ -81,16 +83,6 @@ public class Assert
     o.assertion(shouldTrue);
   }
   
-  /**Checks whether an assertion is met.
-   * This routine can invoke a special handling of assertion, if
-   * @param shouldTrue
-   */
-  public static void check(boolean shouldTrue, String msg){
-    if(o == null){ 
-      o = new Assert(); //if no assertion instance is given, create this. 
-    }
-    o.assertion(shouldTrue, msg);
-  }
   
   /**Checks whether an assertion is met.
    * This routine can invoke a special handling of assertion, if
@@ -102,6 +94,35 @@ public class Assert
     }
     o.assertMsg(shouldTrue, msg);
   }
+  
+  
+  public static CharSequence exceptionInfo(String startText, Throwable exc, int firstLevel, int nrofLevels){
+    StringBuilder u = new StringBuilder(500);
+    u.append(startText).append("; ");
+    u.append(exc.getMessage()).append("; ");
+    StackTraceElement[] stack = exc.getStackTrace();
+    int zStack = stack.length;
+    if(firstLevel >= zStack){ firstLevel = zStack-1; }
+    if(zStack> firstLevel + nrofLevels){ zStack = firstLevel + nrofLevels; }
+    for(int ix = 0; ix < zStack; ++ix){
+      u.append(stack[ix].getMethodName())
+      .append("(").append(stack[ix].getFileName())
+      .append(":").append(stack[ix].getLineNumber())
+      .append("); ");
+    }
+    return u;
+  }
+  
+
+  public static CharSequence stackInfo(String startText, int nrofLevel){
+    final CharSequence s;
+    try{ throw new RuntimeException("stackInfo");
+    } catch(RuntimeException exc){
+      s = exceptionInfo(startText, exc, 1, nrofLevel);
+    }
+    return s;
+  }
+
   
   /**This routine can handle a assertion to support debugging or reporting.
    * The Stacktrace can help to detect where the assertion occurs.
@@ -129,18 +150,10 @@ public class Assert
    * @param shouldTrue
    * @param msg If it is null, an info from stacktrace is build.
    */
-  public void assertMsg(boolean shouldTrue, String msg){
+  public void assertMsg(boolean shouldTrue,  CharSequence msg){
     if(!shouldTrue){
       if(msg == null){
-        msg = "assertMsg ";
-        try{ throw new RuntimeException(""); }
-        catch(RuntimeException exc){
-          StackTraceElement[] stack = exc.getStackTrace();
-          int zStack = stack.length > 3 ? 3: stack.length -1;
-          for(int ix = 1; ix < zStack; ++ix){
-            msg += "/" + stack[ix].getMethodName();
-          }
-        }
+        msg = stackInfo("assertMsg ", 4);
       }
       System.err.println(msg);
     }

@@ -74,9 +74,11 @@ public interface VariableAccess_ifc
    */
   public static final int version = 20120425;
 
-	/**Gets a integer-type value from this variable. The variable contains the information, 
+	/**Gets a integer value from this variable. The variable contains the information, 
 	 * whether it is long, short etc. If the variable contains a long value greater as the integer range,
 	 * an IllegalArgumentException may be thrown or not, it depends on the implementation.
+	 * If the variable is a float or double it may be convert to the integer format.
+	 * If the variable is a boolean, it is converted to 0 or 1.
 	 * @param ixArray unused if it isn't an indexed variable.
 	 * @return the value.
 	 */

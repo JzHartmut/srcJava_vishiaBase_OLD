@@ -1195,6 +1195,15 @@ public class WikistyleTextToSimpleXml
     if(sClass != null)
     { xmlParagraph.setAttribute("class", sClass);
     }
+    if(elementsWithAttrib !=null)
+    { TreeMap attribs = (TreeMap)elementsWithAttrib.get("p");
+      if(attribs != null)
+      { Iterator iterAttr = attribs.keySet().iterator();
+        while(iterAttr.hasNext())
+        { String sAttrib = (String)iterAttr.next();
+          String value = (String)attribs.get(sAttrib);
+          xmlParagraph.setAttribute(sAttrib, value);
+    } } }
     convertLine(sLine, xmlParagraph, dstNamespace, sLabelOwn);
   }
   

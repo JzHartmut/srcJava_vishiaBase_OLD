@@ -1,5 +1,6 @@
 package org.vishia.util;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -511,6 +512,8 @@ public class Event
   
   /**Version, history and license
    * <ul>
+   * <li>2012-09-03 Hartmut chg: using {@link DateOrder} to log the date in milliseconds and the order as fine number.
+   *   The order of events should be known. The timestamp is imprecise!
    * <li>2012-08-30 Hartmut new:  Some substantial enhancememts for usage:
    *   <ul>
    *   <li>reingeneering for {@link #occupy(EventSource, boolean)}
@@ -559,9 +562,9 @@ public class Event
   public static final int version = 20120830;
 
   
+  public enum Consumed{Consumed, RunToCompleted}
   
-  
-  
+
   /**It is an inner value for the cmd variable to designate the event as not reserved. */
   //public static final int cmdFree = 0;
   
@@ -634,6 +637,8 @@ public class Event
    * that the event instance is in use (for new-obviating usage like C-programming). */
   private final AtomicLong dateCreation = new AtomicLong();
   
+  private int dateOrder;
+  
   /**Any value of this event. Mostly it is a return value. */
   public int data1, data2;
   
@@ -666,7 +671,13 @@ public class Event
    * @param thread an optional thread to store the event in an event queue, maybe null.
    */
   public Event(EventSource source, Object refData, EventConsumer consumer, EventThread thread){
-    this.dateCreation.set(source == null ? 0 : System.currentTimeMillis());
+    if(source == null){
+      this.dateCreation.set(0);
+    } else {
+      DateOrder date = new DateOrder();
+      this.dateCreation.set(date.date);
+      this.dateOrder = date.order;
+    }
     this.source = source;
     this.cmde.set(null);
     this.refData = refData; this.evDst = consumer; this.evDstThread = thread;
@@ -684,7 +695,13 @@ public class Event
    * @param callback Another event to interplay with the source of this event.
    */
   public Event(EventSource source, Object refData, EventConsumer consumer, EventThread thread, Event callback){
-    this.dateCreation.set(source == null ? 0 : System.currentTimeMillis());
+    if(source == null){
+      this.dateCreation.set(0);
+    } else {
+      DateOrder date = new DateOrder();
+      this.dateCreation.set(date.date);
+      this.dateOrder = date.order;
+    }
     this.cmde.set(null);
     this.refData = refData; this.evDst = consumer; this.evDstThread = thread;
     this.opponent = callback;
@@ -713,6 +730,9 @@ public class Event
   
   
   public boolean hasOpponent(){ return opponent !=null; }
+  
+  
+  public boolean hasDst(){ return evDst !=null; }
   
   
   
@@ -746,7 +766,9 @@ public class Event
    * @return true if the event instance is able to use.
    */
   public boolean occupy(EventSource source, Object refData, EventConsumer dst, EventThread thread, boolean expect){ 
-    if(dateCreation.compareAndSet(0, System.currentTimeMillis())){
+    DateOrder date = new DateOrder();
+    if(dateCreation.compareAndSet(0, date.date)){
+      dateOrder = date.order;
       this.source = source;
       this.ctConsumed =0;
       this.cmde.set(null);
@@ -997,10 +1019,12 @@ public class Event
   }
 
   
-  
+  static final SimpleDateFormat toStringDateFormat = new SimpleDateFormat("MMM-dd HH:mm:ss.SSS");
   
   @Override public String toString(){ 
-    return "Event: " + (source !=null ? source.toString() : " noSrc") + " ==> " + cmde.toString() + " ==>"+ (evDst !=null ? evDst.toString() : " noDst"); 
+    long nDate = dateCreation.get();
+    Date date = new Date(nDate);
+    return "Event " + (nDate == 0 ? "no-Date" : toStringDateFormat.format(date) + "." + dateOrder) + ": " + (source !=null ? source.toString() : " noSrc") + " ==> " + cmde.toString() + " ==>"+ (evDst !=null ? evDst.toString() : " noDst"); 
   }
   
   
