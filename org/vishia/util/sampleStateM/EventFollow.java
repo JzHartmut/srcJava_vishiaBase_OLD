@@ -90,7 +90,7 @@ public class EventFollow  {
           env.cond1 = true;
           env.cond2 = true;
           ev1.sendEvent(EvX.Cmd.EvX);
-          return superState.stateA.entry(StateBase.consumed);
+          return enclState.stateA.entry(StateBase.consumed);
         } else {
           return StateBase.complete;
         }
@@ -113,7 +113,7 @@ public class EventFollow  {
       
       @Override public int trans(Event ev){
         if(env.cond1){
-          return superState.stateB.entry(StateBase.notConsumed);
+          return enclState.stateB.entry(StateBase.notConsumed);
         } else {
           return 0;
         }
@@ -132,7 +132,7 @@ public class EventFollow  {
       
       @Override public int trans(Event ev){
         if(ev instanceof EvX && ev.getCmd() == EvX.Cmd.EvX){
-          return superState.stateC.entry(StateBase.consumed);
+          return enclState.stateC.entry(StateBase.consumed);
         } else {
           return StateBase.complete;
         }
@@ -152,7 +152,7 @@ public class EventFollow  {
       
       @Override public int trans(Event ev){
         if(ev instanceof EvX && ev.getCmd() == EvX.Cmd.EvX){
-          return superState.stateD.entry(StateBase.consumed);
+          return enclState.stateD.entry(StateBase.consumed);
         } else {
           return StateBase.notConsumed;
         }

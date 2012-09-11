@@ -969,18 +969,7 @@ public class Event
     if(bOk) {
       bOk = this.cmde.compareAndSet(cmd1, cmd);
       if(bOk){
-        if(evDst == null) throw new IllegalArgumentException("event should have a destination");
-        if(evDstThread !=null){
-          evDstThread.storeEvent(this);
-        } else {
-          try{
-            evDst.processEvent(this);
-          } catch(Exception exc) {
-            System.err.println("Exception while processing an event: " + exc.getMessage());
-            exc.printStackTrace(System.err);
-          }
-          relinquish();
-        }
+        sendEventAgain();
       } else {
         notifyShouldSentButInUse();
       }
@@ -991,6 +980,28 @@ public class Event
   }
   
 
+  
+  /**Sends the event again to the same destination with the same command.
+   * This method can be used by an application if an Event is received but stored for deferred usage.
+   * @return true
+   */
+  public boolean sendEventAgain(){
+    if(evDst == null) throw new IllegalArgumentException("event should have a destination");
+    if(evDstThread !=null){
+      evDstThread.storeEvent(this);
+    } else {
+      try{
+        evDst.processEvent(this);
+      } catch(Exception exc) {
+        System.err.println("Exception while processing an event: " + exc.getMessage());
+        exc.printStackTrace(System.err);
+      }
+      relinquish();
+    }
+    return true;
+  }
+  
+  
   
   public void consumed(){
     ctConsumed +=1;

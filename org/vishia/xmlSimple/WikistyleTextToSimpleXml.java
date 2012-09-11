@@ -20,6 +20,8 @@
  * @author Hartmut Schorrig, www.vishia.org
  * @version 2009-07-02  (year-month-day)
  * list of changes:
+ * 2012-09-09 Hartmut: new: now empty lines in pre-Blocks are regarded.
+ * 2012-09-09 Hartmut: new: now @p.class="format" works.
  * 2009-12-14 Hartmut: new: [[&name]] builds an anchor. 
  * 2009-07-02 Hartmut: new: A ~ is replaced by the value of attribute expandLabelOwn, if it is found.
  *                     This feature is used in conclusion with XmiDocu.xslp to shorten the name of the own class. 
@@ -195,6 +197,8 @@ public class WikistyleTextToSimpleXml
   
   /** A current < pre>-Block*/
   XmlNode xmlPre = null;
+  
+  int preEmptylines = 0;
   
   /** treemap of elements for attributes */
   TreeMap elementsWithAttrib;
@@ -372,7 +376,12 @@ public class WikistyleTextToSimpleXml
     while(start < (sInput.length()))
     { //String sLine;
       char cFirst = sInput.charAt(start);
-      if(cFirst == ' ' || cFirst == '\t' || cFirst == ',')
+      if(xmlPre !=null && cFirst == '\n' || cFirst == '\r') { //empty line inside pre-block
+        preEmptylines +=1;
+        end = sInput.indexOf("\n", start);
+        start = end+1;
+      }
+      else if(cFirst == ' ' || cFirst == '\t' || cFirst == ',')
       { /**If the line starts with a space it is translated to a <pre>..</pre>*/
       	end = sInput.indexOf("\n", start);
         if(end <0){ end = sInput.length(); }   //last line is empty
@@ -398,8 +407,11 @@ public class WikistyleTextToSimpleXml
             } } }
           }
           else
-          { //xmlPre.addContent("&x0a;");
-            //xmlPre.addContent("\n");
+          { while(preEmptylines > 0){
+              //xmlPre.addContent("&x0a;");
+              xmlPre.addContent("\n");
+              preEmptylines-=1;
+            }
           }
           xmlPre.addContent(sLine.substring(1)+"\n");
         } //if(start < end), else it is an empty line.  
@@ -443,6 +455,7 @@ public class WikistyleTextToSimpleXml
             { //a new line not beginning with a special char, it is a paragraph at basic level. 
               xmlChild = initNesting();
               xmlPre = null;
+              preEmptylines = 0; //don't regard empty line after a pre block
               writeParagraphInIter(sLine, iter, xmlChild, dstNamespace, attributes, sClass, sLabelOwn);
             }          //special char at start of paragraphs line:
           }//switch

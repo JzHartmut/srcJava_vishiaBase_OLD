@@ -8,7 +8,6 @@ extends StateComboBase<StateTopBase<EnumState, Environment>,EnumState,EnumState,
   
   protected StateTopBase(EnumState id, Environment env) {
     super(null, null, id, env);
-    // TODO Auto-generated constructor stub
   }
 
 

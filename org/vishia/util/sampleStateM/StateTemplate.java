@@ -29,7 +29,7 @@ public class StateTemplate {
       switch(stateNr()){
         //case Idle: cont = stIdle.process(ev); break;
         case Null:    cont = env.stTop.entry(notConsumed);
-        case Ready:   cont = env.stReady.process(ev); break;
+        case Ready:   cont = env.stReady.trans(ev); break;
         case Process: cont = env.stProcess.process(ev); break;
       } //switch
       // TODO Auto-generated method stub
