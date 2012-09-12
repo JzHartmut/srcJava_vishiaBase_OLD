@@ -21,6 +21,7 @@ public abstract class FileRemoteAccessor implements Closeable
 {
   /**Version, history and license.
    * <ul>
+   * <li>2012-09-12 Hartmut bugfix: {@link #getChildren(FileRemote, FileFilter)} here only abstract.
    * <li>2012-08-12 Hartmut new: {@link #openInputStream(FileRemote, long)}
    * <li>2012-08-12 Hartmut new: {@link #getChildren(FileRemote, FileFilter)} implemented here.
    * <li>2012-08-12 Hartmut chg: up to now this is not an interface but an abstract class. It contains common method implementation.
@@ -91,30 +92,7 @@ public abstract class FileRemoteAccessor implements Closeable
   public abstract void refreshFilePropertiesAndChildren(FileRemote file, FileRemote.CallbackEvent callback);
 
   
-  //List<File> getChildren(FileRemote file, FileFilter filter);
-  public List<File> getChildren(FileRemote file, FileFilter filter){
-    FileZipData data = (FileZipData)file.oFile;
-    List<File> list = new ArrayList<File>();
-    int zChildren = data == null ? 0 : data.children == null ? 0 : (data.children.childNodes == null ? 0
-        : data.children.childNodes.size())
-        + (data.children.leafData == null ? 0 : data.children.leafData.size());
-    if (zChildren > 0) {
-      int ii = -1;
-      if (data.children.childNodes != null){
-        for (TreeNodeBase<FileRemote> node1 : data.children.childNodes) {
-          if ((filter == null) || filter.accept(node1.data)){
-            list.add(node1.data);
-          }
-      } }
-      if (data.children.leafData != null){
-        for (FileRemote node1 : data.children.leafData) {
-          if ((filter == null) || filter.accept(node1)){
-            list.add(node1);
-          }
-      } }
-    }
-    return list;
-  }
+  public abstract List<File> getChildren(FileRemote file, FileFilter filter);
   
   
 

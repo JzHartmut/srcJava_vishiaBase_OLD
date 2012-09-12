@@ -1,6 +1,7 @@
 package org.vishia.util;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -254,7 +255,17 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   }
 
   
-  
+  @Override
+  public List<File> getChildren(FileRemote file, FileFilter filter){
+    File data = (File)file.oFile;
+    File[] children = data.listFiles(filter);
+    List<File> list = new LinkedList<File>();
+    for(File file1: children){
+      list.add(file1);
+    }
+    return list;
+  }
+
   
   
   @Override public ReadableByteChannel openRead(FileRemote file, long passPhase)

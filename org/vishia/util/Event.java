@@ -512,6 +512,7 @@ public class Event
   
   /**Version, history and license
    * <ul>
+   * <li>2012-09-12 Hartmut new: {@link #sendEventAgain()} for deferred events.
    * <li>2012-09-03 Hartmut chg: using {@link DateOrder} to log the date in milliseconds and the order as fine number.
    *   The order of events should be known. The timestamp is imprecise!
    * <li>2012-08-30 Hartmut new:  Some substantial enhancememts for usage:
