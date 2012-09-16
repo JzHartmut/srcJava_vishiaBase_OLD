@@ -1,17 +1,16 @@
 package org.vishia.util;
 
-
 /**A State is a small set of data to refer its enclosing state and a set of methods. 
- * @author Hartmut Schorrig
+ * @author Hartmut
  *
- * @param <EnclosingState> The enclosing state which contains this State.
- * @param <EnumState> The enumeration of state identification in the enclosing state
+ * @param <EnclosingState> The derived type of the enclosing state which contains this State.
  */
-public abstract class StateBase<EnclosingState extends StateComboBase<?,?,EnumState, Environment>, EnumState extends Enum<EnumState>, Environment> {
-  
+public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<EnclosingState,?>>{
+    
   /**Version, history and license
    * <ul>
-   * <li>2012-08-30 Hartmut created. The experience with that concept are given since about 2003 in C-language.
+   * <li>2012-09-17 Hartmut improved.
+   * <li>2012-08-30 Hartmut created. The experience with that concept are given since about 2001 in C-language and Java.
    * </ul>
    * <br><br>
    * <b>Copyright/Copyleft</b>:
@@ -38,7 +37,7 @@ public abstract class StateBase<EnclosingState extends StateComboBase<?,?,EnumSt
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20120830;
+  public static final int version = 20120917;
 
   /**Bit in return value of a Statemachine's {@link #trans(Event)} or entry method for designation, 
    * that the given Event object was used to switch.
@@ -62,62 +61,72 @@ public abstract class StateBase<EnclosingState extends StateComboBase<?,?,EnumSt
    */
   public final static int complete =0x0;
   
-  /**Bit in return value of a Statemachine's {@link StateComboBase#switchState(Event)} method to detect a fault state. */
-  public final static int stateError = 0x80;
-  
   
   /**Reference to the enclosing state. With this, the structure of state nesting can be observed in data structures.
    * The State knows its enclosing state to set and check the state identification there. 
    */
-  protected final EnclosingState enclState;
+  private final EnclosingState enclState;
   
   /**The own identification of the state. It is given by constructor. */
-  final EnumState stateId;
+  //final EnumState stateId;
+  
+  final String stateId;
   
   /**Reference to the data of the class where the statemachine is member off. */
-  protected Environment env;
+  //protected Environment env;
   
   int ctEntry;
   long dateLastEntry;
   long durationLast;
 
   
-  protected StateBase(EnclosingState superState, EnumState stateId) {
-    this(superState, stateId, superState.env);
-  }
-  
-  protected StateBase(EnclosingState superState, EnumState stateId, Environment env) {
+  protected StateSimpleBase(EnclosingState superState, String stateId) {
     this.enclState = superState;
-    this.env = env;
+    //this.env = env;
     this.stateId = stateId;
+    //this.stateId = stateId;
   }
   
+  
+  
+  /*package private*/ final boolean enclHasThisState(){ return enclState == null || enclState.isInState(this); }
+
   
   /**This method sets the correct state ident in the enclosing combination state. It should be overridden 
    * if a entry action is necessary in any state. The overridden form should call this method in form super.entry(isConsumed).
    * @param isConsumed Information about the usage of an event in a transition, given as input and expected as output.
    * @return The parameter isConsumed may be completed with the bit {@link #runToComplete} if this state's {@link #trans(Event)}-
    *   method has non-event but conditional state transitions. Setting of this bit {@link #runToComplete} causes
-   *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateComboBase#process(Event)} method.
+   *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#process(Event)} method.
    */
   public int entry(int isConsumed){
-    if( enclState.enclState !=null //a superstate of its combo state is given
-       && enclState.enclState.stateNr() != enclState.stateId){ //and the superstate of combo has not the correct number
+    if( !enclState.enclHasThisState()) {  
+        //&& enclState.enclState.stateNr() != enclState.stateId){ //and the superstate of combo has not the correct number
       enclState.entry(isConsumed);  //executes the entry of the enclosing state.
     }
-    enclState.setStateNr(stateId);
+    enclState.setState(this);
     ctEntry +=1;
     dateLastEntry = System.currentTimeMillis();
     durationLast = 0;
-    return isConsumed;
+    return isConsumed | runToComplete;
   }
+  
+  public int process(Event ev){ return trans(ev); }
 
   public abstract int trans(Event ev);
   
+  /**Exit the state; this method may be overridden with exit actions, and invoking super.exit(); after them.
+   * @return The enclosing state, which can used for entry immediately.
+   */
   public EnclosingState exit(){ 
     durationLast = System.currentTimeMillis() - dateLastEntry;
     return enclState; 
   }
   
-  
+  @Override public final String toString(){ return stateId.toString(); }
+
+
+
+
+
 }

@@ -5,14 +5,11 @@ import org.vishia.util.EventConsumer;
 import org.vishia.util.EventSource;
 import org.vishia.util.EventThread;
 import org.vishia.util.EventTimerMng;
-import org.vishia.util.StateBase;
+import org.vishia.util.StateSimpleBase;
 import org.vishia.util.StateTopBase;
 
 public class EventFollow  {
   
-  enum EState{
-    Null, Start, StateA, StateB, StateC, StateD, Statee
-  }
   
 
   enum ENull{}
@@ -27,7 +24,7 @@ public class EventFollow  {
   
   EventConsumer evDst = new EventConsumer("TestEventFollow"){
 
-    @Override public boolean processEvent(Event ev) {
+    @Override protected boolean processEvent_(Event ev) {
       state.trans(ev);
       return true;
     }
@@ -45,11 +42,15 @@ public class EventFollow  {
     state.entry(0);
   }
   
-  private static class MainState extends StateTopBase<EState, EventFollow>{
+  private class MainState extends StateTopBase<MainState>{
   
-    protected MainState(EventFollow env) { super(EState.Null, env); }
+    protected MainState() { super("StateM"); }
 
 
+    @Override public int entryDefault(){
+      return start.entry(notConsumed);
+    }
+  
     @Override public int entry(int consumed){
       //setState(EState.Null);
       start.entry(consumed);
@@ -57,10 +58,11 @@ public class EventFollow  {
     }
     
   
+    /*
     @Override protected int switchState(Event ev){
-      int cont = StateBase.consumed + StateBase.complete;
+      int cont = StateSimpleBase.consumed + StateSimpleBase.complete;
       switch(stateNr()){
-        case Null:          cont = start.entry(StateBase.runToComplete); break;
+        case Null:          cont = start.entry(StateSimpleBase.runToComplete); break;
         case Start:         cont = start.trans(ev); break;
         case StateA:        cont = stateA.trans(ev); break;
         case StateB:        cont = stateB.trans(ev); break;
@@ -68,52 +70,52 @@ public class EventFollow  {
         } 
       return cont;
     }
-
+    */
     
-    private final static class Start extends StateBase<MainState, EState, EventFollow> {
+    private final class Start extends StateSimpleBase<MainState> {
       
-      protected Start(MainState superState) { super(superState, EState.Start); }
+      protected Start(MainState superState) { super(superState, "Start"); }
 
 
       //protected Start(EventFollow enclosingState) { super(enclosingState); }
   
       @Override public int entry(int consumed){
         super.entry(consumed);
-        EventTimerMng.addTimeOrder(System.currentTimeMillis() + 1000, env.evDst, env.evThread);
+        EventTimerMng.addTimeOrder(System.currentTimeMillis() + 1000, evDst, evThread);
         return consumed;
       }
       
       
       @Override public int trans(Event ev){
         if(ev instanceof EventTimerMng.TimeEvent){
-          EvX ev1 = new EvX(env.evSrc, env.evDst, env.evThread);
-          env.cond1 = true;
-          env.cond2 = true;
+          EvX ev1 = new EvX(evSrc, evDst, evThread);
+          cond1 = true;
+          cond2 = true;
           ev1.sendEvent(EvX.Cmd.EvX);
-          return enclState.stateA.entry(StateBase.consumed);
+          return exit().stateA.entry(StateSimpleBase.consumed);
         } else {
-          return StateBase.complete;
+          return StateSimpleBase.complete;
         }
       }
     }
     
     Start start = new Start(this);
 
-    private final static class StateA extends StateBase<MainState, EState, EventFollow> {
+    private final class StateA extends StateSimpleBase<MainState> {
       
-      protected StateA(MainState superState) { super(superState, EState.StateA); }
+      protected StateA(MainState superState) { super(superState, "StateA"); }
 
       //protected StateA(EventFollow enclosingState) { super(enclosingState); }
   
       @Override public int entry(int consumed){
         super.entry(consumed);
-        return consumed | StateBase.runToComplete;   //true because this state has condition transitions.
+        return consumed | StateSimpleBase.runToComplete;   //true because this state has condition transitions.
       }
       
       
       @Override public int trans(Event ev){
-        if(env.cond1){
-          return enclState.stateB.entry(StateBase.notConsumed);
+        if(cond1){
+          return exit().stateB.entry(StateSimpleBase.notConsumed);
         } else {
           return 0;
         }
@@ -122,9 +124,9 @@ public class EventFollow  {
     
     StateA stateA = new StateA(this);
 
-    private final static class StateB extends StateBase<MainState, EState, EventFollow> {
+    private final class StateB extends StateSimpleBase<MainState> {
       
-      protected StateB(MainState superState) { super(superState, EState.StateB); }
+      protected StateB(MainState superState) { super(superState, "StateB"); }
       
       //protected StateB(EventFollow enclosingState) { super(enclosingState); }
   
@@ -132,9 +134,9 @@ public class EventFollow  {
       
       @Override public int trans(Event ev){
         if(ev instanceof EvX && ev.getCmd() == EvX.Cmd.EvX){
-          return enclState.stateC.entry(StateBase.consumed);
+          return exit().stateC.entry(StateSimpleBase.consumed);
         } else {
-          return StateBase.complete;
+          return StateSimpleBase.complete;
         }
       }
     }
@@ -142,9 +144,9 @@ public class EventFollow  {
     StateB stateB = new StateB(this);
 
   
-    private final static class StateC extends StateBase<MainState, EState, EventFollow> {
+    private final class StateC extends StateSimpleBase<MainState> {
       
-      protected StateC(MainState superState) { super(superState, EState.StateC); }
+      protected StateC(MainState superState) { super(superState, "StateC"); }
 
       //protected StateC(EventFollow enclosingState) { super(enclosingState); }
   
@@ -152,9 +154,9 @@ public class EventFollow  {
       
       @Override public int trans(Event ev){
         if(ev instanceof EvX && ev.getCmd() == EvX.Cmd.EvX){
-          return enclState.stateD.entry(StateBase.consumed);
+          return exit().stateD.entry(StateSimpleBase.consumed);
         } else {
-          return StateBase.notConsumed;
+          return StateSimpleBase.notConsumed;
         }
       }
     }
@@ -164,15 +166,15 @@ public class EventFollow  {
   
     
     
-    private static class StateD extends StateBase<MainState, EState, EventFollow> {
+    private class StateD extends StateSimpleBase<MainState> {
       
-      protected StateD(MainState superState) { super(superState, EState.StateD); }
+      protected StateD(MainState superState) { super(superState, "StateD"); }
 
       //protected StateD(EventFollow enclosingState) { super(enclosingState); }
       
     
       @Override public int trans(Event ev) {
-        return StateBase.complete;
+        return StateSimpleBase.complete;
       }
     }
 
@@ -181,7 +183,7 @@ public class EventFollow  {
     
   }
   
-  private final MainState state = new MainState(this);
+  private final MainState state = new MainState();
   
   
 }

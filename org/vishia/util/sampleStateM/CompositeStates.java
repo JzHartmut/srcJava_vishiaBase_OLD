@@ -3,49 +3,25 @@ package org.vishia.util.sampleStateM;
 import org.vishia.util.Event;
 import org.vishia.util.EventConsumer;
 import org.vishia.util.EventThread;
-import org.vishia.util.StateBase;
-import org.vishia.util.StateComboBase;
+import org.vishia.util.StateCompositeBase;
+import org.vishia.util.StateParallelBase;
+import org.vishia.util.StateSimpleBase;
 import org.vishia.util.StateTopBase;
 
 public class CompositeStates  extends EventConsumer {
 
 
-  /**enum for state definitions. */
-  enum EMainState {Null, Idle, Work };
-
-  enum EWork {Null, A, B, C };
-
-  enum EState_B{Null, B1, B2, B3};
   
-  enum EState_C1{Null, C1a, C1b};
-  
-  enum EState_C2{Null, C2a, C2b};
-  
-  /**class type definition of generic type of StateComboBase for StateTop. */
-  private abstract static class StateTop_ComboState extends StateTopBase<EMainState, CompositeStates>{
-    protected StateTop_ComboState(EMainState id, CompositeStates env) {
-      super(EMainState.Null, env);
-    }
-  }
-  
-  ///
-  /**class type definition of generic type of StateBase for StateTop. */
-  private abstract static class StateTop_State extends StateBase<StateTop, EMainState, CompositeStates>{
-    protected StateTop_State(StateTop superState, EMainState stateId) {
-      super(superState, stateId);
-    }
-  }
-
-  
-  private static class Idle extends StateTop_State{
+  private class Idle extends StateSimpleBase<StateTop>{
     
     
-    Idle(StateTop superState) { super(superState, EMainState.Idle); }
+    Idle(StateTop superState) { super(superState, "Idle"); }
 
     @Override public int trans(Event ev) {
       if(ev instanceof EvX && ((EvX)ev).getCmd() == EvX.Cmd.EvX){
-        int cont = enclState.Work.C.C1.C1a.entry(consumed);
-        cont |= enclState.Work.C.C1.C1a.entry(consumed);
+        StateTop enclState1 = exit();
+        int cont = enclState1.Work.C.C1.C1b.entry(consumed);
+        cont |= enclState1.Work.C.C2.C2a.entry(consumed);
         return cont;
       }
       else return notConsumed;
@@ -53,26 +29,31 @@ public class CompositeStates  extends EventConsumer {
   }
       
 
-  private static class A extends StateBase<Work, EWork, CompositeStates>{
+  private class A extends StateSimpleBase<Work>{
     
     
-    A(Work superState) { super(superState, EWork.A); }
+    A(Work superState) { super(superState, "A"); }
 
     //A(MainState enclosingState){ super(enclosingState); }
   
     @Override public int trans(Event ev) {
-      return StateBase.complete;
+      return StateSimpleBase.complete;
     }
   }
 
-  private static class B extends StateComboBase<Work, EWork, EState_B, CompositeStates>{
+  private static class B extends StateCompositeBase<B, Work>{
     
-    B(Work superState){ super(superState, EWork.B, EState_B.Null); }
+    B(Work superState){ super(superState, "B"); }
     
     @Override public int trans(Event ev){
       return notConsumed;
     }
+    
+    @Override public int entryDefault(){
+      return B1.entry(notConsumed);
+    }
   
+    /*
     @Override protected int switchState(Event ev) {
       int complete = 0;
       switch(stateNr()){
@@ -82,34 +63,35 @@ public class CompositeStates  extends EventConsumer {
       }
       return complete;
     }
+    */
 
-    private static class B1 extends StateBase<B, EState_B, CompositeStates>{
+    private static class B1 extends StateSimpleBase<B>{
       
-      B1(B superState) { super(superState, EState_B.B1); }
+      B1(B superState) { super(superState, "B1"); }
       
       @Override public int trans(Event ev) {
-        return StateBase.complete;
+        return StateSimpleBase.complete;
       }
     }
     B1 B1 = new B1(this);
     
-    private static class B2 extends StateBase<B, EState_B, CompositeStates>{
+    private static class B2 extends StateSimpleBase<B>{
       
-      B2(B superState) { super(superState, EState_B.B2); }
+      B2(B superState) { super(superState, "B2"); }
       
       @Override public int trans(Event ev) {
-        return StateBase.complete;
+        return StateSimpleBase.complete;
       }
     }
     B2 B2 = new B2(this);
     
     
-    private static class B3 extends StateBase<B, EState_B, CompositeStates>{
+    private static class B3 extends StateSimpleBase<B>{
       
-      B3(B superState) { super(superState, EState_B.B3); }
+      B3(B superState) { super(superState, "B3"); }
       
       @Override public int trans(Event ev) {
-        return StateBase.complete;
+        return StateSimpleBase.complete;
       }
     }
     B3 B3 = new B3(this);
@@ -117,23 +99,162 @@ public class CompositeStates  extends EventConsumer {
 
   
   }
+
   
-  private static class C extends StateComboBase<Work, EWork, EWork, CompositeStates> { //StateCombo<Work, EState_C1>{
+  private class C1a extends StateSimpleBase<C1>{
     
-    C(Work superState){ super(superState, EWork.C, EWork.Null); }
+    C1a(C1 superState){ super(superState, "C1a"); }
+
+  
+    @Override public int trans(Event ev) {
+      return notConsumed;
+    }
+  }
+          
+  private class C1b extends StateSimpleBase<C1>{
     
+    C1b(C1 superState){ super(superState, "C1b"); }
+
+  
+    @Override public int trans(Event ev) {
+      if(ev instanceof EvX && ((EvX)ev).getCmd() == EvX.Cmd.EvZ){
+        return exit().C1d.entry(consumed);
+      }
+      return StateSimpleBase.notConsumed;
+    }
+  }
+
+  
+  private class C1c extends StateSimpleBase<C1>{
     
+    C1c(C1 superState){ super(superState, "C1c"); }
+
+  
+    @Override public int trans(Event ev) {
+      return StateSimpleBase.notConsumed;
+    }
+  }
+
+  
+  private class C1d extends StateSimpleBase<C1>{
+    
+    C1d(C1 superState){ super(superState, "C1d"); }
+
+  
+    @Override public int trans(Event ev) {
+      return StateSimpleBase.notConsumed;
+    }
+  }
+
+  
+  private class C1 extends StateCompositeBase<C1, C> { //StateComboBase<C, EWork, EState_C1, CompositeStates> {
+
+    C1(C superState){ super(superState, "C1"); } // super(superState, EWork.C, EState_C1.Null); }
+    
+    @Override public int entryDefault(){
+      return C1a.entry(notConsumed);
+    }
+  
     @Override public int entry(int consumed) {
       super.entry(consumed);
-      C1.setStateNr(EState_C1.Null);
-      C2.setStateNr(EState_C2.Null);
+      return consumed;
+    }
+  
+    @Override public int trans(Event ev){
+      return notConsumed;
+    }
+    C1a C1a = new C1a(this);
+    C1b C1b = new C1b(this);
+    C1c C1c = new C1c(this);
+    C1d C1d = new C1d(this);
+            
+  }
+
+
+  
+  private static class C2a extends StateSimpleBase<C2>{
+    
+    C2a(C2 superState){ super(superState, "C2a"); }
+
+  
+    @Override public int trans(Event ev) {
+      if(ev instanceof EvX && ((EvX)ev).getCmd() == EvX.Cmd.EvX){
+        return exit().C2b.entry(consumed);
+      }
+      //
+      return 0;
+    }
+  }
+
+  
+  
+  private static class C2b extends StateSimpleBase<C2>{
+    
+    C2b(C2 superState){ super(superState, "C2b"); }
+
+  
+    @Override public int trans(Event ev) {
+      return StateSimpleBase.complete;
+    }
+  }
+
+
+  private class C2 extends StateCompositeBase<C2, C> {
+
+    C2(C superState){ super(superState, "C2"); }
+    
+    @Override public int entryDefault(){
+      return C2a.entry(notConsumed);
+    }
+  
+    @Override public int entry(int consumed) {
+      super.entry(consumed);
+      return consumed;
+    }
+  
+    @Override public int trans(Event ev){
+      return notConsumed;
+    }
+    
+    
+    C2a C2a = new C2a(this);
+    C2b C2b = new C2b(this);
+    
+  }
+  
+            
+    
+    
+  private class C extends StateParallelBase<C, Work> { //StateCombo<Work, EState_C1>{
+    
+    //final Work derivedEnclState;
+    
+    
+    
+    C2 C2 = new C2(this);
+    C1 C1 = new C1(this);
+
+    C(Work enclState){ 
+      super(enclState, "C"); 
+      //derivedEnclState = enclState;
+      addState(C1);
+      addState(C2);
+    }
+    
+    
+
+  
+    @Override public int entry(int consumed) {
+      super.entry(consumed);
+      C1.setState(null); // , EState_C1.Null);
+      C2.setState(null); //, EState_C2.Null);
       //C1.C1a.entry(consumed);
       //C2.C2a.entry(consumed);
       
       return consumed;
     }
   
-    public int entry(int consumed, StateBase c1, StateBase c2) {
+    public int entry(int consumed, StateSimpleBase c1, StateSimpleBase c2) {
       super.entry(consumed);
       //setState(EWork.C);
       //C1.entry(consumed);
@@ -147,131 +268,40 @@ public class CompositeStates  extends EventConsumer {
      * Because this state has 2 parallel combined states intern it calls the {@link #trans(Event)}
      * of both parallel states with the given event.
      * If 
-     * @see org.vishia.util.StateBase#trans(org.vishia.util.Event)
+     * @see org.vishia.util.StateSimpleBase#trans(org.vishia.util.Event)
      */
     @Override public int trans(Event ev) {
       
-      C1.trans(ev);
-      C2.trans(ev);
-      if(ev instanceof EvX && C1.stateNr() == EState_C1.C1b  && C2.stateNr() == EState_C2.C2b){
-        exit();
-        enclState.B.entry(consumed);
-        enclState.B.B3.entry(consumed);
+      if(C1.isInState(C1.C1d) && C2.isInState(C2.C2a)) {
+        Work enclState1 = exit();
+        enclState1.entry(consumed);
+        enclState1.B.B3.entry(consumed);
       }
-      return StateBase.complete;
-      
-    }
-    
-    
-    @Override protected int switchState(Event ev) {
-      return StateBase.complete;
-    }
-
-    
-    private abstract static class C_States extends StateComboBase<C, EWork, EState_C1, CompositeStates> {
-      C_States(C superState){ super(superState, EWork.C, EState_C1.Null); }
+      return StateSimpleBase.complete;
       
     }
 
+
+
     
-    
-    
-    private static class C1 extends C_States { //StateComboBase<C, EWork, EState_C1, CompositeStates> {
-
-      C1(C superState){ super(superState); } // super(superState, EWork.C, EState_C1.Null); }
-      
-      @Override public int entry(int consumed) {
-        super.entry(consumed);
-        return consumed;
-      }
-    
-      @Override public int trans(Event ev){
-        return notConsumed;
-      }
-      @Override protected int switchState(Event ev) {
-        return StateBase.complete;
-      }
-      private class C1a extends StateBase<C1, EState_C1, CompositeStates>{
-        
-        C1a(C1 superState){ super(superState, EState_C1.C1a); }
-
-      
-        @Override public int trans(Event ev) {
-          return StateBase.complete;
-        }
-      }
-      C1a C1a = new C1a(this);
-              
-      private static class C1b extends StateBase<C1, EState_C1, CompositeStates>{
-        
-        C1b(C1 superState){ super(superState, EState_C1.C1b); }
-
-      
-        @Override public int trans(Event ev) {
-          return StateBase.complete;
-        }
-      }
-      C1b C1b = new C1b(this);
-              
-    }
-
-    private static class C2 extends StateComboBase<C, EWork, EState_C2, CompositeStates> {
-
-      C2(C superState){ super(superState, EWork.C, EState_C2.Null); }
-      
-      @Override public int entry(int consumed) {
-        super.entry(consumed);
-        return consumed;
-      }
-    
-      @Override public int trans(Event ev){
-        return notConsumed;
-      }
-      @Override protected int switchState(Event ev) {
-        return StateBase.complete;
-      }
-      
-      
-      private static class C2a extends StateBase<C2, EState_C2, CompositeStates>{
-        
-        C2a(C2 superState){ super(superState, EState_C2.C2a); }
-
-      
-        @Override public int trans(Event ev) {
-          return StateBase.complete;
-        }
-      }
-      C2a C2a = new C2a(this);
-              
-      
-      
-      private static class C2b extends StateBase<C2, EState_C2, CompositeStates>{
-        
-        C2b(C2 superState){ super(superState, EState_C2.C2b); }
-
-      
-        @Override public int trans(Event ev) {
-          return StateBase.complete;
-        }
-      }
-      C2b C2b = new C2b(this);
-              
-    }
-    C2 C2 = new C2(this);
-    C1 C1 = new C1(this);
             
   }
 
-  private static class Work extends StateComboBase<StateTop, EMainState, EWork, CompositeStates>{
+  private class Work extends StateCompositeBase<Work, StateTop>{
 
     protected Work(StateTop superState) {
-      super(superState, EMainState.Work, EWork.Null);
+      super(superState, "Work");
     }
 
+    @Override public int entryDefault(){
+      return B.entry(notConsumed);
+    }
+  
     @Override public int trans(Event ev){
       return notConsumed;
     }
 
+    /*
     @Override public int switchState(Event ev) {
       switch(stateNr()){
         case A: break;
@@ -279,7 +309,7 @@ public class CompositeStates  extends EventConsumer {
       // TODO Auto-generated method stub
       return 0;
     }
-
+    */
     
     C C = new C(this);
           
@@ -292,17 +322,26 @@ public class CompositeStates  extends EventConsumer {
   }
 
   
-  private static class StateTop extends StateTop_ComboState{
+  private class StateTop extends StateTopBase<StateTop>{
 
-    protected StateTop(CompositeStates env) {
-      super(EMainState.Null, env);
+    protected StateTop() {
+      super("StateTop");
     }
 
+    @Override public int entryDefault(){
+      return Idle.entry(notConsumed);
+    }
+  
     @Override public int entry(int consumed){
       Work.entry(0);
       return consumed;
     }
 
+    @Override public int process(Event evP){
+      return super.process(evP);
+    }
+    
+    /*
     @Override public int switchState(Event ev) {
       int cont = 0;
       switch(stateNr()){
@@ -312,7 +351,7 @@ public class CompositeStates  extends EventConsumer {
       }
       return cont;
     }
-
+    */
     ///
 
     
@@ -321,7 +360,7 @@ public class CompositeStates  extends EventConsumer {
   }
   
   
-  StateTop state = new StateTop(this);
+  StateTop state = new StateTop();
   
     
 
@@ -343,7 +382,7 @@ public class CompositeStates  extends EventConsumer {
   
 
   
-  @Override public boolean processEvent(Event ev) {
+  @Override protected boolean processEvent_(Event ev) {
     state.process(ev);
     return true;
   }

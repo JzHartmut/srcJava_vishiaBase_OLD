@@ -24,15 +24,25 @@ public class MainSampleStateMachine
   
   
   void exec(){
-    while(true){
-      synchronized (this) {
-        try{ 
-          wait(1000);
-        }catch(InterruptedException exc){}
-        
-      }
-      EvX ev = new EvX(eventSource, compositeStates, eventThread);
-      ev.sendEvent(EvX.Cmd.EvX);
+    EvX ev = new EvX(eventSource, compositeStates, eventThread);
+    ev.sendEvent(EvX.Cmd.EvX);
+    wait100();
+    ev = new EvX(eventSource, compositeStates, eventThread);
+    ev.sendEvent(EvX.Cmd.EvZ);
+    wait100();
+    ev = new EvX(eventSource, compositeStates, eventThread);
+    ev.sendEvent(EvX.Cmd.EvX);
+    wait100();
+    
+  }
+
+  
+  private void wait100(){
+    synchronized (this) {
+      try{ 
+        wait(100);
+      }catch(InterruptedException exc){}
+      
     }
     
   }

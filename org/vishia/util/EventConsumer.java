@@ -7,7 +7,7 @@ package org.vishia.util;
  * @author Hartmut Schorrig
  *
  */
-public abstract class EventConsumer
+public class EventConsumer
 {
   /**Version, history and license
    * <ul>
@@ -54,7 +54,14 @@ public abstract class EventConsumer
    *   It is possible to build a chain of responsibility. It is possible too to process a event from 
    *   more as one instance. 
    */
-  public abstract boolean processEvent(Event ev);
+  protected boolean processEvent_(Event ev){ return false; }
+  //protected abstract boolean processEvent_(Event ev);
+  
+  public final boolean doprocessEvent(Event ev){
+    ev.donotRelinquish = false;
+    return processEvent_(ev);
+  }
+  
   
   @Override public String toString(){ return name; }
 }

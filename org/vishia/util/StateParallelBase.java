@@ -1,15 +1,25 @@
 package org.vishia.util;
 
-/**Base class for a state machine, for the main state.
+import java.util.LinkedList;
+import java.util.List;
+
+
+
+
+/**Base class for parallel states.
  * @author Hartmut Schorrig
  *
  * @param <DerivedState> The class type of the state which is derived from this class. 
  *   This parameter is used to designate the {@link #stateAct} and all parameters which works with {@link #stateAct}
  *   for example {@link #isInState(StateSimpleBase)}. It helps to prevent confusions with other state instances else
  *   the own one. A mistake is detected to compile time already.
+ * @param <EnclosingState> The class type which is the derived type of the enclosing state where this state is member of.
  */
-public abstract class StateTopBase <DerivedState extends StateCompositeBase<DerivedState,?>> 
-extends StateCompositeBase<DerivedState,DerivedState>
+public abstract class StateParallelBase 
+< DerivedState extends StateParallelBase<DerivedState, EnclosingState>
+, EnclosingState extends StateCompositeBase<EnclosingState,?>
+>
+extends StateCompositeBase<DerivedState, EnclosingState>
 {
 
   /**Version, history and license
@@ -44,14 +54,54 @@ extends StateCompositeBase<DerivedState,DerivedState>
    */
   public static final int version = 20120917;
 
+  List<StateCompositeBase<?, DerivedState>> states = new LinkedList<StateCompositeBase<?, DerivedState>>();
+  
+  protected StateParallelBase(EnclosingState enclState, String stateId) {
+    super(enclState, stateId);
+  }
 
-  protected StateTopBase(String stateId) {
-    super(null, stateId);
+  
+  final public void addState(StateCompositeBase<?, DerivedState> state){
+    states.add(state);
+  }
+  
+  
+  @Override public int entryDefault() {
+    for(StateCompositeBase<?, DerivedState> state: states){
+      state.entryDefault();
+    }
+    return 0;
+  }
+  
+
+
+  
+  
+  @Override public int process(Event ev){
+    int cont = 0;
+    for(StateCompositeBase<?, DerivedState> state: states){
+      cont |= state.process(ev);
+    }
+    if((cont & StateSimpleBase.consumed) != 0){
+      ev = null;
+    }
+    trans(ev);  //the own trans
+    return cont;
+  }
+  
+ 
+ 
+  /**Exits first the actual sub state (and tha exits its actual sub state), after them this state is exited.
+   * @see org.vishia.util.StateSimpleBase#exit()
+   */
+  @Override public EnclosingState exit(){ 
+    for(StateCompositeBase<?, DerivedState> state: states){
+      state.exit();
+    }
+    return super.exit();
   }
 
 
-  @Override final public int trans(Event ev){ return 0; }
-
-
+  
   
 }

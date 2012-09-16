@@ -1,8 +1,8 @@
 package org.vishia.util.sampleStateM;
 
 import org.vishia.util.Event;
-import org.vishia.util.StateBase;
-import org.vishia.util.StateComboBase;
+import org.vishia.util.StateCompositeBase;
+import org.vishia.util.StateSimpleBase;
 import org.vishia.util.StateTopBase;
 
 public class StateTemplate {
@@ -14,16 +14,18 @@ public class StateTemplate {
   
   
   
-  private static class StateTop extends StateTopBase<EStateTop, StateTemplate>{
+  private class StateTop extends StateTopBase<StateTop>{
 
-    protected StateTop(StateTemplate env) {
-      super(EStateTop.Null, env);
+    protected StateTop() {
+      super("StateM");
     }
 
-    @Override public int entry(int isConsumed){
-      return env.stReady.entry(isConsumed);
+    @Override public int entryDefault(){
+      return stReady.entry(notConsumed);
     }
+  
 
+    /*
     @Override public int switchState(Event ev) {
       int cont = notConsumed + complete;
       switch(stateNr()){
@@ -35,40 +37,47 @@ public class StateTemplate {
       // TODO Auto-generated method stub
       return cont;
     }
+    */
   }
-  StateTop stTop = new StateTop(this);
+  StateTop stTop = new StateTop();
 
   
-  private class StateReady extends StateBase<StateTop, EStateTop, StateTemplate>{
+  private class StateReady extends StateSimpleBase<StateTop>{
     
     
-    StateReady(StateTop superState) { super(superState, EStateTop.Null); }
+    StateReady(StateTop superState) { super(superState, "Ready"); }
 
     //A(MainState enclosingState){ super(enclosingState); }
   
     @Override public int trans(Event ev) {
-      return StateBase.notConsumed;
+      return StateSimpleBase.notConsumed;
     }
   }
   StateReady stReady = new StateReady(stTop);
 
   
-  private static class StateProcess extends StateComboBase<StateTop, EStateTop, EStateProcess, StateTemplate>{
+  private class StateProcess extends StateCompositeBase<StateProcess, StateTop>{
 
-    protected StateProcess(StateTop superState) { super(superState, EStateTop.Process, EStateProcess.Null); }
+    protected StateProcess(StateTop superState) { super(superState, "Process"); }
 
+    @Override public int entryDefault(){
+      return runToComplete; //B1.entry(notConsumed);
+    }
+  
     @Override public int trans(Event ev){
-      return StateBase.notConsumed;
+      return StateSimpleBase.notConsumed;
     }
 
+    /*
     @Override public int switchState(Event ev) {
-      int cont = StateBase.consumed + StateBase.complete;
+      int cont = StateSimpleBase.consumed + StateSimpleBase.complete;
       switch(stateNr()){
         //case Idle: cont = stIdle.trans(ev); break;
       }
       // TODO Auto-generated method stub
       return cont;
     }
+    */
   }
   StateProcess stProcess = new StateProcess(stTop);
 

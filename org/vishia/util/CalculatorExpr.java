@@ -60,6 +60,48 @@ public class CalculatorExpr
   
   private String[] variables;
   
+  
+  /**Separates a name and the parameter list from a given String.
+   * @param expr An expression in form " name (params)"
+   * @return A String[2].
+   *   The ret[0] is the expr without leading and trailing spaces if the expr does not contain a "("
+   *   The ret[0] is "" if the expr contains only white spaces before "(" or it starts with "("
+   *   The ret[0] contains the string part before "(" without leading and trailing spaces.
+   *   The ret[1] contains the part between "(...)" without "()".
+   *   The ret[1] is null if no "(" is found in expr..
+   *   If the trailing ")" is missing, it is accepting.
+   */
+  public static String[] splitFnNameAndParams(String expr){
+    String[] ret = new String[2];
+    int posSep = expr.indexOf('(');
+    if(posSep >=0){
+      ret[0] = expr.substring(0, posSep).trim();
+      int posEnd = expr.lastIndexOf(')');
+      if(posEnd < 0){ posEnd = expr.length(); }
+      ret[1] = expr.substring(posSep+1, posEnd);
+    } else {
+      ret[0] = expr.trim();
+      ret[1] = null;
+    }
+    return ret;
+  }
+  
+
+  
+  /**Separates String parameters from a list.
+   * Implementation yet: only split
+   * Planned: detects name(param, param) inside a parameter.
+   * @param expr Any expression with Strings separated with colon
+   * @return The split expression, all arguments are trimmed (without leading and trailing spaces).
+   */
+  public static String[] splitFnParams(String expr){
+    String[] split = expr.split(",");
+    for(int ii=0; ii<split.length; ++ii){
+      split[ii] = split[ii].trim();
+    }
+    return split;
+  }
+  
   /**Converts the given expression in a stack operable form.
    * @param sExpr
    */

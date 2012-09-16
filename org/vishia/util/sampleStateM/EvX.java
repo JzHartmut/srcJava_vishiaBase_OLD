@@ -8,7 +8,7 @@ import org.vishia.util.EventThread;
 public class EvX extends Event{
   
   
-  enum Cmd{EvX, EvY};
+  enum Cmd{EvX, EvY, EvZ};
   
   EvX(EventSource src, EventConsumer dst, EventThread thread){
     super(src,null, dst, thread);

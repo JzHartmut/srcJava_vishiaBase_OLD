@@ -618,6 +618,8 @@ public class Event
    */
   public char stateOfEvent;
   
+  /**package private*/ boolean donotRelinquish;
+  
   boolean bAwaitReserve;
   
   /**Any number to identify. It is dst-specific. */
@@ -715,12 +717,20 @@ public class Event
   
   public Enum<?> getCmd(){ return cmde.get(); }
   
-
+  /**Prevent that the event is relinquished after processing.
+   * This method should be called in the processing routine of an event.
+   */
+  public void donotRelinquish(){ donotRelinquish = true;}
   
   public Event getOpponent(){ return opponent; }
   
   
-  public EventConsumer evDst() { return evDst; }
+  /**This method should only be called if the event should be processed.
+   * The {@link #donotRelinquish()} will be set to false, so that the event will be relinquished
+   * except {@link #donotRelinquish()} is called while processing the event. 
+   * @return The event consumer to call {@link EventConsumer#doprocessEvent(Event)}.
+   */
+  public EventConsumer evDst() { donotRelinquish = false; return evDst; }
   
   
   /**Returns the time stamp of creation or occupying the event.
@@ -910,6 +920,7 @@ public class Event
    *  
    */
   public void relinquish(){
+    if(donotRelinquish) return;
     if(source !=null){
       source.notifyRelinquished(ctConsumed);
     }
@@ -992,7 +1003,8 @@ public class Event
       evDstThread.storeEvent(this);
     } else {
       try{
-        evDst.processEvent(this);
+        donotRelinquish = false;
+        evDst.doprocessEvent(this);
       } catch(Exception exc) {
         System.err.println("Exception while processing an event: " + exc.getMessage());
         exc.printStackTrace(System.err);
