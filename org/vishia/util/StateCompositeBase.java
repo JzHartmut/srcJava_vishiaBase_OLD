@@ -58,10 +58,53 @@ public abstract class StateCompositeBase
   }
   
   
+  /**Check whether this composite state has the given state as direct actual sub state
+   * @param state Only states of the own composite are advisable. It is checked in compile time
+   *   with the strong type check with the generic type of state. 
+   * @return true if it is in state.
+   */
   public final boolean isInState(StateSimpleBase<? extends DerivedState> state){ return stateAct == state; }
   
   
+  /**This method is used to entry the default state if the actual state is null (first invocation).
+   * The user should override:
+   * <pre>
+    @Override public int entryDefault(){
+      return defaultState.entry(notConsumed);
+    }
+   * </pre>
+   * @return 0
+   */
   public abstract int entryDefault();
+  
+  
+  /**This method sets this state in the enclosing composite state and sets the own {@link #stateAct} to null 
+   * to force entry of the default state if {@link #process(Event)} is running firstly after them.
+   * If this method will be called recursively in an {@link #entry(int)} of an inner state,
+   * that entry sets the {@link #stateAct} in {@link #setState(StateSimpleBase)} after them so it is not null.
+   * <br><br> 
+   * This method should be overridden if a entry action is necessary in any state. 
+   * The overridden form should call this method in form super.entry(isConsumed):
+   * <pre>
+  @Override public int entry(isConsumed){
+    super.entry(0);
+    //statements of entry action.
+    return isConsumed | runToComplete;  //if the trans action should be entered immediately after the entry.
+    return isConsumed | complete;       //if the trans action should not be tested.
+  }
+   * </pre>  
+   * 
+   * @param isConsumed Information about the usage of an event in a transition, given as input and returned as output.
+   * @return The parameter isConsumed may be completed with the bit {@link #runToComplete} if this state's {@link #trans(Event)}-
+   *   method has non-event but conditional state transitions. Setting of this bit {@link #runToComplete} causes
+   *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#process(Event)} method.
+   *   This method sets {@link #runToComplete}.
+   */
+  @Override public int entry(int isProcessed){
+    super.entry(isProcessed);
+    stateAct = null;
+    return isProcessed | runToComplete;
+  }
   
   /**Processes the event for the states of this composite state.
    * First the event is applied to the own (inner) states invoking the {@link #switchState(Event)} method.
@@ -103,33 +146,30 @@ public abstract class StateCompositeBase
     return cont;  //runToComplete.bit may be set.
   }
 
-  /**Switches to the current state and calls the {@link #process(Event)} or {@link #trans(Event)} method.
-   * This method should be implemented by the user with the pattern:
-   * <pre>
-      @Override public int switchState(Event ev) {
-        int cont;
-        switch(stateNr()){
-          case Null:        cont = stateA.entry(StateSimpleBase.notConsumed + StateSimpleBase.runToComplete); break;
-          case StateA:      cont = stateA.trans(ev); break;
-          case StateB:      cont = stateB.process(ev); break;
-          default:          cont = stateError;
-        }
-        return cont;
-      }
-   * </pre>
-   * @param ev The event
-   * @return The bits {@link StateSimpleBase#consumed} or {@link StateSimpleBase#runToComplete}
-   *   as result of the inside called {@link #trans(Event)} method and the called {@link #entry(int)} method. 
-   *   Or the bit 
-   */
-  //protected abstract int switchState(Event ev);
 
-  public void setState(StateSimpleBase<DerivedState> stateSimple) { //, EnumState stateNr) {
-    //this.stateNr = stateNr;
-    this.stateAct = stateSimple;
+  /**Sets the state of the composite state.
+   * This method should be called
+   * @param state Only states of the own composite are advisable. It is checked in compile time
+   *   with the strong type check with the generic type of state. 
+   * @return true if it is in state.
+   */
+  /*package private*/ void setState(StateSimpleBase<DerivedState> stateSimple) { //, EnumState stateNr) {
+    if( !enclHasThisState()) {  
+      entry(0);  //executes the entry action of this enclosing state.
+    }
+   this.stateAct = stateSimple;
   }
 
-  /**Exits first the actual sub state (and tha exits its actual sub state), after them this state is exited.
+  /**Exits first the actual sub state (and that exits its actual sub state), after them this state is exited.
+  /**This method may be overridden with exit actions:
+   * <pre>
+  @Override public EnclosingStateType exit(){
+    TypeOfEnclosingState enclState = super.exit(); //call firstly! It exits sub states.
+    statementsOfExit();
+    return enclSate;
+  }
+   * </pre> 
+   * @return The enclosing state, which can used for entry immediately.
    * @see org.vishia.util.StateSimpleBase#exit()
    */
   @Override public EnclosingState exit(){ 

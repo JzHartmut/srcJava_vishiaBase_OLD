@@ -5,7 +5,7 @@
  * <li>String-handling: {@link StringFunctions}, {@link StringPart}, {@link StringFormatter} 
  * <li>File-handling: {@link FileSystem}, {@link FileRemote}
  * <li>Sorting: {@link IndexMultiTableInteger}, {@link SortedTree}
- * <li>Event handing: {@link Event}
+ * <li>Event handing and State machines: {@link Event}, {@link org.vishia.util.StateSimpleBase} 
  *  
  * </ul>
  */

@@ -74,6 +74,36 @@ extends StateCompositeBase<DerivedState, EnclosingState>
   }
   
 
+  /**This method sets this state in the enclosing composite state and sets the own {@link #stateAct} to null 
+   * to force entry of the default state if {@link #process(Event)} is running firstly after them.
+   * If this method will be called recursively in an {@link #entry(int)} of an inner state,
+   * that entry sets the {@link #stateAct} in {@link #setState(StateSimpleBase)} after them so it is not null.
+   * <br><br> 
+   * This method should be overridden if a entry action is necessary in any state. 
+   * The overridden form should call this method in form super.entry(isConsumed):
+   * <pre>
+  @Override public int entry(isConsumed){
+    super.entry(0);
+    //statements of entry action.
+    return isConsumed | runToComplete;  //if the trans action should be entered immediately after the entry.
+    return isConsumed | complete;       //if the trans action should not be tested.
+  }
+   * </pre>  
+   * 
+   * @param isConsumed Information about the usage of an event in a transition, given as input and returned as output.
+   * @return The parameter isConsumed may be completed with the bit {@link #runToComplete} if this state's {@link #trans(Event)}-
+   *   method has non-event but conditional state transitions. Setting of this bit {@link #runToComplete} causes
+   *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#process(Event)} method.
+   *   This method sets {@link #runToComplete}.
+   */
+  @Override public int entry(int isProcessed){
+    super.entry(isProcessed);
+    for(StateCompositeBase<?, DerivedState> state: states){
+      state.setState(null);
+    }
+    return isProcessed | runToComplete;
+  }
+
 
   
   

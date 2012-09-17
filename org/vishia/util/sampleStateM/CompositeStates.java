@@ -246,10 +246,6 @@ public class CompositeStates  extends EventConsumer {
   
     @Override public int entry(int consumed) {
       super.entry(consumed);
-      C1.setState(null); // , EState_C1.Null);
-      C2.setState(null); //, EState_C2.Null);
-      //C1.C1a.entry(consumed);
-      //C2.C2a.entry(consumed);
       
       return consumed;
     }

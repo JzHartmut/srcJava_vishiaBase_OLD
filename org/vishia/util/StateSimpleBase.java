@@ -1,7 +1,12 @@
 package org.vishia.util;
 
-/**A State is a small set of data to refer its enclosing state and a set of methods. 
- * @author Hartmut
+/**Base class of a State in a State machine.
+ * The user should override at least the {@link #trans(Event)} method. This method is the transition to another state.
+ * The user can override {@link #entry(int)} and {@link #exit()} if the state has actions on entry and exit. 
+ * But one should call super.entry(); and super.exit(); as first statement!
+ * 
+ * A State is a small set of data to refer its enclosing state and a set of methods. 
+ * @author Hartmut Schorrig
  *
  * @param <EnclosingState> The derived type of the enclosing state which contains this State.
  */
@@ -75,35 +80,54 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   /**Reference to the data of the class where the statemachine is member off. */
   //protected Environment env;
   
-  int ctEntry;
-  long dateLastEntry;
-  long durationLast;
+  /**Debug helper. This counter counts any time on entry this state. Because it is public, the user can read it 
+   * and reset it to 0 for some debug inventions. This variable should never be used for algorithm. */
+  public int ctEntry;
+  
+  
+  /**Debug helper. This timstamp is set for System.currentTimeMilliSec() any time on entry this state. 
+   * Because it is public, the user can read it for some debug inventions. This variable should never be used for algorithm. */
+  public long dateLastEntry;
+
+  /**Debug helper. This time difference is set any time on exit this state. It is the time in milliseconds stayed in this state.
+   * Because it is public, the user can read it for some debug inventions. This variable should never be used for algorithm. */
+  public long durationLast;
 
   
+  /**The super constructor. 
+   * @param superState The enclosing state which contains this state. It is either a {@link StateTopBase} or a {@link StateCompositeBase}.
+   * @param stateId Any String for debugging. The string should never use for algorithm. It should be used maybe for display the state.
+   */
   protected StateSimpleBase(EnclosingState superState, String stateId) {
     this.enclState = superState;
-    //this.env = env;
     this.stateId = stateId;
-    //this.stateId = stateId;
   }
   
   
   
+  /**Check whether the enclosing state is in this state
+   * @return true if it is.
+   */
   /*package private*/ final boolean enclHasThisState(){ return enclState == null || enclState.isInState(this); }
 
   
-  /**This method sets the correct state ident in the enclosing combination state. It should be overridden 
-   * if a entry action is necessary in any state. The overridden form should call this method in form super.entry(isConsumed).
-   * @param isConsumed Information about the usage of an event in a transition, given as input and expected as output.
+  /**This method sets this state in the enclosing composite state. It should be overridden 
+   * if a entry action is necessary in any state. The overridden form should call this method in form super.entry(isConsumed):
+   * <pre>
+  @Override public int entry(isConsumed){
+    super.entry(0);
+    //statements for entry action.
+    return isConsumed | runToComplete;  //if the trans action should be entered immediately after the entry.
+    return isConsumed | complete;       //if the trans action should not be tested.
+   * </pre>  
+   * 
+   * @param isConsumed Information about the usage of an event in a transition, given as input and returned as output.
    * @return The parameter isConsumed may be completed with the bit {@link #runToComplete} if this state's {@link #trans(Event)}-
    *   method has non-event but conditional state transitions. Setting of this bit {@link #runToComplete} causes
    *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#process(Event)} method.
+   *   This method sets {@link #runToComplete}.
    */
   public int entry(int isConsumed){
-    if( !enclState.enclHasThisState()) {  
-        //&& enclState.enclState.stateNr() != enclState.stateId){ //and the superstate of combo has not the correct number
-      enclState.entry(isConsumed);  //executes the entry of the enclosing state.
-    }
     enclState.setState(this);
     ctEntry +=1;
     dateLastEntry = System.currentTimeMillis();
@@ -111,11 +135,46 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
     return isConsumed | runToComplete;
   }
   
+  /**Processes the state. It invokes the {@link #trans(Event)}-method. This method is overridden in the class
+   * {@link StateCompositeBase}.The user should not override this method! 
+   * @param ev Any event
+   * @return see {@link #trans(Event)}.
+   */
   public int process(Event ev){ return trans(ev); }
 
+  
+  /**Checks the trigger and conditions of a state transition. The user should override this method in form (example)
+   * <pre>
+  @Override public int trans(Event ev){
+    TypeOfEnclosingState enclState;
+    if(ev instanceof MyEvent and ((MyEvent)ev).getCmd() == myExpectedCmd){
+      enclState = exit();
+      statementsOfTransition();
+      return enclState.otherState.entry(consumed);
+    } 
+    else if( otherCondition) {
+      return exit().otherState.entry(consumed);
+    }
+    else return notConsumed;
+  }
+   * </pre>
+   * @param ev Any event, maybe null if the user does not need it
+   * @return It should return {@link #consumed} if the event is consumed
+   *   or it should return {@link #notConsumed} especially if no transition is fired.
+   *   That return value is essential for processing events in composite and cascade states.
+   *   If an event is consumed it is not used for another switch in the same state machine
+   *   but it is used in parallel states. See {@link StateCompositeBase#process(Event)} and {@link StateParallelBase#process(Event)}.
+   */
   public abstract int trans(Event ev);
   
-  /**Exit the state; this method may be overridden with exit actions, and invoking super.exit(); after them.
+  /**Exit the state; this method may be overridden with exit actions:
+   * <pre>
+  @Override public EnclosingStateType exit(){
+    TypeOfEnclosingState enclState = super.exit();  //call firstly!
+    statementsOfExit();
+    return enclSate;
+  }
+   * </pre> 
    * @return The enclosing state, which can used for entry immediately.
    */
   public EnclosingState exit(){ 
@@ -123,6 +182,9 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
     return enclState; 
   }
   
+  /**Returns the state Id and maybe some more debug information.
+   * @see java.lang.Object#toString()
+   */
   @Override public final String toString(){ return stateId.toString(); }
 
 
