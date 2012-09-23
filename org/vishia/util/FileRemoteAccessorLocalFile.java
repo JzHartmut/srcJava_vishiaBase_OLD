@@ -1183,6 +1183,9 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
             if(!actData.dst.delete()) {
               System.err.println("FileRemoteAccessorLocalFile - Problem delete after abort; " + actData.dst.getAbsolutePath());
             }
+          } else {
+            long date = actData.src.lastModified();
+            actData.dst.setLastModified(date);
           }
         } catch(IOException exc){
           System.err.println("FileRemoteAccessorLocalFile - Problem close; " + actData.dst.getAbsolutePath());

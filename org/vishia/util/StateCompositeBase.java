@@ -49,6 +49,9 @@ public abstract class StateCompositeBase
 
   protected int maxStateSwitchesInLoop = 1000;
   
+  /**Stores whether this composite state is activ. Note that the #stateAct is set as history state
+   * as well the state is not active. */
+  boolean isActive;
   
   private StateSimpleBase<DerivedState> stateAct;
   
@@ -103,6 +106,7 @@ public abstract class StateCompositeBase
   @Override public int entry(int isProcessed){
     super.entry(isProcessed);
     stateAct = null;
+    isActive = true;
     return isProcessed | runToComplete;
   }
   
@@ -137,8 +141,13 @@ public abstract class StateCompositeBase
       if((cont & StateSimpleBase.consumed) != 0){
         evTrans = null;
       }
+      if(catastrophicalCount == 4)
+        catastrophicalCount = 4;  //set break point! to debug the loop
       
-    } while((cont & runToComplete) !=0 && --catastrophicalCount >=0);
+    } while(isActive   //leave the loop if this composite state is exited.
+        && (cont & runToComplete) !=0    //loop if runToComplete-bit is set, the new state should be checked.
+        && --catastrophicalCount >=0
+        );
     if(catastrophicalCount <0) {
       throw new RuntimeException("unterminated loop in state switches");
     }
@@ -158,6 +167,7 @@ public abstract class StateCompositeBase
       entry(0);  //executes the entry action of this enclosing state.
     }
    this.stateAct = stateSimple;
+   this.isActive = true;
   }
 
   /**Exits first the actual sub state (and that exits its actual sub state), after them this state is exited.
@@ -173,9 +183,10 @@ public abstract class StateCompositeBase
    * @see org.vishia.util.StateSimpleBase#exit()
    */
   @Override public EnclosingState exit(){ 
-    if(stateAct !=null){
+    if(isActive){
       stateAct.exit();
     }
+    isActive = false;
     return super.exit();
   }
 
