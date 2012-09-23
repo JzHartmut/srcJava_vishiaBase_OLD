@@ -17,6 +17,7 @@ public class VariableAccessWithIdx
   
   /**Version, history and license
    * <ul>
+   * <li>2012-09-24 Hartmut new {@link #getLong(int...)}  
    * <li>2012-08-23 Hartmut new {@link #setFloat(float, int...)} Access a variable with an index
    *   if this describes the non-indexed variable. It is only implmented yet for the setFloat. TODO: for all others too.
    * <li>2012-03-31 Hartmut created. Before that, a {@link org.vishia.gral.base.GralWidget}
@@ -127,6 +128,18 @@ public class VariableAccessWithIdx
   public int getInt(){ 
     int value = variable.getInt(ixArray);
     int bValue = (value >> bit) & mask;
+    return bValue;
+  }
+  
+  /**Returns the integer representation of the value of the variable.
+   * Note: If the variable itself is a byte or 16-bit-type, only 1 or 2 bytes are gotten from the variable
+   * respectively the index is regarded to the length of the variable.
+   * Note: The bit and mask will be regarded.
+   * @return The value
+   */
+  public long getLong(){ 
+    long value = variable.getLong(ixArray);
+    long bValue = (value >> bit) & mask;
     return bValue;
   }
   

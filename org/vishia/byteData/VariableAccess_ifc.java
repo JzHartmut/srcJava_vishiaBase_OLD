@@ -74,86 +74,104 @@ public interface VariableAccess_ifc
    */
   public static final int version = 20120425;
 
-	/**Gets a integer value from this variable. The variable contains the information, 
-	 * whether it is long, short etc. If the variable contains a long value greater as the integer range,
-	 * an IllegalArgumentException may be thrown or not, it depends on the implementation.
-	 * If the variable is a float or double it may be convert to the integer format.
-	 * If the variable is a boolean, it is converted to 0 or 1.
-	 * @param ixArray unused if it isn't an indexed variable.
-	 * @return the value.
-	 */
-	int getInt(int ...ixArray);
-	
-	/**Sets the value into the variable. If the variable is of byte or short type and the value is not able
-	 * to present, an IllegalArgumentException may be thrown or not, it depends on the implementation.
-	 * @param value The value given as int.
-	 * @param ixArray unused if it isn't an indexed variable.
-	 * @return The value really set (maybe more imprecise).
-	 */
-	int setInt(int value, int ...ixArray);
-	
-	/**Gets the value from this variable. If the variable is in another format than float, 
-	 * a conversion to be will be done.
-	 * @param ixArray unused if it isn't an indexed variable.
-	 * @return the value.
-	 */
-	float getFloat(int ...ixArray);
-	
-	/**Sets the value from this variable. 
-	 * @param ixArray unused if it isn't an indexed variable.
-	 * @return the value.
-	 */
-	float setFloat(float value, int ...ixArray);
-	
-	
-	/**Gets the value from this variable. If the variable is in another format than double, 
-	 * a conversion to be will be done.
-	 * @param ixArray unused if it isn't an indexed variable.
-	 * @return the value.
-	 */
-	double getDouble(int ...ixArray);
-	
-	/**Sets the value from this variable. If the variable is from float type, and the range (exponent)
-	 * is able to present in float, the value will be stored in float with truncation of digits.
-	 * @param ixArray unused if it isn't an indexed variable.
-	 * @return the value.
-	 */
-	double setDouble(double value, int ...ixArray);
-	
-	
-	/**Gets the value from this variable. If the variable is numerical, it is converted to a proper representation.
-	 * @param ixArray unused if it isn't an indexed variable.
-	 * @return the value.
-	 */
-	String getString(int ...ixArray);
-	
-	/**Sets the value into the variable
-	 * @param value The value given as String.
-	 * @param ixArray unused if it isn't an indexed variable.
-	 * @return The value really set (maybe shortened).
-	 */
-	String setString(String value, int ...ixArray);
-	
-	
-	/**Requests a new value from the target device.
-	 */
-	void requestValue(long timeRequested);
-	
-	
-	/**Gets the time stamp when this variable was refreshed lastly.
-	 * @return -1 if this function is not supported, 0 if this variable was never set.
-	 */
-	long getLastRefreshTime();
-	
-	/**Returns the type of the variable:
-	 * @return B, S, I, J, F, D, s for byte, short, integer, long, float, double and string.
-	 */
-	char getType();
-	
-	/**Returns the number of dimension if it is an array or its number of elements.
-	 * @param dimension 0 to get number of dimension, 1... to get the length of the dimension.
-	 * @return 0 if it hasn't such an dimension.
-	 */
-	int getDimension(int dimension);
-	
+  /**Gets a integer value from this variable. The variable contains the information, 
+   * whether it is long, short etc. If the variable contains a long value greater as the integer range,
+   * an IllegalArgumentException may be thrown or not, it depends on the implementation.
+   * If the variable is a float or double it may be convert to the integer format.
+   * If the variable is a boolean, it is converted to 0 or 1.
+   * @param ixArray unused if it isn't an indexed variable.
+   * @return the value.
+   */
+  int getInt(int ...ixArray);
+  
+  /**Sets the value into the variable. If the variable is of byte or short type and the value is not able
+   * to present, an IllegalArgumentException may be thrown or not, it depends on the implementation.
+   * @param value The value given as int.
+   * @param ixArray unused if it isn't an indexed variable.
+   * @return The value really set (maybe more imprecise).
+   */
+  int setInt(int value, int ...ixArray);
+  
+  /**Gets a long value from this variable. The variable contains the information, 
+   * whether it is long, short etc. 
+   * If the variable is a float or double it may be convert to the long format.
+   * If the value is not able to present, an IllegalArgumentException may be thrown or not, it depends on the implementation.
+   * If the variable is a boolean, it is converted to 0 or 1.
+   * @param ixArray unused if it isn't an indexed variable.
+   * @return the value.
+   */
+  long getLong(int ...ixArray);
+  
+  /**Sets the value into the variable. If the variable is of byte, short or int type and the value is not able
+   * to present, an IllegalArgumentException may be thrown or not, it depends on the implementation.
+   * @param value The value given as int.
+   * @param ixArray unused if it isn't an indexed variable.
+   * @return The value really set (maybe more imprecise).
+   */
+  long setLong(long value, int ...ixArray);
+  
+  /**Gets the value from this variable. If the variable is in another format than float, 
+   * a conversion to be will be done.
+   * @param ixArray unused if it isn't an indexed variable.
+   * @return the value.
+   */
+  float getFloat(int ...ixArray);
+  
+  /**Sets the value from this variable. 
+   * @param ixArray unused if it isn't an indexed variable.
+   * @return the value.
+   */
+  float setFloat(float value, int ...ixArray);
+  
+  
+  /**Gets the value from this variable. If the variable is in another format than double, 
+   * a conversion to be will be done.
+   * @param ixArray unused if it isn't an indexed variable.
+   * @return the value.
+   */
+  double getDouble(int ...ixArray);
+  
+  /**Sets the value from this variable. If the variable is from float type, and the range (exponent)
+   * is able to present in float, the value will be stored in float with truncation of digits.
+   * @param ixArray unused if it isn't an indexed variable.
+   * @return the value.
+   */
+  double setDouble(double value, int ...ixArray);
+  
+  
+  /**Gets the value from this variable. If the variable is numerical, it is converted to a proper representation.
+   * @param ixArray unused if it isn't an indexed variable.
+   * @return the value.
+   */
+  String getString(int ...ixArray);
+  
+  /**Sets the value into the variable
+   * @param value The value given as String.
+   * @param ixArray unused if it isn't an indexed variable.
+   * @return The value really set (maybe shortened).
+   */
+  String setString(String value, int ...ixArray);
+  
+  
+  /**Requests a new value from the target device.
+   */
+  void requestValue(long timeRequested);
+  
+  
+  /**Gets the time stamp when this variable was refreshed lastly.
+   * @return -1 if this function is not supported, 0 if this variable was never set.
+   */
+  long getLastRefreshTime();
+  
+  /**Returns the type of the variable:
+   * @return B, S, I, J, F, D, s for byte, short, integer, long, float, double and string.
+   */
+  char getType();
+  
+  /**Returns the number of dimension if it is an array or its number of elements.
+   * @param dimension 0 to get number of dimension, 1... to get the length of the dimension.
+   * @return 0 if it hasn't such an dimension.
+   */
+  int getDimension(int dimension);
+  
 }
