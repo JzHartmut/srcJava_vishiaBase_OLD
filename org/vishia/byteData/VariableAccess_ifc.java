@@ -40,6 +40,7 @@ public interface VariableAccess_ifc
   
   /**Version, history and license.
    * <ul>
+   * <li>2012-09-24 Hartmut new {@link #getLong(int...)} and {@link #setLong(long, int...)} 
    * <li>2012-04-25 Hartmut new {@link #requestValue(long)}, {@link #getLastRefreshTime()}:
    *   A variable should be refreshed by determined call of {@link #requestValue(long)} if it holds
    *   a value from a remote device.

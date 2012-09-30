@@ -22,6 +22,8 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   
   /**Version, history and license.
    * <ul>
+   * <li>2012-10-01 Hartmut new: {@link #refreshFilePropertiesAndChildren(FileRemote, org.vishia.util.FileRemote.CallbackEvent)} time measurement
+   * <li>2012-09-26 Hartmut new: {@link #refreshFileProperties(FileRemote, org.vishia.util.FileRemote.CallbackEvent)} thread with exception msg.
    * <li>2012-08-05 Hartmut new: If the oFile reference is null, the java.io.File instance for the local file will be created anyway.
    * <li>2012-08-03 Hartmut chg: Usage of Event in FileRemote. 
    *   The FileRemoteAccessor.Commission is removed yet. The same instance FileRemote.Callback, now named FileRemote.FileRemoteEvent is used for forward event (commision) and back event.
@@ -215,32 +217,49 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
 
   
   @Override public void refreshFilePropertiesAndChildren(final FileRemote fileRemote, final FileRemote.CallbackEvent callback){
+
     /**Strategy: use an inner private routine which is encapsulated in a Runnable instance.
      * either run it locally or run it in an extra thread.
      */
-    Runnable thread = new Runnable(){
+    class MyRunnable implements Runnable{
+      long time;
       public void run(){
-        refreshFileProperties(fileRemote, null);
-        File fileLocal = getLocalFile(fileRemote);
-        //fileRemote.flags |= FileRemote.mChildrenGotten;
-        if(fileLocal.exists()){
-          File[] files = fileLocal.listFiles();
-          if(files !=null){
-            fileRemote.children = new FileRemote[files.length];
-            int iFile = -1;
-            for(File file1: files){
-              fileRemote.children[++iFile] = newFile(file1);
+        try{
+          refreshFileProperties(fileRemote, null);
+          File fileLocal = getLocalFile(fileRemote);
+          //fileRemote.flags |= FileRemote.mChildrenGotten;
+          if(fileLocal.exists()){
+            long time1 = System.currentTimeMillis();
+            System.out.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - start listFiles; dt=" + (time1 - time));
+            File[] files = fileLocal.listFiles();
+            time1 = System.currentTimeMillis();
+            System.out.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - ok listFiles; dt=" + (time1 - time));
+            if(files !=null){
+              fileRemote.children = new FileRemote[files.length];
+              int iFile = -1;
+              for(File file1: files){
+                fileRemote.children[++iFile] = newFile(file1);
+              }
             }
           }
+          if(callback !=null){
+            callback.occupy(evSrc, true);
+            long time1 = System.currentTimeMillis();
+            System.out.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - callback listFiles; dt=" + (time1 - time));
+            callback.sendEvent(FileRemote.CallbackCmd.done);
+            time1 = System.currentTimeMillis();
+            System.out.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - finish listFiles; dt=" + (time1 - time));
+          }
+          fileRemote.flags &= ~FileRemote.mThreadIsRunning;
         }
-        if(callback !=null){
-          callback.occupy(evSrc, true);
-          callback.sendEvent(FileRemote.CallbackCmd.done);
+        catch(Exception exc){
+          System.err.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - Thread Excpetion;" + exc.getMessage());
         }
-        fileRemote.flags &= ~FileRemote.mThreadIsRunning;
       }
     };
       
+    MyRunnable thread = new MyRunnable();
+    
     //the method body:
     if(callback == null){
       thread.run(); //run direct
@@ -248,8 +267,10 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       if((fileRemote.flags & FileRemote.mThreadIsRunning) ==0) {
         fileRemote.flags |= FileRemote.mThreadIsRunning;
         Thread threadObj = new Thread(thread);
+        thread.time = System.currentTimeMillis();
         threadObj.start(); //run in an exttra thread, the caller doesn't wait.
       } else {
+        System.err.println("FileRemoteAccessLocalFile.refreshFilePropertiesAndChildren - double call, ignored;");
         callback.relinquish(); //ignore it.
       }
     }
@@ -325,10 +346,11 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   
   public FileRemote newFile(File fileLocal){
     String name = fileLocal.getName();
+    File parent = fileLocal.getParentFile();
     String sDir = fileLocal.getParent().replace('\\', '/');
-    FileRemote dir = FileRemote.fromFile(fileLocal.getParentFile());
+    FileRemote dir = null; //FileRemote.fromFile(parent);
     FileRemote fileRemote = new FileRemote(this, dir, sDir, name, 0, 0, 0, fileLocal);
-    refreshFileProperties(fileRemote, null);  
+    //refreshFileProperties(fileRemote, null);  
     return fileRemote;
   }
   
