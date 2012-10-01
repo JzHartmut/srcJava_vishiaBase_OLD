@@ -22,8 +22,11 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   
   /**Version, history and license.
    * <ul>
+   * <li>2012-10-01 Hartmut chg: Some adaption because {@link FileRemote#listFiles()} returns File[] and not FileRemote[].
+   * <li>2012-10-01 Hartmut experience {@link #useFileChildren}
    * <li>2012-10-01 Hartmut new: {@link #refreshFilePropertiesAndChildren(FileRemote, org.vishia.util.FileRemote.CallbackEvent)} time measurement
-   * <li>2012-09-26 Hartmut new: {@link #refreshFileProperties(FileRemote, org.vishia.util.FileRemote.CallbackEvent)} thread with exception msg.
+   * <li>2012-09-26 Hartmut new: {@link #refreshFileProperties(FileRemote, org.vishia.util.FileRemote.CallbackEvent)} 
+   *   thread with exception msg.
    * <li>2012-08-05 Hartmut new: If the oFile reference is null, the java.io.File instance for the local file will be created anyway.
    * <li>2012-08-03 Hartmut chg: Usage of Event in FileRemote. 
    *   The FileRemoteAccessor.Commission is removed yet. The same instance FileRemote.Callback, now named FileRemote.FileRemoteEvent is used for forward event (commision) and back event.
@@ -69,6 +72,14 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
    */
   public static final int version = 20120721;
 
+  /**Some experience possible: if true, then store File objects in {@link FileRemote#children} instead
+   * {@link FileRemote} objects. The File objects may be replaces by FileRemote later if necessary. This may be done
+   * in applications. The problem is: Wrapping a File with FileRemote does not change the reference in {@link FileRemote#children}
+   * automatically. It should be done by any algorithm. Therefore this compiler switch is set to false yet.
+   */
+  private final static boolean useFileChildren = false;
+  
+  
   private static FileRemoteAccessor instance;
   
   
@@ -235,10 +246,14 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
             time1 = System.currentTimeMillis();
             System.out.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - ok listFiles; dt=" + (time1 - time));
             if(files !=null){
-              fileRemote.children = new FileRemote[files.length];
-              int iFile = -1;
-              for(File file1: files){
-                fileRemote.children[++iFile] = newFile(file1);
+              if(useFileChildren){
+                fileRemote.children = files;
+              } else {
+                fileRemote.children = new FileRemote[files.length];
+                int iFile = -1;
+                for(File file1: files){
+                  fileRemote.children[++iFile] = newFile(file1, fileRemote);
+                }
               }
             }
           }
@@ -336,7 +351,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
         retFiles = new FileRemote[files.length];
         int iFile = -1;
         for(File fileLocal: files){
-          retFiles[++iFile] = newFile(fileLocal);
+          retFiles[++iFile] = newFile(fileLocal, parent);
         }
       }
     }
@@ -344,11 +359,12 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   }
 
   
-  public FileRemote newFile(File fileLocal){
+  public FileRemote newFile(File fileLocal, FileRemote dir){
     String name = fileLocal.getName();
-    File parent = fileLocal.getParentFile();
-    String sDir = fileLocal.getParent().replace('\\', '/');
-    FileRemote dir = null; //FileRemote.fromFile(parent);
+    //File parent = fileLocal.getParentFile();
+    String sDir = dir.getAbsolutePath().replace('\\', '/');
+    //String sDir = fileLocal.getParent().replace('\\', '/');
+    //FileRemote dir = null; //FileRemote.fromFile(parent);
     FileRemote fileRemote = new FileRemote(this, dir, sDir, name, 0, 0, 0, fileLocal);
     //refreshFileProperties(fileRemote, null);  
     return fileRemote;
@@ -535,11 +551,11 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
      *
      */
     private class DataSetCopy1Recurs{
-      FileRemote src;
-      FileRemote dst;
+      File src;
+      File dst;
       
       /**null if this card describes a file and not a directory. The content of src*/
-      FileRemote[] listSrc;
+      File[] listSrc;
       /**current index in listSrc while in State {@link EStateCopy#Process}.*/
       int ixSrc;
       FileInputStream in = null;
@@ -705,7 +721,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
      * @param src
      * @param dst
      */
-    void newDataSetCopy(FileRemote src, FileRemote dst){
+    void newDataSetCopy(File src, File dst){
       if(actData !=null){ recursDirs.push(actData); }
       actData = new DataSetCopy1Recurs();
       actData.src = src;
@@ -1073,8 +1089,8 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
         //This action may need some time.
         actData.listSrc = actData.src.listFiles();
         actData.ixSrc = 0;
-        FileRemote srcInDir = actData.listSrc[0];
-        FileRemote dstDir = actData.dst;
+        File srcInDir = actData.listSrc[0];
+        FileRemote dstDir = FileRemote.fromFile(actData.dst);
         //
         //use the first entry of the dir:
         //
@@ -1236,8 +1252,8 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
             if(actData.listSrc !=null //copy a directory tree?
               && ++actData.ixSrc < actData.listSrc.length
               ){
-              FileRemote src = actData.listSrc[actData.ixSrc];
-              FileRemote dst = new FileRemote(actData.dst, src.getName());
+              File src = actData.listSrc[actData.ixSrc];
+              FileRemote dst = new FileRemote(FileRemote.fromFile(actData.dst), src.getName());
               newDataSetCopy(src, dst);
               //sendEv(CmdCpyIntern.dirFile);
               bCont = false;

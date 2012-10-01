@@ -37,6 +37,10 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2012-10-01 Hartmut chg: {@link #children} is now of super type File, not FileRemote. Nevertheless FileRemote objects
+   *   are stored there. Experience is possible to store a File object returned from File.listFiles without wrapping, and
+   *   replace that with a FileRemote object if necessary. listFiles() returns a File[] like its super method.
+   * <li>2012-10-01 Hartmut new: {@link #isTested()}  
    * <li>2012-08-11 Hartmut new: method {@link #openInputStream(long)}. An application may need that, for example to create
    *   a {@link java.io.Reader} with the input stream. Some implementations, especially a local file and a {@link java.util.zip.ZipFile}
    *   supports that. An {@link java.io.InputStream} may force a blocking if data are not available yet for file in a remote device
@@ -192,7 +196,7 @@ public class FileRemote extends File
    * If this field should be returned without null, especially on {@link #listFiles()} and the file is a directory, 
    * the {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, Event)} will be called.  
    * */
-  FileRemote[] children;
+  File[] children;
   
   public final static int modeCopyReadOnlyMask = 0x00f
   , modeCopyReadOnlyNever = 0x1, modeCopyReadOnlyOverwrite = 0x3, modeCopyReadOnlyAks = 0;
@@ -728,6 +732,12 @@ public class FileRemote extends File
   }
   
   
+  /**Returns true if the file was tested in the past. Returns false only if the file is created
+   * and never refreshed.   */
+  public boolean isTested(){ return (flags & mTested) == mTested; }
+  
+  
+  
   @Override public boolean exists(){ 
     if((flags & mTested) ==0){
       //The children are not known yet, get it:
@@ -829,7 +839,7 @@ public class FileRemote extends File
    * If the children are not gotten up to now they are gotten yet. The method blocks until the information is gotten,
    * see {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, Event)} with null as event parameter.
    */
-  @Override public FileRemote[] listFiles(){
+  @Override public File[] listFiles(){
     if(children == null){
       //The children are not known yet, get it:
       if(device == null){
