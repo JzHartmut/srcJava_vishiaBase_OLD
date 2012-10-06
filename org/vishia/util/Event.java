@@ -283,15 +283,15 @@ import java.util.concurrent.atomic.AtomicReference;
  * <ul>
  * <li>either it is processed from a queue, and the execution sequence returns back to the check point of the queue
  *   to get the next event. Only then the Event is processed overall. Then it can be relinquised.
- * <li>or the event is processed by only one routine immediately called in the {@link #sendEvent_(Enum)} routine
+ * <li>or the event is processed by only one routine immediately called in the {@link #sendEvent(Enum)} routine
  *   because no queuing is done. Then only this routine is called with the event. Therefore the Event is relinquished
- *   in the {@link #sendEvent_(Enum)} routine after calling {@link EventConsumer#processEvent(Event)}.      
+ *   in the {@link #sendEvent(Enum)} routine after calling {@link EventConsumer#processEvent(Event)}.      
  * </ul> 
  * 
  * <br><br>
  * <b>Exceptions while processing the event</b>:<br>
  * If an exception occurs, the whole process of execution should not be stopped. Especially the {@link #relinquish()}
- * of the event should be done nevertheless. Therefore the exception is caught both in the {@link #sendEvent_(Enum)} routine
+ * of the event should be done nevertheless. Therefore the exception is caught both in the {@link #sendEvent(Enum)} routine
  * if {@link EventConsumer#processEvent(Event)} is called immediately and in the {@link EventThread} loop. The exception
  * is reported to the System.err output stream. An application can use its own try and catch constructs inside the 
  * {@link EventConsumer#processEvent(Event)} routine. This caught has only its effect when an error is not caught elsewhere.
@@ -331,7 +331,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * </pre>
  * The event itself, the reference <code>evP</code> or <code>ev</code>, is in use. It can't be used for the next step.
  * But its opponent is free for next use. The <code>instanceof</code> test and cast to <code>MyEvent</code> in this example
- * is used because the cmd arguments should be qualified, see {@link #sendEvent_(Enum)} and {@link #getCmd_()}.   
+ * is used because the cmd arguments should be qualified, see {@link #sendEvent(Enum)} and {@link #getCmd_()}.   
  * The time of relinquish has passed whenever the thread using the event is finished with the 'run to completion'
  * of current the Event Object. The time of sendEvent is in front of them. Therefore the Event Object itself can't be used
  * but its opponent. If a quick game is played, it is possible that the thread which reused the opponent of the received Event
@@ -341,8 +341,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * a thread switch occurs only if the currently thread enters in a wait situation. Forced thread displacement occurs
  * only if a thread works too long. Therefore that kind of usage the Event Object and its opponent can be used.
  * <br><br>
- * If the opponent is not relinquished before it is re-used, the {@link #sendEvent_(Enum)} is prevented. If one of the 
- * methods {@link #occupy()} was called before {@link #sendEvent_(Enum)}, this situation is evidently because {@link #occupy()}
+ * If the opponent is not relinquished before it is re-used, the {@link #sendEvent(Enum)} is prevented. If one of the 
+ * methods {@link #occupy()} was called before {@link #sendEvent(Enum)}, this situation is evidently because {@link #occupy()}
  * returns false if the Event Object is not relinquished. Last and least the invocation of
  * {@link #occupyRecall(int)} or {@link #occupyRecall(int, Object, EventConsumer, EventThread)} can help to get
  * a well-ordering thread execution. The thread which invokes {@link #occupyRecall(int)} waits a moment (some milliseconds)
@@ -507,7 +507,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * 
  * 
  */
-public class Event
+public class Event<CmdEnum extends Enum>
 {
   
   /**Version, history and license
@@ -627,7 +627,7 @@ public class Event
   
   //private final AtomicReference<Cmd> cmde = new AtomicReference<Cmd>();
   
-  private final AtomicReference<Enum<?>> cmde = new AtomicReference<Enum<?>>();
+  private final AtomicReference<CmdEnum> cmde = new AtomicReference<CmdEnum>();
   
   //protected int answer;
   
@@ -715,7 +715,7 @@ public class Event
   
   
   
-  public Enum<?> getCmd(){ return cmde.get(); }
+  public CmdEnum getCmd(){ return cmde.get(); }
   
   /**Prevent that the event is relinquished after processing.
    * This method should be called in the processing routine of an event.
@@ -972,10 +972,10 @@ public class Event
    * @param cmd Any enum. In the derived implementation a special enum value should be used.
    * @return true if the event was sent.
    */
-  protected boolean sendEvent_(Enum<?> cmd){
+  public boolean sendEvent(CmdEnum cmd){
     if(source == null)
       source = null;
-    Enum<?> cmd1 = this.cmde.get();
+    CmdEnum cmd1 = this.cmde.get();
     //int value = cmd1.ordinal();
     boolean bOk = (cmd1 == null); 
     if(bOk) {

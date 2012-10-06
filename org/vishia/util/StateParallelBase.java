@@ -91,17 +91,17 @@ extends StateCompositeBase<DerivedState, EnclosingState>
    * </pre>  
    * 
    * @param isConsumed Information about the usage of an event in a transition, given as input and returned as output.
-   * @return The parameter isConsumed may be completed with the bit {@link #runToComplete} if this state's {@link #trans(Event)}-
-   *   method has non-event but conditional state transitions. Setting of this bit {@link #runToComplete} causes
+   * @return The parameter isConsumed may be completed with the bit {@link #mRunToComplete} if this state's {@link #trans(Event)}-
+   *   method has non-event but conditional state transitions. Setting of this bit {@link #mRunToComplete} causes
    *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#process(Event)} method.
-   *   This method sets {@link #runToComplete}.
+   *   This method sets {@link #mRunToComplete}.
    */
   @Override public int entry(int isProcessed){
     super.entry(isProcessed);
     for(StateCompositeBase<?, DerivedState> state: states){
       state.setState(null);
     }
-    return isProcessed | runToComplete;
+    return isProcessed | mRunToComplete;
   }
 
 
@@ -112,7 +112,7 @@ extends StateCompositeBase<DerivedState, EnclosingState>
     for(StateCompositeBase<?, DerivedState> state: states){
       cont |= state.process(ev);
     }
-    if((cont & StateSimpleBase.consumed) != 0){
+    if((cont & StateSimpleBase.mEventConsumed) != 0){
       ev = null;
     }
     trans(ev);  //the own trans

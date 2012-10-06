@@ -21,7 +21,7 @@ public class StateTemplate {
     }
 
     @Override public int entryDefault(){
-      return stReady.entry(notConsumed);
+      return stReady.entry(eventNotConsumed);
     }
   
 
@@ -50,7 +50,7 @@ public class StateTemplate {
     //A(MainState enclosingState){ super(enclosingState); }
   
     @Override public int trans(Event ev) {
-      return StateSimpleBase.notConsumed;
+      return StateSimpleBase.eventNotConsumed;
     }
   }
   StateReady stReady = new StateReady(stTop);
@@ -61,11 +61,11 @@ public class StateTemplate {
     protected StateProcess(StateTop superState) { super(superState, "Process"); }
 
     @Override public int entryDefault(){
-      return runToComplete; //B1.entry(notConsumed);
+      return mRunToComplete; //B1.entry(notConsumed);
     }
   
     @Override public int trans(Event ev){
-      return StateSimpleBase.notConsumed;
+      return StateSimpleBase.eventNotConsumed;
     }
 
     /*

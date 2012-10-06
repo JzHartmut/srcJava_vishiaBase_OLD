@@ -14,6 +14,6 @@ public class EvX extends Event{
     super(src,null, dst, thread);
   }
   
-  boolean sendEvent(Cmd cmd){ return sendEvent_(cmd); }
+  boolean sendEvent(Cmd cmd){ return sendEvent(cmd); }
    
 }

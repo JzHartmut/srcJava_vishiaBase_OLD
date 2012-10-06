@@ -47,24 +47,28 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   /**Bit in return value of a Statemachine's {@link #trans(Event)} or entry method for designation, 
    * that the given Event object was used to switch.
    */
-  public final static int consumed =0x1;
+  public final static int mEventConsumed =0x1;
   
   /**Specification of the consumed Bit in return value of a Statemachine's {@link #trans(Event)} or {@link #entry(int)} 
    * method for designation, that the given Event object was not used to switch. The value of this is 0.
    */
-  public final static int notConsumed =0x0;
+  public final static int eventNotConsumed =0x0;
   
   /**Bit in return value of a Statemachine's entry method for designation, 
    * that the given State has non-event-driven transitions, therefore the trans method should be called
    * in the same cycle.
    */
-  public final static int runToComplete =0x2;
+  public final static int mRunToComplete =0x2;
   
   /**Bit in return value of a Statemachine's entry method for designation, that either 
    * the given State has only event-driven transitions, therefore the trans method should not be called in the same cycle
    * or there is no state switch. The value is 0.
    */
-  public final static int complete =0x0;
+  public final static int stateCompleted =0x0;
+  
+  
+  /**If a composite state is leaved, any other parallel composite states don't processed then. */
+  public final static int mStateLeaved = 0x10;
   
   
   /**Reference to the enclosing state. With this, the structure of state nesting can be observed in data structures.
@@ -111,6 +115,14 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   /*package private*/ final boolean enclHasThisState(){ return enclState == null || enclState.isInState(this); }
 
   
+  /**Check and returns true if the enclosing state has this state as active one.
+   * @return
+   */
+  public final boolean isInState(){
+    return enclState == null           //it is the top state.
+         || enclState.isInState(this);  //the enclosing state has this as active one.
+  }
+  
   /**This method sets this state in the enclosing composite state. It should be overridden 
    * if a entry action is necessary in any state. The overridden form should call this method in form super.entry(isConsumed):
    * <pre>
@@ -122,17 +134,17 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
    * </pre>  
    * 
    * @param isConsumed Information about the usage of an event in a transition, given as input and returned as output.
-   * @return The parameter isConsumed may be completed with the bit {@link #runToComplete} if this state's {@link #trans(Event)}-
-   *   method has non-event but conditional state transitions. Setting of this bit {@link #runToComplete} causes
+   * @return The parameter isConsumed may be completed with the bit {@link #mRunToComplete} if this state's {@link #trans(Event)}-
+   *   method has non-event but conditional state transitions. Setting of this bit {@link #mRunToComplete} causes
    *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#process(Event)} method.
-   *   This method sets {@link #runToComplete}.
+   *   This method sets {@link #mRunToComplete}.
    */
   public int entry(int isConsumed){
     enclState.setState(this);
     ctEntry +=1;
     dateLastEntry = System.currentTimeMillis();
     durationLast = 0;
-    return isConsumed | runToComplete;
+    return isConsumed | mRunToComplete;
   }
   
   /**Processes the state. It invokes the {@link #trans(Event)}-method. This method is overridden in the class
@@ -140,7 +152,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
    * @param ev Any event
    * @return see {@link #trans(Event)}.
    */
-  public int process(Event ev){ return trans(ev); }
+  public int xxxprocess(Event<?> ev){ return trans(ev); }
 
   
   /**Checks the trigger and conditions of a state transition. The user should override this method in form (example)
@@ -159,13 +171,13 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   }
    * </pre>
    * @param ev Any event, maybe null if the user does not need it
-   * @return It should return {@link #consumed} if the event is consumed
-   *   or it should return {@link #notConsumed} especially if no transition is fired.
+   * @return It should return {@link #mEventConsumed} if the event is consumed
+   *   or it should return {@link #eventNotConsumed} especially if no transition is fired.
    *   That return value is essential for processing events in composite and cascade states.
    *   If an event is consumed it is not used for another switch in the same state machine
    *   but it is used in parallel states. See {@link StateCompositeBase#process(Event)} and {@link StateParallelBase#process(Event)}.
    */
-  public abstract int trans(Event ev);
+  public abstract int trans(Event<?> ev);
   
   /**Exit the state; this method may be overridden with exit actions:
    * <pre>
@@ -179,8 +191,11 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
    */
   public EnclosingState exit(){ 
     durationLast = System.currentTimeMillis() - dateLastEntry;
+    enclState.isActive = false;
     return enclState; 
   }
+  
+  public EnclosingState enclState(){ return enclState; }
   
   /**Returns the state Id and maybe some more debug information.
    * @see java.lang.Object#toString()

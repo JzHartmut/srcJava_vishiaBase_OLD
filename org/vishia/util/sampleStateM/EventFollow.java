@@ -48,7 +48,7 @@ public class EventFollow  {
 
 
     @Override public int entryDefault(){
-      return start.entry(notConsumed);
+      return start.entry(eventNotConsumed);
     }
   
     @Override public int entry(int consumed){
@@ -92,9 +92,9 @@ public class EventFollow  {
           cond1 = true;
           cond2 = true;
           ev1.sendEvent(EvX.Cmd.EvX);
-          return exit().stateA.entry(StateSimpleBase.consumed);
+          return exit().stateA.entry(StateSimpleBase.mEventConsumed);
         } else {
-          return StateSimpleBase.complete;
+          return StateSimpleBase.stateCompleted;
         }
       }
     }
@@ -109,13 +109,13 @@ public class EventFollow  {
   
       @Override public int entry(int consumed){
         super.entry(consumed);
-        return consumed | StateSimpleBase.runToComplete;   //true because this state has condition transitions.
+        return consumed | StateSimpleBase.mRunToComplete;   //true because this state has condition transitions.
       }
       
       
       @Override public int trans(Event ev){
         if(cond1){
-          return exit().stateB.entry(StateSimpleBase.notConsumed);
+          return exit().stateB.entry(StateSimpleBase.eventNotConsumed);
         } else {
           return 0;
         }
@@ -134,9 +134,9 @@ public class EventFollow  {
       
       @Override public int trans(Event ev){
         if(ev instanceof EvX && ev.getCmd() == EvX.Cmd.EvX){
-          return exit().stateC.entry(StateSimpleBase.consumed);
+          return exit().stateC.entry(StateSimpleBase.mEventConsumed);
         } else {
-          return StateSimpleBase.complete;
+          return StateSimpleBase.stateCompleted;
         }
       }
     }
@@ -154,9 +154,9 @@ public class EventFollow  {
       
       @Override public int trans(Event ev){
         if(ev instanceof EvX && ev.getCmd() == EvX.Cmd.EvX){
-          return exit().stateD.entry(StateSimpleBase.consumed);
+          return exit().stateD.entry(StateSimpleBase.mEventConsumed);
         } else {
-          return StateSimpleBase.notConsumed;
+          return StateSimpleBase.eventNotConsumed;
         }
       }
     }
@@ -174,7 +174,7 @@ public class EventFollow  {
       
     
       @Override public int trans(Event ev) {
-        return StateSimpleBase.complete;
+        return StateSimpleBase.stateCompleted;
       }
     }
 

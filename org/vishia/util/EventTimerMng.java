@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import javax.naming.event.EventDirContext;
 
 public class EventTimerMng extends Thread implements Closeable{
 
@@ -13,16 +12,16 @@ public class EventTimerMng extends Thread implements Closeable{
     /**Absolute time when the event should be occurred. */
     final long dateEvent;
     
-    final Event event;
+    final Event<TimeEvent.Cmd> event;
     
-    TimeEntry(Event ev, long date){
+    TimeEntry(Event<TimeEvent.Cmd> ev, long date){
       this.dateEvent = date;
       this.event = ev;
     }
   }
   
   
-  public static class TimeEvent extends Event{
+  public static class TimeEvent extends Event<TimeEvent.Cmd>{
     enum Cmd{Time};
     
     
@@ -66,7 +65,7 @@ public class EventTimerMng extends Thread implements Closeable{
   }
   
   
-  public static void addTimeOrder(long date, Event evTime){
+  public static void addTimeOrder(long date, Event<TimeEvent.Cmd> evTime){
     if(singleton == null){
       singleton = new EventTimerMng();
     }
@@ -82,7 +81,7 @@ public class EventTimerMng extends Thread implements Closeable{
   }
   
   
-  private void addTimeOrder_(long date, Event evTime){
+  private void addTimeOrder_(long date, Event<TimeEvent.Cmd> evTime){
     Assert.checkMsg (evTime instanceof TimeEvent, "The Event should be a org.vishia.util.EventTimerMng.TimeEvent");
     Assert.checkMsg (evTime.hasDst(), "The Event must have a destination.");
     Assert.checkMsg (!evTime.isOccupied(), "The Event must not be occupied.");
@@ -148,7 +147,7 @@ public class EventTimerMng extends Thread implements Closeable{
   
   private void executeTime(TimeEntry entry){
     entry.event.occupy(evSource, true);
-    entry.event.sendEvent_(TimeEvent.Cmd.Time);
+    entry.event.sendEvent(TimeEvent.Cmd.Time);
   }
   
   

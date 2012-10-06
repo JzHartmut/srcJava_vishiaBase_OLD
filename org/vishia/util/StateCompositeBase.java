@@ -49,8 +49,10 @@ public abstract class StateCompositeBase
 
   protected int maxStateSwitchesInLoop = 1000;
   
-  /**Stores whether this composite state is activ. Note that the #stateAct is set as history state
-   * as well the state is not active. */
+  /**Stores whether this composite state is active. Note that the #stateAct is set as history state
+   * as well the state is not active. This bit is set to false too if the current state is exited
+   * and a new state is not entered yet, while temporary transition processing. It helps to prevent double
+   * execution of the {@link #exit()} routine if exit of the enclosing state is processed.*/
   boolean isActive;
   
   private StateSimpleBase<DerivedState> stateAct;
@@ -66,7 +68,10 @@ public abstract class StateCompositeBase
    *   with the strong type check with the generic type of state. 
    * @return true if it is in state.
    */
-  public final boolean isInState(StateSimpleBase<? extends DerivedState> state){ return stateAct == state; }
+  public final boolean isInState(StateSimpleBase<? extends DerivedState> state){ 
+    return isInState()             //this state is active too, or it is the top state.
+            && stateAct == state;   //the given state is the active.
+  }
   
   
   /**This method is used to entry the default state if the actual state is null (first invocation).
@@ -79,6 +84,36 @@ public abstract class StateCompositeBase
    * @return 0
    */
   public abstract int entryDefault();
+  
+  
+  /**This method should be called from outside if the history state should be entered and all history states
+   * should be entered in sub states.
+   * @param isProcessed The bit {@link StateSimpleBase#mEventConsumed} is supplied to return it.
+   * @return isProcessed, maybe the additional bits {@link StateSimpleBase#mRunToComplete} is set by user.
+   */
+  public final int entryDeepHistory(int isProcessed){
+    StateSimpleBase<DerivedState> stateActHistory = stateAct;  //save it
+    int cont = entry(isProcessed);                  //entry in this state, remark: may be overridden, sets the stateAct to null
+    if(stateActHistory instanceof StateCompositeBase<?,?>){
+      cont = ((StateCompositeBase<?,?>)stateActHistory).entryDeepHistory(cont);
+    } else {
+      cont = stateActHistory.entry(cont);           //entry in the history sub state.
+    }
+    return cont;
+  }
+  
+  
+  /**This method should be called from outside if the history state should be entered but the default state of any
+   * sub state should be entered.
+   * @param isProcessed The bit {@link StateSimpleBase#mEventConsumed} is supplied to return it.
+   * @return isProcessed, maybe the additional bits {@link StateSimpleBase#mRunToComplete} is set by user.
+   */
+  public final int entryFlatHistory(int isProcessed){
+    StateSimpleBase<DerivedState> stateActHistory = stateAct;  //save it
+    int cont = entry(isProcessed);                  //entry in this state, remark: may be overridden, sets the stateAct to null
+    cont = stateActHistory.entry(cont);             //entry in the history sub state.
+    return cont;
+  }
   
   
   /**This method sets this state in the enclosing composite state and sets the own {@link #stateAct} to null 
@@ -98,27 +133,36 @@ public abstract class StateCompositeBase
    * </pre>  
    * 
    * @param isConsumed Information about the usage of an event in a transition, given as input and returned as output.
-   * @return The parameter isConsumed may be completed with the bit {@link #runToComplete} if this state's {@link #trans(Event)}-
-   *   method has non-event but conditional state transitions. Setting of this bit {@link #runToComplete} causes
+   * @return The parameter isConsumed may be completed with the bit {@link #mRunToComplete} if this state's {@link #trans(Event)}-
+   *   method has non-event but conditional state transitions. Setting of this bit {@link #mRunToComplete} causes
    *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#process(Event)} method.
-   *   This method sets {@link #runToComplete}.
+   *   This method sets {@link #mRunToComplete}.
    */
   @Override public int entry(int isProcessed){
     super.entry(isProcessed);
     stateAct = null;
     isActive = true;
-    return isProcessed | runToComplete;
+    return isProcessed | mRunToComplete;
   }
   
   /**Processes the event for the states of this composite state.
-   * First the event is applied to the own (inner) states invoking the {@link #switchState(Event)} method.
-   * If this method returns {@link StateSimpleBase#runToComplete} the {@link #switchState(Event)} method is called again
-   * in a loop. The loop is terminated with an exception only if it is not terminated.
-   * @param evP The event
-   * @return The bits {@link StateSimpleBase#consumed} or {@link StateSimpleBase#runToComplete}
-   *   as result of the inside called {@link #trans(Event)} method and the called {@link #entry(int)} method. 
+   * First the event is applied to the own (inner) states invoking either its {@link StateCompositeBase#process(Event)}
+   * or its {@link #trans(Event)} method.
+   * If this method returns {@link StateSimpleBase#mRunToComplete} that invocation is repeated in a loop, to call
+   * the transition of the new state too. But if the event was consumed by the last invocation, it is not supplied again
+   * in the loop, the event parameter is set to null instead. It means only conditional transitions are possible.
+   * This behavior is conform with the UML definition.
+   * If the loop would not terminate because any state have a valid transtion and the state machine switches forever,
+   * the loop is terminated with an exception for a number of {@link #maxStateSwitchesInLoop}. This exception occurs
+   * if the user stateMachine conditions are faulty only.
+   * <br><br>
+   * This method is not attempt to override by the user. Only the class {@link StateParallelBase} overrides it
+   * to invoke the processing of all parallel boughs.
+   * @param evP The event supplied to the {@link #trans(Event)} method.
+   * @return The bits {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #trans(Event)}.
+   *   Note that if an event is consumed in an inner state, it should not be applied to its enclosing state transitions. 
    */
-  @Override public int process(final Event evP){
+  public int process(final Event<?> evP){
     int cont;
     Event evTrans = evP;
     int catastrophicalCount =  maxStateSwitchesInLoop;
@@ -130,22 +174,28 @@ public abstract class StateCompositeBase
       if(stateAct == null){
         entryDefault();
       } 
-      cont = stateAct.process(evTrans); //switchState(evTrans);
+      if(stateAct instanceof StateCompositeBase<?,?>){
+        cont = ((StateCompositeBase<?,?>)stateAct).process(evTrans); 
+      } else {
+        cont = stateAct.trans(evTrans);
+      }
       //
       DateOrder date = new DateOrder();
-      if(statePrev != stateAct){
+      if(!isActive){
+        System.out.println("." + date.order + " State leaved " + toString() + ";" + statePrev + "-->(" + evTrans + ")");
+      } else if(statePrev != stateAct){
         System.out.println("." + date.order + " StateSwitch " + toString() + ";" + statePrev + "-->(" + evTrans + ")-->" + stateAct);
       } else if(evTrans !=null){
         System.out.println("." + date.order + " Event not used " + toString() + ";" + stateAct + ":(" + evTrans + ")");
       }
-      if((cont & StateSimpleBase.consumed) != 0){
+      if((cont & StateSimpleBase.mEventConsumed) != 0){
         evTrans = null;
       }
       if(catastrophicalCount == 4)
         catastrophicalCount = 4;  //set break point! to debug the loop
       
     } while(isActive   //leave the loop if this composite state is exited.
-        && (cont & runToComplete) !=0    //loop if runToComplete-bit is set, the new state should be checked.
+        && (cont & mRunToComplete) !=0    //loop if runToComplete-bit is set, the new state should be checked.
         && --catastrophicalCount >=0
         );
     if(catastrophicalCount <0) {
@@ -170,6 +220,17 @@ public abstract class StateCompositeBase
    this.isActive = true;
   }
 
+  /**Sets the state of the composite state.
+   * This method should be called
+   * @param state Only states of the own composite are advisable. It is checked in compile time
+   *   with the strong type check with the generic type of state. 
+   * @return true if it is in state.
+   */
+  /*package private*/ final void setStateParallel(StateSimpleBase<DerivedState> stateSimple) { //, EnumState stateNr) {
+   this.stateAct = stateSimple;
+   this.isActive = true;
+  }
+
   /**Exits first the actual sub state (and that exits its actual sub state), after them this state is exited.
   /**This method may be overridden with exit actions:
    * <pre>
@@ -185,8 +246,8 @@ public abstract class StateCompositeBase
   @Override public EnclosingState exit(){ 
     if(isActive){
       stateAct.exit();
+      isActive = false; //NOTE that StateSimpleBase.exit() sets isActive to false already. It is done twice.
     }
-    isActive = false;
     return super.exit();
   }
 

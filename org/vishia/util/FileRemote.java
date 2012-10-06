@@ -1153,7 +1153,7 @@ public class FileRemote extends File
     
 
     
-    public boolean sendEvent(FileRemote.Cmd cmd){ return super.sendEvent_(cmd); }
+    public boolean sendEvent(FileRemote.Cmd cmd){ return super.sendEvent(cmd); }
     
     @Override public FileRemote.Cmd getCmd(){ return (FileRemote.Cmd)super.getCmd(); }
     
@@ -1209,7 +1209,7 @@ public class FileRemote extends File
     
     
     
-    public boolean sendEvent(CallbackCmd cmd){ return super.sendEvent_(cmd); }
+    public boolean sendEvent(CallbackCmd cmd){ return super.sendEvent(cmd); }
     
 
     @Override public CallbackCmd getCmd(){ return (CallbackCmd)super.getCmd(); }

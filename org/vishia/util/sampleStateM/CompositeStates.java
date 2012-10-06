@@ -20,11 +20,11 @@ public class CompositeStates  extends EventConsumer {
     @Override public int trans(Event ev) {
       if(ev instanceof EvX && ((EvX)ev).getCmd() == EvX.Cmd.EvX){
         StateTop enclState1 = exit();
-        int cont = enclState1.Work.C.C1.C1b.entry(consumed);
-        cont |= enclState1.Work.C.C2.C2a.entry(consumed);
+        int cont = enclState1.Work.C.C1.C1b.entry(mEventConsumed);
+        cont |= enclState1.Work.C.C2.C2a.entry(mEventConsumed);
         return cont;
       }
-      else return notConsumed;
+      else return eventNotConsumed;
     }
   }
       
@@ -37,7 +37,7 @@ public class CompositeStates  extends EventConsumer {
     //A(MainState enclosingState){ super(enclosingState); }
   
     @Override public int trans(Event ev) {
-      return StateSimpleBase.complete;
+      return StateSimpleBase.stateCompleted;
     }
   }
 
@@ -46,11 +46,11 @@ public class CompositeStates  extends EventConsumer {
     B(Work superState){ super(superState, "B"); }
     
     @Override public int trans(Event ev){
-      return notConsumed;
+      return eventNotConsumed;
     }
     
     @Override public int entryDefault(){
-      return B1.entry(notConsumed);
+      return B1.entry(eventNotConsumed);
     }
   
     /*
@@ -70,7 +70,7 @@ public class CompositeStates  extends EventConsumer {
       B1(B superState) { super(superState, "B1"); }
       
       @Override public int trans(Event ev) {
-        return StateSimpleBase.complete;
+        return StateSimpleBase.stateCompleted;
       }
     }
     B1 B1 = new B1(this);
@@ -80,7 +80,7 @@ public class CompositeStates  extends EventConsumer {
       B2(B superState) { super(superState, "B2"); }
       
       @Override public int trans(Event ev) {
-        return StateSimpleBase.complete;
+        return StateSimpleBase.stateCompleted;
       }
     }
     B2 B2 = new B2(this);
@@ -91,7 +91,7 @@ public class CompositeStates  extends EventConsumer {
       B3(B superState) { super(superState, "B3"); }
       
       @Override public int trans(Event ev) {
-        return StateSimpleBase.complete;
+        return StateSimpleBase.stateCompleted;
       }
     }
     B3 B3 = new B3(this);
@@ -107,7 +107,7 @@ public class CompositeStates  extends EventConsumer {
 
   
     @Override public int trans(Event ev) {
-      return notConsumed;
+      return eventNotConsumed;
     }
   }
           
@@ -118,9 +118,9 @@ public class CompositeStates  extends EventConsumer {
   
     @Override public int trans(Event ev) {
       if(ev instanceof EvX && ((EvX)ev).getCmd() == EvX.Cmd.EvZ){
-        return exit().C1d.entry(consumed);
+        return exit().C1d.entry(mEventConsumed);
       }
-      return StateSimpleBase.notConsumed;
+      return StateSimpleBase.eventNotConsumed;
     }
   }
 
@@ -131,7 +131,7 @@ public class CompositeStates  extends EventConsumer {
 
   
     @Override public int trans(Event ev) {
-      return StateSimpleBase.notConsumed;
+      return StateSimpleBase.eventNotConsumed;
     }
   }
 
@@ -142,7 +142,7 @@ public class CompositeStates  extends EventConsumer {
 
   
     @Override public int trans(Event ev) {
-      return StateSimpleBase.notConsumed;
+      return StateSimpleBase.eventNotConsumed;
     }
   }
 
@@ -152,7 +152,7 @@ public class CompositeStates  extends EventConsumer {
     C1(C superState){ super(superState, "C1"); } // super(superState, EWork.C, EState_C1.Null); }
     
     @Override public int entryDefault(){
-      return C1a.entry(notConsumed);
+      return C1a.entry(eventNotConsumed);
     }
   
     @Override public int entry(int consumed) {
@@ -161,7 +161,7 @@ public class CompositeStates  extends EventConsumer {
     }
   
     @Override public int trans(Event ev){
-      return notConsumed;
+      return eventNotConsumed;
     }
     C1a C1a = new C1a(this);
     C1b C1b = new C1b(this);
@@ -179,7 +179,7 @@ public class CompositeStates  extends EventConsumer {
   
     @Override public int trans(Event ev) {
       if(ev instanceof EvX && ((EvX)ev).getCmd() == EvX.Cmd.EvX){
-        return exit().C2b.entry(consumed);
+        return exit().C2b.entry(mEventConsumed);
       }
       //
       return 0;
@@ -194,7 +194,7 @@ public class CompositeStates  extends EventConsumer {
 
   
     @Override public int trans(Event ev) {
-      return StateSimpleBase.complete;
+      return StateSimpleBase.stateCompleted;
     }
   }
 
@@ -204,7 +204,7 @@ public class CompositeStates  extends EventConsumer {
     C2(C superState){ super(superState, "C2"); }
     
     @Override public int entryDefault(){
-      return C2a.entry(notConsumed);
+      return C2a.entry(eventNotConsumed);
     }
   
     @Override public int entry(int consumed) {
@@ -213,7 +213,7 @@ public class CompositeStates  extends EventConsumer {
     }
   
     @Override public int trans(Event ev){
-      return notConsumed;
+      return eventNotConsumed;
     }
     
     
@@ -270,10 +270,10 @@ public class CompositeStates  extends EventConsumer {
       
       if(C1.isInState(C1.C1d) && C2.isInState(C2.C2a)) {
         Work enclState1 = exit();
-        enclState1.entry(consumed);
-        enclState1.B.B3.entry(consumed);
+        enclState1.entry(mEventConsumed);
+        enclState1.B.B3.entry(mEventConsumed);
       }
-      return StateSimpleBase.complete;
+      return StateSimpleBase.stateCompleted;
       
     }
 
@@ -290,11 +290,11 @@ public class CompositeStates  extends EventConsumer {
     }
 
     @Override public int entryDefault(){
-      return B.entry(notConsumed);
+      return B.entry(eventNotConsumed);
     }
   
     @Override public int trans(Event ev){
-      return notConsumed;
+      return eventNotConsumed;
     }
 
     /*
@@ -325,7 +325,7 @@ public class CompositeStates  extends EventConsumer {
     }
 
     @Override public int entryDefault(){
-      return Idle.entry(notConsumed);
+      return Idle.entry(eventNotConsumed);
     }
   
     @Override public int entry(int consumed){
@@ -333,9 +333,6 @@ public class CompositeStates  extends EventConsumer {
       return consumed;
     }
 
-    @Override public int process(Event evP){
-      return super.process(evP);
-    }
     
     /*
     @Override public int switchState(Event ev) {

@@ -589,7 +589,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
        * @param cmd
        * @return true if success.
        */
-      boolean sendEvent(CmdCpyIntern cmd){ return super.sendEvent_(cmd); }
+      boolean sendEvent(CmdCpyIntern cmd){ return super.sendEvent(cmd); }
       
       /**Qualified getCmd with the correct enum type of command code.
        * @return The command inside the received event.
@@ -916,7 +916,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       }
 
       @Override public int entryDefault(){
-        return ready.entry(notConsumed);
+        return ready.entry(eventNotConsumed);
       }
     
       @Override public int entry(int consumed){
@@ -943,16 +943,16 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
             newDataSetCopy(ev.filesrc, ev.filedst);
             evBackInfo = ev.getOpponent();
             StateCopyTop exitState = exit();
-            int cont = exitState.process.entry(consumed);
+            int cont = exitState.process.entry(mEventConsumed);
             timestart = System.currentTimeMillis();
             return exitState.process.dirOrFile.entry(cont);
           }
           else {
-            return notConsumed;
+            return eventNotConsumed;
           }
         }
         else {
-          return notConsumed;
+          return eventNotConsumed;
         }
       }
     }
@@ -969,7 +969,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       protected StateCopyProcess(StateCopyTop superState) { super(superState, "Process"); }
 
       @Override public int entryDefault(){
-        return dirOrFile.entry(notConsumed);
+        return dirOrFile.entry(eventNotConsumed);
       }
     
 
@@ -983,7 +983,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
         else if(ev.cmde == FileRemote.Cmd.abortAll){
           
           storedCopyEvents.clear();
-          return exit().ready.entry(StateSimpleBase.consumed);
+          return exit().ready.entry(StateSimpleBase.mEventConsumed);
         } else {
           return 0;
         }
@@ -1024,7 +1024,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       //A(MainState enclosingState){ super(enclosingState); }
     
       @Override public int entry(int isConsumed){
-        return super.entry(isConsumed | StateSimpleBase.runToComplete);
+        return super.entry(isConsumed | StateSimpleBase.mRunToComplete);
       }
 
       
@@ -1043,7 +1043,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       @Override public int trans(Event ev) {
         //EventCpy ev = evP;
         if(actData.src.isDirectory()){
-          return exit().subdir.entry(consumed);  //exit and entry in the same state.
+          return exit().subdir.entry(mEventConsumed);  //exit and entry in the same state.
         } else {
           //It is a file. try to open/create
           StateCopyProcess exitState= exit();
@@ -1053,7 +1053,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
             actData.in = new FileInputStream(actData.src);
             actData.zBytesCopyFile = 0;
             actData.out = new FileOutputStream(actData.dst);
-            return exitState.fileContent.entry(notConsumed);
+            return exitState.fileContent.entry(eventNotConsumed);
           } catch(IOException exc){
             String absPath = actData.src.getAbsolutePath();
             if(absPath.length() > evBackInfo.fileName.length-1){
@@ -1061,7 +1061,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
             }
             StringFunctions.copyToBuffer(absPath, evBackInfo.fileName);
             sendEventAsk(FileRemote.CallbackCmd.askErrorDstCreate );
-            return exitState.ask.entry(notConsumed);
+            return exitState.ask.entry(eventNotConsumed);
           }
         }
       }
@@ -1113,9 +1113,9 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
        */
       @Override public int trans(Event ev) {
         if(ev.getCmd() == CmdCpyIntern.subDir){
-          return exit().dirOrFile.entry(consumed);  //exit and entry in the same state.
+          return exit().dirOrFile.entry(mEventConsumed);  //exit and entry in the same state.
         } else {
-          return notConsumed;
+          return eventNotConsumed;
         }
       }
         
@@ -1182,12 +1182,12 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
                     evBackInfo.sendEvent(FileRemote.CallbackCmd.nrofFilesAndBytes );
                   }
                   sendEv(CmdCpyIntern.file); //keep alive the copy process.
-                  newState = complete + consumed;
+                  newState = stateCompleted + mEventConsumed;
                 } 
               } else if(zBytes == -1){
                 //bContCopy = false;
                 bCopyFinished = true;
-                newState = exit().fileFinished.entry(consumed);
+                newState = exit().fileFinished.entry(mEventConsumed);
                 
               } else {
                 //0 bytes ?
@@ -1197,15 +1197,15 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
             } catch(IOException exc){
               //bContCopy = false;
               sendEventAsk(FileRemote.CallbackCmd.askErrorCopy );
-              newState = exit().ask.entry(consumed);
+              newState = exit().ask.entry(mEventConsumed);
             }
           }while(newState == -1);
           
         } else if(ev.cmde == FileRemote.Cmd.abortCopyFile ){
           
-          newState = exit().fileFinished.entry(consumed);
+          newState = exit().fileFinished.entry(mEventConsumed);
         } else {
-          newState = notConsumed;
+          newState = eventNotConsumed;
         }
         return newState;
       }
@@ -1262,7 +1262,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
             }
           }
         }while(bCont);
-        return isConsumed | StateSimpleBase.runToComplete;
+        return isConsumed | StateSimpleBase.mRunToComplete;
       }
       
       
@@ -1285,11 +1285,11 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
             }
             
           }
-          return exit().exit().ready.entry(notConsumed);
+          return exit().exit().ready.entry(eventNotConsumed);
         }
         else {
           //another file or directory
-          return exit().dirOrFile.entry(notConsumed);
+          return exit().dirOrFile.entry(eventNotConsumed);
         }
       }
     }
@@ -1307,12 +1307,12 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
         FileRemote.Cmd cmd = ev.getCmd();
         if(cmd == FileRemote.Cmd.abortCopyFile){
           bSkip = true;
-          return exit().fileFinished.entry(consumed);
+          return exit().fileFinished.entry(mEventConsumed);
         } else if(cmd == FileRemote.Cmd.abortCopyDir){
           bSkip = true;
-          return exit().fileContent.entry(consumed);
+          return exit().fileContent.entry(mEventConsumed);
         }
-        return notConsumed;
+        return eventNotConsumed;
       }
     }
     

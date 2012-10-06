@@ -1,5 +1,10 @@
 package org.vishia.msgDispatch;
 
+/**
+ * @author Hartmut
+ * @deprecated see {@link org.vishia.util.Assert#exceptionInfo(String, Throwable, int, int)}
+ */
+@Deprecated
 public class ExceptionInfo {
 
   

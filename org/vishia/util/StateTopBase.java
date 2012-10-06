@@ -9,7 +9,8 @@ package org.vishia.util;
  *   the own one. A mistake is detected to compile time already.
  */
 public abstract class StateTopBase <DerivedState extends StateCompositeBase<DerivedState,?>> 
-extends StateCompositeBase<DerivedState,DerivedState>
+//extends StateCompositeBase<DerivedState,DerivedState>
+extends StateCompositeBase<DerivedState,StateCompositeNull>
 {
 
   /**Version, history and license
@@ -54,4 +55,22 @@ extends StateCompositeBase<DerivedState,DerivedState>
 
 
   
+}
+
+/**Package private helper class is dummy-enclosing state for the top state. 
+ * It is used formally as second parameter of {@link StateTopBase}.
+ */
+class StateCompositeNull extends StateCompositeBase<StateCompositeNull, StateCompositeNull>{
+
+  protected StateCompositeNull(StateCompositeNull enclState, String stateId) {
+    super(enclState, stateId);
+  }
+
+  @Override public int entryDefault() {
+    return 0;
+  }
+
+  @Override public int trans(Event<?> ev) {
+    return 0;
+  }
 }
