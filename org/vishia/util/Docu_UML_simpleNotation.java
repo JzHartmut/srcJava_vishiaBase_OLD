@@ -16,7 +16,9 @@ package org.vishia.util;
  * <pre>
  *          |
  *          |
- *     NameOfClass    
+ *     !Some application notes.    
+ *     NameOfClass
+ *     !Some application notes.    
  *     -interest_method()
  *     +overwritten_method()
  *     -interest_field

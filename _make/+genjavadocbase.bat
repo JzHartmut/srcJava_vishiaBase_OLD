@@ -1,6 +1,7 @@
 
 if "%JAVA_JDK%"==""  then(
   if exist D:\Progs\JAVA\jdk1.6.0_21 set JAVA_JDK=D:\Progs\JAVA\jdk1.6.0_21
+  if exist C:\Progs\JAVA\jdk1.6.0_21 set JAVA_JDK=C:\Progs\JAVA\jdk1.6.0_21
 )
 echo JAVA_JDK=JAVA_JDK
 

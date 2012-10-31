@@ -127,11 +127,6 @@ public interface XmlNode extends SortedTree<XmlNode>
   /**gets the parent of the node. */
   public XmlNode getParent();
 
-  /**connects the node with the parent: Any node may be only used maximal one time in a xml tree.
-   * It the node should transfered in an other tree, it must be deleted from the current tree.
-   * @param parent if null than the node is detached.
-   */
-  public void setParent(XmlNode parent);
   
   
 }

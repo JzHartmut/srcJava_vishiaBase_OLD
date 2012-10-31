@@ -39,7 +39,7 @@ public class FileZip extends FileRemote {
     super(parent.getName());
     this.theFile = parent;
     ZipFile zipFile = null;
-    children = new TreeNodeUniqueKey<FileZip>(null, "/", this);
+    children = new TreeNodeUniqueKey<FileZip>("/", this);
     try {
       zipFile = new ZipFile(parent);
     } catch (Exception exc) {
@@ -57,15 +57,15 @@ public class FileZip extends FileRemote {
         String sDir = sPathEntry.substring(0, sep);
         String sName = sPathEntry.substring(sep + 1);
         if (sName.length() > 0) {
-          TreeNodeUniqueKey<FileZip> dir = children.xxxgetCreateNode(sDir, "/");
+          TreeNodeBase<FileZip> dir = children.getOrCreateNode(sDir, "/");
           FileZip child = new FileZip(theFile, zipFile, entry);
-          dir.addLeaf(sName, child);
+          dir.addNode(sName, child);
         } else {
           // a directory entry found, it ends with '/'
           sep = sDir.lastIndexOf('/');
-          TreeNodeUniqueKey<FileZip> parentDir;
+          TreeNodeBase<FileZip> parentDir;
           if (sep >= 0) {
-            parentDir = children.xxxgetCreateNode(sDir, "/");
+            parentDir = children.getOrCreateNode(sDir, "/");
           } else {
             parentDir = children;
           }
@@ -88,7 +88,7 @@ public class FileZip extends FileRemote {
     }
     p1 = sEntryPath.lastIndexOf('/', p2-1);  //maybe -1, then string from 0
     String sEntryName = sEntryPath.substring(p1+1, p2);
-    this.children = new TreeNodeUniqueKey<FileZip>(parent.children, sEntryName, this);
+    this.children = new TreeNodeUniqueKey<FileZip>(sEntryName, this);
     parent.children.addNode(this.children);
     this.zipFile = zipFile;
     this.zipEntry = zipEntry;
@@ -165,7 +165,7 @@ public class FileZip extends FileRemote {
   class Test extends TreeNodeUniqueKey<FileZip> {
 
     public Test(TreeNodeUniqueKey<FileZip> parent, String key, FileZip data) {
-      super(parent, key, data);
+      super(key, data);
       // TODO Auto-generated constructor stub
       boolean x = isDirectory();
     }

@@ -1,29 +1,3 @@
-/****************************************************************************
- * Copyright/Copyleft:
- *
- * For this source the LGPL Lesser General Public License,
- * published by the Free Software Foundation is valid.
- * It means:
- * 1) You can use this source without any restriction for any desired purpose.
- * 2) You can redistribute copies of this source to everybody.
- * 3) Every user of this source, also the user of redistribute copies
- *    with or without payment, must accept this license for further using.
- * 4) But the LPGL ist not appropriate for a whole software product,
- *    if this source is only a part of them. It means, the user
- *    must publish this part of source,
- *    but don't need to publish the whole source of the own product.
- * 5) You can study and modify (improve) this source
- *    for own using or for redistribution, but you have to license the
- *    modified sources likewise under this LGPL Lesser General Public License.
- *    You mustn't delete this Copyright/Copyleft inscription in this source file.
- *
- * @author JcHartmut = hartmut.schorrig@vishia.de
- * @version 2006-06-15  (year-month-day)
- * list of changes:
- * 2008-01-15: JcHartmut www.vishia.de creation
- * 2008-04-02: JcHartmut some changes
- *
- ****************************************************************************/
 package org.vishia.xmlSimple;
 
 import java.util.Iterator;
@@ -32,14 +6,53 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.vishia.util.TreeNodeBase;
+
 
 /**This is a simple variant of processing XML.*/
 
 /**Representation of a XML node. It contains a tree of nodes or text content. */ 
-public class XmlNodeSimple implements XmlNode
+public class XmlNodeSimple<UserData> implements XmlNode
 { 
+  /**Version, history and license.
+   * <ul>
+   * <li>2012-11-01 Hartmut The {@link TreeNodeBase} is used for the node structure. 
+   *   Reference {@link #node}. The algorithm to manage the node structure is deployed in the
+   *   TreeNodeBase yet. 
+   * <li>2008-04-02: Hartmut some changes
+   * <li>2008-01-15: Hartmut www.vishia.org creation
+   * </ul>
+   * <br><br>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   */
+  public static final int version = 20121101;
+
+
+  
   /**The tag name of the node or the text if namespaceKey is "$". */
-  String name;
+  final String name;
   
   /**The namespace-key. If it is "$", the node is a terminate text node. */
   String namespaceKey;
@@ -47,38 +60,65 @@ public class XmlNodeSimple implements XmlNode
   /**Sorted attributes. */
   TreeMap<String, String> attributes;
 
+  /**All nodes, especially child nodes, the parent too. */
+  final TreeNodeBase<XmlNode> node; 
+  
+  UserData data;
+  
   /**The List of child nodes and text in order of adding. 
    * Because the interface reference is used, it is possible that a node is another instance else XmlNodeSimple. 
    */
-  List<XmlNode> content;
+  //List<XmlNode> content;
 
   /**Sorted child nodes. The nodes are sorted with tag-names inclusive name-space.*/
-  TreeMap<String, List<XmlNode>> sortedChildNodes;
+  //TreeMap<String, List<XmlNode>> sortedChildNodes;
   
   /**List of namespace declaration, typical null because only top elements has it. */
   TreeMap<String, String> namespaces;
 
   
   /**The parent node. */
-  XmlNode parent;
+  //XmlNode parent;
+  
+  public XmlNodeSimple(String text, boolean isText)
+  { node = null;
+    namespaceKey = "$";
+    this.name = text;
+    //this.name = name;
+  }
   
   public XmlNodeSimple(String name)
   { this.name = name;
+    node = new TreeNodeBase<XmlNode>(name, this);
+    //this.name = name;
   }
   
   public XmlNodeSimple(String name, String namespaceKey)
   { this.name = name;
+    node = new TreeNodeBase<XmlNode>(calcKey(name, namespaceKey), this);
+    //this.name = name;
     this.namespaceKey = namespaceKey;
   }
   
   public XmlNodeSimple(String name, String namespaceKey, String namespace)
   { this.name = name;
+    node = new TreeNodeBase<XmlNode>(calcKey(name, namespaceKey), this);
+    //this.name = name;
     this.namespaceKey = namespaceKey;
   }
   
   
+  private static String calcKey(String name, String namespaceKey){
+    String key;  //build the key namespace:tagname or tagname
+    if(namespaceKey != null) { key =  namespaceKey + ":" + name; }
+    else { key = name; }
+    return key;
+  }
+  
+  
+  
   public XmlNode createNode(String name, String namespaceKey)
-  { return new XmlNodeSimple(name,namespaceKey);
+  { return new XmlNodeSimple<UserData>(name,namespaceKey);
   }
 
   
@@ -94,71 +134,40 @@ public class XmlNodeSimple implements XmlNode
   }
   
   public XmlNode addContent(String text)
-  { if(content == null){ content = new LinkedList<XmlNode>(); }
-    content.add(new XmlNodeSimple(text, "$"));
+  { node.addNode("$", new XmlNodeSimple<UserData>(text, "$"));
     return this;
   }
   
 
   public XmlNode addNewNode(String name, String namespaceKey) throws XmlException
-  { XmlNode node = new XmlNodeSimple(name, namespaceKey);
+  { XmlNode node = new XmlNodeSimple<UserData>(name, namespaceKey);
     addContent(node);
     return node;
   }
   
   
   
-  public XmlNode addContent(XmlNode node) 
-  throws XmlException
-  { if(content == null){ content = new LinkedList<XmlNode>(); }
-    //XmlNodeSimple node = (XmlNodeSimple)nodeP;
-    if(node.getParent() != null)
-      throw new XmlException("node has always a parent");
-    node.setParent(this);
-    content.add(node);
-    
-    String key;  //build the key namespace:tagname or tagname
-    if(node.getNamespaceKey() != null) { key =  node.getNamespaceKey() + ":" + node.getName(); }
-    else { key = node.getName(); }
-    
-    List<XmlNode> listKeyNode;
-    if(sortedChildNodes == null)
-    { //the node hasn't any children yet:
-      sortedChildNodes = new TreeMap<String, List<XmlNode>>();
-      listKeyNode = null; 
+  public XmlNode addContent(XmlNode child) 
+  throws XmlException { 
+    if(child instanceof XmlNodeSimple<?>){
+      node.addNode(((XmlNodeSimple<UserData>) child).node);
+    } else {
+      String name = child.getName();
+      String namespaceKey = child.getNamespaceKey();
+      String key = calcKey(name, namespaceKey);
+      TreeNodeBase<XmlNode> childnode = new TreeNodeBase<XmlNode>(key, child);
+      node.addNode(childnode);
     }
-    else
-    { //search children with same key, may be found or not:
-      listKeyNode = sortedChildNodes.get(key);
-    }
-    if(listKeyNode == null)
-    { //no tag with key contained yet:
-      listKeyNode = new LinkedList<XmlNode>();
-      sortedChildNodes.put(key, listKeyNode);
-    }
-    listKeyNode.add(node);  //to the list to the correct key.
     return this;
   }
 
   
-  public void removeChildren()
-  { if(content != null) for(XmlNode child: content)
-    { if(!child.isTextNode())
-      { child.setParent(null);  //
-      }
-    }
-    content = null;
-    sortedChildNodes = null;
-  }
-  
-  
-  
-  public void setParent(XmlNode parent)
-  { this.parent = parent;
+  @Override public void removeChildren(){
+    node.removeChildren();
   }
 
   
-  public XmlNode getParent(){ return parent; }
+  public XmlNode getParent(){ return node.getParentData(); }
   
   
   public boolean isTextNode(){ return namespaceKey != null && namespaceKey.equals("$"); }
@@ -170,12 +179,10 @@ public class XmlNodeSimple implements XmlNode
       return name;
     }
     else
-    { String sText = "";
-      if(content != null) for(XmlNode child: content)
-      { if(child.getNamespaceKey().equals("$"))
-        { //a text content as child.
-          sText += child.getName();
-        }
+    { List<TreeNodeBase<XmlNode>> textNodes = node.listChildren("$");
+      String sText = "";
+      for(TreeNodeBase<XmlNode> textNode: textNodes){
+        sText += textNode.data.getText();
       }
       return sText;
     }
@@ -214,48 +221,62 @@ public class XmlNodeSimple implements XmlNode
 
   public XmlNode getChild(String key)
   {
-    if(sortedChildNodes != null)
-    { List<XmlNode> children = sortedChildNodes.get(key);
-      if(children != null) return children.get(0);
-      else return null;
-    }
-    else return null;
+    TreeNodeBase<XmlNode> nodeChild = node.getChild(key);
+    return nodeChild.data;
   }
 
-  public Iterator<XmlNode> iterChildren()
-  {
-    if(content != null) return content.iterator();
-    else return null;
+  public Iterator<XmlNode> iterChildren(){ 
+    List<TreeNodeBase<XmlNode>> listNodes = node.listChildren();
+    if(listNodes ==null){ return null; }
+    else {
+      List<XmlNode> list = new LinkedList<XmlNode>();
+      for(TreeNodeBase<XmlNode> node: listNodes){
+        list.add(node.data);
+      }
+      return list.iterator();
+    }
   }
+
 
   public Iterator<XmlNode> iterChildren(String key)
-  {
-    if(sortedChildNodes != null)
-    { List<XmlNode> children = sortedChildNodes.get(key);
-      if(children != null) return children.iterator();
-      else return null;
+  { List<TreeNodeBase<XmlNode>> listNodes = node.listChildren(key);
+    if(listNodes ==null){ 
+      return null;
+    } else {
+      List<XmlNode> list = new LinkedList<XmlNode>();
+      for(TreeNodeBase<XmlNode> node: listNodes){
+        list.add(node.data);
+      }
+      return list.iterator();
     }
-    else return null;
   }
 
-  public List<XmlNode> listChildren()
-  {
-    // TODO Auto-generated method stub
-    return content;
+  public List<XmlNode> listChildren(){ 
+    List<TreeNodeBase<XmlNode>> listNodes = node.listChildren();
+    if(listNodes ==null){ return null; }
+    else {
+      List<XmlNode> list = new LinkedList<XmlNode>();
+      for(TreeNodeBase<XmlNode> node: listNodes){
+        list.add(node.data);
+      }
+      return list;
+    }
   }
 
   public List<XmlNode> listChildren(String key)
-  {
-    if(sortedChildNodes != null)
-    { List<XmlNode> children = sortedChildNodes.get(key);
-      return children;  //may be null if key not found.
+  { List<XmlNode> list = new LinkedList<XmlNode>();
+    List<TreeNodeBase<XmlNode>> listNodes = node.listChildren(key);
+    for(TreeNodeBase<XmlNode> node: listNodes){
+      list.add(node.data);
     }
-    else return null;
+    return list;
   }
-  
+
   public String toString()
   { return "<" + name + ">";
   }
+
+
   
 }
 

@@ -170,6 +170,7 @@ public class CmdStore
       } 
       catch(IOException exc){ sError = "CommandStore - cfg file read error; " + cfgFile; }
       catch(IllegalArgumentException exc){ sError = "CommandStore - cfg file error; " + cfgFile + exc.getMessage(); }
+      if(reader !=null){ try{ reader.close();} catch(IOException exc){}}
     }
     return sError;
   }

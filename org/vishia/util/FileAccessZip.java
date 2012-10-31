@@ -97,7 +97,7 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     int parentProperties = FileRemote.mDirectory | FileRemote.mExist | FileRemote.mCanRead ; //| FileRemote.mChildrenGotten;
     String sDirParent = fileZip.getAbsolutePath() + '/';
     FileRemote fileParent = new FileRemote(zipAccess, fileZip, sDirParent, null, fileZip.length(),fileZip.lastModified(), parentProperties, dataParent);
-    dataParent.children = new TreeNodeUniqueKey<FileRemote>(null, "/", fileParent);
+    dataParent.children = new TreeNodeUniqueKey<FileRemote>("/", fileParent);
     ZipFile jZipFile = null;
     try {
       jZipFile = new ZipFile(fileZip);
@@ -136,7 +136,7 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
         sNameChild = sPathEntry;
         sDirInZip = null;
       }
-      TreeNodeUniqueKey<FileRemote> parentDirNode;
+      TreeNodeBase<FileRemote> parentDirNode;
       if (sep >= 0) {
         parentDirNode = dataParent.children.getNode(sDirInZip, "/");
       } else {
@@ -152,10 +152,10 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
       FileRemote dir = parentDirNode.data;
       FileRemote fileChild = new FileRemote(zipAccess, dir, sDirChild, sNameChild, sizeChild, dateChild, zipEntryProperties, dataChild);
       if((zipEntryProperties & FileRemote.mDirectory) !=0){
-        dataChild.children = new TreeNodeUniqueKey<FileRemote>(parentDirNode, sNameChild, fileChild);
+        dataChild.children = new TreeNodeBase<FileRemote>(sNameChild, fileChild);
         parentDirNode.addNode(dataChild.children);
       } else {
-        parentDirNode.addLeaf(sNameChild, fileChild);        
+        parentDirNode.addNode(sNameChild, fileChild);        
       }
     }
     return fileParent;
@@ -284,7 +284,7 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     File theFile;
     ZipFile zipFile;
     ZipEntry zipEntry;
-    TreeNodeUniqueKey<FileRemote> children;
+    TreeNodeBase<FileRemote> children;
   }
 
   

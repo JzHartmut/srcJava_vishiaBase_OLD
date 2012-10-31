@@ -57,10 +57,16 @@ import java.util.TreeMap;
  * <br><br>
  * See {@link TreeNodeUniqueKey}, it is another implementation of a node for a tree.
  * 
+ * This class is designated as deprecated. The problem of this class is: children are referenced
+ *   directly with there data. Instead the child nodes should be referenced.
+ *   For example the {@link org.vishia.xmlSimle.XmlNodeSimple} has contained extra references to its
+ *   children if this class was used as subclass. Now this associations are contained in the
+ *   used subclass {@link TreeNodeBase}.
  * 
  * @author Hartmut Schorrig
  *
  * @param <Type> Type of the children.
+ * @deprecated. Use {@link TreeNodeBase} instead. 
  */
 public class SortedTreeNode<Type> implements SortedTree<Type>
 {
