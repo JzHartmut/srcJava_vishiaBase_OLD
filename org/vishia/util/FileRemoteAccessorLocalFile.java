@@ -629,7 +629,9 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       subDir, 
       file,
       dir, 
-      ask
+      ask,
+      /**Sent if a subdir is found but it is empty. */
+      emptyDir
       
     }
 
@@ -1087,19 +1089,24 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
           evBackInfo.sendEvent(FileRemote.CallbackCmd.copyDir);
         }
         //This action may need some time.
+        actData.dst.mkdirs();
         actData.listSrc = actData.src.listFiles();
         actData.ixSrc = 0;
-        File srcInDir = actData.listSrc[0];
-        FileRemote dstDir = FileRemote.fromFile(actData.dst);
-        //
-        //use the first entry of the dir:
-        //
-        actData.dst.mkdirs();
-        recursDirs.push(actData);
-        actData = new DataSetCopy1Recurs();
-        actData.src = srcInDir;
-        actData.dst = new FileRemote(dstDir, srcInDir.getName());
-        sendEv(CmdCpyIntern.subDir); 
+        if(actData.listSrc.length ==0){
+          //an empty directory:
+          sendEv(CmdCpyIntern.emptyDir);
+        } else {
+          File srcInDir = actData.listSrc[0];
+          FileRemote dstDir = FileRemote.fromFile(actData.dst);
+          //
+          //use the first entry of the dir:
+          //
+          recursDirs.push(actData);
+          actData = new DataSetCopy1Recurs();
+          actData.src = srcInDir;
+          actData.dst = new FileRemote(dstDir, srcInDir.getName());
+          sendEv(CmdCpyIntern.subDir);
+        }
         return consumed;  //return to the queue
 
       }
@@ -1114,6 +1121,8 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       @Override public int trans(Event ev) {
         if(ev.getCmd() == CmdCpyIntern.subDir){
           return exit().dirOrFile.entry(mEventConsumed);  //exit and entry in the same state.
+        } else if(ev.getCmd() == CmdCpyIntern.emptyDir){ 
+          return exit().fileFinished.entry(mEventConsumed);  //exit and entry in the same state.
         } else {
           return eventNotConsumed;
         }
