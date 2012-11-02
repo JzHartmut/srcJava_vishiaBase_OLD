@@ -63,7 +63,7 @@ public class XmlNodeSimple<UserData> implements XmlNode
   /**All nodes, especially child nodes, the parent too. */
   final TreeNodeBase<XmlNode> node; 
   
-  UserData data;
+  public UserData data;
   
   /**The List of child nodes and text in order of adding. 
    * Because the interface reference is used, it is possible that a node is another instance else XmlNodeSimple. 
@@ -222,7 +222,7 @@ public class XmlNodeSimple<UserData> implements XmlNode
   public XmlNode getChild(String key)
   {
     TreeNodeBase<XmlNode> nodeChild = node.getChild(key);
-    return nodeChild.data;
+    return nodeChild == null ? null : nodeChild.data;
   }
 
   public Iterator<XmlNode> iterChildren(){ 

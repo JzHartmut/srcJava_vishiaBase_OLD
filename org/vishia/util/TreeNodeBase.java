@@ -166,8 +166,15 @@ public class TreeNodeBase<T> implements SortedTree<TreeNodeBase<T>>
   
 
 
-  public TreeNodeBase(String name, T data){
-    this.key = name;
+  /**Creates a new unbounded node. 
+   * @param key The key will be used if the tree is sorted. It can be null,
+   *   then the tree is not sorted. The key is used to search this nodes by its key
+   *   in the parent node or from any grandparent node with the path.
+   *   
+   * @param data User data of this node.
+   */
+  public TreeNodeBase(String key, T data){
+    this.key = key;
     this.parent = null;
     this.data = data;
   }
