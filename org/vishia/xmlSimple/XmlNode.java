@@ -29,6 +29,7 @@ package org.vishia.xmlSimple;
 import java.util.Map;
 
 import org.vishia.util.SortedTree;
+import org.vishia.util.TreeNodeBase;
 
 /**This is a simple variant of processing XML.*/
 
@@ -39,8 +40,44 @@ import org.vishia.util.SortedTree;
  *     if the aliases are incorrect, the XML-tree is incorrect.
  * </ul>    
  */ 
-public interface XmlNode extends SortedTree<XmlNode>
-{ 
+public interface XmlNode<UserData> extends SortedTree<XmlNodeSimple<UserData>>
+{  /**Version, history and license.
+   * <ul>
+   * <li>2012-10-04: The mainly usage class {@link XmlNodeSimple} is derived from 
+   *   {@link org.vishia.util.TreeNodeBase} yet. Because both inherit from {@link SortedTree},
+   *   the generic type have to be the same. Up to now it is not possible to use
+   *   a indirect related type, the {@link XmlNodeSimple} is used here.  It is not able yet
+   *   to mix different implementations of XmlNode in one tree (is it necessary?)
+   * <li>2008-04-02: Hartmut some changes
+   * <li>2008-01-15: Hartmut www.vishia.org creation
+   * </ul>
+   * <br><br>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   */
+  public static final int version = 20121104;
+
   /**creates a XmlNode from the same implementation type as this, but without adding to the XML-tree.
    * The node can be added later, using {@link #addContent(XmlNode)}, because it may be necessary to built
    * a sub tree with the new node first, and than add, if there are multi threads.
@@ -122,10 +159,10 @@ public interface XmlNode extends SortedTree<XmlNode>
    * @return the node or null.
    * @see org.vishia.util.SortedTree#getChild(java.lang.String)
    */
-  public XmlNode getChild(String name);
+  //public XmlNode getChild(String name);
 
   /**gets the parent of the node. */
-  public XmlNode getParent();
+  //public XmlNode getParent();
 
   
   

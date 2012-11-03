@@ -39,6 +39,9 @@ import java.util.List;
  */
 public interface SortedTree<Type> 
 { 
+  
+  Type getParent();
+  
   /**Searches the first child with given key from the given node this.
    * 
    * @param sKey The key of the demanded child. The implementation may have extra possibilities in addressing children

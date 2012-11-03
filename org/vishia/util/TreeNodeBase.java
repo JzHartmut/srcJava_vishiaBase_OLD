@@ -7,9 +7,23 @@ import java.util.Map;
 import java.util.TreeMap;
 
 
-/**
- *  * 
- * UML-Diagramm, presentation style see {@link Docu_UML_simpleNotation}:
+/**This class is a base class for data, which are organized itself in a tree node structure.
+ * The difference to data which are organized in a {@link java.util.TreeMap} for example is:
+ * Members of a TreeMap are organized in a tree, but there are not nodes itself. The TreeMap 
+ * is one of more possibly access forms. The same data may be organized in another TreeMap with
+ * another key at the same time, it may be organized in a List in the same time or in an array.
+ * The node of a TreeMap is not visible for usage.
+ * <br>
+ * Data which based on this class are intrinsic nodes which are beneficial and visible as node.
+ * Every node of them has one master key to search it in a tree of nodes.
+ * <br><br>
+ * A known example for such nodes are elements of a XML tree. Any element has its parent
+ * and some children. It is a node in an intrinsic modality. The master key is the tag name
+ * combined with the nameSpace key.
+ * The XPATH searches nodes in a tree with given tag names.
+ * 
+ * <br><br> 
+ * UML-Diagram, presentation style see {@link Docu_UML_simpleNotation}:
  * <pre>
  * 
  *                                    TreeNodeBase
@@ -65,15 +79,15 @@ import java.util.TreeMap;
  * <pre>
  *                                    !Meta-Node for all nodes 
  *             !parent                !with same key 
- *             TreeNodeUniqueKey      TreeNodeBase             TreeNodeBase or  
- *             -name                     |                     TreeNodeUniqueKey
- *                |                      |                     !the child
+ *             TreeNodeBase           TreeNodeBase             TreeNodeBase  
+ *                |                   -key                     !one of the children
+ *                |                      |                     -key
  *                |---data-->T           |--data->null            |
  *   <---parent---|                      |--idxChildren-->null    |
- *                |--idxChildren---name*>|                        |---data-->T the data
+ *                |--idxChildren----key*>|                        |---data-->T the data
  *                |                      |--childNodes----------*>|
- *                |                      |                        |--idxChildren--->maybe deeper nodes
- *                |                      |                        |
+ *                |                      |                        |--idxChildren--->maybe deeper nodes or null
+ *                |                      |                        |--childNodes---->maybe deeper nodes or null
  *                |<-----------parent----|<---------parent--------|
  *                |                                               |
  *                |--childNodes---------------------------------*>|              
@@ -101,13 +115,17 @@ import java.util.TreeMap;
  *
  * @author Hartmut Schorrig
  *
- * @param <T> The type of data of the node.
+ * @param <Data> The type of additional data which are referenced in this node. Use Object if data are not used.
+ * @param <DerivedNode> Type of the TreeNode which is build with this class as superclass.
+ *   If one will only use the underived TreeNodeBase, use {@link TreeNodeBase.TreeNode} instead.
  */
-public class TreeNodeBase<T> implements SortedTree<TreeNodeBase<T>>
+public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Data> implements SortedTree<DerivedNode>
 {
 
   /**Version, history and license.
    * <ul>
+   * <li>2012-11-03 Hartmut new: Generic type DerivedNode to support derived types of this. The returned
+   *   container types have elements of this DerivedNode type.
    * <li>2012-11-01 Hartmut Constructor with parent is faulty because the parent will be set on parent.addNode(...).
    * <li>2012-11-01 Hartmut This class contains the sorted and the unsorted management of nodes
    *   inclusive multiple nodes with the same key. 
@@ -138,31 +156,40 @@ public class TreeNodeBase<T> implements SortedTree<TreeNodeBase<T>>
    * If you are intent to use this sources without publishing its usage, you can get
    * a second license subscribing a special contract with the author. 
    * 
-   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de, www.vishia.org
    * 
    */
   public static final int version = 20120728;
 
+  /**This instance is used if the node is a meta node to refer more as one child with the same key. 
+   * 
+   */
+  private static String metaNodeKey = "--metanode-key--";
+  
   protected final String key;
   
-  protected TreeNodeBase<T> parent;
+  protected TreeNodeBase<DerivedNode,Data> parent;
   
-  /**The List of child nodes and text in order of adding. 
-   * Because the interface reference is used, it is possible that a node is another instance else XmlNodeSimple. 
+  /**The List of child nodes in order of adding. All nodes in this list are type of the DerivedNode. 
    */
-  protected List<TreeNodeBase<T>> childNodes;
+  protected List<DerivedNode> childNodes;
   
-  protected Map<String, TreeNodeBase<T>> idxChildren;
+  /**The child nodes sorted to the key. The key is given with the child itself, attribute {@link #key}.
+   * This index can contain a so named 'meta node' which holds more as one child with the same key.
+   * Note that the meta node is not registered in the {@link #childNodes}.
+   */
+  protected Map<String, TreeNodeBase<DerivedNode,Data>> idxChildren;
 
   
-  /**Instances which are a leaf of this node. That leafs don't need a node to wrap it. 
-   * Therefore the tree is not visible from a leaf.
-   * If you want to refer from a leaf to its parent, use a node without childNodes and left this list emtpy.
-   * See 
+  /**Instances which are a leaf of this node. That leafs should not need a node to wrap it. 
+   * The tree is not visible from a leaf because such a leaf is not a TreeNode.
+   * If you want to refer from a leaf to its parent, use a node without childNodes and left this list empty.
+   * @deprecated. It is too much complexity for a treeNode and not typical for it. Should contain in {@link #data}.
    */
-  protected List<T> leafData;
+  protected List<Data> leafData;
   
-  public T data;
+  /**Any additional data associated with this node. */
+  public final Data data;
   
 
 
@@ -173,21 +200,33 @@ public class TreeNodeBase<T> implements SortedTree<TreeNodeBase<T>>
    *   
    * @param data User data of this node.
    */
-  public TreeNodeBase(String key, T data){
+  public TreeNodeBase(String key, Data data){
     this.key = key;
     this.parent = null;
     this.data = data;
   }
 
   
+  /**This method has to be overridden in the derived class. It has to be created an instance
+   * of the DerivedNode type.
+   * @param key see {@link #TreeNodeBase(String, Object)}
+   * @param data see {@link #TreeNodeBase(String, Object)}
+   * @return Instance of the DerivedNode class
+   */
+  protected DerivedNode newNode(String key, Data data){
+    throw new IllegalArgumentException("This method has to be overridden.");
+  }
+  
+  
   /**adds a leaf.
    * 
    * @param leaf The data to add.
+   * @deprecated
    */
-  public void addLeaf(T leaf)
+  public void addLeaf(Data leaf)
   { 
     if(leafData == null){
-      leafData = new LinkedList<T>(); 
+      leafData = new LinkedList<Data>(); 
     }
     leafData.add(leaf);
   }
@@ -196,26 +235,28 @@ public class TreeNodeBase<T> implements SortedTree<TreeNodeBase<T>>
 
   
   /**create a child node and adds it.
-   * 
+   * This method is only proper to use if the DerivedNode has not a more complex constructor.
+   * As opposite one can create a DerivedNode in the application level and invoke {@link #addNode(TreeNodeBase)}
    * @param itsKey The key may be free defined outside, independent of the content of the child. 
    *        This key is used to find out children.
    * @param leaf The data of the node.
    */
-  public void addNode(String itsKey, T leaf)
+  public DerivedNode addNode(String itsKey, Data leaf)
   {
-    TreeNodeBase<T> childNode = new TreeNodeBase<T>(itsKey, leaf);
+    DerivedNode childNode = newNode(itsKey, leaf);
     addNode(childNode);
+    return childNode;
   }
   
   
   
-  /**Adds a child node.
+  /**Adds a given child node.
    * 
    * @param itsKey The key may be free defined outside, independent of the content of the child. 
    *        This key is used to find out children.
    * @param leaf The data of the node.
    */
-  public void addNode(TreeNodeBase<T> childNode)
+  public void addNode(DerivedNode childNode)
   { if(childNode.parent !=null){
       throw new IllegalArgumentException("Node has a parent, it is contained anywhere other, invoke detach!");
     }
@@ -224,10 +265,10 @@ public class TreeNodeBase<T> implements SortedTree<TreeNodeBase<T>>
     } 
     else {
       if(idxChildren == null)
-      { idxChildren = new TreeMap<String, TreeNodeBase<T>>();
+      { idxChildren = new TreeMap<String, TreeNodeBase<DerivedNode,Data>>();
       }
-      TreeNodeBase<T> metaNode = idxChildren.get(childNode.key);
-      if(metaNode == null){
+      TreeNodeBase<DerivedNode,Data> childNodeFound = idxChildren.get(childNode.key);
+      if(childNodeFound == null){
         //only one entry for this key, 
         //because it may be the first one, it is in uncertain 
         //whether it may be more as one leaf with the same key in the future.
@@ -235,20 +276,23 @@ public class TreeNodeBase<T> implements SortedTree<TreeNodeBase<T>>
         idxChildren.put(childNode.key, childNode);
       } else {
         //a node with the same leaf was found.
-        if(metaNode.childNodes ==null){
-          metaNode.childNodes = new LinkedList<TreeNodeBase<T>>();
+        TreeNodeBase<DerivedNode,Data> metaNode;  //a meta node is needed.
+        if(childNodeFound.key == metaNodeKey){
+          //it is a meta node already.
+          metaNode = childNodeFound;
+        } else {
+          //it is the only one child with this key. Build a meta node yet:
+          metaNode =  new TreeNodeBase<DerivedNode,Data>(metaNodeKey, null);
+          metaNode.parent = this;
+          idxChildren.put(childNode.key, metaNode);  //replaces the exitsting node.
+          metaNode.childNodes = new LinkedList<DerivedNode>();
         }
-        if(metaNode.data !=null && metaNode.childNodes.size() == 0){  //yet an unique key
-          //set the yet only one leaf in the childNodes:
-          TreeNodeBase<T> node4ChildLast =  new TreeNodeBase<T>(childNode.key, metaNode.data);
-          metaNode.childNodes.add(node4ChildLast);
-          metaNode.data = null;
-        }
+        metaNode.childNodes.add(childNode);
         childNode.parent = metaNode;
       }
     }
     if(childNodes == null){ 
-      childNodes = new LinkedList<TreeNodeBase<T>>();
+      childNodes = new LinkedList<DerivedNode>();
     }
     childNodes.add(childNode);  //parent refers this or metaNode.
   }
@@ -257,15 +301,25 @@ public class TreeNodeBase<T> implements SortedTree<TreeNodeBase<T>>
   
   
   
+  /**Detaches the node from its tree. A node can only be member of one tree of TreeNodeBase, 
+   * not member of more as one. Any TreeNodeBase has its {@link #getParent()}.
+   * Nevertheless you can refer any node within another structure of data. 
+   * <br><br>
+   * If a node is detached, it can be added in another tree of the same type.
+   */
   public void detach(){
     if(parent !=null){
       parent.childNodes.remove(this);
       if(parent.idxChildren!=null){
         idxChildren.remove(this);
-      } else {
-        if(parent.childNodes.size()==0 && parent.data == null){
-          //it is a meta node for multi key nodes
-          parent.detach();  //detach the meta node.
+      } 
+      if(parent.key == metaNodeKey){
+        //remove the child in the real parent.
+        parent.parent.childNodes.remove(this);
+        //NOTE: It is not found in the idxChildren, only the meta node is there!
+        if(parent.childNodes.size()==0){
+          //The meta node has not children yet. remove or not?
+          parent.parent.idxChildren.remove(parent);
         }
       }
       parent = null;
@@ -273,17 +327,25 @@ public class TreeNodeBase<T> implements SortedTree<TreeNodeBase<T>>
   }
   
   
+  /**Remove all children of this node. The immediate children will be detached from this node.
+   * The children of that children would not be detached from its parent. But if the children
+   * are not referenced anyway other they are removed from space (garbage collected).
+   * Note: Use {@link #detach()} for any child node if it and their sub tree should be used furthermore.
+   */
   public void removeChildren(){
-    for(TreeNodeBase<T> child: childNodes){
+    for(TreeNodeBase<DerivedNode,Data> child: childNodes){
       child.detach();
     }
   }
   
   
   
+  /**Returns the key of this node.
+   * @return the key, null if the node is not sorted. 
+   */
   public String getKey(){ return key; }
   
-  public T getParentData(){
+  public Data getParentData(){
     if(parent ==null){ return null;}
     else {
       return parent.data;
@@ -291,77 +353,97 @@ public class TreeNodeBase<T> implements SortedTree<TreeNodeBase<T>>
   }
   
   
-  TreeNodeBase<T> getNode(String path, String separator){
+  /**Returns any selected node in the tree.
+   * @param path The path may have more as one key to traverse into the boughs of the tree.
+   * @param separator Separator between key elements in path.
+   * @return
+   */
+  DerivedNode getNode(String path, String separator){
     String[] elements = path.split(separator);
-    TreeNodeBase<T> child = this;
+    TreeNodeBase<DerivedNode,Data> child = this;
     for(String name: elements){
       if(child.idxChildren == null){
         break;
       }
-      TreeNodeBase<T> child1 = child.idxChildren.get(name);
+      TreeNodeBase<DerivedNode,Data> child1 = child.idxChildren.get(name);
       if(child1 == null){ 
         break;
       } else {
         child = child1;
       }
     }
-    return child;
+    return (DerivedNode)child;
   }
   
   
 
   
-  /**Problem: obj?
-   * @param path
-   * @param separator
-   * @return
+  /**Searches a node with the path, creates it if it is not found.
+   * @param path path of keys, see {@link #getNode(String, String)}
+   * @param separator The separator in path.
+   * @return always a node with given key
    */
-  TreeNodeBase<T> getOrCreateNode(String path, String separator){
+  DerivedNode getOrCreateNode(String path, String separator){
     String[] elements = path.split(separator);
-    TreeNodeBase<T> child = this;
+    TreeNodeBase<DerivedNode,Data> child = this;
     for(String name: elements){
       if(child.idxChildren == null){
-        idxChildren = new TreeMap<String, TreeNodeBase<T>>();
-        TreeNodeBase<T> child1 = new TreeNodeBase<T>(name, null);
+        idxChildren = new TreeMap<String, TreeNodeBase<DerivedNode,Data>>();
+        DerivedNode child1 = newNode(name, null);
         child.addNode(child1);
         child = child1;
       
       } else {
-        TreeNodeBase<T> child1 = child.idxChildren.get(name);
+        TreeNodeBase<DerivedNode,Data> child1 = child.idxChildren.get(name);
         if(child1 == null){ 
-          child1 = new TreeNodeBase<T>(name, null);
-          child.addNode(child1);
+          child1 = newNode(name, null);
+          child.addNode((DerivedNode)child1);
           child = child1;
         } else {
           child = child1;
         }
       }
     }
-    return child;
+    return (DerivedNode)child;
   }
   
 
 
   
   
-  
+  /**Gets the parent of this node or null if it is the root node or it is {@link #detach()}.
+   * @see org.vishia.util.SortedTree#getParent()
+   */
+  @Override public DerivedNode getParent(){
+    @SuppressWarnings("unchecked")
+    DerivedNode ret = (DerivedNode)parent;
+    return ret;
+  }
 
-  //@Override
+  
+  
   /**Returns the node with the given key. If there are more as one node with the same key,
    * the first node is returned. 
    * @param sKey
    * @return null if a node with the key is not referred from this node directly.
    */
-  @Override public TreeNodeBase<T> getChild(String sKey)
+  @Override 
+  public DerivedNode getChild(String sKey)
   {
     if(idxChildren == null){
       return null;
     }
-    TreeNodeBase<T> nodeChild = idxChildren.get(sKey);
-    if(nodeChild !=null && nodeChild.data == null){
-      nodeChild = nodeChild.childNodes.get(0);
+    TreeNodeBase<DerivedNode,Data> nodeChild = idxChildren.get(sKey);
+    if(nodeChild !=null && nodeChild.key == metaNodeKey){
+      if(nodeChild.childNodes.size()>=1){
+        nodeChild = nodeChild.childNodes.get(0);
+      } else {
+        nodeChild = null;  //meta node exists but it has not childs because all of them are detached.
+      }
     }
-    return nodeChild;
+    @SuppressWarnings("unchecked")
+    DerivedNode ret = (DerivedNode)nodeChild;
+    return ret;
   }
 
   
@@ -369,28 +451,35 @@ public class TreeNodeBase<T> implements SortedTree<TreeNodeBase<T>>
 
 
   @Override
-  public Iterator<TreeNodeBase<T>> iterChildren()
-  {
-    return childNodes.iterator();
+  public Iterator<DerivedNode> iterChildren()
+  { 
+    @SuppressWarnings("unchecked")
+    Iterator<DerivedNode> ret = childNodes == null ? null : (Iterator<DerivedNode>)childNodes.iterator();
+    return ret;
   }
 
 
   @Override
-  public Iterator<TreeNodeBase<T>> iterChildren(String sKey)
+  public Iterator<DerivedNode> iterChildren(String sKey)
   { if(idxChildren ==null){ return null; }
     else { 
-      TreeNodeBase<T> children = idxChildren.get(sKey);
+      TreeNodeBase<DerivedNode,Data> children = idxChildren.get(sKey);
       if(children ==null|| children.childNodes ==null){ return null; }
-      else { return children.childNodes.iterator(); }
+      else {
+        @SuppressWarnings("unchecked")
+        Iterator<DerivedNode> ret = (Iterator<DerivedNode>)children.childNodes.iterator();
+        return ret; 
+      }
     }
   }
 
 
   @Override
-  public List<TreeNodeBase<T>> listChildren()
+  public List<DerivedNode> listChildren()
   {
-    // TODO Auto-generated method stub
-    return childNodes;
+    @SuppressWarnings("unchecked")
+    List<DerivedNode> ret = (List<DerivedNode>)childNodes;
+    return ret;
   }
 
 
@@ -401,27 +490,70 @@ public class TreeNodeBase<T> implements SortedTree<TreeNodeBase<T>>
    * @return A List of all children with the given key or null if there is no such child.
    * @see org.vishia.util.SortedTree#listChildren(java.lang.String)
    */
-  @Override public List<TreeNodeBase<T>> listChildren(String sKey)
-  {
-    if(idxChildren ==null) { return null; }
+  @SuppressWarnings("unchecked")
+  @Override 
+  public List<DerivedNode>listChildren(String sKey)
+  { if(idxChildren ==null) { return null; }
     else {
-      TreeNodeBase<T> childMetaNode = idxChildren.get(sKey);
+      TreeNodeBase<DerivedNode,Data> childMetaNode = idxChildren.get(sKey);
       if(childMetaNode == null){ return null; }
-      else{ 
-        if(childMetaNode.childNodes ==null){
+      else{
+        List<DerivedNode> ret;
+        if(childMetaNode.key != metaNodeKey){
           //only one child, but a List is expected
-          LinkedList<TreeNodeBase<T>> childNodes = new LinkedList<TreeNodeBase<T>>();
-          TreeNodeBase<T> childNode = new TreeNodeBase<T>(sKey, childMetaNode.data);
+          LinkedList<TreeNodeBase<DerivedNode,Data>> childNodes = new LinkedList<TreeNodeBase<DerivedNode,Data>>();
+          TreeNodeBase<DerivedNode,Data> childNode = new TreeNodeBase<DerivedNode,Data>(sKey, childMetaNode.data);
           childNodes.add(childNode);
-          return childNodes;
+          ret = (List<DerivedNode>) childNodes;
         } else {
-          return childMetaNode.childNodes;
+          ret = (List<DerivedNode>) childMetaNode.childNodes;
         }
+        return ret;
       }
     }
   }
 
 
-  protected List<TreeNodeBase<T>> childNodes(TreeNodeBase<T> node){ return node.childNodes; }
-  
+  /**Returns the container with children with the same key.
+   * @param sKey
+   * @return null if it is not a container.
+   */
+  public List<DerivedNode>getContainerChildren(String sKey)
+  { if(idxChildren ==null) { return null; }
+    else {
+      TreeNodeBase<DerivedNode,Data> childMetaNode = idxChildren.get(sKey);
+      if(childMetaNode == null){ return null; }
+      else{
+        List<DerivedNode> ret;
+        if(childMetaNode.key != metaNodeKey){
+          return null;
+          //only one child, but a List is expected
+        } else {
+          ret = (List<DerivedNode>) childMetaNode.childNodes;
+        }
+        return ret;
+      }
+    }
+  }
+
+
+  protected List<DerivedNode> childNodes(TreeNodeBase<DerivedNode,Data> node){ return node.childNodes; }
+
+
+  /**This class provides a ready to use TreeNode without additional functionality like TreeNodeBase.
+   * The DerivedNode is this Type.
+   * @author Hartmut
+   *
+   * @param <Data>
+   */
+  public final static class TreeNode<Data> extends TreeNodeBase<TreeNode<Data>, Data>
+  {
+    public TreeNode(String key, Data data) {
+      super(key, data);
+    }
+    
+    @Override protected TreeNode<Data> newNode(String key, Data data){
+      return new TreeNode<Data>(key, data);
+    }
+  }
 }

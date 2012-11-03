@@ -32,6 +32,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.TreeMap;
 
+import org.vishia.java2C.JavaSrcTreePkg;
+
 /**Commonly implementation of a Node in a sorted tree. The node is implemented with a TreeMap with the key 
  * and a LinkedList as Object in the TreeMap node, containing all Object with the same key.
  * This construction enables the fast searching of more as one child nodes with same key. 
@@ -106,6 +108,11 @@ public class SortedTreeNode<Type> implements SortedTree<Type>
       unsortedChildren = new LinkedList<Type>(); }
     unsortedChildren.add(newElement);
   }
+  
+  @Override public Type getParent(){
+    return null;
+  }
+
   
   /**implements the interface method from {@link org.vishia.util.SortedTree}.
    */

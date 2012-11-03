@@ -12,10 +12,11 @@ import org.vishia.util.TreeNodeBase;
 /**This is a simple variant of processing XML.*/
 
 /**Representation of a XML node. It contains a tree of nodes or text content. */ 
-public class XmlNodeSimple<UserData> implements XmlNode
+public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData>, UserData> implements XmlNode<UserData>
 { 
   /**Version, history and license.
    * <ul>
+   * <li>2012-11-03 Hartmut Now this class is derived from TreeNodeBase directly. It is a TreeNode by itself.
    * <li>2012-11-01 Hartmut The {@link TreeNodeBase} is used for the node structure. 
    *   Reference {@link #node}. The algorithm to manage the node structure is deployed in the
    *   TreeNodeBase yet. 
@@ -47,11 +48,12 @@ public class XmlNodeSimple<UserData> implements XmlNode
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20121101;
+  public static final int version = 20121104;
 
 
   
-  /**The tag name of the node or the text if namespaceKey is "$". */
+  /**The tag name of the node or the text if namespaceKey is "$". 
+   * Note: It is not the key in the {@link TreeNodeBase}. The key there is namespaceKey:name. */
   final String name;
   
   /**The namespace-key. If it is "$", the node is a terminate text node. */
@@ -61,9 +63,9 @@ public class XmlNodeSimple<UserData> implements XmlNode
   TreeMap<String, String> attributes;
 
   /**All nodes, especially child nodes, the parent too. */
-  final TreeNodeBase<XmlNode> node; 
+  //final TreeNodeBase<XmlNode,XmlNode> node; 
   
-  public UserData data;
+  //public UserData data;
   
   /**The List of child nodes and text in order of adding. 
    * Because the interface reference is used, it is possible that a node is another instance else XmlNodeSimple. 
@@ -80,29 +82,48 @@ public class XmlNodeSimple<UserData> implements XmlNode
   /**The parent node. */
   //XmlNode parent;
   
-  public XmlNodeSimple(String text, boolean isText)
-  { node = null;
-    namespaceKey = "$";
-    this.name = text;
+  public XmlNodeSimple(String name)
+  { super(name, null);
+    this.name = name;
+    //node = new TreeNodeBase<XmlNode,XmlNode>(name, this);
     //this.name = name;
   }
   
-  public XmlNodeSimple(String name)
-  { this.name = name;
-    node = new TreeNodeBase<XmlNode>(name, this);
+  public XmlNodeSimple(String name, UserData data)
+  { super(name, data);
+    this.name = name;
+    //node = new TreeNodeBase<XmlNode,XmlNode>(name, this);
     //this.name = name;
+  }
+  
+  public XmlNodeSimple(String text, boolean isText)
+  { super("$", null);
+    this.name = text;
+    //node = new TreeNodeBase<XmlNode,XmlNode>(calcKey(name, namespaceKey), this);
+    //this.name = name;
+    this.namespaceKey = "$";
+  }
+  
+  public XmlNodeSimple(String name, String namespaceKey, UserData data)
+  { super(calcKey(name, namespaceKey), data);
+    this.name = name;
+    //node = new TreeNodeBase<XmlNode,XmlNode>(calcKey(name, namespaceKey), this);
+    //this.name = name;
+    this.namespaceKey = namespaceKey;
   }
   
   public XmlNodeSimple(String name, String namespaceKey)
-  { this.name = name;
-    node = new TreeNodeBase<XmlNode>(calcKey(name, namespaceKey), this);
+  { super(calcKey(name, namespaceKey), null);
+    this.name = name;
+    //node = new TreeNodeBase<XmlNode,XmlNode>(calcKey(name, namespaceKey), this);
     //this.name = name;
     this.namespaceKey = namespaceKey;
   }
   
   public XmlNodeSimple(String name, String namespaceKey, String namespace)
-  { this.name = name;
-    node = new TreeNodeBase<XmlNode>(calcKey(name, namespaceKey), this);
+  { super(calcKey(name, namespaceKey), null);
+    this.name = name;
+    //node = new TreeNodeBase<XmlNode,XmlNode>(calcKey(name, namespaceKey), this);
     //this.name = name;
     this.namespaceKey = namespaceKey;
   }
@@ -115,7 +136,13 @@ public class XmlNodeSimple<UserData> implements XmlNode
     return key;
   }
   
-  
+  @Override protected XmlNodeSimple<UserData> newNode(String key, UserData data){
+    XmlNodeSimple<UserData> newNode = new XmlNodeSimple<UserData>(key, this.namespaceKey, data);
+    return newNode;
+    //TreeNodeBase<A, T> node = new TreeNodeBase(key, data);
+    //return (A)node;
+  }
+
   
   public XmlNode createNode(String name, String namespaceKey)
   { return new XmlNodeSimple<UserData>(name,namespaceKey);
@@ -134,7 +161,8 @@ public class XmlNodeSimple<UserData> implements XmlNode
   }
   
   public XmlNode addContent(String text)
-  { node.addNode("$", new XmlNodeSimple<UserData>(text, "$"));
+  { XmlNodeSimple<UserData> child = new XmlNodeSimple<UserData>(text, true);
+    addNode(child);
     return this;
   }
   
@@ -147,27 +175,24 @@ public class XmlNodeSimple<UserData> implements XmlNode
   
   
   
+  @SuppressWarnings("unchecked")
   public XmlNode addContent(XmlNode child) 
-  throws XmlException { 
+  throws XmlException 
+  { 
     if(child instanceof XmlNodeSimple<?>){
-      node.addNode(((XmlNodeSimple<UserData>) child).node);
+      addNode((XmlNodeSimple<UserData>)child);
     } else {
       String name = child.getName();
       String namespaceKey = child.getNamespaceKey();
       String key = calcKey(name, namespaceKey);
-      TreeNodeBase<XmlNode> childnode = new TreeNodeBase<XmlNode>(key, child);
-      node.addNode(childnode);
+      //TreeNodeBase<XmlNode,XmlNode> childnode = new TreeNodeBase<XmlNode,XmlNode>(key, child);
+      XmlNodeSimple<UserData> childnode = new XmlNodeSimple<UserData>(name, key);
+      addNode((XmlNodeSimple<UserData>)childnode);
     }
     return this;
   }
 
   
-  @Override public void removeChildren(){
-    node.removeChildren();
-  }
-
-  
-  public XmlNode getParent(){ return node.getParentData(); }
   
   
   public boolean isTextNode(){ return namespaceKey != null && namespaceKey.equals("$"); }
@@ -179,10 +204,10 @@ public class XmlNodeSimple<UserData> implements XmlNode
       return name;
     }
     else
-    { List<TreeNodeBase<XmlNode>> textNodes = node.listChildren("$");
+    { List<XmlNodeSimple<UserData>> textNodes = listChildren("$");
       String sText = "";
-      for(TreeNodeBase<XmlNode> textNode: textNodes){
-        sText += textNode.data.getText();
+      for(XmlNode textNode: textNodes){
+        sText += textNode.getText();
       }
       return sText;
     }
@@ -219,61 +244,19 @@ public class XmlNodeSimple<UserData> implements XmlNode
     else return null;
   }
 
-  public XmlNode getChild(String key)
-  {
-    TreeNodeBase<XmlNode> nodeChild = node.getChild(key);
-    return nodeChild == null ? null : nodeChild.data;
-  }
-
-  public Iterator<XmlNode> iterChildren(){ 
-    List<TreeNodeBase<XmlNode>> listNodes = node.listChildren();
-    if(listNodes ==null){ return null; }
-    else {
-      List<XmlNode> list = new LinkedList<XmlNode>();
-      for(TreeNodeBase<XmlNode> node: listNodes){
-        list.add(node.data);
-      }
-      return list.iterator();
-    }
-  }
 
 
-  public Iterator<XmlNode> iterChildren(String key)
-  { List<TreeNodeBase<XmlNode>> listNodes = node.listChildren(key);
-    if(listNodes ==null){ 
-      return null;
-    } else {
-      List<XmlNode> list = new LinkedList<XmlNode>();
-      for(TreeNodeBase<XmlNode> node: listNodes){
-        list.add(node.data);
-      }
-      return list.iterator();
-    }
-  }
 
-  public List<XmlNode> listChildren(){ 
-    List<TreeNodeBase<XmlNode>> listNodes = node.listChildren();
-    if(listNodes ==null){ return null; }
-    else {
-      List<XmlNode> list = new LinkedList<XmlNode>();
-      for(TreeNodeBase<XmlNode> node: listNodes){
-        list.add(node.data);
-      }
-      return list;
-    }
-  }
-
-  public List<XmlNode> listChildren(String key)
-  { List<XmlNode> list = new LinkedList<XmlNode>();
-    List<TreeNodeBase<XmlNode>> listNodes = node.listChildren(key);
-    for(TreeNodeBase<XmlNode> node: listNodes){
-      list.add(node.data);
-    }
-    return list;
-  }
 
   public String toString()
   { return "<" + name + ">";
+  }
+
+  @Override
+  public XmlNodeSimple<UserData> getParent()
+  {
+    // TODO Auto-generated method stub
+    return null;
   }
 
 

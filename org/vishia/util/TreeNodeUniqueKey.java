@@ -19,7 +19,7 @@ import java.util.TreeMap;
  *
  * @param <T> The type of data of the node.
  */
-public class TreeNodeUniqueKey <T> extends TreeNodeBase<T> implements SortedTree<TreeNodeBase<T>>
+public class TreeNodeUniqueKey <T>// extends TreeNodeBase<T> implements SortedTree<TreeNodeBase<T>>
 {
 
   /**Version, history and license.
@@ -54,7 +54,7 @@ public class TreeNodeUniqueKey <T> extends TreeNodeBase<T> implements SortedTree
   public static final int version = 20120728;
 
   public TreeNodeUniqueKey(String key, T data){
-    super(key, data);
+    //super(key, data);
   }
   
   

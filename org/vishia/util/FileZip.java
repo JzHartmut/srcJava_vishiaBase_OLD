@@ -33,13 +33,13 @@ public class FileZip extends FileRemote {
    * null, if this instance represents only a file entry in the zip file (a leaf
    * in tree).
    */
-  TreeNodeUniqueKey<FileZip> children;
+  TreeNodeBase.TreeNode<FileZip> children;
 
   public FileZip(File parent) {
     super(parent.getName());
     this.theFile = parent;
     ZipFile zipFile = null;
-    children = new TreeNodeUniqueKey<FileZip>("/", this);
+    children = new TreeNodeBase.TreeNode<FileZip>("/", this);
     try {
       zipFile = new ZipFile(parent);
     } catch (Exception exc) {
@@ -57,13 +57,13 @@ public class FileZip extends FileRemote {
         String sDir = sPathEntry.substring(0, sep);
         String sName = sPathEntry.substring(sep + 1);
         if (sName.length() > 0) {
-          TreeNodeBase<FileZip> dir = children.getOrCreateNode(sDir, "/");
+          TreeNodeBase.TreeNode<FileZip> dir = children.getOrCreateNode(sDir, "/");
           FileZip child = new FileZip(theFile, zipFile, entry);
           dir.addNode(sName, child);
         } else {
           // a directory entry found, it ends with '/'
           sep = sDir.lastIndexOf('/');
-          TreeNodeBase<FileZip> parentDir;
+          TreeNodeBase.TreeNode<FileZip> parentDir;
           if (sep >= 0) {
             parentDir = children.getOrCreateNode(sDir, "/");
           } else {
@@ -88,7 +88,7 @@ public class FileZip extends FileRemote {
     }
     p1 = sEntryPath.lastIndexOf('/', p2-1);  //maybe -1, then string from 0
     String sEntryName = sEntryPath.substring(p1+1, p2);
-    this.children = new TreeNodeUniqueKey<FileZip>(sEntryName, this);
+    this.children = new TreeNodeBase.TreeNode<FileZip>(sEntryName, this);
     parent.children.addNode(this.children);
     this.zipFile = zipFile;
     this.zipEntry = zipEntry;
@@ -113,7 +113,7 @@ public class FileZip extends FileRemote {
       int ii = -1;
       FileZip[] ret = new FileZip[zChildren];
       if (children.childNodes != null)
-        for (TreeNodeBase<FileZip> node1 : children.childNodes) {
+        for (TreeNodeBase.TreeNode<FileZip> node1 : children.childNodes) {
           ret[++ii] = node1.data;
         }
       if (children.leafData != null)
@@ -162,15 +162,6 @@ public class FileZip extends FileRemote {
     return parent.getAbsolutePath();
   }
 
-  class Test extends TreeNodeUniqueKey<FileZip> {
-
-    public Test(TreeNodeUniqueKey<FileZip> parent, String key, FileZip data) {
-      super(key, data);
-      // TODO Auto-generated constructor stub
-      boolean x = isDirectory();
-    }
-  }
-
   @Override
   public String toString() {
     return sPathZip;
@@ -184,7 +175,7 @@ public class FileZip extends FileRemote {
   public static void main(String[] args) {
     File file = new File("/home/hartmut/vishia/Java/srcJava_Zbnf.zip");
     FileZip fileZip = new FileZip(file);
-    Test test = fileZip.new Test(fileZip.children, "", null);
+    //TreeNodeBase.TreeNode<FileZip> test = new TreeNodeBase.TreeNode<FileZip>(fileZip.children, "", null);
     // boolean x = test.isDirectory();
     // boolean y = test instanceof FileZip;
     fileZip.listFiles();

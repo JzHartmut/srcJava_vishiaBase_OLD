@@ -2,6 +2,7 @@ package org.vishia.util;
 
 import java.lang.reflect.Field;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -12,6 +13,9 @@ import java.util.Map;
 public class DataAccess {
   /**Version and history
    * <ul>
+   * <li>2012-11-04 chg: parameter bContainer in getData(...): Sometimes a container is ispected
+   *   to iterate though only one element is found, sometimes only a simple element is expected
+   *   though a container is addressed maybe with one element. 
    * <li>2012-10-21 created. Some algorithm are copied from {@link org.vishia.textGenerator.TextGenerator} in this class.
    *   That algorithm are able to use independent in some applications.
    * </ul>
@@ -59,11 +63,16 @@ public class DataAccess {
    * @param accessPrivate if true then private data are accessed too. The accessing of private data may be helpfull
    *  for debugging. It is not recommended for general purpose! The access mechanism is given with 
    *  {@link java.lang.reflect.Field#setAccessible(boolean)}.
+   *  @param bContainer If the element is a container, returns it. Elsewhere build a List
+   *    to return a container for iteration.
    * @return Any data object addressed by the path.
    * @throws IllegalArgumentException
    */
-  public static Object getData(List<String> path, Object dataPool, Map<String, Object> namedDataPool
-      , boolean noException, boolean accessPrivate)
+  public static Object getData(
+      List<String> path
+      , Object dataPool
+      , Map<String, Object> namedDataPool
+      , boolean noException, boolean accessPrivate,  boolean bContainer)
   throws IllegalArgumentException
   {
     Class<?> clazz1;
@@ -85,7 +94,7 @@ public class DataAccess {
         Map<String,?> dataMap = (Map)data1;
         data1 = dataMap.get(sElement);
         sElement = iter.hasNext() ? iter.next() : null;
-      } 
+      }
       else {
         try{ 
           clazz1 = data1.getClass();
@@ -93,7 +102,8 @@ public class DataAccess {
           element.setAccessible(accessPrivate);
           try{ data1 = element.get(data1);
           
-          } catch(IllegalAccessException exc){ 
+          } catch(IllegalAccessException exc){
+            //try special types:
             if(noException){
               return "<? path access: " + path.toString() + "?>";
             } else {
@@ -103,13 +113,31 @@ public class DataAccess {
           sElement = iter.hasNext() ? iter.next() : null;
         } catch(NoSuchFieldException exc){
           //TODO method
-          if(noException){
-            return "<? path fault: " + path.toString() + "?>";
+          if(data1 instanceof TreeNodeBase<?,?>){
+            TreeNodeBase<?,?> treeNode = (TreeNodeBase<?,?>)data1;
+            if(bContainer){
+              data1 = treeNode.listChildren(sElement);
+            }
+            if(!bContainer || data1 == null){
+              data1 = treeNode.getChild(sElement);
+            }
+            //NOTE: data1 may be null. But it accepted as correct.
+            sElement = iter.hasNext() ? iter.next() : null;
+            
           } else {
-            throw new IllegalArgumentException("NoSuchFieldException;" + sElement); 
+            if(noException){
+              return "<? path fault: " + path.toString() + "?>";
+            } else {
+              throw new IllegalArgumentException("NoSuchFieldException;" + sElement); 
+            }
           }
         }
       }
+    }
+    if(data1 !=null && bContainer && !(data1 instanceof Iterable<?>)){ //should return a container
+      List<Object> list1 = new LinkedList<Object>();
+      list1.add(data1);
+      data1 = list1;
     }
     return data1;
   }
