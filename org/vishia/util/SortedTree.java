@@ -35,9 +35,10 @@ import java.util.List;
  * 
  * @author JcHartmut
  *
- * @param <Type> The type of elements.
+ * @param <Type> The type of elements. The elements are instance of SortedTree too.
+ *   Therewith the SortedTree consists of nodes of type SortedTree.
  */
-public interface SortedTree<Type> 
+public interface SortedTree<Type extends SortedTree<Type>> 
 { 
   
   Type getParent();

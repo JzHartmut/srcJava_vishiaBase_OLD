@@ -70,7 +70,7 @@ import org.vishia.java2C.JavaSrcTreePkg;
  * @param <Type> Type of the children.
  * @deprecated. Use {@link TreeNodeBase} instead. 
  */
-public class SortedTreeNode<Type> implements SortedTree<Type>
+public class SortedTreeNode<Type extends SortedTree<Type>> implements SortedTree<Type>
 {
   String sKey;
   

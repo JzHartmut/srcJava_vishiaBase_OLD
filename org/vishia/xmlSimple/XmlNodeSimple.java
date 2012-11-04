@@ -1,7 +1,5 @@
 package org.vishia.xmlSimple;
 
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -12,7 +10,7 @@ import org.vishia.util.TreeNodeBase;
 /**This is a simple variant of processing XML.*/
 
 /**Representation of a XML node. It contains a tree of nodes or text content. */ 
-public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData>, UserData> implements XmlNode<UserData>
+public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData>, UserData, XmlNode> implements XmlNode
 { 
   /**Version, history and license.
    * <ul>
@@ -204,7 +202,7 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
       return name;
     }
     else
-    { List<XmlNodeSimple<UserData>> textNodes = listChildren("$");
+    { List<XmlNode> textNodes = listChildren("$");
       String sText = "";
       for(XmlNode textNode: textNodes){
         sText += textNode.getText();
@@ -249,7 +247,8 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
 
 
   public String toString()
-  { return "<" + name + ">";
+  { if(namespaceKey !=null && namespaceKey.equals("$")) return name;  //it is the text
+    else return "<" + name + ">"; //any container
   }
 
   @Override

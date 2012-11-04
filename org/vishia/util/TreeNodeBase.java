@@ -118,14 +118,24 @@ import java.util.TreeMap;
  * @param <Data> The type of additional data which are referenced in this node. Use Object if data are not used.
  * @param <DerivedNode> Type of the TreeNode which is build with this class as superclass.
  *   If one will only use the underived TreeNodeBase, use {@link TreeNodeBase.TreeNode} instead.
+ * @param IfcType Type used in {@link SortedTree}. It has to be a super class or interface
+ *   of the DerivedNode, elsewhere there are errors in runtime. 
+ *   Because both DerivedNode extends SortedTree and IfcType extends SortedTree,
+ *   the IfcType can be a super type of DerivedNode. But it should be!
  */
-public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Data> implements SortedTree<DerivedNode>
+public class TreeNodeBase
+<DerivedNode extends TreeNodeBase<DerivedNode,Data, IfcType> & SortedTree<IfcType>
+, Data
+, IfcType extends SortedTree<IfcType> 
+> 
+implements SortedTree<IfcType>
 {
 
   /**Version, history and license.
    * <ul>
-   * <li>2012-11-03 Hartmut new: Generic type DerivedNode to support derived types of this. The returned
-   *   container types have elements of this DerivedNode type.
+   * <li>2012-11-03 Hartmut new: Generic type DerivedNode and IfcType to support derived types of this. The returned
+   *   container types have elements of this DerivedNode type or the IfcType. The IfcType is used on methods
+   *   which are defined in {@link SortedTree}.
    * <li>2012-11-01 Hartmut Constructor with parent is faulty because the parent will be set on parent.addNode(...).
    * <li>2012-11-01 Hartmut This class contains the sorted and the unsorted management of nodes
    *   inclusive multiple nodes with the same key. 
@@ -168,7 +178,7 @@ public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Da
   
   protected final String key;
   
-  protected TreeNodeBase<DerivedNode,Data> parent;
+  protected TreeNodeBase<DerivedNode,Data, ?> parent;
   
   /**The List of child nodes in order of adding. All nodes in this list are type of the DerivedNode. 
    */
@@ -178,7 +188,7 @@ public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Da
    * This index can contain a so named 'meta node' which holds more as one child with the same key.
    * Note that the meta node is not registered in the {@link #childNodes}.
    */
-  protected Map<String, TreeNodeBase<DerivedNode,Data>> idxChildren;
+  protected Map<String, TreeNodeBase<DerivedNode,Data,IfcType>> idxChildren;
 
   
   /**Instances which are a leaf of this node. That leafs should not need a node to wrap it. 
@@ -265,9 +275,9 @@ public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Da
     } 
     else {
       if(idxChildren == null)
-      { idxChildren = new TreeMap<String, TreeNodeBase<DerivedNode,Data>>();
+      { idxChildren = new TreeMap<String, TreeNodeBase<DerivedNode,Data,IfcType>>();
       }
-      TreeNodeBase<DerivedNode,Data> childNodeFound = idxChildren.get(childNode.key);
+      TreeNodeBase<DerivedNode,Data,IfcType> childNodeFound = idxChildren.get(childNode.key);
       if(childNodeFound == null){
         //only one entry for this key, 
         //because it may be the first one, it is in uncertain 
@@ -276,13 +286,13 @@ public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Da
         idxChildren.put(childNode.key, childNode);
       } else {
         //a node with the same leaf was found.
-        TreeNodeBase<DerivedNode,Data> metaNode;  //a meta node is needed.
+        TreeNodeBase<DerivedNode,Data,IfcType> metaNode;  //a meta node is needed.
         if(childNodeFound.key == metaNodeKey){
           //it is a meta node already.
           metaNode = childNodeFound;
         } else {
           //it is the only one child with this key. Build a meta node yet:
-          metaNode =  new TreeNodeBase<DerivedNode,Data>(metaNodeKey, null);
+          metaNode =  new TreeNodeBase<DerivedNode,Data,IfcType>(metaNodeKey, null);
           metaNode.parent = this;
           idxChildren.put(childNode.key, metaNode);  //replaces the exitsting node.
           metaNode.childNodes = new LinkedList<DerivedNode>();
@@ -333,7 +343,7 @@ public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Da
    * Note: Use {@link #detach()} for any child node if it and their sub tree should be used furthermore.
    */
   public void removeChildren(){
-    for(TreeNodeBase<DerivedNode,Data> child: childNodes){
+    for(TreeNodeBase<DerivedNode,Data,IfcType> child: childNodes){
       child.detach();
     }
   }
@@ -360,19 +370,21 @@ public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Da
    */
   DerivedNode getNode(String path, String separator){
     String[] elements = path.split(separator);
-    TreeNodeBase<DerivedNode,Data> child = this;
+    TreeNodeBase<DerivedNode,Data,IfcType> child = this;
     for(String name: elements){
       if(child.idxChildren == null){
         break;
       }
-      TreeNodeBase<DerivedNode,Data> child1 = child.idxChildren.get(name);
+      TreeNodeBase<DerivedNode,Data,IfcType> child1 = child.idxChildren.get(name);
       if(child1 == null){ 
         break;
       } else {
         child = child1;
       }
     }
-    return (DerivedNode)child;
+    @SuppressWarnings("unchecked")
+    DerivedNode retChild = (DerivedNode)child;
+    return retChild;
   }
   
   
@@ -383,18 +395,19 @@ public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Da
    * @param separator The separator in path.
    * @return always a node with given key
    */
+  @SuppressWarnings("unchecked")
   DerivedNode getOrCreateNode(String path, String separator){
     String[] elements = path.split(separator);
-    TreeNodeBase<DerivedNode,Data> child = this;
+    TreeNodeBase<DerivedNode,Data,IfcType> child = this;
     for(String name: elements){
       if(child.idxChildren == null){
-        idxChildren = new TreeMap<String, TreeNodeBase<DerivedNode,Data>>();
+        idxChildren = new TreeMap<String, TreeNodeBase<DerivedNode,Data,IfcType>>();
         DerivedNode child1 = newNode(name, null);
         child.addNode(child1);
         child = child1;
       
       } else {
-        TreeNodeBase<DerivedNode,Data> child1 = child.idxChildren.get(name);
+        TreeNodeBase<DerivedNode,Data,IfcType> child1 = child.idxChildren.get(name);
         if(child1 == null){ 
           child1 = newNode(name, null);
           child.addNode((DerivedNode)child1);
@@ -414,10 +427,10 @@ public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Da
   /**Gets the parent of this node or null if it is the root node or it is {@link #detach()}.
    * @see org.vishia.util.SortedTree#getParent()
    */
-  @Override public DerivedNode getParent(){
+  @Override public IfcType getParent(){
     @SuppressWarnings("unchecked")
-    DerivedNode ret = (DerivedNode)parent;
-    return ret;
+    IfcType ret = (IfcType)parent;
+    return (IfcType)ret;
   }
 
   
@@ -428,12 +441,12 @@ public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Da
    * @return null if a node with the key is not referred from this node directly.
    */
   @Override 
-  public DerivedNode getChild(String sKey)
+  public IfcType getChild(String sKey)
   {
     if(idxChildren == null){
       return null;
     }
-    TreeNodeBase<DerivedNode,Data> nodeChild = idxChildren.get(sKey);
+    TreeNodeBase<DerivedNode,Data,IfcType> nodeChild = idxChildren.get(sKey);
     if(nodeChild !=null && nodeChild.key == metaNodeKey){
       if(nodeChild.childNodes.size()>=1){
         nodeChild = nodeChild.childNodes.get(0);
@@ -442,7 +455,7 @@ public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Da
       }
     }
     @SuppressWarnings("unchecked")
-    DerivedNode ret = (DerivedNode)nodeChild;
+    IfcType ret = (IfcType)nodeChild;
     return ret;
   }
 
@@ -451,34 +464,38 @@ public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Da
 
 
   @Override
-  public Iterator<DerivedNode> iterChildren()
+  public Iterator<IfcType> iterChildren()
   { 
     @SuppressWarnings("unchecked")
-    Iterator<DerivedNode> ret = childNodes == null ? null : (Iterator<DerivedNode>)childNodes.iterator();
-    return ret;
+    Iterator<IfcType> ret = childNodes == null ? null : (Iterator<IfcType>)childNodes.iterator();
+    return (Iterator<IfcType>)ret;
   }
 
 
   @Override
-  public Iterator<DerivedNode> iterChildren(String sKey)
-  { if(idxChildren ==null){ return null; }
+  public Iterator<IfcType> iterChildren(String sKey)
+  { List<IfcType> listChildren = listChildren(sKey);
+    return listChildren==null ? null : listChildren.iterator();
+    /*
+    if(idxChildren ==null){ return null; }
     else { 
-      TreeNodeBase<DerivedNode,Data> children = idxChildren.get(sKey);
+      TreeNodeBase<DerivedNode,Data,IfcType> children = idxChildren.get(sKey);
       if(children ==null|| children.childNodes ==null){ return null; }
       else {
         @SuppressWarnings("unchecked")
-        Iterator<DerivedNode> ret = (Iterator<DerivedNode>)children.childNodes.iterator();
+        Iterator<IfcType> ret = (Iterator<IfcType>)children.childNodes.iterator();
         return ret; 
       }
     }
+    */
   }
 
 
   @Override
-  public List<DerivedNode> listChildren()
+  public List<IfcType> listChildren()
   {
     @SuppressWarnings("unchecked")
-    List<DerivedNode> ret = (List<DerivedNode>)childNodes;
+    List<IfcType> ret = (List<IfcType>)childNodes;
     return ret;
   }
 
@@ -486,27 +503,27 @@ public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Da
   /**Searches the child node with the given key.
    * If the child node is a meta node for more as one child, its {@link #childNodes(TreeNodeBase)}
    * list is the proper return value. But if the child node refers only one child,
-   * a list with this one element is build in {@link #childNodes}. 
+   * a list with this one element is built temporary because this method should return a list anyway. 
    * @return A List of all children with the given key or null if there is no such child.
    * @see org.vishia.util.SortedTree#listChildren(java.lang.String)
    */
   @SuppressWarnings("unchecked")
   @Override 
-  public List<DerivedNode>listChildren(String sKey)
+  public List<IfcType>listChildren(String sKey)
   { if(idxChildren ==null) { return null; }
     else {
-      TreeNodeBase<DerivedNode,Data> childMetaNode = idxChildren.get(sKey);
+      TreeNodeBase<DerivedNode,Data,IfcType> childMetaNode = idxChildren.get(sKey);
       if(childMetaNode == null){ return null; }
       else{
-        List<DerivedNode> ret;
+        List<IfcType> ret;
         if(childMetaNode.key != metaNodeKey){
           //only one child, but a List is expected
-          LinkedList<TreeNodeBase<DerivedNode,Data>> childNodes = new LinkedList<TreeNodeBase<DerivedNode,Data>>();
-          TreeNodeBase<DerivedNode,Data> childNode = new TreeNodeBase<DerivedNode,Data>(sKey, childMetaNode.data);
-          childNodes.add(childNode);
-          ret = (List<DerivedNode>) childNodes;
+          LinkedList<IfcType> childNodes = new LinkedList<IfcType>();
+          //IfcType childNode = (IfcType)newNode(sKey, childMetaNode.data);
+          childNodes.add((IfcType)childMetaNode);
+          ret = (List<IfcType>) childNodes;
         } else {
-          ret = (List<DerivedNode>) childMetaNode.childNodes;
+          ret = (List<IfcType>) childMetaNode.childNodes;
         }
         return ret;
       }
@@ -521,7 +538,7 @@ public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Da
   public List<DerivedNode>getContainerChildren(String sKey)
   { if(idxChildren ==null) { return null; }
     else {
-      TreeNodeBase<DerivedNode,Data> childMetaNode = idxChildren.get(sKey);
+      TreeNodeBase<DerivedNode,Data,IfcType> childMetaNode = idxChildren.get(sKey);
       if(childMetaNode == null){ return null; }
       else{
         List<DerivedNode> ret;
@@ -537,7 +554,7 @@ public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Da
   }
 
 
-  protected List<DerivedNode> childNodes(TreeNodeBase<DerivedNode,Data> node){ return node.childNodes; }
+  protected List<DerivedNode> childNodes(TreeNodeBase<DerivedNode,Data,IfcType> node){ return node.childNodes; }
 
 
   /**This class provides a ready to use TreeNode without additional functionality like TreeNodeBase.
@@ -546,7 +563,7 @@ public class TreeNodeBase<DerivedNode extends TreeNodeBase<DerivedNode,Data>, Da
    *
    * @param <Data>
    */
-  public final static class TreeNode<Data> extends TreeNodeBase<TreeNode<Data>, Data>
+  public final static class TreeNode<Data> extends TreeNodeBase<TreeNode<Data>, Data,TreeNode<Data>>
   {
     public TreeNode(String key, Data data) {
       super(key, data);

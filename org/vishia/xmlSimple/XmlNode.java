@@ -40,9 +40,10 @@ import org.vishia.util.TreeNodeBase;
  *     if the aliases are incorrect, the XML-tree is incorrect.
  * </ul>    
  */ 
-public interface XmlNode<UserData> extends SortedTree<XmlNodeSimple<UserData>>
+public interface XmlNode extends SortedTree<XmlNode>
 {  /**Version, history and license.
    * <ul>
+   * <li>2012-10-05: The {@link XmlNodeSimple} is removed as dependency, so this class is the same like in the past.
    * <li>2012-10-04: The mainly usage class {@link XmlNodeSimple} is derived from 
    *   {@link org.vishia.util.TreeNodeBase} yet. Because both inherit from {@link SortedTree},
    *   the generic type have to be the same. Up to now it is not possible to use

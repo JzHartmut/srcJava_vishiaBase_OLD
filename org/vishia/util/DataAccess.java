@@ -113,8 +113,8 @@ public class DataAccess {
           sElement = iter.hasNext() ? iter.next() : null;
         } catch(NoSuchFieldException exc){
           //TODO method
-          if(data1 instanceof TreeNodeBase<?,?>){
-            TreeNodeBase<?,?> treeNode = (TreeNodeBase<?,?>)data1;
+          if(data1 instanceof TreeNodeBase<?,?,?>){
+            TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)data1;
             if(bContainer){
               data1 = treeNode.listChildren(sElement);
             }
