@@ -606,28 +606,25 @@ public class FileRemote extends File
   
   
   @Override public long length(){ 
-    /*
-    if(length ==-1){
+    if((flags & mTested) ==0){
+      //The children are not known yet, get it:
       if(device == null){
         device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
       }
-      if(device.isLocalFileSystem()) length = super.length();
-      else device.setFileProperties(this);  //maybe wait for communication.
+      device.refreshFileProperties(this, null);
     }
-    */
     return length; 
   }
+
   
   @Override public long lastModified(){ 
-    /*
-    if(date ==0){
+    if((flags & mTested) ==0){
+      //The children are not known yet, get it:
       if(device == null){
         device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
       }
-      if(device.isLocalFileSystem()) date = super.lastModified();
-      else device.setFileProperties(this);  //maybe wait for communication.
+      device.refreshFileProperties(this, null);
     }
-    */
     return date; 
   }
   

@@ -32,7 +32,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.TreeMap;
 
-import org.vishia.java2C.JavaSrcTreePkg;
 
 /**Commonly implementation of a Node in a sorted tree. The node is implemented with a TreeMap with the key 
  * and a LinkedList as Object in the TreeMap node, containing all Object with the same key.

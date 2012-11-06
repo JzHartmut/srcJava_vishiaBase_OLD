@@ -1312,16 +1312,21 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       //A(MainState enclosingState){ super(enclosingState); }
     
       @Override public int trans(Event evP) {
-        FileRemote.CmdEvent ev = (FileRemote.CmdEvent)evP;
-        FileRemote.Cmd cmd = ev.getCmd();
-        if(cmd == FileRemote.Cmd.abortCopyFile){
-          bSkip = true;
-          return exit().fileFinished.entry(mEventConsumed);
-        } else if(cmd == FileRemote.Cmd.abortCopyDir){
-          bSkip = true;
-          return exit().fileContent.entry(mEventConsumed);
+        if(evP ==null){ 
+          return 0;
+        } else {
+          FileRemote.CmdEvent ev = (FileRemote.CmdEvent)evP;
+          FileRemote.Cmd cmd = ev.getCmd();
+          if(cmd == FileRemote.Cmd.abortCopyFile){
+            bSkip = true;
+            return exit().fileFinished.entry(mEventConsumed);
+          } else if(cmd == FileRemote.Cmd.abortCopyDir){
+            bSkip = true;
+            return exit().fileContent.entry(mEventConsumed);
+          }else{
+            return eventNotConsumed;
+          }
         }
-        return eventNotConsumed;
       }
     }
     
