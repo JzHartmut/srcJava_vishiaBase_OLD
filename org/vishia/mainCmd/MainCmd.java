@@ -38,6 +38,7 @@ import java.text.*;  //ParseException
 import org.vishia.util.FileSystem;
 import org.vishia.util.StringPart;
 import org.vishia.bridgeC.OS_TimeStamp;
+import org.vishia.bridgeC.VaArgBuffer;
 import org.vishia.bridgeC.Va_list;
 import org.vishia.cmd.CmdExecuter;
 import org.vishia.msgDispatch.LogMessage;
@@ -318,7 +319,7 @@ public abstract class MainCmd implements MainCmd_ifc
     Iterator<String> iHelpInfo = listHelpInfo.iterator();
     while(iHelpInfo.hasNext())
     {
-      System.out.println((String)(iHelpInfo.next()));
+      System.out.println((iHelpInfo.next()));
     }
   }
 
@@ -331,7 +332,7 @@ public abstract class MainCmd implements MainCmd_ifc
     Iterator<String> iInfo = listAboutInfo.iterator();
     while(iInfo.hasNext())
     {
-      System.out.println((String)(iInfo.next()));
+      System.out.println((iInfo.next()));
     }
   }
 
@@ -672,7 +673,8 @@ public abstract class MainCmd implements MainCmd_ifc
 	  but it may be overloaded, to example for MainCmdWin it may be writed to a box in the GUI.
 	 * @deprecated
 	*/
-	public int executeCmdLine
+	@Deprecated
+  public int executeCmdLine
 	( String cmd
 	, ProcessBuilder processBuilder
 	, int nReportLevel
@@ -694,7 +696,8 @@ public abstract class MainCmd implements MainCmd_ifc
 	 * @return
 	 * @deprecated
 	 */
-	public int executeCmdLine
+	@Deprecated
+  public int executeCmdLine
 	( String[] cmd
 	, ProcessBuilder processBuilder
 	, int nReportLevel
@@ -912,6 +915,8 @@ public abstract class MainCmd implements MainCmd_ifc
     }
   }
 
+  
+  
 
   /** write out the stacktrace from a exception. Writes into reportfile and on screen
   */
@@ -1126,6 +1131,102 @@ public abstract class MainCmd implements MainCmd_ifc
   { return sFileReport;
   }
   
+
+
+  /**Sends a message. The timestamp of the message is build with the system time. 
+   * All other parameter are identically see {@link #sendMsg(int, OS_TimeStamp, String, Object...)}.
+   * @param identNumber of the message. If it is negative, it is the same message as positive number,
+   *                    but with information 'going state', where the positive number is 'coming state'.
+   * @param text The text representation of the message, format string, see java.lang.String.format(..).
+   *             @pjava2c=zeroTermString.
+   * @param args 0, 1 or more arguments of any type. 
+   *             The interpretation of the arguments is controlled by param text.
+   * @return TODO
+   */  
+  public boolean sendMsg(int identNumber, String text, Object... args)
+  { return sendMsgVaList(identNumber, OS_TimeStamp.os_getDateTime(), text, VaArgBuffer.represent(args).get_va_list());
+  }
+
+  /**Sends a message.
+   * 
+   * @param identNumber of the message. If it is negative, it is the same message as positive number,
+   *                    but with information 'going state', where the positive number is 'coming state'.
+   * @param creationTime absolute time stamp. @Java2C=perValue.
+   * @param text The text representation of the message, format string, see java.lang.String.format(..).
+   *             @pjava2c=zeroTermString.
+   * @param args 0, 1 or more arguments of any type. 
+   *             The interpretation of the arguments is controlled by param text.
+   * @return TODO
+   */
+  public boolean sendMsgTime(int identNumber, OS_TimeStamp creationTime, String text, Object... args)
+  { return sendMsgVaList(identNumber, creationTime, text, VaArgBuffer.represent(args).get_va_list());
+  }
+  
+
+  
+  /**Sends a message. The functionality and the calling parameters are identically 
+   * with {@link #sendMsg(int, OS_TimeStamp, String, Object...)}, but the parameter args is varied:  
+   * @param identNumber
+   * @param creationTime
+   * @param text
+   * @param typeArgs Type chars, ZCBSIJFD for boolean, char, byte, short, int, long, float double. 
+   *        @java2c=zeroTermString.
+   * @param args Reference to a buffer which contains the values for a variable argument list.
+   *             <br>
+   *             In C implementation it is a reference either to the stack, or to a buffer elsewhere,
+   *             but the reference type is appropriate to provide the values in stack
+   *             for calling routines with variable argument list such as 
+   *             <code>vprintf(buffer, text, args)</code>.
+   *             The referenced instance shouldn't accepted as persistent outside processing time 
+   *             of the called routine. Therefore stack content is able to provide.
+   *             <br>
+   *             In Java it is a special class wrapping a Object[] tantamount to a Object...
+   *             as variable argument list. Using of this wrapper class is only a concession
+   *             to C-programming, because in Java an Object[] would adequate.
+   * @return true than okay. It is possible, that a destination for dispatching is not available yet.
+   *         Than the routine returns false. That is for special outputs of message dispatcher. 
+   *         Normally the user shouldn't realize false here and react anywise. 
+   *         If a message isn't able to transport, it is not visible in the creating thread. 
+   *         It is possible that a message is lost anywhere in transportation way. In Generally,
+   *         to secure a complex systems functionality, any timeouts, repeats 
+   *         and backup strategies are necessary 
+   *         in the supervise software above sending a single message.           
+   */
+  public boolean sendMsgVaList(int identNumber, OS_TimeStamp creationTime, String text, Va_list args){
+    return true;
+  }
+
+  /**Only preliminary, because Java2C doesn't support implementation of interfaces yet.
+   * This method is implemented in C in another kind.
+   * @param src 
+   * @return the src.
+   */
+  //public final static LogMessage convertFromMsgDispatcher(LogMessage src){ return src; }
+  
+  /**A call of this method closes the devices, which processed the message. It is abstract. 
+   * It depends from the kind of device, what <code>close</code> mean. 
+   * If the device is a log file writer it should be clearly.
+   * <code>close</code> may mean, the processing of messages is finite temporary. 
+   * An <code>open</code> occurs automatically, if a new message is dispatched. 
+   */
+  public void close(){
+    
+  }
+  
+  /**A call of this method causes an activating of transmission of all messages since last flush. 
+   * It is abstract. It depends from the kind of device, what <code>flush</code> mean. 
+   * If the device is a log file writer it should be clearly.
+   * <code>flush</code> may mean, the processing of messages is ready to transmit yet. 
+   */
+  public void flush(){
+    
+  }
+  
+  /**Checks whether the message output is available. */
+  public boolean isOnline(){
+    return true;
+  }
+
 
   
   protected boolean sendMsgTimeToReport(int identNumber, int reportLevel, OS_TimeStamp creationTime,
