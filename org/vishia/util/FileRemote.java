@@ -37,6 +37,8 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2012-11-11 Hartmut chg: The flag bit {@link #mDirectory} should be set always, especially also though {@link #mTested} is false.
+   *   That should be assured by the {@link FileRemoteAccessor} implementation.
    * <li>2012-10-01 Hartmut chg: {@link #children} is now of super type File, not FileRemote. Nevertheless FileRemote objects
    *   are stored there. Experience is possible to store a File object returned from File.listFiles without wrapping, and
    *   replace that with a FileRemote object if necessary. listFiles() returns a File[] like its super method.
@@ -211,7 +213,10 @@ public class FileRemote extends File
   public final static int  mCanRead =  2;
   public final static int  mCanWrite =  4;
   public final static int  mHidden = 0x08;
+  
+  /**Info whether the File is a directory. This flag-bit should be present always independent of the {@link #mTested} flag bit. */
   public final static int  mDirectory = 0x10;
+  
   public final static int  mFile =     0x20;
   public final static int  mExecute =     0x40;
   public final static int  mExecuteAny =     0x80;
@@ -758,13 +763,7 @@ public class FileRemote extends File
   }
   
   @Override public boolean isDirectory(){ 
-    if((flags & mTested) ==0){
-      //The children are not known yet, get it:
-      if(device == null){
-        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
-      }
-      device.refreshFileProperties(this, null);
-    }
+    //NOTE: The mDirectory bit should be present any time. Don't refresh! 
     return (flags & mDirectory) !=0; 
   }
   

@@ -8,6 +8,8 @@ echo JAVA_JDK=JAVA_JDK
 if exist %DST%\* del /F /Q /S %DST%\*
 if exist %DST%_priv\* del /F /Q /S %DST%_priv\*
 
+if not exist %DST% mkdir %DST%
+if not exist %DST%_priv mkdir %DST%_priv
 
 echo generate docu: $SRC
 
@@ -17,12 +19,12 @@ echo javadoc -d %DST% -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH%
 echo javadoc -d %DST%_priv -private -linksource -notimestamp $LINKPATH -sourcepath $SRCPATH
 %JAVA_JDK%\bin\javadoc -d %DST%_priv -private -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH% %SRC% 1>%DST%_priv\javadoc.rpt 2>%DST%_priv\javadoc.err
 
-if exist ..\img(
+if not exist ..\img goto :noImg
 	mkdir %DST%\img
 	copy ..\img %DST%
 	mkdir %DST%_priv\img
 	copy ..\img %DST%_priv
-)
+:noImg
 
 
 copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DST%\stylesheet.css
