@@ -1,7 +1,8 @@
 
 
-set DST=..\..\docuSrcJava_vishiaBase
-set DST_priv=..\..\docuSrcJava_vishiaBase_priv
+set DSTDIR=..\..\
+set DST=docuSrcJava_vishiaBase
+set DST_priv=docuSrcJava_vishiaBase_priv
 
 set SRC=-subpackages org.vishia
 set SRCPATH=..
