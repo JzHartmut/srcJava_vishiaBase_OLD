@@ -64,7 +64,7 @@ public class DataAccess {
    *  for debugging. It is not recommended for general purpose! The access mechanism is given with 
    *  {@link java.lang.reflect.Field#setAccessible(boolean)}.
    *  @param bContainer If the element is a container, returns it. Elsewhere build a List
-   *    to return a container for iteration.
+   *    to return a container for iteration. A container is any object implementing java.util.Map or java.util.Iterable
    * @return Any data object addressed by the path.
    * @throws IllegalArgumentException
    */
@@ -134,7 +134,7 @@ public class DataAccess {
         }
       }
     }
-    if(data1 !=null && bContainer && !(data1 instanceof Iterable<?>)){ //should return a container
+    if(data1 !=null && bContainer && !((data1 instanceof Iterable<?>)||data1 instanceof Map)){ //should return a container
       List<Object> list1 = new LinkedList<Object>();
       list1.add(data1);
       data1 = list1;
