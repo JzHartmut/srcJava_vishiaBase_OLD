@@ -37,6 +37,8 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2012-11-16 Hartmut chg: Usage of {@link CmdEvent#filesrc} and filedst and {@link CallbackEvent#filedst} and dst
+   *   instead {@link Event#getRefData()}.
    * <li>2012-11-11 Hartmut chg: The flag bit {@link #mDirectory} should be set always, especially also though {@link #mTested} is false.
    *   That should be assured by the {@link FileRemoteAccessor} implementation.
    * <li>2012-10-01 Hartmut chg: {@link #children} is now of super type File, not FileRemote. Nevertheless FileRemote objects
@@ -1133,16 +1135,39 @@ public class FileRemote extends File
     long newDate;
     
     
+    /**
+     * @param evSrc
+     * @param refData
+     * @param dst
+     * @param thread
+     * @param callback
+     * @deprecated
+     */
+    @Deprecated
     public CmdEvent(EventSource evSrc, Object refData, EventConsumer dst, EventThread thread, Event callback){ 
       super(evSrc, refData, dst, thread, callback); 
     }
     
+    /**Creates a non-occupied empty event.
+     * 
+     */
     public CmdEvent(){ 
       super(); 
     }
     
-    public CmdEvent(EventSource evSrc, Object refData, EventConsumer dst, EventThread thread){ 
-      super(evSrc, null, dst, thread, new CallbackEvent(refData, dst, thread)); 
+    /**Creates an event.
+     * The event is non-occupied if either the evSrc is null or the dst is null.
+     * If both are given, the event is occupied and can be {@link #sendEvent(Cmd)}.
+     * A non-occupied event can be created as static data and re-used. 
+     * Use {@link #occupy(EventSource, Object, EventConsumer, EventThread, boolean)} before {@link #sendEvent(Cmd)} then.
+     * @param evSrc
+     * @param fileSrc
+     * @param fileDst
+     * @param dst
+     * @param thread
+     */
+    public CmdEvent(EventSource evSrc, FileRemote fileSrc, FileRemote fileDst, EventConsumer dst, EventThread thread){ 
+      super(evSrc, null, dst, thread, null); 
     }
 
     @Override public CallbackEvent getOpponent(){ return (CallbackEvent)super.getOpponent(); }
@@ -1168,7 +1193,7 @@ public class FileRemote extends File
    */
   public static class CallbackEvent extends Event
   {
-    FileRemote filesrc, filedst;
+    private FileRemote filesrc, filedst;
 
     /**For {@link #kChgProps}: a new name. */
     String newName;
@@ -1198,9 +1223,33 @@ public class FileRemote extends File
      * @param dst The routine which should be invoked with this event object if the callback is forced.
      * @param thread The thread which stores the event in its queue, or null if the dst can be called
      *   in the transmitters thread.
+     * @deprecated because it has no source, use {@link CallbackEvent#CallbackEvent(EventSource, FileRemote, FileRemote, EventConsumer, EventThread)}.  
      */
-    public CallbackEvent(Object refData, EventConsumer dst, EventThread thread){ 
-      super(null, refData, dst, thread, new CmdEvent()); 
+    @Deprecated
+    public CallbackEvent(Object filesrc, EventConsumer dst, EventThread thread){ 
+      super(null, filesrc, dst, thread, new CmdEvent()); 
+    }
+    
+    
+    /**Creates a non-occupied event. */
+    public CallbackEvent(EventConsumer dst, EventThread thread){ 
+      super(null, null, dst, thread, new CmdEvent()); 
+    }
+    
+    
+    
+    
+    
+    /**Creates the object of a callback event inclusive the instance of the forward event (used internally).
+     * @param refData The referenced data for callback, used in the dst routine.
+     * @param dst The routine which should be invoked with this event object if the callback is forced.
+     * @param thread The thread which stores the event in its queue, or null if the dst can be called
+     *   in the transmitters thread.
+     */
+    public CallbackEvent(EventSource evSrc, FileRemote filesrc, FileRemote fileDst, EventConsumer dst, EventThread thread){ 
+      super(null, filesrc, dst, thread, new CmdEvent(evSrc,filesrc, fileDst, null, null)); 
+      this.filesrc = filesrc;
+      this.filedst = fileDst;
     }
     
     
@@ -1211,7 +1260,10 @@ public class FileRemote extends File
     @Override public CallbackCmd getCmd(){ return (CallbackCmd)super.getCmd(); }
     
     @Override public CmdEvent getOpponent(){ return (CmdEvent)super.getOpponent(); }
-    
+
+    public FileRemote getFileSrc(){ return filesrc; }
+
+    public FileRemote getFileDst(){ return filedst; }
     
     /**Aborts the action which was forced forward with this callback.
      * @return true if the forward event was sent.

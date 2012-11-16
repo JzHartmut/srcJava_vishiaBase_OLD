@@ -512,6 +512,8 @@ public class Event<CmdEnum extends Enum>
   
   /**Version, history and license
    * <ul>
+   * <li>2012-11-16 Hartmut chg: An event is not occupied on construction if either the src or the dst is null. 
+   *   Only if both references are given, it is occupied by construction.
    * <li>2012-09-12 Hartmut new: {@link #sendEventAgain()} for deferred events.
    * <li>2012-09-03 Hartmut chg: using {@link DateOrder} to log the date in milliseconds and the order as fine number.
    *   The order of events should be known. The timestamp is imprecise!
@@ -698,7 +700,7 @@ public class Event<CmdEnum extends Enum>
    * @param callback Another event to interplay with the source of this event.
    */
   public Event(EventSource source, Object refData, EventConsumer consumer, EventThread thread, Event callback){
-    if(source == null){
+    if(source == null || consumer == null){
       this.dateCreation.set(0);
     } else {
       DateOrder date = new DateOrder();
