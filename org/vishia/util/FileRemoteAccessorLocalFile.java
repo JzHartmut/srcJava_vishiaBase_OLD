@@ -22,6 +22,8 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   
   /**Version, history and license.
    * <ul>
+   * <li>2012-11-17 Hartmut chg: review of {@link #execChgProps(org.vishia.util.FileRemote.CmdEvent)} etc. It should not work before.
+   *   yet not all is tested. 
    * <li>2012-10-01 Hartmut chg: Some adaption because {@link FileRemote#listFiles()} returns File[] and not FileRemote[].
    * <li>2012-10-01 Hartmut experience {@link #useFileChildren}
    * <li>2012-10-01 Hartmut new: {@link #refreshFilePropertiesAndChildren(FileRemote, org.vishia.util.FileRemote.CallbackEvent)} time measurement
@@ -346,16 +348,17 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   
   
   private void execChgProps(FileRemote.CmdEvent co){
-    File dst;
+    FileRemote dst;
     //FileRemote.FileRemoteEvent callBack = co;  //access only 1 time, check callBack. co may be changed from another thread.
     boolean ok = co !=null;
     if(co.newName !=null && ! co.newName.equals(co.filesrc.getName())){
-      dst = new File(co.filesrc.getParent(), co.newName);
-      ok &= co.filesrc.renameTo(dst);
+      File fileRenamed = new File(co.filesrc.getParent(), co.newName);
+      ok &= co.filesrc.renameTo(fileRenamed);
+      dst = FileRemote.fromFile(fileRenamed);
     } else {
       dst = co.filesrc;
     }
-    ok = chgFile(dst, co, ok);
+    ok = chgFile(dst, co.maskFlags, co.newFlags, ok);
     FileRemote.CallbackCmd cmd;
     if(ok){
       cmd = FileRemote.CallbackCmd.done; 
@@ -370,16 +373,16 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   
   
   private void execChgPropsRecurs(FileRemote.CmdEvent co){
-    File dst;
-    boolean ok;
+    FileRemote dst;
+    boolean ok = co !=null;
     if(co.newName !=null && ! co.newName.equals(co.filesrc.getName())){
-      dst = new File(co.filesrc.getParent(), co.newName);
-      ok = co.filesrc.renameTo(dst);
+      File fileRenamed = new File(co.filesrc.getParent(), co.newName);
+      ok &= co.filesrc.renameTo(fileRenamed);
+      dst = FileRemote.fromFile(fileRenamed);
     } else {
       dst = co.filesrc;
-      ok = true;
     }
-    ok &= chgPropsRecursive(dst, co, ok, 0);
+    ok &= chgPropsRecursive(dst, co.maskFlags, co.newFlags, ok, 0);
     FileRemote.CallbackCmd cmd;
     if(ok){
       cmd = FileRemote.CallbackCmd.done ; 
@@ -393,32 +396,54 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   
   
   
-  private boolean chgPropsRecursive(File dst, FileRemote.CmdEvent co, boolean ok, int recursion){
+  private boolean chgPropsRecursive(File dst, int maskFlags, int newFlags, boolean ok, int recursion){
     if(recursion > 100){
       throw new IllegalArgumentException("FileRemoteAccessorLocal.chgProsRecursive: too many recursions ");
     }
     if(dst.isDirectory()){
       File[] filesSrc = dst.listFiles();
       for(File fileSrc: filesSrc){
-        ok = chgPropsRecursive(fileSrc, co, ok, recursion +1);
+        ok = chgPropsRecursive(fileSrc, maskFlags, newFlags, ok, recursion +1);
       }
     } else {
-      ok = chgFile(dst, co, ok);
+      ok = chgFile(dst, maskFlags, newFlags, ok);
     }
     return ok;
   }
   
 
   
-  private boolean chgFile(File dst, FileRemote.CmdEvent co, boolean ok){
-    if(ok && (co.maskFlags & FileRemote.mCanWrite) !=0){ ok = dst.setWritable((co.newFlags & FileRemote.mCanWrite) !=0, true); }
-    if(ok && (co.maskFlags & FileRemote.mCanWriteAny) !=0){ ok = dst.setWritable((co.newFlags & FileRemote.mCanWriteAny) !=0); }
-    if(ok && (co.maskFlags & FileRemote.mCanWriteAny) !=0){ ok = dst.setReadable((co.newFlags & FileRemote.mCanWriteAny) !=0, true); }
-    if(ok && (co.maskFlags & FileRemote.mCanWriteAny) !=0){ ok = dst.setReadable((co.newFlags & FileRemote.mCanWriteAny) !=0); }
-    if(ok && (co.maskFlags & FileRemote.mCanWriteAny) !=0){ ok = dst.setExecutable((co.newFlags & FileRemote.mCanWriteAny) !=0, true); }
-    if(ok && (co.maskFlags & FileRemote.mCanWriteAny) !=0){ ok = dst.setExecutable((co.newFlags & FileRemote.mCanWriteAny) !=0); }
-    if(ok && co.newDate !=0 && co.newDate !=-1 ){ ok = dst.setLastModified(co.newDate); }
+  private boolean chgFile(File dst, int maskFlags, int newFlags, boolean ok){
+    //if(dst instanceof FileRemote)
+    //int flagsNow = dst.getFlags();
+    //int chg = (flagsNow ^ newFlags) & maskFlags;  //changed and masked
+    int chg = maskFlags;
+    int mask = 1;
+    while(mask !=0){
+      if((chg & mask)!=0){ 
+        if(!chgFile1(dst, mask, newFlags)){
+          ok = false;
+        }
+      }
+      mask <<=1;
+    }
     return ok;
+  }
+  
+  
+  private boolean chgFile1(File dst, int maskFlags, int newFlags){
+    boolean bOk;
+    boolean set = (newFlags & maskFlags ) !=0;
+    switch(maskFlags){
+      case FileRemote.mCanWrite:{ bOk = dst.setWritable(set); } break;
+      case FileRemote.mCanWriteAny:{ bOk = dst.setWritable(set, true); } break;
+      default: { bOk = false; }
+    }//switch
+    if(bOk && dst instanceof FileRemote){
+      FileRemote dst1 = (FileRemote)dst;
+      dst1.flags = DataAccess.setBit(dst1.flags, maskFlags, set);
+    }
+    return bOk;
   }
   
   

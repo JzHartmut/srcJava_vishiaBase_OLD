@@ -28,6 +28,7 @@ public class Assert
 
   /**Version, history and license
    * <ul>
+   * <li>2012-11-19 Hartmut new: stop() as dummy routine here now.
    * <li>2012-09-02 Hartmut new {@link #exceptionInfo(String, Throwable, int, int)} and {@link #stackInfo(String, int)}
    *   to support a short info output for example for messages. Not the whole stacktrace!
    * <li>2012-08-30 Hartmut some enhancements, especially assert with send a message to System.err.
@@ -61,7 +62,8 @@ public class Assert
    */
   public static final int version = 20120828;
 
-  
+  /**This is only a debug helper, an empty instruction.  */
+  public static void stop(){};
   
   /**This routine instantiates the assertion handling with a special user instance.
    * All invocations of the static assertion call Assert.{@link #check(boolean)} 

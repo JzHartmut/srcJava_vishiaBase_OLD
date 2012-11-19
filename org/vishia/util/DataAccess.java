@@ -13,6 +13,8 @@ import java.util.Map;
 public class DataAccess {
   /**Version and history
    * <ul>
+   * <li>2012-11-18 new: {@link #setBit(int, int, boolean)} as little universal routine.
+   * <li>2012-11-16 new: {@link #getInt(Object)}, {@link #getFloat(Object)} from {@link ObjectValue}, last one is deprecated now.
    * <li>2012-11-04 chg: parameter bContainer in getData(...): Sometimes a container is ispected
    *   to iterate though only one element is found, sometimes only a simple element is expected
    *   though a container is addressed maybe with one element. 
@@ -159,6 +161,49 @@ public class DataAccess {
       sContent = content.toString();
     }
     return sContent;
+  }
+  
+  
+  /**Gets the int value from any Object. If the Object can represent a int val, convert and returns it.
+   * Elsewhere it returns 0. TODO return int from a String (CharSequence) with conversion.
+   * @param val The Object. An int value is returned from all numerical wrappers: Byte, ... Float, Double.
+   * @return the value.
+   */
+  public static int getInt(Object val){
+    if(val instanceof Byte){ return ((Byte)val).byteValue(); }
+    else if(val instanceof Short){ return ((Short)val).shortValue(); }
+    else if(val instanceof Integer){ return ((Integer)val).intValue(); }
+    else if(val instanceof Long){ return (int)((Long)val).longValue(); }
+    else if(val instanceof Float){ return (int)((Float)val).floatValue(); }
+    else if(val instanceof Double){ return (int)((Double)val).doubleValue(); }
+    else return 0;
+  }
+  
+  
+  /**Gets the float value from any Object. If the Object can represent a float val, convert and returns it.
+   * Elsewhere it returns 0. TODO return int from a String (CharSequence) with conversion.
+   * @param val The Object. An float value is returned from all numerical wrappers: Byte, ... Float, Double.
+   * @return the value.
+   */
+  public static float getFloat(Object val){
+    if(val instanceof Byte){ return ((Byte)val).byteValue(); }
+    else if(val instanceof Short){ return ((Short)val).shortValue(); }
+    else if(val instanceof Integer){ return ((Integer)val).intValue(); }
+    else if(val instanceof Long){ return ((Long)val).longValue(); }
+    else if(val instanceof Float){ return ((Float)val).floatValue(); }
+    else if(val instanceof Double){ return (float)((Double)val).doubleValue(); }
+    else return 0;
+  }
+
+
+  /**Sets a bit in a int word
+   * @param value The actual value of the word
+   * @param mask Designation of bits to change. Usual only one bit. Tip: Use symbolic names.
+   * @param set true: set this bits to 1, false: reset the bits to 0.
+   * @return The new value of the word. You should invoke: myBitword = setBit(myBitword, ....);
+   */
+  public static int setBit(int value, int mask, boolean set){
+    return set ? value | mask : value & ~mask;
   }
   
 

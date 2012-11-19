@@ -1,5 +1,9 @@
 package org.vishia.util;
 
+/**
+ * @author Hartmut
+ * @deprecated, see {@link DataAccess}
+ */
 public class ObjectValue
 {
 
@@ -18,7 +22,7 @@ public class ObjectValue
     if(val instanceof Byte){ return ((Byte)val).byteValue(); }
     else if(val instanceof Short){ return ((Short)val).shortValue(); }
     else if(val instanceof Integer){ return ((Integer)val).intValue(); }
-    else if(val instanceof Long){ return (float)((Long)val).longValue(); }
+    else if(val instanceof Long){ return ((Long)val).longValue(); }
     else if(val instanceof Float){ return ((Float)val).floatValue(); }
     else if(val instanceof Double){ return (float)((Double)val).doubleValue(); }
     else return 0;

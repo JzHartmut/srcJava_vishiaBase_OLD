@@ -20,6 +20,7 @@ public class CmdExecuter implements Closeable
 {
   /**Version and History:
    * <ul>
+   * <li>2012-11-19 Hartmut bug: Command line arguments in "": now regarded in {@link #splitArgs(String)}.
    * <li>2012-02-02 Hartmut bug: Calling {@link #abortCmd()}: There was a situation were in {@link OutThread#run()} readline() hangs,
    *   though the {@link #process} was destroyed. It isn't solved yet. Test whether it may be better
    *   to read the InputStread direct without wrapping with an BufferedReader. 
@@ -300,7 +301,7 @@ public class CmdExecuter implements Closeable
         }
       } else { //non quoted:
         posArgs[++ixArg] = posArg;
-        spLine.lentoAnyChar(" \t\n\r");
+        spLine.lentoAnyCharOutsideQuotion(" \t\n\r", Integer.MAX_VALUE);
         spLine.len0end();
         length = spLine.length();
       }
