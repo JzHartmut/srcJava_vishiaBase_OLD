@@ -63,25 +63,8 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   /**The namespace-key. If it is "$", the node is a terminate text node. */
   final String namespaceKey;
   
+  /**Text of an attribute or text of a text node. */
   String text;
-  
-  boolean XXXisAttributeNode;
-
-  /**Sorted attributes. */
-  //TreeMap<String, String> XXXattributes;
-
-  /**All nodes, especially child nodes, the parent too. */
-  //final TreeNodeBase<XmlNode,XmlNode> node; 
-  
-  //public UserData data;
-  
-  /**The List of child nodes and text in order of adding. 
-   * Because the interface reference is used, it is possible that a node is another instance else XmlNodeSimple. 
-   */
-  //List<XmlNode> content;
-
-  /**Sorted child nodes. The nodes are sorted with tag-names inclusive name-space.*/
-  //TreeMap<String, List<XmlNode>> sortedChildNodes;
   
   /**List of namespace declaration, typical null because only top elements has it. */
   TreeMap<String, String> namespaces;
@@ -107,18 +90,9 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   
   public XmlNodeSimple(String name, String namespaceKey, UserData data)
   { super(calcKey(name, namespaceKey), data);
-    /*///
-    if(name.startsWith("@")){
-      //add an attribute:
-      this.name = name.substring(1);
-      isAttributeNode = true;
-    } else */{
-      this.name = name;
-    }
-    if(name.startsWith("@"))
-      Assert.stop();
-    //node = new TreeNodeBase<XmlNode,XmlNode>(calcKey(name, namespaceKey), this);
-    //this.name = name;
+    this.name = name;
+    //if(name.startsWith("@"))
+      //Assert.stop();
     this.namespaceKey = namespaceKey;
   }
   
@@ -134,9 +108,6 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   
   private static String calcKey(String name, String namespaceKey){
     String key;  //build the key namespace:tagname or tagname
-    if(name.startsWith("XXX@")){
-      name = name.substring(1);   //an attribute should be added as node "@"
-    }
     if(namespaceKey != null) { key =  namespaceKey + ":" + name; }
     else { key = name; }
     return key;
@@ -145,8 +116,6 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   @Override protected XmlNodeSimple<UserData> newNode(String key, UserData data){
     XmlNodeSimple<UserData> newNode = new XmlNodeSimple<UserData>(key, this.namespaceKey, data);
     return newNode;
-    //TreeNodeBase<A, T> node = new TreeNodeBase(key, data);
-    //return (A)node;
   }
 
   
@@ -158,22 +127,13 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   
   @SuppressWarnings("unchecked")
   public void setAttribute(String name, String value)
-  { /*///
-    XmlNodeSimple<UserData> attributes = (XmlNodeSimple<UserData>)getChild("@");
-    if(attributes == null){
-      attributes = new XmlAttribute<UserData>();
-      addNode(attributes);
-    }
-    */
-    String aname = "@" + name;
+  { String aname = "@" + name;
     XmlNodeSimple<UserData> attribute = (XmlNodeSimple<UserData>)getChild(aname);
     if(attribute ==null){
       attribute = new XmlNodeSimple<UserData>(aname);
       addNode(attribute);
     }
     attribute.text = value;
-    ///if(attributes == null){ attributes = new TreeMap<String, String>(); }
-    ///attributes.put(name, value);
   }
   
   public void addNamespaceDeclaration(String name, String value)
@@ -209,26 +169,9 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   public XmlNode addContent(XmlNode child) 
   throws XmlException 
   { String nameChild = child.getName();
-    ////
-    /*
-    if(nameChild.startsWith("@")){
-      String text = child.getText();
-      setAttribute(nameChild.substring(1), text);
-    } 
-    */
     if(child instanceof XmlNodeSimple<?>){
       XmlNodeSimple<UserData> child1 = (XmlNodeSimple<UserData>) child;
-      /*
-      if(child1.isAttributeNode){
-        XmlNodeSimple attributes = (XmlNodeSimple)getChild("@");
-        if(attributes == null){
-          attributes = new XmlAttribute();
-          addNode(attributes);
-        }
-        attributes.addNode(child1);
-      } else */{
-        addNode(child1);
-      }
+      addNode(child1);
     } else {
       //Because the child node from another implementation type of XmlNodeSimple,
       //a wrapper node should be created.
@@ -250,7 +193,7 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   
   /**Returns the text of the node. If it isn't a text node, the tagName is returned. */
   public String getText()
-  { if(text !=null) //namespaceKey !=null && namespaceKey.equals("$"))
+  { if(text !=null) 
     { //it is a text node.
       return text;
     }
@@ -275,25 +218,18 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
       assert(attribute.text !=null);
       return attribute.text;
     }
-    /*
-    if(attributes != null)
-    { return attributes.get(name);
-    }
-    */
     else return null;
   }
 
   public Map<String, String> getAttributes()
   {
     Map<String, String> mapAttributes = new TreeMap<String, String>();
-    //XmlNode attributeNode = getChild("@");
-    //if(attributeNode !=null){
     List<XmlNode> attributes = listChildren();
     if(attributes !=null){
       for(XmlNode attrib: attributes){
         String name = attrib.getName();
         if(name.startsWith("@")){
-          mapAttributes.put(name, attrib.getText());
+          mapAttributes.put(name.substring(1), attrib.getText());
         }
       }
     }
@@ -312,39 +248,17 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
       attribute.detach();
       return attribute.text;
     }
-    /*
-      if(attributes != null)
-    { return attributes.remove(name);
-    }
-    */
     else return null;
   }
 
 
 
-
-
-  @Override
-  public String toString()
+  @Override public String toString()
   { if(namespaceKey !=null && namespaceKey.equals("$")) return name;  //it is the text
-    else return "<" + name + ">"; //any container
+    else if(name.startsWith("@")) return name + "=" + text; 
+    else return "<" + name + (idxChildren !=null ? ">...</>" : ">"); //any container
   }
 
-  @Override
-  public XmlNodeSimple<UserData> getParent()
-  {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-
-  private static class XmlAttribute<UserData> extends XmlNodeSimple<UserData>
-  {
-    public XmlAttribute() {
-      super("@", null, true);
-    }
-  }
-  
   
 }
 
