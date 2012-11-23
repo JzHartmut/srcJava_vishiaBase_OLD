@@ -1,35 +1,3 @@
-/****************************************************************************
- * Copyright/Copyleft:
- *
- * For this source the LGPL Lesser General Public License,
- * published by the Free Software Foundation is valid.
- * It means:
- * 1) You can use this source without any restriction for any desired purpose.
- * 2) You can redistribute copies of this source to everybody.
- * 3) Every user of this source, also the user of redistribute copies
- *    with or without payment, must accept this license for further using.
- * 4) But the LPGL ist not appropriate for a whole software product,
- *    if this source is only a part of them. It means, the user
- *    must publish this part of source,
- *    but don't need to publish the whole source of the own product.
- * 5) You can study and modify (improve) this source
- *    for own using or for redistribution, but you have to license the
- *    modified sources likewise under this LGPL Lesser General Public License.
- *    You mustn't delete this Copyright/Copyleft inscription in this source file.
- *
- * @author Hartmut = hartmut.schorrig@vishia.de
- * @version 2006-06-15  (year-month-day)
- * list of changes:
- * 2009-05-24: Hartmut The out arg for write is a OutputSteamWriter, not a basic Writer. 
- *             Because: The charset of the writer is got and written in the head line.
- *             The write routine should used to write a byte stream only.
- * 2008-04-02: Hartmut some changes
- * 2008-01-15: Hartmut www.vishia.de creation
- * 
- * known bugs and necessary features:
- * 2008-05-24: Hartmut if US-ASCII-encoding is used, '?' is written on unknown chars yet.
- *
- ****************************************************************************/
 package org.vishia.xmlSimple;
 
 import java.io.IOException;
@@ -41,9 +9,57 @@ import java.util.Map;
 
 
 
+/**This class writes any {@link XmlNode} to a textual output. Because the interface {@link XmlNode} may be used 
+ * for several Xml tree representation, 
+ * for example via {@link org.vishia.xml.XmlNodeJdom} for a {@linkplain www.jdom.org} XML tree, it is universal to use.
+ * @author Hartmut Schorrig, www.vishia.org
+ *
+ */
 public class SimpleXmlOutputter
 {
 
+  /**Version, history and license.
+   * <ul>
+   * <li>2009-05-24: Hartmut The out arg for write is a OutputSteamWriter, not a basic Writer. 
+   *             Because: The charset of the writer is got and written in the head line.
+   *             The write routine should used to write a byte stream only.
+   * <li>2008-04-02: Hartmut some changes
+   * <li>2008-01-15: Hartmut www.vishia.de creation
+   * </ul>
+   * known bugs and necessary features:
+   * <ul>
+   * <li>2008-05-24: Hartmut if US-ASCII-encoding is used, '?' is written on unknown chars yet.
+   * </ul>
+   * 
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License, published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL is not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   * 
+   */
+  @SuppressWarnings("hiding")
+  static final public int version = 20121130;
+
+
+  
   String newline = "\r\n";
   
   String sIdent="\r\n                                                                                            ";
@@ -76,6 +92,7 @@ public class SimpleXmlOutputter
     else
     { sTagName = xmlNode.getName();
     }
+    assert(!sTagName.startsWith("@"));
     out.write(elementStart(sTagName));
     if(xmlNode.getAttributes() != null)
     { Iterator<Map.Entry<String, String>> iterAttrib = xmlNode.getAttributes().entrySet().iterator();
@@ -85,7 +102,19 @@ public class SimpleXmlOutputter
         String value = entry.getValue();
         out.write(attribute(name, value));
       }
-    }  
+    }
+    /*
+    List<XmlNode> children = xmlNode.listChildren();
+    if(children !=null){
+      for(XmlNode xmlAttr: children){
+        String sName = xmlAttr.getName();
+        if(sName.startsWith("@")){
+          String value = xmlAttr.getText();
+          out.write(attribute(sName.substring(1), value));
+        }
+      }
+    }
+    */
     if(xmlNode.getNamespaces() != null)
     { Iterator<Map.Entry<String, String>> iterNameSpaces = xmlNode.getNamespaces().entrySet().iterator();
       while(iterNameSpaces.hasNext())
@@ -96,23 +125,28 @@ public class SimpleXmlOutputter
       }
     }  
     Iterator<XmlNode> iterContent = xmlNode.iterChildren();
+    boolean bContent= false;  //set to true if </endTag> is necessary
     if(iterContent != null) 
     { out.write(elementTagEnd());
+      bContent = true;
       while(iterContent.hasNext())
       { XmlNode content = iterContent.next();
-        if(content.isTextNode())
-        { out.write(convert(content.getText()) );
+        //String sName = content.getName();
+        if(content.isTextNode()){ 
+          out.write(convert(content.getText()) );
           nIndent = -1;  //no indentation, write the rest and all subnodes in one line.
         }
-        else
-        { //if nIndent<0, write no indent in next node level.
+        else { //if(!sName.startsWith("@")){ 
+          //if nIndent<0, write no indent in next node level.
           writeNode(out, content, nIndent >=0 ? nIndent+1 : -1);
         }
       }
+    }
+    if(bContent) {
       out.write(elementEnd(sTagName));
-    }  
-    else
-    { out.write(elementShortEnd());
+    }
+    else { 
+      out.write(elementShortEnd());
     }
   }
   

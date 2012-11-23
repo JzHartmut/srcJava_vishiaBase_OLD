@@ -1,44 +1,22 @@
-/****************************************************************************
- * Copyright/Copyleft:
- *
- * For this source the LGPL Lesser General Public License,
- * published by the Free Software Foundation is valid.
- * It means:
- * 1) You can use this source without any restriction for any desired purpose.
- * 2) You can redistribute copies of this source to everybody.
- * 3) Every user of this source, also the user of redistribute copies
- *    with or without payment, must accept this license for further using.
- * 4) But the LPGL ist not appropriate for a whole software product,
- *    if this source is only a part of them. It means, the user
- *    must publish this part of source,
- *    but don't need to publish the whole source of the own product.
- * 5) You can study and modify (improve) this source
- *    for own using or for redistribution, but you have to license the
- *    modified sources likewise under this LGPL Lesser General Public License.
- *    You mustn't delete this Copyright/Copyleft inscription in this source file.
- *
- * @author JcHartmut = hartmut.schorrig@vishia.de
- * @version 2006-06-15  (year-month-day)
- * list of changes:
- * 2008-01-15: JcHartmut www.vishia.de creation
- * 2008-04-02: JcHartmut some changes
- *
- ****************************************************************************/
 package org.vishia.xmlSimple;
 
 import java.util.Map;
 
 import org.vishia.util.SortedTree;
-import org.vishia.util.TreeNodeBase;
-
-/**This is a simple variant of processing XML.*/
 
 /**Interface to Access to a XML node. It contains a tree of nodes or text content. 
  * This class is a simple way using XML, some features will not supported yet:
- * <ul><li>Namespaces on attributes.
+ * <ul>
+ * <li>Namespaces on attributes.
  * <li>Check of namespace correctness: The user works with the aliases (keys). They will be written in the node.
  *     if the aliases are incorrect, the XML-tree is incorrect.
- * </ul>    
+ * </ul>
+ * Type of children returned from {@link SortedTree#listChildren()}:
+ * <ul>
+ * <li>Children which are XML elements.
+ * <li>Children which are plain texts. Use {@link #isTextNode()} to differ it.
+ * <li>Note that the attributes are not returned as children. Use {@link #getAttributes()}. 
+ * <ul>    
  */ 
 public interface XmlNode extends SortedTree<XmlNode>
 {  /**Version, history and license.
@@ -108,9 +86,12 @@ public interface XmlNode extends SortedTree<XmlNode>
   /**Adds textual content. */
   public XmlNode addContent(String text);
   
-  /**adds a child node. 
+  /**Adds a child node. 
+   * If the child nodes {@link #getName()} starts with "@", it is added as an attribute to this with the {@link #getText()}
+   * as attribute value. This opens the possibility to create a XmlNode independent of a parent and independent of checking
+   * whether it should be an attribute, and convert it to an attribute later.
    * 
-   * @param node
+   * @param node to add
    * @return this itself to add something else.
    * @throws XmlException
    */
@@ -139,7 +120,12 @@ public interface XmlNode extends SortedTree<XmlNode>
    */
   public String getText();
   
-  /**Returns the tagname of the node. If it is a text-node, the text is returned. 
+  /**Returns the tagname of the node. 
+   * <br>Special cases:
+   * <ul>
+   * <li>If it is a text-node, the behavior is not determined. To check whether it is a text node, call {@link #isTextNode()}.
+   * <li>The name can start with a "@". Then it should be esteemed as an XML attribute. 
+   * </ul>
    */
   public String getName();
   
