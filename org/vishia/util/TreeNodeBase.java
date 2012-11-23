@@ -59,10 +59,10 @@ import java.util.TreeMap;
  *  * <pre>
  * 
  *                                    TreeNode
- *                                      -name
+ *                                      -key
  *                                        |------data-------> T (data, may be null)
  *       TreeNode <---parent--------------|
- *       (maybe null)                     |------idxChildren----------name*>|
+ *       (maybe null)                     |------idxChildren-----------key*>|
  *                                        |                               TreeNode (children) unique
  *                                        |------unsortedChildren---------*>|
  *                                        |                                 |-------data-------> T 
@@ -233,6 +233,7 @@ implements SortedTree<IfcType>
    * @param leaf The data to add.
    * @deprecated
    */
+  @Deprecated
   public void addLeaf(Data leaf)
   { 
     if(leafData == null){
@@ -368,15 +369,17 @@ implements SortedTree<IfcType>
    * @param separator Separator between key elements in path.
    * @return
    */
-  DerivedNode getNode(String path, String separator){
+  public DerivedNode getNode(String path, String separator){
     String[] elements = path.split(separator);
     TreeNodeBase<DerivedNode,Data,IfcType> child = this;
     for(String name: elements){
       if(child.idxChildren == null){
+        child = null;
         break;
       }
       TreeNodeBase<DerivedNode,Data,IfcType> child1 = child.idxChildren.get(name);
       if(child1 == null){ 
+        child = null;
         break;
       } else {
         child = child1;
@@ -430,7 +433,7 @@ implements SortedTree<IfcType>
   @Override public IfcType getParent(){
     @SuppressWarnings("unchecked")
     IfcType ret = (IfcType)parent;
-    return (IfcType)ret;
+    return ret;
   }
 
   
@@ -468,7 +471,7 @@ implements SortedTree<IfcType>
   { 
     @SuppressWarnings("unchecked")
     Iterator<IfcType> ret = childNodes == null ? null : (Iterator<IfcType>)childNodes.iterator();
-    return (Iterator<IfcType>)ret;
+    return ret;
   }
 
 
@@ -521,7 +524,7 @@ implements SortedTree<IfcType>
           LinkedList<IfcType> childNodes = new LinkedList<IfcType>();
           //IfcType childNode = (IfcType)newNode(sKey, childMetaNode.data);
           childNodes.add((IfcType)childMetaNode);
-          ret = (List<IfcType>) childNodes;
+          ret = childNodes;
         } else {
           ret = (List<IfcType>) childMetaNode.childNodes;
         }
@@ -546,7 +549,7 @@ implements SortedTree<IfcType>
           return null;
           //only one child, but a List is expected
         } else {
-          ret = (List<DerivedNode>) childMetaNode.childNodes;
+          ret = childMetaNode.childNodes;
         }
         return ret;
       }

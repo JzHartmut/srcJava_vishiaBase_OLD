@@ -127,16 +127,22 @@ public class SimpleXmlOutputter
     Iterator<XmlNode> iterContent = xmlNode.iterChildren();
     boolean bContent= false;  //set to true if </endTag> is necessary
     if(iterContent != null) 
-    { out.write(elementTagEnd());
-      bContent = true;
-      while(iterContent.hasNext())
+    { while(iterContent.hasNext())
       { XmlNode content = iterContent.next();
         //String sName = content.getName();
         if(content.isTextNode()){ 
+          if(!bContent){
+            out.write(elementTagEnd());
+            bContent = true;
+          }
           out.write(convert(content.getText()) );
           nIndent = -1;  //no indentation, write the rest and all subnodes in one line.
         }
-        else { //if(!sName.startsWith("@")){ 
+        else if(!content.getName().startsWith("@")){ 
+          if(!bContent){
+            out.write(elementTagEnd());
+            bContent = true;
+          }
           //if nIndent<0, write no indent in next node level.
           writeNode(out, content, nIndent >=0 ? nIndent+1 : -1);
         }

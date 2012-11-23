@@ -15,7 +15,10 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
 { 
   /**Version, history and license.
    * <ul>
-   * <li>2012-11-24 Hartmut new: {@link #addContent(XmlNode)} checks whether the childs name starts with "@".
+   * <li>2012-11-24 Hartmut chg: The attributes are stored as children in the same tree as other content.
+   *   It means that the attributes are visible too if the tree is evaluated as {@link TreeNodeBase} reference.
+   *   The attributes are children from one child with key "@". In this kind all attributes can be gotten.
+   * <li>2012-11-24 Hartmut new: {@link #addContent(XmlNode)} checks whether the child is an attribute node.
    *   Then it is added as attribute. Such nodes are created from {@link org.vishia.zbnf.ZbnfParser} now. 
    *   and the {@link XmlNodeSimple#attributes} may be removed.
    * <li>2012-11-03 Hartmut Now this class is derived from TreeNodeBase directly. It is a TreeNode by itself.
@@ -59,10 +62,14 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   final String name;
   
   /**The namespace-key. If it is "$", the node is a terminate text node. */
-  String namespaceKey;
+  final String namespaceKey;
+  
+  String text;
+  
+  boolean isAttributeNode;
 
   /**Sorted attributes. */
-  TreeMap<String, String> attributes;
+  //TreeMap<String, String> XXXattributes;
 
   /**All nodes, especially child nodes, the parent too. */
   //final TreeNodeBase<XmlNode,XmlNode> node; 
@@ -92,15 +99,22 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   { this(name, null, (UserData)null);
   }
   
-  public XmlNodeSimple(String text, boolean isText)
-  { super("$", null);
-    this.name = text;
-    this.namespaceKey = "$";
+  protected XmlNodeSimple(String key, String text, boolean isText)
+  { super(key, null);
+    this.name = key;
+    this.text = text;
+    this.namespaceKey = key;
   }
   
   public XmlNodeSimple(String name, String namespaceKey, UserData data)
   { super(calcKey(name, namespaceKey), data);
-    this.name = name;
+    if(name.startsWith("@")){
+      //add an attribute:
+      this.name = name.substring(1);
+      isAttributeNode = true;
+    } else {
+      this.name = name;
+    }
     if(name.startsWith("@"))
       Assert.stop();
     //node = new TreeNodeBase<XmlNode,XmlNode>(calcKey(name, namespaceKey), this);
@@ -120,6 +134,9 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   
   private static String calcKey(String name, String namespaceKey){
     String key;  //build the key namespace:tagname or tagname
+    if(name.startsWith("@")){
+      name = name.substring(1);   //an attribute should be added as node "@"
+    }
     if(namespaceKey != null) { key =  namespaceKey + ":" + name; }
     else { key = name; }
     return key;
@@ -139,9 +156,21 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
 
   
   
+  @SuppressWarnings("unchecked")
   public void setAttribute(String name, String value)
-  { if(attributes == null){ attributes = new TreeMap<String, String>(); }
-    attributes.put(name, value);
+  { XmlNodeSimple<UserData> attributes = (XmlNodeSimple<UserData>)getChild("@");
+    if(attributes == null){
+      attributes = new XmlAttribute<UserData>();
+      addNode(attributes);
+    }
+    XmlNodeSimple<UserData> attribute = (XmlNodeSimple<UserData>)attributes.getChild(name);
+    if(attribute ==null){
+      attribute = new XmlNodeSimple<UserData>(name);
+      attributes.addNode(attribute);
+    }
+    attribute.text = value;
+    ///if(attributes == null){ attributes = new TreeMap<String, String>(); }
+    ///attributes.put(name, value);
   }
   
   public void addNamespaceDeclaration(String name, String value)
@@ -153,7 +182,7 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
    * @see org.vishia.xmlSimple.XmlNode#addContent(java.lang.String)
    */
   public XmlNode addContent(String text)
-  { XmlNodeSimple<UserData> child = new XmlNodeSimple<UserData>(text, true);
+  { XmlNodeSimple<UserData> child = new XmlNodeSimple<UserData>("$", text, true);
     addNode(child);
     return this;
   }
@@ -177,12 +206,25 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   public XmlNode addContent(XmlNode child) 
   throws XmlException 
   { String nameChild = child.getName();
+    ////
+    /*
     if(nameChild.startsWith("@")){
       String text = child.getText();
       setAttribute(nameChild.substring(1), text);
     } 
-    else if(child instanceof XmlNodeSimple<?>){
-      addNode((XmlNodeSimple<UserData>)child);
+    */
+    if(child instanceof XmlNodeSimple<?>){
+      XmlNodeSimple<UserData> child1 = (XmlNodeSimple<UserData>) child;
+      if(child1.isAttributeNode){
+        XmlNodeSimple attributes = (XmlNodeSimple)getChild("@");
+        if(attributes == null){
+          attributes = new XmlAttribute();
+          addNode(attributes);
+        }
+        attributes.addNode(child1);
+      } else {
+        addNode(child1);
+      }
     } else {
       //Because the child node from another implementation type of XmlNodeSimple,
       //a wrapper node should be created.
@@ -204,9 +246,9 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   
   /**Returns the text of the node. If it isn't a text node, the tagName is returned. */
   public String getText()
-  { if(namespaceKey !=null && namespaceKey.equals("$"))
+  { if(text !=null) //namespaceKey !=null && namespaceKey.equals("$"))
     { //it is a text node.
-      return name;
+      return text;
     }
     else
     { List<XmlNode> textNodes = listChildren("$");
@@ -224,16 +266,30 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   public String getNamespaceKey(){ return namespaceKey; }
   
   public String getAttribute(String name)
-  {
+  { XmlNodeSimple<UserData> attribute = getNode("@/" + name, "/");
+    if(attribute !=null){
+      return attribute.text;
+    }
+    /*
     if(attributes != null)
     { return attributes.get(name);
     }
+    */
     else return null;
   }
 
   public Map<String, String> getAttributes()
   {
-    return attributes;
+    Map<String, String> mapAttributes = new TreeMap<String, String>();
+    XmlNode attributeNode = getChild("@");
+    if(attributeNode !=null){
+      List<XmlNode> attributes = attributeNode.listChildren();
+      for(XmlNode attrib: attributes){
+        
+        mapAttributes.put(attrib.getName(), attrib.getText());
+      }
+    }
+    return mapAttributes;
   }
 
   public Map<String, String> getNamespaces()
@@ -243,9 +299,16 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
 
   public String removeAttribute(String name)
   {
-    if(attributes != null)
+    XmlNodeSimple<UserData> attribute = getNode("@/" + name, "/");
+    if(attribute !=null){
+      attribute.detach();
+      return attribute.text;
+    }
+    /*
+      if(attributes != null)
     { return attributes.remove(name);
     }
+    */
     else return null;
   }
 
@@ -267,6 +330,13 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   }
 
 
+  private static class XmlAttribute<UserData> extends XmlNodeSimple<UserData>
+  {
+    public XmlAttribute() {
+      super("@", null, true);
+    }
+  }
+  
   
 }
 
