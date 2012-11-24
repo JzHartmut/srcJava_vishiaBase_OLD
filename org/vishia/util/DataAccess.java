@@ -81,7 +81,7 @@ public class DataAccess {
     Object data1 = dataPool;
     Iterator<String> iter = path.iterator();
     String sElement = iter.next();
-    if(sElement.equals("subState"))
+    if(sElement.equals("targets"))
       sElement +="";  //dummy
     data1 = namedDataPool.get(sElement);
     if(data1 !=null){
