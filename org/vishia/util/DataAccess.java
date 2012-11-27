@@ -49,6 +49,7 @@ public class DataAccess {
    */
   static final public int version = 20121021;
 
+
   /**Reads content from the data.
    * <ul>
    * <li>The namedDataPool provides additional data, which are addressed by the first part of path.
@@ -58,7 +59,7 @@ public class DataAccess {
    *    is gotten from the map with the next part of the path used as the key.
    *  <li>methods with constant string or numeric parameters are admissible as part of the path (TODO)  
    * </ul>
-   * @param path The path, elements separated with dot.
+   * @param path The path, elements in any list element.
    * @param dataPool the object where the path starts from.
    * @param namedDataPool variables valid for the current block
    * @param noException returns an info string starting with "<?" if there is any error.
@@ -70,72 +71,66 @@ public class DataAccess {
    * @return Any data object addressed by the path.
    * @throws IllegalArgumentException
    */
+  @Deprecated
   public static Object getData(
-      List<String> path
+      List<DatapathElement> path
       , Object dataPool
       , Map<String, Object> namedDataPool
-      , boolean noException, boolean accessPrivate,  boolean bContainer)
-  throws IllegalArgumentException
+      //, boolean noException 
+      , boolean accessPrivate,  boolean bContainer)
+  throws NoSuchFieldException
   {
-    Class<?> clazz1;
     Object data1 = dataPool;
-    Iterator<String> iter = path.iterator();
-    String sElement = iter.next();
-    if(sElement.equals("targets"))
-      sElement +="";  //dummy
-    data1 = namedDataPool.get(sElement);
-    if(data1 !=null){
-      sElement = iter.hasNext() ? iter.next() : null;
-    } else {
-      data1 = dataPool;
+    Iterator<DatapathElement> iter = path.iterator();
+    DatapathElement element = iter.next();
+    if(element.ident.equals("$input"))
+      element.ident +="";  //dummy
+    if(namedDataPool !=null && element.ident.startsWith("$")){
+      data1 = namedDataPool.get(element.ident.substring(1));
+      if(data1 !=null){
+        element = iter.hasNext() ? iter.next() : null;
+      } 
     }
-    while(sElement !=null && data1 !=null){
-      if(sElement.equals("state1"))
-        sElement +="";  //dummy
-      if(data1 instanceof Map<?,?>){  //search data with the String key in a map:
-        Map<String,?> dataMap = (Map)data1;
-        data1 = dataMap.get(sElement);
-        sElement = iter.hasNext() ? iter.next() : null;
-      }
-      else {
-        try{ 
-          clazz1 = data1.getClass();
-          Field element = clazz1.getDeclaredField(sElement);
-          element.setAccessible(accessPrivate);
-          try{ data1 = element.get(data1);
-          
-          } catch(IllegalAccessException exc){
-            //try special types:
-            if(noException){
-              return "<? path access: " + path.toString() + "?>";
-            } else {
-              throw new IllegalArgumentException("IllegalAccessException, hint: should be public;" + sElement); 
-            }
-          }
-          sElement = iter.hasNext() ? iter.next() : null;
-        } catch(NoSuchFieldException exc){
-          //TODO method
-          if(data1 instanceof TreeNodeBase<?,?,?>){
-            TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)data1;
-            if(bContainer){
-              data1 = treeNode.listChildren(sElement);
-            }
-            if(!bContainer || data1 == null){
-              data1 = treeNode.getChild(sElement);
-            }
-            //NOTE: data1 may be null. But it accepted as correct.
-            sElement = iter.hasNext() ? iter.next() : null;
+      Class<?> clazz1;
+      while(element !=null && data1 !=null){
+        if(element.ident.equals("state1"))
+          element.ident +="";  //dummy
+        if(data1 instanceof Map<?,?>){  //search data with the String key in a map:
+          Map<String,?> dataMap = (Map)data1;
+          data1 = dataMap.get(element.ident);
+          element = iter.hasNext() ? iter.next() : null;
+        }
+        else {
+          try{ 
+            clazz1 = data1.getClass();
+            Field field = clazz1.getDeclaredField(element.ident);
+            field.setAccessible(accessPrivate);
+            try{ data1 = field.get(data1);
             
-          } else {
-            if(noException){
-              return "<? path fault: " + path.toString() + "?>";
+            } catch(IllegalAccessException exc){
+              //try special types:
+              throw new NoSuchFieldException(element.ident + " in " + path); 
+            }
+            element = iter.hasNext() ? iter.next() : null;
+          } catch(NoSuchFieldException exc){
+            //TODO method
+            if(data1 instanceof TreeNodeBase<?,?,?>){
+              TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)data1;
+              if(bContainer){
+                data1 = treeNode.listChildren(element.ident + " in " + path);
+              }
+              if(!bContainer || data1 == null){
+                data1 = treeNode.getChild(element.ident);
+              }
+              //NOTE: data1 may be null. But it accepted as correct.
+              element = iter.hasNext() ? iter.next() : null;
+              
             } else {
-              throw new IllegalArgumentException("NoSuchFieldException;" + sElement); 
+              throw new NoSuchFieldException(element.ident); 
             }
           }
         }
       }
-    }
     if(data1 !=null && bContainer && !((data1 instanceof Iterable<?>)||data1 instanceof Map)){ //should return a container
       List<Object> list1 = new LinkedList<Object>();
       list1.add(data1);
@@ -207,4 +202,13 @@ public class DataAccess {
   }
   
 
+  
+  
+  public static final class DatapathElement
+  {
+    public String ident;
+    public boolean fn;
+  }
+
+  
 }
