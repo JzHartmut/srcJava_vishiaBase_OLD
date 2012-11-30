@@ -91,9 +91,14 @@ public class DataAccess {
     DatapathElement element = iter.next();
     if(element.ident.equals("$input"))
       element.ident +="";  //dummy
-    if(namedDataPool !=null && element.ident.startsWith("$")){
+    if(element.ident.startsWith("$")){
+      if(namedDataPool ==null){
+        throw new NoSuchFieldException("$?missing-datapool?");
+      }
       data1 = namedDataPool.get(element.ident.substring(1));
-      if(data1 !=null){
+      if(data1 ==null){
+        throw new NoSuchFieldException(element.ident);
+      } else {
         element = iter.hasNext() ? iter.next() : null;
       } 
     }
@@ -122,7 +127,6 @@ public class DataAccess {
                 throw new NoSuchFieldException(element.ident + " in " + path); 
               }
             }
-            element = iter.hasNext() ? iter.next() : null;
           } catch(NoSuchFieldException exc){
             //TODO method
             if(data1 instanceof TreeNodeBase<?,?,?>){
@@ -155,6 +159,7 @@ public class DataAccess {
             // TODO Auto-generated catch block
             e.printStackTrace();
           }
+          element = iter.hasNext() ? iter.next() : null;
         }
       }
     if(data1 !=null && bContainer && !((data1 instanceof Iterable<?>)||data1 instanceof Map)){ //should return a container
