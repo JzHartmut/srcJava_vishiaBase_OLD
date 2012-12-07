@@ -102,6 +102,7 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   
   public XmlNodeSimple(String name, String namespaceKey, String namespace)
   { this(name, namespaceKey, (UserData)null);
+    if(namespaces == null){ namespaces = new TreeMap<String, String>(); }
     namespaces.put(namespaceKey, namespace);    
   }
   
