@@ -15,13 +15,15 @@ import java.util.Map;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
-   * <li>2012-11-24 new: {@link DatapathElement} for describing more complex path for access.
-   * <li>2012-11-18 new: {@link #setBit(int, int, boolean)} as little universal routine.
-   * <li>2012-11-16 new: {@link #getInt(Object)}, {@link #getFloat(Object)} from {@link ObjectValue}, last one is deprecated now.
-   * <li>2012-11-04 chg: parameter bContainer in getData(...): Sometimes a container is ispected
+   * <li>2012-12-08 Hartmut new: {@link #getData(String, Object, boolean)} as subroutine in {@link #getData(List, Object, Map, boolean, boolean)}
+   *   and able to use to get with non treed path, only direct but with all facilities to get from Map etc..
+   * <li>2012-11-24 Hartmut new: {@link DatapathElement} for describing more complex path for access.
+   * <li>2012-11-18 Hartmut new: {@link #setBit(int, int, boolean)} as little universal routine.
+   * <li>2012-11-16 Hartmut new: {@link #getInt(Object)}, {@link #getFloat(Object)} from {@link ObjectValue}, last one is deprecated now.
+   * <li>2012-11-04 Hartmut chg: parameter bContainer in getData(...): Sometimes a container is ispected
    *   to iterate though only one element is found, sometimes only a simple element is expected
    *   though a container is addressed maybe with one element. 
-   * <li>2012-10-21 created. Some algorithm are copied from {@link org.vishia.textGenerator.TextGenerator} in this class.
+   * <li>2012-10-21 Hartmut created. Some algorithm are copied from {@link org.vishia.textGenerator.TextGenerator} in this class.
    *   That algorithm are able to use independent in some applications.
    * </ul>
    * 
@@ -102,66 +104,34 @@ public class DataAccess {
         element = iter.hasNext() ? iter.next() : null;
       } 
     }
-      Class<?> clazz1;
-      while(element !=null && data1 !=null){
-        if(element.ident.equals("state1"))
-          element.ident +="";  //dummy
-        if(data1 instanceof Map<?,?>){  //search data with the String key in a map:
-          Map<String,?> dataMap = (Map)data1;
-          data1 = dataMap.get(element.ident);
-          element = iter.hasNext() ? iter.next() : null;
+    Class<?> clazz1;
+    while(element !=null && data1 !=null){
+      if(element.fn){
+        try{ 
+          clazz1 = data1.getClass();
+            Method method = clazz1.getDeclaredMethod(element.ident);
+            data1 = method.invoke(data1);
+        } catch (NoSuchMethodException e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        } catch (SecurityException e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        } catch (IllegalAccessException e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        } catch (IllegalArgumentException e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        } catch (InvocationTargetException e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
         }
-        else {
-          try{ 
-            clazz1 = data1.getClass();
-            if(element.fn){
-              Method method = clazz1.getDeclaredMethod(element.ident);
-              data1 = method.invoke(data1);
-            } else {
-              Field field = clazz1.getDeclaredField(element.ident);
-              field.setAccessible(accessPrivate);
-              try{ data1 = field.get(data1);
-              
-              } catch(IllegalAccessException exc){
-                //try special types:
-                throw new NoSuchFieldException(element.ident + " in " + path); 
-              }
-            }
-          } catch(NoSuchFieldException exc){
-            //TODO method
-            if(data1 instanceof TreeNodeBase<?,?,?>){
-              TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)data1;
-              if(bContainer){
-                data1 = treeNode.listChildren(element.ident + " in " + path);
-              }
-              if(!bContainer || data1 == null){
-                data1 = treeNode.getChild(element.ident);
-              }
-              //NOTE: data1 may be null. But it accepted as correct.
-              element = iter.hasNext() ? iter.next() : null;
-              
-            } else {
-              throw new NoSuchFieldException(element.ident); 
-            }
-          } catch (NoSuchMethodException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-          } catch (SecurityException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-          } catch (IllegalAccessException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-          } catch (IllegalArgumentException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-          } catch (InvocationTargetException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-          }
-          element = iter.hasNext() ? iter.next() : null;
-        }
-      }
+      } else {
+        data1 = getData(element.ident, data1, accessPrivate);
+    }
+      element = iter.hasNext() ? iter.next() : null;
+    }
     if(data1 !=null && bContainer && !((data1 instanceof Iterable<?>)||data1 instanceof Map)){ //should return a container
       List<Object> list1 = new LinkedList<Object>();
       list1.add(data1);
@@ -172,11 +142,46 @@ public class DataAccess {
   
   
   
+  public static Object getData(
+      String name
+      , Object dataPool
+      , boolean accessPrivate) 
+  throws NoSuchFieldException
+  {
+    Object data1;
+    if(dataPool instanceof Map<?, ?>){
+      data1 = ((Map<?,?>)dataPool).get(name);
+    } 
+    else {
+      Class<?> clazz = dataPool.getClass();
+      try{
+        Field field = clazz.getDeclaredField(name);
+        field.setAccessible(accessPrivate);
+        try{ 
+          data1 = field.get(dataPool);
+        } catch(IllegalAccessException exc){
+          //try special types:
+          throw new NoSuchFieldException(name); 
+        }
+      }catch(NoSuchFieldException exc){
+        if(dataPool instanceof TreeNodeBase<?,?,?>){
+          TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)dataPool;
+          data1 = treeNode.listChildren(name + " in " + clazz.getName());
+        } else {
+          throw new NoSuchFieldException(name + " in " + clazz.getName()); 
+        }
+        
+      }
+    }
+    return data1;  //maybe null
+  }
+  
+  
   
   public static String getStringFromObject(Object content){
     String sContent;
     if(content == null){
-    sContent = "";
+      sContent = "";
     }
     else if(content instanceof String){ 
       sContent = (String) content; 
