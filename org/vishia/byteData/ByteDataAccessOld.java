@@ -55,15 +55,15 @@ import java.io.UnsupportedEncodingException;
  *      
  * <h2>children, currentChild, addChild</h2>
  * Children are used to evaluate or write different data structures after a known structure. 
- * The children may be from several derived types of this class. 
+ * The children may be from several derivated types of this class. 
  * With children and children inside children a tree of different data can be built or evaluated.
  * 
  * If no child is added yet, the indices have the following values:
  * <ul>
  * <li>idxCurrentChild = -1.
- * <li>idxCurrentChildEnd = index after known (head-) data.
+ * <li>idxCurrentChildEnd = index after known (named head-) data.
  * </ul>
- * Deprecated: A call of {@link #next()} sets the indices to a possible but not yet defined current child:
+ * A call of {@link next()} sets the indices to a possible but not yet defined current child:
  * <ul>
  * <li>idxCurrentChild = the index after the last known child or known (head-) data.
  *     It is idxCurrentChildEnd from state before.    
@@ -72,14 +72,14 @@ import java.io.UnsupportedEncodingException;
  * </ul>
  * A call of {@link addChild()} or its adequate addChildXY() sets the indices to the given current child:
  * <ul>
- * <li>idxCurrentChild = the index after known (first head-) data, the index of the child.
+ * <li>idxCurrentChild = the index after known (head-) data, the index of the child.
  * <li>idxCurrentChildEnd = idxCurrentChild + {@link specifyLengthElement()} if this method returns >=0.     
  * <li>idxCurrentChildEnd = idxCurrentChild + {@link specifyLengthElementHead()} if this method returns >=0.     
  * <li>idxCurrentChildEnd = -1, because the length of the child is not known yet if both methods return -1. 
  * </ul>
  * The length of the current Child may be set while evaluating the child's data. 
- * The user should call {@link #setLengthElement(int)} with the child 
- * or {@link #setLengthCurrentChildElement(int)} with the parent, respectively with this.
+ * The user should be call {@link setLengthElement(int)} with the child 
+ * or {@link setLengthCurrentChildElement(int)} with the parent, respectively with this.
  * <ul>
  * <li>idxCurrentChild = is still the index of the child.
  * <li>idxCurrentChildEnd = idxCurrentChild + given length.
@@ -104,25 +104,16 @@ import java.io.UnsupportedEncodingException;
  *  +-------------+     |idxEnd:int                     |---parent-------+ setted in addChild()
  *  | derivated   |     |-------------------------------|
  *  | user        |---|>|specifyLengthElement()         |
- *  | classes     |     |specifyLengthElementHead()     |
- *  +-------------+     |specifyLengthCurrentChild()    |
+ *  | classes     |     |specifyLengthElementHead()     |--currentChild--+ the actual child element
+ *  +-------------+     |specifyLengthCurrentChild()    |<---------------+
  *                      +-------------------------------+
  * </pre>
  *
  */
-public abstract class ByteDataAccess
+public abstract class ByteDataAccessOld
 {
   /**The version. 
    * <ul>
-   * <li>2012-12-15 Hartmut chg: Some changes are done which cleans up this class. If any problem occurs, the {@link ByteDataAccessOld}
-   *   can be used. It is compatible with the last version before this changes.
-   *   <ul>
-   *   <li>The currentChild is not necessary. The only reason to have that association is: changes of size in parent
-   *     force changes in the current child. But it is contrary: The changes should be done in the child and should affect
-   *     the indices in all parents which should be known all in the child. If a child is added and it is never used furthermore
-   *     then an unnecessary dangling reference exists. If the child instance is reused and detach is not called, mistakes are happen.
-   *   <li>the next() and rewind() are removed. It is an unused old concept.  
-   *   </ul>
    * <li>2012-04-07 Hartmut new: {@link #reset(int)}, some comments.
    * <li>2012-03-00 Hartmut Note: compare it with java.nio.ByteBuffer. But a ByteBuffer is abstract.
    * <li>2010-12-20: Hartmut chg: remove the toString-method using StringFormatter, because it is too complex for C-usage.
@@ -167,13 +158,13 @@ public abstract class ByteDataAccess
   /** The parent XmlBinCodeElement, necessary only for add() and expand().
    *
    */
-  private ByteDataAccess parent;
+  private ByteDataAccessOld parent;
 
 
   /** The child on end to add() something
    *
    */
-  //private ByteDataAccess currentChild;
+  private ByteDataAccessOld currentChild;
   
   /**The charset.*/
   String charset;   //NOTE: String(..., Charset) is only support from Java 6
@@ -289,7 +280,7 @@ public abstract class ByteDataAccess
 
 
   /** Constructs a new empty instance. Use assign() to work with it. */
-  protected ByteDataAccess()
+  protected ByteDataAccessOld()
   { this.data = null;
     this.bBigEndian = false;
     bExpand = false;
@@ -298,7 +289,7 @@ public abstract class ByteDataAccess
     idxCurrentChild = -1;  //to mark start.
     idxCurrentChildEnd = 0;
     parent = null;
-    //currentChild = null;
+    currentChild = null;
     //charset = Charset.forName("ISO-8859-1");  //NOTE: String(..., Charset) is only support from Java 6
     charset = "ISO-8859-1";
   }
@@ -356,11 +347,9 @@ public abstract class ByteDataAccess
     { throw new RuntimeException("idx have to be >=0");
     }
     idxBegin = index; 
-    /*
     if(parent!= null && parent.currentChild == this)
     { parent.currentChild = null;  //the child is invalid because it is new assigned.
     }
-    */
     parent = null;
     reset(lengthData);
     assignDataToFixChilds();
@@ -376,7 +365,7 @@ public abstract class ByteDataAccess
    * <br><br>
    * Or the data are set newly with any designated content, then call <pre>
    * reset(length);
-   * with the known length. Then the data can be evaluate by calling {@link #addChild(ByteDataAccess)}.
+   * with the known length. Then the data can be evaluate by calling {@link #addChild(ByteDataAccessOld)}.
    * or by getting data from the head only if children should ot be used.
    * <br><br>
    * See {@link #assignEmpty(byte[])}, {@link #assignData(byte[], int)}. This routine
@@ -396,12 +385,10 @@ public abstract class ByteDataAccess
     } else {
       bExpand = lengthData <= 0;  //expand if the data have no head.
     }
-    /*
     if(currentChild !=null){
       currentChild.detach();
       currentChild = null;
     }
-    */
     idxCurrentChild = -1;
     idxFirstChild = idxCurrentChildEnd = idxBegin + lengthHeadSpecified; 
     idxEnd = bExpand ? idxFirstChild : lengthData;
@@ -422,7 +409,7 @@ public abstract class ByteDataAccess
    * are set to the end of head, no childs are presumed.
    * The head should be filled with data after that calling some methods like
    * {@link setInt32(int, int)}.<br>
-   * The children should be added by calling {@link addChild(ByteDataAccess)}
+   * The children should be added by calling {@link addChild(ByteDataAccessOld)}
    * and filled with data after that.
    *
    * <br>
@@ -454,29 +441,17 @@ public abstract class ByteDataAccess
       idxEnd = idxFirstChild;
     }
     idxCurrentChild = -1;
-    /*
     if(currentChild !=null){
       currentChild.detach();
       currentChild = null;
     }
-    */
   }
   
   
   /**Remove all connections. Especially for children. */
   final public void detach()
-  { /*
-    if(currentChild !=null){ 
-      currentChild.detach(); 
-      currentChild = null;
-    }
-    */
+  { if(currentChild !=null){ currentChild.detach(); }
     data = null;
-    /*
-    if(parent !=null && parent.currentChild == this){
-      parent.currentChild = null;
-    }
-    */
     parent = null;
     idxBegin = idxEnd = 0;
     idxFirstChild = idxCurrentChild = idxCurrentChildEnd = 0;
@@ -486,14 +461,14 @@ public abstract class ByteDataAccess
   
   /**Assigns this element to the same position in data, but it is another view. 
    * This method should be called inside a assignCasted() method if a inner head structure is known
-   * and the conclusion of this structure is possible. At result, both ByteDataAccess instances reference the same data,
+   * and the conclusion of this structure is possible. At result, both ByteDataAccessOld instances reference the same data,
    * in different views.
    * @param src The known data access
    * @param offsetCastToInput typical 0 if single inherition is used.
    * @throws IllegalArgumentException if a length of the new type is specified but the byte[]-data are shorter. 
    *                         The length of byte[] is tested. 
    */
-  final protected void assignCasted_i(ByteDataAccess src, int offsetCastToInput, int lengthDst)
+  final protected void assignCasted_i(ByteDataAccessOld src, int offsetCastToInput, int lengthDst)
   throws IllegalArgumentException
   { this.bBigEndian = src.bBigEndian;
     bExpand = src.bExpand;
@@ -507,13 +482,13 @@ public abstract class ByteDataAccess
   
   
   
-  /**Older form, see protected method {@link assignCasted_i(ByteDataAccess, int )}
+  /**Older form, see protected method {@link assignCasted_i(ByteDataAccessOld, int )}
    * If a cast is possible, it should be programmed in the derivated class.
    * @ deprecated because it is not necessary it's a downcast, it may be also upcast or sidecast. 
    * @param input
    * @throws IllegalArgumentException
    */
-  final protected void assignDowncast_i(ByteDataAccess input)
+  final protected void assignDowncast_i(ByteDataAccessOld input)
   throws IllegalArgumentException
   { assignCasted_i(input, 0, -1);
   }
@@ -525,13 +500,13 @@ public abstract class ByteDataAccess
    * to represent the current child of the parent.
    * This method should be used by reading out byte[] data 
    * if it is detected, that the content of data matches of this derivated type of
-   * ByteDataAccess. {@link next()} should be called before. The pattern of using is:
+   * ByteDataAccessOld. {@link next()} should be called before. The pattern of using is:
    * <pre>
    * 
     int nWhat;    //code of the element
-    while( (nWhat = dataElement.next()) != ByteDataAccess.kEndOfElements )
+    while( (nWhat = dataElement.next()) != ByteDataAccessOld.kEndOfElements )
     { switch(nWhat)  //test the first byte of the current element
-      { case ByteDataAccess.kText:
+      { case ByteDataAccessOld.kText:
         { sText = dataElement.getText();
         } break;
         case code1:
@@ -546,7 +521,7 @@ public abstract class ByteDataAccess
       }
     }
     </pre>
-   * The difference to {@link addChild(ByteDataAccess)} is: addChild() is used 
+   * The difference to {@link addChild(ByteDataAccessOld)} is: addChild() is used 
    * to writeout to data, addChild() appends the child always after idxEnd,
    * but this method is used to read from data and appends the child at position of the current child.
    * <br>
@@ -565,7 +540,7 @@ public abstract class ByteDataAccess
    * @deprecated use addChild()
    */
   @Deprecated
-  final public void assignAsChild(ByteDataAccess parent)
+  final public void assignAsChild(ByteDataAccessOld parent)
   throws IllegalArgumentException
   { parent.addChild(this);
   }
@@ -576,7 +551,7 @@ public abstract class ByteDataAccess
   
   /**assigns the element to the given position of the parents data to present a child of the parent
    * with a defined length.
-   * The difference to {@link addChild(ByteDataAccess)} is: The position is given here
+   * The difference to {@link addChild(ByteDataAccessOld)} is: The position is given here
    * directly, it should not be the current child but a free child.  
    * <br>
    * The data reference is copied, the idxBegin of this element
@@ -590,7 +565,7 @@ public abstract class ByteDataAccess
    * @param idxChildInParent The index of the free child in the data.
    * @throws IllegalArgumentException If the indices are wrong in respect to the data.
    */
-  final public void assignAtIndex(int idxChildInParent, int lengthChild, ByteDataAccess parent)
+  final public void assignAtIndex(int idxChildInParent, int lengthChild, ByteDataAccessOld parent)
   throws IllegalArgumentException
   { this.bBigEndian = parent.bBigEndian;
     this.bExpand = parent.bExpand;
@@ -605,7 +580,7 @@ public abstract class ByteDataAccess
    * @param idxChildInParent The index of the free child in the data.
    * @throws IllegalArgumentException If the indices are wrong in respect to the data.
    */
-  final public void assignAtIndex(int idxChildInParent, ByteDataAccess parent)
+  final public void assignAtIndex(int idxChildInParent, ByteDataAccessOld parent)
   throws IllegalArgumentException
   { @SuppressWarnings("unused")
     int lengthHead = getLengthHead();
@@ -656,19 +631,19 @@ public abstract class ByteDataAccess
    * @throws IllegalArgumentException if the length of the head of the new current child is to far for the data.
    *         It means, child.idxEnd > data.length. 
    */
-  final public boolean addChild(ByteDataAccess child) 
+  final public boolean addChild(ByteDataAccessOld child) 
   throws IllegalArgumentException
   { notifyAddChild();
     child.bBigEndian = bBigEndian;
     child.bExpand = bExpand;
     setIdxtoNextCurrentChild();
     /**@java2c=dynamic-call.  */
-    ByteDataAccess childMtb = child;
+    ByteDataAccessOld childMtb = child;
     childMtb.assignData(data, bExpand ? -1 : idxEnd, idxCurrentChild);
     childMtb.setBigEndian(bBigEndian);
     child.parent = this;
-    //this.currentChild = child;
-    expand(child.idxCurrentChildEnd);  //NOTE: Problem the child.idxEnd is not set yet.
+    this.currentChild = child;
+    correctIdxChildEnd(child.idxCurrentChildEnd);
     return bExpand;
   }
 
@@ -752,7 +727,7 @@ public abstract class ByteDataAccess
         throw new IllegalArgumentException("to few user data:"+ (idxCurrentChild + nrofBytes));
       }
     }
-    expand(idxCurrentChild + nrofBytes);  //also of all parents
+    correctIdxChildEnd(idxCurrentChild + nrofBytes);  //also of all parents
     return bExpand;
   }
   
@@ -765,7 +740,7 @@ public abstract class ByteDataAccess
    *              to add some content.
    * @throws IllegalArgumentException 
    */
-  final public void addChildEmpty(ByteDataAccess child) 
+  final public void addChildEmpty(ByteDataAccessOld child) 
   throws IllegalArgumentException
   { addChild(child);
     child.specifyEmptyDefaultData();
@@ -797,11 +772,11 @@ public abstract class ByteDataAccess
     }
   }
 
-  /**Increments the idxEnd if a new child is added. It is called 
+  /** Increments the idxEnd if a new child is added. Called only
    * inside method addChild(child) and recursively to correct
    * in all parents.
    */
-  final private void expand(int idxCurrentChildEndNew)
+  final private void correctIdxChildEnd(int idxCurrentChildEndNew)
   { if(bExpand) 
     { //do it only in expand mode
       idxEnd = idxCurrentChildEndNew;
@@ -809,13 +784,13 @@ public abstract class ByteDataAccess
     assert(idxCurrentChildEndNew >= idxFirstChild);
     idxCurrentChildEnd = idxCurrentChildEndNew;
     if(parent != null)
-    { parent.expand(idxCurrentChildEndNew);
+    { parent.correctIdxChildEnd(idxCurrentChildEndNew);
     }
   }
 
   /** Expands the end index of the parent, it means the management
    * of the expanse of the data.
-   * @deprecated. 
+   *
    */
   final public void expandParent()
   throws IllegalArgumentException
@@ -911,7 +886,7 @@ public abstract class ByteDataAccess
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     _setLong(idxCurrentChild - idxBegin, nrofBytes, value);  
-    expand(idxCurrentChild + nrofBytes);
+    correctIdxChildEnd(idxCurrentChild + nrofBytes);
   }
   
   
@@ -929,7 +904,7 @@ public abstract class ByteDataAccess
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     setFloat(idxCurrentChild - idxBegin, value);  
-    expand(idxCurrentChild + 4);
+    correctIdxChildEnd(idxCurrentChild + 4);
   }
   
   
@@ -975,7 +950,7 @@ public abstract class ByteDataAccess
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     _setString(idxCurrentChild - idxBegin, nrofBytes, value, sEncoding, preventCtrlChars);  
-    expand(idxCurrentChild + nrofBytes);
+    correctIdxChildEnd(idxCurrentChild + nrofBytes);
   }
   
   
@@ -1009,7 +984,7 @@ public abstract class ByteDataAccess
       byte charByte = (byte)(value.charAt(ii));  //TODO encoding
       data[idxCurrentChild+ii] = charByte;
     }
-    expand(idxCurrentChild + nrofBytes);
+    correctIdxChildEnd(idxCurrentChild + nrofBytes);
   }
   
   
@@ -1074,11 +1049,8 @@ public abstract class ByteDataAccess
    *         If this code is between 0x20 to 0xbf, it is assumed that is an
    *         character, kText is returned than.<br>
    *         If no more childs are available, kEndOfElements is returned.<br>
-   * @deprecated, it is from the first idea. To evaluate unknown data on end use {@link #sufficingBytesForNextChild(int)}
-   *   and add a child which describes the base structure, it may be a {@link #addChildInteger(int, long)} 
-   *   and evauate its data. The meaning of only 1 byte to determine the child should not be defined as rule. 
   */
-  @Deprecated final public int next()
+  final public int next()
   throws IllegalArgumentException
   { byte eWhat;
     setIdxtoNextCurrentChild();
@@ -1238,12 +1210,12 @@ public abstract class ByteDataAccess
    *  The user may set the length due to the knowledge of the type and content of the actual child element.
    *  So the calling of specifyLengthCurrentChildElement() will be precluded.
    *  The idxChildEnd is setted.
+   */
   final public void setLengthCurrentChildElement(int lengthOfCurrentChild)
   { if(currentChild != null)
     { currentChild.setLengthElement(lengthOfCurrentChild);
     }
   }
-   */
 
 
   
@@ -1253,14 +1225,14 @@ public abstract class ByteDataAccess
    * with the (this.{@link #idxBegin}+length).
    * <br><br>
    * This routine is usefully if data are set in a child directly without sub-tree child structure
-   * (without using {@link #addChild(ByteDataAccess)}).
+   * (without using {@link #addChild(ByteDataAccessOld)}).
    * It is if the element has data after the head with different length without an own children structure.
    * 
    * @param length The length of data of this current (last) child.
    */
   final public void setLengthElement(int length)
   { //if(!bExpand && )
-    expand(idxBegin + length);
+    correctIdxChildEnd(idxBegin + length);
   }
 
   
@@ -1870,7 +1842,7 @@ public abstract class ByteDataAccess
   /** Copies the data into a byte[]
    *
    * */
-  final public void copyDataFrom(ByteDataAccess src)
+  final public void copyDataFrom(ByteDataAccessOld src)
   throws IllegalArgumentException
   { int len = src.getLength();
     if(data.length < len) throw new IndexOutOfBoundsException("copy, dst to small" + len);
@@ -1898,13 +1870,11 @@ public abstract class ByteDataAccess
     return true;
   }
 
-  /*
-  public final ByteDataAccess getCurrentChild() 
+  public final ByteDataAccessOld getCurrentChild() 
   {
      
       return currentChild;
   }
-  */
 
   
   
