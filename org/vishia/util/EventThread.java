@@ -71,7 +71,7 @@ public class EventThread implements Runnable, Closeable
   
   @Override public void run()
   { stateOfThread = 'r';
-    while(stateOfThread != 'x'){
+    while(stateOfThread != 'c'){
       try{ //never let the thread crash
         Event event;
         if( (event = queueEvents.poll()) !=null){
