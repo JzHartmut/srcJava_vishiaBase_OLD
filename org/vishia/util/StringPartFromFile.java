@@ -55,6 +55,7 @@ public class StringPartFromFile extends StringPart
 
     readIn = new FileReader(fromFile);
     readnextContentFromFile();
+    readIn.close();
     assign(buffer.toString());
   }
 

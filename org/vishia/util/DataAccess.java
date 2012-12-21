@@ -15,6 +15,7 @@ import java.util.Map;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2012-12-22 Hartmut new: {@link DatapathElement#constValue} as general possibility, usual for the first element of a path.
    * <li>2012-12-08 Hartmut new: {@link #getData(String, Object, boolean)} as subroutine in {@link #getData(List, Object, Map, boolean, boolean)}
    *   and able to use to get with non treed path, only direct but with all facilities to get from Map etc..
    * <li>2012-11-24 Hartmut new: {@link DatapathElement} for describing more complex path for access.
@@ -91,9 +92,11 @@ public class DataAccess {
     Object data1 = dataPool;
     Iterator<DatapathElement> iter = path.iterator();
     DatapathElement element = iter.next();
-    if(element.ident.equals("$input"))
-      element.ident +="";  //dummy
-    if(element.ident.startsWith("$")){
+    if(element.constValue !=null){
+      data1 = element.constValue;
+      element = null;  //no more following
+    }
+    else if(element.ident.startsWith("$")){
       if(namedDataPool ==null){
         throw new NoSuchFieldException("$?missing-datapool?");
       }
@@ -250,12 +253,21 @@ public class DataAccess {
      * From Zbnf <$?ident>
      */
     public String ident;
+    
+    /**Maybe a constant value, also a String. */
+    public Object constValue;
 
     /**True if it is a method.  From Zbnf <$?fn> */
     public boolean fn;
     
     /**List of arguments of a method. If null, the method has not arguments. */
     private List<Object> fnArgs;
+    
+    /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
+    public void set_intValue(long val){ constValue = new Long(val); }
+    
+    /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
+    public void set_floatValue(double val){ constValue = new Double(val); }
     
     /**Set a textual argument of a access method. From Zbnf <""?textArg>. */
     public void set_textArg(String arg){ addToList(arg); }
