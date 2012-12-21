@@ -525,6 +525,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
   /** Gets the length of the valid part. See length().
    * @deprecated
    */
+  @Deprecated
   public int getLen(){ return length();}
   
 
@@ -770,11 +771,11 @@ abcdefghijklmnopqrstuvwxyz  The associated String
   { startLast = start;
     start += nr;
     if(start > end)
-    	/**@java2c=StringBuilderInThreadCxt.*/ 
-    	throwIndexOutOfBoundsException("seek=" + nr + " start=" + (start-nr) + " end=" + end);
+      /**@java2c=StringBuilderInThreadCxt.*/ 
+      throwIndexOutOfBoundsException("seek=" + nr + " start=" + (start-nr) + " end=" + end);
     else if(start < startMin) 
-    	/**@java2c=StringBuilderInThreadCxt.*/
-    	throwIndexOutOfBoundsException("seek=" + nr + " start=" + (start-nr) + " start-min=" + startMin);
+      /**@java2c=StringBuilderInThreadCxt.*/
+      throwIndexOutOfBoundsException("seek=" + nr + " start=" + (start-nr) + " start-min=" + startMin);
     bFound = true;
     return this;
   }
@@ -818,6 +819,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
    *  @java2c=return-this.
    * 
    */ 
+  @Deprecated
   protected StringPart skipWhitespaceAndComment()
   { return seekNoWhitespaceOrComments();
   }
@@ -866,6 +868,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
    * 
    * @deprecated see {@link found()}
    */
+  @Deprecated
   boolean isFound(){ return found(); }
   
 
@@ -1200,7 +1203,7 @@ that is a liststring and his part The associated String
     boolean found = false;
     while(!found && pos < max)
     { 
-    	int nrofFoundString1 = -1;
+      int nrofFoundString1 = -1;
       /**increment over not matching chars, test all first chars: */
       while(pos < max && (nrofFoundString1 = sFirstChars.indexOf(content.charAt(pos))) < 0) pos +=1;
       
@@ -1236,7 +1239,7 @@ that is a liststring and his part The associated String
     { nChars = pos - start;
     }
     else { 
-    	nChars = -1; 
+      nChars = -1; 
       if(foundString != null)
       { foundString[0] = null;
       }
@@ -2075,9 +2078,9 @@ that is a liststring and his part The associated String
       else{ nExponent = 0; }
       
       if(bCurrentOk){ 
-        double result = (double)nInteger;
+        double result = nInteger;
         if(nFractional > 0)
-        { double fFrac = (double)nFractional;
+        { double fFrac = nFractional;
           while(fFrac >= 1.0)  //the read number is pure integer, it is 0.1234
           { fFrac /= 10.0; 
           }
@@ -2089,9 +2092,9 @@ that is a liststring and his part The associated String
         { if(bNegativExponent){ nExponent = -nExponent;}
           result *= Math.pow(10, nExponent);
         }
-      	if(idxLastFloatNumber < nLastFloatNumber.length -2){
-      		nLastFloatNumber[++idxLastFloatNumber] = result;
-	      } else throw new ParseException("to much scanned floats",0);
+        if(idxLastFloatNumber < nLastFloatNumber.length -2){
+          nLastFloatNumber[++idxLastFloatNumber] = result;
+        } else throw new ParseException("to much scanned floats",0);
       }
     }  
     return this;
@@ -2390,6 +2393,7 @@ that is a liststring and his part The associated String
       In this case the StringPart is accept as a Object and the Object.toString() is called. This method is here implemented.
       So a StringPart is usualable directly in concatation.
   */
+  @Override
   public String toString()
   { return getCurrentPart();
   }
@@ -2411,7 +2415,7 @@ that is a liststring and his part The associated String
     /**@java2c=StringBuilderInThreadCxt,toStringNonPersist.*/ 
     String ret = content.substring(0, len > 20 ? 20 : len) + "<<<" + start + "," + end + ">>>";
     if(start < len){
-    	/**@java2c=toStringNonPersist.*/ 
+      /**@java2c=toStringNonPersist.*/ 
       ret += content.substring(start, len > (start + 20) ? start+20: len); 
     }
     /**@java2c=toStringNonPersist.*/ 
@@ -2454,12 +2458,12 @@ that is a liststring and his part The associated String
     { int[] type = new int[1];
       posPattern = spPattern.indexOfAnyString(placeholder, posPatternStart, spPattern.length(), type, null);
       if(posPattern >=0){
-      	dst.append(src.substring(posPatternStart, posPattern));
+        dst.append(src.substring(posPatternStart, posPattern));
         int ixValue = type[0];
         dst.append(value[ixValue]);
         posPatternStart = posPattern + placeholder[ixValue].length();
       } else { //last pattern constant part:
-      	dst.append(src.substring(posPatternStart));
+        dst.append(src.substring(posPatternStart));
         posPatternStart = -1;  //mark end
       }
     }while(posPatternStart >=0);
@@ -2475,8 +2479,8 @@ that is a liststring and his part The associated String
    */
   public void close()
   {
-  	content = null;
-  	sLastString = null;
+    content = null;
+    sLastString = null;
     startMin = startLast = start = startScan = 0;
     endMax = end = endLast = 0;
     nLineCt = 0;

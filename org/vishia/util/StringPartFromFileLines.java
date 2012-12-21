@@ -36,18 +36,18 @@ import java.nio.charset.UnsupportedCharsetException;
 public class StringPartFromFileLines extends StringPart
 {
   
-	/**Version, history and license.
-	 * list of changes:
-	 * <ul>
-	 * <li>2012-12-22 Hartmut chg: close() the file in constructor if the whole file was read.
-	 * <li>2010-02-11 Hartmut new: The ctor StringPartFromFileLines(File fromFile) is added, 
-	 *   it is compatible to StringPartFromFile now.
-	 * <li>2009-05-31 Hartmut detecting and ignoring a BOM (byte order mark) as first char.
-	 * <li>2009-04-09 Hartmut encoding detection korrig.
-	 * <li>2006-05-00 Hartmut creation
-	 * </ul>
-	 * 
-	 * <b>Copyright/Copyleft</b>:
+  /**Version, history and license.
+   * list of changes:
+   * <ul>
+   * <li>2012-12-22 Hartmut chg: close() the file in constructor if the whole file was read.
+   * <li>2010-02-11 Hartmut new: The ctor StringPartFromFileLines(File fromFile) is added, 
+   *   it is compatible to StringPartFromFile now.
+   * <li>2009-05-31 Hartmut detecting and ignoring a BOM (byte order mark) as first char.
+   * <li>2009-04-09 Hartmut encoding detection korrig.
+   * <li>2006-05-00 Hartmut creation
+   * </ul>
+   * 
+   * <b>Copyright/Copyleft</b>:
    * For this source the LGPL Lesser General Public License, published by the Free Software Foundation is valid.
    * It means:
    * <ol>
@@ -69,10 +69,10 @@ public class StringPartFromFileLines extends StringPart
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
 
-	 */
-	public static final int version = 20121222;
-	
-	final StringBuffer buffer;
+   */
+  public static final int version = 20121222;
+  
+  final StringBuffer buffer;
   //char[] fileBuffer = new char[1024];
   //int nCharsFileBuffer = 0;
   
@@ -114,7 +114,7 @@ public class StringPartFromFileLines extends StringPart
   public StringPartFromFileLines(File fromFile)
   throws FileNotFoundException, IOException, IllegalCharsetNameException, UnsupportedCharsetException
   {
-  	this(fromFile, 0, null, null);
+    this(fromFile, 0, null, null);
   }
   
   
@@ -160,7 +160,7 @@ public class StringPartFromFileLines extends StringPart
       int posNewline = sFirstLine.indexOf('\n'); 
       //@chg:JcHartmut-2010-0912: test 2 lines instead of the first only, because in a bash-shell script it can't be the first line!
       if(posNewline >= 0 && posNewline < nrofFirstChars){    //= nrofFirstBytes, then an IndexOutOfBoundsException is thrown because
-      	posNewline = sFirstLine.indexOf('\n', posNewline +1); //from the second line. 
+        posNewline = sFirstLine.indexOf('\n', posNewline +1); //from the second line. 
       }
       if(posNewline < 0) posNewline = nrofFirstChars;
       StringPart spFirstLine = new StringPart(sFirstLine.substring(0, posNewline));
@@ -243,11 +243,11 @@ public class StringPartFromFileLines extends StringPart
 
   @Override
   public void close(){
-  	if(readIn != null){
-  		try{ readIn.close(); } catch(IOException exc){}
-  		//readIn = null;
-  	}
-  	super.close();
+    if(readIn != null){
+      try{ readIn.close(); } catch(IOException exc){}
+      //readIn = null;
+    }
+    super.close();
   }
   
 }
