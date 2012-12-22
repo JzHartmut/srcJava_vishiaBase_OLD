@@ -97,6 +97,7 @@ public class CalculatorExpr
       else if(src instanceof Integer){ setit.longVal = (Integer)src; return this; }
       else if(src instanceof Short){ setit.longVal = (Short)src; return this; }
       else if(src instanceof Byte){ setit.longVal = (Byte)src; return this; }
+      else if(src instanceof Character){ setit.longVal = (Character)src; return this; }  //use its UTF16-code.
       else if(src instanceof Double){ setit.doubleVal = (Double)src; accu.doubleVal = accu.longVal;
         return longExpr;
       }

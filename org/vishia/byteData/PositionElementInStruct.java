@@ -43,10 +43,24 @@ public class PositionElementInStruct
           
   }
   
-  
-  //type.nrofBytes
-  
+  /**Increments the position.
+   * @param arrayStartIx
+   * @param arrayEndIx
+   * @param nrofBytesElement
+   * @deprecated see {@link #incrPos(int, int, int)}.
+   */
+  @Deprecated
   public void incrPosInOriginalDb(int arrayStartIx, int arrayEndIx, int nrofBytesElement)
+  { incrPos(arrayStartIx, arrayEndIx, nrofBytesElement);
+  }
+  
+  /**Increments the position because a variable is processed.
+   * @param arrayStartIx maybe an array [start..end], usual 0
+   * @param arrayEndIx if it is an array, it have to be > arrayStartIx.
+   * @param nrofBytesElement 0 for a bit in word (S7: BOOL).1..4 for the basic types, if it is an array: the element size.
+   *  Note that a bit array is possible, this parameter is 0, the (arrayStartIx - arrayEndIx +1) is the number of bits.
+   */
+  public void incrPos(int arrayStartIx, int arrayEndIx, int nrofBytesElement)
   {
     final int nrofElement;
     if(arrayStartIx != 0 || arrayEndIx != 0){

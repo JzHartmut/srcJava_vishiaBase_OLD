@@ -15,6 +15,7 @@ import java.util.Map;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2012-12-23 Hartmut chg, new: {@link #getStringFromObject(Object, String)} now uses a format string.
    * <li>2012-12-22 Hartmut new: {@link DatapathElement#constValue} as general possibility, usual for the first element of a path.
    * <li>2012-12-08 Hartmut new: {@link #getData(String, Object, boolean)} as subroutine in {@link #getData(List, Object, Map, boolean, boolean)}
    *   and able to use to get with non treed path, only direct but with all facilities to get from Map etc..
@@ -181,7 +182,17 @@ public class DataAccess {
   
   
   
-  public static String getStringFromObject(Object content){
+  /**Returns a string representation of the object.
+   * <ul>
+   * <li>content == null returns an empty string.
+   * <li>content is a numerical type, returns a formatted string from it.
+   * <li>else return content.toString().
+   * </ul>
+   * @param content any object
+   * @param format may be null, if not null it is used with {@link java.lang.String#format(String, Object...)}.
+   * @return A string which represents content.
+   */
+  public static String getStringFromObject(Object content, String format){
     String sContent;
     if(content == null){
       sContent = "";
@@ -189,8 +200,13 @@ public class DataAccess {
     else if(content instanceof String){ 
       sContent = (String) content; 
     } else if(content instanceof Integer){ 
-      int value = ((Integer)content).intValue();
-      sContent = "" + value;
+      if(format !=null){
+        try{ sContent = String.format(format, content); 
+        } catch(Exception exc){ sContent = "<??format:"+ format + " exception:" + exc.getMessage() + "??>"; }
+      } else {
+        int value = ((Integer)content).intValue();
+        sContent = Integer.toString(value);
+      }
     } else {
       sContent = content.toString();
     }
@@ -268,6 +284,12 @@ public class DataAccess {
     
     /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
     public void set_floatValue(double val){ constValue = new Double(val); }
+    
+    /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
+    public void set_textValue(String val){ constValue = val; }
+    
+    /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
+    public void set_charValue(String val){ constValue = new Character(val.charAt(0)); }
     
     /**Set a textual argument of a access method. From Zbnf <""?textArg>. */
     public void set_textArg(String arg){ addToList(arg); }
