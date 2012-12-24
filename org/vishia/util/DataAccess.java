@@ -93,11 +93,12 @@ public class DataAccess {
     Object data1 = dataPool;
     Iterator<DatapathElement> iter = path.iterator();
     DatapathElement element = iter.next();
-    if(element.constValue !=null){
-      data1 = element.constValue;
-      element = null;  //no more following
-    }
-    else if(element.ident.startsWith("$")){
+    //if(element.constValue !=null){
+    //  data1 = element.constValue;
+    //  element = null;  //no more following
+    //}
+    //else 
+    if(element.ident.startsWith("$")){
       if(namedDataPool ==null){
         throw new NoSuchFieldException("$?missing-datapool?");
       }
@@ -263,7 +264,7 @@ public class DataAccess {
    * Instances of this class can be created using {@link org.vishia.zbnf.ZbnfJavaOutput} to fill from a parse result.
    * Therefore some methods have a special naming which matches to the semantic of the used parser script.
    */
-  public static final class DatapathElement
+  public static class DatapathElement
   {
     /**Name of the element or method in any instance.
      * From Zbnf <$?ident>
@@ -271,7 +272,7 @@ public class DataAccess {
     public String ident;
     
     /**Maybe a constant value, also a String. */
-    public Object constValue;
+    //public Object constValue;
 
     /**True if it is a method.  From Zbnf <$?fn> */
     public boolean fn;
@@ -280,25 +281,25 @@ public class DataAccess {
     private List<Object> fnArgs;
     
     /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
-    public void set_intValue(long val){ constValue = new Long(val); }
+    //public void set_intValue(long val){ constValue = new Long(val); }
     
     /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
-    public void set_floatValue(double val){ constValue = new Double(val); }
+    //public void set_floatValue(double val){ constValue = new Double(val); }
     
     /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
-    public void set_textValue(String val){ constValue = val; }
+    //public void set_textValue(String val){ constValue = val; }
     
     /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
-    public void set_charValue(String val){ constValue = new Character(val.charAt(0)); }
+    //public void set_charValue(String val){ constValue = new Character(val.charAt(0)); }
     
     /**Set a textual argument of a access method. From Zbnf <""?textArg>. */
-    public void set_textArg(String arg){ addToList(arg); }
+    //public void set_textArg(String arg){ addToList(arg); }
     
     /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
-    public void set_intArg(long arg){ addToList(arg); }
+    //public void set_intArg(long arg){ addToList(arg); }
     
     /**Set a float (double) argument of a access method. From Zbnf <#f?floatArg>. */
-    public void set_floatArg(double arg){ addToList(arg); }
+    //public void set_floatArg(double arg){ addToList(arg); }
     
     /**Adds any argument. This method is called from {@link #set_floatArg(double)} etc. */
     public void addToList(Object arg){

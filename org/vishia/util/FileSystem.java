@@ -58,6 +58,8 @@ public class FileSystem
   /**Version, able to read as hex yyyymmdd.
    * Changes:
    * <ul>
+   * <li>2012-12-25 Hartmut chg: {@link #mkDirPath(String)} now returns the directory which is designated by the argument
+   *   and checks whether it is a directory, not a file. It is more stronger, elsewhere compatible.
    * <li>2012-08-12 Hartmut chg: {@link #addFileToList(File, String, List)} some changes to support zipfiles.
    * <li>2012-01-26 Hartmut new: {@link #isSymbolicLink(File)} and {@link #cleanAbsolutePath(String)}.
    * <li>2012-01-05 Hartmut new: {@link #rmdir(File)}
@@ -78,7 +80,7 @@ public class FileSystem
    * <li>2007 Hartmut: created
    * </ul>
    */
-  public final static int version = 20120812;
+  public final static int version = 20121225;
 
   public interface AddFileToList
   {
@@ -380,9 +382,10 @@ public class FileSystem
    *
    * @param sPath The path. A file name on end will ignored. 
    *        The used path to a directory is all before the last / or backslash.
+   * @return the directory of the path.
    * @throws IOException If the path is not makeable.
    */
-  public static void mkDirPath(String sPath)
+  public static File mkDirPath(String sPath)
   throws FileNotFoundException
   { int pos2 = sPath.lastIndexOf('/');
     int pos3 = sPath.lastIndexOf('\\');
@@ -393,10 +396,15 @@ public class FileSystem
       if(!dir.exists())
       { if(!dir.mkdirs())  //creates all dirs along the path.
         { //if it fails, throw an exception
-          throw new FileNotFoundException("Directory path mkdirs failed:" + sPath);
+          throw new FileNotFoundException("Directory path mkdirs failed;" + sPath);
         }
       }
+      if(!dir.isDirectory()){
+        throw new FileNotFoundException("path is a file, should be a directoy;" + sPath);
+      }
+      return dir;
     }
+    else return new File(".");  //the current directory is the current one.
   }
 
   

@@ -26,7 +26,7 @@ package org.vishia.util;
 public class Assert
 {
 
-  /**Version, history and license
+  /**Version, history and license.
    * <ul>
    * <li>2012-11-19 Hartmut new: stop() as dummy routine here now.
    * <li>2012-09-02 Hartmut new {@link #exceptionInfo(String, Throwable, int, int)} and {@link #stackInfo(String, int)}
