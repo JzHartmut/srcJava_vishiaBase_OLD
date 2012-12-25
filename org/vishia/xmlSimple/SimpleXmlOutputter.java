@@ -135,10 +135,9 @@ public class SimpleXmlOutputter
             out.write(elementTagEnd());
             bContent = true;
           }
-          out.write(convert(content.getText()) );
+          out.write(convert(content.text()) );
           nIndent = -1;  //no indentation, write the rest and all subnodes in one line.
-        }
-        else if(!content.getName().startsWith("@")){ 
+        } else if(!content.getName().startsWith("@")){ 
           if(!bContent){
             out.write(elementTagEnd());
             bContent = true;
@@ -146,6 +145,13 @@ public class SimpleXmlOutputter
           //if nIndent<0, write no indent in next node level.
           writeNode(out, content, nIndent >=0 ? nIndent+1 : -1);
         }
+      }
+    } else {
+      String text = xmlNode.text(); //the node has not children, but may have text
+      if(text !=null){
+        out.write(elementTagEnd());
+        bContent = true;
+        out.write(convert(text));
       }
     }
     if(bContent) {

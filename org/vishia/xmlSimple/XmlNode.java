@@ -21,6 +21,7 @@ import org.vishia.util.SortedTree;
 public interface XmlNode extends SortedTree<XmlNode>
 {  /**Version, history and license.
    * <ul>
+   * <li>2012-12-26: Hartmut chg: {@link #text()} instead getText(). It is compatible with XPATH-expressions.
    * <li>2012-10-05: The {@link XmlNodeSimple} is removed as dependency, so this class is the same like in the past.
    * <li>2012-10-04: The mainly usage class {@link XmlNodeSimple} is derived from 
    *   {@link org.vishia.util.TreeNodeBase} yet. Because both inherit from {@link SortedTree},
@@ -117,8 +118,9 @@ public interface XmlNode extends SortedTree<XmlNode>
   
   /**Returns the text of the node. 
    * If it isn't a text node, the summary text of all child text-nodes is returned. 
+   * It is similar like XPATH, access to text with "path/text()"
    */
-  public String getText();
+  public String text();
   
   /**Returns the tagname of the node. 
    * <br>Special cases:

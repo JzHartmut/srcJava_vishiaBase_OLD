@@ -251,7 +251,7 @@ public class WikistyleTextToSimpleXml
         String attrExpand;
         //if(xmlTest.getChildren().size()==0) //only if there are no xml formatting inside paragraph
         if(xmlTest.getName().equals("p") && (attrExpand = xmlTest.getAttribute("expandWikistyle"))!=null)
-        { String sText = xmlTest.getText();
+        { String sText = xmlTest.text();
           String sLabelOwn1 = xmlTest.getAttribute("expandLabelOwn");
           if(report!=null)
           { int sMax = sText.length(); if(sMax > 30){ sMax = 30;}
@@ -267,7 +267,7 @@ public class WikistyleTextToSimpleXml
           insertAndConvertText(sText, iterElements, null, attrib, sClass, sLabelOwn1);
         }
         else if( (xmlTest.getAttribute("expandWikistyle"))!=null)
-        { String sText = xmlTest.getText();
+        { String sText = xmlTest.text();
           String sLabelOwn1 = xmlTest.getAttribute("expandLabelOwn");
           if(report!=null)
           { int sMax = sText.length(); if(sMax > 30){ sMax = 30;}

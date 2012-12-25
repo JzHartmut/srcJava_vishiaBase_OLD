@@ -126,6 +126,9 @@ public class DataAccess {
     //  element = null;  //no more following
     //}
     //else 
+    if(element.ident.startsWith("$position")){
+      Assert.stop();
+    }
     if(element.ident.startsWith("$")){
       if(namedDataPool ==null){
         throw new NoSuchFieldException("$?missing-datapool?");
@@ -177,7 +180,7 @@ public class DataAccess {
           }
         } break;
         default:
-          data1 = getData(element.ident, data1, accessPrivate);
+          data1 = getData(element.ident, data1, accessPrivate, bContainer);
       }//switch
       element = iter.hasNext() ? iter.next() : null;
     }
@@ -194,7 +197,8 @@ public class DataAccess {
   public static Object getData(
       String name
       , Object dataPool
-      , boolean accessPrivate) 
+      , boolean accessPrivate
+      , boolean bContainer) 
   throws NoSuchFieldException
   {
     Object data1;
@@ -215,7 +219,8 @@ public class DataAccess {
       }catch(NoSuchFieldException exc){
         if(dataPool instanceof TreeNodeBase<?,?,?>){
           TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)dataPool;
-          data1 = treeNode.listChildren(name + " in " + clazz.getName());
+          if(bContainer){ data1 = treeNode.listChildren(name); }
+          else { data1 = treeNode.getChild(name); }  //if more as one element with that name, select the first one.
         } else {
           throw new NoSuchFieldException(name + " in " + clazz.getName()); 
         }

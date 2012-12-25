@@ -15,6 +15,11 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
 { 
   /**Version, history and license.
    * <ul>
+   * <li>2012-12-26 Hartmut chg: {@link #toString()} returns the pure text if the node contains only text or it is an attribute.
+   *   It is helpful for output data.
+   * <li>2012-12-26 Hartmut chg: If the node has a simple text as content, not more, then the text is stored in the {@link #text}
+   *   and no extra child is created for that. If the node has another children and the text is dispersed between them therefore,
+   *   the text is stored as child node with "$"-key like before.
    * <li>2012-11-24 Hartmut chg: The attributes are stored as children in the same tree as other content.
    *   It means that the attributes are visible too if the tree is evaluated as {@link TreeNodeBase} reference.
    * <li>2012-11-24 Hartmut new: {@link #addContent(XmlNode)} checks whether the child is an attribute node.
@@ -146,8 +151,21 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
    * @see org.vishia.xmlSimple.XmlNode#addContent(java.lang.String)
    */
   public XmlNode addContent(String text)
-  { XmlNodeSimple<UserData> child = new XmlNodeSimple<UserData>("$", text, true);
-    addNode(child);
+  { if(childNodes == null){ 
+      if(this.text == null){ //the first text
+        this.text = text;
+      } else {
+        //one text is existing, add it and the second one as child.
+        XmlNodeSimple<UserData> child = new XmlNodeSimple<UserData>("$", this.text, true);
+        addNode(child);
+        this.text = null;
+        XmlNodeSimple<UserData> child2 = new XmlNodeSimple<UserData>("$", text, true);
+        addNode(child2);
+      }
+    } else {
+      XmlNodeSimple<UserData> child = new XmlNodeSimple<UserData>("$", text, true);
+      addNode(child);
+    }
     return this;
   }
   
@@ -169,7 +187,13 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   @SuppressWarnings("unchecked")
   public XmlNode addContent(XmlNode child) 
   throws XmlException 
-  { String nameChild = child.getName();
+  { if(childNodes == null && text !=null){
+      //add a text as child because the node has more as one child.
+      XmlNodeSimple<UserData> textchild = new XmlNodeSimple<UserData>("$", this.text, true);
+      addNode(textchild);
+    
+    }
+    String nameChild = child.getName();
     if(child instanceof XmlNodeSimple<?>){
       XmlNodeSimple<UserData> child1 = (XmlNodeSimple<UserData>) child;
       addNode(child1);
@@ -190,10 +214,10 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   
   
   
-  public boolean isTextNode(){ return namespaceKey != null && namespaceKey.equals("$"); }
+  public boolean isTextNode(){ return namespaceKey != null && namespaceKey.equals("$"); } // || !name.startsWith("@") && text !=null; }
   
   /**Returns the text of the node. If it isn't a text node, the tagName is returned. */
-  public String getText()
+  public String text()
   { if(text !=null) 
     { //it is a text node.
       return text;
@@ -202,7 +226,7 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
     { List<XmlNode> textNodes = listChildren("$");
       String sText = "";
       for(XmlNode textNode: textNodes){
-        sText += textNode.getText();
+        sText += textNode.text();
       }
       return sText;
     }
@@ -230,7 +254,7 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
       for(XmlNode attrib: attributes){
         String name = attrib.getName();
         if(name.startsWith("@")){
-          mapAttributes.put(name.substring(1), attrib.getText());
+          mapAttributes.put(name.substring(1), attrib.text());
         }
       }
     }
@@ -254,8 +278,19 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
 
 
 
+  /**Returns either the simple text which is associated to the node (for attributes or simple text nodes)
+   * or returns "<name>...</> or returns <name/> for empty nodes.
+   * This operation is need for output the tree especially in the {@link org.vishia.textGenerator.TextGenerator}.
+   * @see org.vishia.util.TreeNodeBase#toString()
+   */
   @Override public String toString()
-  { if(namespaceKey !=null && namespaceKey.equals("$")) return name;  //it is the text
+  { if(text !=null){ return text; }
+    else return "<" + name + (idxChildren !=null ? ">...</>" : ">"); //any container
+  }
+
+  
+  public String toString1()
+  { if(namespaceKey !=null && namespaceKey.equals("$")) return text;  //it is the text
     else if(name.startsWith("@")) return name + "=" + text; 
     else return "<" + name + (idxChildren !=null ? ">...</>" : ">"); //any container
   }
