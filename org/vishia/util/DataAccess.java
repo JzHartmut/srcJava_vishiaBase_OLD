@@ -1,5 +1,6 @@
 package org.vishia.util;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -15,6 +16,8 @@ import java.util.Map;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2012-12-26 Hartmut new: {@link #create(String, Object...)}, the {@link DatapathElement#whatisit} can contain 'n'
+   *   to force creation of a new instance.
    * <li>2012-12-23 Hartmut chg, new: {@link #getStringFromObject(Object, String)} now uses a format string.
    * <li>2012-12-22 Hartmut new: {@link DatapathElement#constValue} as general possibility, usual for the first element of a path.
    * <li>2012-12-08 Hartmut new: {@link #getData(String, Object, boolean)} as subroutine in {@link #getData(List, Object, Map, boolean, boolean)}
@@ -57,6 +60,31 @@ public class DataAccess {
   static final public int version = 20121021;
 
 
+  static final Class<?> ifcMainCmdLogging_ifc = getClass("org.vishia.mainCmd.MainCmdLogging_ifc");
+  
+  
+  private final static Class<?> getClass(String name){
+    try{
+      return Class.forName(name);
+    } catch(Exception exc){
+      return null;
+    }
+  }
+  
+  
+  
+  public static Object create(String classname, Object ... args) 
+  throws ClassNotFoundException, NoSuchMethodException, SecurityException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException{
+    Class<?> clazz = Class.forName(classname);
+    Constructor<?> ctor = clazz.getConstructor(ifcMainCmdLogging_ifc);  //args[0].getClass()); //
+    Object ret = ctor.newInstance(args);
+    return ret;
+    
+  }
+  
+  
+  
+  
   /**Reads content from the data.
    * <ul>
    * <li>The namedDataPool provides additional data, which may be addressed by the first part of path if it starts
@@ -111,30 +139,46 @@ public class DataAccess {
     }
     Class<?> clazz1;
     while(element !=null && data1 !=null){
-      if(element.fn){
-        try{ 
-          clazz1 = data1.getClass();
-            Method method = clazz1.getDeclaredMethod(element.ident);
-            data1 = method.invoke(data1);
-        } catch (NoSuchMethodException e) {
-          // TODO Auto-generated catch block
-          e.printStackTrace();
-        } catch (SecurityException e) {
-          // TODO Auto-generated catch block
-          e.printStackTrace();
-        } catch (IllegalAccessException e) {
-          // TODO Auto-generated catch block
-          e.printStackTrace();
-        } catch (IllegalArgumentException e) {
-          // TODO Auto-generated catch block
-          e.printStackTrace();
-        } catch (InvocationTargetException e) {
-          // TODO Auto-generated catch block
-          e.printStackTrace();
-        }
-      } else {
-        data1 = getData(element.ident, data1, accessPrivate);
-    }
+      switch(element.whatisit) {
+        case 'n': {  //create a new instance, call constructor
+          Object[] oArgs;
+          if(element.fnArgs !=null){
+            oArgs =element.fnArgs.toArray();
+          } else {
+            oArgs = null;
+          }
+          try{
+            data1 = create(element.ident, oArgs);
+          } catch(Exception exc){
+            exc.printStackTrace();
+              
+          }
+        } break;
+        case 'r': {
+          try{ 
+            clazz1 = data1.getClass();
+              Method method = clazz1.getDeclaredMethod(element.ident);
+              data1 = method.invoke(data1);
+          } catch (NoSuchMethodException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+          } catch (SecurityException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+          } catch (IllegalAccessException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+          } catch (IllegalArgumentException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+          } catch (InvocationTargetException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+          }
+        } break;
+        default:
+          data1 = getData(element.ident, data1, accessPrivate);
+      }//switch
       element = iter.hasNext() ? iter.next() : null;
     }
     if(data1 !=null && bContainer && !((data1 instanceof Iterable<?>)||data1 instanceof Map)){ //should return a container
@@ -274,8 +318,15 @@ public class DataAccess {
     /**Maybe a constant value, also a String. */
     //public Object constValue;
 
-    /**True if it is a method.  From Zbnf <$?fn> */
-    public boolean fn;
+    /**Kind of element
+     * <ul>
+     * <li>'f': a field with ident as name.
+     * <li>'n': new ident, creation of instance maybe with or without arguments in {@link #fnArgs}
+     * <li>'s'; call of a static routine maybe with or without arguments in {@link #fnArgs}
+     * <li>'r': subroutine maybe with or without arguments in {@link #fnArgs}.
+     * </ul>
+     */
+    public char whatisit;
     
     /**List of arguments of a method. If null, the method has not arguments. */
     private List<Object> fnArgs;
@@ -302,7 +353,7 @@ public class DataAccess {
     //public void set_floatArg(double arg){ addToList(arg); }
     
     /**Adds any argument. This method is called from {@link #set_floatArg(double)} etc. */
-    public void addToList(Object arg){
+    public void addActualArgument(Object arg){
       if(fnArgs == null){
         fnArgs = new LinkedList<Object>();
       }
@@ -311,7 +362,7 @@ public class DataAccess {
     
     /**For debugging.*/
     @Override public String toString(){
-      if(!fn){ return ident;}
+      if(whatisit !='r'){ return ident;}
       else{
         return ident + "(...)";
       }
