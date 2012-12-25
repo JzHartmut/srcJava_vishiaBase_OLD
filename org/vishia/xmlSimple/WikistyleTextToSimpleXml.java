@@ -355,18 +355,18 @@ public class WikistyleTextToSimpleXml
       , Map attributes, String sClass, String sLabelOwn
       ) throws XmlException
   { 
-  	iterBaseElement = iter; 
-  	this.dstElement = dstElement;
+    iterBaseElement = iter; 
+    this.dstElement = dstElement;
 
     sClassNesting = sClass; //may be setted from previous call.
-  	
-  	start = 0; end = -1;
-  	idxNesting = -1;
-  	xmlChild = initNesting();
-  	elementsWithAttrib = null;
-  	xmlPre = null;
-  	
-  	if(dstElement != null){ dstNamespace = dstElement.getNamespaceKey(); }
+    
+    start = 0; end = -1;
+    idxNesting = -1;
+    xmlChild = initNesting();
+    elementsWithAttrib = null;
+    xmlPre = null;
+    
+    if(dstElement != null){ dstNamespace = dstElement.getNamespaceKey(); }
     else{ dstNamespace = null; }
     
     xmlChild = initNesting();  
@@ -383,12 +383,12 @@ public class WikistyleTextToSimpleXml
       }
       else if(cFirst == ' ' || cFirst == '\t' || cFirst == ',')
       { /**If the line starts with a space it is translated to a <pre>..</pre>*/
-      	end = sInput.indexOf("\n", start);
+        end = sInput.indexOf("\n", start);
         if(end <0){ end = sInput.length(); }   //last line is empty
         //while(++start == ' ' && start < end);  //skip over spaces.
         if(start < end)
         { String sLineTest = sInput.substring(start, end);
-        	String sLine = replaceTabs(sLineTest);
+          String sLine = replaceTabs(sLineTest);
           start = end+1;
           //pre Format
           xmlChild = initNesting(); 
@@ -418,9 +418,9 @@ public class WikistyleTextToSimpleXml
       } //cFirst == ' ' || cFirst == ','
       else
       { String sLineTest = getLineSpecial(sInput); //reads more as one line or until special || and !!
-    		if(sLineTest.length()>0)
+        if(sLineTest.length()>0)
         { String sLine = replaceTabs(sLineTest);
-    			cFirst = sLine.charAt(0);
+          cFirst = sLine.charAt(0);
           //char c2 = sLine.length()>=2 ? sLine.charAt(1) : ' ';
           //char c3 = sLine.length()>=3 ? sLine.charAt(2) : ' ';
           //switch(cFirst)
@@ -441,11 +441,11 @@ public class WikistyleTextToSimpleXml
               sLine = nestingLevel(sLine, idxNesting+1, iter, dstElement, dstNamespace, sClass); //##1
               if(sLine.length()>0)
               { if(xmlChild.getName().equals("dt"))
-  	            { convertLine(sLine, xmlChild, dstNamespace, sLabelOwn);
-  	            }
-  	            else
-  	            { writeParagraphInElement(sLine, xmlChild, dstNamespace, attributes, sClassNesting == null ? null : sClassNesting, sLabelOwn); // + "_p");
-  	            }
+                { convertLine(sLine, xmlChild, dstNamespace, sLabelOwn);
+                }
+                else
+                { writeParagraphInElement(sLine, xmlChild, dstNamespace, attributes, sClassNesting == null ? null : sClassNesting, sLabelOwn); // + "_p");
+                }
               }
             }break;
             case '@':
@@ -463,14 +463,14 @@ public class WikistyleTextToSimpleXml
       }  
     }//while end
     { //clear all aggregations
-	    idxNesting = -1;
-	    initNesting();
-	  	xmlChild = null;
-	  	elementsWithAttrib = null;
-	  	iterBaseElement = null;
-	  	dstElement = null;
-    	xmlPre = null;
-    } 	
+      idxNesting = -1;
+      initNesting();
+      xmlChild = null;
+      elementsWithAttrib = null;
+      iterBaseElement = null;
+      dstElement = null;
+      xmlPre = null;
+    }   
 
   }
 
@@ -482,22 +482,22 @@ public class WikistyleTextToSimpleXml
    */
   private final String replaceTabs(String src)
   { int posStart = 0;
-  	int posTab = src.indexOf('\t');
-  	if(posTab >=0){
-  		final StringBuilder u = new StringBuilder(2 * src.length()); //if all chars are tabs, double size.
-  		//u.append(src);
-  		while(posTab >=0){
-  			u.append(src.substring(posStart, posTab))
-  			 .append("  ");  //replace with 2 spaces.
-  			posStart = posTab +1;
-  			posTab = src.indexOf('\t', posStart);
-  		}
-  		u.append(src.substring(posStart)); //rest of line.
-    	return u.toString();
-  	} else {
-  		/**The line doesn't contain any tab: */
+    int posTab = src.indexOf('\t');
+    if(posTab >=0){
+      final StringBuilder u = new StringBuilder(2 * src.length()); //if all chars are tabs, double size.
+      //u.append(src);
+      while(posTab >=0){
+        u.append(src.substring(posStart, posTab))
+         .append("  ");  //replace with 2 spaces.
+        posStart = posTab +1;
+        posTab = src.indexOf('\t', posStart);
+      }
+      u.append(src.substring(posStart)); //rest of line.
+      return u.toString();
+    } else {
+      /**The line doesn't contain any tab: */
       return src;
-  	}
+    }
   }
   
   
@@ -512,67 +512,67 @@ public class WikistyleTextToSimpleXml
    * 
    */
   private void convertLine(String sInput, XmlNode xmlRet, String dstNamespace, String sLabelOwn) throws XmlException
-	{ //test the next appearances of some special chars:
-	  final int kNothing = 0, 
-	            kBold=1, 
-	            kItalic=2, 
-	            kBoldItalic=3, 
-	            kHyperlink=4, 
-	            kHyperlinkAbsolute=5,
-	            kAnchor=6,
-	            kImage=8,
+  { //test the next appearances of some special chars:
+    final int kNothing = 0, 
+              kBold=1, 
+              kItalic=2, 
+              kBoldItalic=3, 
+              kHyperlink=4, 
+              kHyperlinkAbsolute=5,
+              kAnchor=6,
+              kImage=8,
               kInset=9,
-	            kCode=10
-	            //kPreserve=7,
-	            //kCitiation=8
-	            ;
-	
-	  
-	  int start = 0;
-	  
-	  /** The actual end for looking for somewhat.*/
-	  
-	  /** If it is set, a text after end is followed.*/
-	  int startAfter = -1;
-	  
-	  if(sInput.startsWith(",,%%%,,code"))
-	    stop();
-	  
-	  while(start < sInput.length())
-	  { //Test the nearest appearance of a control chars, end is always limited: 
-	    int kind = kNothing;
-	    { int posCtrlChars = sInput.length();
-		    int posCtrlChars1;
-		
-		    /**search the nearest special char sequence,
-		     * test it one after another, use the nearest position of any of them.
-		     * The end of a prosperous search is the limit for the next search.
-		     * It is a :TRICKY: to save calculation time by limiting the search 
-		     * from start unil actual end determined from search before
-		     * and it is twice the algorithm: a nearest prosperous search gets a indexOf
-		     * > 0 in this area of text.
-		     */
-		    if( (posCtrlChars1 = sInput.indexOf("'''''", start)) >=0)
-		    { //search first the long variant of '''''
-		    	kind = kBoldItalic; 
-		      posCtrlChars = posCtrlChars1; 
-		      startAfter = posCtrlChars + 5; 
-		    }
-		    if( (posCtrlChars1 = sInput.substring(start,posCtrlChars).indexOf("'''")) >=0)
-		    { kind = kBold; 
-		      posCtrlChars = start + posCtrlChars1; 
-		      startAfter = posCtrlChars + 3; 
-		    }
-		    if( (posCtrlChars1 = sInput.substring(start,posCtrlChars).indexOf("''")) >=0)
-		    { kind = kItalic; 
-		      posCtrlChars = start + posCtrlChars1; 
-		      startAfter = posCtrlChars + 2; 
-		    }
-		    if( (posCtrlChars1 = sInput.substring(start,posCtrlChars).indexOf(",,")) >=0)
-		    { kind = kCode; 
-		      posCtrlChars = start + posCtrlChars1; 
-		      startAfter = posCtrlChars + 2; 
-		    }
+              kCode=10
+              //kPreserve=7,
+              //kCitiation=8
+              ;
+  
+    
+    int start = 0;
+    
+    /** The actual end for looking for somewhat.*/
+    
+    /** If it is set, a text after end is followed.*/
+    int startAfter = -1;
+    
+    if(sInput.startsWith(",,%%%,,code"))
+      stop();
+    
+    while(start < sInput.length())
+    { //Test the nearest appearance of a control chars, end is always limited: 
+      int kind = kNothing;
+      { int posCtrlChars = sInput.length();
+        int posCtrlChars1;
+    
+        /**search the nearest special char sequence,
+         * test it one after another, use the nearest position of any of them.
+         * The end of a prosperous search is the limit for the next search.
+         * It is a :TRICKY: to save calculation time by limiting the search 
+         * from start unil actual end determined from search before
+         * and it is twice the algorithm: a nearest prosperous search gets a indexOf
+         * > 0 in this area of text.
+         */
+        if( (posCtrlChars1 = sInput.indexOf("'''''", start)) >=0)
+        { //search first the long variant of '''''
+          kind = kBoldItalic; 
+          posCtrlChars = posCtrlChars1; 
+          startAfter = posCtrlChars + 5; 
+        }
+        if( (posCtrlChars1 = sInput.substring(start,posCtrlChars).indexOf("'''")) >=0)
+        { kind = kBold; 
+          posCtrlChars = start + posCtrlChars1; 
+          startAfter = posCtrlChars + 3; 
+        }
+        if( (posCtrlChars1 = sInput.substring(start,posCtrlChars).indexOf("''")) >=0)
+        { kind = kItalic; 
+          posCtrlChars = start + posCtrlChars1; 
+          startAfter = posCtrlChars + 2; 
+        }
+        if( (posCtrlChars1 = sInput.substring(start,posCtrlChars).indexOf(",,")) >=0)
+        { kind = kCode; 
+          posCtrlChars = start + posCtrlChars1; 
+          startAfter = posCtrlChars + 2; 
+        }
         if( (posCtrlChars1 = sInput.substring(start,posCtrlChars).indexOf("[[")) >=0)
         { posCtrlChars = start + posCtrlChars1; 
           if( sInput.substring(posCtrlChars).startsWith("[[Inset:"))
@@ -596,65 +596,65 @@ public class WikistyleTextToSimpleXml
             startAfter = posCtrlChars + 3; 
           }
           else
-  		    { kind = kHyperlink; 
-  		      startAfter = posCtrlChars + 2; 
-  		    }
+          { kind = kHyperlink; 
+            startAfter = posCtrlChars + 2; 
+          }
         }
-		    /**Copy the part before before the founded control chars: */
-		    if(posCtrlChars > start)
-		    { String sBefore = sInput.substring(start, posCtrlChars);
+        /**Copy the part before before the founded control chars: */
+        if(posCtrlChars > start)
+        { String sBefore = sInput.substring(start, posCtrlChars);
           String sAdd = SpecialCharStrings.resolveCircumScription(sBefore);
           xmlRet.addContent(sAdd);
-		    }
-	    }	    
-	    /**Executes the concern of control chars: */
-	    { int endCtrledPart;
-	      int startNextPart;  //::TRICKY:: The compiler tests wether a value is assigned in every case.
-	      switch(kind)
-		    { case kBoldItalic:
-		      { endCtrledPart = sInput.indexOf("'''''", startAfter); 
-		        if(endCtrledPart >= 0){ startNextPart = endCtrledPart +5; }
-		        else { endCtrledPart = sInput.length(); startNextPart = endCtrledPart;}
-		        if(endCtrledPart > startAfter)
-		        { XmlNode xmlBold = xmlRet.addNewNode("stroke", dstNamespace);
-		          XmlNode xmlNew = xmlBold.addNewNode("em", dstNamespace);
-		          convertLine(sInput.substring(startAfter, endCtrledPart), xmlNew, dstNamespace, sLabelOwn);  
-		        }
-		      } break;
-		      case kBold:
-		      { endCtrledPart = sInput.indexOf("'''", startAfter); 
-		        if(endCtrledPart >= 0){ startNextPart = endCtrledPart +3; }
-		        else { endCtrledPart = sInput.length(); startNextPart = endCtrledPart;}
-		        if(endCtrledPart > startAfter)
-		        { XmlNode xmlNew = xmlRet.addNewNode("stroke", dstNamespace);
-		          convertLine(sInput.substring(startAfter, endCtrledPart), xmlNew, dstNamespace, sLabelOwn);  
-		        }
-		      } break;
-		      case kItalic:
-		      { endCtrledPart = sInput.indexOf("''", startAfter); 
-		        if(endCtrledPart >= 0){ startNextPart = endCtrledPart +2; }
-		        else { endCtrledPart = sInput.length(); startNextPart = endCtrledPart;}
-		        if(endCtrledPart > startAfter)
-		        { XmlNode xmlNew = xmlRet.createNode("em", dstNamespace);
-		          xmlRet.addContent(xmlNew);
-		          convertLine(sInput.substring(startAfter, endCtrledPart), xmlNew, dstNamespace, sLabelOwn);  
-		        }
-		      } break;
-		      case kCode:
-		      { endCtrledPart = sInput.indexOf(",,", startAfter);
-		        while(endCtrledPart >=3 && sInput.substring(endCtrledPart-3,endCtrledPart).equals("%%%"))
-		        { //the end char sequence is invalide because %%% is found before:
-		        	endCtrledPart = sInput.indexOf(",,", endCtrledPart +2);  //search after them
-		        }
-		        if(endCtrledPart >= 0){ startNextPart = endCtrledPart +2; }
-		        else { endCtrledPart = sInput.length(); startNextPart = endCtrledPart;}
-		        if(endCtrledPart > startAfter)
-		        { XmlNode xmlNew = xmlRet.createNode("code", dstNamespace);
-		          xmlRet.addContent(xmlNew);
-		          convertLine(sInput.substring(startAfter, endCtrledPart), xmlNew, dstNamespace, sLabelOwn);  
-		        }
-		      } break;
-		      case kHyperlink: case kHyperlinkAbsolute:
+        }
+      }      
+      /**Executes the concern of control chars: */
+      { int endCtrledPart;
+        int startNextPart;  //::TRICKY:: The compiler tests wether a value is assigned in every case.
+        switch(kind)
+        { case kBoldItalic:
+          { endCtrledPart = sInput.indexOf("'''''", startAfter); 
+            if(endCtrledPart >= 0){ startNextPart = endCtrledPart +5; }
+            else { endCtrledPart = sInput.length(); startNextPart = endCtrledPart;}
+            if(endCtrledPart > startAfter)
+            { XmlNode xmlBold = xmlRet.addNewNode("stroke", dstNamespace);
+              XmlNode xmlNew = xmlBold.addNewNode("em", dstNamespace);
+              convertLine(sInput.substring(startAfter, endCtrledPart), xmlNew, dstNamespace, sLabelOwn);  
+            }
+          } break;
+          case kBold:
+          { endCtrledPart = sInput.indexOf("'''", startAfter); 
+            if(endCtrledPart >= 0){ startNextPart = endCtrledPart +3; }
+            else { endCtrledPart = sInput.length(); startNextPart = endCtrledPart;}
+            if(endCtrledPart > startAfter)
+            { XmlNode xmlNew = xmlRet.addNewNode("stroke", dstNamespace);
+              convertLine(sInput.substring(startAfter, endCtrledPart), xmlNew, dstNamespace, sLabelOwn);  
+            }
+          } break;
+          case kItalic:
+          { endCtrledPart = sInput.indexOf("''", startAfter); 
+            if(endCtrledPart >= 0){ startNextPart = endCtrledPart +2; }
+            else { endCtrledPart = sInput.length(); startNextPart = endCtrledPart;}
+            if(endCtrledPart > startAfter)
+            { XmlNode xmlNew = xmlRet.createNode("em", dstNamespace);
+              xmlRet.addContent(xmlNew);
+              convertLine(sInput.substring(startAfter, endCtrledPart), xmlNew, dstNamespace, sLabelOwn);  
+            }
+          } break;
+          case kCode:
+          { endCtrledPart = sInput.indexOf(",,", startAfter);
+            while(endCtrledPart >=3 && sInput.substring(endCtrledPart-3,endCtrledPart).equals("%%%"))
+            { //the end char sequence is invalide because %%% is found before:
+              endCtrledPart = sInput.indexOf(",,", endCtrledPart +2);  //search after them
+            }
+            if(endCtrledPart >= 0){ startNextPart = endCtrledPart +2; }
+            else { endCtrledPart = sInput.length(); startNextPart = endCtrledPart;}
+            if(endCtrledPart > startAfter)
+            { XmlNode xmlNew = xmlRet.createNode("code", dstNamespace);
+              xmlRet.addContent(xmlNew);
+              convertLine(sInput.substring(startAfter, endCtrledPart), xmlNew, dstNamespace, sLabelOwn);  
+            }
+          } break;
+          case kHyperlink: case kHyperlinkAbsolute:
           { int startText, endCtrledPartHref;
             endCtrledPartHref = sInput.indexOf("|", startAfter); 
             endCtrledPart = sInput.indexOf("]]", startAfter); 
@@ -767,17 +767,17 @@ public class WikistyleTextToSimpleXml
           { startNextPart = setInset(sInput, startAfter, xmlRet, "span");
           } break;
           case kNothing:
-		      { //no control chars found, the text before is copied yet, its the end of line 
-		      	startNextPart = sInput.length();
-		      } break;
-		      default:
-		      { throw new RuntimeException("unexpected case on switch");
-		      }
-		  }//switch  
-		    start = startNextPart;  //continous at this position.
-	    }
-	  }
-	}
+          { //no control chars found, the text before is copied yet, its the end of line 
+            startNextPart = sInput.length();
+          } break;
+          default:
+          { throw new RuntimeException("unexpected case on switch");
+          }
+      }//switch  
+        start = startNextPart;  //continous at this position.
+      }
+    }
+  }
 
   
   
@@ -820,7 +820,7 @@ public class WikistyleTextToSimpleXml
        && " \t,>+*#;:@{!|\r\n".indexOf(sInput.charAt(start)) < 0  //it doesn't start with this chars.
        ;  
     }  
-    return sLine;  	
+    return sLine;    
   }
   
   
@@ -872,49 +872,49 @@ public class WikistyleTextToSimpleXml
         } break;
         case '{': 
         { if(cNext=='|')
-        	{ idxNesting = level;
-        	  nrofPreChars = 2;
-        	  newChild("table");
-        	}
+          { idxNesting = level;
+            nrofPreChars = 2;
+            newChild("table");
+          }
           else{ sTagListItem=null; }
         } break;
         case '|': case '!': 
         { if(cNext=='-')
-	      	{ sTagListItem = null; 
-        	  nrofPreChars = 2;
-        	  if(getTagNesting(idxNesting -1).equals("tr"))
-        	  { //td was before
-        	  	idxNesting -=1;
-        	  }
-        	  else if(getTagNesting(idxNesting).equals("table"))
-        	  { //td was before
-        	  	idxNesting +=1;
-        	  }
-        	  newChild("tr");
-	      	}
+          { sTagListItem = null; 
+            nrofPreChars = 2;
+            if(getTagNesting(idxNesting -1).equals("tr"))
+            { //td was before
+              idxNesting -=1;
+            }
+            else if(getTagNesting(idxNesting).equals("table"))
+            { //td was before
+              idxNesting +=1;
+            }
+            newChild("tr");
+          }
           else if(cNext=='}')
-	      	{ sTagListItem = null; 
-        	  nrofPreChars = 2;
-        	  boolean bSearchTableLevel = true;
-	      	  for(int idx = idxNesting; bSearchTableLevel && idx >= (idxNesting-2); idx--)
-        	  { if(getTagNesting(idx).equals("table"))
-		      	  { idxNesting = idx -1;  //before table, close it
-		      	    bSearchTableLevel = false;
-		      	    xmlChild = initNesting();
-		      	  }
-        	  }
-        	  level = idxNesting;  //table end.
-	      	}
-	        else
+          { sTagListItem = null; 
+            nrofPreChars = 2;
+            boolean bSearchTableLevel = true;
+            for(int idx = idxNesting; bSearchTableLevel && idx >= (idxNesting-2); idx--)
+            { if(getTagNesting(idx).equals("table"))
+              { idxNesting = idx -1;  //before table, close it
+                bSearchTableLevel = false;
+                xmlChild = initNesting();
+              }
+            }
+            level = idxNesting;  //table end.
+          }
+          else
           { 
-        	  if(getTagNesting(idxNesting).equals("table"))
-        	  { idxNesting +=1;
-        	  	newChild("tr");
-        	  	idxNesting +=1;
-        	  }
-        	  else if(getTagNesting(idxNesting).equals("tr"))
-        	  { idxNesting +=1;
-        	  }
+            if(getTagNesting(idxNesting).equals("table"))
+            { idxNesting +=1;
+              newChild("tr");
+              idxNesting +=1;
+            }
+            else if(getTagNesting(idxNesting).equals("tr"))
+            { idxNesting +=1;
+            }
             if(idxNesting >=0)
             {
               newChild(cFirst == '!' ? "th" : "td"); 
@@ -926,33 +926,33 @@ public class WikistyleTextToSimpleXml
       if(sTagNesting != null)
       { boolean bNewListType = checkInsertNestingTag(sTagNesting, level, sClass);
             if( sTagListItem != null)
-		    { level += 1; //need 2 level. 
-			    if( bNewListType     //first item of a list or such
-			    	|| (xmlNesting[level] == null)	
-			      || ("*#;:+>".indexOf(cNext) <0)  //new item, because new text at this level, no further nesting or additional text to last item (+).
-			      )  
-		      { //second ary element
-		        xmlChild = xmlNesting[level] = dstElement.createNode(sTagListItem, dstNamespace);
-		        addToParentList(level-1, xmlNesting[level]);
-		        if(sClass != null)
-		        { sClassNesting = sClass; // + "_" + sTagListItem;
-	        	  xmlChild.setAttribute("class", sClassNesting);
-		        }
-		        if(elementsWithAttrib != null)
-		        { TreeMap attribs = (TreeMap)elementsWithAttrib.get(sTagListItem);
-		          if(attribs != null)
-		          { Iterator iter = attribs.keySet().iterator();
-		            while(iter.hasNext())
-		            { String sAttrib = (String)iter.next();
-		              String value = (String)attribs.get(sAttrib);
-		              xmlChild.setAttribute(sAttrib, value);
-		              if(sAttrib.equals("class"))
-		              { sClassNesting = value;
-		              }
-		        } } }
-		      }
-		      xmlChild = xmlNesting[level];
-		    }  
+        { level += 1; //need 2 level. 
+          if( bNewListType     //first item of a list or such
+            || (xmlNesting[level] == null)  
+            || ("*#;:+>".indexOf(cNext) <0)  //new item, because new text at this level, no further nesting or additional text to last item (+).
+            )  
+          { //second ary element
+            xmlChild = xmlNesting[level] = dstElement.createNode(sTagListItem, dstNamespace);
+            addToParentList(level-1, xmlNesting[level]);
+            if(sClass != null)
+            { sClassNesting = sClass; // + "_" + sTagListItem;
+              xmlChild.setAttribute("class", sClassNesting);
+            }
+            if(elementsWithAttrib != null)
+            { TreeMap attribs = (TreeMap)elementsWithAttrib.get(sTagListItem);
+              if(attribs != null)
+              { Iterator iter = attribs.keySet().iterator();
+                while(iter.hasNext())
+                { String sAttrib = (String)iter.next();
+                  String value = (String)attribs.get(sAttrib);
+                  xmlChild.setAttribute(sAttrib, value);
+                  if(sAttrib.equals("class"))
+                  { sClassNesting = value;
+                  }
+            } } }
+          }
+          xmlChild = xmlNesting[level];
+        }  
       }
     }
     
@@ -1042,13 +1042,13 @@ public class WikistyleTextToSimpleXml
   /**Gets the name of the element or "" to test wether it is*/
   private String getTagNesting(int idx)
   { String sTag;
-  	if(idx < 0) sTag = "";
-  	else
-  	{ XmlNode xml = xmlNesting[idx];
-  	  if(xml != null) sTag = xml.getName();
-  	  else sTag = "";
-  	}
-    return sTag;  	
+    if(idx < 0) sTag = "";
+    else
+    { XmlNode xml = xmlNesting[idx];
+      if(xml != null) sTag = xml.getName();
+      else sTag = "";
+    }
+    return sTag;    
   }
   
   
@@ -1056,7 +1056,7 @@ public class WikistyleTextToSimpleXml
   { xmlChild = dstElement.createNode(sTag, dstNamespace);
     xmlNesting[idxNesting] = xmlChild;
     addToParentList(idxNesting -1, xmlChild);
-	  initNesting();
+    initNesting();
   }
   
   

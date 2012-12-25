@@ -47,19 +47,19 @@ import org.vishia.mainCmd.*;
  *   <ul><li>The <code><i>path</i></code> should be written in "" if it is given directly. 
  *     The path may be given also as alias, if started with <code>=</code>.</li>
  *   <li>
-	 *   The <code><i>value</i></code> of the parameters may be given as followed:
-	 *   <table witdht=100% border=1>
-	 *   <tr><td>*xpath
-	 *   </td><td>A XPATH expression
-	 *   </td></tr>
-	 *   <tr><td>=alias
-	 *   </td><td>A XPATH expression given with the alias
-	 *   </td></tr>
-	 *   <tr><td>'text'
-	 *   </td><td>A constant text expression.
-	 *   </td></tr>
-	 *   </table>
-	 * </li>  
+   *   The <code><i>value</i></code> of the parameters may be given as followed:
+   *   <table witdht=100% border=1>
+   *   <tr><td>*xpath
+   *   </td><td>A XPATH expression
+   *   </td></tr>
+   *   <tr><td>=alias
+   *   </td><td>A XPATH expression given with the alias
+   *   </td></tr>
+   *   <tr><td>'text'
+   *   </td><td>A constant text expression.
+   *   </td></tr>
+   *   </table>
+   * </li>  
  *   <li>Some expressions may be concated with " + ". See example.
  *   If no parameter are given, write <code>()</code>. Separate parameters with a colon <code>,</code>.</li>
  *   
@@ -155,7 +155,7 @@ public class Xsltpre
    */
   public void execute()
   { boolean bOk = true;
-  	
+    
     if( !bGenerateOnlyifNecessary || !fOut.exists() || (fOut.lastModified() < fIn.lastModified()) )
     { 
       if(fOut.exists()) 
@@ -168,20 +168,20 @@ public class Xsltpre
       try{ reader = new LineNumberReader(new FileReader(fIn));}
       catch (FileNotFoundException exc)
       { console.writeError("file not found: " + sFileIn ); 
-      	console.setExitErrorLevel(Report.exitWithFileProblems);
-      	bOk = false;
+        console.setExitErrorLevel(Report.exitWithFileProblems);
+        bOk = false;
       }
       if(bOk)
       { try{ writer = new FileWriter(fOut);}
         catch (IOException exc)
         { console.writeError("file create/open error: " + sFileOut ); 
-        	console.setExitErrorLevel(Report.exitWithFileProblems);
-        	bOk = false;
+          console.setExitErrorLevel(Report.exitWithFileProblems);
+          bOk = false;
         }
       }
       if(bOk)
       {
-      	try
+        try
         { String sLineIn;
           StringPart spLineIn = new StringPart();
           int[] idxKey = new int[1];
@@ -193,8 +193,8 @@ public class Xsltpre
             { spLineIn.assign(sLineIn);
               do
               { if(spLineIn.startsWith("(?if"))
-              	  stop();
-              	spLineIn.seekAnyString(sKeys, idxKey);
+                  stop();
+                spLineIn.seekAnyString(sKeys, idxKey);
                 sLineOut.append(spLineIn.getLastPart());
                 if(spLineIn.found())
                 { switch(idxKey[0])
@@ -249,12 +249,12 @@ public class Xsltpre
   
   private void setValueOf(StringBuffer sLineOut, StringPart spLineIn)
   { //input: (?!value?) or (?!=alias?) or (?$variable?) or (?@attribute?)
-  	char cType = spLineIn.seek(2).getCurrentChar();
-  	spLineIn.seek(1).lento("?)");
+    char cType = spLineIn.seek(2).getCurrentChar();
+    spLineIn.seek(1).lento("?)");
     String sValue;
     if(spLineIn.getCurrentChar() == '=')
     { String sKey = spLineIn.seek(1).getCurrentPart();
-      sValue = (String)(aliases.get(sKey));
+      sValue = (aliases.get(sKey));
     }
     else
     { sValue = spLineIn.getCurrentPart();
@@ -292,7 +292,7 @@ public class Xsltpre
     sLineOut.append("<xsl:call-template name=\"");
     sLineOut.append(sCall);
     if(sCall.equals("ast"))
-    	stop();
+      stop();
             
     if(cSep == '(')
     { sLineOut.append("\">");
@@ -333,7 +333,7 @@ public class Xsltpre
   private void setParamValueSelect(StringBuffer sLineOut, String sParamValue)
   { if(sParamValue.startsWith("="))
     { String sKey = sParamValue.substring(1);
-      sParamValue = "\"" + (String)(aliases.get(sKey)) + "\"";
+      sParamValue = "\"" + (aliases.get(sKey)) + "\"";
     }
     sLineOut.append(" select=");
     sLineOut.append(sParamValue);
@@ -371,7 +371,7 @@ public class Xsltpre
     { spLineIn.lento("?)", StringPart.seekNormal);
       sTest = "\"" + spLineIn.getCurrentPart() + "\""; 
     }
-    return sTest;   	
+    return sTest;     
   }
   
   private void setElif(StringBuffer sLineOut, StringPart spLineIn)
@@ -428,7 +428,7 @@ public class Xsltpre
     String sValue;
     if(spLineIn.getCurrentChar() == '=')
     { String sKey = spLineIn.seek(1).getCurrentPart();
-      sValue = (String)(aliases.get(sKey));
+      sValue = (aliases.get(sKey));
     }
     else
     { sValue = spLineIn.getCurrentPart();
@@ -462,7 +462,7 @@ public class Xsltpre
     sLineOut.append("<xsl:call-template name=\"");
     sLineOut.append(sCall);
     if(sCall.equals("ast"))
-    	stop();
+      stop();
             
     if(cSep == '(')
     { sLineOut.append("\">");
@@ -638,6 +638,7 @@ public class Xsltpre
                 false if the argument doesn't match. The parseArgument method in MainCmd throws an exception,
                 the application should be aborted.
     */
+    @Override
     protected boolean testArgument(String arg, int nArg)
     { boolean bOk = true;  //set to false if the argc is not passed
   
@@ -659,6 +660,7 @@ public class Xsltpre
        :TODO: the user only should determine the specific checks, this is a sample.
        @return true if successfull, false if failed.
     */
+    @Override
     protected boolean checkArguments()
     { boolean bOk = true;
   
