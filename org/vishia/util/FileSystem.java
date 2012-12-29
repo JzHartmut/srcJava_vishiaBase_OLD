@@ -58,6 +58,7 @@ public class FileSystem
   /**Version, able to read as hex yyyymmdd.
    * Changes:
    * <ul>
+   * <li>2012-12-30 Hartmut chg: {@link #addFilesWithBasePath(File, String, List)} now gets a base directory.
    * <li>2012-12-25 Hartmut chg: {@link #mkDirPath(String)} now returns the directory which is designated by the argument
    *   and checks whether it is a directory, not a file. It is more stronger, elsewhere compatible.
    * <li>2012-08-12 Hartmut chg: {@link #addFileToList(File, String, List)} some changes to support zipfiles.
@@ -135,7 +136,7 @@ public class FileSystem
     public void add(File file)
     { final String localPath; 
       String absPath = file.getAbsolutePath();
-      if(posLocalPath >0)
+      if(posLocalPath >0 && absPath.length() >posLocalPath)
       { localPath = absPath.substring(posLocalPath).replace('\\', '/');
       }
       else
@@ -157,6 +158,8 @@ public class FileSystem
    * and fills all files with mask <code>*.h</code> from localdir and all sub folders,
    * with the local name part starting with <code>localdir/...</code> 
    * in all elements localPath.
+   * @param baseDir A base directoy which is the base of sPath. It can be null, then sPath should describe a valid 
+   *   file path.
    * @param sPath may contain a <code>:</code>, this is instead <code>/</code> 
    *        and separates the base path from a local path.
    *        The sPath may contain backslashes for windows using, it will be converted to slash. 
@@ -165,7 +168,7 @@ public class FileSystem
    * @return false if no file is found.
    * @throws FileNotFoundException
    */
-  public static boolean addFilesWithBasePath(final String sPath, List<FileAndBasePath> list) 
+  public static boolean addFilesWithBasePath(final File baseDir, final String sPath, List<FileAndBasePath> list) 
   throws FileNotFoundException
   { final String sPathBase;
     final File dir;
@@ -174,18 +177,23 @@ public class FileSystem
     final String sPathLocal;
     if(posBase >=2)
     { sPathBase = (sPath.substring(0, posBase) + "/").replace('\\', '/');
-      dir = new File(sPathBase);
+      dir = new File(baseDir, sPathBase);
       String sBasepathAbsolute = dir.getAbsolutePath();
       //The position after the separator after the absPath of base directory
       // is the start of the local path.
+      
       posLocalPath = sBasepathAbsolute.length() +1;  
-      sPathLocal = sPath.substring(posBase +1).replace('\\', '/');
+      if(posBase < posLocalPath){
+        sPathLocal = sPath.substring(posBase +1).replace('\\', '/');
+      } else {
+        sPathLocal = "";
+      }
     }
     else 
     { sPathBase = ""; 
       sPathLocal = sPath.replace('\\', '/');
       posLocalPath = 0;
-      dir = null;
+      dir = baseDir;  //may be null
     }
     //The wrapper is created temporary to hold the informations about basepath
     // to fill in the members of the list. 
