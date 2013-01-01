@@ -280,7 +280,7 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
 
   /**Returns either the simple text which is associated to the node (for attributes or simple text nodes)
    * or returns "<name>...</> or returns <name/> for empty nodes.
-   * This operation is need for output the tree especially in the {@link org.vishia.textGenerator.TextGenerator}.
+   * This operation is need for output the tree especially in the {@link org.vishia.zTextGen.TextGenerator}.
    * @see org.vishia.util.TreeNodeBase#toString()
    */
   @Override public String toString()

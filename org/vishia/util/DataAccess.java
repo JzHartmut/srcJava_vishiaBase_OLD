@@ -1,5 +1,6 @@
 package org.vishia.util;
 
+import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -16,6 +17,8 @@ import java.util.Map;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2013-01-02 Hartmut new: Supports access to methods whith parameter with automatic cast from CharSequence to String and to File.
+   *   Uses the {@link DatapathElement#fnArgs} and {@link #getData(List, Object, Map, boolean, boolean)}.
    * <li>2012-12-26 Hartmut new: {@link #create(String, Object...)}, the {@link DatapathElement#whatisit} can contain 'n'
    *   to force creation of a new instance.
    * <li>2012-12-23 Hartmut chg, new: {@link #getStringFromObject(Object, String)} now uses a format string.
@@ -28,7 +31,7 @@ public class DataAccess {
    * <li>2012-11-04 Hartmut chg: parameter bContainer in getData(...): Sometimes a container is ispected
    *   to iterate though only one element is found, sometimes only a simple element is expected
    *   though a container is addressed maybe with one element. 
-   * <li>2012-10-21 Hartmut created. Some algorithm are copied from {@link org.vishia.textGenerator.TextGenerator} in this class.
+   * <li>2012-10-21 Hartmut created. Some algorithm are copied from {@link org.vishia.zTextGen.TextGenerator} in this class.
    *   That algorithm are able to use independent in some applications.
    * </ul>
    * 
@@ -133,12 +136,11 @@ public class DataAccess {
       if(namedDataPool ==null){
         throw new NoSuchFieldException("$?missing-datapool?");
       }
-      data1 = namedDataPool.get(element.ident.substring(1));
-      if(data1 ==null){
+      if(!namedDataPool.containsKey(element.ident.substring(1))){
         throw new NoSuchFieldException(element.ident);
-      } else {
-        element = iter.hasNext() ? iter.next() : null;
-      } 
+      }
+      data1 = namedDataPool.get(element.ident.substring(1));  //maybe null if the value of the key is null.
+      element = iter.hasNext() ? iter.next() : null;
     }
     Class<?> clazz1;
     while(element !=null && data1 !=null){
@@ -157,28 +159,7 @@ public class DataAccess {
               
           }
         } break;
-        case 'r': {
-          try{ 
-            clazz1 = data1.getClass();
-              Method method = clazz1.getDeclaredMethod(element.ident);
-              data1 = method.invoke(data1);
-          } catch (NoSuchMethodException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-          } catch (SecurityException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-          } catch (IllegalAccessException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-          } catch (IllegalArgumentException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-          } catch (InvocationTargetException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-          }
-        } break;
+        case 'r': data1 = invokeMethod(element, data1, accessPrivate, bContainer); break;
         default:
           data1 = getData(element.ident, data1, accessPrivate, bContainer);
       }//switch
@@ -191,6 +172,92 @@ public class DataAccess {
     }
     return data1;
   }
+  
+  
+  
+  
+  private static Object invokeMethod(      
+    DatapathElement element
+  , Object dataPool
+  , boolean accessPrivate
+  , boolean bContainer 
+  ){
+    Object data1 = null;
+    Class<?> clazz = dataPool.getClass();
+    if(element.ident.equals("processSrcfile"))
+      Assert.stop();
+    try{ 
+      Method[] methods = clazz.getDeclaredMethods();
+      Object[] actArgs = element.fnArgs == null ? null : new Object[element.fnArgs.size()];
+      boolean bOk = false;
+      for(Method method: methods){
+        bOk = false;
+        if(method.getName().equals(element.ident)){
+          Class<?>[] paramTypes = method.getParameterTypes();
+          if(paramTypes.length == 0 && element.fnArgs == null){
+            bOk = true;
+          }
+          else if(element.fnArgs !=null && paramTypes.length == element.fnArgs.size()){
+            //check it
+            bOk = true;
+            int iParam = 0;
+            //check the matching of parameter types inclusive convertibility.
+            for(Object arg: element.fnArgs){
+              Class<?> actType = arg.getClass();
+              //check super classes and all interface types.
+              //if(arg instanceof paramTypes[iParam]){ actArgs[iParam] = arg; }
+              if(actType == paramTypes[iParam]){ actArgs[iParam] = arg; }
+              else if(arg instanceof CharSequence){
+                if(paramTypes[iParam] == File.class){ }
+                else if(paramTypes[iParam] == String.class){  }
+                else {bOk = false; }
+              }
+              else { bOk = false; }
+              if(!bOk) { break; }
+              iParam +=1;
+            } //for, terminated with some breaks.
+            if(bOk){
+              iParam = 0;  //now convert instances:
+              for(Object arg: element.fnArgs){
+                if(arg instanceof CharSequence){
+                  if(paramTypes[iParam] == File.class){ actArgs[iParam] = new File(((CharSequence)arg).toString()); }
+                  else if(paramTypes[iParam] == String.class){ actArgs[iParam] = ((CharSequence)arg).toString(); }
+                }
+                iParam +=1;
+              } //for, terminated with some breaks.
+            }
+          } 
+          if(bOk){
+            data1 = method.invoke(dataPool, actArgs);
+            break;  //method found.
+          }
+        }
+      }
+      if(!bOk) {
+        throw new NoSuchMethodException(element.ident);
+      }
+      //Method method = clazz.getDeclaredMethod(element.ident);
+      //data1 = method.invoke(dataPool);
+    } catch (NoSuchMethodException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (SecurityException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (IllegalAccessException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (IllegalArgumentException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (InvocationTargetException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
+    //} catch 
+    return data1;    
+  }
+  
   
   
   
@@ -364,6 +431,9 @@ public class DataAccess {
       }
       fnArgs.add(arg);
     }
+    
+    
+    public void removeAllActualArguments(){ if(fnArgs !=null){ fnArgs.clear(); }}
     
     /**For debugging.*/
     @Override public String toString(){
