@@ -228,13 +228,20 @@ public class DataAccess {
             }
           } 
           if(bOk){
-            data1 = method.invoke(dataPool, actArgs);
+            try{ 
+              data1 = method.invoke(dataPool, actArgs);
+            } catch(IllegalAccessException exc){
+              CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
+              throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+            }
             break;  //method found.
           }
         }
       }
       if(!bOk) {
-        throw new NoSuchMethodException(element.ident);
+        Assert.stackInfo("", 5);
+        CharSequence stackInfo = Assert.stackInfo(" called: ", 3, 5);
+        throw new NoSuchMethodException("DataAccess - method not found: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
       }
       //Method method = clazz.getDeclaredMethod(element.ident);
       //data1 = method.invoke(dataPool);
@@ -242,9 +249,6 @@ public class DataAccess {
       // TODO Auto-generated catch block
       e.printStackTrace();
     } catch (SecurityException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (IllegalAccessException e) {
       // TODO Auto-generated catch block
       e.printStackTrace();
     } catch (IllegalArgumentException e) {

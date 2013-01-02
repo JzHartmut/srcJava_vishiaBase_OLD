@@ -98,6 +98,13 @@ public class Assert
   }
   
   
+  /**Prepares an exception information inclusively some levels of stack trace in a short (one line) form.
+   * @param startText Any start text of the returned text
+   * @param exc The exception, its getMessage() will be appended
+   * @param firstLevel First level of stack. 0 is this routine, 1 the caller etc.
+   * @param nrofLevels maximum of numbers of levels to show in stack. Use for example 10 to prevent to long lines if it may be deeper.
+   * @return A string in form of CharSequence. Use ...toString() to build a String if necessary.
+   */
   public static CharSequence exceptionInfo(String startText, Throwable exc, int firstLevel, int nrofLevels){
     StringBuilder u = new StringBuilder(500);
     u.append(startText).append("; ");
@@ -106,7 +113,7 @@ public class Assert
     int zStack = stack.length;
     if(firstLevel >= zStack){ firstLevel = zStack-1; }
     if(zStack> firstLevel + nrofLevels){ zStack = firstLevel + nrofLevels; }
-    for(int ix = 0; ix < zStack; ++ix){
+    for(int ix = firstLevel; ix < zStack; ++ix){
       u.append(stack[ix].getMethodName())
       .append("(").append(stack[ix].getFileName())
       .append(":").append(stack[ix].getLineNumber())
@@ -116,11 +123,26 @@ public class Assert
   }
   
 
-  public static CharSequence stackInfo(String startText, int nrofLevel){
+  /**Prepares an information about the stack trace without occurring of a exception in a short (one line) form.
+   * @param startText Any start text of the returned text
+   * @param nrofLevels maximum of numbers of levels to show in stack. Use for example 10 to prevent to long lines if it may be deeper.
+   *   The first level is the caller of this routine.
+   * @return A string in form of CharSequence. Use ...toString() to build a String if necessary.
+   */
+  public static CharSequence stackInfo(String startText, int nrofLevel){ return stackInfo(startText, 1, nrofLevel); }
+
+  
+  /**Prepares an information about the stack trace without occurring of a exception in a short (one line) form.
+   * @param startText Any start text of the returned text
+   * @param firstLevel First level of stack. 0 is this routine, 1 the caller etc.
+   * @param nrofLevels maximum of numbers of levels to show in stack. Use for example 10 to prevent to long lines if it may be deeper.
+   * @return A string in form of CharSequence. Use ...toString() to build a String if necessary.
+   */
+  public static CharSequence stackInfo(String startText, int firstLevel, int nrofLevel){
     final CharSequence s;
     try{ throw new RuntimeException("stackInfo");
     } catch(RuntimeException exc){
-      s = exceptionInfo(startText, exc, 1, nrofLevel);
+      s = exceptionInfo(startText, exc, firstLevel, nrofLevel);
     }
     return s;
   }
