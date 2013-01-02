@@ -149,13 +149,17 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
       String sDirChild = sDirParent + sDirInZip;
       long sizeChild = entry.getSize();
       long dateChild = entry.getTime();
-      FileRemote dir = parentDirNode.data;
-      FileRemote fileChild = new FileRemote(zipAccess, dir, sDirChild, sNameChild, sizeChild, dateChild, zipEntryProperties, dataChild);
-      if((zipEntryProperties & FileRemote.mDirectory) !=0){
-        dataChild.children = new TreeNodeBase.TreeNode<FileRemote>(sNameChild, fileChild);
-        parentDirNode.addNode(dataChild.children);
+      if(parentDirNode == null){
+        Assert.stop();
       } else {
-        parentDirNode.addNode(sNameChild, fileChild);        
+        FileRemote dir = parentDirNode.data;
+        FileRemote fileChild = new FileRemote(zipAccess, dir, sDirChild, sNameChild, sizeChild, dateChild, zipEntryProperties, dataChild);
+        if((zipEntryProperties & FileRemote.mDirectory) !=0){
+          dataChild.children = new TreeNodeBase.TreeNode<FileRemote>(sNameChild, fileChild);
+          parentDirNode.addNode(dataChild.children);
+        } else {
+          parentDirNode.addNode(sNameChild, fileChild);        
+        }
       }
     }
     return fileParent;

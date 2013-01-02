@@ -1,51 +1,57 @@
-
-if "%JAVA_JDK%"==""  then(
+@echo off
+if "%JAVA_JDK%"==""  (
   if exist D:\Progs\JAVA\jdk1.6.0_21 set JAVA_JDK=D:\Progs\JAVA\jdk1.6.0_21
   if exist C:\Progs\JAVA\jdk1.6.0_21 set JAVA_JDK=C:\Progs\JAVA\jdk1.6.0_21
 )
-echo JAVA_JDK=JAVA_JDK
+echo genJavadoc: %DSTDIR%%DST%
+
+echo JAVA_JDK=%JAVA_JDK%
 
 ::goto :zip
-if exist %DST%\* del /F /Q /S %DST%\*
-if exist %DSTDIR%%DST%_priv\* del /F /Q /S %DSTDIR%%DST%_priv\*
+if exist %DSTDIR%%DST% rmdir /Q /S %DSTDIR%%DST% >NUL
+if exist %DSTDIR%%DST%_priv rmdir /Q /S %DSTDIR%%DST%_priv >NUL
 
 if not exist %DSTDIR%%DST% mkdir %DSTDIR%%DST%
 if not exist %DSTDIR%%DST%_priv mkdir %DSTDIR%%DST%_priv
 
-echo generate docu: $SRC
-
 echo javadoc -d %DSTDIR%%DST% -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH%
-%JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST% -protected -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH% %SRC% 1>%DST%\javadoc.rpt 2>%DST%\javadoc.err
+%JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST% -protected -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST%\javadoc.rpt 2>%DSTDIR%%DST%\javadoc.err
 if errorlevel 1 goto :error
 
-echo javadoc -d %DSTDIR%%DST%_priv -private -linksource -notimestamp $LINKPATH -sourcepath $SRCPATH
-%JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST%_priv -private -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH% %SRC% 1>%DST%_priv\javadoc.rpt 2>%DST%_priv\javadoc.err
+echo javadoc -d %DSTDIR%%DST%_priv -private -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH%
+%JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST%_priv -private -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST%_priv\javadoc.rpt 2>%DSTDIR%%DST%_priv\javadoc.err
 if errorlevel 1 goto :error
+
+if "%NOPAUSE%"=="" pause
 
 if not exist ..\img goto :noImg
-	mkdir %DST%\img
-	copy ..\img %DSTDIR%%DST%
-	mkdir %DSTDIR%%DST%_priv\img
-	copy ..\img %DSTDIR%%DST%_priv
+  echo copy %DSTDIR%%DST%\img
+	if not exist %DSTDIR%%DST%\img mkdir %DSTDIR%%DST%\img
+	copy ..\img %DSTDIR%%DST% >NUL
+	if not exist %DSTDIR%%DST%_priv\img mkdir %DSTDIR%%DST%_priv\img
+	copy ..\img %DSTDIR%%DST%_priv >NUL
 :noImg
 
 
-copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DST%\stylesheet.css
-copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DSTDIR%%DST%_priv\stylesheet.css
+copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DSTDIR%%DST%\stylesheet.css >NUL
+copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DSTDIR%%DST%_priv\stylesheet.css >NUL
 
 :zip
 if "%DSTDIR%" == "" goto :nozip
-echo %DSTDIR%%DST%
 ::pause
+::echo on
 set PWD1=%CD%
 cd %DSTDIR%
-if exist %DST%.zip del %DST%.zip
-pkzipc.exe -add -Directories %DST%.zip %DST%\* %DST%_priv\*
+if exist %DST%.zip del %DST%.zip >NUL
+echo zip %CD%\%DST%.zip
+pkzipc.exe -add -Directories %DST%.zip %DST%\* %DST%_priv\* >NUL
 cd %PWD1%
+echo off
 if errorlevel 1 goto :error
 :nozip
 
 echo successfull generated %DSTDIR%%DST%
+if "%NOPAUSE%"=="" pause
 goto :ende
 
 :error
