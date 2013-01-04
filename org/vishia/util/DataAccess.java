@@ -17,6 +17,7 @@ import java.util.Map;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2013-01-05 Hartmut new: reads $$ENV_VAR.
    * <li>2013-01-02 Hartmut new: Supports access to methods whith parameter with automatic cast from CharSequence to String and to File.
    *   Uses the {@link DatapathElement#fnArgs} and {@link #getData(List, Object, Map, boolean, boolean)}.
    * <li>2012-12-26 Hartmut new: {@link #create(String, Object...)}, the {@link DatapathElement#whatisit} can contain 'n'
@@ -132,7 +133,11 @@ public class DataAccess {
     if(element.ident.startsWith("$position")){
       Assert.stop();
     }
-    if(element.ident.startsWith("$")){
+    if(element.ident.startsWith("$$")){
+      data1 = System.getenv(element.ident.substring(2));
+      element = iter.hasNext() ? iter.next() : null;
+    }
+    else if(element.ident.startsWith("$")){
       if(namedDataPool ==null){
         throw new NoSuchFieldException("$?missing-datapool?");
       }
@@ -142,7 +147,6 @@ public class DataAccess {
       data1 = namedDataPool.get(element.ident.substring(1));  //maybe null if the value of the key is null.
       element = iter.hasNext() ? iter.next() : null;
     }
-    Class<?> clazz1;
     while(element !=null && data1 !=null){
       switch(element.whatisit) {
         case 'n': {  //create a new instance, call constructor

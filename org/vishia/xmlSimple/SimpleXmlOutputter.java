@@ -65,7 +65,8 @@ public class SimpleXmlOutputter
   String sIdent="\r\n                                                                                            ";
   
   
-  /**Writes the XML tree into a byte stream.
+  /**Writes the XML tree into a byte stream. Uses the encoding from the given OutputStreamWriter
+   * to show the encoding in the file.
    * @param out A Writer to convert in a Byte stream.
    * @param xmlNode The top level node
    * @throws IOException
