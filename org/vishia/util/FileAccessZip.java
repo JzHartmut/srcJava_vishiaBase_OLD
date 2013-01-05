@@ -18,6 +18,10 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
 {
   /**Version, history and license.
    * <ul>
+   * <li>2013-01-06 Hartmut chg: The openZipFile(FileRemote) method is now named {@link #examineZipFile(FileRemote)}.
+   *   It opens and closes the Zipfile after building FileRemote instances for the entries. Elsewhere the ZipFile remains open
+   *   and it hangs on system till the application is closed. 
+   *   TODO: Does openRead works?
    * <li>2012-07-28 Hartmut completed. The class FileZip is not neccessary yet.
    * <li>2012-07-21 Hartmut creation: See {@link FileRemoteAccessor}. Support files in zip-File
    * </ul>
@@ -85,13 +89,16 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
   
 
   
-  /**It opens a zip file for reading. Some {@link FileRemote} instances are created, 
-   * one for each zip file entry. 
-   * @param fileZip
-   * @return A new instance which refers all children. The children are the files inside 
-   *   the zip files.
+  /**It examines a zip file. Some {@link FileRemote} instances are created, one for each zip file entry. 
+   * The zipfile itself will be opened and closed after them.
+   * The returned  FileRemote refers all Zipfile entries as children and the zipfile itself as parent.
+   * Any FileRemote which represents a ZipEntry contains a {@link FileZipData} instance referred in the 
+   * {@link FileRemote#oFile} association. Reading the content of an entry should re-open the ZipFile.
+   * 
+   * @param fileZip The zip file itself (in file system).
+   * @return A new instance which refers all children. The children are the files inside the zip files.
    */
-  public static FileRemote openZipFile(FileRemote fileZip){
+  public static FileRemote examineZipFile(FileRemote fileZip){
     FileZipData dataParent = new FileZipData();
     FileAccessZip zipAccess = getInstance();
     int parentProperties = FileRemote.mDirectory | FileRemote.mExist | FileRemote.mCanRead ; //| FileRemote.mChildrenGotten;
@@ -105,7 +112,7 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
       jZipFile = null;
     }
     dataParent.theFile = fileZip;
-    dataParent.zipFile = jZipFile;
+    //dataParent.zipFile = jZipFile;
     dataParent.zipEntry = null;
     Enumeration<? extends ZipEntry> entries = jZipFile.entries();
     while (entries.hasMoreElements()) {
@@ -144,7 +151,7 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
       }
       FileZipData dataChild = new FileZipData(); //theFile, zipFile, entry);
       dataChild.theFile = fileZip;
-      dataChild.zipFile = jZipFile;
+      //dataChild.zipFile = jZipFile;
       dataChild.zipEntry = entry;
       String sDirChild = sDirParent + sDirInZip;
       long sizeChild = entry.getSize();
@@ -162,6 +169,7 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
         }
       }
     }
+    try{ if(jZipFile !=null) { jZipFile.close(); } } catch(IOException exc){ throw new UnexpectedException(exc); }
     return fileParent;
   }
   
@@ -173,6 +181,15 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     
   }
 
+  
+  public void close(FileRemote file) throws IOException{
+    FileZipData data = (FileZipData)file.oFile;
+    if(data !=null){
+      data.zipFile.close();
+    }
+  }
+  
+  
   @Override public void refreshFileProperties(FileRemote file, FileRemote.CallbackEvent callback) {
     // TODO Auto-generated method stub
     if(callback !=null){
@@ -249,6 +266,9 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     FileZipData data = (FileZipData)file.oFile;
     ///
     try{ 
+      if(data.zipFile == null){
+        data.zipFile = new ZipFile(data.theFile);
+      }
       InputStream stream = data.zipFile.getInputStream(data.zipEntry);
       return stream;
     } catch(IOException exc){
@@ -280,6 +300,8 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     // TODO Auto-generated method stub
     return true;
   }
+  
+  
   
   
   
