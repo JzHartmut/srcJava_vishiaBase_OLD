@@ -18,6 +18,8 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
 {
   /**Version, history and license.
    * <ul>
+   * <li>2013-01-07 Hartmut chg: The {@link #openInputStream(FileRemote, long)} returns an opened stream and opens the ZipFile therefore.
+   *   To close the ZipFile the returned InputStream is wrapped to detect the close() invocation of the InputStream.
    * <li>2013-01-06 Hartmut chg: The openZipFile(FileRemote) method is now named {@link #examineZipFile(FileRemote)}.
    *   It opens and closes the Zipfile after building FileRemote instances for the entries. Elsewhere the ZipFile remains open
    *   and it hangs on system till the application is closed. 
@@ -262,15 +264,24 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
   }
 
   
+  /**Returns an opened InputStream with the Zip entry. It opens the ZipFile. The ZipFile will be closed
+   * when the InputStream.close() is invoked. Therefore the returned InputStream is wrapped with {@link FileZipInputStream}.
+   * Normally more as one InputStream can be used with one ZipFile. This routine creates a ZipFile instance 
+   * only for this one entry.
+   * @see org.vishia.util.FileRemoteAccessor#openInputStream(org.vishia.util.FileRemote, long)
+   */
   @Override public InputStream openInputStream(FileRemote file, long passPhase){
     FileZipData data = (FileZipData)file.oFile;
     ///
     try{ 
-      if(data.zipFile == null){
-        data.zipFile = new ZipFile(data.theFile);
-      }
-      InputStream stream = data.zipFile.getInputStream(data.zipEntry);
-      return stream;
+      //if(data.zipFile == null){
+        //data.zipFile = new ZipFile(data.theFile);
+      //}
+      ZipFile fileZip = new ZipFile(data.theFile);
+      InputStream stream = fileZip.getInputStream(data.zipEntry);
+      
+      FileZipInputStream ret = new FileZipInputStream(stream, fileZip);
+      return ret;
     } catch(IOException exc){
       return null;
     }
@@ -313,5 +324,54 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     TreeNodeBase.TreeNode<FileRemote> children;
   }
 
+  
+  
+  /**A wrapper class for the returned InputStream. 
+   * It should call all methods defined in {@link java.io.InputStream} because all of it may be overridden.
+   * Only the close() method does anything here.
+   *
+   */
+  static class FileZipInputStream extends InputStream
+  {
+    /**The original wrapped inputstream. */
+    final InputStream s;
+    
+    /**The zipfile have to be closed if the InputStream is closed.*/
+    final ZipFile zipFile;
+    
+    FileZipInputStream(InputStream s, ZipFile z){ this.s = s; this.zipFile = z; }
+    
+    @Override public int read() throws IOException{ return s.read(); }
+    
+    @Override
+    public int read(byte b[]) throws IOException { return s.read(b); }
+    
+    @Override
+    public int read(byte b[], int off, int len) throws IOException { return s.read(b, off, len); }
+    
+    @Override
+    public long skip(long n) throws IOException { return s.skip(n); }
+    
+    @Override
+    public int available() throws IOException { return s.available(); }
+    
+    @Override
+    public void close() throws IOException { 
+      s.close(); 
+      zipFile.close();
+    }
+    
+    @Override
+    public synchronized void mark(int readlimit) { s.mark(readlimit); }
+    
+    @Override
+    public synchronized void reset() throws IOException { s.reset(); }
+    
+    @Override
+    public boolean markSupported() { return s.markSupported(); }
+
+  }
+  
+  
   
 }
