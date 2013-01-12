@@ -5,6 +5,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -17,6 +18,8 @@ import java.util.Map;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2013-01-12 Hartmut new: {@link #checkAndConvertArgTypes(List, Class[])} improved, 
+   *   new {@link #invokeStaticMethod(DatapathElement, Object, boolean, boolean)}
    * <li>2013-01-05 Hartmut new: reads $$ENV_VAR.
    * <li>2013-01-02 Hartmut new: Supports access to methods whith parameter with automatic cast from CharSequence to String and to File.
    *   Uses the {@link DatapathElement#fnArgs} and {@link #getData(List, Object, Map, boolean, boolean)}.
@@ -77,6 +80,18 @@ public class DataAccess {
   
   
   
+  /**Creates an object with the given class name und the given constructor arguments.
+   * @param classname className The fully qualified name of the desired class. See {@link java.lang.Class#forName(String)}.
+   * @param args empty, null or some arguments. 
+   * @return
+   * @throws ClassNotFoundException
+   * @throws NoSuchMethodException
+   * @throws SecurityException
+   * @throws InstantiationException
+   * @throws IllegalAccessException
+   * @throws IllegalArgumentException
+   * @throws InvocationTargetException
+   */
   public static Object create(String classname, Object ... args) 
   throws ClassNotFoundException, NoSuchMethodException, SecurityException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException{
     Class<?> clazz = Class.forName(classname);
@@ -89,21 +104,39 @@ public class DataAccess {
   
   
   
-  /**Reads content from the data.
+  /**Accesses data. 
+   * The argument path contains elements, which describes the access path.
    * <ul>
-   * <li>The namedDataPool provides additional data, which may be addressed by the first part of path if it starts
-   *   with a "$" (a variable). Then the data from this pool are used instead dataPool. 
-   *   Elsewhere the first part of the path should be able to found in the start instance of dataPool.
-   *  <li>If any data object found inside the path is instanceof Map and the key is a String, then the sub object
-   *    is gotten from the map with the next part of the path used as the key.
-   *  <li>If any data object is instanceof {@link TreeNodeBase} and the field identifier is not found in this instance,
-   *    a child node with the given name is searched. The TreeNodeBase is the super class of {@link org.vishia.xmlSimple.XmlNodeSimple}
-   *    which is used to present a ZBNF parse result. Therewith the {@link org.vishia.zbnf.ZbnfParser#getResultTree()}
-   *    can be used as data input. The tag names of that result tree follow the semantic in the string given Syntax script.
-   *  <li>Nevertheless any Java data objects can be used as dataPool. It is independent of that special possibilities.   
-   *  <li>methods with constant string or numeric parameters are admissible as part of the path (TODO)  
+   * <li>The datapath can start with an element designated with {@link DatapathElement#whatisit} == 'e'. 
+   *   Then the result of the access is the String representation of the environment variable of the operation system
+   *   or null if that environment variable is not found. Only this element of datapath is used, it should be the only one usual. 
+   * <li>The datapath can start with an optional ,,startVariable,, as {@link DatapathElement#whatisit} == 'v'. 
+   *   Then the param namedDataPool should provide additional data references, which are addressed by the  {@link DatapathElement#ident}
+   *   of the first element.
+   * <li>If the datapath does not start with a ,,startVariable,, or it is not an environment variable access, the access starts 
+   *   on ghe given datapool. 
    * </ul>
-   * @param path The path, elements in any list element.
+   * The elements of datapath describe the access to data. Any element before supplies a reference for the path 
+   * of the next element.
+   * <br><br>
+   * <b>Access with an element with {@link DatapathElement#whatisit} == 'f'</b>:
+   * The  {@link DatapathElement#ident} may determine a field of the current data reference or it may be a key for a indexed container.
+   * The {@link #getData(String, Object, boolean, boolean)} is invoked, see there for further explanation. 
+   * <br><br>
+   * <b>Creating an instance or invocation of methods</b>:
+   * <li>An element with {@link DatapathElement#whatisit} == 'n' is the creation of instance maybe with or without arguments 
+   *   in {@link DatapathElement#fnArgs}
+   * <li>An element with {@link DatapathElement#whatisit} == 's' is a call of a static routine maybe with or without arguments 
+   *   in {@link DatapathElement#fnArgs}
+   * <li>An element with {@link DatapathElement#whatisit} == 'r' is a method invocation maybe with or without arguments.
+   *   in {@link DatapathElement#fnArgs}
+   * </ul>
+   * <b>Assignment of arguments of methods or constructor</b>:<br>
+   * If the method or class is found per name, all methods with this name respectively all constructors are tested 
+   * whether they match to the {@link DatapathElement#fnArgs}. The number of args should match and the types should be compatibel.
+   * See {@link #checkAndConvertArgTypes(List, Class[])}.
+   * 
+   * @param datapath The path, elements in any list element.
    * @param dataPool the object where the path starts from.
    * @param namedDataPool variables valid for the current block
    * @param accessPrivate if true then private data are accessed too. The accessing of private data may be helpfull
@@ -111,11 +144,13 @@ public class DataAccess {
    *  {@link java.lang.reflect.Field#setAccessible(boolean)}.
    * @param bContainer If the element is a container, returns it. Elsewhere build a List
    *    to return a container for iteration. A container is any object implementing java.util.Map or java.util.Iterable
-   * @return Any data object addressed by the path.
-   * @throws IllegalArgumentException
+   * @return Any data object addressed by the path. Returns null if the last datapath element refers null.
+   * 
+   * @throws IllegalArgumentException if the datapath does not address an element. The exception message contains a String
+   *  as hint which part does not match.
    */
   public static Object getData(
-      List<DatapathElement> path
+      List<DatapathElement> datapath
       , Object dataPool
       , Map<String, Object> namedDataPool
       //, boolean noException 
@@ -123,7 +158,7 @@ public class DataAccess {
   throws NoSuchFieldException
   {
     Object data1 = dataPool;
-    Iterator<DatapathElement> iter = path.iterator();
+    Iterator<DatapathElement> iter = datapath.iterator();
     DatapathElement element = iter.next();
     //if(element.constValue !=null){
     //  data1 = element.constValue;
@@ -133,11 +168,25 @@ public class DataAccess {
     if(element.ident.startsWith("$position")){
       Assert.stop();
     }
-    if(element.ident.startsWith("$$")){
+    if(element.ident.startsWith("XXXXXXXX$$")){
       data1 = System.getenv(element.ident.substring(2));
+      element = null;  //no next elements expected.
+    }
+    else if(element.whatisit == 'e'){
+      data1 = System.getenv(element.ident);
+      element = null;  //no next elements expected.
+    }
+    else if(element.whatisit == 'v'){
+      if(namedDataPool ==null){
+        throw new NoSuchFieldException("$?missing-datapool?");
+      }
+      if(!namedDataPool.containsKey(element.ident)){
+        throw new NoSuchFieldException(element.ident);
+      }
+      data1 = namedDataPool.get(element.ident);  //maybe null if the value of the key is null.
       element = iter.hasNext() ? iter.next() : null;
     }
-    else if(element.ident.startsWith("$")){
+    else if(element.ident.startsWith("XXXXXXXXXX$")){
       if(namedDataPool ==null){
         throw new NoSuchFieldException("$?missing-datapool?");
       }
@@ -164,6 +213,7 @@ public class DataAccess {
           }
         } break;
         case 'r': data1 = invokeMethod(element, data1, accessPrivate, bContainer); break;
+        case 's': data1 = invokeStaticMethod(element, data1, accessPrivate, bContainer); break;
         default:
           data1 = getData(element.ident, data1, accessPrivate, bContainer);
       }//switch
@@ -180,7 +230,7 @@ public class DataAccess {
   
   
   
-  private static Object invokeMethod(      
+  static Object invokeMethod(      
     DatapathElement element
   , Object dataPool
   , boolean accessPrivate
@@ -188,50 +238,19 @@ public class DataAccess {
   ){
     Object data1 = null;
     Class<?> clazz = dataPool.getClass();
-    if(element.ident.equals("processSrcfile"))
+    if(element.ident.equals("checkNewless"))
       Assert.stop();
     try{ 
       Method[] methods = clazz.getDeclaredMethods();
-      Object[] actArgs = element.fnArgs == null ? null : new Object[element.fnArgs.size()];
       boolean bOk = false;
       for(Method method: methods){
         bOk = false;
         if(method.getName().equals(element.ident)){
           Class<?>[] paramTypes = method.getParameterTypes();
-          if(paramTypes.length == 0 && element.fnArgs == null){
+          
+          Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
+          if(actArgs !=null){
             bOk = true;
-          }
-          else if(element.fnArgs !=null && paramTypes.length == element.fnArgs.size()){
-            //check it
-            bOk = true;
-            int iParam = 0;
-            //check the matching of parameter types inclusive convertibility.
-            for(Object arg: element.fnArgs){
-              Class<?> actType = arg.getClass();
-              //check super classes and all interface types.
-              //if(arg instanceof paramTypes[iParam]){ actArgs[iParam] = arg; }
-              if(actType == paramTypes[iParam]){ actArgs[iParam] = arg; }
-              else if(arg instanceof CharSequence){
-                if(paramTypes[iParam] == File.class){ }
-                else if(paramTypes[iParam] == String.class){  }
-                else {bOk = false; }
-              }
-              else { bOk = false; }
-              if(!bOk) { break; }
-              iParam +=1;
-            } //for, terminated with some breaks.
-            if(bOk){
-              iParam = 0;  //now convert instances:
-              for(Object arg: element.fnArgs){
-                if(arg instanceof CharSequence){
-                  if(paramTypes[iParam] == File.class){ actArgs[iParam] = new File(((CharSequence)arg).toString()); }
-                  else if(paramTypes[iParam] == String.class){ actArgs[iParam] = ((CharSequence)arg).toString(); }
-                }
-                iParam +=1;
-              } //for, terminated with some breaks.
-            }
-          } 
-          if(bOk){
             try{ 
               data1 = method.invoke(dataPool, actArgs);
             } catch(IllegalAccessException exc){
@@ -268,7 +287,164 @@ public class DataAccess {
   
   
   
+  static Object invokeStaticMethod(      
+      DatapathElement element
+    , Object dataPool
+    , boolean accessPrivate
+    , boolean bContainer 
+    ) //throws ClassNotFoundException{
+  { Object data1 = null;
+    if(element.ident.equals("checkNewless"))
+      Assert.stop();
+    try{ 
+      int posClass = element.ident.lastIndexOf('.');
+      String sClass = element.ident.substring(0, posClass);
+      String sMethod = element.ident.substring(posClass +1);
+      Class<?> clazz = Class.forName(sClass);
+      Method[] methods = clazz.getMethods();
+      boolean bOk = false;
+      for(Method method: methods){
+        bOk = false;
+        String sMethodName = method.getName();
+        if(sMethodName.equals(sMethod)){
+          Class<?>[] paramTypes = method.getParameterTypes();
+          
+          Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
+          if(actArgs !=null){
+            bOk = true;
+            try{ 
+              data1 = method.invoke(dataPool, actArgs);
+            } catch(IllegalAccessException exc){
+              CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
+              throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+            }
+            break;  //method found.
+          }
+        }
+      }
+      if(!bOk) {
+        Assert.stackInfo("", 5);
+        CharSequence stackInfo = Assert.stackInfo(" called: ", 3, 5);
+        throw new NoSuchMethodException("DataAccess - method not found: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+      }
+    } catch (ClassNotFoundException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (NoSuchMethodException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (SecurityException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (IllegalArgumentException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (InvocationTargetException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
+    //} catch 
+    return data1;    
+  }
   
+  
+  /**Checks whether the given arguments matches to the necessary arguments of a method or constructor invocation.
+   * Converts the arguments if possible and necessary:
+   * <ul>
+   * <li>provideArg  -> argType: conversion
+   * <li>{@link java.lang.CharSequence} -> {@link java.lang.String}: arg.toString()
+   * <li>{@link java.lang.CharSequence} -> {@link java.io.File} : new File(arg)
+   * </ul>
+   * @param providedArgs Given arguments
+   * @param argTypes requested argument types
+   * @return actArgs This array will be filled with converted parameter if all parameter matches.
+   *   <br>If the number of args is 0, then Object[0] is returned.
+   *   <br>null if the number of argtypes is not equal to the number of providedArgs or if the providedArgs and argTypes does not match. 
+   *   The array have to be created with the size proper to 
+   */
+  static Object[] checkAndConvertArgTypes(List<Object> providedArgs, Class<?>[] argTypes){
+    Object[] actArgs;
+    if(argTypes.length == 0 && providedArgs == null){
+      actArgs = new Object[0]; //matches, but no args.
+    }
+    else if(providedArgs !=null && argTypes.length == providedArgs.size()){
+      //check it
+      boolean bOk = true;
+      int iParam = 0;
+      //check the matching of parameter types inclusive convertibility.
+      for(Object arg: providedArgs){
+        Class<?> actType = arg.getClass();
+        //check super classes and all interface types.
+        //if(arg instanceof paramTypes[iParam]){ actArgs[iParam] = arg; }
+        String typeName = argTypes[iParam].getName();
+        if(actType == argTypes[iParam]){ bOk = true; }
+        else if(arg instanceof CharSequence){
+          if(argTypes[iParam] == File.class){ bOk = true; }
+          else if(argTypes[iParam] == String.class){ bOk = true;  }
+          else {bOk = false; }
+        } else if(typeName.equals("Z") || typeName.equals("boolean")){
+          bOk = true; //all can converted to boolean
+        } else {
+          Type[] ifcs = actType.getGenericInterfaces();
+          Class[] clazzs = actType.getInterfaces();
+          bOk = false; 
+        }
+        if(!bOk) { break; }
+        iParam +=1;
+      } //for, terminated with some breaks.
+      if(bOk){
+        actArgs = new Object[argTypes.length];
+        iParam = 0;  //now convert instances:
+        for(Object arg: providedArgs){
+          Object actArg;
+          String typeName = argTypes[iParam].getName();
+          if(arg instanceof CharSequence){
+            if(argTypes[iParam] == File.class){ actArg = new File(((CharSequence)arg).toString()); }
+            else if(argTypes[iParam] == String.class){ actArg = ((CharSequence)arg).toString(); }
+            else {
+              actArg = arg;
+            }
+          } else if( (typeName = argTypes[iParam].getName()).equals("Z") || typeName.equals("boolean")){
+            if(arg instanceof Boolean){ actArg = ((Boolean)arg).booleanValue(); }
+            if(arg instanceof Byte){ actArg = ((Byte)arg).byteValue() == 0 ? false : true; }
+            if(arg instanceof Short){ actArg = ((Short)arg).shortValue() == 0 ? false : true; }
+            if(arg instanceof Integer){ actArg = ((Integer)arg).intValue() == 0 ? false : true; }
+            if(arg instanceof Long){ actArg = ((Long)arg).longValue() == 0 ? false : true; }
+            else { actArg = arg == null ? false: true; }
+          } else {
+            actArg = arg;
+          }
+          actArgs[iParam] = actArg;
+          iParam +=1;
+        } //for, terminated with some breaks.
+      } else {
+        actArgs = null;
+      }
+    } else { //faulty number of arguments
+      actArgs = null;
+    }
+    return actArgs;
+  }
+  
+  /**Gets data from a field or from an indexed container.
+   *    
+   * <ul>
+   * <li>If the actual reference before is instanceof Map and the key is a String, then the next object
+   *    is gotten from the map with the name used as the key.
+   * <li>Elsewhere a field with ident as name is searched.
+   * <li>If the actual reference before is instanceof {@link TreeNodeBase} and the field identifier is not found in this instance,
+   *    a child node with the given name is searched. 
+   *    The TreeNodeBase is the super class of {@link org.vishia.xmlSimple.XmlNodeSimple}
+   *    which is used to present a ZBNF parse result. Therewith the {@link org.vishia.zbnf.ZbnfParser#getResultTree()}
+   *    can be used as data input. The tag names of that result tree follow the semantic in the string given Syntax script.
+   * </ul>
+   * @param name Name of the field or key for container
+   * @param dataPool The data where the field or element is searched
+   * @param accessPrivate true than accesses also private data. 
+   * @param bContainer only used for a TreeNodeBase: If true then returns the List of children as container, If false returns the first child with that name. 
+   * @return The reference described by name.
+   * @throws NoSuchFieldException If not found.
+   */
   public static Object getData(
       String name
       , Object dataPool
@@ -400,6 +576,8 @@ public class DataAccess {
 
     /**Kind of element
      * <ul>
+     * <li>'e': An environment variable.
+     * <li>'v': A variable from the additional data pool.
      * <li>'f': a field with ident as name.
      * <li>'n': new ident, creation of instance maybe with or without arguments in {@link #fnArgs}
      * <li>'s'; call of a static routine maybe with or without arguments in {@link #fnArgs}

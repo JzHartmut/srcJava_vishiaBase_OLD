@@ -58,6 +58,7 @@ public class FileSystem
   /**Version, able to read as hex yyyymmdd.
    * Changes:
    * <ul>
+   * <li>2013-10-12 Hartmut new: Method checkNewless(src, dst, deleteIt)
    * <li>2012-12-30 Hartmut chg: {@link #addFilesWithBasePath(File, String, List)} now gets a base directory.
    * <li>2012-12-25 Hartmut chg: {@link #mkDirPath(String)} now returns the directory which is designated by the argument
    *   and checks whether it is a directory, not a file. It is more stronger, elsewhere compatible.
@@ -677,6 +678,39 @@ public class FileSystem
         return !sAbsPath.equals(sCanonPath);
     } else return true;  //its a symbolic link. 
   }
+  
+  
+  
+  /**Checks whether a file is newer as the other, maybe delete dst.
+   * returns:
+   * <ul>
+   * <li>-1 if src does not exists. Don't make.
+   * <li>0: if src is older than dst. Don't make.
+   * <li>1: if src is newer and dst is not existent. make.
+   * <li>2: if src is newer, dst is existent but should not deleted. removeDstIfOlder is given as false.
+   * <li>3: if src is newer, dst is deleted.
+   * <li>4: if src is newer, dst should be deleted but the deletion fails. There is a problem on dst.  
+   * @param src
+   * @param dst
+   * @param removeDstIfOlder deletes the dst also if it may be write protected if the src is newer.
+   * @return -1..4
+   */
+  public static int checkNewless(File src, File dst, boolean removeDstIfOlder){
+    if(!dst.exists()) return 1;  //src is new
+    else if(!src.exists()) return -1;  //src is not found.
+    else if(src.lastModified() > dst.lastModified()){
+      if(removeDstIfOlder){
+        if(!dst.canWrite()){
+          dst.setWritable(true);
+        }
+        if(dst.delete()){ return 3;}
+        else return 4;
+      }
+      else return 2;
+    } 
+    else return 0;  //src is older.
+  }
+  
   
   
   
