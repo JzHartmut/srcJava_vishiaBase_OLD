@@ -18,6 +18,8 @@ import java.util.Map;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2012-01-13 Hartmut chg: {@link #getData(List, Object, Map, boolean, boolean)} can be invoked with null for dataPool
+   *   to invoke new or static methods.
    * <li>2013-01-12 Hartmut new: {@link #checkAndConvertArgTypes(List, Class[])} improved, 
    *   new {@link #invokeStaticMethod(DatapathElement, Object, boolean, boolean)}
    * <li>2013-01-05 Hartmut new: reads $$ENV_VAR.
@@ -137,9 +139,9 @@ public class DataAccess {
    * See {@link #checkAndConvertArgTypes(List, Class[])}.
    * 
    * @param datapath The path, elements in any list element.
-   * @param dataPool the object where the path starts from.
-   * @param namedDataPool variables valid for the current block
-   * @param accessPrivate if true then private data are accessed too. The accessing of private data may be helpfull
+   * @param dataPool the object where the path starts from. It can be null. Static methods or creation of instances is possible then.
+   * @param namedDataPool variables valid for the current block. It can be null, if not used in datapath.
+   * @param accessPrivate if true then private data are accessed too. The accessing of private data may be helpfully
    *  for debugging. It is not recommended for general purpose! The access mechanism is given with 
    *  {@link java.lang.reflect.Field#setAccessible(boolean)}.
    * @param bContainer If the element is a container, returns it. Elsewhere build a List
@@ -196,7 +198,7 @@ public class DataAccess {
       data1 = namedDataPool.get(element.ident.substring(1));  //maybe null if the value of the key is null.
       element = iter.hasNext() ? iter.next() : null;
     }
-    while(element !=null && data1 !=null){
+    while(element !=null){
       switch(element.whatisit) {
         case 'n': {  //create a new instance, call constructor
           Object[] oArgs;
@@ -212,10 +214,18 @@ public class DataAccess {
               
           }
         } break;
-        case 'r': data1 = invokeMethod(element, data1, accessPrivate, bContainer); break;
-        case 's': data1 = invokeStaticMethod(element, data1, accessPrivate, bContainer); break;
+        case 'r': {
+          if(data1 !=null){
+            data1 = invokeMethod(element, data1, accessPrivate, bContainer); 
+          }
+          //else: let data1=null, return null
+        } break;
+        case 's': data1 = invokeStaticMethod(element, accessPrivate, bContainer); break;
         default:
-          data1 = getData(element.ident, data1, accessPrivate, bContainer);
+          if(data1 !=null){
+            data1 = getData(element.ident, data1, accessPrivate, bContainer);
+          }
+          //else: let data1=null, return null
       }//switch
       element = iter.hasNext() ? iter.next() : null;
     }
@@ -289,7 +299,6 @@ public class DataAccess {
   
   static Object invokeStaticMethod(      
       DatapathElement element
-    , Object dataPool
     , boolean accessPrivate
     , boolean bContainer 
     ) //throws ClassNotFoundException{
@@ -313,7 +322,7 @@ public class DataAccess {
           if(actArgs !=null){
             bOk = true;
             try{ 
-              data1 = method.invoke(dataPool, actArgs);
+              data1 = method.invoke(null, actArgs);
             } catch(IllegalAccessException exc){
               CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
               throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);

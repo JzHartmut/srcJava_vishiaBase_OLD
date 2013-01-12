@@ -225,8 +225,10 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
     else
     { List<XmlNode> textNodes = listChildren("$");
       String sText = "";
-      for(XmlNode textNode: textNodes){
-        sText += textNode.text();
+      if(textNodes !=null){
+        for(XmlNode textNode: textNodes){
+          sText += textNode.text();
+        }
       }
       return sText;
     }
