@@ -58,7 +58,9 @@ public class FileSystem
   /**Version, able to read as hex yyyymmdd.
    * Changes:
    * <ul>
-   * <li>2013-10-12 Hartmut new: Method checkNewless(src, dst, deleteIt)
+   * <li>2013-01-20 Hartmut bugfix: {@link #addFilesWithBasePath(File, String, List)}:If a /../ is used in the path,
+   *   it was faulty. Usage of canonicalpath instead absolutepath.
+   * <li>2013-01-12 Hartmut new: Method checkNewless(src, dst, deleteIt)
    * <li>2012-12-30 Hartmut chg: {@link #addFilesWithBasePath(File, String, List)} now gets a base directory.
    * <li>2012-12-25 Hartmut chg: {@link #mkDirPath(String)} now returns the directory which is designated by the argument
    *   and checks whether it is a directory, not a file. It is more stronger, elsewhere compatible.
@@ -82,7 +84,7 @@ public class FileSystem
    * <li>2007 Hartmut: created
    * </ul>
    */
-  public final static int version = 20121225;
+  public final static int version = 20130120;
 
   public interface AddFileToList
   {
@@ -179,7 +181,7 @@ public class FileSystem
     if(posBase >=2)
     { sPathBase = (sPath.substring(0, posBase) + "/").replace('\\', '/');
       dir = new File(baseDir, sPathBase);
-      String sBasepathAbsolute = dir.getAbsolutePath();
+      String sBasepathAbsolute = getCanonicalPath(dir);
       //The position after the separator after the absPath of base directory
       // is the start of the local path.
       

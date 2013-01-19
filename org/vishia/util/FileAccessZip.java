@@ -18,6 +18,8 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
 {
   /**Version, history and license.
    * <ul>
+   * <li>2013-01-20 artmut bugfix {@link #examineZipFile(FileRemote)} if the file is faulty. It outputs an error hint 
+   *   on System.err.println(). Better (TODO) FileNotFoundException. 
    * <li>2013-01-07 Hartmut chg: The {@link #openInputStream(FileRemote, long)} returns an opened stream and opens the ZipFile therefore.
    *   To close the ZipFile the returned InputStream is wrapped to detect the close() invocation of the InputStream.
    * <li>2013-01-06 Hartmut chg: The openZipFile(FileRemote) method is now named {@link #examineZipFile(FileRemote)}.
@@ -116,60 +118,64 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     dataParent.theFile = fileZip;
     //dataParent.zipFile = jZipFile;
     dataParent.zipEntry = null;
-    Enumeration<? extends ZipEntry> entries = jZipFile.entries();
-    while (entries.hasMoreElements()) {
-      ZipEntry entry = entries.nextElement();
-      String sPathEntry = entry.getName();
-      int sep = sPathEntry.lastIndexOf('/');
-      String sDirInZip;
-      String sNameChild;
-      int zipEntryProperties = FileRemote.mTested | FileRemote.mCanRead | FileRemote.mExist ;
-      if (sep >= 0) {
-        sDirInZip = sPathEntry.substring(0, sep);  //without '/'
-        sNameChild = sPathEntry.substring(sep + 1); //after '/'
-        if(sNameChild.length() ==0){
-          //a directory in the zip file, it ends with '/'
-          zipEntryProperties |= FileRemote.mDirectory ; // | FileRemote.mChildrenGotten;
-          sep = sDirInZip.lastIndexOf('/');
-          sNameChild = sDirInZip.substring(sep + 1); //after '/'
-          if(sep >=0){
-            sDirInZip = sDirInZip.substring(0, sep);  //without '/'
+    if(jZipFile !=null){
+      Enumeration<? extends ZipEntry> entries = jZipFile.entries();
+      while (entries.hasMoreElements()) {
+        ZipEntry entry = entries.nextElement();
+        String sPathEntry = entry.getName();
+        int sep = sPathEntry.lastIndexOf('/');
+        String sDirInZip;
+        String sNameChild;
+        int zipEntryProperties = FileRemote.mTested | FileRemote.mCanRead | FileRemote.mExist ;
+        if (sep >= 0) {
+          sDirInZip = sPathEntry.substring(0, sep);  //without '/'
+          sNameChild = sPathEntry.substring(sep + 1); //after '/'
+          if(sNameChild.length() ==0){
+            //a directory in the zip file, it ends with '/'
+            zipEntryProperties |= FileRemote.mDirectory ; // | FileRemote.mChildrenGotten;
+            sep = sDirInZip.lastIndexOf('/');
+            sNameChild = sDirInZip.substring(sep + 1); //after '/'
+            if(sep >=0){
+              sDirInZip = sDirInZip.substring(0, sep);  //without '/'
+            } else {
+              sDirInZip = "";
+            }
           } else {
-            sDirInZip = "";
+            zipEntryProperties |= FileRemote.mFile ;
           }
-        } else {
+        } else { //a file in zipfile
           zipEntryProperties |= FileRemote.mFile ;
+          sNameChild = sPathEntry;
+          sDirInZip = null;
         }
-      } else { //a file in zipfile
-        zipEntryProperties |= FileRemote.mFile ;
-        sNameChild = sPathEntry;
-        sDirInZip = null;
-      }
-      TreeNodeBase.TreeNode<FileRemote> parentDirNode;
-      if (sep >= 0) {
-        parentDirNode = dataParent.children.getNode(sDirInZip, "/");
-      } else {
-        parentDirNode = dataParent.children;
-      }
-      FileZipData dataChild = new FileZipData(); //theFile, zipFile, entry);
-      dataChild.theFile = fileZip;
-      //dataChild.zipFile = jZipFile;
-      dataChild.zipEntry = entry;
-      String sDirChild = sDirParent + sDirInZip;
-      long sizeChild = entry.getSize();
-      long dateChild = entry.getTime();
-      if(parentDirNode == null){
-        Assert.stop();
-      } else {
-        FileRemote dir = parentDirNode.data;
-        FileRemote fileChild = new FileRemote(zipAccess, dir, sDirChild, sNameChild, sizeChild, dateChild, zipEntryProperties, dataChild);
-        if((zipEntryProperties & FileRemote.mDirectory) !=0){
-          dataChild.children = new TreeNodeBase.TreeNode<FileRemote>(sNameChild, fileChild);
-          parentDirNode.addNode(dataChild.children);
+        TreeNodeBase.TreeNode<FileRemote> parentDirNode;
+        if (sep >= 0) {
+          parentDirNode = dataParent.children.getNode(sDirInZip, "/");
         } else {
-          parentDirNode.addNode(sNameChild, fileChild);        
+          parentDirNode = dataParent.children;
+        }
+        FileZipData dataChild = new FileZipData(); //theFile, zipFile, entry);
+        dataChild.theFile = fileZip;
+        //dataChild.zipFile = jZipFile;
+        dataChild.zipEntry = entry;
+        String sDirChild = sDirParent + sDirInZip;
+        long sizeChild = entry.getSize();
+        long dateChild = entry.getTime();
+        if(parentDirNode == null){
+          Assert.stop();
+        } else {
+          FileRemote dir = parentDirNode.data;
+          FileRemote fileChild = new FileRemote(zipAccess, dir, sDirChild, sNameChild, sizeChild, dateChild, zipEntryProperties, dataChild);
+          if((zipEntryProperties & FileRemote.mDirectory) !=0){
+            dataChild.children = new TreeNodeBase.TreeNode<FileRemote>(sNameChild, fileChild);
+            parentDirNode.addNode(dataChild.children);
+          } else {
+            parentDirNode.addNode(sNameChild, fileChild);        
+          }
         }
       }
+    } else {
+      System.err.println("FileAccessZip - Problem reading zipfile; " + fileZip.getAbsolutePath());
     }
     try{ if(jZipFile !=null) { jZipFile.close(); } } catch(IOException exc){ throw new UnexpectedException(exc); }
     return fileParent;
