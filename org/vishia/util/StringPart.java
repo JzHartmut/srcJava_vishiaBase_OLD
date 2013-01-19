@@ -74,6 +74,12 @@ public class StringPart
    * <br>
    * commit history:
    * <ul>
+   * <li>2013-01-20 Hartmut TODO: The {@link #content} should be a CharSequence. Then the instance of content may be a StringBuilder.
+   *   All content.substring should be replaced by content.subsequence(). The content.indexof-Method should be implemented here.
+   *   Advantage: A derived class can use the {@link #content} as StringBuilder and it can shift the string by operating with
+   *   large contents. Note that a origin position should be used then. This class can contain and regard a origin position,
+   *   which is =0 in this class. See {@link StringPartFromFileLines}. That class doesn't regard a less buffer yet, but it should do so. 
+   * <li>2013-01-19 Hartmut new: {@link #getPart(int, int)}
    * <li>2012-02-19 Hartmut new: {@link #assignReplaceEnv(StringBuilder)}
    * <li>2011-10-10 Hartmut new: {@link #scanFloatNumber(boolean)}. It should be possible to scan a float with clearing the buffer. Using in ZbnfParser.
    * <li>1011-07-18 Hartmut bugfix: some checks of length in {@link #scanFloatNumber()}. If the String contains only the number digits,
@@ -87,7 +93,7 @@ public class StringPart
    * <li>2005-06-00 JcHartmut  initial revision The idea of such functionality was created in th 1990th in C++ language.
    * </ul>
    */
-  public static final int version = 0x20110718; 
+  public static final int version = 20130119; 
   
   /** The actual start position of the valid part.*/
   protected int start;
@@ -117,7 +123,8 @@ abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
   protected int endMax;
 
   /** The referenced string*/
-  String content;
+  protected String content;
+  //CharSequence content;  //TODO use a CharSequence to prevent too much buffer management.
 
   /** The line number, counted by founded \n */
   protected int nLineCt = 1;
@@ -2387,6 +2394,27 @@ that is a liststring and his part The associated String
   }
   
 
+  /**Retrurn the part from start to end independent of the current positions. 
+   * This method is proper to get an older part for example to log a text afterwards the text is processed.
+   * Store the {@link #getCurrentPosition()} and {@link #getLen()} and apply it here!
+   * Note that it is possible that an older part of string is not available furthermore if a less buffer is used
+   * and the string in the buffer was shifted out. Then this method may be overridden and returns an error hint.
+   * @param fromPos The start position for the returned content. It must be a valid position.
+   * @param nrofChars The number of characters. It must be >= 0. If the content is shorter,
+   *   that shorter part is returned without error.
+   *   For example getPart(myPos, Integer.MAXINT) returns all the content till its end.
+   * @return A CharSequence. Note that the returned value should be processed immediately in the same thread.
+   *   before other routines are invoked from this class.
+   *   It should not stored as a reference and used later. The CharSequence may be changed later.
+   *   If it is necessary, invoke toString() with this returned value.
+   */
+  public CharSequence getPart(int fromPos, int nrofChars){
+    if((fromPos + nrofChars) > content.length()){ nrofChars = content.length() - fromPos; }
+    return content.subSequence(fromPos, fromPos +nrofChars);
+  }
+  
+  
+  
   /** Returns the actual part of the string. <br/>
       The StringPart may be used within a string concatation such as <pre>
       String xy = "abc" + spStringPart + "xyz";</pre>

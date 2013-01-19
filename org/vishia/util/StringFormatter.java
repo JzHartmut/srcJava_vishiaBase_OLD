@@ -53,6 +53,45 @@ import java.util.Date;
  */
 public class StringFormatter
 {
+  
+  /**Version, history and license.
+   * <ul>
+   * <li>2013-01-19: Hartmut new: {@link #addReplaceLinefeed(CharSequence, CharSequence, int)}.
+   * <li>2009-05-03: Hartmut bugfix in strPicture: nr of inserted chars was incorrect.
+   * <li>2009-03-10: Hartmut new: addDateSeconds() and addDate()
+   * <li>2007-09-12: Hartmut www.vishia.org creation copy from vishia.stringScan.StringFormatter
+   * <li>2008-04-28: Hartmut setDecimalSeparator() to produce a Germany-MS-Excel-friendly format.
+   * <li>2007...: Creation
+   * <li>1999...: The basics for the {@link #strPicture(long, String, String, char)} was created in C++ 
+   * </ul>
+   * 
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   * 
+   */
+  public static final int version = 20130118;
+  
   private static final byte mNrofBytesInWord = 0x1F;
 
   /** If this bit is set in mode, the byte with the lower index is interpreted as higher part of word
@@ -133,6 +172,7 @@ public class StringFormatter
    * Don't use it instead getContent(), use it only for debugging goals.
    * @implementInfo: optimize-toString in not set here, it may be set outside. 
    */
+  @Override
   public String toString()
   { return buffer.toString();
   }
@@ -193,19 +233,48 @@ public class StringFormatter
   public int getPos(){ return pos; }
 
   /** Adds at the current position a string.
-   *
-   * @param str String
-   * @return this
-   */
-  public StringFormatter add(String str)
-  { int nrofChars = str.length();
-    prepareBufferPos(nrofChars);
-    buffer.replace(this.pos, pos + nrofChars, str);
-    pos += nrofChars;
-    return this;
+  *
+  * @param str String
+  * @return this
+  */
+ public StringFormatter add(String str)
+ { int nrofChars = str.length();
+   prepareBufferPos(nrofChars);
+   buffer.replace(this.pos, pos + nrofChars, str);
+   pos += nrofChars;
+   return this;
+ }
+ 
+ 
+ /**Adds the given str at the current position but replaces line feed characters by given one.
+ *  This method can be used proper if a part of a multi-line-text should be presented in one line for example for logs.
+ * @param str to insert
+ * @param replaceLinefeed String with 4 characters, first replaces a 0x0a, second for 0x0d, third for 0x0c,4.for all other control keys.
+ * @param maxChars limits length to insert
+ * @return this
+ */
+public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replaceLinefeed, int maxChars)
+{ if(maxChars > str.length()){ maxChars = str.length(); }
+  if(replaceLinefeed.length() < 4) throw new IllegalArgumentException("The argument replaceLinefeed should have 4 characters.");
+  prepareBufferPos(maxChars);
+  int postr= -1;
+  while(--maxChars >=0){
+    char cc = str.charAt(++postr);
+    int replace1 = "\n\r\f".indexOf(cc);
+    if(replace1 >=0){
+      cc = replaceLinefeed.charAt(replace1);
+    }
+    if(cc <=0x20){ 
+      cc = replaceLinefeed.charAt(3);
+    }
+    buffer.setCharAt(pos++, cc);
   }
-  
-  
+  //buffer.replace(this.pos, pos + nrofChars, str);
+  //pos += nrofChars;
+  return this;
+}
+
+
   /** Adds at the current position a char[].
    *
    * @param str char array. 0-chars from backward are not added.
@@ -657,6 +726,7 @@ public class StringFormatter
   }
   
   /**@deprecated see {@link addint(long nr,String sPict)}*/
+  @Deprecated
   public StringFormatter addIntPicture(long nr,String sPict)  //Zahl anhngen, rechtsbndig nlen Zeichen oder mehr
   { strPicture(nr,sPict,"+-..", '.');
     return this;

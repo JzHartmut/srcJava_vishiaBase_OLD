@@ -648,7 +648,8 @@ public class FileRemote extends File
    */
   @Override public String getParent(){ 
     File parentFile = getParentFile();  //
-    return parentFile.getAbsolutePath();
+    if(parentFile == null){ return sDir; }
+    else { return parentFile.getAbsolutePath(); }
     //int posSlash = sDir.indexOf('/');  //the first slash
     //if only one slash is present, return it. Elsewhere don't return the terminating slash.
     //String sParent = zDir > posSlash+1 ? sDir.substring(0, zDir-1): sDir;
