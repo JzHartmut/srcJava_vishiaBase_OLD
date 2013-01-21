@@ -59,7 +59,8 @@ public class FileSystem
    * Changes:
    * <ul>
    * <li>2013-01-20 Hartmut bugfix: {@link #addFilesWithBasePath(File, String, List)}:If a /../ is used in the path,
-   *   it was faulty. Usage of canonicalpath instead absolutepath.
+   *   it was faulty. Usage of canonicalpath instead absolutepath. 
+   *   {@link #addFileToList(File, String, AddFileToList)}: Sometimes dir not regarded.  
    * <li>2013-01-12 Hartmut new: Method checkNewless(src, dst, deleteIt)
    * <li>2012-12-30 Hartmut chg: {@link #addFilesWithBasePath(File, String, List)} now gets a base directory.
    * <li>2012-12-25 Hartmut chg: {@link #mkDirPath(String)} now returns the directory which is designated by the argument
@@ -804,7 +805,7 @@ public class FileSystem
         if(posLastSlash >=0)
         { String sPathDir = sPathBefore.substring(0, posLastSlash);
           //sDirMask = sPathBefore.substring(posLastSlash+1);
-          dirBase = new File(sPathDir);
+          dirBase = new File(dir, sPathDir);
         }
         else
         { //sPathDir = sDir;

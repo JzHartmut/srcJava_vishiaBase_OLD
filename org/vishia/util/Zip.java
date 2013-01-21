@@ -182,7 +182,7 @@ public class Zip {
   
   public static void test2(){
     String err;
-    if( (err = zipfiles(new File("testzip.zip"), "./.:org/**/*", 9, "zip comment")) !=null){
+    if( (err = zipfiles(new File("testzip.zip"), null, "./.:org/**/*", 9, "zip comment")) !=null){
       System.err.println(err);
     }
   }
