@@ -6,11 +6,14 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
+import org.vishia.mainCmd.MainCmd;
 
 //import org.apache.tools.zip.ZipEntry;
 
@@ -175,9 +178,96 @@ public class Zip {
   
   public static void main(String[] args){
     
-    test2();
+    Zip zip = new Zip();
+    Cmdline cmd = zip.new Cmdline();
+    try{ cmd.parseArguments(args);
     
+    } catch(ParseException exc){
+      cmd.setExitErrorLevel(MainCmd.exitWithArgumentError);
+      cmd.exit();
+    }
+    cmd.executeMain();
   }
+  
+  
+  interface SetArgument{ boolean setArgument(String val); }
+  
+  static class Arguments{ 
+    final String arg; final String help; final SetArgument set;
+    Arguments(String arg, String help, SetArgument set){
+      this.arg = arg; this.help = help; this.set = set;
+    }
+  }
+  
+
+  class Cmdline extends MainCmd {
+
+    int compress = 5;
+    
+    File fOut;
+    
+    SetArgument setCompress = new SetArgument(){ @Override public boolean setArgument(String val){ 
+      char cc;
+      if(val.length()== 1 && (cc=val.charAt(0))>='0' && cc <='9'){
+        compress = cc-'0';
+        return true;
+      } else return false;
+    }};
+    
+    SetArgument setInput = new SetArgument(){ @Override public boolean setArgument(String val){ 
+      addSource(val);
+      return true;
+    }};
+    
+    SetArgument setOutput = new SetArgument(){ @Override public boolean setArgument(String val){ 
+      fOut = new File(val);
+      return true;
+    }};
+    
+    Arguments[] argList =
+    { new Arguments("-compress", "set the compression rate 0=non .. 90max", setCompress)
+    , new Arguments("-o", "the output file for zip output", setOutput)
+    , new Arguments("", "an input file possible with wildcards also in path like \"path/**/dir*/name*.ext*\"", setInput)
+    };
+    
+    
+    @Override
+    protected boolean checkArguments() {
+      if(fOut !=null){ return true; }
+      else return false;
+    }
+
+    @Override
+    protected boolean testArgument(String argc, int nArg) throws ParseException {
+      for(Arguments argTest : argList){
+        int argLen = argTest.arg.length();
+        int argclen = argc.length();
+        if(argLen == 0 
+          || (argc.startsWith(argTest.arg)                //correct prefix 
+             && (  argclen == argLen                      //only the prefix
+                || ":=".indexOf(argc.charAt(argLen))>=0)  //or prefix ends with the separator characters.
+                )
+          ){ //then the argument is correct and associated to this argTest.
+          String argval = argclen == argLen //no additional value, use argument 
+                        || argLen == 0      //argument without prefix (no option)
+                        ? argc              //then use the whole argument as value.
+                        : argc.substring(argLen+1);  //use the argument after the separator as value.
+          boolean bOk = argTest.set.setArgument(argval);   //call the user method for this argument.
+          if(!bOk) throw new ParseException("Argument value error: " + argc, nArg);
+          return true;
+        }
+      }
+      //argument not found (not returned in for-loop):
+      return false;
+    }
+    
+    
+    
+    void executeMain(){
+      exec(fOut,compress, "");
+    }
+  }
+  
   
   
   public static void test2(){
