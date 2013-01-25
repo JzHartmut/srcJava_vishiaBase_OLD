@@ -1,6 +1,5 @@
 package org.vishia.msgDispatch;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -8,9 +7,35 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**This class adapts an PrintStream to the LogMessage-System.
- * The first part of the stream is converted to a message ident number.
- * 
+/**This class adapts an PrintStream such as System.err to the LogMessage-System.
+ * The first part of the stream is converted to a message ident number. This allows especially the redirection of
+ * outputs to {@link System#err} or {@link System#out} to the message system.
+ * <br><br>
+ * All characters from the output string till a semicolon or colon are used as identifier for the message number. 
+ * The {@link org.vishia.msgDispatch.MsgDispatcher} needs numbers to dispatch.
+ * This first part is divide into 2 divisions: before and after a " - ".
+ * <br><br>
+ * One should write all outputs in the form:
+ * <br>
+ * System.err.println("Source of message - short message; some additional " + information);
+ * <br> 
+ * This is a form which may be proper outside this class too. One should inform about the source of the message, 
+ * then what's happen, then some more information. If one uses a semicolon as separator, it's able to present such messages
+ * for example in an Excel sheet.
+ * <br>
+ * The first part of the message string is used to build a number, whereby a number range (group) is determined by the left division
+ * before a " - " or '-'. Anytime if a message with the same first part is sent, the same number will be associated. 
+ * Only at first time a number will be created.
+ * <br>
+ * Examples for separation first division (group):
+ * <pre>
+ * "Source - second division"
+ * "Source-specification - second division"
+ * "Source-second division"
+ * </pre>
+ * One should write " - " (with spaces left and right). This is used as separator. Only if a " - " is not found, a simple
+ * '-' character is used as separator. If no separator is found, it is a non grouped message. One should use groups because
+ * the message dispatcher can deal with ranges.
  * @author Hartmut Schorrig
  *
  */
@@ -18,6 +43,9 @@ public class MsgPrintStream
 {
   /**Version, history and license.
    * <ul>
+   * <li>2013-01-26 Hartmut new: {@link #setMsgGroupIdent(String, int, int)} to handle message dispatching 
+   *   with known or probably texts.
+   * <li>2013-01-26 Hartmut chg: Limitation of ident numbers to its range.   
    * <li>2012-07-01 chg Hartmut: Now doesn't change System.err, but supplies {@link #getPrintStreamLog()}
    *   to set System.setOut(...) and System.setErr(...). 
    * <li>2011-10-00 Hartmut created
@@ -46,24 +74,29 @@ public class MsgPrintStream
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
-  @SuppressWarnings("hiding")
-  public static final int version = 2012001;
+  //@SuppressWarnings("hiding")
+  public static final int version = 20130126;
 
-  final LogMessage logOut;
+  private final LogMessage logOut;
   
-  AtomicInteger nextIdent = new AtomicInteger(100);
+  private final AtomicInteger nextIdent;
   
-  AtomicInteger nextGroupIdent = new AtomicInteger(10000);
+  private final int identLast;
+  
+  private final AtomicInteger nextGroupIdent;
+  
+  private final int identGroupLast;
 
-  int zGroup = 1000;
+  private final int zGroup;
   
   private static class GroupIdent {
-    final int identGroup;
+    final int identGroup, identLast;
     AtomicInteger nextIdentInGroup;
     
-    GroupIdent(int ident){
-      identGroup = ident;
-      nextIdentInGroup = new AtomicInteger(ident +1);
+    GroupIdent(int identGroup, int identLast){
+      this.identGroup = identGroup;
+      this.identLast = identLast;
+      nextIdentInGroup = new AtomicInteger(identGroup +1);
     }
   } //class GroupIdent
   
@@ -77,11 +110,32 @@ public class MsgPrintStream
 
   
   
+  /**Constructs.
+   * Example:
+   * <pre>
+   * MsgPrintStream myPrintStream = new MsgPrintStream(myMsgDispatcher, 10000, 5000, 100);
+   * </pre>
+   * In this example the range from 1 to 9999 is used for messages which have a defined number outside of this class.
+   * Any not numbered message is assigned in the range from 10000 till 149999 if it hasn't a group division,
+   * and in groups with the start numbers 15000, 15100 etc. (till 32699 there are 176 groups). Note that the range 
+   * which can be used is the positive integer range from 0 to about 2000000000. It may be better able to read to have
+   * not so large numbers, but there are able to use. Note that you would not have so far different message texts.
+   * 
+   * @param logOut The output where all messages are written after identifier number building. 
+   *   The {@link org.vishia.msgDispatch.MsgDispatcher} instance is proper to use.
+   * @param identStart The first automatically created number used for non grouped message.
+   *   Note that other messages have a known fixed number. Use a separate range in the positiv Integers range.   
+   * @param sizeNoGroup number of the non grouped message identifiers. After this range the grouped messages starts. 
+   *   Use a high enough number such as 1000 or 10000 or more.
+   * @param sizeGroup Size of any group. Use a middle-high enough number such as 100 or 1000. 
+   *   There won't be more as 1000 several message texts in one group - usually. 
+   */
   public MsgPrintStream(LogMessage logOut, int identStart, int sizeNoGroup, int sizeGroup) {
     this.logOut = logOut;
     this.nextIdent = new AtomicInteger(identStart);
-    
+    this.identLast = identStart + sizeNoGroup -1;
     this.nextGroupIdent = new AtomicInteger(identStart + sizeNoGroup);
+    this.identGroupLast = Integer.MAX_VALUE - sizeGroup;
 
     this.zGroup = sizeGroup;
     printStreamLog = new PrintStreamAdapter();
@@ -89,9 +143,60 @@ public class MsgPrintStream
     //System.setErr(printStreamLog);  //redirect all System.err.println to the MsgDispatcher or the other given logOut
   }
   
+  
+  
+  
+  
+  /**Returns the PrintStream which converts and redirects the output String to the given LogMessage output.
+   * One can invoke:
+   * <pre>
+   * System.setErr(myMsgPrintStream.getPrintStreamLog);
+   * </pre>
+   * Then any output to System.err.println("text") will be redirected.
+   * @return
+   */
   public PrintStream getPrintStreamLog(){ return printStreamLog; }
 
 
+  
+  
+  /**Creates a group with the given text and the given ident number range.
+   * For this group the numbers inside te group are created automatically, but the group is disposed in a defined 
+   * fix range. It have to be outside of the range given by constructor.
+   * <br>
+   * The method is proper to use if one knows some message texts and one is attempt to dispatch it.
+   *  
+   * @param msg The text till the exclusive " - " separation.
+   * @param nrStart The first number of the group
+   * @param nrLast The last number of the group.
+   */
+  public void setMsgGroupIdent(String msg, int nrStart, int nrLast){
+      GroupIdent grpIdent = idxGroupIdent.get(msg);
+      if(grpIdent ==null){
+        grpIdent= new GroupIdent(nrStart, nrLast);
+      }
+  }
+  
+  
+  private GroupIdent getMsgGroupIdent(String msg){
+    GroupIdent grpIdent = idxGroupIdent.get(msg);
+    if(grpIdent == null){
+      int nextGrpIdent;
+      int catastrophicCount = 0;
+      int nextGrpIdent1;
+      do{
+        if(++catastrophicCount > 10000) throw new IllegalArgumentException("Atomic");
+        nextGrpIdent = nextGroupIdent.get();
+        nextGrpIdent1 = nextGrpIdent < identGroupLast ? nextGrpIdent + zGroup : nextGrpIdent;
+      } while( !nextGroupIdent.compareAndSet(nextGrpIdent, nextGrpIdent1));
+      grpIdent = new GroupIdent(nextGrpIdent, nextGrpIdent1-1);
+      idxGroupIdent.put(msg, grpIdent);
+    }
+    return grpIdent;
+  }
+  
+  
+  
   
   private void convertToMsg(String s, Object... args) {
     int posSemicolon = s.indexOf(';');
@@ -104,31 +209,29 @@ public class MsgPrintStream
     Integer nIdent = idxIdent.get(sIdent);
     if(nIdent == null){
       int nIdent1;
-      int posGrp = sIdent.indexOf('-');
+      int posGrp = sIdent.indexOf(" - ");
+      if(posGrp < 0){
+        posGrp =sIdent.indexOf('-');
+      }
       
       if(posGrp >0){
         String sGrp = sIdent.substring(0, posGrp).trim();
-        GroupIdent grpIdent = idxGroupIdent.get(sGrp);
-        if(grpIdent == null){
-          int nextGrpIdent;
-          int catastrophicCount = 0;
-          do{
-            if(++catastrophicCount > 10000) throw new IllegalArgumentException("Atomic");
-            nextGrpIdent = nextGroupIdent.get();
-          } while( !nextGroupIdent.compareAndSet(nextGrpIdent, nextGrpIdent + zGroup));
-          grpIdent = new GroupIdent(nextGrpIdent);
-          idxGroupIdent.put(sGrp, grpIdent);
-        }
+        GroupIdent grpIdent = getMsgGroupIdent(sGrp);
         int catastrophicCount = 0;
+        int nextIdentInGroup1;
         do{
           if(++catastrophicCount > 10000) throw new IllegalArgumentException("Atomic");
           nIdent1 = grpIdent.nextIdentInGroup.get();
-        } while( !grpIdent.nextIdentInGroup.compareAndSet(nIdent1, nIdent1 + 1));
+          //the nextIdentInGroup is the current one used yet. Increment the nextIdentInGroup if admissible: 
+          nextIdentInGroup1 = nIdent1 < grpIdent.identLast ? nIdent1 +1 : nIdent1;
+        } while( !grpIdent.nextIdentInGroup.compareAndSet(nIdent1, nextIdentInGroup1));
       } else {  //no group 
         int catastrophicCount = 0;
+        int nextIdent1;
         do{
           if(++catastrophicCount > 10000) throw new IllegalArgumentException("Atomic");
           nIdent1 = nextIdent.get();
+          nextIdent1 = nIdent1 < identLast ? nIdent1 +1 : nIdent1;
         } while( !nextIdent.compareAndSet(nIdent1, nIdent1 + 1));
         
       }
@@ -146,7 +249,7 @@ public class MsgPrintStream
    * But the outStream should not be empty.
    * 
    */
-  OutputStream outStream = new OutputStream() {
+  private final OutputStream outStream = new OutputStream() {
     
     @Override
     public void write(int b) throws IOException
@@ -155,7 +258,7 @@ public class MsgPrintStream
   }; //outStream 
   
   
-  class PrintStreamAdapter extends PrintStream {
+  private class PrintStreamAdapter extends PrintStream {
     
     
     PrintStreamAdapter() {

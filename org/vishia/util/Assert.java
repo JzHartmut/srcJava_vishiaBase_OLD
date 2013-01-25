@@ -1,6 +1,8 @@
 package org.vishia.util;
 
-/**Supports individual handling of assertions especially in debug phase. 
+import java.io.PrintStream;
+
+/**Supports special handling of Outputs and assertions especially in debug phase. 
  * The application can create any special Assert class which extends this class
  * and override the both methods {@link #assertion(boolean)} and {@link #assertion(boolean, String)}.
  * The special instance can be set for the whole application calling {@link #setAssertionInstance(Assert)}.
@@ -28,6 +30,10 @@ public class Assert
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-01-26 Hartmut new: {@link #consoleErr(String, Object...)}, {@link #consoleOut(String, Object...)}:
+   *   Possibility to use the original System.out channel even System.setErr() etc. may be invoked.
+   * <li> 2013-01-26 Hartmut chg: {@link #assertion(boolean)} etc. are protected now and commented. That are the methods
+   *   which can be overridden in another class which is used by {@link #setAssertionInstance(Assert)}.  
    * <li>2012-11-19 Hartmut new: stop() as dummy routine here now.
    * <li>2012-09-02 Hartmut new {@link #exceptionInfo(String, Throwable, int, int)} and {@link #stackInfo(String, int)}
    *   to support a short info output for example for messages. Not the whole stacktrace!
@@ -60,8 +66,24 @@ public class Assert
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20120828;
+  public static final int version = 20130126;
 
+
+  /**The System.err and System.out standard console outputs are copied to this class
+   * able to use in its original output. The System.out and System.err may be overridden
+   * by invocation of {@link java.lang.System#setErr(PrintStream)} with any other output channel, which may be redirected 
+   * to the message system itself.
+   * If any output should be done while dispatching a message, a loop may be caused. In this case it is wrong
+   * to use System.err or System.out. Then this references can be used.
+   * Any user can use this references if an output should be done definitely without usage the message system.   
+   * <br>
+   * This references are set when this interface is used the first time. In this time the System.err
+   * and System.out are not changed by the message System itself, because this interface was not used before.
+   * 
+   */
+  private static PrintStream out = System.out, err = System.err;
+
+  
   /**This is only a debug helper, an empty instruction.  */
   public static void stop(){};
   
@@ -71,7 +93,7 @@ public class Assert
    * @param instance The users assertion instance.
    */
   public static void setAssertionInstance(Assert instance){
-    o = instance;
+    assertObject = instance;
   }
   
   /**Checks whether an assertion is met.
@@ -79,10 +101,10 @@ public class Assert
    * @param shouldTrue
    */
   public static void check(boolean shouldTrue){
-    if(o == null){ 
-      o = new Assert(); //if no assertion instance is given, create this. 
+    if(assertObject == null){ 
+      assertObject = new Assert(); //if no assertion instance is given, create this. 
     }
-    o.assertion(shouldTrue);
+    assertObject.assertion(shouldTrue);
   }
   
   
@@ -91,10 +113,10 @@ public class Assert
    * @param shouldTrue
    */
   public static void checkMsg(boolean shouldTrue, String msg){
-    if(o == null){ 
-      o = new Assert(); //if no assertion instance is given, create this. 
+    if(assertObject == null){ 
+      assertObject = new Assert(); //if no assertion instance is given, create this. 
     }
-    o.assertMsg(shouldTrue, msg);
+    assertObject.assertMsg(shouldTrue, msg);
   }
   
   
@@ -150,10 +172,11 @@ public class Assert
   
   /**This routine can handle a assertion to support debugging or reporting.
    * The Stacktrace can help to detect where the assertion occurs.
+   * This routine can be overridden with any other instance to provide a special assertion handling.
    * 
    * @param shouldTrue
    */
-  public void assertion(boolean shouldTrue){
+  protected void assertion(boolean shouldTrue){
     if(!shouldTrue)
       assert(shouldTrue);
       
@@ -161,20 +184,22 @@ public class Assert
   
   /**This routine can handle a assertion to support debugging or reporting.
    * The Stacktrace can help to detect where the assertion occurs.
+   * This routine can be overridden with any other instance to provide a special assertion handling.
    * 
    * @param shouldTrue
    */
-  public void assertion(boolean shouldTrue, String msg){
+  protected void assertion(boolean shouldTrue, String msg){
     if(!shouldTrue)
       throw new RuntimeException(msg);
       
   }
   
   /**Assert the condition, writes a message to System.err if it is false.
+   * This routine can be overridden with any other instance to provide a special assertion handling.
    * @param shouldTrue
    * @param msg If it is null, an info from stacktrace is build.
    */
-  public void assertMsg(boolean shouldTrue,  CharSequence msg){
+  protected void assertMsg(boolean shouldTrue,  CharSequence msg){
     if(!shouldTrue){
       if(msg == null){
         msg = stackInfo("assertMsg ", 4);
@@ -183,7 +208,41 @@ public class Assert
     }
   }
   
-  private static Assert o;
+  private static Assert assertObject;
   
+  
+  /**Output to the original System.out channel though {@link java.lang.System#setOut(PrintStream)} 
+   * was invoked with another channel after first usage of this class.
+   * Note that the user should invoke any action from Assert, for example <code>Assert.check(true);</code>
+   * as a first instruction in main(). Then this class saves the original System.out PrintStream object in this class
+   * to use in this method.<br>
+   * Note that the System.out may be redirected for any other reason, for example usage for Message Dispatching with
+   * {@link org.vishia.msgDispatch.MsgPrintStream}. This method is independent of them.
+   *  
+   * @param text Text to output. One should use "\n" to force a line feed. Format character can be used
+   *   in the same kind as {@link java.io.PrintStream#printf(String, Object...)}.
+   * @param args The arguments for the formatted text.
+   */
+  public static void consoleOut(String text, Object ... args){
+    out.printf(text, args);
+  }
+
+
+  /**Output to the original System.err channel though {@link java.lang.System#setErr(PrintStream)} 
+   * was invoked with another channel after first usage of this class.
+   * Note that the user should invoke any action from Assert, for example <code>Assert.check(true);</code>
+   * as a first instruction in main(). Then this class saves the original System.err PrintStream object in this class
+   * to use in this method.<br>
+   * The System.err may be redirected for any other reason, for example usage for Message Dispatching with
+   * {@link org.vishia.msgDispatch.MsgPrintStream}. This method is independent of them.
+   *  
+   * @param text Text to output. One should use "\n" to force a line feed. Format character can be used
+   *   in the same kind as {@link java.io.PrintStream#printf(String, Object...)}.
+   * @param args The arguments for the formatted text.
+   */
+  public static void consoleErr(String text, Object ... args){
+    err.printf(text, args);
+  }
+
 
 }
