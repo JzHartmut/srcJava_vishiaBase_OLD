@@ -910,8 +910,7 @@ public class FileRemote extends File
     boolean bOk;
     List<File> listFiles = new LinkedList<File>();
     try{
-      FileSystem.addFileToList(this, sPath, listFiles);
-      bOk = true;
+      bOk =FileSystem.addFileToList(this, sPath, listFiles);
       for(File file: listFiles){
         if(file.isDirectory()){
           if(!FileSystem.rmdir(file)){ bOk = false; };
@@ -922,7 +921,7 @@ public class FileRemote extends File
           if(!file.delete()){ bOk = false; };
         }
       }
-    } catch(FileNotFoundException exc){
+    } catch(Exception exc){
       bOk = false;
     }
     if(backEvent !=null){

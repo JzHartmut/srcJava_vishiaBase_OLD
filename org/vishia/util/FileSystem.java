@@ -45,21 +45,41 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Reader;
 import java.io.FileFilter;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
 /**This class supports some functions of file system access as enhancement of the class java.io.File
  * independently of other classes of vishia packages, only based on Java standard.
  * Some methods helps a simple using of functionality for standard cases.
+ * <br><br>
+ * Note that the Java-7-Version supplies particular adequate functionalities in its java.nio.file package.
+ * This functionality is not used here. This package was created before Java-7 was established. 
+ * <br><br>
+ * <b>Exception philosophy</b>:
+ * The java.io.file classes use the exception concept explicitly. Thats right if an exception is not the normal case.
+ * But it is less practicable if the throwing of the exception is an answer of an expected situation 
+ * which should be though tested in any case.
+ * <br><br>
+ * Some methods of this class doesn't throw an exception if the success can be checked with a simple comparison
+ * and it should be inquired in usual cases. For example {@link #getDirectory(File)} returns the directory or null 
+ * if the input file is not existing. It does not throw a FileNotFoundException. The result is expected, the user
+ * can do a null-check easily.
+ * 
  */
 public class FileSystem
 {
 
-  /**Version, able to read as hex yyyymmdd.
+  /**Version, history and license.
    * Changes:
    * <ul>
+   * <li>2013-02-03 Hartmut chg: the {@link #addFileToList(String, AddFileToList)} does not throw a FileNotFoundException
+   *   instead it returns false. All try-catch Blocks of a user calling environment may be changed to <code>catch(Exception e)</code>
+   *   instead of <code>catch(FileNotFoundException e)</code> as simple work arround.
+   * <li>2013-02-03 Hartmut new: {@link #normalizePath(String)}
+   * <li>2013-02-03 Hartmut chg: {@link #addFilesWithBasePath(File, String, List)} improved
    * <li>2013-01-20 Hartmut bugfix: {@link #addFilesWithBasePath(File, String, List)}:If a /../ is used in the path,
-   *   it was faulty. Usage of canonicalpath instead absolutepath. 
+   *   it was faulty. Usage of canonicalpath instead absolute path. 
    *   {@link #addFileToList(File, String, AddFileToList)}: Sometimes dir not regarded.  
    * <li>2013-01-12 Hartmut new: Method checkNewless(src, dst, deleteIt)
    * <li>2012-12-30 Hartmut chg: {@link #addFilesWithBasePath(File, String, List)} now gets a base directory.
@@ -82,8 +102,42 @@ public class FileSystem
    *   Usage of "~/path" to select in the users home in linux.
    * <li>2011-06-22 {@link #getCanonicalPath(File)} returns slash in operation system MS-Windows too.
    * <li>2011-07-10 Hartmut
+   * <li>2009-12-29 Hartmut bugfix: addFilesWithBasePath(...): If the sPath contains a ':' on second pos (Windows Drive), than the method hadn't accepted a ':' inside, fixed.
+   * <li>2009-12-29 Hartmut bugfix: mkDirPath(...): not it accepts '\' too (Windows)
+   * <li>2009-12-29 Hartmut corr: addFileToList(...): uses now currentDir, if param dir== null.
+   * <li>2009-12-29 Hartmut new: method relativatePath(String sInput, String sRefDir)
+   * <li>2009-05-06 Hartmut new: writeFile(content, file);
+   * <li>2009-05-06 Hartmut bugfix: addFileToList(): A directory was also added like a file if wildcards are used. It is false, now filtered file.isFile().
+   * <li>2009-03-24 Hartmut new: isAbsolutePathOrDrive()
+   * <li>2008-04-02 Hartmut corr: some changes
+   * <li>2007-10-15 Hartmut: creation
    * <li>2007 Hartmut: created
    * </ul>
+   * 
+   * 
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
    */
   public final static int version = 20130120;
 
@@ -115,6 +169,7 @@ public class FileSystem
       this.basePath = sBasePath;
       this.localPath = localPath;
     }
+    @Override public String toString() { return basePath+ ":" + localPath; }
   }
   
   /**Temporary class used only inside {@link #addFilesWithBasePath}.
@@ -129,7 +184,11 @@ public class FileSystem
     
     final int posLocalPath;
     
-    /**Construtor fills the static members. */
+    /**Construtor fills the static members.
+     * @param sPathBase 
+     * @param posLocalPath
+     * @param list
+     */
     FilesWithBasePath(String sPathBase, int posLocalPath, List<FileAndBasePath> list)
     { this.sPathBase = sPathBase; 
       this.list = list;
@@ -173,36 +232,37 @@ public class FileSystem
    * @throws FileNotFoundException
    */
   public static boolean addFilesWithBasePath(final File baseDir, final String sPath, List<FileAndBasePath> list) 
-  throws FileNotFoundException
+  //throws FileNotFoundException
   { final String sPathBase;
     final File dir;
     final int posLocalPath;
     int posBase = sPath.indexOf(':',2);
     final String sPathLocal;
+    final CharSequence sAbsDir;
     if(posBase >=2)
     { sPathBase = (sPath.substring(0, posBase) + "/").replace('\\', '/');
-      dir = new File(baseDir, sPathBase);
-      String sBasepathAbsolute = getCanonicalPath(dir);
-      //The position after the separator after the absPath of base directory
-      // is the start of the local path.
-      
-      posLocalPath = sBasepathAbsolute.length() +1;  
-      if(posBase < posLocalPath){
-        sPathLocal = sPath.substring(posBase +1).replace('\\', '/');
-      } else {
-        sPathLocal = "";
-      }
+      sPathLocal = sPath.substring(posBase +1).replace('\\', '/');
+      sAbsDir = normalizePath(baseDir.getAbsolutePath() + "/" + sPathBase);
+      posLocalPath = sAbsDir.length();
+      dir = new File(sAbsDir.toString()); //baseDir, sPathBase);
     }
     else 
-    { sPathBase = ""; 
+    { //sPathBase = "";
+      String sBaseDir = baseDir.getAbsolutePath();
+      sAbsDir = normalizePath(sBaseDir);
+      if(sBaseDir.length() != sAbsDir.length()){
+        dir = new File(sAbsDir.toString());
+      } else {
+        dir = baseDir;  //use same instance, the path is correct
+      }
       sPathLocal = sPath.replace('\\', '/');
-      posLocalPath = 0;
-      dir = baseDir;  //may be null
+      posLocalPath = sAbsDir.length();
     }
     //The wrapper is created temporary to hold the informations about basepath
     // to fill in the members of the list. 
     // The wrapper instance isn't necessary outside of this static method. 
-    FilesWithBasePath wrapper = new FilesWithBasePath(sPathBase, posLocalPath, list);
+    //FilesWithBasePath wrapper = new FilesWithBasePath(sPathBase, posLocalPath, list);
+    FilesWithBasePath wrapper = new FilesWithBasePath(sAbsDir.toString(), posLocalPath, list);
     return FileSystem.addFileToList(dir,sPathLocal, wrapper);
   }
   
@@ -446,10 +506,28 @@ public class FileSystem
   { File dir;
     if(!file.exists()) throw new FileNotFoundException("not exists:" + file.getName());
     if(!file.isAbsolute()){
-  		file = file.getAbsoluteFile();
-  	}
-  	dir = file.getParentFile();
-  	return dir;
+      file = file.getAbsoluteFile();
+    }
+    dir = file.getParentFile();
+    return dir;
+  }
+  
+  
+  /**Returns the directory of the given file.
+   * The {@link java.io.File#getParentFile()} does not return the directory if the File is described as a relative path
+   * which does not contain a directory. This method builds the absolute path of the input file and returns its directory. 
+   * @param file
+   * @return null if the file does not exists or the file is the root directory. 
+   *   To distinguish whether the file is not exist or it is the root directory one can check file.exist().  
+   */
+  public static File getDir(File file)
+  { File dir;
+    if(!file.exists()) return null;
+    if(!file.isAbsolute()){
+      file = file.getAbsoluteFile();
+    }
+    dir = file.getParentFile();
+    return dir;
   }
   
   
@@ -632,31 +710,79 @@ public class FileSystem
   
   
   
-  /**Cleans any /../ and /./ from a path. It makes it canonical.
+  /**Cleans any /../ and /./ from a path, it makes it normalized or canonical.
    * The difference between this canonical approach and java.io.File.getCanonicalpath() is:
    * The canonical path of a file in a Unix-like filesystem presents the really location of a file
-   * dissolving symbolic links. 
-   * @param inp Any path.
-   * @return The originally inp if inp doesn't contain /./ or /../, elsewhere a new String
+   * dissolving symbolic links. A path which is returned by a found File object (not a constructed File)
+   * shall have the same path like this normalized one, except slash or backslash.
+   * For example
+   * 
+   * @param inp Any path which may contain /./ or /../, with backslash or slash-separator.
+   * @return The originally inp if inp doesn't contain /./ or /../ or backslash, elsewhere a new String
+   *   which presents the normalized form of the path. It does not contain backslash but slash as separator.
+   *   It does not contain any "/./" or "//" or "/../". 
+   *   It does contain "../" only at start of the result if necessary.
    */
-  public static String cleanAbsolutePath(String inp){
-    if(inp.indexOf("./")>=0){
-      StringBuilder uPath = new StringBuilder(inp);
-      int pos;
-      while( ( pos=uPath.indexOf("/../") ) >=0){
-        int pos1 = uPath.lastIndexOf("/", pos-1);
-        uPath.delete(pos1, pos+4);
+  public static CharSequence normalizePath(final String inp){
+    final String inp1 = inp.replace('\\', '/');  //generally use slash
+    int posSlash2 = inp1.indexOf("//");
+    int posDot1 = inp1.indexOf("/./"); 
+    int posDot2 = inp1.indexOf("/../");  
+    if( posDot1>=0 || posSlash2 >=0 || posDot2 >=0 || inp1.startsWith("./") || inp1.endsWith("/.") || inp1.endsWith("/..")){  
+      //need of handling
+      final StringBuilder uPath = new StringBuilder(inp1);
+      do{
+        int posEnd = uPath.length();
+        int posNext = posEnd-1;
+        if(posDot1 > 0){                                //remove "/." 
+          uPath.delete(posDot1, posDot1+2); posNext = posDot1; 
+          if(posSlash2 > posDot1){ posSlash2 -=2; }  //shift to left because remove
+          if(posDot2 > posDot1){ posDot2 -=2; }
+          posEnd -=2;
+        }
+        if(posSlash2 > 0){                                //remove "/" 
+          uPath.delete(posSlash2, posSlash2+1); 
+          if(posNext > posSlash2){ posNext = posSlash2; } 
+          if(posDot2 > posSlash2){ posDot2 -=1; }  //shift to left because remove
+          posEnd -=1;
+        }  
+        if(posDot2 > 0){
+          int posStart = uPath.lastIndexOf("/", posDot2-1);
+          if(posStart >=0){                            //remove "/path/.. 
+            uPath.delete(posStart, posDot2+3); 
+            if(posNext > posStart){ posNext = posStart; }
+            posEnd -=posDot2 - posStart +3;
+          }  
+          else if(posDot2 > 0){                         //remove "path/../"
+            uPath.delete(0, posDot2+4);
+            posNext = 0;
+            posEnd -= posDot2+4;
+          } 
+          else { //don't remove "../" at begin.
+            posNext = 3;
+          }
+        }
+        posSlash2 = uPath.indexOf("//", posNext);
+        posDot1 = uPath.indexOf("/./", posNext); 
+        posDot2 = uPath.indexOf("/../", posNext);
+        if(posDot1 < 0 && posEnd >=2 && uPath.charAt(posEnd-2)=='/' && uPath.charAt(posEnd-1)=='.' ){ posDot1 = posEnd-2; }
+        if(posDot2 < 0 && posEnd >= 3 && uPath.charAt(posEnd-3)=='/' && uPath.charAt(posEnd-2)=='.'  && uPath.charAt(posEnd-1)=='.' ){ posDot2 = posEnd-3; }
+      } while( posDot1>=0 || posSlash2 >=0 || posDot2 >=0);
+      if(uPath.charAt(0)=='.' && uPath.charAt(1)=='/' ){
+        uPath.delete(0, 2); //remove "./" on  start, all others "/./ are removed already
       }
-      while( ( pos=uPath.indexOf("/./") ) >=0){
-        uPath.delete(pos, pos+3);
-      }
-      return uPath.toString();
-    } else {
-      return inp;
-    }
+      return uPath;
+    } 
+    return inp1;
   }
   
   
+  /**Cleans ".." and "." from an absolute path.
+   * @deprecated, use {@link #normalizPath(String)}. It does the same.
+   * @param inp
+   * @return
+   */
+  public static String cleanAbsolutePath(String inp){ return normalizePath(inp).toString(); }
   
   
   /**Returns true if the file is symbolic linked. This works on Unix-like file systems.
@@ -718,21 +844,31 @@ public class FileSystem
   
   
 
-  /**adds Files with the wildcard-path to a given list.
+  /**Adds Files with the wildcard-path to a given list.
    *
    * @param sPath path with wildcards in the filename.
    * @param listFiles given list, the list will be extended.
-   * @return true if anything is added, false if no matching file is found.
-   * @throws FileNotFoundException
+   * @return false if the deepst defined directory of a wildcard path does not exist.
+   *   true if the search directory exists independent of the number of founded files.
+   *   Note: The number of founded files can be query via the listFiles.size().
    */
   public static boolean addFileToList(String sPath, List<File> listFiles)
-  throws FileNotFoundException
+  //throws FileNotFoundException
   { sPath = sPath.replace('\\', '/');
     return addFileToList(null, sPath, listFiles);
   }
 
+
+  /**Adds Files with the wildcard-path to a given list.
+  *
+  * @param sPath path with wildcards in the filename.
+  * @param listFiles given list, the list will be extended.
+  * @return false if the deepst defined directory of a wildcard path does not exist.
+  *   true if the search directory exists independent of the number of founded files.
+  *   Note: The number of founded files can be query via the listFiles.size().
+  */
   public static boolean addFileToList(String sPath, AddFileToList listFiles)
-  throws FileNotFoundException
+  //throws FileNotFoundException
   { sPath = sPath.replace('\\', '/');
     return addFileToList(null, sPath, listFiles);
   }
@@ -742,10 +878,11 @@ public class FileSystem
    * @param dir may be null, a directory as base for sPath.
    * @param sPath path may contain wildcard for path and file.
    * @param listFiles Container to get the files.
-   * @return true if at least on file is found.
-   * @throws FileNotFoundException
+   * @return false if the dir not exists or the deepst defined directory of a wildcard path does not exist.
+   *   true if the search directory exists independent of the number of founded files.
+   *   Note: The number of founded files can be query via the listFiles.size().
    */
-  public static boolean addFileToList(File dir, String sPath, List<File> listFiles) throws FileNotFoundException
+  public static boolean addFileToList(File dir, String sPath, List<File> listFiles) //throws FileNotFoundException
   {
     ListWrapper listWrapper = new ListWrapper(listFiles);
     //NOTE: the listFiles is filled via the temporary ListWrapper.
@@ -756,10 +893,12 @@ public class FileSystem
    * @param dir may be null, a directory as base for sPath.
    * @param sPath path may contain wildcard for path and file.
    * @param listFiles Container to get the files.
-   * @return true if at least on file is found.
-   * @throws FileNotFoundException
+   * @return false if the dir not exists or the deepst defined directory of a wildcard path does not exist.
+   *   true if the search directory exists independent of the number of founded files.
+   *   Note: The number of founded files can be query via the listFiles.size().
    */
-  public static boolean addFileToList(File dir, String sPath, AddFileToList listFiles) throws FileNotFoundException
+  public static boolean addFileToList(File dir, String sPath, AddFileToList listFiles) 
+  //throws FileNotFoundException
   { boolean bFound = true;
     //final String sDir, sDirSlash;
     //if(dir != null){ sDir = dir.getAbsolutePath(); sDirSlash = sDir + "/"; }
@@ -803,7 +942,7 @@ public class FileSystem
         //String sPathDir; //, sDirMask;
         FileFilter dirMask = null;
         if(posLastSlash >=0)
-        { String sPathDir = sPathBefore.substring(0, posLastSlash);
+        { String sPathDir = sPathBefore.substring(0, posLastSlash+1);  //inclusively "/" to do "D:/"
           //sDirMask = sPathBefore.substring(posLastSlash+1);
           dirBase = new File(dir, sPathDir);
         }
@@ -813,7 +952,7 @@ public class FileSystem
           dirBase = dir;
         
         }
-        if(!dirBase.isDirectory()) throw new FileNotFoundException("Dir not found:" + dirBase.getAbsolutePath());
+        if(!dirBase.isDirectory()){ return false; }//throw new FileNotFoundException("Dir not found:" + dirBase.getAbsolutePath());
         if(bAllTree)
         { addDirRecursivelyToList(dirBase, dirMask, sPathBehind, listFiles);
         }
@@ -859,7 +998,8 @@ public class FileSystem
 
 
 
-  private static void addDirRecursivelyToList(File dirParent, FileFilter dirMask, String sPath, AddFileToList listFiles) throws FileNotFoundException
+  private static void addDirRecursivelyToList(File dirParent, FileFilter dirMask, String sPath, AddFileToList listFiles) 
+  //throws FileNotFoundException
   {
     addFileToList(dirParent, sPath, listFiles);  //the files inside
     File[] subDirs = dirParent.listFiles();  //TODO use dirmask to filter /name**name/ or
@@ -941,7 +1081,79 @@ public class FileSystem
   }
 
 
+  
+  
+  /**Test routine with examples to test {@link #normalizePath(String)}. */
+  public static void test_searchFile(){
+    List<File> foundFile = new LinkedList<File>();
+    boolean bOk = addFileToList("D:/**/srcJava_vishiaBase", foundFile);
+  }  
+  
+  
+  
+  /**Test routine with examples to test {@link #normalizePath(String)}. */
+  public static void test_addFilesWithBasePath(){
+    CharSequence result;
+    File dir = new File(".");  //it is the current dir, but without absolute path.
+    File dirAbs = dir.getAbsoluteFile();
+    File parent = getDir(dir);   //builds the real parent. It depends on the start directory of this routine.
+    File grandparent = getDir(parent);
+    String sParent = parent.getPath().replace("\\", "/");  //the path
+    int posSlash = sParent.lastIndexOf('/');
+    String sNameParent = sParent.substring(posSlash +1);
+    String searchPath = sNameParent + "/**/*";
+    List<FileAndBasePath> files = new ArrayList<FileAndBasePath>();
+    addFilesWithBasePath(grandparent, searchPath, files);
+    searchPath = sNameParent + "/..:**/*";
+    files.clear();
+    addFilesWithBasePath(parent, searchPath, files);
+  }  
+  
+  
+  
+  /**Test routine with examples to test {@link #normalizePath(String)}. */
+  public static void test_normalizePath(){
+    CharSequence result;
+    result = normalizePath("../path//../file"); 
+    assert(result.toString().equals( "../file"));
+    result = normalizePath("../path/file/."); 
+    assert(result.toString().equals( "../path/file"));
+    result = normalizePath("../path/../."); 
+    assert(result.toString().equals( ".."));
+    result = normalizePath("../path//../file"); 
+    assert(result.toString().equals( "../file"));
+    result = normalizePath("..\\path\\\\..\\file"); 
+    assert(result.toString().equals( "../file"));
+    result = normalizePath("/../path//../file"); 
+    assert(result.toString().equals( "/../file"));  //not for praxis, but correct
+    result = normalizePath("./path//file/"); 
+    assert(result.toString().equals( "path/file/"));    //ending "/" will not deleted.
+    result = normalizePath("path/./../file"); 
+    assert(result.toString().equals( "file"));       
 
+    File dir = new File(".");  //it is the current dir, but without absolute path.
+    File dirAbs = dir.getAbsoluteFile();
+    File parent = dir.getParentFile();  assert(parent == null);  //property of java.io.File
+    parent = getDir(dir);   //builds the real parent. It depends on the start directory of this routine.
+    String sParent = parent.getPath().replace("\\", "/");  //the path
+    int posSlash = sParent.lastIndexOf('/');
+    String sNameParent = sParent.substring(posSlash +1);
+    File fileTest = new File(sParent + "/..",sNameParent); //constructed filecontains "/../" in its path
+    CharSequence sFileTest = normalizePath(fileTest.getAbsolutePath());
+    CharSequence sDirAbs = normalizePath(dirAbs.getAbsolutePath());
+    assert(StringFunctions.equals(sFileTest,sDirAbs));
+  }
+  
+  
+  
+  /**The main routine contains only tests.
+   * @param args
+   */
+  public static void main(String[] args){
+    //test_normalizePath();
+    //test_addFilesWithBasePath();
+    test_searchFile();
+  }
 
 
 }

@@ -61,7 +61,7 @@ public class Filecmd
   
   private final PrepareCmd cmd = new PrepareCmd();
   
-  private List<File> files = new LinkedList<File>();
+  private final List<File> files = new LinkedList<File>();
   
   Filecmd(MainCmd_ifc mainCmd, Cargs cargs)
   { this.mainCmd = mainCmd;
@@ -77,10 +77,9 @@ public class Filecmd
   void execute()
   {
     boolean ok = true;
-    try{ FileSystem.addFileToList(cargs.sFileMask, files);}
-    catch(FileNotFoundException exc){
+    ok = FileSystem.addFileToList(cargs.sFileMask, files);
+    if(!ok){
       mainCmd.writeError("Filecmd- file not found in path; " + cargs.sFileMask);
-      ok = false;
     }
     if(ok && cargs.sFileOut !=null){
       try{ out = new FileWriter(cargs.sFileOut); }

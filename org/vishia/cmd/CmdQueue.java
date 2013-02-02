@@ -21,6 +21,8 @@ public class CmdQueue implements Closeable
   
   /**Version, history and license:
    * <ul>
+   * <li>2013-02-03 Hartmut chg: better execution exception, uses log in {@link #execCmds(Appendable)}
+   * <li>2013-02-03 Hartmut chg: {@link #execCmds(Appendable)} with only one parameter, the second one was unused.
    * <li>2011-12-03 Hartmut chg: The {@link #pendingCmds}-queue contains {@link PendingCmd} instead
    *   {@link CmdStore.CmdBlock} now. It is one level near on the really execution. A queued
    *   command may not stored in a CmdBlock. 
@@ -96,7 +98,7 @@ public class CmdQueue implements Closeable
   
   //private final MainCmd_ifc mainCmd;
 
-  private PrintStream log;
+  private final PrintStream log;
   
   private boolean busy;
   
@@ -124,6 +126,10 @@ public class CmdQueue implements Closeable
     cmdError = userErr;
   }
   
+  /**@deprecated it does nothing.
+   * @param file
+   */
+  @Deprecated
   public void setWorkingDir(File file)
   { final File dir;
     if(!file.isDirectory()){
@@ -156,7 +162,7 @@ public class CmdQueue implements Closeable
    * @param files null or some files for execution
    * @param currentDir directory of execution
    * @param kindOfExecution See {@link PrepareCmd#PrepareCmd(char)}
-   * @return
+   * @return number of pending commands.
    */
   public int addCmd(String sCmd, File[] files, File currentDir, char kindOfExecution)
   {
@@ -169,11 +175,13 @@ public class CmdQueue implements Closeable
   
   
   
-  /**Execute the pending commands.
-   * This method should be called in a specified user thread.
-   * 
+  /**Executes the pending commands.
+   * This method should be called in a specified user thread. It returns if the command queue is empty.
+   * It should be called cyclically or the thread should be woken up after a {@link #addCmd(CmdBlock, File[], File)}.
+   * @param outStatus A channel to write the execution status for example for a GUI-notification.
+   *   A '\0' will be append to it if the queue is empty after execution.
    */
-  public final void execCmds(Appendable outStatus, Appendable outErrors)
+  public final void execCmds(Appendable outStatus)
   {
     PendingCmd cmd1;
     boolean someExecute = false;
@@ -217,7 +225,11 @@ public class CmdQueue implements Closeable
             log.println(sCmdShow);
             //mainCmd.writeInfoln(sCmdShow.toString());
             if(outStatus !=null){ outStatus.append("&" + sCmd[0]); }
-            executer.execute(sCmd, null, null, null, false);
+            try{
+              executer.execute(sCmd, null, null, null, false);
+            } catch(Exception exc){
+              log.println("\nCmdQueue - execution exception; " + exc.getMessage());
+            }
             //cmdOutput.append("JavaCmd; started; " + sCmd + "\n");
           } else {
             //mainCmd.writeInfoln("CmdQueue - unexpected kind of execution; " + kindOfExecution);

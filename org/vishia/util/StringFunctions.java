@@ -16,8 +16,9 @@ import java.nio.charset.CharsetEncoder;
  */
 public class StringFunctions {
 
-  /**Version, history and license
+  /**Version, history and license.
    * <ul>
+   * <li>2013-02-03 Hartmut new  {@link #compare(CharSequence, CharSequence)} and {@link #equals(Object)}.
    * <li>2012-08-22 Hartmut new {@link #copyToBuffer(String, char[])} and {@link #copyToBuffer(String, byte[], Charset)}:
    *   This methods are existent at the C-level. They are usefully if dynamic memory usage should be prevented.
    *   They are need for Java-usage with static data too. 
@@ -277,6 +278,47 @@ public class StringFunctions {
       buffer[ix] = 0;
     }
     return nChars;
+  }
+  
+  
+  
+  /**Compares two Strings or StringBuilder-content or any other CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#compareTo(String)}. 
+   * @param s1
+   * @param s2
+   * @return 0 if all characters are equal, 1 if s1 > s2,  -1 if s1 < s2
+   */
+  public static int compare(CharSequence s1, CharSequence s2){
+    int z = Math.min(s1.length(), s2.length());
+    for(int ii=0; ii<z; ++ii){
+      char c1 = s1.charAt(ii), c2 =s2.charAt(ii);
+      if(c1 != c2){
+        if(c1 < c2){ return -1; }
+        else if(c1 > c2){ return 1; }
+      }
+    }
+    //all chars till z are equal.
+    if(z < s1.length()){ return 1;}  //s1 is greater because longer
+    else if(z < s2.length()){ return -1; }  //s1 is shorter because it determines the shorter length.
+    else return 0;  //are equal
+  }
+  
+  
+  /**Compares two Strings or StringBuilder-content or any other CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#compareTo(String)}. 
+   * @param s1
+   * @param s2
+   * @return 0 if all characters are equal, 1 if s1 > s2,  -1 if s1 < s2
+   */
+  public static boolean equals(CharSequence s1, CharSequence s2){
+    int zz = s1.length();
+    if( zz != s2.length()) return false;
+    else {
+      for(int ii = 0; ii<zz; ++ii){
+        if(s1.charAt(ii) != s2.charAt(ii)) return false;
+      }
+      return true;
+    }
   }
   
 }
