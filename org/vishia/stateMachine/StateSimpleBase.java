@@ -1,4 +1,6 @@
-package org.vishia.util;
+package org.vishia.stateMachine;
+
+import org.vishia.util.Event;
 
 /**Base class of a State in a State machine.
  * The user should override at least the {@link #trans(Event)} method. This method is the transition to another state.

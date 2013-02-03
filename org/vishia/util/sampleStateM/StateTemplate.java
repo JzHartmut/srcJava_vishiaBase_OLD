@@ -1,9 +1,9 @@
 package org.vishia.util.sampleStateM;
 
+import org.vishia.stateMachine.StateCompositeBase;
+import org.vishia.stateMachine.StateSimpleBase;
+import org.vishia.stateMachine.StateTopBase;
 import org.vishia.util.Event;
-import org.vishia.util.StateCompositeBase;
-import org.vishia.util.StateSimpleBase;
-import org.vishia.util.StateTopBase;
 
 public class StateTemplate {
 

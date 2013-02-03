@@ -270,14 +270,26 @@ public class StringFunctions {
     int nChars = src.length();
     if(buffer.length < nChars){
       nChars = buffer.length -1;
-      int ix;
-      for(ix=0; ix<nChars; ++ix){
-        char cc = src.charAt(ix);
-        buffer[ix] = src.charAt(ix);  
-      }
-      buffer[ix] = 0;
     }
+    int ix;
+    for(ix=0; ix<nChars; ++ix){
+      char cc = src.charAt(ix);
+      buffer[ix] = src.charAt(ix);  
+    }
+    buffer[ix] = 0;
     return nChars;
+  }
+  
+  
+  
+  /**Converts a String in a buffer in a java.lang.String.
+   * @param buffer It is zero-terminated.
+   * @return A String which contains all characters till the first '\0' or the whole buffer.
+   */
+  @Java4C.exclude public static String z_StringJc(char[] buffer){
+    int ix=-1;
+    while(++ix < buffer.length && buffer[ix] !='0');
+    return new String(buffer, 0, ix);
   }
   
   

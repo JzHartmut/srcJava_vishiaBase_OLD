@@ -1,4 +1,7 @@
-package org.vishia.util;
+package org.vishia.stateMachine;
+
+import org.vishia.util.DateOrder;
+import org.vishia.util.Event;
 
 /**Base class for composite states.
  *
@@ -241,7 +244,7 @@ public abstract class StateCompositeBase
   }
    * </pre> 
    * @return The enclosing state, which can used for entry immediately.
-   * @see org.vishia.util.StateSimpleBase#exit()
+   * @see org.vishia.stateMachine.StateSimpleBase#exit()
    */
   @Override public EnclosingState exit(){ 
     if(isActive){

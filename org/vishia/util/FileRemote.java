@@ -957,7 +957,18 @@ public class FileRemote extends File
   
   /**Copies a file or directory maybe in a remote device to another file in the same device. 
    * This is a send-only routine without feedback, because the calling thread should not be waiting 
-   * for success. The success is notified with invocation of the 
+   * for success. 
+   * <br><br>
+   * This routine sends an {@link CmdEvent} with {@link Cmd#copy} to the destination. Before that the destination 
+   * for the event is set with calling of {@link FileRemoteAccessor#prepareCmdEvent(CallbackEvent)}. 
+   * The given {@link CallbackEvent} is completed with a {@link CmdEvent} and its correct destination {@link EventConsumer}.
+   * <br><br>
+   * Any status and the success is notified with invocation of the given {@link CallbackEvent}. It is possible that
+   * some status information are send and a answer is expected:
+   * <ul>
+   * <li>{@link CallbackCmd#done}: The last callback to designate the finish of succession.
+   * <li>{@link CallbackCmd#ask}: 
+   * </ul>
    * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * 
    * @param dst This file will be created or filled newly. If it is existing but read only,
@@ -1105,10 +1116,12 @@ public class FileRemote extends File
     delete,
     /**Abort the currently action. */
     abortAll,
-    /**Abort the currently action. */
+    /**Abort the copy process of the current directory or skip this directory if it is asking a file. */
     abortCopyDir,
-    /**Abort the currently action. */
+    /**Abort the copy process of the current file or skip this file if it is asking. */
     abortCopyFile,
+    /**Overwrite a read-only file. */
+    overwr,
     /**Last. */
     last
   }

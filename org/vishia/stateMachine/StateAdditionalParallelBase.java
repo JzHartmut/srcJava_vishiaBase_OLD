@@ -1,4 +1,4 @@
-package org.vishia.util;
+package org.vishia.stateMachine;
 
 /**Base class for a composite state which is a parallel state inside another composite state.
  * @author Hartmut Schorrig

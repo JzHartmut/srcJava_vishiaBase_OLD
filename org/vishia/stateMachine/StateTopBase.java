@@ -1,4 +1,6 @@
-package org.vishia.util;
+package org.vishia.stateMachine;
+
+import org.vishia.util.Event;
 
 /**Base class for a state machine, for the main state.
  * @author Hartmut Schorrig

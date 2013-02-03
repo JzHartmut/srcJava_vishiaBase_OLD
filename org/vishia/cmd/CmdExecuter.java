@@ -6,10 +6,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.Reader;
 
-import org.vishia.mainCmd.MainCmd;
 import org.vishia.util.StringPart;
 
 /**This class organizes the execution of commands with thread-parallel getting of the process outputs.

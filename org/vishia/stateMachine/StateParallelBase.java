@@ -1,7 +1,9 @@
-package org.vishia.util;
+package org.vishia.stateMachine;
 
 import java.util.LinkedList;
 import java.util.List;
+
+import org.vishia.util.Event;
 
 
 
@@ -122,7 +124,7 @@ extends StateCompositeBase<DerivedState, EnclosingState>
  
  
   /**Exits first the actual sub state (and tha exits its actual sub state), after them this state is exited.
-   * @see org.vishia.util.StateSimpleBase#exit()
+   * @see org.vishia.stateMachine.StateSimpleBase#exit()
    */
   @Override public EnclosingState exit(){ 
     for(StateCompositeBase<?, DerivedState> state: states){

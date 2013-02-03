@@ -1,13 +1,13 @@
 package org.vishia.util.sampleStateM;
 
+import org.vishia.stateMachine.StateAdditionalParallelBase;
+import org.vishia.stateMachine.StateCompositeBase;
+import org.vishia.stateMachine.StateParallelBase;
+import org.vishia.stateMachine.StateSimpleBase;
+import org.vishia.stateMachine.StateTopBase;
 import org.vishia.util.Event;
 import org.vishia.util.EventConsumer;
 import org.vishia.util.EventSource;
-import org.vishia.util.StateCompositeBase;
-import org.vishia.util.StateAdditionalParallelBase;
-import org.vishia.util.StateParallelBase;
-import org.vishia.util.StateSimpleBase;
-import org.vishia.util.StateTopBase;
 
 public class StateBaseExample {
 
@@ -216,7 +216,7 @@ public class StateBaseExample {
      * Because this state has 2 parallel combined states intern it calls the {@link #trans(Event)}
      * of both parallel states with the given event.
      * If 
-     * @see org.vishia.util.StateSimpleBase#trans(org.vishia.util.Event)
+     * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.util.Event)
      */
     @Override public int trans(Event ev) {
       
