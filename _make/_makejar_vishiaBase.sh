@@ -1,9 +1,7 @@
 #!/bin/bash
 
-## The java-copiler may be located at a user-specified position.
-## Set the environment variable JAVA_HOME, where bin/javac will be found.
-##if test "$JAVA_JDK" = "";  then export JAVA_JDK="/usr/share/JDK"; fi
-#set PATH="$JAVA_JDK_HOME\bin:$PATH"
+## generating a jar file which contains all re-useable classes of the vishiaBase-component.
+## examples are not compiled.
 
 ## The TMP_JAVAC is a directory, which contains only this compiling results. It will be clean in the batch processing.
 export TMP_JAVAC="../../../tmp_javac"
@@ -25,6 +23,7 @@ INPUT_JAVAC="$INPUT_JAVAC ../org/vishia/cmd/*.java"
 INPUT_JAVAC="$INPUT_JAVAC ../org/vishia/mainCmd/*.java"
 INPUT_JAVAC="$INPUT_JAVAC ../org/vishia/util/*.java"
 INPUT_JAVAC="$INPUT_JAVAC ../org/vishia/msgDispatch/*.java"
+INPUT_JAVAC="$INPUT_JAVAC ../org/vishia/stateMachine/*.java"
 INPUT_JAVAC="$INPUT_JAVAC ../org/vishia/xmlSimple/*.java"
 INPUT_JAVAC="$INPUT_JAVAC ../org/vishia/xml/*.java"
 export INPUT_JAVAC

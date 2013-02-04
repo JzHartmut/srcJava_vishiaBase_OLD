@@ -80,7 +80,7 @@ public abstract class StateCompositeBase
   /**This method is used to entry the default state if the actual state is null (first invocation).
    * The user should override:
    * <pre>
-    @Override public int entryDefault(){
+   public int entryDefault(){
       return defaultState.entry(notConsumed);
     }
    * </pre>
@@ -127,7 +127,7 @@ public abstract class StateCompositeBase
    * This method should be overridden if a entry action is necessary in any state. 
    * The overridden form should call this method in form super.entry(isConsumed):
    * <pre>
-  @Override public int entry(isConsumed){
+  public int entry(isConsumed){
     super.entry(0);
     //statements of entry action.
     return isConsumed | runToComplete;  //if the trans action should be entered immediately after the entry.
@@ -237,7 +237,7 @@ public abstract class StateCompositeBase
   /**Exits first the actual sub state (and that exits its actual sub state), after them this state is exited.
   /**This method may be overridden with exit actions:
    * <pre>
-  @Override public EnclosingStateType exit(){
+  public EnclosingStateType exit(){
     TypeOfEnclosingState enclState = super.exit(); //call firstly! It exits sub states.
     statementsOfExit();
     return enclSate;

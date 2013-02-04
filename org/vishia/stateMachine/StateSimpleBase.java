@@ -14,7 +14,7 @@ import org.vishia.util.Event;
  */
 public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<EnclosingState,?>>{
     
-  /**Version, history and license
+  /**Version, history and license.
    * <ul>
    * <li>2012-09-17 Hartmut improved.
    * <li>2012-08-30 Hartmut created. The experience with that concept are given since about 2001 in C-language and Java.
@@ -128,11 +128,11 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   /**This method sets this state in the enclosing composite state. It should be overridden 
    * if a entry action is necessary in any state. The overridden form should call this method in form super.entry(isConsumed):
    * <pre>
-  @Override public int entry(isConsumed){
-    super.entry(0);
-    //statements for entry action.
-    return isConsumed | runToComplete;  //if the trans action should be entered immediately after the entry.
-    return isConsumed | complete;       //if the trans action should not be tested.
+   * public int entry(isConsumed){
+   *  super.entry(0);
+   *  //statements for entry action.
+   *  return isConsumed | runToComplete;  //if the trans action should be entered immediately after the entry.
+   *  return isConsumed | complete;       //if the trans action should not be tested.
    * </pre>  
    * 
    * @param isConsumed Information about the usage of an event in a transition, given as input and returned as output.
@@ -159,7 +159,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   
   /**Checks the trigger and conditions of a state transition. The user should override this method in form (example)
    * <pre>
-  @Override public int trans(Event ev){
+  public int trans(Event ev){
     TypeOfEnclosingState enclState;
     if(ev instanceof MyEvent and ((MyEvent)ev).getCmd() == myExpectedCmd){
       enclState = exit();
@@ -183,7 +183,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   
   /**Exit the state; this method may be overridden with exit actions:
    * <pre>
-  @Override public EnclosingStateType exit(){
+  public EnclosingStateType exit(){
     TypeOfEnclosingState enclState = super.exit();  //call firstly!
     statementsOfExit();
     return enclSate;

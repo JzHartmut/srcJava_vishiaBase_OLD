@@ -15,7 +15,7 @@ public abstract class StateTopBase <DerivedState extends StateCompositeBase<Deri
 extends StateCompositeBase<DerivedState,StateCompositeNull>
 {
 
-  /**Version, history and license
+  /**Version, history and license.
    * <ul>
    * <li>2012-09-17 Hartmut improved.
    * <li>2012-08-30 Hartmut created. The experience with that concept are given since about 2001 in C-language and Java.

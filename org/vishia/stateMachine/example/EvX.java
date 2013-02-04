@@ -1,4 +1,4 @@
-package org.vishia.util.sampleStateM;
+package org.vishia.stateMachine.example;
 
 import org.vishia.util.Event;
 import org.vishia.util.EventConsumer;

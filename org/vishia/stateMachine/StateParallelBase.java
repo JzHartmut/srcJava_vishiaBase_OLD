@@ -24,7 +24,7 @@ public abstract class StateParallelBase
 extends StateCompositeBase<DerivedState, EnclosingState>
 {
 
-  /**Version, history and license
+  /**Version, history and license.
    * <ul>
    * <li>2012-09-17 Hartmut improved.
    * <li>2012-08-30 Hartmut created. The experience with that concept are given since about 2001 in C-language and Java.
@@ -84,7 +84,7 @@ extends StateCompositeBase<DerivedState, EnclosingState>
    * This method should be overridden if a entry action is necessary in any state. 
    * The overridden form should call this method in form super.entry(isConsumed):
    * <pre>
-  @Override public int entry(isConsumed){
+  public int entry(isConsumed){
     super.entry(0);
     //statements of entry action.
     return isConsumed | runToComplete;  //if the trans action should be entered immediately after the entry.

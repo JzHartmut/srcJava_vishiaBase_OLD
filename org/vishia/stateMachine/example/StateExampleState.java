@@ -1,4 +1,4 @@
-package org.vishia.util.sampleStateM;
+package org.vishia.stateMachine.example;
 
 public class StateExampleState {
   class StateTop {

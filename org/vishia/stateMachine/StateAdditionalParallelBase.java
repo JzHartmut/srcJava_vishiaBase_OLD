@@ -11,7 +11,7 @@ public abstract class StateAdditionalParallelBase
 extends StateCompositeBase<DerivedState, EnclosingState> 
 { 
  
- /**Version, history and license
+ /**Version, history and license.
   * <ul>
   * <li>2012-09-17 Hartmut improved.
   * <li>2012-08-30 Hartmut created. The experience with that concept are given since about 2003 in C-language.
