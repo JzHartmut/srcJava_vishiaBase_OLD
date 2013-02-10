@@ -19,8 +19,10 @@ import org.vishia.cmd.CmdStore.CmdBlock;
 public class CmdQueue implements Closeable
 {
   
-  /**Version, history and license:
+  /**Version, history and license.
    * <ul>
+   * <li>2013-02-09 Hartmut chg: {@link #abortCmd()} now clears the queue too. The clearing of the command queue is a good idea, because while a program execution hangs, some unnecessary requests
+   * may be initiated. 
    * <li>2013-02-03 Hartmut chg: better execution exception, uses log in {@link #execCmds(Appendable)}
    * <li>2013-02-03 Hartmut chg: {@link #execCmds(Appendable)} with only one parameter, the second one was unused.
    * <li>2011-12-03 Hartmut chg: The {@link #pendingCmds}-queue contains {@link PendingCmd} instead
@@ -247,12 +249,13 @@ public class CmdQueue implements Closeable
   }
 
 
-  /**Aborts a running cmd. If the cmd queue contains any further cmd, it is started yet.
-   * If 
+  /**Aborts a running cmd and clears the queue. Old: If the cmd queue contains any further cmd, it is started yet.
+   * The clearing of the command queue is a good idea, because while a program execution hangs, some unnecessary requests
+   * may be initiated.
    * @return true if any cmd is aborted.
    */
   public boolean abortCmd()
-  {
+  { pendingCmds.clear();
     return executer.abortCmd();
   }
   
