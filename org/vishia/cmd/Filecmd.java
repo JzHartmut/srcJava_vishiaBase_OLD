@@ -165,7 +165,7 @@ public class Filecmd
     { return true;
     }
 
-    @Override protected boolean testArgument(String argc, int nArg) throws ParseException
+    @Override protected boolean testArgument(String argc, int nArg) //throws ParseException
     { boolean ok = true;
       if(argc.startsWith("cmd:")){ cargs.sLine = argc.substring(4); cargs.bExecute = true; }
       else if(argc.startsWith("line:")){ cargs.sLine = argc.substring(5); }

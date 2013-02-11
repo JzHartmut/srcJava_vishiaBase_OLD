@@ -126,6 +126,7 @@ public abstract class MainCmd implements MainCmd_ifc
   /**Version, able to read as hex yyyymmdd.
    * Changes:
    * <ul>
+   * <li>2013-02-09 Hartmut new {@link #setArguments(Argument[])} as new method to bundle argument query and help text.
    * <li>2012-03-30 Hartmut new {@link #getLogMessageErrorConsole()}
    * <li>2011-10-11 Hartmut new {@link #setOutputChannels(Appendable, Appendable)}. All outputs are redirect-able now.
    *   Used for output in a graphical text box.
@@ -144,6 +145,50 @@ public abstract class MainCmd implements MainCmd_ifc
    * </ul>
    */
   public static int version = 0x20110710;
+  
+  /**Interface for anonymous implementation of setting arguments.
+   * The implementation should be written in the simple form:
+   * <pre>
+   * MainCmd.SetArgument setArgxy = new MainCmd.SetArgument(){
+   *   @Override public boolean setArgument(String val){
+   *     args.argxy = val;
+   *     return true;
+   * } }
+   * <pre>
+   * The implementation should be an instance inside the user's class. This example shows an argument instance
+   * named 'args' where the values of the given arguments are stored.
+   * <br><br>
+   * The implementation method can test the admissibility of the argument's value. It can return false
+   * to designate that the value is not valid. For example the existence of a file can be checked.
+   */
+  public interface SetArgument{ 
+    boolean setArgument(String val); 
+  }
+  
+  /**Class to describe one argument. One can be create static instances with constant content. Example:
+   * <pre>
+   * Argument[] argList =
+   * { new Argument("-arg", "short one-line help text", setmethod)
+   * , new Argument("-x", "the help text", setx)
+   * };
+   * </pre>
+   *
+   */
+  public static class Argument{ 
+    final String arg; 
+    final String help; 
+    final SetArgument set;
+    
+    public Argument(String arg, String help, SetArgument set){
+      this.arg = arg; 
+      this.help = help; 
+      this.set = set;
+    }
+  }
+  
+  
+  
+  protected MainCmd.Argument[] argList;
   
   /** The report file. This attribute is set to null, if no report is desired by missing the argument -r REPORTFILE
   */
@@ -257,6 +302,7 @@ public abstract class MainCmd implements MainCmd_ifc
   protected MainCmd()
   { out = System.out;
     err = System.err;
+    argList = null;
   }
 
   /** Constructor of the main class.
@@ -266,6 +312,32 @@ public abstract class MainCmd implements MainCmd_ifc
     this.cmdLineArgs = args;
   }
 
+
+  protected MainCmd(Argument[] argList)
+  { out = System.out;
+    err = System.err;
+    this.argList = argList;
+  }
+
+  /** Constructor of the main class.
+  */
+  protected MainCmd(Argument[] argList, String[] args)
+  { this(argList);
+    this.cmdLineArgs = args;
+  }
+
+  
+  /**Sets the argument list for this application 
+   * and adds its help info. This method should be called in order of {@link #addHelpInfo(String)}
+   * to the correct sequence.
+   * @param list see {@link Argument}
+   */
+  public void setArguments(Argument[] list){ 
+    argList = list; 
+    for(Argument arg: argList){
+      listHelpInfo.add(arg.arg + arg.help);
+    }
+  }
 
   /** Adds the help info for standard arguments. The text is the followed:<pre>
     addHelpInfo("--about show the help infos");
@@ -311,6 +383,9 @@ public abstract class MainCmd implements MainCmd_ifc
   { listAboutInfo.add(info);
   }
 
+  
+  
+  
 
   /** prints the help info to the console output. This Method may be overloaded in MainCmdWin to show the contents in a window.
   */
@@ -531,7 +606,8 @@ public abstract class MainCmd implements MainCmd_ifc
 
 
   /** Tests one argument, called from parseArguments() on every argument excluding standard arguments -r and -rlevel.
-      The user must overwrite this method to test the application-specific paramters.
+      The user can overwrite this method to test the application-specific paramters.
+      This non-overridden method uses the {@link #setArgumentList(Argument[])}
       @param argc The argument to test
       @param nArg number of argument, the first argument is numbered with 1.
       @return false, if the argument doesn't match, true if ok.
@@ -540,8 +616,34 @@ public abstract class MainCmd implements MainCmd_ifc
 
       @exception ParseException The Methode may thrown this excpetion if a conversion error or such other is thrown.
   */
-  protected abstract boolean testArgument(String argc, int nArg)
-  throws ParseException;
+  protected boolean testArgument(String argc, int nArg)
+  {
+    if(argList !=null){
+      for(Argument argTest : argList){
+        int argLen = argTest.arg.length();
+        int argclen = argc.length();
+        if(argLen == 0 
+          || (argc.startsWith(argTest.arg)                //correct prefix 
+             && (  argclen == argLen                      //only the prefix
+                || ":=".indexOf(argc.charAt(argLen))>=0)  //or prefix ends with the separator characters.
+                )
+          ){ //then the argument is correct and associated to this argTest.
+          String argval = argclen == argLen //no additional value, use argument 
+                        || argLen == 0      //argument without prefix (no option)
+                        ? argc              //then use the whole argument as value.
+                        : argc.substring(argLen+1);  //use the argument after the separator as value.
+          boolean bOk = argTest.set.setArgument(argval);   //call the user method for this argument.
+          //if(!bOk) throw new ParseException("Argument value error: " + argc, nArg);
+          return bOk;
+        }
+      }
+      //argument not found (not returned in for-loop):
+      return false;
+    } else {
+      System.err.println("MainCmd- Software design error - MainCmd.setArgumentList(...) should be called or the method testArgument(...) should be overridden.");
+      return false;
+    }
+  }
 
 
 

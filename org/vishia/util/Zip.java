@@ -40,6 +40,7 @@ public class Zip {
   
   /**Version, history and license.
    * <ul>
+   * <li>2013-02-09 Hartmut chg: {@link Cmdline#argList} now handled in {@link MainCmd#setArguments(org.vishia.mainCmd.MainCmd.Argument[])}.
    * <li>2013-01-20 Hartmut creation: New idea to use the zip facility of Java.
    * </ul>
    * 
@@ -190,15 +191,6 @@ public class Zip {
   }
   
   
-  interface SetArgument{ boolean setArgument(String val); }
-  
-  static class Arguments{ 
-    final String arg; final String help; final SetArgument set;
-    Arguments(String arg, String help, SetArgument set){
-      this.arg = arg; this.help = help; this.set = set;
-    }
-  }
-  
 
   class Cmdline extends MainCmd {
 
@@ -206,7 +198,7 @@ public class Zip {
     
     File fOut;
     
-    SetArgument setCompress = new SetArgument(){ @Override public boolean setArgument(String val){ 
+    MainCmd.SetArgument setCompress = new MainCmd.SetArgument(){ @Override public boolean setArgument(String val){ 
       char cc;
       if(val.length()== 1 && (cc=val.charAt(0))>='0' && cc <='9'){
         compress = cc-'0';
@@ -214,22 +206,23 @@ public class Zip {
       } else return false;
     }};
     
-    SetArgument setInput = new SetArgument(){ @Override public boolean setArgument(String val){ 
+    MainCmd.SetArgument setInput = new MainCmd.SetArgument(){ @Override public boolean setArgument(String val){ 
       addSource(val);
       return true;
     }};
     
-    SetArgument setOutput = new SetArgument(){ @Override public boolean setArgument(String val){ 
+    MainCmd.SetArgument setOutput = new MainCmd.SetArgument(){ @Override public boolean setArgument(String val){ 
       fOut = new File(val);
       return true;
     }};
     
-    Arguments[] argList =
-    { new Arguments("-compress", "set the compression rate 0=non .. 90max", setCompress)
-    , new Arguments("-o", "the output file for zip output", setOutput)
-    , new Arguments("", "an input file possible with wildcards also in path like \"path/**/dir*/name*.ext*\"", setInput)
+    MainCmd.Argument[] argList =
+    { new MainCmd.Argument("-compress", ":0..9 set the compression rate 0=non .. 90max", setCompress)
+    , new MainCmd.Argument("-o", ":ZIP.zip file for zip output", setOutput)
+    , new MainCmd.Argument("", "INPUT file possible with wildcards also in path like \"path/** /dir* /name*.ext*\"", setInput)
     };
     
+
     
     @Override
     protected boolean checkArguments() {
@@ -237,31 +230,14 @@ public class Zip {
       else return false;
     }
 
-    @Override
-    protected boolean testArgument(String argc, int nArg) throws ParseException {
-      for(Arguments argTest : argList){
-        int argLen = argTest.arg.length();
-        int argclen = argc.length();
-        if(argLen == 0 
-          || (argc.startsWith(argTest.arg)                //correct prefix 
-             && (  argclen == argLen                      //only the prefix
-                || ":=".indexOf(argc.charAt(argLen))>=0)  //or prefix ends with the separator characters.
-                )
-          ){ //then the argument is correct and associated to this argTest.
-          String argval = argclen == argLen //no additional value, use argument 
-                        || argLen == 0      //argument without prefix (no option)
-                        ? argc              //then use the whole argument as value.
-                        : argc.substring(argLen+1);  //use the argument after the separator as value.
-          boolean bOk = argTest.set.setArgument(argval);   //call the user method for this argument.
-          if(!bOk) throw new ParseException("Argument value error: " + argc, nArg);
-          return true;
-        }
-      }
-      //argument not found (not returned in for-loop):
-      return false;
+    
+    Cmdline(){
+      super.addAboutInfo("Zip routine from Java");
+      super.addAboutInfo("made by HSchorrig, 2013-02-09");
+      super.addHelpInfo("args: -compress:# -o:ZIP.zip { INPUT}");  //[-w[+|-|0]]
+      super.setArguments(argList);
+      super.addStandardHelpInfo();
     }
-    
-    
     
     void executeMain(){
       exec(fOut,compress, "");
