@@ -242,7 +242,8 @@ public class FileSystem
     if(posBase >=2)
     { sPathBase = (sPath.substring(0, posBase) + "/").replace('\\', '/');
       sPathLocal = sPath.substring(posBase +1).replace('\\', '/');
-      sAbsDir = normalizePath(baseDir.getAbsolutePath() + "/" + sPathBase);
+      String sAbsDirNonNormalized = baseDir !=null ? baseDir.getAbsolutePath() + "/" + sPathBase : sPathBase;
+      sAbsDir = normalizePath(sAbsDirNonNormalized);
       posLocalPath = sAbsDir.length();
       dir = new File(sAbsDir.toString()); //baseDir, sPathBase);
     }
