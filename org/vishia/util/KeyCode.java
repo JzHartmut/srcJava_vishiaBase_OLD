@@ -249,6 +249,7 @@ public class KeyCode
   public static boolean isWritingKey(int key){
     if((key & (mAddKeys | mSpecialKeys))==0) return true; 
     if(key == del) return true;
+    if(key == back) return true;
     return false;
   }
   

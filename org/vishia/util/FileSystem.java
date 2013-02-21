@@ -40,6 +40,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -73,6 +74,7 @@ public class FileSystem
   /**Version, history and license.
    * Changes:
    * <ul>
+   * <li>2013-02-13 Hartmut chg: {@link #addFileToList(String, AddFileToList)} new better algorithm
    * <li>2013-02-03 Hartmut chg: the {@link #addFileToList(String, AddFileToList)} does not throw a FileNotFoundException
    *   instead it returns false. All try-catch Blocks of a user calling environment may be changed to <code>catch(Exception e)</code>
    *   instead of <code>catch(FileNotFoundException e)</code> as simple work arround.
@@ -889,10 +891,108 @@ public class FileSystem
     //NOTE: the listFiles is filled via the temporary ListWrapper.
     return addFileToList(dir, sPath, listWrapper);
   }
+
+  
+  
+  
+  private static File buildDir(File dirParent, String sPath, int posFile){
+    final File fDir;
+    String sPathDir;
+    if(posFile > 0)
+    {
+      sPathDir = sPath.substring(0, posFile);  //with ending '/'
+      if(dirParent == null){ 
+        fDir = new File(sPathDir);
+      } else {
+        fDir = new File(dirParent, sPathDir);  //based on given dir
+      }
+    }
+    else
+    { 
+      if(dirParent == null){ 
+        fDir = new File(".");
+      } else {
+        fDir = dirParent;  //based on given dir
+      }
+    }
+    return fDir;
+  }
+  
+  
+  
+  
+  private static boolean addFileToList(AddFileToList listFiles, File dir, String sPath, int posWildcard
+    , FilenameFilter filterName, FilenameFilter filterAlldir, int recursivect
+    ) {
+    boolean bFound = true;
+    if(recursivect > 1000) throw new RuntimeException("fatal recursion error");
+    int posDir = sPath.lastIndexOf('/', posWildcard) +1;  //is 0 if '/' is not found.
+    File fDir = buildDir(dir, sPath, posDir);
+    if(fDir.exists()) { 
+      int posBehind = sPath.indexOf('/', posWildcard);
+      boolean bAllTree = false;
+      String sPathSub = sPath.substring(posBehind +1);  //maybe ""
+      if(sPath.startsWith("xxxZBNF/"))
+        Assert.stop();
+      int posWildcardSub = sPathSub.indexOf('*');
+      if(posBehind >=0 || filterAlldir !=null) {
+        String[] sFiles = fDir.list();
+        WildcardFilter filterDir;
+        if(posBehind >0){
+          String sPathDir = sPath.substring(posDir, posBehind);  //with ending '/'
+  
+          filterDir = new WildcardFilter(sPathDir); 
+          bAllTree = sPathDir.equals("**");
+          if(filterDir.bAllTree){
+            filterAlldir = filterDir;
+            filterDir = null;
+          }
+        } else {
+          filterDir = null;  //NOTE: filterAlldir may be set
+        }
+        for(String sFile: sFiles){
+          File dirSub;
+          if( (  bAllTree
+              || filterDir !=null    && filterDir.accept(fDir, sFile)
+              || filterAlldir !=null && filterAlldir.accept(fDir, sFile)
+              )
+              && (dirSub = new File(fDir, sFile)).isDirectory()
+              ){
+            if(sFile.equals("ZBNF"))
+              Assert.stop();
+            //dirSub is matching to the filterAlldir:
+            bFound = addFileToList(listFiles, dirSub, sPathSub, posWildcardSub, filterName,filterAlldir, recursivect +1);
+          }
+        }
+        if(bAllTree){
+          //search from sPathSub in the current dir too, because it is "/**/name..."
+          bFound = addFileToList(listFiles, fDir, sPathSub, posWildcardSub, filterName,filterAlldir, recursivect +1);
+        }
+      }
+      if(posBehind <0 || bAllTree){
+        File[] files = fDir.listFiles(filterName);
+        for(File file: files)
+        { //if(file.isFile())
+          { listFiles.add(file);
+          }
+        }
+      }
+    }
+    else { 
+      bFound = false;
+    }
+    
+    return bFound;
+  }
+  
+  
+  
+  
+
   
   /**Add files
    * @param dir may be null, a directory as base for sPath.
-   * @param sPath path may contain wildcard for path and file.
+   * @param sPath path may contain wildcard for path and file. May use backslash or slash.
    * @param listFiles Container to get the files.
    * @return false if the dir not exists or the deepst defined directory of a wildcard path does not exist.
    *   true if the search directory exists independent of the number of founded files.
@@ -901,6 +1001,7 @@ public class FileSystem
   public static boolean addFileToList(File dir, String sPath, AddFileToList listFiles) 
   //throws FileNotFoundException
   { boolean bFound = true;
+    sPath = sPath.replace('\\', '/');
     //final String sDir, sDirSlash;
     //if(dir != null){ sDir = dir.getAbsolutePath(); sDirSlash = sDir + "/"; }
     //else { sDir = ""; sDirSlash = ""; }
@@ -919,125 +1020,82 @@ public class FileSystem
       }
     }
     else
-    { String sPathBefore = sPath.substring(0, posWildcard);
-      String sPathBehind = sPath.length() >= posWildcard+3
-                           && sPath.substring(posWildcard, posWildcard+3).equals("*.*")
-                          ? sPath.substring(posWildcard +3)
-                          : sPath.substring(posWildcard +1);
-      int posSepBehind = sPathBehind.indexOf('/');
-      int posSepDir = sPathBefore.lastIndexOf('/');
-      if(posSepBehind >=0)
-      { //after a wildcard-asterix a slash is found. It means, that some directory entries are to use.
-        File dirBase;
-        boolean bAllTree;
-        if(sPathBehind.startsWith("*/"))
-        { //it is the form path/**/path. it means, all levels are subdirs are to use.
-          bAllTree = true;
-        }
-        else
-        { //TODO example: path/name*name/path.
-          bAllTree = false;
-        }
-        sPathBehind = sPathBehind.substring(posSepBehind+1);
-        int posLastSlash = sPathBefore.lastIndexOf('/');
-        //String sPathDir; //, sDirMask;
-        FileFilter dirMask = null;
-        if(posLastSlash >=0)
-        { String sPathDir = sPathBefore.substring(0, posLastSlash+1);  //inclusively "/" to do "D:/"
-          //sDirMask = sPathBefore.substring(posLastSlash+1);
-          dirBase = new File(dir, sPathDir);
-        }
-        else
-        { //sPathDir = sDir;
-          //sDirMask = sPathBefore;
-          dirBase = dir;
-        
-        }
-        if(!dirBase.isDirectory()){ return false; }//throw new FileNotFoundException("Dir not found:" + dirBase.getAbsolutePath());
-        if(bAllTree)
-        { addDirRecursivelyToList(dirBase, dirMask, sPathBehind, listFiles);
-        }
-      }
-      else
-      { //file filter
-        String sPathDir;
-        File fDir;
-        if(posSepDir >= 0)
-        {
-          sPathDir = sPathBefore.substring(0, posSepDir);
-          if(dir == null){ 
-            fDir = new File(sPathDir);
-          } else {
-            fDir = new File(dir, sPathDir);  //based on given dir
-          }
-          sPathBefore = sPathBefore.substring(posSepDir+1);  //may be ""
-        }
-        else
-        { 
-          if(dir == null){ 
-            fDir = new File(".");
-          } else {
-            fDir = dir;  //based on given dir
-          }
-        }
-        if(fDir.exists())
-        { FileFilter filter = new WildcardFilter(sPathBefore, sPathBehind);
-          File[] files = fDir.listFiles(filter);
-          for(File file: files)
-          { if(file.isFile())
-            { listFiles.add(file);
-            }
-          }
-        }
-        else
-        { bFound = false;
-        }
-      }
+    { //
+      int posFile = sPath.lastIndexOf('/')+1;  //>=0, 0 if a / isn't contain.
+      String sName = sPath.substring(posFile); // "" if the path ends with "/"
+      FilenameFilter filterName = new WildcardFilter(sName); 
+      //
+      bFound = addFileToList(listFiles, dir, sPath, posWildcard, filterName, null, 0);
     }
     return bFound;
   }
 
 
 
-  private static void addDirRecursivelyToList(File dirParent, FileFilter dirMask, String sPath, AddFileToList listFiles) 
-  //throws FileNotFoundException
+  
+  
+  
+  /**Filter for a file name.
+   * Note: The {@link java.io.FilenameFilter} is better as the {@link java.io.FilenFilter}
+   *   because the {@link java.io.File#list(FilenameFilter)} builds a File instance only if the name is tested positively.
+   *   In opposite the {@link java.io.File#list(FileFilter)} builds a File instance anytime before the test. 
+   *   The difference may be marginal.But {@link java.io.File#list(FileFilter)} produces some more instances in the heap,
+   *   which are unnecessary. 
+   */
+  private static class WildcardFilter implements FilenameFilter
   {
-    addFileToList(dirParent, sPath, listFiles);  //the files inside
-    File[] subDirs = dirParent.listFiles();  //TODO use dirmask to filter /name**name/ or
-    for(File dirChild: subDirs)
-    { if(dirChild.isDirectory())
-      { addDirRecursivelyToList(dirChild, dirMask, sPath, listFiles);
+    private final String sBefore, sBehind, sContain;
+    
+    /**True if the filter path on ctor has contained "**". Then apply the filter on subdirs too. */
+    private final boolean bAllTree;
+    
+    /**True if the filter path on ctor was "**". Then accept all directory entries. */
+    private final boolean bAllEntries;
+
+    public WildcardFilter(String sMask)
+    { 
+      bAllEntries = sMask.equals("**");
+      if(bAllEntries){
+        bAllTree = true;
+        sBefore = sBehind = sContain = null;
+      } else {
+        int len = sMask.length();
+        int pos1 = sMask.indexOf('*');
+        int pos1a;
+        bAllTree = pos1 <= len-2 && sMask.charAt(pos1+1) == '*';
+        if(bAllTree){
+          pos1a = pos1 +1;
+          
+        } else {
+          pos1a = pos1;
+        }
+        int pos2 = sMask.lastIndexOf('*');
+        //
+        if(pos1 >0){ sBefore = sMask.substring(0, pos1); }
+        else { sBefore = null; }
+        //
+        if(pos2 < len){ sBehind = sMask.substring(pos2+1); }  // "*behind", "before*behind", "before*contain*behind"
+        else { sBehind = null; }                             // "*", "before*", "before*contain*", "*contain*"
+        //
+        if(pos2 > pos1a){ sContain = sMask.substring(pos1+1, pos2); }  //Note: pos2 == pos1 if only one asterisk.
+        else { sContain = null; }
       }
+    }
+
+
+    public boolean accept(File dir, String name)
+    {
+      return bAllEntries
+         ||(sBefore ==null  || name.startsWith(sBefore))
+           && (sContain ==null || name.contains(sContain))
+           && (sBehind ==null  || name.endsWith(sBehind));
     }
   }
 
 
   
+  
 
-
-
-
-  private static class WildcardFilter implements FileFilter
-  {
-    private final String sPathNameBeforeWildchar, sPathNameBehindWildchar;
-
-    public WildcardFilter(String sPathBefore, String sPathBehind)
-    { sPathNameBeforeWildchar = sPathBefore;
-      sPathNameBehindWildchar = sPathBehind;
-    }
-
-
-    public boolean accept(File file)
-    {
-      String sName =file.getName();
-      if(sName.startsWith(sPathNameBeforeWildchar) && sName.endsWith(sPathNameBehindWildchar))
-      { return true;
-      }
-      else
-      { return false;
-      }
-    }
-  }
 
 
   /**This is equal the usual grep, but with given files. TODO this method is not ready yet.
@@ -1087,7 +1145,8 @@ public class FileSystem
   /**Test routine with examples to test {@link #normalizePath(String)}. */
   public static void test_searchFile(){
     List<File> foundFile = new LinkedList<File>();
-    boolean bOk = addFileToList("D:/**/srcJava_vishiaBase", foundFile);
+    boolean bOk = addFileToList("D:/**/vishia/**/srcJava_vishiaBase", foundFile);
+    Assert.check(bOk);
   }  
   
   
