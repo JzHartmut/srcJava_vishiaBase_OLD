@@ -17,10 +17,12 @@ if not exist %DSTDIR%%DST%_priv mkdir %DSTDIR%%DST%_priv
 echo javadoc -d %DSTDIR%%DST% -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH%
 %JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST% -protected -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST%\javadoc.rpt 2>%DSTDIR%%DST%\javadoc.err
 if errorlevel 1 goto :error
+copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DSTDIR%%DST%\stylesheet.css >NUL
 
 echo javadoc -d %DSTDIR%%DST%_priv -private -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH%
 %JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST%_priv -private -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST%_priv\javadoc.rpt 2>%DSTDIR%%DST%_priv\javadoc.err
 if errorlevel 1 goto :error
+copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DSTDIR%%DST%_priv\stylesheet.css >NUL
 
 if "%NOPAUSE%"=="" pause
 
@@ -32,9 +34,6 @@ if not exist ..\img goto :noImg
 	copy ..\img %DSTDIR%%DST%_priv >NUL
 :noImg
 
-
-copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DSTDIR%%DST%\stylesheet.css >NUL
-copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DSTDIR%%DST%_priv\stylesheet.css >NUL
 
 :zip
 if "%DSTDIR%" == "" goto :nozip

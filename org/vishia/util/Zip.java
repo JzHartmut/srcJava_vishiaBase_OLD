@@ -72,15 +72,34 @@ public class Zip {
   
   
   
-  private class Src { 
+  static class Src { 
     String path; File dir;
     Src(String path, File dir) { this.path = path;  this.dir = dir; } 
   }
   
-  private final List<Src> listSrc = new LinkedList<Src>();
+  private final List<Src> listSrc;
   
   
-  public Zip(){}
+  /**Creates an empty instance for Zip.
+   * One should call {@link #addSource(String)} or {@link #addSource(File, String)}
+   * and then {@link #exec(File, int, String)} to create a Zipfile. 
+   * <br><br>
+   * The instance can be reused: After exec(...) the added sources are removed. call
+   * {@link #addSource(String)} and {@link #exec(File, int, String)} with other files.
+   * <br><br>
+   * The instance should not be used in multithreading uncoordinated.
+   */
+  public Zip(){
+    listSrc = new LinkedList<Src>();
+  }
+  
+  /**Creates an instance for Zip with given sources. It is used especially in {@link #main(String[])}.
+   * One can {@link #addSource(String)} with additional sources. The invoke {@link #exec(File, int, String)}
+   * @param listSrc List of sources.
+   */
+  //public Zip(List<Src> listSrc){
+  //  this.listSrc = listSrc;
+  //}
   
   
   /**Adds a source file or some files designated with wildcards
@@ -161,6 +180,25 @@ public class Zip {
   
   
   
+  /**Executes Zip with given arguments.
+   * Note: One can have add sources calling {@link #addSource(String)} before additional to the sources in add.
+   * But usual the sources should be given only in args.
+   * <br><br>
+   * Invoke:
+   * <pre>
+   * Zip zip = new Zip();
+   * Zip.Args args = .... get args from somewhere
+   * zip.exec(args);
+   * @param args
+   * @return
+   */
+  public String exec(Args args){
+    listSrc.addAll(args.listSrc);
+    return exec(args.fOut, args.compress, args.comment);
+  }
+  
+  
+  
   /**Zips some files in a dst file.
    * @param dst The destination file.
    * @param sPath Path should contain the basebase:localpath separatet with ':'. The localpath is used inside the zip file
@@ -178,41 +216,56 @@ public class Zip {
   
   
   public static void main(String[] args){
-    
-    Zip zip = new Zip();
-    Cmdline cmd = zip.new Cmdline();
+    Args argData = new Args();
+    Cmdline cmd = new Cmdline(argData);
     try{ cmd.parseArguments(args);
-    
     } catch(ParseException exc){
       cmd.setExitErrorLevel(MainCmd.exitWithArgumentError);
       cmd.exit();
     }
-    cmd.executeMain();
+    Zip zip = new Zip();
+    zip.exec(argData);
   }
   
   
+  
+  
+  /**This class holds arguments to zip.
+   */
+  public static class Args{
+    public final List<Src> listSrc = new ArrayList<Src>();
 
-  class Cmdline extends MainCmd {
-
-    int compress = 5;
+    public int compress = 5;
     
-    File fOut;
+    public File fOut;
+    
+    public String comment = "";
+
+  }
+  
+  
+  
+
+  static class Cmdline extends MainCmd {
+
+    
+    final Args args;
     
     MainCmd.SetArgument setCompress = new MainCmd.SetArgument(){ @Override public boolean setArgument(String val){ 
       char cc;
       if(val.length()== 1 && (cc=val.charAt(0))>='0' && cc <='9'){
-        compress = cc-'0';
+        args.compress = cc-'0';
         return true;
       } else return false;
     }};
     
     MainCmd.SetArgument setInput = new MainCmd.SetArgument(){ @Override public boolean setArgument(String val){ 
-      addSource(val);
+      args.listSrc.add(new Src(val, null));
       return true;
     }};
     
     MainCmd.SetArgument setOutput = new MainCmd.SetArgument(){ @Override public boolean setArgument(String val){ 
-      fOut = new File(val);
+      args.fOut = new File(val);
       return true;
     }};
     
@@ -226,12 +279,13 @@ public class Zip {
     
     @Override
     protected boolean checkArguments() {
-      if(fOut !=null){ return true; }
+      if(args.fOut !=null){ return true; }
       else return false;
     }
 
     
-    Cmdline(){
+    Cmdline(Args args){
+      this.args = args;
       super.addAboutInfo("Zip routine from Java");
       super.addAboutInfo("made by HSchorrig, 2013-02-09");
       super.addHelpInfo("args: -compress:# -o:ZIP.zip { INPUT}");  //[-w[+|-|0]]
@@ -239,9 +293,6 @@ public class Zip {
       super.addStandardHelpInfo();
     }
     
-    void executeMain(){
-      exec(fOut,compress, "");
-    }
   }
   
   

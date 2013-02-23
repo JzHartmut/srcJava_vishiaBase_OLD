@@ -11,14 +11,18 @@ import java.util.concurrent.atomic.AtomicInteger;
  * The first part of the stream is converted to a message ident number. This allows especially the redirection of
  * outputs to {@link System#err} or {@link System#out} to the message system.
  * <br><br>
- * All characters from the output string till a semicolon or colon are used as identifier for the message number. 
- * The {@link org.vishia.msgDispatch.MsgDispatcher} needs numbers to dispatch.
- * This first part is divide into 2 divisions: before and after a " - ".
+ * All characters from the output string till a semicolon or colon are used to build a message number from this text.
+ * The {@link LogMessage} interface needs a number to identify the message, the {@link org.vishia.msgDispatch.MsgDispatcher} 
+ * needs numbers to dispatch. If any identification string is used the first time, a number is created automatically.
+ * If the same start text is used a second one (especially if an output was invoked a second time), the start text
+ * is identified and the same number is used. One can sort messages with that number.
+ * <br><br>
+ * This first part is divide into 2 divisions: before and after a " - " to build message number ranges.
  * <br><br>
  * One should write all outputs in the form:
- * <br>
+ * <pre>
  * System.err.println("Source of message - short message; some additional " + information);
- * <br> 
+ * </pre> 
  * This is a form which may be proper outside this class too. One should inform about the source of the message, 
  * then what's happen, then some more information. If one uses a semicolon as separator, it's able to present such messages
  * for example in an Excel sheet.
