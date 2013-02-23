@@ -86,85 +86,85 @@ public interface MainCmd_ifc extends Report
   
   
   
-	/**Executes a command line call maybe as pipe, waiting for finishing..
-	 * The output is written with a separate thread, using the internal (private) class ShowCmdOutput.
-	 * @param processBuilder The ProcessBuilder. There may be assigned environment variables and a current directory.
-	 * @param cmd The cmd and arguments. If it is null, the command assigened to the processBuilder is used.
-	 * @param input Any pipe-input. It may be null.
-	 * @param nReportLevel The report level which is used for output. 
-	 *        If it is 0, then the output isn't written TODO
-	 * @param output The output pipe. If it is null, the the outputs were not be captured while the process is running.
-	 *        The output of the process can be read after finishing this routine calling processBuilder.getOutputStream()
-	 * @param error The error pipe. If it is null, then errors are written in the output pipe.
-	 * @return
-	 */
-	public int executeCmdLine
-	( ProcessBuilder processBuilder
+  /**Executes a command line call maybe as pipe, waiting for finishing..
+   * The output is written with a separate thread, using the internal (private) class ShowCmdOutput.
+   * @param processBuilder The ProcessBuilder. There may be assigned environment variables and a current directory.
+   * @param cmd The cmd and arguments. If it is null, the command assigened to the processBuilder is used.
+   * @param input Any pipe-input. It may be null.
+   * @param nReportLevel The report level which is used for output. 
+   *        If it is 0, then the output isn't written TODO
+   * @param output The output pipe. If it is null, the the outputs were not be captured while the process is running.
+   *        The output of the process can be read after finishing this routine calling processBuilder.getOutputStream()
+   * @param error The error pipe. If it is null, then errors are written in the output pipe.
+   * @return
+   */
+  public int executeCmdLine
+  ( ProcessBuilder processBuilder
   , String cmd
   , String input
-	, int nReportLevel
-	, Appendable output
-	, Appendable error
-	);
-	
-	/**Executes a command line call maybe as pipe, waiting for finishing..
-	 * The output is written with a separate thread, using the internal (private) class ShowCmdOutput.
-	 * @param processBuilder The ProcessBuilder. There may be assigned environment variables and a current directory.
-	 * @param cmd The cmd and arguments. If it is null, the command assigend to the processBuilder is used.
-	 * @param input Any pipe-input. It may be null.
-	 * @param nReportLevel The report level which is used for output. 
-	 *        If it is 0, then the output isn't written TODO
-	 * @param output The output pipe.
-	 * @param error The error pipe. If it is null, then errors are written in the output pipe.
-	 * @return
-	 */
-	public int executeCmdLine
-	( ProcessBuilder processBuilder
-	    , String[] cmd
-	    , String input
-	    , int nReportLevel
-	    , Appendable output
-	    , Appendable error
-	);
+  , int nReportLevel
+  , Appendable output
+  , Appendable error
+  );
+  
+  /**Executes a command line call maybe as pipe, waiting for finishing..
+   * The output is written with a separate thread, using the internal (private) class ShowCmdOutput.
+   * @param processBuilder The ProcessBuilder. There may be assigned environment variables and a current directory.
+   * @param cmd The cmd and arguments. If it is null, the command assigend to the processBuilder is used.
+   * @param input Any pipe-input. It may be null.
+   * @param nReportLevel The report level which is used for output. 
+   *        If it is 0, then the output isn't written TODO
+   * @param output The output pipe.
+   * @param error The error pipe. If it is null, then errors are written in the output pipe.
+   * @return
+   */
+  public int executeCmdLine
+  ( ProcessBuilder processBuilder
+      , String[] cmd
+      , String input
+      , int nReportLevel
+      , Appendable output
+      , Appendable error
+  );
   
   
-	/**Starts a command invocation for a independent window.
-	 * This command does not have any input or output. The command will be started,
-	 * the finishing isn't await. This command line invocation is proper for commands,
-	 * which create a new window in the operation system. The new window has its own live cycle then,
-	 * independent of the invocation.
-	 * @param cmd The command. Some arguments are possible, they should be separated by space.
-	 * @param processBuilder The processBuilder.
-	 * @return
-	 */
-	public int startCmdLine(ProcessBuilder processBuilder, String cmd);
-	
-	/**Starts a command invocation for a independent window.
-	 * This command does not have any input or output. The command will be started,
-	 * the finishing isn't await. This command line invocation is proper for commands,
-	 * which create a new window in the operation system. The new window has its own live cycle then,
-	 * independent of the invocation.
-	 * @param cmd The command and some arguments.
-	 * @param processBuilder The processBuilder.
-	 * @return
-	 */
-	public int startCmdLine(ProcessBuilder processBuilder,  String[] cmd);
+  /**Starts a command invocation for a independent window.
+   * This command does not have any input or output. The command will be started,
+   * the finishing isn't await. This command line invocation is proper for commands,
+   * which create a new window in the operation system. The new window has its own live cycle then,
+   * independent of the invocation.
+   * @param cmd The command. Some arguments are possible, they should be separated by space.
+   * @param processBuilder The processBuilder.
+   * @return
+   */
+  public int startCmdLine(ProcessBuilder processBuilder, String cmd);
+  
+  /**Starts a command invocation for a independent window.
+   * This command does not have any input or output. The command will be started,
+   * the finishing isn't await. This command line invocation is proper for commands,
+   * which create a new window in the operation system. The new window has its own live cycle then,
+   * independent of the invocation.
+   * @param cmd The command and some arguments.
+   * @param processBuilder The processBuilder.
+   * @return
+   */
+  public int startCmdLine(ProcessBuilder processBuilder,  String[] cmd);
 
-	
-	/**Searches the window for the already running process 
-	 * or starts the process with command invocation for a independent window.
-	 * This command does not have any input or output. The command will be started,
-	 * the finishing isn't await. This command line invocation is proper for commands,
-	 * which create a new window in the operation system. The new window has its own live cycle then,
-	 * independent of the invocation.
-	 * @param cmd The command and some arguments.
-	 * @param processBuilder The processBuilder.
-	 * @param sWindowTitle The title or the start of the window if the process is running already.
-	 *                     Note: The title is depending from the application.
-	 *                     Sometimes the title starts with the associated file, forex calling windows-notepad. 
-	 * @return 0 on success, 255 if any start error.
-	 */
-	int switchToWindowOrStartCmdline(ProcessBuilder processBuilder, String sCmd, String sWindowTitle);
-	
+  
+  /**Searches the window for the already running process 
+   * or starts the process with command invocation for a independent window.
+   * This command does not have any input or output. The command will be started,
+   * the finishing isn't await. This command line invocation is proper for commands,
+   * which create a new window in the operation system. The new window has its own live cycle then,
+   * independent of the invocation.
+   * @param cmd The command and some arguments.
+   * @param processBuilder The processBuilder.
+   * @param sWindowTitle The title or the start of the window if the process is running already.
+   *                     Note: The title is depending from the application.
+   *                     Sometimes the title starts with the associated file, forex calling windows-notepad. 
+   * @return 0 on success, 255 if any start error.
+   */
+  int switchToWindowOrStartCmdline(ProcessBuilder processBuilder, String sCmd, String sWindowTitle);
+  
   
 }

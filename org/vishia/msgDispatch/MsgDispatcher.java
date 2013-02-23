@@ -555,9 +555,9 @@ public static final int version = 0x20120113;
     while(dstBits != 0) //abort if no bits are set anymore.
     { if(  (dstBits & 1)!=0 ){
         if( outputs[idst].dstInDispatcherThread ) { 
-        	dstBitRet |= mDispatchInDispatcherThread; 
+          dstBitRet |= mDispatchInDispatcherThread; 
         } else { 
-        	dstBitRet |= mDispatchInCallingThread; 
+          dstBitRet |= mDispatchInCallingThread; 
         }
       }
       dstBits >>=1;
@@ -586,7 +586,7 @@ public static final int version = 0x20120113;
    { /**store the variable arguments in a Va_list to handle for next call.
       * The Va_list is used also to store the arguments between threads in the MessageDispatcher.
       * @java2c=stackInstance.*/
-   	 final Va_list vaArgs =  new Va_list(args);  
+      final Va_list vaArgs =  new Va_list(args);  
      return sendMsgVaList(identNumber, OS_TimeStamp.os_getDateTime(), text, vaArgs);
    }
 
@@ -602,7 +602,7 @@ public static final int version = 0x20120113;
     { /**store the variable arguments in a Va_list to handle for next call.
        * The Va_list is used also to store the arguments between threads in the MessageDispatcher.
        * @java2c=stackInstance.*/
-    	final Va_list vaArgs =  new Va_list(args);  
+      final Va_list vaArgs =  new Va_list(args);  
       return sendMsgVaList(identNumber, creationTime, text, vaArgs);
     }
 
@@ -700,10 +700,10 @@ public static final int version = 0x20120113;
   public final void tickAndFlushOrClose()
   { dispatchQueuedMsg();
     for(int ix = 0; ix < outputs.length; ix++){
-    	Output output = outputs[ix];
-    	if(output.dstInDispatcherThread){
-    		output.outputIfc.flush();
-    	}
+      Output output = outputs[ix];
+      if(output.dstInDispatcherThread){
+        output.outputIfc.flush();
+      }
     }
   }
   
@@ -714,25 +714,25 @@ public static final int version = 0x20120113;
    */
   public class DispatcherThread extends Thread
   {
-  	private final int cycleMillisec;
-  	
-  	/**Initializes the Thread for dispaching messages.
-  	 * @param cycleMillisec The cycle time for output.
-  	 */
-  	public DispatcherThread(int cycleMillisec)
-  	{
-  	  super("MsgDisptch");
-  		this.cycleMillisec = cycleMillisec;
-  	  start();
-  	}
-  	
-  	@Override public void run()
-  	{
-  		while(true)
-  		{ try{ Thread.sleep(cycleMillisec);} catch(InterruptedException exc){}
+    private final int cycleMillisec;
+    
+    /**Initializes the Thread for dispaching messages.
+     * @param cycleMillisec The cycle time for output.
+     */
+    public DispatcherThread(int cycleMillisec)
+    {
+      super("MsgDisptch");
+      this.cycleMillisec = cycleMillisec;
+      start();
+    }
+    
+    @Override public void run()
+    {
+      while(true)
+      { try{ Thread.sleep(cycleMillisec);} catch(InterruptedException exc){}
         tickAndFlushOrClose();
-  		}
-  	}
+      }
+    }
   }
   
   

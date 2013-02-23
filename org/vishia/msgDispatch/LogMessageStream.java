@@ -52,13 +52,13 @@ public class LogMessageStream implements LogMessage
 
   
   
-	final FileDescriptor fd;
-	
-	final OutputStream out;
-	
-	/**Newline-String, for windows, TODO. depends from OS. */
-	byte[] sNewLine = { '\r', '\n'};
-	
+  final FileDescriptor fd;
+  
+  final OutputStream out;
+  
+  /**Newline-String, for windows, TODO. depends from OS. */
+  byte[] sNewLine = { '\r', '\n'};
+  
   public static LogMessage create(FileDescriptor fd)
   {
     return new LogMessageStream(fd);
@@ -96,8 +96,8 @@ public class LogMessageStream implements LogMessage
       line = dateFormat.format(creationTime) + "; " + identNumber + "; " + text;
     }
       try{ 
-    	out.write(line.getBytes()); 
-    	out.write(sNewLine);
+      out.write(line.getBytes()); 
+      out.write(sNewLine);
     }
     catch(Exception exc){ 
     }
@@ -119,28 +119,28 @@ public class LogMessageStream implements LogMessage
   { return true; 
   }
 
-	@Override
-	public boolean sendMsg(int identNumber, String text, Object... args) {
+  @Override
+  public boolean sendMsg(int identNumber, String text, Object... args) {
     String line = dateFormat.format(new Date(System.currentTimeMillis())) + "; " + identNumber + "; " + String.format(text,args);
     try{ 
-    	out.write(line.getBytes());
-    	out.write(sNewLine);
+      out.write(line.getBytes());
+      out.write(sNewLine);
     }
     catch(IOException exc){ }
     return true;
-	}
+  }
 
-	@Override
-	public boolean sendMsgTime(int identNumber, OS_TimeStamp creationTime,
-			String text, Object... args) {
+  @Override
+  public boolean sendMsgTime(int identNumber, OS_TimeStamp creationTime,
+      String text, Object... args) {
     String line = dateFormat.format(creationTime) + "; " + identNumber + "; " + String.format(text,args);
     try{ 
-    	out.write(line.getBytes()); 
-    	out.write(sNewLine);
+      out.write(line.getBytes()); 
+      out.write(sNewLine);
     }
     catch(IOException exc){ }
     return true;
-	}
+  }
   
   
 }

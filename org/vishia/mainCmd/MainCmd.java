@@ -549,33 +549,33 @@ public abstract class MainCmd implements MainCmd_ifc
     { iArgs = 0;
       while(iArgs < cmdLineArgs.length)
       { if(cmdLineArgs[iArgs].startsWith("--@")){
-      	  String sArgFile = getArgument(3);
-      	  File fileArg = new File(sArgFile);
-      	  List<String> listArgs = new LinkedList<String>();
-      	  try{
-      	  	int lenFile = (int)fileArg.length();
-      	  	BufferedReader inp = new BufferedReader(new FileReader(fileArg));
-      	    while(inp.ready()){
-      	  	  String sParam = inp.readLine().trim();	
-      	    	if(sParam.length()>0 && sParam.charAt(0) != '#'){
-      	  	    listArgs.add(sParam);
-      	  	  }  
+          String sArgFile = getArgument(3);
+          File fileArg = new File(sArgFile);
+          List<String> listArgs = new LinkedList<String>();
+          try{
+            int lenFile = (int)fileArg.length();
+            BufferedReader inp = new BufferedReader(new FileReader(fileArg));
+            while(inp.ready()){
+              String sParam = inp.readLine().trim();  
+              if(sParam.length()>0 && sParam.charAt(0) != '#'){
+                listArgs.add(sParam);
+              }  
             }
-      	    //add existing cmdLineArgs and the new args:
-      	    String[] argsNew = new String[cmdLineArgs.length -1 + listArgs.size()];
-      	    System.arraycopy(cmdLineArgs, 0, argsNew, 0, iArgs);
-      	    int iArgNew = iArgs-1;
-      	    for(String arg: listArgs){
-      	    	argsNew[++iArgNew] = arg;
-      	    }
-      	    System.arraycopy(cmdLineArgs, iArgs+1, argsNew, iArgNew+1, cmdLineArgs.length - iArgs-1);
-      	    //now all args from file and the existing cmdLineArgs are stored in argsNew, use it instead:
-      	    cmdLineArgs = argsNew;
-      	    iArgs -=1;  //the --@ is removed and replaced with the first argument from file!
-      	  } 
-      	  catch(FileNotFoundException exc){ throw new ParseException("argfile not found: " + fileArg.getAbsolutePath(),0); }
-      	  catch(IOException exc){ throw new ParseException("argfile read error: " + fileArg.getAbsolutePath(),0); }
-      	  
+            //add existing cmdLineArgs and the new args:
+            String[] argsNew = new String[cmdLineArgs.length -1 + listArgs.size()];
+            System.arraycopy(cmdLineArgs, 0, argsNew, 0, iArgs);
+            int iArgNew = iArgs-1;
+            for(String arg: listArgs){
+              argsNew[++iArgNew] = arg;
+            }
+            System.arraycopy(cmdLineArgs, iArgs+1, argsNew, iArgNew+1, cmdLineArgs.length - iArgs-1);
+            //now all args from file and the existing cmdLineArgs are stored in argsNew, use it instead:
+            cmdLineArgs = argsNew;
+            iArgs -=1;  //the --@ is removed and replaced with the first argument from file!
+          } 
+          catch(FileNotFoundException exc){ throw new ParseException("argfile not found: " + fileArg.getAbsolutePath(),0); }
+          catch(IOException exc){ throw new ParseException("argfile read error: " + fileArg.getAbsolutePath(),0); }
+          
         }
         else if (cmdLineArgs[iArgs].startsWith("--rlevel"))
         { int level;
@@ -876,193 +876,193 @@ public abstract class MainCmd implements MainCmd_ifc
 
   
   
-	/**Execute a command invoke a cmdline call, implements MainCmd_Ifc.
-	  The call must not be needed any input (:TODO:?).
-	  The output is written with a separate thread, using the internal (private) class ShowCmdOutput.
-	  This class use the method writeInfoln() from here. The writeInfoln-Method writes to console for MainCmd,
-	  but it may be overloaded, to example for MainCmdWin it may be writed to a box in the GUI.
-	 * @deprecated
-	*/
-	@Deprecated
+  /**Execute a command invoke a cmdline call, implements MainCmd_Ifc.
+    The call must not be needed any input (:TODO:?).
+    The output is written with a separate thread, using the internal (private) class ShowCmdOutput.
+    This class use the method writeInfoln() from here. The writeInfoln-Method writes to console for MainCmd,
+    but it may be overloaded, to example for MainCmdWin it may be writed to a box in the GUI.
+   * @deprecated
+  */
+  @Deprecated
   public int executeCmdLine
-	( String cmd
-	, ProcessBuilder processBuilder
-	, int nReportLevel
-	, Appendable output, String input
-	)
-	{
-		String[] cmdArray = CmdExecuter.splitArgs(cmd);  //split arguments in the array form
-		return executeCmdLine(cmdArray, processBuilder, nReportLevel, output, input);
-	
-	}
+  ( String cmd
+  , ProcessBuilder processBuilder
+  , int nReportLevel
+  , Appendable output, String input
+  )
+  {
+    String[] cmdArray = CmdExecuter.splitArgs(cmd);  //split arguments in the array form
+    return executeCmdLine(cmdArray, processBuilder, nReportLevel, output, input);
+  
+  }
 
-	
-	/**
-	 * @param cmd
-	 * @param processBuilder
-	 * @param nReportLevel
-	 * @param output
-	 * @param input
-	 * @return
-	 * @deprecated
-	 */
-	@Deprecated
+  
+  /**
+   * @param cmd
+   * @param processBuilder
+   * @param nReportLevel
+   * @param output
+   * @param input
+   * @return
+   * @deprecated
+   */
+  @Deprecated
   public int executeCmdLine
-	( String[] cmd
-	, ProcessBuilder processBuilder
-	, int nReportLevel
-	, Appendable output, String input
-	){
-		return executeCmdLine(processBuilder, cmd, input, nReportLevel, output, output);
-	}
-	
-	
-	
-	/**Executes a command line call maybe as pipe, waiting for finishing..
-	 * The output is written with a separate thread, using the internal (private) class ShowCmdOutput.
-	 * @param processBuilder The ProcessBuilder. There may be assigned environment variables and a current directory.
-	 * @param cmd The cmd and arguments. If it is null, the command assigened to the processBuilder is used.
-	 *   The command can contain arguments separated with spaces (usual for command lines) or white spaces.
-	 *   The method {@link #splitArgs(String)} is used.
-	 * @param input Any pipe-input. It may be null.
-	 * @param nReportLevel The report level which is used for output. 
-	 *        If it is 0, then the output isn't written TODO
-	 * @param output The output pipe.
-	 * @param error The error pipe. If it is null, then errors are written in the output pipe.
-	 * @return
-	 */
-	@Override public int executeCmdLine
-	( ProcessBuilder processBuilder
-	    , String cmd
-	    , String input
-	    , int nReportLevel
-	    , Appendable output
-	    , Appendable error
-	){
-	  String[] cmdArray = CmdExecuter.splitArgs(cmd);  //split arguments in the array form
-	  
-	  return executeCmdLine(processBuilder, cmdArray, input, nReportLevel, output, error);
+  ( String[] cmd
+  , ProcessBuilder processBuilder
+  , int nReportLevel
+  , Appendable output, String input
+  ){
+    return executeCmdLine(processBuilder, cmd, input, nReportLevel, output, output);
+  }
+  
+  
+  
+  /**Executes a command line call maybe as pipe, waiting for finishing..
+   * The output is written with a separate thread, using the internal (private) class ShowCmdOutput.
+   * @param processBuilder The ProcessBuilder. There may be assigned environment variables and a current directory.
+   * @param cmd The cmd and arguments. If it is null, the command assigened to the processBuilder is used.
+   *   The command can contain arguments separated with spaces (usual for command lines) or white spaces.
+   *   The method {@link #splitArgs(String)} is used.
+   * @param input Any pipe-input. It may be null.
+   * @param nReportLevel The report level which is used for output. 
+   *        If it is 0, then the output isn't written TODO
+   * @param output The output pipe.
+   * @param error The error pipe. If it is null, then errors are written in the output pipe.
+   * @return
+   */
+  @Override public int executeCmdLine
+  ( ProcessBuilder processBuilder
+      , String cmd
+      , String input
+      , int nReportLevel
+      , Appendable output
+      , Appendable error
+  ){
+    String[] cmdArray = CmdExecuter.splitArgs(cmd);  //split arguments in the array form
+    
+    return executeCmdLine(processBuilder, cmdArray, input, nReportLevel, output, error);
 
-	}
-
-
-	
-	/**Executes a command line call maybe as pipe, waiting for finishing..
-	 * The output is written with a separate thread, using the internal (private) class ShowCmdOutput.
-	 * @param processBuilder The ProcessBuilder. There may be assigned environment variables and a current directory.
-	 * @param cmd The cmd and arguments. If it is null, the command assigend to the processBuilder is used.
-	 * @param input Any pipe-input. It may be null.
-	 * @param nReportLevel The report level which is used for output. 
-	 *        If it is 0, then the output isn't written TODO
-	 * @param output The output pipe.
-	 * @param error The error pipe. If it is null, then errors are written in the output pipe.
-	 * @return
-	 */
-	@Override public int executeCmdLine
-	( ProcessBuilder processBuilder
-	    , String[] cmd
-	    , String input
-	    , int nReportLevel
-	    , Appendable output
-	    , Appendable error
-	)
-	{ int exitErrorLevel;
-	try
-	{
-	  processBuilder.command(cmd);
-	  Process process = processBuilder.start();
-	  InputStream processOutput = process.getInputStream();  //reads the output from exec.
-	  InputStream processError  = process.getErrorStream();  //reads the error from exec.
-
-	  Runnable cmdOutput = new ShowCmdOutput(output, nReportLevel, new BufferedReader(new InputStreamReader(processOutput) ));
-	  Thread threadOutput = new Thread(cmdOutput,"cmdline-out");
-	  threadOutput.start();  //the thread reads the processOutput and disposes it to the infoln
-
-	  Runnable cmdError = new ShowCmdOutput(null, nReportLevel, new BufferedReader(new InputStreamReader(processError) ));
-	  Thread threadError = new Thread(cmdError,"cmdline-error");
-	  threadError.start();   //the thread reads the processError and disposes it to the infoln
-	  //boolean bCont = true;
-	  writeInfoln("process ...");
-	  //String sOut = null;
-	  //String sError = null;
-	  //int nTime = 0;
-	  //while(bCont)
-	  { //if(++nTime > 100000){ writeInfo("."); nTime = 0; }
-	    //if(in.ready())
-	    //{ writeInfoln(in   .readLine()); }
-	    //if(error.ready()) { writeInfoln(error.readLine()); }
-	    //if(sOut == null || sError == null)
-	    { //writeInfoln("******* finish **********");
-	      //bCont = false;
-	    }
-	  }
-
-	  process.waitFor();
-	  exitErrorLevel = process.exitValue();
-	}
-	catch(IOException exception)
-	{ writeInfoln( "Problem \n" + exception);
-   	  exitErrorLevel = 255;
-	//throw new RuntimeException("IOException on commandline");
-	}
-	catch ( InterruptedException ie )
-	{
-	  writeInfoln( ie.toString() );
-	  exitErrorLevel = 255;
-	  //throw new RuntimeException("cmdline interrupted");
-	}
-	return exitErrorLevel;
-	}
-	
+  }
 
 
-	/**Starts a command invocation for a independent window.
-	 * This command does not have any input or output. The command will be started,
-	 * the finishing isn't await. This command line invocation is proper for commands,
-	 * which create a new window in the operation system. The new window has its own live cycle then,
-	 * independent of the invocation.
-	 * @param cmd The command. Some arguments are possible, they should be separated by space.
-	 * @param processBuilder The processBuilder.
-	 * @return
-	 */
-	@Override public int startCmdLine(ProcessBuilder processBuilder, String cmd)
-	{
-		String[] cmdArray = CmdExecuter.splitArgs(cmd);  //split arguments in the array form
-		return startCmdLine(processBuilder, cmdArray);
-	
-	}
-	
-	
-	/**Starts a command invocation for a independent window.
-	 * This command does not have any input or output. The command will be started,
-	 * the finishing isn't await. This command line invocation is proper for commands,
-	 * which create a new window in the operation system. The new window has its own live cycle then,
-	 * independent of the invocation.
-	 * @param cmd The command and some arguments.
-	 * @param processBuilder The processBuilder.
-	 * @return 0 on success, 255 if any start error.
-	 */
-	@Override public int startCmdLine(ProcessBuilder processBuilder, String[] cmd)
-	{ int exitErrorLevel = 0;
-		try
-		{
-		  processBuilder.command(cmd);
-		  Process process = processBuilder.start();
-		
-		}
-		catch(IOException exception)
-		{ writeError("", exception);
-		  exitErrorLevel = 255;
-		  //throw new RuntimeException("IOException on commandline");
-		}
-		return exitErrorLevel;
-	}
-	
+  
+  /**Executes a command line call maybe as pipe, waiting for finishing..
+   * The output is written with a separate thread, using the internal (private) class ShowCmdOutput.
+   * @param processBuilder The ProcessBuilder. There may be assigned environment variables and a current directory.
+   * @param cmd The cmd and arguments. If it is null, the command assigend to the processBuilder is used.
+   * @param input Any pipe-input. It may be null.
+   * @param nReportLevel The report level which is used for output. 
+   *        If it is 0, then the output isn't written TODO
+   * @param output The output pipe.
+   * @param error The error pipe. If it is null, then errors are written in the output pipe.
+   * @return
+   */
+  @Override public int executeCmdLine
+  ( ProcessBuilder processBuilder
+      , String[] cmd
+      , String input
+      , int nReportLevel
+      , Appendable output
+      , Appendable error
+  )
+  { int exitErrorLevel;
+  try
+  {
+    processBuilder.command(cmd);
+    Process process = processBuilder.start();
+    InputStream processOutput = process.getInputStream();  //reads the output from exec.
+    InputStream processError  = process.getErrorStream();  //reads the error from exec.
 
-	@Override public int switchToWindowOrStartCmdline(ProcessBuilder processBuilder, String sCmd, String sWindowTitle)
-	{
+    Runnable cmdOutput = new ShowCmdOutput(output, nReportLevel, new BufferedReader(new InputStreamReader(processOutput) ));
+    Thread threadOutput = new Thread(cmdOutput,"cmdline-out");
+    threadOutput.start();  //the thread reads the processOutput and disposes it to the infoln
+
+    Runnable cmdError = new ShowCmdOutput(null, nReportLevel, new BufferedReader(new InputStreamReader(processError) ));
+    Thread threadError = new Thread(cmdError,"cmdline-error");
+    threadError.start();   //the thread reads the processError and disposes it to the infoln
+    //boolean bCont = true;
+    writeInfoln("process ...");
+    //String sOut = null;
+    //String sError = null;
+    //int nTime = 0;
+    //while(bCont)
+    { //if(++nTime > 100000){ writeInfo("."); nTime = 0; }
+      //if(in.ready())
+      //{ writeInfoln(in   .readLine()); }
+      //if(error.ready()) { writeInfoln(error.readLine()); }
+      //if(sOut == null || sError == null)
+      { //writeInfoln("******* finish **********");
+        //bCont = false;
+      }
+    }
+
+    process.waitFor();
+    exitErrorLevel = process.exitValue();
+  }
+  catch(IOException exception)
+  { writeInfoln( "Problem \n" + exception);
+       exitErrorLevel = 255;
+  //throw new RuntimeException("IOException on commandline");
+  }
+  catch ( InterruptedException ie )
+  {
+    writeInfoln( ie.toString() );
+    exitErrorLevel = 255;
+    //throw new RuntimeException("cmdline interrupted");
+  }
+  return exitErrorLevel;
+  }
+  
+
+
+  /**Starts a command invocation for a independent window.
+   * This command does not have any input or output. The command will be started,
+   * the finishing isn't await. This command line invocation is proper for commands,
+   * which create a new window in the operation system. The new window has its own live cycle then,
+   * independent of the invocation.
+   * @param cmd The command. Some arguments are possible, they should be separated by space.
+   * @param processBuilder The processBuilder.
+   * @return
+   */
+  @Override public int startCmdLine(ProcessBuilder processBuilder, String cmd)
+  {
+    String[] cmdArray = CmdExecuter.splitArgs(cmd);  //split arguments in the array form
+    return startCmdLine(processBuilder, cmdArray);
+  
+  }
+  
+  
+  /**Starts a command invocation for a independent window.
+   * This command does not have any input or output. The command will be started,
+   * the finishing isn't await. This command line invocation is proper for commands,
+   * which create a new window in the operation system. The new window has its own live cycle then,
+   * independent of the invocation.
+   * @param cmd The command and some arguments.
+   * @param processBuilder The processBuilder.
+   * @return 0 on success, 255 if any start error.
+   */
+  @Override public int startCmdLine(ProcessBuilder processBuilder, String[] cmd)
+  { int exitErrorLevel = 0;
+    try
+    {
+      processBuilder.command(cmd);
+      Process process = processBuilder.start();
+    
+    }
+    catch(IOException exception)
+    { writeError("", exception);
+      exitErrorLevel = 255;
+      //throw new RuntimeException("IOException on commandline");
+    }
+    return exitErrorLevel;
+  }
+  
+
+  @Override public int switchToWindowOrStartCmdline(ProcessBuilder processBuilder, String sCmd, String sWindowTitle)
+  {
     throw new IllegalArgumentException("only available in graphical-systems.");
-	}
+  }
 
 
 
@@ -1518,36 +1518,36 @@ public abstract class MainCmd implements MainCmd_ifc
   class LogMessageImplConsole implements LogMessage
   {
 
-		@Override
-		public void close() {}
-	
-		@Override
-		public void flush() {}
-	
-		@Override
-		public boolean isOnline() { return true; }
+    @Override
+    public void close() {}
+  
+    @Override
+    public void flush() {}
+  
+    @Override
+    public boolean isOnline() { return true; }
 
-		@Override
-		public boolean sendMsgVaList(int identNumber, OS_TimeStamp creationTime,
-				String text, Va_list args) {
-		  Object oArgs = args.get();
-		  return sendMsgTime(identNumber, creationTime, text, oArgs);
-		}
+    @Override
+    public boolean sendMsgVaList(int identNumber, OS_TimeStamp creationTime,
+        String text, Va_list args) {
+      Object oArgs = args.get();
+      return sendMsgTime(identNumber, creationTime, text, oArgs);
+    }
 
-		@Override
-		public boolean sendMsg(int identNumber, String text, Object... args) {
-			return sendMsgTime(identNumber, OS_TimeStamp.os_getDateTime(), text, args);
-		}
+    @Override
+    public boolean sendMsg(int identNumber, String text, Object... args) {
+      return sendMsgTime(identNumber, OS_TimeStamp.os_getDateTime(), text, args);
+    }
 
-		@Override
-		public boolean sendMsgTime(int identNumber, OS_TimeStamp creationTime, String text, Object... args) {
+    @Override
+    public boolean sendMsgTime(int identNumber, OS_TimeStamp creationTime, String text, Object... args) {
       final int reportLevel = identNumber == 0 ? 
                                Report.info :
                                identNumber <= Report.fineDebug ? identNumber : Report.info;
-			sendMsgTimeToAppendableDst(MainCmd.this.outConsole, identNumber, reportLevel, creationTime, text, args); 
-			return true;
-		}
-  	
+      sendMsgTimeToAppendableDst(MainCmd.this.outConsole, identNumber, reportLevel, creationTime, text, args); 
+      return true;
+    }
+    
   }
   
 
@@ -1592,46 +1592,46 @@ public abstract class MainCmd implements MainCmd_ifc
   {
     final private SimpleDateFormat dateFormat = new SimpleDateFormat("MMM-dd HH:mm:ss.SSS: ");
 
-		@Override
-		public void close() {}
-	
-		@Override
-		public void flush() {}
-	
-		@Override
-		public boolean isOnline() { return true; }
+    @Override
+    public void close() {}
+  
+    @Override
+    public void flush() {}
+  
+    @Override
+    public boolean isOnline() { return true; }
 
-		@Override
-		public boolean sendMsgVaList(int identNumber, OS_TimeStamp creationTime,
-				String text, Va_list args) {
-			String line = dateFormat.format(creationTime) + "; " + identNumber + "; " + String.format(text,args.get());
-	    reportln(Report.info, line);
-			return false;
-		}
+    @Override
+    public boolean sendMsgVaList(int identNumber, OS_TimeStamp creationTime,
+        String text, Va_list args) {
+      String line = dateFormat.format(creationTime) + "; " + identNumber + "; " + String.format(text,args.get());
+      reportln(Report.info, line);
+      return false;
+    }
 
-		@Override
-		public boolean sendMsg(int identNumber, String text, Object... args) {
-			return sendMsgTime(identNumber, OS_TimeStamp.os_getDateTime(), text, args);
-		}
+    @Override
+    public boolean sendMsg(int identNumber, String text, Object... args) {
+      return sendMsgTime(identNumber, OS_TimeStamp.os_getDateTime(), text, args);
+    }
 
-		@Override
-		public boolean sendMsgTime(int identNumber, OS_TimeStamp creationTime,
-				String text, Object... args) {
-		  if(fReport != null)
-	    { String line = "*" + identNumber + "; " + dateFormat.format(creationTime) + "; ";
-	      fReport.writeln("");
-	      fReport.write(line);
-	      if(args.length == 0){
-					//no arguments, no formatting!
-				  line = text;  //may be more as one line, can contain %-character.
-	      } else {
-				  line = String.format(text,args);
-	      }
-				fReport.write(line);  //may be more as one line.
-	    }
-			return false;
-		}
-  	
+    @Override
+    public boolean sendMsgTime(int identNumber, OS_TimeStamp creationTime,
+        String text, Object... args) {
+      if(fReport != null)
+      { String line = "*" + identNumber + "; " + dateFormat.format(creationTime) + "; ";
+        fReport.writeln("");
+        fReport.write(line);
+        if(args.length == 0){
+          //no arguments, no formatting!
+          line = text;  //may be more as one line, can contain %-character.
+        } else {
+          line = String.format(text,args);
+        }
+        fReport.write(line);  //may be more as one line.
+      }
+      return false;
+    }
+    
   }
   
   LogMessageImplConsole logMessageConsole = new LogMessageImplConsole();
