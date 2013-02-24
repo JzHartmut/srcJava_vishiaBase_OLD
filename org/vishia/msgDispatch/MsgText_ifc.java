@@ -1,5 +1,7 @@
 package org.vishia.msgDispatch;
 
+import java.util.Collection;
+
 /**Interface to get a text to a message number. */
 public interface MsgText_ifc {
 
@@ -7,6 +9,7 @@ public interface MsgText_ifc {
   /**version, history and license:
    * <ul>
    * <li>
+   * <li>2013-02-24 Hartmut new {@link #getListItems()}, move {@link MsgConfigItem} from {@link MsgConfig}.
    * <li>2012-08-22 Hartmut created as interface to {@link MsgConfig} to use in {@link MsgDispatcher}
    * </ul>
    * 
@@ -43,5 +46,39 @@ public interface MsgText_ifc {
    * @return null if no message text was found.
    */
   String getMsgText(int ident);
+
+  
+  
+  Collection<MsgConfigItem> getListItems();
+  
+  
+  
+  /**One item for each message. 
+   * From Zbnf: This class is used as setting class for Zbnf2Java, therefore all is public. The identifiers have to be used
+   * as semantic in the parser script.
+   *
+   */
+  public static class MsgConfigItem
+  {
+    /**The message text can contain format specifier for the additional values. */
+    public String text;
+    
+    /**Identification String for non-numbered message, see {@link MsgPrintStream}*/
+    public String identText;
+    
+    /**The message ident.*/
+    public int identNr;
+    
+    /**The last ident if this entry describes a range. */
+    public int identNrLast;
+    
+    /**Some chars which can specify the destination (output) for the message. */
+    public String dst;
+    
+    public char type_;
+    
+    public void set_type(String src){ type_=src.charAt(0); }
+  }
+  
 
 }

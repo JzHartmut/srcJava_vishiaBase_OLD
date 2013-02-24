@@ -3,6 +3,7 @@ package org.vishia.msgDispatch;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.Collection;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -110,7 +111,7 @@ public class MsgPrintStream
   
   private final Map<String, GroupIdent> idxGroupIdent = new TreeMap<String, GroupIdent>();
   
-  private final PrintStream printStreamLog;
+  //private final PrintStream printStreamOut, printStreamErr;
 
   
   
@@ -142,7 +143,8 @@ public class MsgPrintStream
     this.identGroupLast = Integer.MAX_VALUE - sizeGroup;
 
     this.zGroup = sizeGroup;
-    printStreamLog = new PrintStreamAdapter();
+    //printStreamOut = new PrintStreamAdapter("out.");
+    //printStreamErr = new PrintStreamAdapter("err.");
     //outStream = System.err;  //all not translated outputs
     //System.setErr(printStreamLog);  //redirect all System.err.println to the MsgDispatcher or the other given logOut
   }
@@ -154,14 +156,69 @@ public class MsgPrintStream
   /**Returns the PrintStream which converts and redirects the output String to the given LogMessage output.
    * One can invoke:
    * <pre>
-   * System.setErr(myMsgPrintStream.getPrintStreamLog);
+   * System.setOut(myMsgPrintStream.getPrintStreamLog("out."));
+   * System.setErr(myMsgPrintStream.getPrintStreamLog("err."));
    * </pre>
-   * Then any output to System.err.println("text") will be redirected.
-   * @return
+   * Then any output to System.out.print... and System.err.print... will be redirected to the {@link LogMessage} association
+   * given in the constructor of this class. One can create so much as necessary adapters. They uses the same association
+   * index between String and list. If the texts are given with {@link #setMsgIdents(MsgText_ifc)} without the prefix
+   * they produces the same message ident number. If the text are given with the prefix, the ident numbers are different.
+   * If the association between text and ident is not given before the first call of PrintStream.print..., different prefixes
+   * causes different message idents. In this kind for example System.out and System.err can be redirected to different
+   * message ident numbers though the output texts are the same.
+   * <br><br>
+   * Invoke for example and as pattern:
+   * <pre>
+   * System.setOut(systemPrintAdapter.getPrintStreamLog("out."));     //instead writing to console the PrintStream creates a message
+   * System.setErr(systemPrintAdapter.getPrintStreamLog("err."));     //and sends it to the message dispatcher.
+   * </pre>
+   * @pre prefix String to distinguish between several instances (channels). If this prefix String is identically,
+   *   different instances are returned but there functionality is equate.
+   * @return A PrintStream instances which is not references anywhere else at this time. You should store this reference.
+   *   The outer class of this reference is this class.
    */
-  public PrintStream getPrintStreamLog(){ return printStreamLog; }
+  public PrintStream getPrintStreamLog( String pre){ return new PrintStreamAdapter(pre); }
 
 
+  
+  
+  /**Sets all associations between a message identification text to its ident number or to its number range.
+   * Invoke this method before any output is taken via this class, it means before any {@link #getPrintStreamLog(String)}
+   * was build.
+   * <br><br>
+   * The src contains some message texts with ident numbers maybe read from a configuration file.
+   * If any {@link MsgText_ifc.MsgConfigItem} contains a {@link MsgText_ifc.MsgConfigItem#identText} it is associated
+   * to its number from {@link MsgText_ifc.MsgConfigItem#identNr} or its range to {@link MsgText_ifc.MsgConfigItem#identNrLast}
+   * stored in this class ({@link #idxIdent} or {@link #idxGroupIdent}). If any text is outputted via any 
+   * {@link PrintStreamAdapter#print(String)} or {@link PrintStreamAdapter#printf(String, Object...)} and this text
+   * has the same start text, this message ident number is taken. The ident numbers can be used to configure a message dispatcher
+   * independent but proper to this functionality from the same src. In this kind the messages with identification by text
+   * are dispatched accurately.
+   * @param src The source of association betwenn text and number.
+   */
+  public void setMsgIdents(MsgText_ifc src){
+    Collection<MsgText_ifc.MsgConfigItem> list =src.getListItems();
+    for(MsgText_ifc.MsgConfigItem item: list){
+      if(item.identText !=null){
+        String sIdent = item.identText;
+        if(item.identNrLast !=0){
+          //it is a group
+          int posGrp = sIdent.indexOf(" - ");  //it has a group - detail ?
+          if(posGrp < 0){
+            posGrp =sIdent.indexOf('-');
+          }
+          final String sGrp;
+          if(posGrp >0){ sGrp = sIdent.substring(0, posGrp).trim(); } 
+          else { sGrp = sIdent.trim();  }  //The entry in src is the group ident.
+          setMsgGroupIdent(sGrp, item.identNr, item.identNrLast);
+        }
+        else { //no group, special text
+          idxIdent.put(sIdent.trim(), item.identNr);
+        }
+      }
+    }
+  }
+  
   
   
   /**Creates a group with the given text and the given ident number range.
@@ -170,20 +227,31 @@ public class MsgPrintStream
    * <br>
    * The method is proper to use if one knows some message texts and one is attempt to dispatch it.
    *  
-   * @param msg The text till the exclusive " - " separation.
+   * @param sIdent The text till the exclusive " - " separation.
    * @param nrStart The first number of the group
    * @param nrLast The last number of the group.
+   * @return false if the group ident msg is known already, it is unchanged (may cause an IllegalArgumentException outside).
+   *   true if this sIdent is used.
    */
-  public void setMsgGroupIdent(String msg, int nrStart, int nrLast){
-      GroupIdent grpIdent = idxGroupIdent.get(msg);
-      if(grpIdent ==null){
-        grpIdent= new GroupIdent(nrStart, nrLast);
-      }
+  public boolean setMsgGroupIdent(String sIdent, int nrStart, int nrLast){
+    GroupIdent grpIdent = idxGroupIdent.get(sIdent);
+    if(grpIdent !=null){
+      return false;
+    } else {
+      grpIdent= new GroupIdent(nrStart, nrLast);
+      idxGroupIdent.put(sIdent, grpIdent);
+      return true;
+    }
   }
   
   
-  private GroupIdent getMsgGroupIdent(String msg){
-    GroupIdent grpIdent = idxGroupIdent.get(msg);
+  private GroupIdent getMsgGroupIdent(String pre, String msg){
+    GroupIdent grpIdent = idxGroupIdent.get(msg);  //try only with msg, used usual on configured msg
+    String msgSearch = null;
+    if(grpIdent == null){
+      msgSearch = pre + msg;
+      grpIdent = idxGroupIdent.get(msgSearch);  //try with pre, used by unconfigured msg
+    }
     if(grpIdent == null){
       int nextGrpIdent;
       int catastrophicCount = 0;
@@ -194,7 +262,7 @@ public class MsgPrintStream
         nextGrpIdent1 = nextGrpIdent < identGroupLast ? nextGrpIdent + zGroup : nextGrpIdent;
       } while( !nextGroupIdent.compareAndSet(nextGrpIdent, nextGrpIdent1));
       grpIdent = new GroupIdent(nextGrpIdent, nextGrpIdent1-1);
-      idxGroupIdent.put(msg, grpIdent);
+      idxGroupIdent.put(msgSearch, grpIdent);   //put for auto generated numbers with pre.
     }
     return grpIdent;
   }
@@ -202,25 +270,29 @@ public class MsgPrintStream
   
   
   
-  private void convertToMsg(String s, Object... args) {
-    int posSemicolon = s.indexOf(';');
-    int posColon = s.indexOf(':');
+  private void convertToMsg(String pre, String identString, Object... args) {
+    int posSemicolon = identString.indexOf(';');
+    int posColon = identString.indexOf(':');
     int posSep = posColon < 0 || posSemicolon < posColon ? posSemicolon : posColon;  //more left char of ; :
     final String sIdent;
-    if(posSep >0){ sIdent = s.substring(0, posSep); }
-    else { sIdent = s; }
-    
-    Integer nIdent = idxIdent.get(sIdent);
+    if(posSep >0){ sIdent = identString.substring(0, posSep).trim(); }
+    else { sIdent = identString.trim(); }
+    String sPreIdent = null;
+    Integer nIdent = idxIdent.get(sIdent);  //check whether the sIdent is known already by configuration. 
     if(nIdent == null){
+      sPreIdent = pre + sIdent;
+      nIdent = idxIdent.get(sPreIdent);     //check whether the sIdent is known already by pre.sIdent (maybe autogenerated)
+    }
+    if(nIdent == null){                    //sIdent is not known:
       int nIdent1;
-      int posGrp = sIdent.indexOf(" - ");
+      int posGrp = sIdent.indexOf(" - ");  //it has a group - detail ?
       if(posGrp < 0){
         posGrp =sIdent.indexOf('-');
       }
       
       if(posGrp >0){
         String sGrp = sIdent.substring(0, posGrp).trim();
-        GroupIdent grpIdent = getMsgGroupIdent(sGrp);
+        GroupIdent grpIdent = getMsgGroupIdent(pre, sGrp);  //check whether the group is known by group or pre.group
         int catastrophicCount = 0;
         int nextIdentInGroup1;
         do{
@@ -240,9 +312,9 @@ public class MsgPrintStream
         
       }
       nIdent = new Integer(nIdent1);
-      idxIdent.put(sIdent, nIdent);
+      idxIdent.put(sPreIdent, nIdent);
     } //nIdent == null
-    logOut.sendMsg(nIdent, s, args);
+    logOut.sendMsg(nIdent, identString, args);
   }
 
   
@@ -264,9 +336,12 @@ public class MsgPrintStream
   
   private class PrintStreamAdapter extends PrintStream {
     
+    final String pre;
     
-    PrintStreamAdapter() {
+    
+    PrintStreamAdapter(String pre) {
       super(outStream);
+      this.pre = pre;
     }
     
     
@@ -276,16 +351,16 @@ public class MsgPrintStream
      * 
      * @see java.io.PrintStream#print(java.lang.String)
      */
-    @Override public void print(String s) { convertToMsg(s); }
+    @Override public void print(String s) { convertToMsg(pre, s); }
     
     /**The println method is used usually. 
      * 
      * @see java.io.PrintStream#println(java.lang.String)
      */
-    @Override public void println(String s) { convertToMsg(s); }
+    @Override public void println(String s) { convertToMsg(pre, s); }
 
     @Override public PrintStream printf(String s, Object... args) { 
-      convertToMsg(s, args); return this; 
+      convertToMsg(pre, s, args); return this; 
     }
     
   } //class PrintStreamAdapter

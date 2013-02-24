@@ -232,6 +232,10 @@ public class MsgDispatcherCore
   protected MsgText_ifc msgText;
   
   
+  protected final Runnable runNoEntryMessage;
+  
+  int ctLostMessages;
+  
   /**Initializes the instance.
    * @param maxQueue The static limited maximal size of the queue to store messages from user threads
    *        to dispatch in the dispatcher thread. If you call the dispatching in dispatcher thread
@@ -239,7 +243,8 @@ public class MsgDispatcherCore
    *        200 is okay.
    * @param nrofMixedOutputs
    */
-  MsgDispatcherCore(int maxQueue, int nrofMixedOutputs){
+  MsgDispatcherCore(int maxQueue, int nrofMixedOutputs, Runnable runNoEntryMessage){
+    this.runNoEntryMessage = runNoEntryMessage;
     this.nrofMixedOutputs = nrofMixedOutputs;
     if(nrofMixedOutputs < 0 || nrofMixedOutputs > 28) throw new IllegalArgumentException("max. nrofMixedOutputs");
     this.mDstMixedOutputs = (1<<nrofMixedOutputs) -1;
@@ -316,8 +321,12 @@ public class MsgDispatcherCore
         { /**queue overflow, no entries available. The message can't be displayed
            * This is the payment to won't use 'new'. A problem of overwork of data. 
            */
-          //TODO test if it is a important message
-          System.out.println("**************** NO ENTRIES");
+          if(runNoEntryMessage !=null){
+            runNoEntryMessage.run();
+          } else {
+            //there is no other possibility:
+            if(++ctLostMessages ==0){ctLostMessages = 1; }  //never reaches 0 after incrementation.
+          }
         }
         else
         { /**write the informations to the entry, store it. */
@@ -361,7 +370,7 @@ public class MsgDispatcherCore
     int idst = 0;
     if(msgText !=null){
       String sTextCfg = msgText.getMsgText(identNumber);
-      if(sTextCfg !=null){
+      if(sTextCfg !=null && sTextCfg.length() >0){
         text = sTextCfg;   //replace the input text if a new one is found.
       }
     }

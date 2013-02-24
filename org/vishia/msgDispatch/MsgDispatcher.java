@@ -101,8 +101,8 @@ public static final int version = 0x20120113;
    * @param maxOutputs The static limited maximal number of outputs.
    * @param nrofMixedOutputs
    */
-  public MsgDispatcher(int maxDispatchEntries, int maxQueue, int maxOutputs, int nrofMixedOutputs)
-  { super(maxQueue, nrofMixedOutputs);
+  public MsgDispatcher(int maxDispatchEntries, int maxQueue, int maxOutputs, int nrofMixedOutputs, Runnable runNoEntryMessage)
+  { super(maxQueue, nrofMixedOutputs, runNoEntryMessage);
     
     /**@java2c = embeddedArrayElements. */
     Entry[] entries = new Entry[maxQueue];

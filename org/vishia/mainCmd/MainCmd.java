@@ -1456,7 +1456,11 @@ public abstract class MainCmd implements MainCmd_ifc
       } else {
         line = dateFormatMsg.format(creationTime) + "; " + identNumber + "; " + String.format(text,args);
       }
-      try{ dst.append(line);
+      try{ 
+        dst.append(line);
+        if(!line.endsWith("\n")){
+          dst.append("\n");
+        }
       } catch(IOException exc){
         //the exception may be unexpected. Write it to the original System.err on construction of this class,
         //all other channels may be redirected.

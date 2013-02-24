@@ -102,7 +102,7 @@ public class SampleCmdLine
       //Any System.err.println("Identifier - message; information") is redirected.
       //The usage of the MessageDispatcher is recommended too, but it is not part of this package.
       MsgPrintStream redirectSystemErr = new MsgPrintStream(mainCmdline, 15000, 5000, 100);
-      System.setErr (redirectSystemErr.getPrintStreamLog());
+      System.setErr (redirectSystemErr.getPrintStreamLog("err."));
       
       /**Now instantiate the main class. 
        * It is possible to create some aggregates (final references) first outside, depends on args.
