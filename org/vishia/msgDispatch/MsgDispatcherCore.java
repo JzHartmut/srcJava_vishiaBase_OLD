@@ -32,7 +32,7 @@ import org.vishia.bridgeC.Va_list;
 
 /**This is the core of the message dispatcher. It dispatches only. 
  * The dispatch table maybe filled with a simplest algorithm. 
- * This class is able to use in a simple enviroment.
+ * This class is able to use in a simple environment.
  * 
  * @author Hartmut Schorrig
  *
@@ -42,6 +42,11 @@ public class MsgDispatcherCore
 
   /**version, history and license:
    * <ul>
+   * <li>2013-02-25 Hartmut new: The {@link Output#bUseText} stores whether the output channel uses the text. 
+   *   The {@link #dispatchMsg(int, boolean, int, OS_TimeStamp, String, Va_list)} gets a text from configuration
+   *   only if it is need.
+   * <li>2013-02-25 Hartmut new: The {@link #sendMsgVaList(int, OS_TimeStamp, String, Va_list)} counts whether a message can't be queued.
+   *   it is used to output a 'lostmessage' message in {@link MsgDispatcher#dispatchQueuedMsg()}.
    * <li>2012-08-22 Hartmut new {@link #setMsgTextConverter(MsgText_ifc)}. It provides a possibility to work with a
    *   translation from ident numbers to text with an extra module, it is optional.
    * <li>2012-06-15 Hartmut created as separation from the MsgDispatcher because it may necessary to deploy 
@@ -87,7 +92,7 @@ public class MsgDispatcherCore
   /**Only this bits are used to indicate the destination via some Bits*/
   public final static int mDispatchBits =               0x3FFFFFFF;
   
-  /**Number of Bits in {@link mDispatchWithBits}, it is the number of destinations dispached via bit mask. */
+  /**Number of Bits in {@link mDispatchWithBits}, it is the number of destinations dispatched via bit mask. */
   protected final int nrofMixedOutputs;
   
   /**Calculated mask of bits which are able to mix. */
@@ -95,7 +100,6 @@ public class MsgDispatcherCore
    
   /**Calculated mask of bits which are one index. */
   public final int mDstOneOutput;
-  
   
   
   /**Mask for dispatch the message to console directly in the calling thread. 
@@ -190,8 +194,12 @@ public class MsgDispatcherCore
      * false if the output is called immediately in the calling thread.
      */ 
     boolean dstInDispatcherThread;
-  
     
+    /**Bit which indicates that the text information field of {@link #sendMsgVaList(int, OS_TimeStamp, String, Va_list)} is used.
+     * This bit is set in the routine {@link MsgDispatcher#setOutputRoutine(int, String, boolean, boolean, LogMessage)}.
+     * It is important especially in fast embedded systems.
+     */
+    boolean bUseText;
   }
   
   final TestCnt testCnt = new TestCnt();
@@ -298,7 +306,6 @@ public class MsgDispatcherCore
    */
   public final boolean sendMsgVaList(int identNumber, final OS_TimeStamp creationTime, String text, final Va_list args)
   {
-    // TODO Auto-generated method stub
     int dstBits = searchDispatchBits(identNumber);
     if(dstBits != 0)
     { final int dstBitsForDispatcherThread;
@@ -323,10 +330,8 @@ public class MsgDispatcherCore
            */
           if(runNoEntryMessage !=null){
             runNoEntryMessage.run();
-          } else {
-            //there is no other possibility:
-            if(++ctLostMessages ==0){ctLostMessages = 1; }  //never reaches 0 after incrementation.
           }
+          if(++ctLostMessages ==0){ctLostMessages = 1; }  //never reaches 0 after incrementation.
         }
         else
         { /**write the informations to the entry, store it. */
@@ -368,21 +373,25 @@ public class MsgDispatcherCore
     dstBits &= mDispatchBits;  
     int bitTest = 0x1;
     int idst = 0;
-    if(msgText !=null){
-      String sTextCfg = msgText.getMsgText(identNumber);
-      if(sTextCfg !=null && sTextCfg.length() >0){
-        text = sTextCfg;   //replace the input text if a new one is found.
-      }
-    }
+    String sTextMsg = text;  //maybe null if not used.
+    boolean bMsgTextGotten = false;
     while(dstBits != 0 && bitTest < mDispatchBits) //abort if no bits are set anymore.
     { if(  (dstBits & bitTest)!=0 
         && ( ( outputs[idst].dstInDispatcherThread &&  bDispatchInDispatcherThread)  //dispatch in the requested thread
            ||(!outputs[idst].dstInDispatcherThread && !bDispatchInDispatcherThread)
            )
         )
-      { LogMessage out = outputs[idst].outputIfc;
+      { Output channel = outputs[idst];
+        LogMessage out = channel.outputIfc;
         if(out != null)
-        { boolean sent = out.sendMsgVaList(identNumber, creationTime, text, args);
+        { if(!bMsgTextGotten && msgText !=null && channel.bUseText){
+            bMsgTextGotten =true;
+            sTextMsg = msgText.getMsgText(identNumber);
+            if(sTextMsg ==null || sTextMsg.length() ==0){
+              sTextMsg = text;   //replace the input text if a new one is found.
+            }
+          }
+          boolean sent = out.sendMsgVaList(identNumber, creationTime, sTextMsg, args);
           if(sent)
           { dstBits &= ~bitTest; //if sent, reset the associated bit.
           }

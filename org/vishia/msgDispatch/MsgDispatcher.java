@@ -53,6 +53,14 @@ public class MsgDispatcher extends MsgDispatcherCore implements LogMessage
 
 /**Version and history:
  * <ul>
+ * <li>2013-02-25 Hartmut chg: {@link #MsgDispatcher(int, int, int, int, int, Runnable)} has gotten a new argument
+ *   'msgIdentQueueOverflow'. This is the number for a message which is created automatically if a overflowed msg queue
+ *   was found on the next invocation of {@link #dispatchQueuedMsg()}. That is the best method to show that there was a
+ *   buffer overflow. The user found this message in its message log on configurable output with a configurable text
+ *   as hint that a overflow has occurred. An overflow is a result of either to less queue size or to much messages.
+ * <li>2013-02-25 Hartmut chg: {@link #setOutputRoutine(int, String, boolean, boolean, LogMessage)} has gotten a new argument
+ *   'bText'. It is a substantial property whether an output channel uses the text or not. The preparation of text
+ *   is not done especially if a short calculation cycle does not need that.  
  * <li>2012-01-13 Hartmut make some methods public, especially {@link #searchDispatchBits(int)}.
  *   It make it possible to use the dispatch data without calling {@link #sendMsg(int, String, Object...)}.
  * <li>2009-02-05 Hartmut  *corr nrofMixedOutputs
@@ -83,6 +91,7 @@ public static final int version = 0x20120113;
   
   private int maxDst = 0;
 
+  private final int msgIdentQueueOverflow;
       
   
   /**Initializes the instance.
@@ -100,10 +109,13 @@ public static final int version = 0x20120113;
    *        200 is okay.
    * @param maxOutputs The static limited maximal number of outputs.
    * @param nrofMixedOutputs
+   * @param msgIdentQueueOverflow Ident of that message that inform about lost messages. New since 2013-02-24
+   * @param runNoEntryMessage null or a routine which is called on lost messages. New since 2013-02-24
    */
-  public MsgDispatcher(int maxDispatchEntries, int maxQueue, int maxOutputs, int nrofMixedOutputs, Runnable runNoEntryMessage)
+  public MsgDispatcher(int maxDispatchEntries, int maxQueue, int maxOutputs, int nrofMixedOutputs
+      , int msgIdentQueueOverflow, Runnable runNoEntryMessage)
   { super(maxQueue, nrofMixedOutputs, runNoEntryMessage);
-    
+    this.msgIdentQueueOverflow = msgIdentQueueOverflow;
     /**@java2c = embeddedArrayElements. */
     Entry[] entries = new Entry[maxQueue];
     for(int idxEntry = 0; idxEntry < entries.length; idxEntry++)
@@ -130,8 +142,8 @@ public static final int version = 0x20120113;
     for(int idxDst = 0; idxDst < maxOutputs; idxDst++){ outputs[idxDst] = new Output();}
     
     /**Set default output to console. */
-    setOutputRoutine(0, "CON", false, outputConsole);  //mConsole
-    setOutputRoutine(1, "qCON", true, outputConsole);   //mConsoleQueued
+    setOutputRoutine(0, "CON", false, true, outputConsole);  //mConsole
+    setOutputRoutine(1, "qCON", true, true, outputConsole);   //mConsoleQueued
     setOutputRange(0, Integer.MAX_VALUE, mConsole, MsgDispatcher.mSet, 3);
   }
   
@@ -142,8 +154,8 @@ public static final int version = 0x20120113;
   
   
   public final void setDefaults(String fileOut)
-  { setOutputRoutine(0, "CON", false, outputConsole);  //mConsole
-    setOutputRoutine(1, "qCON", true, outputConsole);   //mConsoleQueued
+  { setOutputRoutine(0, "CON", false, true, outputConsole);  //mConsole
+    setOutputRoutine(1, "qCON", true, true, outputConsole);   //mConsoleQueued
     //LogMessage outputFile = new LogMessageFile(fileOut);
     //setOutputRoutine(1, false, outputFile);     //mFile
     setOutputRange(0, Integer.MAX_VALUE, mConsole, MsgDispatcher.mSet, 3);
@@ -222,21 +234,25 @@ public static final int version = 0x20120113;
   
   /**Sets a destination interface to a index for dispatching.
    * @param dstIdx The index 0..28 or greater, which is associated to the destination.
+   * @param name Name of the output channel to use for dispatch configuration
    * @param bQueued true than the message is queued if this destination is used.
-   * @param outputs The destination for message or log output.
+   * @param bText true than the output uses the message text. false if the text is unused. new since 2013-02-24
+   *   A text is unused if the output channel stores or transmits the message without text. The message text
+   *   may be complement later determined by the message ident maybe in another language from any configuration setting.  
+   * @param dst The destination for message or log output.
    */
-  public final void setOutputRoutine(int dstIdx, String name, boolean bQueued, LogMessage dst)
+  public final void setOutputRoutine(int dstIdx, String name, boolean bQueued, boolean bText, LogMessage dst)
   { int mask;  
     if(dstIdx < 0 || dstIdx > outputs.length) 
       throw new IllegalArgumentException("dstIdx fault. Hint: an index, not a mask!");
     if(maxDst <= dstIdx){ maxDst= dstIdx+1; }
     /*
-    if(dstIdx > nrofMixedOutputs)
-    { mask = dstIdx << nrofMixedOutputs;
-    }
-    else
-    { mask = 1 << dstIdx;
-    }
+      if(dstIdx >= nrofMixedOutputs)
+      { mask = dstIdx << nrofMixedOutputs;
+      }
+      else
+      { mask = 1 << dstIdx;
+      }
     if(bQueued)
     { mask |= mDispatchInDispatcherThread;
     }
@@ -246,6 +262,7 @@ public static final int version = 0x20120113;
     */
     this.outputs[dstIdx].outputIfc = dst;
     this.outputs[dstIdx].dstInDispatcherThread = bQueued;
+    this.outputs[dstIdx].bUseText = bText;
     this.outputs[dstIdx].name = name;
   }
   
@@ -610,7 +627,8 @@ public static final int version = 0x20120113;
   
   
   /**Dispatches all messages, which are stored in the queue. 
-   * This routine should be called in any user thread respectively it is called in TODOx1.
+   * This routine should be called in a user thread. It is called in {@link #tickAndFlushOrClose()} 
+   * and in @ {@link #flush()} and link #close()}.
    * @return number of messages which are found to dispatch, for statistic use.
    */
   public final int dispatchQueuedMsg()
@@ -624,30 +642,20 @@ public static final int version = 0x20120113;
       bCont = (entry != null && entry != firstNotSentMsg);
       if(bCont)
       { nrofFoundMsg +=1;
-        int notDispatchedDst = dispatchMsg(entry.dst, true, entry.ident, entry.timestamp, entry.text, entry.values.get_va_list());
-        if(true || notDispatchedDst == 0)
-        { entry.values.clean();
-          entry.ident = 0;  
-          freeOrders.offer(entry);
-        }
-        else
-        { /**Not all destinations are processed. 
-           * It is possible that a file is in at-least-closing time.
-           */ 
-          if(firstNotSentMsg == null)
-          { firstNotSentMsg = entry;
-          }
-          /**re-assign the entry to the orders to process later. 
-          { SimpleDateFormat testDate = new SimpleDateFormat("mm:ss,SSS");
-            String sTime = testDate.format(entry.timestamp);
-            System.out.println("re-enter " + sTime); //String.format("%1$2ts.%1$2tQ", new Date()));
-          }
-          */
-          //parkedOrders.offer(entry);
-        }
+        dispatchMsg(entry.dst, true, entry.ident, entry.timestamp, entry.text, entry.values.get_va_list());
+        entry.values.clean();
+        entry.ident = 0;  
+        freeOrders.offer(entry);
       }
       
     }while(bCont && (--cntDispatchedMsg) >=0);
+    if(ctLostMessages >0){                              //dispatch the message about overflow of queued message.
+      final Va_list vaArgs =  new Va_list(ctLostMessages);  
+      ctLostMessages = 0;
+      int dstBits = searchDispatchBits(msgIdentQueueOverflow);
+      OS_TimeStamp timestamp = OS_TimeStamp.os_getDateTime();
+      dispatchMsg(dstBits, true, msgIdentQueueOverflow, timestamp, "Message queue overflow; nrof msg=%d", vaArgs);
+    }
     if(cntDispatchedMsg == 0)
     { /**max nrof msg are processed:
        * The while-queue is left because a thread hanging isn't able to accept.

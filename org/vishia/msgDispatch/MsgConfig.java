@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 
-/**This class holds all configuration information about messages, especially the message text associated to a ident number. 
+/**This class holds configuration information about messages, especially the message text associated to a ident number. 
  * */
 public class MsgConfig implements MsgText_ifc
 {
