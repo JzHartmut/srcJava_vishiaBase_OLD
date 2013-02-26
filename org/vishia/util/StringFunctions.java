@@ -1,9 +1,7 @@
 
 package org.vishia.util;
 
-import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import java.nio.charset.CharsetEncoder;
 
 /**This class contains static String functions without any other dependency. 
  * In C the functions are contained in the Fwc/fw_String.c.

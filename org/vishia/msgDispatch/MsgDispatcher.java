@@ -117,9 +117,9 @@ public static final int version = 0x20120113;
   { super(maxQueue, nrofMixedOutputs, runNoEntryMessage);
     this.msgIdentQueueOverflow = msgIdentQueueOverflow;
     /**@java2c = embeddedArrayElements. */
-    Entry[] entries = new Entry[maxQueue];
+    MsgDispatcherCore.Entry[] entries = new MsgDispatcherCore.Entry[maxQueue];
     for(int idxEntry = 0; idxEntry < entries.length; idxEntry++)
-    { entries[idxEntry] = new Entry();
+    { entries[idxEntry] = new MsgDispatcherCore.Entry();
     }
     int idxEntry;
     
@@ -138,8 +138,8 @@ public static final int version = 0x20120113;
       this.actNrofListIdents = 2;
     }
     /*allocate the output array: */
-    outputs = new Output[maxOutputs];
-    for(int idxDst = 0; idxDst < maxOutputs; idxDst++){ outputs[idxDst] = new Output();}
+    outputs = new MsgDispatcherCore.Output[maxOutputs];
+    for(int idxDst = 0; idxDst < maxOutputs; idxDst++){ outputs[idxDst] = new MsgDispatcherCore.Output();}
     
     /**Set default output to console. */
     setOutputRoutine(0, "CON", false, true, outputConsole);  //mConsole
@@ -150,7 +150,7 @@ public static final int version = 0x20120113;
   /**Gets the internal free entries for sharing with an other log output, 
    * at example LogMessageFile.
    */
-  public final ConcurrentLinkedQueue<Entry> getSharedFreeEntries(){ return freeOrders; }
+  public final ConcurrentLinkedQueue<MsgDispatcherCore.Entry> getSharedFreeEntries(){ return freeOrders; }
   
   
   public final void setDefaults(String fileOut)
@@ -494,7 +494,7 @@ public static final int version = 0x20120113;
       
       for(int ii = 0; ii < maxDst; ii++)
       { line.setLength(0);
-        Output dst = outputs[ii]; 
+        MsgDispatcherCore.Output dst = outputs[ii]; 
         if(dst.outputIfc != null)
         { line.append("//").append(ii).append(": ").append(dst.name);
           if(dst.dstInDispatcherThread){ line.append(" - queued");  }
@@ -519,7 +519,7 @@ public static final int version = 0x20120113;
         int maskBitDst = 1;
         for(int iDst = 0; iDst < maxDst; iDst++)
         { if( (bitDst & maskBitDst)!=0)
-          { Output dst = outputs[iDst];
+          { MsgDispatcherCore.Output dst = outputs[iDst];
             if(dst.outputIfc != null)
             { if(!bFirst){ line.append("+"); }
               else { bFirst = false; } 
@@ -534,7 +534,7 @@ public static final int version = 0x20120113;
           { /**A non mixed output: */
             int idxNonMixedDst = ((bitDst & mDstOneOutput) >> nrofMixedOutputs) -1 + nrofMixedOutputs;
             if(idxNonMixedDst >= nrofMixedOutputs)
-            { Output dst = outputs[iDst];
+            { MsgDispatcherCore.Output dst = outputs[iDst];
               if(dst.outputIfc != null)
               { if(!bFirst){ line.append("+"); }
                 else { bFirst = false; } 
@@ -636,9 +636,9 @@ public static final int version = 0x20120113;
     /**Limit the number of while-loops to prevent thread hanging. */
     int cntDispatchedMsg = 100;
     boolean bCont;
-    Entry firstNotSentMsg = null;
+    MsgDispatcherCore.Entry firstNotSentMsg = null;
     do
-    { Entry entry = listOrders.poll();
+    { MsgDispatcherCore.Entry entry = listOrders.poll();
       bCont = (entry != null && entry != firstNotSentMsg);
       if(bCont)
       { nrofFoundMsg +=1;
@@ -653,7 +653,8 @@ public static final int version = 0x20120113;
       final Va_list vaArgs =  new Va_list(ctLostMessages);  
       ctLostMessages = 0;
       int dstBits = searchDispatchBits(msgIdentQueueOverflow);
-      OS_TimeStamp timestamp = OS_TimeStamp.os_getDateTime();
+      final OS_TimeStamp timestamp = new OS_TimeStamp();
+      timestamp.set(OS_TimeStamp.os_getDateTime());
       dispatchMsg(dstBits, true, msgIdentQueueOverflow, timestamp, "Message queue overflow; nrof msg=%d", vaArgs);
     }
     if(cntDispatchedMsg == 0)
@@ -708,7 +709,7 @@ public static final int version = 0x20120113;
   public final void tickAndFlushOrClose()
   { dispatchQueuedMsg();
     for(int ix = 0; ix < outputs.length; ix++){
-      Output output = outputs[ix];
+      MsgDispatcherCore.Output output = outputs[ix];
       if(output.dstInDispatcherThread){
         output.outputIfc.flush();
       }
