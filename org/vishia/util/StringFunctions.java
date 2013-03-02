@@ -3,13 +3,10 @@ package org.vishia.util;
 
 import java.nio.charset.Charset;
 
+
 /**This class contains static String functions without any other dependency. 
  * In C the functions are contained in the Fwc/fw_String.c.
  * @author Hartmut Schorrig
- *
- */
-/**
- * @author hartmut
  *
  */
 public class StringFunctions {

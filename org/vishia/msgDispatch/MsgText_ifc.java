@@ -44,6 +44,7 @@ public interface MsgText_ifc {
   /**Returns a message text to the given ident number
    * @param ident the absolute value is used to find the text.
    * @return null if no message text was found.
+   *     @pjava2c=zeroTermString.
    */
   String getMsgText(int ident);
 

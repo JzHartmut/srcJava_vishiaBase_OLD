@@ -29,6 +29,8 @@ import org.vishia.bridgeC.MemC;
 import org.vishia.bridgeC.OS_TimeStamp;
 import org.vishia.bridgeC.VaArgBuffer;
 import org.vishia.bridgeC.Va_list;
+import org.vishia.util.Java4C;
+
 
 /**This is the core of the message dispatcher. It dispatches only. 
  * The dispatch table maybe filled with a simplest algorithm. 
@@ -37,11 +39,12 @@ import org.vishia.bridgeC.Va_list;
  * @author Hartmut Schorrig
  *
  */
-public class MsgDispatcherCore 
+public class MsgDispatcherCore implements LogMessage
 {
 
   /**version, history and license:
    * <ul>
+   * <li>2013-03-02 Hartmut chg: The LogMessage is implemented here now, instead in the derived {@link MsgDispatcher}.
    * <li>2013-02-25 Hartmut new: The {@link Output#bUseText} stores whether the output channel uses the text. 
    *   The {@link #dispatchMsg(int, boolean, int, OS_TimeStamp, String, Va_list)} gets a text from configuration
    *   only if it is need.
@@ -78,7 +81,7 @@ public class MsgDispatcherCore
    * 
    * 
    */
-  public final static int version = 20120822;
+  public final static int version = 20130302;
 
   /**If this bit is set in the bitmask for dispatching, the dispatching should be done 
    * in the dispatcher Thread. In the calling thread the message is stored in a queue. */
@@ -215,6 +218,8 @@ public class MsgDispatcherCore
    */
   final ConcurrentLinkedQueue<Entry> freeOrders;
   
+
+  
   /**List of idents, its current length. */ 
   protected int actNrofListIdents;
 
@@ -266,11 +271,10 @@ public class MsgDispatcherCore
     final MemC mNodes = MemC.alloc((maxQueue +2) * Entry._sizeof());
     this.freeOrders = new ConcurrentLinkedQueue<Entry>(mNodes);
     this.listOrders = new ConcurrentLinkedQueue<Entry>(this.freeOrders);
-
   }
   
   
-  public void setMsgTextConverter(MsgText_ifc converter){
+  public final void setMsgTextConverter(MsgText_ifc converter){
     msgText = converter;
   }
   
@@ -297,6 +301,38 @@ public class MsgDispatcherCore
   
   
   /**Sends a message. See interface.  
+   * @param identNumber
+   * @param text The text representation of the message, format string, see java.lang.String.format(..). 
+   *             @pjava2c=zeroTermString.
+   * @param args see interface
+   * @java2c=stacktrace:no-param.
+   */
+   @Override public final boolean  sendMsg(int identNumber, String text, Object... args)
+   { /**store the variable arguments in a Va_list to handle for next call.
+      * The Va_list is used also to store the arguments between threads in the MessageDispatcher.
+      * @java2c=stackInstance.*/
+      final Va_list vaArgs =  new Va_list(args);  
+     return sendMsgVaList(identNumber, OS_TimeStamp.os_getDateTime(), text, vaArgs);
+   }
+
+   
+   /**Sends a message. See interface.  
+    * @param identNumber
+    * @param text The text representation of the message, format string, see java.lang.String.format(..). 
+    *             @pjava2c=zeroTermString.
+    * @param args see interface
+    * @java2c=stacktrace:no-param.
+    */
+    @Override public final boolean  sendMsgTime(int identNumber, final OS_TimeStamp creationTime, String text, Object... args)
+    { /**store the variable arguments in a Va_list to handle for next call.
+       * The Va_list is used also to store the arguments between threads in the MessageDispatcher.
+       * @java2c=stackInstance.*/
+      final Va_list vaArgs =  new Va_list(args);  
+      return sendMsgVaList(identNumber, creationTime, text, vaArgs);
+    }
+
+    
+  /**Sends a message. See interface.  
    * @param identNumber 
    * @param creationTime
    * @param text The identifier text @pjava2c=zeroTermString.
@@ -304,7 +340,7 @@ public class MsgDispatcherCore
    *        @java2c=zeroTermString.
    * @param args see interface
    */
-  public final boolean sendMsgVaList(int identNumber, final OS_TimeStamp creationTime, String text, final Va_list args)
+  @Override public final boolean sendMsgVaList(int identNumber, final OS_TimeStamp creationTime, String text, final Va_list args)
   {
     int dstBits = searchDispatchBits(identNumber);
     if(dstBits != 0)
@@ -349,6 +385,28 @@ public class MsgDispatcherCore
   
 
   
+  
+  @Override public final boolean isOnline()
+  { return true;
+    
+  }
+
+
+  
+  /**This routine may be overridden by the inherited class (usual {@link MsgDispatcher} to support closing.
+   * @see org.vishia.msgDispatch.LogMessage#close()
+   */
+  @Override public void close(){   }
+
+
+  /**This routine may be overridden by the inherited class (usual {@link MsgDispatcher} to support flushing
+   * all queued messages.
+   * @see org.vishia.msgDispatch.LogMessage#close()
+   */
+  @Override public void flush() {  }
+  
+  
+  
   /**Dispatches a message. This routine is called either in the calling thread of the message
    * or in the dispatcher thread. 
    * @param dstBits Destination identificator. If the bit {@link mDispatchInDispatcherThread} is set,
@@ -373,7 +431,7 @@ public class MsgDispatcherCore
     dstBits &= mDispatchBits;  
     int bitTest = 0x1;
     int idst = 0;
-    String sTextMsg = text;  //maybe null if not used.
+    @Java4C.zeroTermString String sTextMsg = text;  //maybe null if not used.
     boolean bMsgTextGotten = false;
     while(dstBits != 0 && bitTest < mDispatchBits) //abort if no bits are set anymore.
     { if(  (dstBits & bitTest)!=0 
@@ -386,8 +444,8 @@ public class MsgDispatcherCore
         if(out != null)
         { if(!bMsgTextGotten && msgText !=null && channel.bUseText){
             bMsgTextGotten =true;
-            sTextMsg = msgText.getMsgText(identNumber);
-            if(sTextMsg ==null || sTextMsg.length() ==0){
+            sTextMsg =  msgText.getMsgText(identNumber);
+            if(sTextMsg ==null || sTextMsg.isEmpty()){
               sTextMsg = text;   //replace the input text if a new one is found.
             }
           }

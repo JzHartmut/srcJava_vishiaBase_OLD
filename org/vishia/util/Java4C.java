@@ -86,4 +86,7 @@ public interface Java4C {
   /**The method is not translated to C. It means the method with given name is programmed in C direct. */
   public @interface exclude{}
   
+  /**Declare the String as const char* in C-language. */
+  public @interface zeroTermString{}
+  
 }

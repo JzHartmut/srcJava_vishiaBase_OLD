@@ -1,7 +1,7 @@
 package org.vishia.util;
 
 import java.util.Iterator;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -133,6 +133,7 @@ implements SortedTree<IfcType>
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-03-02 Hartmut chg: Usage of ArrayList instead LinkedList for children- better ability to debug.
    * <li>2012-11-03 Hartmut new: Generic type DerivedNode and IfcType to support derived types of this. The returned
    *   container types have elements of this DerivedNode type or the IfcType. The IfcType is used on methods
    *   which are defined in {@link SortedTree}.
@@ -237,7 +238,7 @@ implements SortedTree<IfcType>
   public void addLeaf(Data leaf)
   { 
     if(leafData == null){
-      leafData = new LinkedList<Data>(); 
+      leafData = new ArrayList<Data>(); 
     }
     leafData.add(leaf);
   }
@@ -296,14 +297,14 @@ implements SortedTree<IfcType>
           metaNode =  new TreeNodeBase<DerivedNode,Data,IfcType>(metaNodeKey, null);
           metaNode.parent = this;
           idxChildren.put(childNode.key, metaNode);  //replaces the exitsting node.
-          metaNode.childNodes = new LinkedList<DerivedNode>();
+          metaNode.childNodes = new ArrayList<DerivedNode>();
         }
         metaNode.childNodes.add(childNode);
         childNode.parent = metaNode;
       }
     }
     if(childNodes == null){ 
-      childNodes = new LinkedList<DerivedNode>();
+      childNodes = new ArrayList<DerivedNode>();
     }
     childNodes.add(childNode);  //parent refers this or metaNode.
   }
@@ -521,7 +522,7 @@ implements SortedTree<IfcType>
         List<IfcType> ret;
         if(childMetaNode.key != metaNodeKey){
           //only one child, but a List is expected
-          LinkedList<IfcType> childNodes = new LinkedList<IfcType>();
+          ArrayList<IfcType> childNodes = new ArrayList<IfcType>();
           //IfcType childNode = (IfcType)newNode(sKey, childMetaNode.data);
           childNodes.add((IfcType)childMetaNode);
           ret = childNodes;

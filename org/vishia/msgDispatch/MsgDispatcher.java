@@ -48,37 +48,62 @@ import org.vishia.util.StringPart;
  * @author Hartmut Schorrig
  *
  */
-public class MsgDispatcher extends MsgDispatcherCore implements LogMessage
+public class MsgDispatcher extends MsgDispatcherCore
 {
 
-/**Version and history:
- * <ul>
- * <li>2013-02-25 Hartmut chg: {@link #MsgDispatcher(int, int, int, int, int, Runnable)} has gotten a new argument
- *   'msgIdentQueueOverflow'. This is the number for a message which is created automatically if a overflowed msg queue
- *   was found on the next invocation of {@link #dispatchQueuedMsg()}. That is the best method to show that there was a
- *   buffer overflow. The user found this message in its message log on configurable output with a configurable text
- *   as hint that a overflow has occurred. An overflow is a result of either to less queue size or to much messages.
- * <li>2013-02-25 Hartmut chg: {@link #setOutputRoutine(int, String, boolean, boolean, LogMessage)} has gotten a new argument
- *   'bText'. It is a substantial property whether an output channel uses the text or not. The preparation of text
- *   is not done especially if a short calculation cycle does not need that.  
- * <li>2012-01-13 Hartmut make some methods public, especially {@link #searchDispatchBits(int)}.
- *   It make it possible to use the dispatch data without calling {@link #sendMsg(int, String, Object...)}.
- * <li>2009-02-05 Hartmut  *corr nrofMixedOutputs
- *                   *bugfix: setOutputRoutine() should count maxDst
- *                   *new: reportOutput
- * <li>2009-02-04 Hartmut  *corr: Syntax errors in setOutputFromString() tested and improved. 
- *                   The param errorBuffer is now optional. It may be null.
- * <li>2009-02-03 Hartmut  *new: method isOnline
- * <li>2009-02-01 Hartmut  *new method getSharedFreeEntries().
- *                   * dispatchMsg(...) returns the mask of non-handled outputs, to handle later or in queue.
- *                   * sendMsgVaList(...) returns true, 
- *                   functionality: All non dispatched messages in calling thread are to dispatched in dispatcher thread, 
- *                   using return value of dispatchMsg(...). The functionality are not change really.
- *                   * dispatchQueuedMsg(): Try to evaluated non output messages, but this algorithm isn't good. No change.
- *                   * Implementation of close and flush: It means here: unconditionally dispatching.
- * </ul>
+  /**Version, history and license.
+   * <ul>
+   * <li>2013-03-02 Hartmut chg: The LogMessage is implemented in the superclass {@link MsgDispatcherCore} now.
+   * <li>2013-02-25 Hartmut chg: {@link #MsgDispatcher(int, int, int, int, int, Runnable)} has gotten a new argument
+   *   'msgIdentQueueOverflow'. This is the number for a message which is created automatically if a overflowed msg queue
+   *   was found on the next invocation of {@link #dispatchQueuedMsg()}. That is the best method to show that there was a
+   *   buffer overflow. The user found this message in its message log on configurable output with a configurable text
+   *   as hint that a overflow has occurred. An overflow is a result of either to less queue size or to much messages.
+   * <li>2013-02-25 Hartmut chg: {@link #setOutputRoutine(int, String, boolean, boolean, LogMessage)} has gotten a new argument
+   *   'bText'. It is a substantial property whether an output channel uses the text or not. The preparation of text
+   *   is not done especially if a short calculation cycle does not need that.  
+   * <li>2012-01-13 Hartmut make some methods public, especially {@link #searchDispatchBits(int)}.
+   *   It make it possible to use the dispatch data without calling {@link #sendMsg(int, String, Object...)}.
+   * <li>2009-02-05 Hartmut  *corr nrofMixedOutputs
+   *                   *bugfix: setOutputRoutine() should count maxDst
+   *                   *new: reportOutput
+   * <li>2009-02-04 Hartmut  *corr: Syntax errors in setOutputFromString() tested and improved. 
+   *                   The param errorBuffer is now optional. It may be null.
+   * <li>2009-02-03 Hartmut  *new: method isOnline
+   * <li>2009-02-01 Hartmut  *new method getSharedFreeEntries().
+   *                   * dispatchMsg(...) returns the mask of non-handled outputs, to handle later or in queue.
+   *                   * sendMsgVaList(...) returns true, 
+   *                   functionality: All non dispatched messages in calling thread are to dispatched in dispatcher thread, 
+   *                   using return value of dispatchMsg(...). The functionality are not change really.
+   *                   * dispatchQueuedMsg(): Try to evaluated non output messages, but this algorithm isn't good. No change.
+   *                   * Implementation of close and flush: It means here: unconditionally dispatching.
+   * </ul>
+   * <br><br>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
  */
-public static final int version = 0x20120113; 
+public static final int version = 0x20120302; 
   
   //private LogMessage[] outputs = new LogMessage[28];
   
@@ -91,9 +116,13 @@ public static final int version = 0x20120113;
   
   private int maxDst = 0;
 
-  private final int msgIdentQueueOverflow;
-      
   
+  private final MsgDispatcherCore.Entry entryMsgBufferOverflow = new MsgDispatcherCore.Entry();
+  
+
+  //private final int msgIdentQueueOverflow;
+      
+
   /**Initializes the instance.
    * @param maxDispatchEntries The max number of message-ident-number ranges which are dispatched 
    *        to different outputs. It is a static limited data amount. 
@@ -115,7 +144,8 @@ public static final int version = 0x20120113;
   public MsgDispatcher(int maxDispatchEntries, int maxQueue, int maxOutputs, int nrofMixedOutputs
       , int msgIdentQueueOverflow, Runnable runNoEntryMessage)
   { super(maxQueue, nrofMixedOutputs, runNoEntryMessage);
-    this.msgIdentQueueOverflow = msgIdentQueueOverflow;
+    this.entryMsgBufferOverflow.ident = msgIdentQueueOverflow;
+    this.entryMsgBufferOverflow.text = "Message queue overflow; nrof msg=%d";
     /**@java2c = embeddedArrayElements. */
     MsgDispatcherCore.Entry[] entries = new MsgDispatcherCore.Entry[maxQueue];
     for(int idxEntry = 0; idxEntry < entries.length; idxEntry++)
@@ -592,38 +622,6 @@ public static final int version = 0x20120113;
 
 
   
-  /**Sends a message. See interface.  
-   * @param identNumber
-   * @param text The text representation of the message, format string, see java.lang.String.format(..). 
-   *             @pjava2c=zeroTermString.
-   * @param args see interface
-   * @java2c=stacktrace:no-param.
-   */
-   @Override public final boolean  sendMsg(int identNumber, String text, Object... args)
-   { /**store the variable arguments in a Va_list to handle for next call.
-      * The Va_list is used also to store the arguments between threads in the MessageDispatcher.
-      * @java2c=stackInstance.*/
-      final Va_list vaArgs =  new Va_list(args);  
-     return sendMsgVaList(identNumber, OS_TimeStamp.os_getDateTime(), text, vaArgs);
-   }
-
-   
-   /**Sends a message. See interface.  
-    * @param identNumber
-    * @param text The text representation of the message, format string, see java.lang.String.format(..). 
-    *             @pjava2c=zeroTermString.
-    * @param args see interface
-    * @java2c=stacktrace:no-param.
-    */
-    @Override public final boolean  sendMsgTime(int identNumber, final OS_TimeStamp creationTime, String text, Object... args)
-    { /**store the variable arguments in a Va_list to handle for next call.
-       * The Va_list is used also to store the arguments between threads in the MessageDispatcher.
-       * @java2c=stackInstance.*/
-      final Va_list vaArgs =  new Va_list(args);  
-      return sendMsgVaList(identNumber, creationTime, text, vaArgs);
-    }
-
-    
   
   
   /**Dispatches all messages, which are stored in the queue. 
@@ -649,13 +647,19 @@ public static final int version = 0x20120113;
       }
       
     }while(bCont && (--cntDispatchedMsg) >=0);
+    //The buffer is empty yet.
     if(ctLostMessages >0){                              //dispatch the message about overflow of queued message.
-      final Va_list vaArgs =  new Va_list(ctLostMessages);  
+      entryMsgBufferOverflow.values.setArg(0, ctLostMessages);
+      //Note: In this time after readout the queue till set ctLostMessage to 0 an newly overflow may be occurred.
+      //That is possible if a higher priority task or interrupt fills the queue. But it is able to expect
+      //that this overflow continues after set ctLostMessages = 0, so it is detected. A thread safe operation
+      //does not necessary.
       ctLostMessages = 0;
-      int dstBits = searchDispatchBits(msgIdentQueueOverflow);
-      final OS_TimeStamp timestamp = new OS_TimeStamp();
-      timestamp.set(OS_TimeStamp.os_getDateTime());
-      dispatchMsg(dstBits, true, msgIdentQueueOverflow, timestamp, "Message queue overflow; nrof msg=%d", vaArgs);
+      int dstBits = searchDispatchBits(entryMsgBufferOverflow.ident);
+      entryMsgBufferOverflow.timestamp.set(OS_TimeStamp.os_getDateTime());
+      ///
+      dispatchMsg(dstBits, true, entryMsgBufferOverflow.ident, entryMsgBufferOverflow.timestamp
+          , entryMsgBufferOverflow.text, entryMsgBufferOverflow.values.get_va_list());
     }
     if(cntDispatchedMsg == 0)
     { /**max nrof msg are processed:
@@ -682,7 +686,7 @@ public static final int version = 0x20120113;
    * @see org.vishia.util.LogMessage#close()
    */
   @Override
-  public void close()
+  public final void close()
   { //flush(); //do the same
     dispatchQueuedMsg();
   }
@@ -692,14 +696,8 @@ public static final int version = 0x20120113;
    * @see org.vishia.util.LogMessage#close()
    */
   @Override
-  public void flush()
+  public final void flush()
   { dispatchQueuedMsg();
-  }
-
-  @Override
-  public boolean isOnline()
-  { return true;
-    
   }
 
   /**Outputs the queued messages calling {@link LogMessage#flush()} for all queued outputs.

@@ -64,7 +64,7 @@ public interface LogMessage
    * @param identNumber of the message. If it is negative, it is the same message as positive number,
    *                    but with information 'going state', where the positive number is 'coming state'.
    * @param text The text representation of the message, format string, see java.lang.String.format(..).
-   *             @pjava2c=zeroTermString.
+   *             @pjava2c=zeroTermString. Java2C: No conversion necessary.
    * @param args 0, 1 or more arguments of any type. 
    *             The interpretation of the arguments is controlled by param text.
    * @return TODO
@@ -94,9 +94,10 @@ public interface LogMessage
    * with {@link #sendMsg(int, OS_TimeStamp, String, Object...)}, but the parameter args is varied:  
    * @param identNumber
    * @param creationTime
-   * @param text
+   * @param text The text of the message: Hint for Java2C: This is a StringJc, not a simple char const*.
+   *   That is necessary because the String may be replaced.
+   *             @pjava2c=zeroTermString. Java2C: No conversion necessary.
    * @param typeArgs Type chars, ZCBSIJFD for boolean, char, byte, short, int, long, float double. 
-   *        @java2c=zeroTermString.
    * @param args Reference to a buffer which contains the values for a variable argument list.
    *             <br>
    *             In C implementation it is a reference either to the stack, or to a buffer elsewhere,

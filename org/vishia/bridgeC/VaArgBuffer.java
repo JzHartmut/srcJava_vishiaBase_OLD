@@ -56,7 +56,7 @@ public class VaArgBuffer
     }
   }
   
-  
+  public void setArg(int ix, int value){ args[ix] = value;  }
   
   public static VaArgBuffer represent(Object... inputArgs)
   {
