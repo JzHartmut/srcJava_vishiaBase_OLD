@@ -215,8 +215,11 @@ public abstract class MainCmd implements MainCmd_ifc
   /**Version, able to read as hex yyyymmdd.
    * Changes:
    * <ul>
+   * <li>2013-03-10 Hartmut chg Some adjustments in {@link #addArgument(Argument[])},especially old: setArguments(..)
+   *   is renamed to addArgument(). It is prepared that an inherited class's main(...) can add some more arguments
+   *   than the base class. 
    * <li>2013-02-24 Hartmut improved {@link #getLogMessageOutputConsole()} etc.
-   * <li>2013-02-09 Hartmut new {@link #setArguments(Argument[])} as new method to bundle argument query and help text.
+   * <li>2013-02-09 Hartmut new {@link #addArgument(Argument[])} as new method to bundle argument query and help text.
    * <li>2012-03-30 Hartmut new {@link #getLogMessageErrorConsole()}
    * <li>2011-10-11 Hartmut new {@link #setOutputChannels(Appendable, Appendable)}. All outputs are redirect-able now.
    *   Used for output in a graphical text box.
@@ -234,7 +237,7 @@ public abstract class MainCmd implements MainCmd_ifc
    * <li>2004-06-00 JcHartmut  initial revision
    * </ul>
    */
-  public static int version = 0x20110710;
+  public static int version = 0x20130310;
   
   /**Interface for anonymous implementation of setting arguments.
    * The implementation should be written in the simple form:
@@ -278,7 +281,7 @@ public abstract class MainCmd implements MainCmd_ifc
   
   
   
-  protected MainCmd.Argument[] argList;
+  protected final List<MainCmd.Argument> argList = new ArrayList<MainCmd.Argument>();
   
   /** The report file. This attribute is set to null, if no report is desired by missing the argument -r REPORTFILE
   */
@@ -350,7 +353,6 @@ public abstract class MainCmd implements MainCmd_ifc
   { outConsole = outCmdline = System.out;
     errConsole = errCmdline = System.err;
     this.redirectLogMessage = logMessageImplReport;
-    argList = null;
   }
 
   /** Constructor of the main class.
@@ -365,7 +367,9 @@ public abstract class MainCmd implements MainCmd_ifc
   { outConsole = outCmdline = System.out;
     errConsole = errCmdline = System.err;
     this.redirectLogMessage = logMessageImplReport;
-    this.argList = argList;
+    for(Argument arg: argList){
+      this.argList.add(arg);
+    }
   }
 
   /** Constructor of the main class.
@@ -375,6 +379,8 @@ public abstract class MainCmd implements MainCmd_ifc
     this.cmdLineArgs = args;
   }
 
+  
+  
   
   /**Redirects the LogMessage implementation of this class to the given implementor.
    * Usual it may be the {@link org.vishia.msgDispatch.MsgDispatcher}. By default the logmessage capability
@@ -395,10 +401,11 @@ public abstract class MainCmd implements MainCmd_ifc
    * to the correct sequence.
    * @param list see {@link Argument}
    */
-  public void setArguments(Argument[] list){ 
-    argList = list; 
-    for(Argument arg: argList){
+  public void addArgument(Argument[] list){ 
+    for(Argument arg: list){
+      this.argList.add(arg);
       listHelpInfo.add(arg.arg + arg.help);
+      
     }
   }
 
@@ -712,26 +719,36 @@ public abstract class MainCmd implements MainCmd_ifc
   protected boolean testArgument(String argc, int nArg)
   {
     if(argList !=null){
+      Argument emptyArg = null;
       for(Argument argTest : argList){
         int argLen = argTest.arg.length();
-        int argclen = argc.length();
-        if(argLen == 0 
-          || (argc.startsWith(argTest.arg)                //correct prefix 
-             && (  argclen == argLen                      //only the prefix
-                || ":=".indexOf(argc.charAt(argLen))>=0)  //or prefix ends with the separator characters.
-                )
-          ){ //then the argument is correct and associated to this argTest.
-          String argval = argclen == argLen //no additional value, use argument 
-                        || argLen == 0      //argument without prefix (no option)
-                        ? argc              //then use the whole argument as value.
-                        : argc.substring(argLen+1);  //use the argument after the separator as value.
-          boolean bOk = argTest.set.setArgument(argval);   //call the user method for this argument.
-          //if(!bOk) throw new ParseException("Argument value error: " + argc, nArg);
-          return bOk;
+        if(argLen == 0){
+          emptyArg = argTest;
+        } else {
+          int argclen = argc.length();
+          if((argc.startsWith(argTest.arg)                //correct prefix 
+               && (  argclen == argLen                      //only the prefix
+                  || ":=".indexOf(argc.charAt(argLen))>=0)  //or prefix ends with the separator characters.
+                  )
+            ){ //then the argument is correct and associated to this argTest.
+            String argval = argclen == argLen //no additional value, use argument 
+                          //|| argLen == 0      //argument without prefix (no option)
+                          ? argc              //then use the whole argument as value.
+                          : argc.substring(argLen+1);  //use the argument after the separator as value.
+            boolean bOk = argTest.set.setArgument(argval);   //call the user method for this argument.
+            //if(!bOk) throw new ParseException("Argument value error: " + argc, nArg);
+            return bOk;
+          }
         }
       }
-      //argument not found (not returned in for-loop):
-      return false;
+      //argument start string not found:
+      if(emptyArg !=null){
+        //set the empty arg.
+        return emptyArg.set.setArgument(argc);
+      } else {
+        //argument not found (not returned in for-loop):
+        return false;
+      }
     } else {
       System.err.println("MainCmd- Software design error - MainCmd.setArgumentList(...) should be called or the method testArgument(...) should be overridden.");
       return false;

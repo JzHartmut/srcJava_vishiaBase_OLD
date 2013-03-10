@@ -18,6 +18,7 @@ import java.util.Map;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2012-03-10 Hartmut new: Now supports access to elements of the super class (TODO: outer classes).
    * <li>2012-01-13 Hartmut chg: {@link #getData(List, Object, Map, boolean, boolean)} can be invoked with null for dataPool
    *   to invoke new or static methods.
    * <li>2013-01-12 Hartmut new: {@link #checkAndConvertArgTypes(List, Class[])} improved, 
@@ -66,7 +67,7 @@ public class DataAccess {
    * 
    * 
    */
-  static final public int version = 20121021;
+  static final public int version = 20130310;
 
 
   static final Class<?> ifcMainCmdLogging_ifc = getClass("org.vishia.mainCmd.MainCmdLogging_ifc");
@@ -266,7 +267,11 @@ public class DataAccess {
             } catch(IllegalAccessException exc){
               CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
               throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+            } catch(InvocationTargetException exc){
+              Assert.stop();
+              throw exc;
             }
+            
             break;  //method found.
           }
         }
@@ -461,32 +466,37 @@ public class DataAccess {
       , boolean bContainer) 
   throws NoSuchFieldException
   {
-    Object data1;
+    Object data1 = null;
     if(dataPool instanceof Map<?, ?>){
       data1 = ((Map<?,?>)dataPool).get(name);
     } 
     else {
       Class<?> clazz = dataPool.getClass();
-      try{
-        Field field = clazz.getDeclaredField(name);
-        field.setAccessible(accessPrivate);
-        try{ 
-          data1 = field.get(dataPool);
-        } catch(IllegalAccessException exc){
-          //try special types:
-          throw new NoSuchFieldException(name); 
+      do{
+        try{
+          Field field = clazz.getDeclaredField(name);
+          field.setAccessible(accessPrivate);
+          try{ 
+            data1 = field.get(dataPool);
+            
+          } catch(IllegalAccessException exc){
+            //try special types:
+            throw new NoSuchFieldException(name); 
+          }
+        }catch(NoSuchFieldException exc){
+          if(dataPool instanceof TreeNodeBase<?,?,?>){
+            TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)dataPool;
+            if(bContainer){ data1 = treeNode.listChildren(name); }
+            else { data1 = treeNode.getChild(name); }  //if more as one element with that name, select the first one.
+          }
         }
-      }catch(NoSuchFieldException exc){
-        if(dataPool instanceof TreeNodeBase<?,?,?>){
-          TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)dataPool;
-          if(bContainer){ data1 = treeNode.listChildren(name); }
-          else { data1 = treeNode.getChild(name); }  //if more as one element with that name, select the first one.
-        } else {
-          throw new NoSuchFieldException(name + " in " + clazz.getName()); 
-        }
-        
+        clazz = clazz.getSuperclass();
+      } while(data1 ==null && clazz !=null);
+      if(data1 ==null) {
+        throw new NoSuchFieldException(name + " in " + dataPool.getClass().getName()); 
       }
     }
+    
     return data1;  //maybe null
   }
   

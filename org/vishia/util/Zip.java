@@ -289,7 +289,7 @@ public class Zip {
       super.addAboutInfo("Zip routine from Java");
       super.addAboutInfo("made by HSchorrig, 2013-02-09");
       super.addHelpInfo("args: -compress:# -o:ZIP.zip { INPUT}");  //[-w[+|-|0]]
-      super.setArguments(argList);
+      super.addArgument(argList);
       super.addStandardHelpInfo();
     }
     
