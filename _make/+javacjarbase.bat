@@ -25,9 +25,20 @@ REM  Environment variables set from zbnfjax:
 
 REM  The java-copiler may be located at a user-specified position.
 REM  Set the environment variable JAVA_HOME, where bin/javac will be found.
-if "%JAVA_JDK%" == "" (
-  if exist d:\Progs\JAVA\jdk1.6.0_21 set JAVA_JDK=D:\Progs\JAVA\jdk1.6.0_21
-)
+set JAVA_JDK=D:\Progs\JAVA\jdk1.6.0_21
+if exist "%JAVA_JDK%" goto :JavaOk
+set JAVA_JDK=C:\Progs\JAVA\jdk1.6.0_21
+if exist "%JAVA_JDK%" goto :JavaOk
+set JAVA_JDK=D:\Progs\JAVA\jdk1.6.0_21
+if exist "%JAVA_JDK%" goto :JavaOk
+set JAVA_JDK=D:\Progs\JAVA\jdk1.6.0_21
+if exist "%JAVA_JDK%" goto :JavaOk
+set JAVA_JDK=D:\Progs\JAVA\jdk1.6.0_21
+if exist "%JAVA_JDK%" goto :JavaOk
+echo JAVA_JDK never found, please check content of srcJava_vishiaBase/+javacjarbase.bat
+pause
+exit /B
+:JavaOk
 echo JAVA_JDK=%JAVA_JDK%
 
 
