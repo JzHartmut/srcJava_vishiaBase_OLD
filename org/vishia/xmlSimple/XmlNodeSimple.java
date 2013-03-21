@@ -15,6 +15,8 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
 { 
   /**Version, history and license.
    * <ul>
+   * <li>2013-03-21 Hartmut chg: {@link XmlNodeSimple#XmlNodeSimple(String, Object)} etc. If "namespace:name" is given as parameter name
+   *   the namespace is used.
    * <li>2012-12-26 Hartmut chg: {@link #toString()} returns the pure text if the node contains only text or it is an attribute.
    *   It is helpful for output data.
    * <li>2012-12-26 Hartmut chg: If the node has a simple text as content, not more, then the text is stored in the {@link #text}
@@ -78,14 +80,30 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   /**The parent node. */
   //XmlNode parent;
   
+  /**Creates a XML node.
+   * @param name The tag name. If it contains a "namespace:name", the namespace will be separated.
+   */
   public XmlNodeSimple(String name)
   { this(name, null, (UserData)null);
   }
   
+  
+  
+  /**Creates a XML node.
+   * @param name The tag name. If it contains a "namespace:name", the namespace will be separated.
+   * @param data Additional data stored in the {@link TreeNodeBase#data}
+   */
   public XmlNodeSimple(String name, UserData data)
   { this(name, null, (UserData)null);
   }
   
+  
+  
+  /**Creates a XML node with text.
+   * @param key
+   * @param text
+   * @param isText not used. It is a marker only to select this constructor.
+   */
   protected XmlNodeSimple(String key, String text, boolean isText)
   { super(key, null);
     this.name = key;
@@ -93,18 +111,44 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
     this.namespaceKey = key;
   }
   
+  
+  
+  /**Creates a XML node.
+   * @param name The tag name. If it contains a "namespace:name", the namespace will be separated.
+   * @param namespaceKey A given namespace if not contained in name. This argument wins if "namespace:name"
+   * @param data Additional data stored in the {@link TreeNodeBase#data}
+   */
   public XmlNodeSimple(String name, String namespaceKey, UserData data)
-  { super(calcKey(name, namespaceKey), data);
+  { super(calcKey(name, namespaceKey), data);  //TreeNodeBase, key is namespace:name
+    int posNamespace = name.indexOf(':');
+    if(posNamespace >=0){
+      if(namespaceKey == null || namespaceKey.length() ==0) { namespaceKey = name.substring(0, posNamespace); }
+      //else: let namespaceKey unchanged, ignore it in name.
+      name = name.substring(posNamespace +1);
+    }
     this.name = name;
     //if(name.startsWith("@"))
       //Assert.stop();
     this.namespaceKey = namespaceKey;
   }
   
+  
+  
+  /**Creates a XML node.
+   * @param name The tag name. If it contains a "namespace:name", the namespace will be separated.
+   * @param namespaceKey A given namespace if not contained in name. This argument wins if "namespace:name"
+   */
   public XmlNodeSimple(String name, String namespaceKey)
   { this(name, namespaceKey, (UserData)null);
   }
   
+  
+  
+  /**Creates a XML node.
+   * @param name The tag name. If it contains a "namespace:name", the namespace will be separated.
+   * @param namespaceKey A given namespace if not contained in name. This argument wins if "namespace:name"
+   * @param namespace the string associated to the namespaceKey
+   */
   public XmlNodeSimple(String name, String namespaceKey, String namespace)
   { this(name, namespaceKey, (UserData)null);
     if(namespaces == null){ namespaces = new TreeMap<String, String>(); }
