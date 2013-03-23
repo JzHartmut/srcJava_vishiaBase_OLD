@@ -18,8 +18,11 @@ import java.util.Map;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
-   * <li>2012-03-10 Hartmut new: Now supports access to elements of the super class (TODO: outer classes).
-   * <li>2012-01-13 Hartmut chg: {@link #getData(List, Object, Map, boolean, boolean)} can be invoked with null for dataPool
+   * <li>2013-03-23 Hartmut chg: {@link #checkAndConvertArgTypes(List, Class[])}: Now supports a (String[]) arg which is
+   *   typical for a main(String[]) routine. General: The last formal argument can be an array, then all further
+   *   non-array arguments are tried to build the element of it. 
+   * <li>2013-03-10 Hartmut new: Now supports access to elements of the super class (TODO: outer classes).
+   * <li>2013-01-13 Hartmut chg: {@link #getData(List, Object, Map, boolean, boolean)} can be invoked with null for dataPool
    *   to invoke new or static methods.
    * <li>2013-01-12 Hartmut new: {@link #checkAndConvertArgTypes(List, Class[])} improved, 
    *   new {@link #invokeStaticMethod(DatapathElement, Object, boolean, boolean)}
@@ -365,7 +368,10 @@ public class DataAccess {
   /**Checks whether the given arguments matches to the necessary arguments of a method or constructor invocation.
    * Converts the arguments if possible and necessary:
    * <ul>
-   * <li>provideArg  -> argType: conversion
+   * <li>same type of providedArg and argType: use providedArg without conversion
+   * <li>
+   * <li>provideArg instanceof  -> argType: conversion
+   * <li>{@link java.lang.CharSequence} -> {@link java.lang.CharSequence}: arg
    * <li>{@link java.lang.CharSequence} -> {@link java.lang.String}: arg.toString()
    * <li>{@link java.lang.CharSequence} -> {@link java.io.File} : new File(arg)
    * </ul>
@@ -376,25 +382,36 @@ public class DataAccess {
    *   <br>null if the number of argtypes is not equal to the number of providedArgs or if the providedArgs and argTypes does not match. 
    *   The array have to be created with the size proper to 
    */
-  static Object[] checkAndConvertArgTypes(List<Object> providedArgs, Class<?>[] argTypes){
+  protected static Object[] checkAndConvertArgTypes(List<Object> providedArgs, Class<?>[] argTypes){
     Object[] actArgs;
     if(argTypes.length == 0 && providedArgs == null){
       actArgs = new Object[0]; //matches, but no args.
     }
-    else if(providedArgs !=null && argTypes.length == providedArgs.size()){
+    else if(providedArgs !=null && argTypes.length == providedArgs.size()
+      || argTypes.length > 0 && argTypes.length < providedArgs.size() && argTypes[argTypes.length -1].isArray()  
+      ){
       //check it
       boolean bOk = true;
       int iParam = 0;
       //check the matching of parameter types inclusive convertibility.
+      Class<?> argType = null;
       for(Object arg: providedArgs){
         Class<?> actType = arg.getClass();
+        if(iParam == argTypes.length-1 && providedArgs.size() > iParam+1 && argTypes[iParam].isArray()){
+          //There are more given arguments and the last one is an array or a variable argument list.
+          //store the rest in lastArrayArg instead.
+          argType = argTypes[iParam].getComponentType();
+        } else {
+          argType = argTypes[iParam];
+        }
         //check super classes and all interface types.
         //if(arg instanceof paramTypes[iParam]){ actArgs[iParam] = arg; }
-        String typeName = argTypes[iParam].getName();
-        if(actType == argTypes[iParam]){ bOk = true; }
+        String typeName = argType.getName();
+        if(actType == argType){ bOk = true; }
         else if(arg instanceof CharSequence){
-          if(argTypes[iParam] == File.class){ bOk = true; }
-          else if(argTypes[iParam] == String.class){ bOk = true;  }
+          if(argType == File.class){ bOk = true; }
+          else if(argType == String.class){ bOk = true;  }
+          else if(argType == CharSequence.class){ bOk = true;  }
           else {bOk = false; }
         } else if(typeName.equals("Z") || typeName.equals("boolean")){
           bOk = true; //all can converted to boolean
@@ -404,21 +421,45 @@ public class DataAccess {
           bOk = false; 
         }
         if(!bOk) { break; }
-        iParam +=1;
+        if(iParam < argTypes.length-1) { iParam +=1; }
       } //for, terminated with some breaks.
       if(bOk){
+        //the last or only one Argument as array
+        Object[] lastArrayArg;
+        if(argTypes.length < providedArgs.size()){
+          Class<?> lastType = argTypes[argTypes.length-1].getComponentType();
+          //create the appropriate array type:
+          //A String is typical especially for invocation of a static main(String[] args)
+          if(lastType == String.class){ lastArrayArg = new String[providedArgs.size() - argTypes.length +1]; }
+          else { lastArrayArg = new String[providedArgs.size() - argTypes.length +1]; }
+        } else {
+          lastArrayArg = null;
+        }
         actArgs = new Object[argTypes.length];
+        Object[] dstArgs = actArgs;
         iParam = 0;  //now convert instances:
         for(Object arg: providedArgs){
+          if(dstArgs == actArgs){
+            if(iParam >= argTypes.length-1 && lastArrayArg !=null){
+              //The last arg is ready to fill, but there are more given arguments and the last one is an array or a variable argument list.
+              //store the rest in lastArrayArg instead.
+              actArgs[iParam] = lastArrayArg;
+              dstArgs = lastArrayArg;
+              iParam = 0;
+              argType = argTypes[iParam].getComponentType();
+            } else {
+              argType = argTypes[iParam];
+            }
+          } //else: it fills the last array of variable argument list. remain argType unchanged.
           Object actArg;
-          String typeName = argTypes[iParam].getName();
+          String typeName = argType.getName();
           if(arg instanceof CharSequence){
-            if(argTypes[iParam] == File.class){ actArg = new File(((CharSequence)arg).toString()); }
-            else if(argTypes[iParam] == String.class){ actArg = ((CharSequence)arg).toString(); }
+            if(argType == File.class){ actArg = new File(((CharSequence)arg).toString()); }
+            else if(argType == String.class){ actArg = ((CharSequence)arg).toString(); }
             else {
               actArg = arg;
             }
-          } else if( (typeName = argTypes[iParam].getName()).equals("Z") || typeName.equals("boolean")){
+          } else if( (typeName = argType.getName()).equals("Z") || typeName.equals("boolean")){
             if(arg instanceof Boolean){ actArg = ((Boolean)arg).booleanValue(); }
             if(arg instanceof Byte){ actArg = ((Byte)arg).byteValue() == 0 ? false : true; }
             if(arg instanceof Short){ actArg = ((Short)arg).shortValue() == 0 ? false : true; }
@@ -428,7 +469,7 @@ public class DataAccess {
           } else {
             actArg = arg;
           }
-          actArgs[iParam] = actArg;
+          dstArgs[iParam] = actArg;
           iParam +=1;
         } //for, terminated with some breaks.
       } else {
