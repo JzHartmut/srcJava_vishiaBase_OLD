@@ -106,10 +106,10 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   
   EventConsumer executerCommission = new EventConsumer("FileRemoteAccessorLocal - executerCommision"){
     @Override protected boolean processEvent_(Event ev) {
-      if(ev instanceof Copy.EventCpy){
+      if(ev instanceof Copy.EventCpy){ //internal Event
         copy.stateCopy.process(ev);
         return true;
-      } else if(ev instanceof FileRemote.CmdEvent){
+      } else if(ev instanceof FileRemote.CmdEvent){  //event from extern
             execCommission((FileRemote.CmdEvent)ev);
         return true;
       } else {
@@ -780,6 +780,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       } else {
         cmd = FileRemote.CallbackCmd.error ; 
       }
+      System.out.println("FileRemoteAccessorLocalFile - move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
       evback.occupy(outer.evSrc, true);
       evback.sendEvent(cmd);
     }

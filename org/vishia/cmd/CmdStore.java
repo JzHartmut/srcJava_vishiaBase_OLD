@@ -28,7 +28,7 @@ import org.vishia.util.StringPart;
 public class CmdStore
 {
 
-  /**Version, history and license:
+  /**Version, history and license.
    * <ul>
    * <li>2012-02-19 Hartmut chg: {@link #readCmdCfg(File)} accepts $ENV, commentlines with // and #
    *   and start of command not with spaces on line start.
@@ -169,7 +169,7 @@ public class CmdStore
         if(actBlock !=null){ add_CmdBlock(actBlock); } 
       } 
       catch(IOException exc){ sError = "CommandStore - cfg file read error; " + cfgFile; }
-      catch(IllegalArgumentException exc){ sError = "CommandStore - cfg file error; " + cfgFile + exc.getMessage(); }
+      catch(IllegalArgumentException exc){ sError = "CommandStore - cfg file error; " + cfgFile + "; line: " + spLine + "; msg:"+ exc.getMessage(); }
       if(reader !=null){ try{ reader.close();} catch(IOException exc){}}
     }
     return sError;

@@ -44,7 +44,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Hartmut Schorrig
  *
  */
-public class MsgPrintStream
+public class MsgPrintStream implements MsgPrintStream_ifc
 {
   /**Version, history and license.
    * <ul>
@@ -196,7 +196,7 @@ public class MsgPrintStream
    * are dispatched accurately.
    * @param src The source of association betwenn text and number.
    */
-  public void setMsgIdents(MsgText_ifc src){
+  @Override public void setMsgIdents(MsgText_ifc src){
     Collection<MsgText_ifc.MsgConfigItem> list =src.getListItems();
     for(MsgText_ifc.MsgConfigItem item: list){
       if(item.identText !=null){
@@ -270,7 +270,7 @@ public class MsgPrintStream
   
   
   
-  private void convertToMsg(String pre, String identString, Object... args) {
+  void convertToMsg(String pre, String identString, Object... args) {
     int posSemicolon = identString.indexOf(';');
     int posColon = identString.indexOf(':');
     int posSep = posColon < 0 || posSemicolon < posColon ? posSemicolon : posColon;  //more left char of ; :

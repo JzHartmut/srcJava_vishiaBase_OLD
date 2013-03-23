@@ -1050,7 +1050,7 @@ public class Event<CmdEnum extends Enum>
   @Override public String toString(){ 
     long nDate = dateCreation.get();
     Date date = new Date(nDate);
-    return "Event " + (nDate == 0 ? "nonOccupied" : toStringDateFormat.format(date) + "." + dateOrder) + ": " + (source !=null ? source.toString() : " noSrc") + "; cmd=" + cmde.toString() + "; dst="+ (evDst !=null ? evDst.toString() : " noDst"); 
+    return "Event cmd=" + cmde.toString() + "; " + (nDate == 0 ? "nonOccupied" : toStringDateFormat.format(date) + "." + dateOrder) + "; src=" + (source !=null ? source.toString() : " noSrc") + "; dst="+ (evDst !=null ? evDst.toString() : " noDst"); 
   }
   
   

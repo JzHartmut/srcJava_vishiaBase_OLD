@@ -211,7 +211,7 @@ public class SampleCmdLine
     @Override protected void callWithoutArguments() throws ParseException
     { writeAboutInfo();
       writeHelpInfo();
-      throw new ParseException("no cmdline Arguments", 0);
+      //throw new ParseException("no cmdline Arguments", 0);
     }
   
   
@@ -234,7 +234,7 @@ public class SampleCmdLine
       else if(cmdlineArgs.sFileOut.length()==0)  { bOk = false; writeError("argument -o: without content"); }
   
       if(!bOk) setExitErrorLevel(exitWithArgumentError);
-    
+      bOk = true;  //experience: Example without arguments
       return bOk;
     
     }

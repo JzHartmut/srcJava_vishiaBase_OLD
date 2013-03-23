@@ -1,5 +1,9 @@
 package org.vishia.bridgeC;
 
+import java.io.File;
+
+import org.vishia.cmd.CmdStore.CmdBlock;
+
 
 /**Represents a Java-complement to a C-struct which contains va_list reference from stdarg.h. 
  * The struct in C has the form:
@@ -17,6 +21,42 @@ package org.vishia.bridgeC;
  * */
 public class Va_list
 {
+  
+  /**Version, history and license.
+   * <ul>
+   * <li>2013-03-24 Hartmut new: {@link #size()} If size()=0 it has no data. 
+   *   Then the list should not be used to invoke {@link java.lang.String#format(String, Object...)}.
+   * <li>2007-00-00 Hartmut created 
+   * </ul>
+   * 
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   */
+  public static int version = 20120609;
+  
+
+  
+  
   final VaArgBuffer buffer;
   
   public Va_list(VaArgBuffer buffer){ this.buffer = buffer; }
@@ -42,4 +82,11 @@ public class Va_list
    * In C the va_list is used immediate.
    */
   public Object[] get(){ return buffer.get(); }
+  
+  /**Returns the number of arguments in the variable argument list.
+   * In the C implementation it is the sizeof(typeArgs).
+   * @return especially 0 if no variable arguments are given.
+   */
+  public int size(){ return buffer.length; }
+  
 }

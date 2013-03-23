@@ -99,7 +99,8 @@ import org.vishia.msgDispatch.LogMessage;
  * because it may be realized as a special interface.
  * <br>
  * <br>
- * <b>The LogMessage interface or MsgDispatcher</b>: From some embedded applications a message dispatching system was created. This system is implemented in C-language
+ * <b>The LogMessage interface or MsgDispatcher</b>: For embedded applications a message dispatching system is known. 
+ * The message system writes messages with numbers and timeStamp. Such a message system was implemented in C-language
  * applications too. That system uses Numbers for any output information. The output text can be determined with the 
  * identification number of a output message in different languages. Such capability is done by special software. 
  * The messages can be stored in a simple way in log archives or alarm state storages using only the number and additional
@@ -127,7 +128,8 @@ import org.vishia.msgDispatch.LogMessage;
  * for the MessageDispatcher. 
  * <br>
  * <br>
- * <b>Message dispatching without numbers</b>: The problem of the numbers is: Any log output or message should have
+ * <b>Message dispatching without numbers using System.out and System.err</b>: 
+ * The problem of the numbers is: Any log output or message should have
  * a unified number. The programmer should handle this numbers in a global way. That number actuation is a pain in the neck
  * if the programmer does not need the numbers at that time.
  * <br><br>
@@ -155,7 +157,7 @@ import org.vishia.msgDispatch.LogMessage;
  *   <code>System.out.printf("Module - message; text %d %f\n", value1, value2);</code><br>
  *   is a proper format independent of any vishia approaches. That system matches to the redirection and conversion
  *   to the vishia message system with output channels of this class.
- * </ul>   
+ * </ol>   
  * It seems to be a good choice to use the second approach, {@link LogMessage} if the software is specialized for
  * message output, and to use the third approach, System.out for any other independent modules. The organization of both
  * approaches to use the message system can be done at a centralized point in software. The example {@link SampleCmdLine}
@@ -1465,7 +1467,7 @@ public abstract class MainCmd implements MainCmd_ifc
 
 
     
-  private final void sendMsgTimeToAppendableDst(Appendable dst, int identNumber, int reportLevel, OS_TimeStamp creationTime,
+  final void sendMsgTimeToAppendableDst(Appendable dst, int identNumber, int reportLevel, OS_TimeStamp creationTime,
       String text, Object... args) {
       final String line;
       if(args.length == 0){
@@ -1550,9 +1552,13 @@ public abstract class MainCmd implements MainCmd_ifc
 
     @Override
     public boolean sendMsgVaList(int identNumber, OS_TimeStamp creationTime,
-        String text, Va_list args) {
-      Object oArgs = args.get();
-      return sendMsgTime(identNumber, creationTime, text, oArgs);
+      String text, Va_list args) {
+      if(args.size() ==0){
+        return sendMsgTime(identNumber, creationTime, text);
+      } else {
+        Object oArgs = args.get();
+        return sendMsgTime(identNumber, creationTime, text, oArgs);
+      }
     }
 
     @Override

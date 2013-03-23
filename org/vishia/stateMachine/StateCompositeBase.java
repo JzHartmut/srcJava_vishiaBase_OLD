@@ -184,12 +184,14 @@ public abstract class StateCompositeBase
       }
       //
       DateOrder date = new DateOrder();
+      Thread currThread = Thread.currentThread();
+      String sThread = currThread.getName();
       if(!isActive){
-        System.out.println("." + date.order + " State leaved " + toString() + ";" + statePrev + "-->(" + evTrans + ")");
+        System.out.println("StateCompositeBase - State leaved;." + date.order + "; thread=" + sThread + "; state=" + toString() + "; last=" + stateAct + "; ev:" + evTrans);
       } else if(statePrev != stateAct){
-        System.out.println("." + date.order + " StateSwitch " + toString() + ";" + statePrev + "-->(" + evTrans + ")-->" + stateAct);
+        System.out.println("StateCompositeBase - StateSwitch ;." + date.order + "; thread=" + sThread + "; state=" + toString() + "; " + statePrev + ";-->"  + stateAct + "; ev:" + evTrans);
       } else if(evTrans !=null){
-        System.out.println("." + date.order + " Event not used " + toString() + ";" + stateAct + ":(" + evTrans + ")");
+        System.out.println("StateCompositeBase - Ev not used ;." + date.order + "; thread=" + sThread + "; state=" + toString() + "; " + statePrev + ";-->"  + stateAct + "; ev:" + evTrans);
       }
       if((cont & StateSimpleBase.mEventConsumed) != 0){
         evTrans = null;
