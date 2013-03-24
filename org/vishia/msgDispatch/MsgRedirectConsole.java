@@ -67,8 +67,6 @@ public class MsgRedirectConsole extends MsgDispatcher
   /**The output channels to console. */
   public final LogMessage cmdlineOut, cmdlineErr;
   
-  public static MsgDispatchSystemOutErr singleton;
-  
   /**Initializes the redirection of System.out and System.err in a full accessible way for Message Dispatching.
    * @param identStartOut  The message number of auto-generate numbers for first System.out
    * @param identStartErr  The message number of auto-generate numbers for first System.err
