@@ -11,13 +11,21 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-/**This class contains methods to access data, usual with reflection mechanism.
+import javax.lang.model.type.DeclaredType;
+
+/**This class contains methods to access data and invoke methods with symbolic access using reflection mechanism.
  * @author Hartmut Schorrig
  *
  */
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2013-03-26 Hartnut improved: {@link #getData(String, Object, boolean, boolean)} Now accesses to all elements,
+   *   also to enclosing and super classes.
+   * <li>2013-03-26 Hartmut new: {@link #getDataFromField(String, Object, boolean)}
+   * <li>2013-03-26 Hartmut new: {@link #getEnclosingInstance(Object)}
+   * <li>2013-03-26 Hartmut bugfix: {@link #getData(String, Object, boolean, boolean)} has thrown an Exception if a existing
+   *   element has a null-value. Instead it should return null. Exception only if the field is not found. 
    * <li>2013-03-23 Hartmut chg: {@link #checkAndConvertArgTypes(List, Class[])}: Now supports a (String[]) arg which is
    *   typical for a main(String[]) routine. General: The last formal argument can be an array, then all further
    *   non-array arguments are tried to build the element of it. 
@@ -161,7 +169,7 @@ public class DataAccess {
       , Map<String, Object> namedDataPool
       //, boolean noException 
       , boolean accessPrivate,  boolean bContainer)
-  throws NoSuchFieldException
+  throws NoSuchFieldException, IllegalAccessException
   {
     Object data1 = dataPool;
     Iterator<DatapathElement> iter = datapath.iterator();
@@ -203,6 +211,8 @@ public class DataAccess {
       element = iter.hasNext() ? iter.next() : null;
     }
     while(element !=null){
+      if(element.ident.equals("parallelParent"))
+        Assert.stop();
       switch(element.whatisit) {
         case 'n': {  //create a new instance, call constructor
           Object[] oArgs;
@@ -220,11 +230,11 @@ public class DataAccess {
         } break;
         case 'r': {
           if(data1 !=null){
-            data1 = invokeMethod(element, data1, accessPrivate, bContainer); 
+            data1 = invokeMethod(element, data1); 
           }
           //else: let data1=null, return null
         } break;
-        case 's': data1 = invokeStaticMethod(element, accessPrivate, bContainer); break;
+        case 's': data1 = invokeStaticMethod(element); break;
         default:
           if(data1 !=null){
             data1 = getData(element.ident, data1, accessPrivate, bContainer);
@@ -244,11 +254,15 @@ public class DataAccess {
   
   
   
+  /**Invokes the method which is described with the element.
+   * @param element its {@link DatapathElement#whatisit} == 'r'.
+   *   The {@link DatapathElement#name} should contain the "methodname" inside the class of datapool.
+   * @param dataPool The instance which is the instance of the method.
+   * @return the return value of the method
+   */
   static Object invokeMethod(      
     DatapathElement element
   , Object dataPool
-  , boolean accessPrivate
-  , boolean bContainer 
   ){
     Object data1 = null;
     Class<?> clazz = dataPool.getClass();
@@ -305,10 +319,13 @@ public class DataAccess {
   
   
   
-  static Object invokeStaticMethod(      
+  /**Invokes the static method which is described with the element.
+   * @param element its {@link DatapathElement#whatisit} == 's'.
+   *   The {@link DatapathElement#name} should contain the full qualified "packagepath.Class.methodname" separated by dot.
+   * @return the return value of the method
+   */
+  protected static Object invokeStaticMethod(      
       DatapathElement element
-    , boolean accessPrivate
-    , boolean bContainer 
     ) //throws ClassNotFoundException{
   { Object data1 = null;
     if(element.ident.equals("checkNewless"))
@@ -363,6 +380,8 @@ public class DataAccess {
     //} catch 
     return data1;    
   }
+  
+  
   
   
   /**Checks whether the given arguments matches to the necessary arguments of a method or constructor invocation.
@@ -481,20 +500,24 @@ public class DataAccess {
     return actArgs;
   }
   
+  
+  
+  
   /**Gets data from a field or from an indexed container.
    *    
    * <ul>
-   * <li>If the actual reference before is instanceof Map and the key is a String, then the next object
-   *    is gotten from the map with the name used as the key.
+   * <li>If the actual reference before is instanceof Map with String-key, then the next object
+   *    is gotten from the map with the name used as key.
    * <li>Elsewhere a field with ident as name is searched.
    * <li>If the actual reference before is instanceof {@link TreeNodeBase} and the field identifier is not found in this instance,
    *    a child node with the given name is searched. 
    *    The TreeNodeBase is the super class of {@link org.vishia.xmlSimple.XmlNodeSimple}
    *    which is used to present a ZBNF parse result. Therewith the {@link org.vishia.zbnf.ZbnfParser#getResultTree()}
    *    can be used as data input. The tag names of that result tree follow the semantic in the string given Syntax script.
+   * <li>If the field is not found in this class, it is try to get from the super classes.   
    * </ul>
    * @param name Name of the field or key for container
-   * @param dataPool The data where the field or element is searched
+   * @param dataPool The instance where the field or element is searched
    * @param accessPrivate true than accesses also private data. 
    * @param bContainer only used for a TreeNodeBase: If true then returns the List of children as container, If false returns the first child with that name. 
    * @return The reference described by name.
@@ -505,40 +528,121 @@ public class DataAccess {
       , Object dataPool
       , boolean accessPrivate
       , boolean bContainer) 
-  throws NoSuchFieldException
+  throws NoSuchFieldException, IllegalAccessException
   {
     Object data1 = null;
     if(dataPool instanceof Map<?, ?>){
       data1 = ((Map<?,?>)dataPool).get(name);
     } 
     else {
-      Class<?> clazz = dataPool.getClass();
-      do{
-        try{
-          Field field = clazz.getDeclaredField(name);
-          field.setAccessible(accessPrivate);
-          try{ 
-            data1 = field.get(dataPool);
-            
-          } catch(IllegalAccessException exc){
-            //try special types:
-            throw new NoSuchFieldException(name); 
+      try{
+        data1 = getDataFromField(name, dataPool, accessPrivate);
+      }catch(NoSuchFieldException exc){
+        //NOTE: if it is a TreeNodeBase, first search a field with the name, then search in data
+        if(dataPool instanceof TreeNodeBase<?,?,?>){
+          TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)dataPool;
+          if(bContainer){ data1 = treeNode.listChildren(name); }
+          else { data1 = treeNode.getChild(name); }  //if more as one element with that name, select the first one.
+          if(data1 == null){
+            throw new NoSuchFieldException(name);
           }
-        }catch(NoSuchFieldException exc){
-          if(dataPool instanceof TreeNodeBase<?,?,?>){
-            TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)dataPool;
-            if(bContainer){ data1 = treeNode.listChildren(name); }
-            else { data1 = treeNode.getChild(name); }  //if more as one element with that name, select the first one.
-          }
-        }
-        clazz = clazz.getSuperclass();
-      } while(data1 ==null && clazz !=null);
-      if(data1 ==null) {
-        throw new NoSuchFieldException(name + " in " + dataPool.getClass().getName()); 
+        } else throw exc;
       }
     }
     
     return data1;  //maybe null
+  }
+  
+  
+  /**Returns the data which are stored in the named field of the given instance. The method searches the field
+   * in the super class hierarchy and in all enclosing classes of each super classes starting with the last super class.
+   * If a field is defined in the enclosing class and in the super class or an outer class of the super class twice, 
+   * it is searched firstly in the super hierarchy. It means it meets the field in the outer class of any super class
+   * instead of its own outer class.
+   * 
+   * @param name The name of the field.
+   * @param obj The instance where the field are searched.
+   * @param accessPrivate true then read from private or protected fields, false then the access to such fields
+   *   throws the IllegalAccessException
+   * @return the data of the field. Maybe null if the field contains a null pointer.
+   * 
+   * @throws NoSuchFieldException If the field does not exist in the obj
+   * @throws IllegalAccessException if the field exists but is not accessible.
+   */
+  public static Object getDataFromField(String name, Object obj, boolean accessPrivate)
+  throws NoSuchFieldException, IllegalAccessException {
+    return getDataFromField(name, obj, accessPrivate, obj.getClass(), 0);
+  }
+  
+  
+  private static Object getDataFromField(String name, Object obj, boolean accessPrivate, Class<?> clazz, int recursiveCt)
+  throws NoSuchFieldException, IllegalAccessException {
+    if(recursiveCt > 100) throw new IllegalArgumentException("recursion error");
+    Object ret = null;
+    boolean bSearchSuperOuter = false;
+    try{ 
+      Field field = clazz.getDeclaredField(name); 
+      field.setAccessible(accessPrivate);
+      ret = field.get(obj);
+      
+    }
+    catch(NoSuchFieldException exc){ bSearchSuperOuter = true; }
+    if(bSearchSuperOuter){
+      Class<?> superClazz = clazz.getSuperclass();
+      if(superClazz !=null){
+        try{
+          ret = getDataFromField(name, obj, accessPrivate, superClazz, recursiveCt+1);  //searchs in thats enclosing and super classes.  
+          bSearchSuperOuter = false;
+        }catch(NoSuchFieldException exc){
+          //not found in the super hierarchie:
+          bSearchSuperOuter = true;
+        }
+      }
+    }
+    if(bSearchSuperOuter){
+      Class<?> outerClazz = clazz.getEnclosingClass();
+      if(outerClazz !=null){
+        Object outer = getEnclosingInstance(obj);
+        try{
+          ret = getDataFromField(name, outer, accessPrivate, outerClazz, recursiveCt+1);  //searchs in thats enclosing and super classes.  
+          bSearchSuperOuter = false;
+        }catch(NoSuchFieldException exc){
+          //not found in the super hierarchie:
+          bSearchSuperOuter = true;
+        }
+      }
+    }
+    if(bSearchSuperOuter){
+      throw new NoSuchFieldException(name);
+    }
+    return ret;
+  }
+  
+  
+  
+  
+  
+  /**Returns the enclosing instance (outer class) of an instance which is type of any inner non-static class.
+   * Returns null if the instance is not type of an inner class.
+   * The access searches the internal field "this$0" and returns its reference.
+   * Not that an inner non-static class aggregates the instance which is given on construction of the inner instance.
+   * On source level all elements of the enclosing instance are visible without additional designation
+   * or with the "Enclosingclass.this" construction. On run level it is that aggregation.
+   * 
+   * @param obj The instance
+   * @return the enclosing instance or null.
+   */
+  public static Object getEnclosingInstance(Object obj){
+    Object encl;
+    try{ Field fieldEncl = obj.getClass().getDeclaredField("this$0");
+      fieldEncl.setAccessible(true);
+      encl = fieldEncl.get(obj);
+    } catch(NoSuchFieldException exc){
+      encl = null;        //the class is not an inner non static class.
+    } catch(IllegalAccessException exc){
+      encl = null;        //Any access problems ? 
+    }
+    return encl;
   }
   
   

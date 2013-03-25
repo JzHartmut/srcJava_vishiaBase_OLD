@@ -6,11 +6,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**This class provides a calculator for simple expressions. The expressions are given in string format and then converted
+ * to a stack oriented running model. 
+ * <br><br>
+ * <ul>
+ * <li>Use {@link #setExpr(String)} to convert a String given expression to the internal format.
+ * <li>Use {@link #calc(float)} for simple operations with one float input, especially for scaling values. It is fast.
+ * <li>Use {@link #calc(Object...)} for universal expression calculation. 
+ * </ul>
+ * @author Hartmut Schorrig
+ *
+ */
 public class CalculatorExpr
 {
   
   /**Versio, history and license.
    * <ul>
+   * <li>Bugfix because String value and thrown Exception. The class needs a test environment. TODO
    * <li>2012-12-22 some enhancements while using in {@link org.vishia.textGenerator.TextGenerator}.
    * <li>2012-04-17 new {@link #calc(float)} for float and int
    * <li>TODO unary operator, function 
@@ -72,6 +84,18 @@ public class CalculatorExpr
         default: throw new IllegalArgumentException("unknown type char: " + type);
       }//switch
     }
+    
+    @Override public String toString(){ 
+      switch(type){
+        case 'L': return Long.toString(longVal);
+        case 'D': return Double.toString(doubleVal);
+        case 'Z': return Boolean.toString(boolVal);
+        case 't': return stringVal;
+        case 'o': return oVal ==null ? "null" : oVal.toString();
+        case '?': return "??";
+        default:  return "?" + type;
+      }//switch
+    }
   }
   
   
@@ -83,10 +107,51 @@ public class CalculatorExpr
   
   
   private abstract static class Operator{
+    private final String name; 
+    Operator(String name){ this.name = name; }
     abstract ExpressionType operate(ExpressionType Type, Value accu, Value arg);
+    @Override public String toString(){ return name; }
   }
   
   
+  
+  private static final ExpressionType startExpr = new ExpressionType(){
+    
+    @Override public char typeChar() { return '!'; }
+    
+    @Override public ExpressionType checkArgument(Value accu, Value setit, Object src) {
+      if(src instanceof String){ setit.stringVal = (String)src; return stringExpr; }
+      else if(src instanceof Long){ setit.longVal = (Long)src; return longExpr; }
+      else if(src instanceof Integer){ setit.longVal = (Integer)src; return longExpr; }
+      else if(src instanceof Short){ setit.longVal = (Short)src; return longExpr; }
+      else if(src instanceof Byte){ setit.longVal = (Byte)src; return longExpr; }
+      else if(src instanceof Character){ setit.longVal = (Character)src; return longExpr; }  //use its UTF16-code.
+      else if(src instanceof Double){ setit.doubleVal = (Double)src; accu.doubleVal = accu.longVal;
+        return longExpr;
+      }
+      else throw new IllegalArgumentException("src type");
+    }
+
+  };
+  
+  private static final ExpressionType stringExpr = new ExpressionType(){
+    
+    @Override public char typeChar() { return 't'; }
+    
+    @Override public ExpressionType checkArgument(Value accu, Value setit, Object src) {
+      if(src instanceof String){ setit.stringVal = (String)src; return longExpr; }
+      if(src instanceof Long){ setit.longVal = (Long)src; return this; }
+      else if(src instanceof Integer){ setit.longVal = (Integer)src; return this; }
+      else if(src instanceof Short){ setit.longVal = (Short)src; return this; }
+      else if(src instanceof Byte){ setit.longVal = (Byte)src; return this; }
+      else if(src instanceof Character){ setit.longVal = (Character)src; return this; }  //use its UTF16-code.
+      else if(src instanceof Double){ setit.doubleVal = (Double)src; accu.doubleVal = accu.longVal;
+        return longExpr;
+      }
+      else throw new IllegalArgumentException("src type");
+    }
+
+  };
   
   private static final ExpressionType longExpr = new ExpressionType(){
     
@@ -121,7 +186,7 @@ public class CalculatorExpr
   };
   
   
-  private static final Operator setOperation = new Operator(){
+  private static final Operator setOperation = new Operator("!"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
         case 'L': accu.longVal = arg.longVal; break;
@@ -136,7 +201,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator addOperation = new Operator(){
+  private static final Operator addOperation = new Operator("+"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
         case 'L': accu.longVal += arg.longVal; break;
@@ -149,7 +214,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator subOperation = new Operator(){
+  private static final Operator subOperation = new Operator("-"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
         case 'L': accu.longVal -= arg.longVal; break;
@@ -162,7 +227,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator mulOperation = new Operator(){
+  private static final Operator mulOperation = new Operator("*"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
         case 'L': accu.longVal *= arg.longVal; break;
@@ -175,7 +240,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator divOperation = new Operator(){
+  private static final Operator divOperation = new Operator("/"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
         case 'L': accu.longVal /= arg.longVal; break;
@@ -188,7 +253,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator cmpEqOperation = new Operator(){
+  private static final Operator cmpEqOperation = new Operator(".cmp."){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
         case 'L': accu.boolVal = accu.longVal == arg.longVal; break;
@@ -203,7 +268,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator cmpNeOperation = new Operator(){
+  private static final Operator cmpNeOperation = new Operator("!="){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
         case 'L': accu.boolVal = accu.longVal != arg.longVal; break;
@@ -218,7 +283,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator cmpLessThanOperation = new Operator(){
+  private static final Operator cmpLessThanOperation = new Operator("<"){
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
@@ -234,7 +299,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator cmpGreaterEqualOperation = new Operator(){
+  private static final Operator cmpGreaterEqualOperation = new Operator(">="){
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
@@ -250,7 +315,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator cmpGreaterThanOperation = new Operator(){
+  private static final Operator cmpGreaterThanOperation = new Operator(">"){
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
@@ -266,7 +331,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator cmpLessEqualOperation = new Operator(){
+  private static final Operator cmpLessEqualOperation = new Operator("<="){
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
@@ -308,6 +373,12 @@ public class CalculatorExpr
     //Operation(char operation, Object oValue){ this.value = 0; this.operation = operation; this.ixVariable = -1; this.oValue = oValue; }
     Operation(Operator operator, int ixVariable){ this.value = 0; this.operator = operator; this.operation = '.'; this.ixVariable = ixVariable; this.oValue = null; }
     Operation(Operator operator, Object oValue){ this.value = 0; this.operator = operator; this.operation = '.'; this.ixVariable = -1; this.oValue = oValue; }
+  
+    @Override public String toString(){ 
+      if(ixVariable >=0) return operator + " arg[" + ixVariable + "]";
+      else if (oValue !=null) return operator + " " + oValue.toString();
+      else return operator + " " + value;
+    }
   }
   
   private final List<Operation> stackExpr = new LinkedList<Operation>();
@@ -584,7 +655,7 @@ public class CalculatorExpr
   public Value calc(Object... args){
     Value accu = new Value();
     Value val2 = new Value();
-    ExpressionType check = longExpr;
+    ExpressionType check = startExpr;
     for(Operation oper: stackExpr){
       //Get the operand either from args or from Operation
       Object oVal2;
