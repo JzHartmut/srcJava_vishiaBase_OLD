@@ -74,6 +74,7 @@ public class FileSystem
   /**Version, history and license.
    * Changes:
    * <ul>
+   * <li>2013-03-29 Hartmut new: {@link #cleandir(File)}
    * <li>2013-02-13 Hartmut chg: {@link #addFileToList(String, AddFileToList)} new better algorithm
    * <li>2013-02-03 Hartmut chg: the {@link #addFileToList(String, AddFileToList)} does not throw a FileNotFoundException
    *   instead it returns false. All try-catch Blocks of a user calling environment may be changed to <code>catch(Exception e)</code>
@@ -485,13 +486,26 @@ public class FileSystem
   
   
   /**Removes all files inside the directory and all sub directories with its files.
-   * The remove the dir itself.
-   * @param dir A directory
+   * Then remove the dir itself.
+   * @param dir A directory or a file inside the directory
    * @return true if all files are deleted. If false then the deletion process was aborted.
    */
   public static boolean rmdir(File dir){
+    if(!dir.isDirectory()){ dir = getDir(dir); }
+    boolean bOk = cleandir(dir);
+    bOk = bOk && dir.delete();   //delete only if bOk!
+    return bOk;
+  }
+  
+
+  /**Removes all files inside the directory and all sub directories with its files.
+   * The dir itself will be remain.
+   * @param dir A directory or any file inside the directory.
+   * @return true if all files are deleted. If false then the deletion process was aborted.
+   */
+  public static boolean cleandir(File dir){
     boolean bOk = true;
-    assert(dir.isDirectory());
+    if(!dir.isDirectory()){ dir = getDir(dir); }
     File[] files = dir.listFiles();
     for(File file: files){
       if(file.isDirectory()){
@@ -500,7 +514,6 @@ public class FileSystem
         bOk = bOk && file.delete();
       }
     }
-    bOk = bOk & dir.delete();
     return bOk;
   }
   
