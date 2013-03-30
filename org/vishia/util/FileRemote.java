@@ -2,7 +2,6 @@ package org.vishia.util;
 
 import java.io.File;
 import java.io.FileFilter;
-import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -37,6 +36,7 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-03-31 Hartmut chg: Event<Type>
    * <li>2012-11-16 Hartmut chg: Usage of {@link CmdEvent#filesrc} and filedst and {@link CallbackEvent#filedst} and dst
    *   instead {@link Event#getRefData()}.
    * <li>2012-11-11 Hartmut chg: The flag bit {@link #mDirectory} should be set always, especially also though {@link #mTested} is false.
@@ -147,7 +147,7 @@ public class FileRemote extends File
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20120728;
+  public static final int version = 20130331;
 
   private static FileRemoteAccessorSelector accessorSelector;
   
@@ -1134,7 +1134,7 @@ public class FileRemote extends File
 
 
   
-  public static class CmdEvent extends Event
+  public static class CmdEvent extends Event<FileRemote.Cmd>
   {
     FileRemote filesrc, filedst;
 
@@ -1157,7 +1157,7 @@ public class FileRemote extends File
      * @deprecated
      */
     @Deprecated
-    public CmdEvent(EventSource evSrc, Object refData, EventConsumer dst, EventThread thread, Event callback){ 
+    public CmdEvent(EventSource evSrc, Object refData, EventConsumer dst, EventThread thread, CallbackEvent callback){ 
       super(evSrc, refData, dst, thread, callback); 
     }
     
@@ -1204,7 +1204,7 @@ public class FileRemote extends File
    * the application should only concern with this object. 
    * See {@link CallbackEvent#CallbackEvent(Object, EventConsumer, EventThread)}.
    */
-  public static class CallbackEvent extends Event
+  public static class CallbackEvent extends Event<FileRemote.CallbackCmd>
   {
     private FileRemote filesrc, filedst;
 

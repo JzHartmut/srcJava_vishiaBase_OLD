@@ -507,7 +507,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * 
  * 
  */
-public class Event<CmdEnum extends Enum>
+public class Event<CmdEnum extends Enum<CmdEnum>>
 {
   
   /**Version, history and license

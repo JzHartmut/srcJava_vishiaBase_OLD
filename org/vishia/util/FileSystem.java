@@ -74,6 +74,8 @@ public class FileSystem
   /**Version, history and license.
    * Changes:
    * <ul>
+   * <li>2013-03-31 Hartmut bugfix: {@link #addFileToList(AddFileToList, File, String, int, FilenameFilter, FilenameFilter, int)}
+   *   had gotten the content of path/** /sub twice. 
    * <li>2013-03-29 Hartmut new: {@link #cleandir(File)}
    * <li>2013-02-13 Hartmut chg: {@link #addFileToList(String, AddFileToList)} new better algorithm
    * <li>2013-02-03 Hartmut chg: the {@link #addFileToList(String, AddFileToList)} does not throw a FileNotFoundException
@@ -949,7 +951,6 @@ public class FileSystem
         Assert.stop();
       int posWildcardSub = sPathSub.indexOf('*');
       if(posBehind >=0 || filterAlldir !=null) {
-        String[] sFiles = fDir.list();
         WildcardFilter filterDir;
         if(posBehind >0){
           String sPathDir = sPath.substring(posDir, posBehind);  //with ending '/'
@@ -963,23 +964,25 @@ public class FileSystem
         } else {
           filterDir = null;  //NOTE: filterAlldir may be set
         }
-        for(String sFile: sFiles){
-          File dirSub;
-          if( (  bAllTree
-              || filterDir !=null    && filterDir.accept(fDir, sFile)
-              || filterAlldir !=null && filterAlldir.accept(fDir, sFile)
-              )
-              && (dirSub = new File(fDir, sFile)).isDirectory()
-              ){
-            if(sFile.equals("ZBNF"))
-              Assert.stop();
-            //dirSub is matching to the filterAlldir:
-            bFound = addFileToList(listFiles, dirSub, sPathSub, posWildcardSub, filterName,filterAlldir, recursivect +1);
-          }
-        }
         if(bAllTree){
           //search from sPathSub in the current dir too, because it is "/**/name..."
           bFound = addFileToList(listFiles, fDir, sPathSub, posWildcardSub, filterName,filterAlldir, recursivect +1);
+        } else {
+          String[] sFiles = fDir.list();
+          for(String sFile: sFiles){
+            File dirSub;
+            if( (  bAllTree
+                || filterDir !=null    && filterDir.accept(fDir, sFile)
+                || filterAlldir !=null && filterAlldir.accept(fDir, sFile)
+                )
+                && (dirSub = new File(fDir, sFile)).isDirectory()
+                ){
+              if(sFile.equals("ZBNF"))
+                Assert.stop();
+              //dirSub is matching to the filterAlldir:
+              bFound = addFileToList(listFiles, dirSub, sPathSub, posWildcardSub, filterName,filterAlldir, recursivect +1);
+            }
+          }
         }
       }
       if(posBehind <0 || bAllTree){

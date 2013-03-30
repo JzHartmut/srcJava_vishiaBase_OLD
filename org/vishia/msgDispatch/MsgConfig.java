@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -20,6 +19,8 @@ public class MsgConfig implements MsgText_ifc
   /**version, history and license:
    * <ul>
    * <li>
+   * <li>2013-03-31 Hartmut new {@link #readConfig(File)} now regards 1000..1099 (range), $$ for ident strings,
+   *   re-read of the config is possible (experience).
    * <li>2013-02-24 Hartmut new {@link #getListItems()}, move {@link MsgConfigItem} to {@link MsgText_ifc}.
    * <li>2010-08-00 Hartmut created 
    * </ul>
@@ -101,6 +102,7 @@ item::= <#?identNr>[..<#?identNrLast>]  <!.?type> <*|\t|\ \ ?dst> [$$<*|\r|\n|\t
     if(sError == null){
       try{
         String sLine;
+        rootParseResult.item.clear();
         while( sError == null && (sLine = reader.readLine()) !=null){
           sLine = sLine.trim();
           int zLine = sLine.length();
@@ -111,23 +113,49 @@ item::= <#?identNr>[..<#?identNrLast>]  <!.?type> <*|\t|\ \ ?dst> [$$<*|\r|\n|\t
             int posDst = posTypeEnd; while(posDst < zLine-2 && sLine.charAt(++posDst) == ' '){ posDst +=1; };
             int posDstEnd = sLine.indexOf(' ', posDst);
             MsgConfigItem item = new MsgConfigItem();
-            try{ item.identNr = Integer.parseInt(sLine.substring(0, posIdentEnd));
-            
+            try{ 
+              int posIdentRange = sLine.indexOf("..");
+              if(posIdentRange > 0 && posIdentRange < posIdentEnd){  //it is 1000..1099
+                item.identNr = Integer.parseInt(sLine.substring(0, posIdentRange));
+                item.identNrLast = Integer.parseInt(sLine.substring(posIdentRange+2, posIdentEnd));
+              } else {
+                item.identNr = Integer.parseInt(sLine.substring(0, posIdentEnd));
+              }
             } catch(NumberFormatException exc){
               sError = "MsgConfig - Ident number false; " + sLine;
             }
             item.type_ = sLine.charAt(posType);
             item.dst = sLine.substring(posDst, posDstEnd);
-            item.text = sLine.substring(posDstEnd).trim();
+            String text = sLine.substring(posDstEnd).trim();
+            if(text.startsWith("$$")){
+              int posSep2 = text.indexOf("$$", 2);
+              int posSep = posSep2;
+              if(posSep < 0){
+                posSep = text.indexOf(';');
+              }
+              if(posSep >0){ //till ; it is the ident text of auto generated messages.
+                item.identText = text.substring(2, posSep);
+                if(posSep2 >= 0){
+                  item.text = text.substring(posSep2+2);
+                } else {
+                  item.text = text.substring(2);   //the whole text is the output text too.
+                }
+              } else {
+                throw new IllegalArgumentException("format error, $$ or ; is needed in:" + sLine);
+              }
+            } else {
+              item.text = text;
+            }
             rootParseResult.item.add(item);
           }
         }
-      }catch(IOException exc){
+      }catch(Exception exc){
         sError = "MsgConfig - any read problem on config file; " + fileConfig.getAbsolutePath();
       }
     }
     if(sError ==null){
       //success parsing
+      indexIdentNr.clear();
       for(MsgConfigItem item: rootParseResult.item){
         indexIdentNr.put(item.identNr, item);
       }

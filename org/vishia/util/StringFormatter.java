@@ -56,6 +56,7 @@ public class StringFormatter
   
   /**Version, history and license.
    * <ul>
+   * <li>2013-03-31: Hartmut new {@link #convertTimestampToday(long)}
    * <li>2013-01-19: Hartmut new: {@link #addReplaceLinefeed(CharSequence, CharSequence, int)}.
    * <li>2009-05-03: Hartmut bugfix in strPicture: nr of inserted chars was incorrect.
    * <li>2009-03-10: Hartmut new: addDateSeconds() and addDate()
@@ -90,7 +91,7 @@ public class StringFormatter
    * 
    * 
    */
-  public static final int version = 20130118;
+  public static final int version = 20130331;
   
   private static final byte mNrofBytesInWord = 0x1F;
 
@@ -134,6 +135,23 @@ public class StringFormatter
   
   
   private char cDecimalSeparator = '.';
+  
+  
+  String sDatePrefixNewer = "";
+  SimpleDateFormat dateFormatNewer = new SimpleDateFormat("?yy-MM-dd HH:mm:ss"); 
+  
+  String sDatePrefixToday = "today";
+  SimpleDateFormat dateFormatToday = new SimpleDateFormat(" HH:mm:ss"); 
+  
+  String sDatePrefixYear = "";
+  SimpleDateFormat dateFormatYear = new SimpleDateFormat("MMM-dd HH:mm:ss"); 
+  
+  String sDatePrefixOlder = "";
+  SimpleDateFormat dateFormatOlder = new SimpleDateFormat("yy-MM-dd HH:mm:ss"); 
+  
+
+
+  
   
   public StringFormatter()
   { buffer = new StringBuilder();
@@ -970,6 +988,22 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
     return(pict.length());
   }
 
-
+  
+  public String convertTimestampToday(long timestamp){
+    long dateNow = System.currentTimeMillis();
+    long diffTime = dateNow - timestamp;
+    String sDate;
+    if(diffTime < -10 * 3600000L){
+      sDate = sDatePrefixNewer + dateFormatNewer.format(timestamp);
+    } else if(diffTime < 18*3600000){
+      //files today
+      sDate = sDatePrefixToday + dateFormatToday.format(timestamp);
+    } else if(diffTime < 320 * 24* 3600000L){
+      sDate = sDatePrefixYear + dateFormatYear.format(timestamp);
+    } else {
+      sDate = sDatePrefixOlder + dateFormatOlder.format(timestamp);
+    }
+    return sDate;
+  }
 
 }

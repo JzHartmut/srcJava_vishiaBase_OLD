@@ -111,6 +111,8 @@ public class EventThread implements Runnable, Closeable
     stateOfThread = 'x';
   }
 
+  
+  public char getState(){ return stateOfThread; }
 
   @Override public void close() throws IOException
   { synchronized(this){

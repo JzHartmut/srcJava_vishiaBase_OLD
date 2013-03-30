@@ -26,6 +26,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   
   /**Version, history and license.
    * <ul>
+   * <li>2013-03-31 Hartmut bugfix: number of percent in backevent while copy
    * <li>2012-11-17 Hartmut chg: review of {@link #execChgProps(org.vishia.util.FileRemote.CmdEvent)} etc. It should not work before.
    *   yet not all is tested. 
    * <li>2012-10-01 Hartmut chg: Some adaption because {@link FileRemote#listFiles()} returns File[] and not FileRemote[].
@@ -76,7 +77,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20120721;
+  public static final int version = 20130331;
 
   /**Some experience possible: if true, then store File objects in {@link FileRemote#children} instead
    * {@link FileRemote} objects. The File objects may be replaces by FileRemote later if necessary. This may be done
@@ -1136,6 +1137,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
                 actData.zBytesCopyFile += zBytes;
                 zBytesCopy += zBytes;
                 actData.out.write(buffer, 0, zBytes);
+                //synchronized(this){ try{ wait(20);} catch(InterruptedException exc){} } //only test.
                 long time = System.currentTimeMillis();
                 //
                 //feedback of progression after about 0.3 second. 
@@ -1143,8 +1145,12 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
                   timestart = time;
                   if(evBackInfo.occupyRecall(outer.evSrc, false)){
                       
-                    evBackInfo.data1 = (int)((float)actData.zBytesCopyFile / actData.zBytesFile * 1000);  //number between 0...1000
-                    evBackInfo.data2 = (int)((float)zBytesCopy / zBytesCheck * 1000);  //number between 0...1000
+                    evBackInfo.data1 = (int)((float)(actData.zBytesCopyFile / actData.zBytesFile) * 1000);  //number between 0...1000
+                    if(zBytesCheck >0){
+                      evBackInfo.data2 = (int)((float)(zBytesCopy / zBytesCheck) * 1000);  //number between 0...1000
+                    } else {
+                      evBackInfo.data2 = 0;
+                    }
                     evBackInfo.nrofFiles = zFilesCheck - zFilesCopy;
                     evBackInfo.nrofBytesInFile = (int)zBytesCopy;
                     String absPath = actData.src.getAbsolutePath();

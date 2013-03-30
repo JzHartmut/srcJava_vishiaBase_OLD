@@ -1,5 +1,6 @@
 package org.vishia.msgDispatch;
 
+import java.io.File;
 import java.util.TimeZone;
 
 import org.vishia.mainCmd.MainCmd;
@@ -21,6 +22,7 @@ public class MsgRedirectConsole extends MsgDispatcher
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-03-31 Hartmut new {@link #readConfig(File)}, experience with usage.
    * <li>2013-03-24 Hartmut rewrite, create this class from MsgDispatchSystemOutErr
    * <li>2013-01-26 Hartmut fine tuning
    * <li>2012-01-07 Hartmut creation of MsgDispatchSystemOutErr, to support a simple usage of {@link MsgPrintStream} to redirect System.out and System.err.
@@ -66,6 +68,8 @@ public class MsgRedirectConsole extends MsgDispatcher
   
   /**The output channels to console. */
   public final LogMessage cmdlineOut, cmdlineErr;
+  
+  private final MsgConfig msgConfig = new MsgConfig();
   
   /**Initializes the redirection of System.out and System.err in a full accessible way for Message Dispatching.
    * @param identStartOut  The message number of auto-generate numbers for first System.out
@@ -125,13 +129,24 @@ public class MsgRedirectConsole extends MsgDispatcher
   { this(10000, 40000, 10000, 100, mainCmd, 10000, 1000, addOutputs+3, 9999, runNoEntryMessage);
   }
   
-  public void setMsgIdents(MsgText_ifc src, String chnChars){
+  public void setMsgIdents(MsgConfig src, String chnChars){
+    super.setMsgTextConverter(src);
     printOut.setMsgIdents(src);
     if(printErr !=null){
       printOut.setMsgIdents(src);
     }
-    for(MsgText_ifc.MsgConfigItem item : src.getListItems()){
-      //set MsgDispatcher channels
-    }
+    src.setMsgDispaching(this, chnChars);
   }
+  
+  public String readConfig(File fileConfig){ 
+    String sError = msgConfig.readConfig(fileConfig); 
+    if(sError == null){
+      setMsgIdents(msgConfig, "dfl");
+    } else {
+      System.err.println("MsgRedirectConsole.readConfig - syntax error; " + sError);
+    }
+    return sError;
+  }
+
+  
 }
