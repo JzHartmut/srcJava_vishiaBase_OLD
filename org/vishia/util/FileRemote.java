@@ -987,7 +987,7 @@ public class FileRemote extends File
     
     ev.filesrc =this;
     ev.filedst = dst;
-    ev.data1 = mode;
+    ev.modeCopyOper = mode;
     ev.sendEvent(Cmd.copy);
     
   }
@@ -1138,6 +1138,9 @@ public class FileRemote extends File
   {
     FileRemote filesrc, filedst;
 
+    /**Mode of operation, see {@link FileRemote#modeCopyCreateAsk} etc. */
+    int modeCopyOper;
+    
     /**For {@link #kChgProps}: a new name. */
     String newName;
     
@@ -1338,6 +1341,8 @@ public class FileRemote extends File
     
     /**callback to ask what to do because the destination file or directory is not able to create. */
     askErrorDstCreate,
+    
+    askDstOverwr,
     
     /**callback to ask what to do because an copy file part error is occured. */
     askErrorCopy,
