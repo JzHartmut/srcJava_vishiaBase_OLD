@@ -406,9 +406,10 @@ public class DataAccess {
     if(argTypes.length == 0 && providedArgs == null){
       actArgs = new Object[0]; //matches, but no args.
     }
-    else if(providedArgs !=null && argTypes.length == providedArgs.size()
-      || argTypes.length > 0 && argTypes.length < providedArgs.size() && argTypes[argTypes.length -1].isArray()  
-      ){
+    else if(providedArgs !=null 
+      && (  argTypes.length == providedArgs.size()
+         || argTypes.length > 0 && argTypes.length < providedArgs.size() && argTypes[argTypes.length -1].isArray()  
+      )  ){
       //check it
       boolean bOk = true;
       int iParam = 0;

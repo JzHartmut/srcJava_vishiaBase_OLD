@@ -111,7 +111,7 @@ public abstract class FileRemoteAccessor implements Closeable
  
   //FileRemote[] listFiles(FileRemote parent);
   
-  
+  /**Creates or prepares a CmdEvent to send to the correct destination. The event is ready to use but not . */
   public abstract FileRemote.CmdEvent prepareCmdEvent(FileRemote.CallbackEvent evBack);
 
   

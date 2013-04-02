@@ -257,6 +257,7 @@ public abstract class StateCompositeBase
   }
 
   
+  @Override public String toString(){ return stateId.toString() + ":" + (!isActive ? "null": stateAct.toString()); }
 
   
 }

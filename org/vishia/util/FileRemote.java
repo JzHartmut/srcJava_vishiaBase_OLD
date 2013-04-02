@@ -206,7 +206,7 @@ public class FileRemote extends File
   , modeCopyReadOnlyNever = 0x1, modeCopyReadOnlyOverwrite = 0x3, modeCopyReadOnlyAks = 0;
 
   public final static int modeCopyExistMask = 0x0f0
-  , modeCopyExistNewer = 0x10, modeCopyExistOlder = 0x20, modeCopyExistAll = 0x30, modeCopyExistAsk = 0;
+  , modeCopyExistNewer = 0x10, modeCopyExistOlder = 0x20, modeCopyExistAll = 0x30, modeCopyExistSkip = 0x40, modeCopyExistAsk = 0;
   
   public final static int modeCopyCreateMask = 0xf00
   , modeCopyCreateNever = 0x200, modeCopyCreateYes = 0x300 , modeCopyCreateAsk = 0;
@@ -955,12 +955,13 @@ public class FileRemote extends File
   }
   
   
-  /**Copies a file or directory maybe in a remote device to another file in the same device. 
-   * This is a send-only routine without feedback, because the calling thread should not be waiting 
+  /**Copies a file or directory tree maybe in a remote device to another file in the same device. 
+   * This is a send-only routine without immediate feedback, because the calling thread should not be waiting 
    * for success. 
    * <br><br>
    * This routine sends an {@link CmdEvent} with {@link Cmd#copy} to the destination. Before that the destination 
    * for the event is set with calling of {@link FileRemoteAccessor#prepareCmdEvent(CallbackEvent)}. 
+   * That creates
    * The given {@link CallbackEvent} is completed with a {@link CmdEvent} and its correct destination {@link EventConsumer}.
    * <br><br>
    * Any status and the success is notified with invocation of the given {@link CallbackEvent}. It is possible that
@@ -1139,7 +1140,7 @@ public class FileRemote extends File
     FileRemote filesrc, filedst;
 
     /**Mode of operation, see {@link FileRemote#modeCopyCreateAsk} etc. */
-    int modeCopyOper;
+    public int modeCopyOper;
     
     /**For {@link #kChgProps}: a new name. */
     String newName;
@@ -1190,9 +1191,10 @@ public class FileRemote extends File
     
 
     
+    @Override
     public boolean sendEvent(FileRemote.Cmd cmd){ return super.sendEvent(cmd); }
     
-    @Override public FileRemote.Cmd getCmd(){ return (FileRemote.Cmd)super.getCmd(); }
+    @Override public FileRemote.Cmd getCmd(){ return super.getCmd(); }
     
     
   }
@@ -1270,10 +1272,11 @@ public class FileRemote extends File
     
     
     
+    @Override
     public boolean sendEvent(CallbackCmd cmd){ return super.sendEvent(cmd); }
     
 
-    @Override public CallbackCmd getCmd(){ return (CallbackCmd)super.getCmd(); }
+    @Override public CallbackCmd getCmd(){ return super.getCmd(); }
     
     @Override public CmdEvent getOpponent(){ return (CmdEvent)super.getOpponent(); }
 
@@ -1342,7 +1345,14 @@ public class FileRemote extends File
     /**callback to ask what to do because the destination file or directory is not able to create. */
     askErrorDstCreate,
     
+    /**callback to ask what to do on a file which is existing but able to overwrite. */
     askDstOverwr,
+    
+    /**callback to ask what to do on a file which is existing and read only. */
+    askDstReadonly,
+    
+    /**callback to ask that the file is not able to overwrite. The user can try it ones more or can press skip. */
+    askDstNotAbletoOverwr,
     
     /**callback to ask what to do because an copy file part error is occured. */
     askErrorCopy,

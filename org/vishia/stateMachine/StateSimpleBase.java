@@ -202,7 +202,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   /**Returns the state Id and maybe some more debug information.
    * @see java.lang.Object#toString()
    */
-  @Override public final String toString(){ return stateId.toString(); }
+  @Override public String toString(){ return stateId.toString(); }
 
 
 
