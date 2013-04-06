@@ -12,16 +12,16 @@ public class EventTimerMng extends Thread implements Closeable{
     /**Absolute time when the event should be occurred. */
     final long dateEvent;
     
-    final Event<TimeEvent.Cmd> event;
+    final Event<TimeEvent.Cmd, Event.NoOpponent> event;
     
-    TimeEntry(Event<TimeEvent.Cmd> ev, long date){
+    TimeEntry(Event<TimeEvent.Cmd, Event.NoOpponent> ev, long date){
       this.dateEvent = date;
       this.event = ev;
     }
   }
   
   
-  public static class TimeEvent extends Event<TimeEvent.Cmd>{
+  public static class TimeEvent extends Event<TimeEvent.Cmd, Event.NoOpponent>{
     enum Cmd{Time};
     
     
@@ -65,7 +65,7 @@ public class EventTimerMng extends Thread implements Closeable{
   }
   
   
-  public static void addTimeOrder(long date, Event<TimeEvent.Cmd> evTime){
+  public static void addTimeOrder(long date, Event<TimeEvent.Cmd, Event.NoOpponent> evTime){
     if(singleton == null){
       singleton = new EventTimerMng();
     }
@@ -81,7 +81,7 @@ public class EventTimerMng extends Thread implements Closeable{
   }
   
   
-  private void addTimeOrder_(long date, Event<TimeEvent.Cmd> evTime){
+  private void addTimeOrder_(long date, Event<TimeEvent.Cmd, Event.NoOpponent> evTime){
     Assert.checkMsg (evTime instanceof TimeEvent, "The Event should be a org.vishia.util.EventTimerMng.TimeEvent");
     Assert.checkMsg (evTime.hasDst(), "The Event must have a destination.");
     Assert.checkMsg (!evTime.isOccupied(), "The Event must not be occupied.");

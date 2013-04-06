@@ -20,7 +20,7 @@ public class StateBaseExample {
   
   public final EventConsumer processState = new EventConsumer("StateBaseExample"){
 
-    @Override protected boolean processEvent_(Event<?> ev) {
+    @Override protected boolean processEvent_(Event<?,?> ev) {
       stateTop.process(ev);
       return true;
     }
@@ -34,7 +34,7 @@ public class StateBaseExample {
   
   enum Cmd{ Null, step, on_ready, on_cont, off, offAfterRunning, start, stop, abort};
   
-  public class EventBaseExample extends Event<Cmd>{
+  public class EventBaseExample extends Event<Cmd, Event.NoOpponent>{
     public EventBaseExample() {
       super(eventSource, StateBaseExample.this, processState, null);
     }
@@ -56,7 +56,7 @@ public class StateBaseExample {
       return consumed;
     }
 
-    @Override public int process(Event<?> evP){
+    @Override public int process(Event<?,?> evP){
       return super.process(evP);
     }
     
@@ -77,7 +77,7 @@ public class StateBaseExample {
       super(superState, "Off");
     }
 
-    @Override public int trans(Event<?> evP) {
+    @Override public int trans(Event<?,?> evP) {
       EventBaseExample ev = (EventBaseExample)evP;
       Cmd cmd = ev == null ? Cmd.Null: ev.getCmd();
       if(cmd == Cmd.on_cont){
@@ -127,7 +127,7 @@ public class StateBaseExample {
       super(superState, "Ready");
     }
 
-    @Override public int trans(Event<?> evP) {
+    @Override public int trans(Event<?,?> evP) {
       EventBaseExample ev = (EventBaseExample)evP;
       Cmd cmd = ev == null ? Cmd.Null: ev.getCmd();
       if(cmd == Cmd.start){
@@ -153,7 +153,7 @@ public class StateBaseExample {
       return 0;
     }
 
-    @Override public int trans(Event<?> ev) {
+    @Override public int trans(Event<?,?> ev) {
       //call trans of its parallel states
       int evConsumedInParallel = enclState().stateActive2.process(ev);
       if((evConsumedInParallel & mStateLeaved) !=0) return evConsumedInParallel;
@@ -173,7 +173,7 @@ public class StateBaseExample {
       super(superState, "Finit");
     }
 
-    @Override public int trans(Event<?> ev) {
+    @Override public int trans(Event<?,?> ev) {
       int evConsumedInParallel = enclState().stateActive2.process(ev);
       if((evConsumedInParallel | mStateLeaved) !=0) return evConsumedInParallel;
       else{
@@ -265,7 +265,7 @@ public class StateBaseExample {
       return 0;
     }
 
-    @Override public int trans(Event<?> ev) {
+    @Override public int trans(Event<?,?> ev) {
       if(System.currentTimeMillis() - time >=0){
         return exit().stateFinit.entry(mRunToComplete);
       }
@@ -280,7 +280,7 @@ public class StateBaseExample {
       super(superState, "Finit");
     }
 
-    @Override public int trans(Event<?> ev) {
+    @Override public int trans(Event<?,?> ev) {
       if(enclState().enclState().stateActive2.stateRemainOn.isInState()){
         exit().exit().exit().stateReady.entry(mStateLeaved);
       }
@@ -328,7 +328,7 @@ public class StateBaseExample {
       return super.entry(consumed);
     }
     
-    @Override public int trans(Event<?> evP) {
+    @Override public int trans(Event<?,?> evP) {
       EventBaseExample ev = (EventBaseExample)evP;
       Cmd cmd = ev == null ? Cmd.Null: ev.getCmd();
       if(cmd == Cmd.abort){
@@ -345,7 +345,7 @@ public class StateBaseExample {
       super(superState, "ShouldOff");
     }
 
-    @Override public int trans(Event<?> ev) {
+    @Override public int trans(Event<?,?> ev) {
       return 0;
     }
     
@@ -386,7 +386,7 @@ public class StateBaseExample {
       super(superState, "RemainOn");
     }
 
-    @Override public int trans(Event<?> evP) {
+    @Override public int trans(Event<?,?> evP) {
       EventBaseExample ev = (EventBaseExample)evP;
       Cmd cmd = ev == null ? Cmd.Null: ev.getCmd();
       if(cmd == Cmd.offAfterRunning){
@@ -403,7 +403,7 @@ public class StateBaseExample {
       super(superState, "ShouldOff");
     }
 
-    @Override public int trans(Event<?> evP) {
+    @Override public int trans(Event<?,?> evP) {
       EventBaseExample ev = (EventBaseExample)evP;
       Cmd cmd = ev == null ? Cmd.Null: ev.getCmd();
       if(cmd == Cmd.abort){

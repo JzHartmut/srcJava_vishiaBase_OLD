@@ -20,6 +20,7 @@ public abstract class StateCompositeBase
   
   /**Version, history and license
    * <ul>
+   * <li>2013-04-07 Hartmut adap: Event<?,?> with 2 generic parameter
    * <li>2012-09-17 Hartmut improved.
    * <li>2012-08-30 Hartmut created. The experience with that concept are given since about 2003 in C-language.
    * </ul>
@@ -165,7 +166,7 @@ public abstract class StateCompositeBase
    * @return The bits {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #trans(Event)}.
    *   Note that if an event is consumed in an inner state, it should not be applied to its enclosing state transitions. 
    */
-  public int process(final Event<?> evP){
+  public int process(final Event<?,?> evP){
     int cont;
     Event evTrans = evP;
     int catastrophicalCount =  maxStateSwitchesInLoop;

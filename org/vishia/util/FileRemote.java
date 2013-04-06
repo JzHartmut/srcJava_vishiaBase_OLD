@@ -36,6 +36,9 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-04-07 Hartmut adap: Event<?,?> with 2 generic parameter
+   * <li>2013-04-07 Hartmut chg: {@link CallbackEvent} contains all the methods to do something with currently copying files,
+   *   for example {@link CallbackEvent#copyOverwriteFile(int)} etc.
    * <li>2013-03-31 Hartmut chg: Event<Type>
    * <li>2012-11-16 Hartmut chg: Usage of {@link CmdEvent#filesrc} and filedst and {@link CallbackEvent#filedst} and dst
    *   instead {@link Event#getRefData()}.
@@ -147,7 +150,7 @@ public class FileRemote extends File
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20130331;
+  public static final int version = 20130407;
 
   private static FileRemoteAccessorSelector accessorSelector;
   
@@ -955,26 +958,65 @@ public class FileRemote extends File
   }
   
   
-  /**Copies a file or directory tree maybe in a remote device to another file in the same device. 
+  /**Copies a file or directory tree to another file in the same device. The device is any file system maybe in a remote device.  
    * This is a send-only routine without immediate feedback, because the calling thread should not be waiting 
-   * for success. 
+   * for success. The copy process is done in another thread.
    * <br><br>
-   * This routine sends an {@link CmdEvent} with {@link Cmd#copy} to the destination. Before that the destination 
+   * A feedback over the progress, for quests or the success of the copy process is given with evaluating of callback events. 
+   * An event instance should be provided from the caller (param evback). This event instance is used and re-used
+   * for multiple callback events. If the event is occupied still from the last callback, a next status callback is suppressed.
+   * Therewith a flooding with non-processed events is prevented. If a quest is necessary or the success should be announced,
+   * that request should be waiting till the event is available with a significant timeout. 
+   * <br><br>
+   * The mode of operation, given in param mode, can be determine how several situations should be handled:
+   * <ul>
+   * <li>Overwrite write protected files: Bits {@link #modeCopyReadOnlyMask}
+   *   <ul>
+   *   <li>{@link #modeCopyReadOnlyAks}: Send a callback event with the file name, wait for answer 
+   *   </ul>
+   * </ul>  
+   * <br><br>
+   * This routine sends a {@link CmdEvent} with {@link Cmd#copy} to the destination. Before that the destination 
    * for the event is set with calling of {@link FileRemoteAccessor#prepareCmdEvent(CallbackEvent)}. 
-   * That creates
-   * The given {@link CallbackEvent} is completed with a {@link CmdEvent} and its correct destination {@link EventConsumer}.
+   * That completes the given {@link CallbackEvent} with the necessary {@link CmdEvent} and its correct destination {@link EventConsumer}.
    * <br><br>
-   * Any status and the success is notified with invocation of the given {@link CallbackEvent}. It is possible that
-   * some status information are send and a answer is expected:
+   * Some status messages and the success is notified from the other thread or remote device with invocation of the 
+   * given {@link CallbackEvent}. After any status message was received the {@link CmdEvent} gotten as {@link Event#getOpponent()}
+   * from the received {@link CallbackEvent} can be used to influence the copy process:
+   * The commands of the callback are:
    * <ul>
    * <li>{@link CallbackCmd#done}: The last callback to designate the finish of succession.
-   * <li>{@link CallbackCmd#ask}: 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file exists and it is readonly. It can't be set writeable 
+   *   though the {@link #modeCopyReadOnlyOverwrite} designation was sent in the mode argument. 
+   * <li>{@link CallbackCmd#askDstOverwr}: The destination file exits. 
+   *   Because {@link #modeCopyExistAsk} is given it is the request for asking whether it should be overridden. 
+   * <li>{@link CallbackCmd#askDstReadonly}: The destination file exists and it is read only. 
+   *   Because the {@link #modeCopyReadOnlyAks} is given it is the request for asking whether it should be overridden though.
+   * <li>{@link CallbackCmd#askErrorDstCreate}: The destination file does not exists or it exists and it is writeable or set writeable.
+   *   Nevertheless the creation or replacement of the file (open for write) fails. It is possible that the medium is read only
+   *   or the user has no write access to the directory. Usual the copy of that file should be skipped sending {@link Cmd#abortCopyFile}. 
+   *   On the other hand the user can clarify what's happen and then send {@link Cmd#overwr} to repeat it. 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
+   * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
    * </ul>
    * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * 
    * @param dst This file will be created or filled newly. If it is existing but read only,
    *   nothing is copied and an error message is fed back.
-   * @param evback The event for success.
+   * @param evback The event for status messages and success.
    */
   public void copyTo(FileRemote dst, FileRemote.CallbackEvent evback, int mode){
     if(device == null){
@@ -990,8 +1032,9 @@ public class FileRemote extends File
     ev.filedst = dst;
     ev.modeCopyOper = mode;
     ev.sendEvent(Cmd.copy);
-    
+
   }
+  
   
   
   
@@ -1135,8 +1178,12 @@ public class FileRemote extends File
 
 
   
-  public static class CmdEvent extends Event<FileRemote.Cmd>
+  /**Event object for all commands to a remote device or other thread for file operations. It should be used for implementations
+   * of {@link FileRemoteAccessor}.
+   */
+  public static class CmdEvent extends Event<FileRemote.Cmd, FileRemote.CallbackCmd>
   {
+    /**Source and destination files for copy, rename, move or the only one filesrc. filedst may remain null then. */
     FileRemote filesrc, filedst;
 
     /**Mode of operation, see {@link FileRemote#modeCopyCreateAsk} etc. */
@@ -1149,6 +1196,7 @@ public class FileRemote extends File
      * maskFlags contains bits which properties should change, newFlags contains the value of that bit. */
     int maskFlags, newFlags;
     
+    /**A new time stamp. */
     long newDate;
     
     
@@ -1187,12 +1235,14 @@ public class FileRemote extends File
       super(evSrc, null, dst, thread, null); 
     }
 
+    /** Gets the callback event which is given on construction.
+     * @see org.vishia.util.Event#getOpponent()
+     */
     @Override public CallbackEvent getOpponent(){ return (CallbackEvent)super.getOpponent(); }
     
 
     
-    @Override
-    public boolean sendEvent(FileRemote.Cmd cmd){ return super.sendEvent(cmd); }
+    @Override public boolean sendEvent(FileRemote.Cmd cmd){ return super.sendEvent(cmd); }
     
     @Override public FileRemote.Cmd getCmd(){ return super.getCmd(); }
     
@@ -1209,10 +1259,13 @@ public class FileRemote extends File
    * the application should only concern with this object. 
    * See {@link CallbackEvent#CallbackEvent(Object, EventConsumer, EventThread)}.
    */
-  public static class CallbackEvent extends Event<FileRemote.CallbackCmd>
+  public static class CallbackEvent extends Event<FileRemote.CallbackCmd, FileRemote.Cmd>
   {
     private FileRemote filesrc, filedst;
 
+    /**Source of the forward event, the oppenent of this. It is the instance which creates the event. */
+    private final EventSource evSrcCmd;
+    
     /**For {@link #kChgProps}: a new name. */
     String newName;
     
@@ -1244,14 +1297,16 @@ public class FileRemote extends File
      * @deprecated because it has no source, use {@link CallbackEvent#CallbackEvent(EventSource, FileRemote, FileRemote, EventConsumer, EventThread)}.  
      */
     @Deprecated
-    public CallbackEvent(Object filesrc, EventConsumer dst, EventThread thread){ 
+    public CallbackEvent(Object filesrc, EventConsumer dst, EventThread thread, EventSource evSrcCmd){ 
       super(null, filesrc, dst, thread, new CmdEvent()); 
+      this.evSrcCmd = evSrcCmd;
     }
     
     
     /**Creates a non-occupied event. */
-    public CallbackEvent(EventConsumer dst, EventThread thread){ 
+    public CallbackEvent(EventConsumer dst, EventThread thread, EventSource evSrcCmd){ 
       super(null, null, dst, thread, new CmdEvent()); 
+      this.evSrcCmd = evSrcCmd;
     }
     
     
@@ -1264,10 +1319,12 @@ public class FileRemote extends File
      * @param thread The thread which stores the event in its queue, or null if the dst can be called
      *   in the transmitters thread.
      */
-    public CallbackEvent(EventSource evSrc, FileRemote filesrc, FileRemote fileDst, EventConsumer dst, EventThread thread){ 
+    public CallbackEvent(EventSource evSrc, FileRemote filesrc, FileRemote fileDst
+        , EventConsumer dst, EventThread thread, EventSource evSrcCmd){ 
       super(null, filesrc, dst, thread, new CmdEvent(evSrc,filesrc, fileDst, null, null)); 
       this.filesrc = filesrc;
       this.filedst = fileDst;
+      this.evSrcCmd = evSrcCmd;
     }
     
     
@@ -1284,16 +1341,82 @@ public class FileRemote extends File
 
     public FileRemote getFileDst(){ return filedst; }
     
-    /**Aborts the action which was forced forward with this callback.
+    
+    /**Skips or aborts the copying of the last file which's name was received by the callback event. The destination file is deleted. 
+     * <ul>
+     * <li>If the received callback designates that the copy process is waiting for an answer, this cmd skips exact that file. 
+     * <li>If the callback event does only give a status information and the copy process is running, the current copied file is aborted.
+     *   This feature can be used if the file is a large file which is copied to a slow destination (network). Sometimes especially
+     *   large files are not useful to copy if there are large report files or generation results etc. but such files needs unnecessary time 
+     *   to copy.
+     * <li>If the last callback had given a status information, the user sends the abort file, the processing of the event needs some time
+     *     and the event was received later while a next file is copied, that file is not aborted. For that reason the ident number
+     *     of the callback message should be copied in this event.
+     * </ul>  
+     *   But if the abort event is go though. It is possible to abort
+     *   a long-time-copying of a large file especially in network access. The user can see the percent of progress and send this
+     *   aborting command for the current file. To 
+
+     * @param associatedCallback
+     * @param modeCopyOper
+     */
+    public void copySkipFile(int modeCopyOper){
+      FileRemote.CmdEvent evcmd = getOpponent();
+      if(evcmd.occupy(evSrcCmd, true)){
+        evcmd.data2 = data2;
+        evcmd.modeCopyOper = modeCopyOper;
+        evcmd.sendEvent(FileRemote.Cmd.abortCopyFile);
+      }
+
+    }
+    
+    
+    /**Designates that the requested file which's name was received by the callback event should be overwritten. 
+     * @param associatedCallback
+     * @param modeCopyOper
+     */
+    public void copyOverwriteFile(int modeCopyOper){
+      FileRemote.CmdEvent evcmd = getOpponent();
+      if(evcmd.occupy(evSrcCmd, true)){
+        evcmd.data2 = data2;
+        evcmd.modeCopyOper = modeCopyOper;
+        evcmd.sendEvent(FileRemote.Cmd.overwr);
+      }
+
+    }
+    
+    
+
+    /**Designates that the directory of the requested file which's name was received by the callback event 
+     * should be skipped by the copy process. The current copying file is removed. The files which were copied
+     * before this event was received are not removed. 
+     * @param associatedCallback
+     * @param modeCopyOper
+     */
+    public void copySkipDir(int modeCopyOper){
+      FileRemote.CmdEvent evcmd = getOpponent();
+      if(evcmd.occupy(evSrcCmd, true)){
+        evcmd.data2 = data2;
+        evcmd.modeCopyOper = modeCopyOper;
+        evcmd.sendEvent(FileRemote.Cmd.abortCopyDir);
+      }
+
+    }
+    
+    
+
+    /**Designates that the copy process which was forced forward with this callback should be stopped and aborted. 
+     * @param associatedCallback
+     * @param modeCopyOper
      * @return true if the forward event was sent.
      */
-    public boolean abort(FileRemote.Cmd cmd){
-      CmdEvent ev = getOpponent();
+    public boolean copyAbortAll(){
+      FileRemote.CmdEvent ev = getOpponent();
       FileRemote fileSrc;
       FileRemoteAccessor device;
       if( ev !=null && (fileSrc = ev.filesrc) !=null && (device = fileSrc.device) !=null){
         if((ev = device.prepareCmdEvent(this)) !=null){
-          return ev.sendEvent(cmd);
+          return ev.sendEvent(Cmd.abortAll);
         } 
         else {
           return false; //event occupying fails

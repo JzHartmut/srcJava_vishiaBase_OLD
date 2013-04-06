@@ -17,6 +17,7 @@ extends StateCompositeBase<DerivedState,StateCompositeNull>
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-04-07 Hartmut adap: Event<?,?> with 2 generic parameter
    * <li>2012-09-17 Hartmut improved.
    * <li>2012-08-30 Hartmut created. The experience with that concept are given since about 2001 in C-language and Java.
    * </ul>
@@ -72,7 +73,7 @@ class StateCompositeNull extends StateCompositeBase<StateCompositeNull, StateCom
     return 0;
   }
 
-  @Override public int trans(Event<?> ev) {
+  @Override public int trans(Event<?,?> ev) {
     return 0;
   }
 }

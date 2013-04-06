@@ -16,6 +16,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
     
   /**Version, history and license.
    * <ul>
+   * <li>2013-04-07 Hartmut adap: Event<?,?> with 2 generic parameter
    * <li>2012-09-17 Hartmut improved.
    * <li>2012-08-30 Hartmut created. The experience with that concept are given since about 2001 in C-language and Java.
    * </ul>
@@ -154,7 +155,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
    * @param ev Any event
    * @return see {@link #trans(Event)}.
    */
-  public int xxxprocess(Event<?> ev){ return trans(ev); }
+  public int xxxprocess(Event<?,?> ev){ return trans(ev); }
 
   
   /**Checks the trigger and conditions of a state transition. The user should override this method in form (example)
@@ -179,7 +180,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
    *   If an event is consumed it is not used for another switch in the same state machine
    *   but it is used in parallel states. See {@link StateCompositeBase#process(Event)} and {@link StateParallelBase#process(Event)}.
    */
-  public abstract int trans(Event<?> ev);
+  public abstract int trans(Event<?,?> ev);
   
   /**Exit the state; this method may be overridden with exit actions:
    * <pre>

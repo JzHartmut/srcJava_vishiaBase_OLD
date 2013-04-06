@@ -11,6 +11,7 @@ public abstract class EventConsumer
 {
   /**Version, history and license
    * <ul>
+   * <li>2013-04-07 Hartmut adap: Event<?,?> with 2 generic parameter
    * <li>2012-08-30 Hartmut new: This is an abstract class now instead of an interface. 
    *   The application should build an anonymous inner class with it. Because better debugging suppert 
    *   the class has a name which is present to the toString()-method of an event.
@@ -42,22 +43,29 @@ public abstract class EventConsumer
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20120830;
+  public static final int version = 20130407;
 
   public final String name;
 
   public EventConsumer(String name){ this.name = name; }
   
-  /**Processes a event.
-   * @param ev The event. It contains some data.
+  /**This routine should be overwritten to processes an event. The routine is called inside {@link #doprocessEvent(Event)}.
+   * @param ev The event. It contains some data. The type of the event is not specified here. Any events
+   *   can be processed.
    * @return true if this method can process this type of event. False if the event doesn't match.
    *   It is possible to build a chain of responsibility. It is possible too to process a event from 
    *   more as one instance. 
    */
-  protected abstract boolean processEvent_(Event<?> ev); //{ return false; }
-  //protected abstract boolean processEvent_(Event ev);
+  protected abstract boolean processEvent_(Event<?,?> ev); //{ return false; }
   
-  public final boolean doprocessEvent(Event<?> ev){
+  /**Processes a event.
+   * @param ev The event. It contains some data. The type of the event is not specified here. Any events
+   *   can be processed.
+   * @return true if this method can process this type of event. False if the event doesn't match.
+   *   It is possible to build a chain of responsibility. It is possible too to process a event from 
+   *   more as one instance. 
+   */
+  public final boolean doprocessEvent(Event<?, ?> ev){
     ev.donotRelinquish = false;
     return processEvent_(ev);
   }

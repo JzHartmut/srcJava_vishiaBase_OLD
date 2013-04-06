@@ -436,6 +436,10 @@ import java.util.concurrent.atomic.AtomicReference;
  * <br>
  * TODO
  * <br><br>
+ * @param <CmdEnum> The type of Cmd for this enum, see {@link #getCmd()}
+ * @param <CmdBack> The type of the Cmd of the opponent Event, see {@link #getOpponent()}. 
+ *   Use {@link Event.NoOpponent} for this generic parameter if the event has not a opponent.
+ *   See {@link #Event(EventSource, Object, EventConsumer, EventThread, Event)}, the last parameter should be null then. 
  * @author Hartmut Schorrig
  *
  */
@@ -507,11 +511,12 @@ import java.util.concurrent.atomic.AtomicReference;
  * 
  * 
  */
-public class Event<CmdEnum extends Enum<CmdEnum>>
+public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
 {
   
   /**Version, history and license
    * <ul>
+   * <li>2013-04-07 Hartmut chg: The Event class has 2 generic parameters up to now, the second for the opponent Event. 
    * <li>2012-11-16 Hartmut chg: An event is not occupied on construction if either the src or the dst is null. 
    *   Only if both references are given, it is occupied by construction.
    * <li>2012-09-12 Hartmut new: {@link #sendEventAgain()} for deferred events.
@@ -562,10 +567,15 @@ public class Event<CmdEnum extends Enum<CmdEnum>>
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20120830;
+  public static final int version = 20130407;
 
   
   public enum Consumed{Consumed, RunToCompleted}
+
+  /**Cmd which designates that the event has not an opponent. This type is able to use as second parameter
+   * for Event<Cmd, Event.NoOpponent>
+   */
+  public enum NoOpponent{ }
   
 
   /**It is an inner value for the cmd variable to designate the event as not reserved. */
@@ -699,7 +709,8 @@ public class Event<CmdEnum extends Enum<CmdEnum>>
    * @param thread an optional thread to store the event in an event queue, maybe null.
    * @param callback Another event to interplay with the source of this event.
    */
-  public Event(EventSource source, Object refData, EventConsumer consumer, EventThread thread, Event callback){
+  public Event(EventSource source, Object refData, EventConsumer consumer, EventThread thread
+      , Event<CmdBack, CmdEnum> callback){
     if(source == null || consumer == null){
       this.dateCreation.set(0);
     } else {
@@ -711,7 +722,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>>
     this.refData = refData; this.evDst = consumer; this.evDstThread = thread;
     this.opponent = callback;
     if(callback !=null) {
-      callback.opponent = this;
+      callback.opponent = this;  //Refer this in the callback event. 
     }
   }
   
@@ -730,7 +741,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>>
   /**This method should only be called if the event should be processed.
    * The {@link #donotRelinquish()} will be set to false, so that the event will be relinquished
    * except {@link #donotRelinquish()} is called while processing the event. 
-   * @return The event consumer to call {@link EventConsumer#doprocessEvent(Event)}.
+   * @return The event consumer to call {@link EventConsumer#processEvent(Event)}.
    */
   public EventConsumer evDst() { donotRelinquish = false; return evDst; }
   
