@@ -31,7 +31,7 @@ public class EventTimerMng extends Thread implements Closeable{
      *   is called in the timer thread.
      */
     TimeEvent(EventConsumer dst, EventThread thread){
-      super(null, null, dst, thread);
+      super(null, dst, thread);
     }
   }
   

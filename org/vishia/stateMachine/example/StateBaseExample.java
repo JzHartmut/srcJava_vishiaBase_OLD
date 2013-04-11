@@ -35,8 +35,10 @@ public class StateBaseExample {
   enum Cmd{ Null, step, on_ready, on_cont, off, offAfterRunning, start, stop, abort};
   
   public class EventBaseExample extends Event<Cmd, Event.NoOpponent>{
+    final StateBaseExample data;
     public EventBaseExample() {
-      super(eventSource, StateBaseExample.this, processState, null);
+      super(eventSource, processState, null);
+      data = StateBaseExample.this;
     }
   }
   

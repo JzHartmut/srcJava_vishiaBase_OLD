@@ -9,7 +9,7 @@ import org.vishia.util.EventThread;
  * @author Hartmut Schorrig
  *
  */
-public class EventJc extends Event
+public class EventJc<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>> extends Event<CmdEnum, CmdBack>
 {
   
   
@@ -63,8 +63,8 @@ public class EventJc extends Event
    * @param consumer The destination object for the event.
    * @param thread an optional thread to store the event in an event queue, maybe null.
    */
-  public EventJc(boolean permanentInstance, EventSource evSrc, Object refData, EventConsumer consumer, EventThread thread){
-    super(evSrc, refData, consumer, thread);
+  public EventJc(boolean permanentInstance, EventSource evSrc, EventConsumer consumer, EventThread thread){
+    super(evSrc, consumer, thread);
     bPermanent = permanentInstance;
   }
   
@@ -76,8 +76,8 @@ public class EventJc extends Event
    * @param thread an optional thread to store the event in an event queue, maybe null.
    * @param callback Another event to interplay with the source of this event.
    */
-  public EventJc(boolean permanentInstance, Object refData, EventSource evSrc, EventConsumer consumer, EventThread thread, Event callback){
-    super(evSrc, refData, consumer, thread, callback);
+  public EventJc(boolean permanentInstance, EventSource evSrc, EventConsumer consumer, EventThread thread, Event<CmdBack, CmdEnum> callback){
+    super(evSrc, consumer, thread, callback);
     bPermanent = permanentInstance;
   }
 

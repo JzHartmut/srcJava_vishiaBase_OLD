@@ -36,7 +36,8 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
-   * <li>2013-04-07 Hartmut adap: Event<?,?> with 2 generic parameter
+   * <li>2013-04-12 Hartmut chg: Dedicated attributes for {@link CallbackCmd#successCode} etc.
+   * <li>2013-04-07 Hartmut adapt: Event<?,?> with 2 generic parameter
    * <li>2013-04-07 Hartmut chg: {@link CallbackEvent} contains all the methods to do something with currently copying files,
    *   for example {@link CallbackEvent#copyOverwriteFile(int)} etc.
    * <li>2013-03-31 Hartmut chg: Event<Type>
@@ -150,7 +151,7 @@ public class FileRemote extends File
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20130407;
+  public static final int version = 20130412;
 
   private static FileRemoteAccessorSelector accessorSelector;
   
@@ -893,7 +894,7 @@ public class FileRemote extends File
       } else {
         bOk = ((File)oFile).delete();
       }
-      backEvent.data1 = bOk? 0 : -1;
+      backEvent.successCode = bOk? 0 : -1;
       backEvent.occupy(evSrc, true);
       backEvent.sendEvent(FileRemote.CallbackCmd.done);
     } else {
@@ -929,7 +930,7 @@ public class FileRemote extends File
     }
     if(backEvent !=null){
       backEvent.occupy(evSrc, true);
-      backEvent.data1 = bOk? 0 : -1;
+      backEvent.successCode = bOk? 0 : -1;
       backEvent.sendEvent(FileRemote.CallbackCmd.done);
     }
   }
@@ -953,7 +954,7 @@ public class FileRemote extends File
     
     ev.filesrc =this;
     ev.filedst = null;
-    ev.data1 = 0;
+    //ev.data1 = 0;
     ev.sendEvent(Cmd.check);
   }
   
@@ -1184,8 +1185,11 @@ public class FileRemote extends File
   public static class CmdEvent extends Event<FileRemote.Cmd, FileRemote.CallbackCmd>
   {
     /**Source and destination files for copy, rename, move or the only one filesrc. filedst may remain null then. */
-    FileRemote filesrc, filedst;
+    public FileRemote filesrc, filedst;
 
+    /**A order number for the handled file which is gotten from the callback event to ensure thats the right file. */
+    //public int orderFile;
+    
     /**Mode of operation, see {@link FileRemote#modeCopyCreateAsk} etc. */
     public int modeCopyOper;
     
@@ -1206,11 +1210,9 @@ public class FileRemote extends File
      * @param dst
      * @param thread
      * @param callback
-     * @deprecated
      */
-    @Deprecated
-    public CmdEvent(EventSource evSrc, Object refData, EventConsumer dst, EventThread thread, CallbackEvent callback){ 
-      super(evSrc, refData, dst, thread, callback); 
+    public CmdEvent(EventSource evSrc, EventConsumer dst, EventThread thread, CallbackEvent callback){ 
+      super(evSrc, dst, thread, callback); 
     }
     
     /**Creates a non-occupied empty event.
@@ -1232,7 +1234,7 @@ public class FileRemote extends File
      * @param thread
      */
     public CmdEvent(EventSource evSrc, FileRemote fileSrc, FileRemote fileDst, EventConsumer dst, EventThread thread){ 
-      super(evSrc, null, dst, thread, null); 
+      super(evSrc, dst, thread, null); 
     }
 
     /** Gets the callback event which is given on construction.
@@ -1287,25 +1289,20 @@ public class FileRemote extends File
     /**callback data: number of files in the yet handled command.  */
     public int nrofFiles;
     
-    //public FileRemote getRefData(){ return (FileRemote)super.getRefData(); }
+    public int successCode;
     
-    /**Creates the object of a callback event inclusive the instance of the forward event (used internally).
-     * @param refData The referenced data for callback, used in the dst routine.
-     * @param dst The routine which should be invoked with this event object if the callback is forced.
-     * @param thread The thread which stores the event in its queue, or null if the dst can be called
-     *   in the transmitters thread.
-     * @deprecated because it has no source, use {@link CallbackEvent#CallbackEvent(EventSource, FileRemote, FileRemote, EventConsumer, EventThread)}.  
+    public int promilleCopiedFiles, promilleCopiedBytes;
+    
+    /**A order number for the handled file which can be used to send the proper forward command. */
+    //public int orderFile;
+    
+    /**Creates a non-occupied event. This event contains an EventSource which is used for the forward event.
+     * @param dst
+     * @param thread
+     * @param evSrcCmd
      */
-    @Deprecated
-    public CallbackEvent(Object filesrc, EventConsumer dst, EventThread thread, EventSource evSrcCmd){ 
-      super(null, filesrc, dst, thread, new CmdEvent()); 
-      this.evSrcCmd = evSrcCmd;
-    }
-    
-    
-    /**Creates a non-occupied event. */
     public CallbackEvent(EventConsumer dst, EventThread thread, EventSource evSrcCmd){ 
-      super(null, null, dst, thread, new CmdEvent()); 
+      super(null, dst, thread, new CmdEvent()); 
       this.evSrcCmd = evSrcCmd;
     }
     
@@ -1321,13 +1318,27 @@ public class FileRemote extends File
      */
     public CallbackEvent(EventSource evSrc, FileRemote filesrc, FileRemote fileDst
         , EventConsumer dst, EventThread thread, EventSource evSrcCmd){ 
-      super(null, filesrc, dst, thread, new CmdEvent(evSrc,filesrc, fileDst, null, null)); 
+      super(null, dst, thread, new CmdEvent(evSrc,filesrc, fileDst, null, null)); 
       this.filesrc = filesrc;
       this.filedst = fileDst;
       this.evSrcCmd = evSrcCmd;
     }
     
+    public boolean occupy(EventSource source, File fileSrc, boolean expect){
+      boolean bOccupied = occupy(source, expect); 
+      if(bOccupied){
+         this.filesrc = FileRemote.fromFile(fileSrc);
+       }
+      return bOccupied;
+    }
     
+    public boolean occupy(EventSource source, int orderId, boolean expect){
+      boolean bOccupied = occupy(source, expect); 
+      if(bOccupied){
+         this.orderId = orderId;
+       }
+      return bOccupied;
+    }
     
     @Override
     public boolean sendEvent(CallbackCmd cmd){ return super.sendEvent(cmd); }
@@ -1363,7 +1374,7 @@ public class FileRemote extends File
     public void copySkipFile(int modeCopyOper){
       FileRemote.CmdEvent evcmd = getOpponent();
       if(evcmd.occupy(evSrcCmd, true)){
-        evcmd.data2 = data2;
+        evcmd.orderId = orderId;
         evcmd.modeCopyOper = modeCopyOper;
         evcmd.sendEvent(FileRemote.Cmd.abortCopyFile);
       }
@@ -1378,7 +1389,7 @@ public class FileRemote extends File
     public void copyOverwriteFile(int modeCopyOper){
       FileRemote.CmdEvent evcmd = getOpponent();
       if(evcmd.occupy(evSrcCmd, true)){
-        evcmd.data2 = data2;
+        evcmd.orderId = orderId;
         evcmd.modeCopyOper = modeCopyOper;
         evcmd.sendEvent(FileRemote.Cmd.overwr);
       }
@@ -1396,7 +1407,7 @@ public class FileRemote extends File
     public void copySkipDir(int modeCopyOper){
       FileRemote.CmdEvent evcmd = getOpponent();
       if(evcmd.occupy(evSrcCmd, true)){
-        evcmd.data2 = data2;
+        evcmd.orderId = orderId;
         evcmd.modeCopyOper = modeCopyOper;
         evcmd.sendEvent(FileRemote.Cmd.abortCopyDir);
       }

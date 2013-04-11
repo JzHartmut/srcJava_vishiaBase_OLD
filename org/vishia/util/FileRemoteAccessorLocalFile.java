@@ -331,11 +331,11 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   @Override public FileRemote.CmdEvent prepareCmdEvent(FileRemote.CallbackEvent evBack){
     Event cmdEvent1 = evBack.getOpponent();
     if(cmdEvent1 !=null){
-      if(!cmdEvent1.occupy(evSrc, null, executerCommission, singleThreadForCommission, false)){
+      if(!cmdEvent1.occupy(evSrc, executerCommission, singleThreadForCommission, false)){
         return null;
       }
     } else {
-      cmdEvent1 = new FileRemote.CmdEvent(evSrc, null, executerCommission, singleThreadForCommission, evBack);
+      cmdEvent1 = new FileRemote.CmdEvent(evSrc, executerCommission, singleThreadForCommission, evBack);
     }
     return (FileRemote.CmdEvent) cmdEvent1; 
   }
@@ -535,12 +535,12 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
        * because the event should be send to that.
        */
       EventCpy(FileRemoteAccessorLocalFile accessor){
-        super(null, null, accessor.executerCommission, accessor.singleThreadForCommission, new EventCpy(accessor,true));
+        super(null, accessor.executerCommission, accessor.singleThreadForCommission, new EventCpy(accessor,true));
       }
       
       /**Creates a simple event as opponent. */
       EventCpy(FileRemoteAccessorLocalFile accessor, boolean second){
-        super(null, null, accessor.executerCommission, accessor.singleThreadForCommission, null);
+        super(null, accessor.executerCommission, accessor.singleThreadForCommission, null);
       }
       
       /**Qualified sendEvent with the correct enum type of command code.
@@ -688,8 +688,6 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
 
     private int ctWorkingId = 0;
 
-    private int checkId;
-    
     
     Copy(FileRemoteAccessorLocalFile accessor){
       this.outer = accessor;
@@ -728,8 +726,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
         zFilesCheck = 1;
       }
       
-      evback.occupy(outer.evSrc, true);
-      evback.data1 = checkId = ++ctWorkingId;
+      evback.occupy(outer.evSrc, ++ctWorkingId, true);
       evback.nrofBytesAll = (int)zBytesCheck;  //number between 0...1000
       evback.nrofFiles = zFilesCheck;  //number between 0...1000
       evback.sendEvent(FileRemote.CallbackCmd.doneCheck);
@@ -1207,11 +1204,11 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
                   timestart = time;
                   if(evBackInfo.occupyRecall(outer.evSrc, false)){
                       
-                    evBackInfo.data1 = (int)((float)(Copy.this.zBytesCopyFile / Copy.this.zBytesFile) * 1000);  //number between 0...1000
+                    evBackInfo.promilleCopiedBytes = (int)((float)(Copy.this.zBytesCopyFile / Copy.this.zBytesFile) * 1000);  //number between 0...1000
                     if(zBytesCheck >0){
-                      evBackInfo.data2 = (int)((float)(zBytesCopy / zBytesCheck) * 1000);  //number between 0...1000
+                      evBackInfo.promilleCopiedFiles = (int)((float)(zBytesCopy / zBytesCheck) * 1000);  //number between 0...1000
                     } else {
-                      evBackInfo.data2 = 0;
+                      evBackInfo.promilleCopiedFiles = 0;
                     }
                     evBackInfo.nrofFiles = zFilesCheck - zFilesCopy;
                     evBackInfo.nrofBytesInFile = (int)zBytesCopy;

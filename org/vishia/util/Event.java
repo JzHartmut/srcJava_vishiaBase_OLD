@@ -434,8 +434,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * <a name="debug" />
  * <b>5. Debug helpers</b>
  * <br>
- * TODO
- * <br><br>
  * @param <CmdEnum> The type of Cmd for this enum, see {@link #getCmd()}
  * @param <CmdBack> The type of the Cmd of the opponent Event, see {@link #getOpponent()}. 
  *   Use {@link Event.NoOpponent} for this generic parameter if the event has not a opponent.
@@ -516,15 +514,18 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   
   /**Version, history and license
    * <ul>
+   * <li>2013-04-12 Hartmut chg: Gardening. The attributes data1, data2, oData, refData are removed. Any special data
+   *   should be defined in any derived instance of the event. A common universal data concept may be error-prone
+   *   because unspecified types and meanings.
    * <li>2013-04-07 Hartmut chg: The Event class has 2 generic parameters up to now, the second for the opponent Event. 
    * <li>2012-11-16 Hartmut chg: An event is not occupied on construction if either the src or the dst is null. 
    *   Only if both references are given, it is occupied by construction.
    * <li>2012-09-12 Hartmut new: {@link #sendEventAgain()} for deferred events.
    * <li>2012-09-03 Hartmut chg: using {@link DateOrder} to log the date in milliseconds and the order as fine number.
    *   The order of events should be known. The timestamp is imprecise!
-   * <li>2012-08-30 Hartmut new:  Some substantial enhancememts for usage:
+   * <li>2012-08-30 Hartmut new:  Some substantial enhancements for usage:
    *   <ul>
-   *   <li>reingeneering for {@link #occupy(EventSource, boolean)}
+   *   <li>re-engineering for {@link #occupy(EventSource, boolean)}
    *   <li>Test and simplification of some use cases.
    *   <li>Meaning of the source of events, debug helping
    *   <li>documentation
@@ -567,7 +568,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20130407;
+  public static final int version = 20130412;
 
   
   public enum Consumed{Consumed, RunToCompleted}
@@ -584,17 +585,14 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   /**It is an inner value for the cmd variable to designate the event as reserved. */
   //public static final int cmdReserved = -1;
   
-  /**The current owner of the event. It is that instance, which has gotten the event instance
-   * by any method invocation as parameter,
-   * and stores this event till it is need for answer.
-   * TODO not used yet. Maybe a List<EventOwner>
+  /**The current owner of the event. It is that instance, which has gotten the event instance.
    */
   private EventSource source;
   
   
   /**An event can have an opponent or counterpart for return information. The event and its counterpart may refer one together.
    */
-  private Event opponent;
+  private Event<CmdBack, CmdEnum> opponent;
   
   /**The queue for events of the {@link EventThread} if this event should be used
    * in a really event driven system (without directly callback). 
@@ -655,18 +653,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   private int dateOrder;
   
   /**Any value of this event. Mostly it is a return value. */
-  public int data1, data2;
-  
-  /**Any value reference especially to return any information in the {@link #callback()}. */ 
-  public Object oData;
-  
-  /**A referenced instance for the event. This reference is private because it should be set
-   * calling {@link #Event(Object, EventConsumer)} or {@link #use(long, int, Object, EventConsumer)}
-   * only. The calling environment determines the type. 
-   * see {@link #getRefData()}. */
-  protected Object refData;
-  
-  
+  //public int data1, data2;
   
   
   /**Creates an event as a static object for re-usage. Use {@link #occupy(Object, EventConsumer, EventThread)}
@@ -685,7 +672,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    * @param consumer The destination object for the event.
    * @param thread an optional thread to store the event in an event queue, maybe null.
    */
-  public Event(EventSource source, Object refData, EventConsumer consumer, EventThread thread){
+  public Event(EventSource source, EventConsumer consumer, EventThread thread){
     if(source == null){
       this.dateCreation.set(0);
     } else {
@@ -695,7 +682,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
     }
     this.source = source;
     this.cmde.set(null);
-    this.refData = refData; this.evDst = consumer; this.evDstThread = thread;
+    this.evDst = consumer; this.evDstThread = thread;
     this.opponent = null;
   }
   
@@ -709,7 +696,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    * @param thread an optional thread to store the event in an event queue, maybe null.
    * @param callback Another event to interplay with the source of this event.
    */
-  public Event(EventSource source, Object refData, EventConsumer consumer, EventThread thread
+  public Event(EventSource source, EventConsumer consumer, EventThread thread
       , Event<CmdBack, CmdEnum> callback){
     if(source == null || consumer == null){
       this.dateCreation.set(0);
@@ -719,7 +706,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
       this.dateOrder = date.order;
     }
     this.cmde.set(null);
-    this.refData = refData; this.evDst = consumer; this.evDstThread = thread;
+    this.evDst = consumer; this.evDstThread = thread;
     this.opponent = callback;
     if(callback !=null) {
       callback.opponent = this;  //Refer this in the callback event. 
@@ -735,7 +722,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    */
   public void donotRelinquish(){ donotRelinquish = true;}
   
-  public Event getOpponent(){ return opponent; }
+  public Event<CmdBack, CmdEnum> getOpponent(){ return opponent; }
   
   
   /**This method should only be called if the event should be processed.
@@ -762,24 +749,6 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   
   
   
-  /**Returns the stored src argument of construction.
-   * Especially the creator of this Event instance knows the instance type
-   * of src because one have written in it. The creator can re-cast to that instance type 
-   * and read out any information. This approach is proper because the event was created in the past
-   * with a designated data constellation. That constellation is stored with the src-reference
-   * in the event till the callback execution. There isn't any other mechanism necessary to store
-   * that data constellation.
-   * <br><br>
-   * A receiver of the event may deal with the src if the event id describes a defined type
-   * and a 'instanceof' call is done.
-   * 
-   * @return the source instance which was stored either calling the ctor {@link #Event(Object, EventConsumer)}
-   *   or calling re-usage of an event instance: {@link #use(long, int, Object, EventConsumer)}.  
-   */
-  public Object getRefData(){ return refData; }
-  
-  
-  
   
   /**Check whether this event is free and occupies it. An event instance can be re-used. If the {@link #dateCreation()}
    * is set, the event is occupied. In a target communication with embedded devices often the communication
@@ -789,14 +758,14 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    *  
    * @return true if the event instance is able to use.
    */
-  public boolean occupy(EventSource source, Object refData, EventConsumer dst, EventThread thread, boolean expect){ 
+  public boolean occupy(EventSource source, EventConsumer dst, EventThread thread, boolean expect){ 
     DateOrder date = new DateOrder();
     if(dateCreation.compareAndSet(0, date.date)){
       dateOrder = date.order;
       this.source = source;
       this.ctConsumed =0;
       this.cmde.set(null);
-      if(refData !=null || dst !=null) { this.refData = refData; }
+      //if(refData !=null || dst !=null) { this.refData = refData; }
       if(dst != null) { 
         this.evDst = dst;
         this.evDstThread = thread;
@@ -814,9 +783,9 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   }
   
   
-  public boolean occupy(EventSource source, Object refData, boolean expect){ return occupy(source, refData, null, null, expect); } 
+  public boolean occupy(EventSource source, boolean expect){ return occupy(source, null, null, expect); } 
   
-  public boolean occupy(EventSource source, boolean expect){ return occupy(source, null, null, null, expect); } 
+  //public boolean occupy(EventSource source, boolean expect){ return occupy(source, null, null, null, expect); } 
   
   
   /**Try to occupy the event for usage, recall it if it is in stored in an event queue.
@@ -830,8 +799,8 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    * </ul>
    * @return true if the event is occupied.
    */
-  public boolean occupyRecall(EventSource source, Object refData, EventConsumer dst, EventThread thread, boolean expect){ 
-    boolean bOk = occupy(source, refData, dst, thread, false);
+  public boolean occupyRecall(EventSource source, EventConsumer dst, EventThread thread, boolean expect){ 
+    boolean bOk = occupy(source, dst, thread, false);
     if(!bOk){
       if(evDstThread !=null){
         bOk = evDstThread.removeFromQueue(this);
@@ -839,7 +808,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
           //it was in the queue, it means it is not in process.
           //therefore set it as consumed.
           relinquish();
-          bOk = occupy(source, refData, dst, thread, false);
+          bOk = occupy(source, dst, thread, false);
         }
       }
     }
@@ -849,9 +818,9 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
     return bOk;
   }
   
-  public boolean occupyRecall(EventSource source, Object refData, boolean expect){ return occupyRecall(source, refData, null, null, expect); } 
+  public boolean occupyRecall(EventSource source, boolean expect){ return occupyRecall(source, null, null, expect); } 
   
-  public boolean occupyRecall(EventSource source, boolean expect){ return occupyRecall(source, null, null, null, expect); } 
+  //public boolean occupyRecall(EventSource source, boolean expect){ return occupyRecall(source, null, null, null, expect); } 
   
   
   
@@ -873,8 +842,8 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    * See {@link #occupyRecall(Object, EventConsumer, EventThread)}.   
    * @return true if the event is occupied.
    */
-  public boolean occupyRecall(int timeout, EventSource source, Object refData, EventConsumer dst, EventThread thread, boolean expect){
-    boolean bOk = occupy(source, refData, dst, thread, false);
+  public boolean occupyRecall(int timeout, EventSource source, EventConsumer dst, EventThread thread, boolean expect){
+    boolean bOk = occupy(source, dst, thread, false);
     if(!bOk){
       if(evDstThread !=null){
         bOk = evDstThread.removeFromQueue(this);
@@ -882,7 +851,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
           //it was in the queue, it means it is not in process.
           //therefore set it as consumed.
           relinquish();
-          bOk = occupy(source, refData, dst, thread, false);
+          bOk = occupy(source, dst, thread, false);
         }
       }
     }
@@ -891,7 +860,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
         bAwaitReserve = true;
         try{ wait(timeout); } catch(InterruptedException exc){ }
         bAwaitReserve = false;
-        bOk = occupy(source, refData, dst, thread, false);
+        bOk = occupy(source, dst, thread, false);
       }
     }
     if(!bOk && expect){
@@ -901,9 +870,9 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   }
   
   
-  public boolean occupyRecall(int timeout, EventSource source, Object refData, boolean expect){ return occupyRecall(timeout, source, refData, null, null, expect); } 
+  public boolean occupyRecall(int timeout, EventSource source, boolean expect){ return occupyRecall(timeout, source, null, null, expect); } 
   
-  public boolean occupyRecall(int timeout, EventSource source, boolean expect){ return occupyRecall(timeout, source, null, null, null, expect); } 
+  //public boolean occupyRecall(int timeout, EventSource source, boolean expect){ return occupyRecall(timeout, source, null, null, null, expect); } 
   
   
 
@@ -940,12 +909,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
     this.stateOfEvent= 'a';
     this.cmde.set(null);
     this.orderId = 0;
-    data1 = data2 = 0;
-    //this.refData = null;
-    //this.evDst = null;
-    //this.evDstThread = null;
-    //this.callbackEvent = null;
-    oData = null;
+    //data1 = data2 = 0;
     source = null;
     dateCreation.set(0);
     if(bAwaitReserve){
