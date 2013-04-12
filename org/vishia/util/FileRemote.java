@@ -8,6 +8,8 @@ import java.nio.channels.WritableByteChannel;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile;
+
 
 /**This class describes a File, which may be localized at any maybe remote device or which may be a normal local file. 
  * A remote file should be accessed by FileRemoteChannel implementations. It may be any information
@@ -99,7 +101,7 @@ public class FileRemote extends File
    *     {@link #refreshPropertiesAndChildren(CallbackEvent)}, it is empty.           
    *   </ul>
    * <li>2012-07-21 Hartmut new: {@link #delete(String, boolean, Event)} with given mask. TODO: It should done in 
-   *   {@link org.vishia.util.FileRemoteAccessorLocalFile} in an extra thread.
+   *   {@link org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile} in an extra thread.
    * <li>2012-03-10 Hartmut new: {@link #chgProps(String, int, int, long, CallbackEvent)}, {@link #countAllFileLength(CallbackEvent)}.
    *   Enhancements.
    * <li>2012-02-02 Hartmut chg: Now the {@link #sFile} (renamed from name) is empty if this describes
@@ -194,7 +196,7 @@ public class FileRemote extends File
   protected long length;
   
   /**Some flag bits. @see constants #mExist etc.*/
-  int flags;
+  public int flags;
 
   FileRemote parent;
   
@@ -204,7 +206,7 @@ public class FileRemote extends File
    * If this field should be returned without null, especially on {@link #listFiles()} and the file is a directory, 
    * the {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, Event)} will be called.  
    * */
-  File[] children;
+  public File[] children;
   
   public final static int modeCopyReadOnlyMask = 0x00f
   , modeCopyReadOnlyNever = 0x1, modeCopyReadOnlyOverwrite = 0x3, modeCopyReadOnlyAks = 0;
@@ -237,9 +239,9 @@ public class FileRemote extends File
   public final static int  mCanWriteAny = 0x8000;
 
   protected final static int  mAbsPathTested = 0x10000;
-  protected final static int  mTested =        0x20000;
+  public final static int  mTested =        0x20000;
   //protected final static int mChildrenGotten = 0x40000;
-  protected final static int mThreadIsRunning =0x80000;
+  public final static int mThreadIsRunning =0x80000;
 
   
   
@@ -639,6 +641,10 @@ public class FileRemote extends File
     return date; 
   }
   
+  
+  public Object oFile(){ return oFile; }
+  
+  public void setFileObject(Object oFile){ this.oFile = oFile; }
   
   public int getFlags(){ return flags; }
   
@@ -1247,6 +1253,41 @@ public class FileRemote extends File
     @Override public boolean sendEvent(FileRemote.Cmd cmd){ return super.sendEvent(cmd); }
     
     @Override public FileRemote.Cmd getCmd(){ return super.getCmd(); }
+
+    public final FileRemote filesrc()
+    {
+      return filesrc;
+    }
+
+    public final FileRemote filedst()
+    {
+      return filedst;
+    }
+
+    public final int modeCopyOper()
+    {
+      return modeCopyOper;
+    }
+
+    public final String newName()
+    {
+      return newName;
+    }
+
+    public final int maskFlags()
+    {
+      return maskFlags;
+    }
+
+    public final int newFlags()
+    {
+      return newFlags;
+    }
+
+    public final long newDate()
+    {
+      return newDate;
+    }
     
     
   }

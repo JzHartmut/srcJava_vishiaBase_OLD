@@ -9,6 +9,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile;
 import org.vishia.util.FileAccessZip.FileZipData;
 
 /**Interface for instances, which organizes a remote access to files.
