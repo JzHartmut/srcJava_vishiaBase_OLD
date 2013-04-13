@@ -536,7 +536,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    *   Because it is private and the getter method {@link #getRefData()} is duplicated, the
    *   old routine {@link #getSrc()} is deprecated, it is downward compatible still. 
    * <li>2012-03-10 Hartmut new: {@link #owner}, {@link #forceRelease()}. 
-   *   It is a problem if a request may be crased in a remote device, but the event is reserved 
+   *   It is a problem if a request may be crashed in a remote device, but the event is reserved 
    *   for answer in the proxy. It should be freed. Events may be re-used. 
    * <li>2012-01-22 Hartmut chg: {@link #use(long, int, Object, EventConsumer)} needs the dst as parameter.
    * <li>2012-01-05 Hartmut improved: {@link #callbackThread}, {@link #commisionId} instead order, more {@link #data2} 
@@ -596,7 +596,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   
   /**The queue for events of the {@link EventThread} if this event should be used
    * in a really event driven system (without directly callback). 
-   * If it is null, the dst.{@link EventConsumer#processEvent(Event)} should be called immediately. */
+   * If it is null, the dst. {@link EventConsumer#processEvent(Event)} should be called immediately. */
   private EventThread evDstThread;
   
   
@@ -718,7 +718,8 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   public CmdEnum getCmd(){ return cmde.get(); }
   
   /**Prevent that the event is relinquished after processing.
-   * This method should be called in the processing routine of an event.
+   * This method should be called in the processing routine of an event
+   * only if the event will be stored in another queue to execute delayed.
    */
   public void donotRelinquish(){ donotRelinquish = true;}
   

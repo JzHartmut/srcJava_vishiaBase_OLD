@@ -1,5 +1,7 @@
 package org.vishia.stateMachine.example;
 
+import net.sf.saxon.exslt.Sets;
+
 import org.vishia.stateMachine.StateCompositeBase;
 import org.vishia.stateMachine.StateParallelBase;
 import org.vishia.stateMachine.StateSimpleBase;
@@ -43,16 +45,12 @@ public class CompositeStates  extends EventConsumer {
 
   private static class B extends StateCompositeBase<B, Work>{
     
-    B(Work superState){ super(superState, "B"); }
+    B(Work superState){ super(superState, "B", false); setDefaultState(B1); }
     
     @Override public int trans(Event ev){
       return eventNotConsumed;
     }
     
-    @Override public int entryDefault(){
-      return B1.entry(eventNotConsumed);
-    }
-  
     /*
     @Override protected int switchState(Event ev) {
       int complete = 0;
@@ -149,17 +147,9 @@ public class CompositeStates  extends EventConsumer {
   
   private class C1 extends StateCompositeBase<C1, C> { //StateComboBase<C, EWork, EState_C1, CompositeStates> {
 
-    C1(C superState){ super(superState, "C1"); } // super(superState, EWork.C, EState_C1.Null); }
+    C1(C superState){ super(superState, "C1", false); setDefaultState(C1a); } 
+    // super(superState, EWork.C, EState_C1.Null); }
     
-    @Override public int entryDefault(){
-      return C1a.entry(eventNotConsumed);
-    }
-  
-    @Override public int entry(int consumed) {
-      super.entry(consumed);
-      return consumed;
-    }
-  
     @Override public int trans(Event ev){
       return eventNotConsumed;
     }
@@ -201,17 +191,8 @@ public class CompositeStates  extends EventConsumer {
 
   private class C2 extends StateCompositeBase<C2, C> {
 
-    C2(C superState){ super(superState, "C2"); }
+    C2(C superState){ super(superState, "C2", false); setDefaultState(C2a); }
     
-    @Override public int entryDefault(){
-      return C2a.entry(eventNotConsumed);
-    }
-  
-    @Override public int entry(int consumed) {
-      super.entry(consumed);
-      return consumed;
-    }
-  
     @Override public int trans(Event ev){
       return eventNotConsumed;
     }
@@ -243,12 +224,6 @@ public class CompositeStates  extends EventConsumer {
     
     
 
-  
-    @Override public int entry(int consumed) {
-      super.entry(consumed);
-      
-      return consumed;
-    }
   
     public int entry(int consumed, StateSimpleBase c1, StateSimpleBase c2) {
       super.entry(consumed);
@@ -286,13 +261,10 @@ public class CompositeStates  extends EventConsumer {
   private class Work extends StateCompositeBase<Work, StateTop>{
 
     protected Work(StateTop superState) {
-      super(superState, "Work");
+      super(superState, "Work", false);
+      setDefaultState(B);
     }
 
-    @Override public int entryDefault(){
-      return B.entry(eventNotConsumed);
-    }
-  
     @Override public int trans(Event ev){
       return eventNotConsumed;
     }
@@ -322,15 +294,11 @@ public class CompositeStates  extends EventConsumer {
 
     protected StateTop() {
       super("StateTop");
+      setDefaultState(Idle);
     }
 
-    @Override public int entryDefault(){
-      return Idle.entry(eventNotConsumed);
-    }
-  
-    @Override public int entry(int consumed){
+    @Override public void entryAction(){
       Work.entry(0);
-      return consumed;
     }
 
     

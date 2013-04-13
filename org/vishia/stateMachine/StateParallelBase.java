@@ -54,7 +54,7 @@ extends StateCompositeBase<DerivedState, EnclosingState>
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20120917;
+  public static final int version = 20130414;
 
   List<StateCompositeBase<?, DerivedState>> states = new LinkedList<StateCompositeBase<?, DerivedState>>();
   
@@ -68,11 +68,10 @@ extends StateCompositeBase<DerivedState, EnclosingState>
   }
   
   
-  @Override public int entryDefault() {
+  /*package private*/ final void entryDefaultParallelStates() {
     for(StateCompositeBase<?, DerivedState> state: states){
-      state.entryDefault();
+      state.entryDefaultState();
     }
-    return 0;
   }
   
 
@@ -98,18 +97,17 @@ extends StateCompositeBase<DerivedState, EnclosingState>
    *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#process(Event)} method.
    *   This method sets {@link #mRunToComplete}.
    */
-  @Override public int entry(int isProcessed){
-    super.entry(isProcessed);
+  /**package private*/ void entryParallelBase(){
+    entryComposite();
     for(StateCompositeBase<?, DerivedState> state: states){
       state.setState(null);
     }
-    return isProcessed | mRunToComplete;
   }
 
 
   
   
-  @Override public int process(Event ev){
+  @Override public int process(Event<?,?> ev){
     int cont = 0;
     for(StateCompositeBase<?, DerivedState> state: states){
       cont |= state.process(ev);

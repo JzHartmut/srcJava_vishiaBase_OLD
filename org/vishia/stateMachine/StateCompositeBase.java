@@ -20,6 +20,14 @@ public abstract class StateCompositeBase
   
   /**Version, history and license
    * <ul>
+   * <li>2013-04-13 Hartmut re-engineering: 
+   *   <ul>
+   *   <li>New method {@link #setDefaultState(StateSimpleBase)}
+   *   <li>{@link #entryDefaultState()} is package private now, it regards requirements of {@link StateParallelBase}.
+   *   <li>The old override-able method entryDefault() was removed.
+   *   <li>The overridden entry() was removed, replaced by #entryComposite, which is called in {@link StateSimpleBase#entry(int)}
+   *     if the instance is this type.    
+   *   </ul>
    * <li>2013-04-07 Hartmut adap: Event<?,?> with 2 generic parameter
    * <li>2012-09-17 Hartmut improved.
    * <li>2012-08-30 Hartmut created. The experience with that concept are given since about 2003 in C-language.
@@ -49,7 +57,7 @@ public abstract class StateCompositeBase
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20120917;
+  public static final int version = 20130414;
 
   protected int maxStateSwitchesInLoop = 1000;
   
@@ -61,9 +69,25 @@ public abstract class StateCompositeBase
   
   private StateSimpleBase<DerivedState> stateAct;
   
-  protected StateCompositeBase(EnclosingState enclState, String stateId) {
-    super(enclState, stateId);
+  private StateSimpleBase<DerivedState> stateDefault;
+  
+  protected StateCompositeBase(EnclosingState enclState, String stateId, boolean transHasConditionals) {
+    super(enclState, stateId, transHasConditionals);
     stateAct = null;
+  }
+  
+  
+  protected StateCompositeBase(EnclosingState enclState, String stateId) {
+    super(enclState, stateId, false);
+    stateAct = null;
+  }
+  
+  
+  /**This routine has to be called in the constructor of the derived state after calling the super constructor.
+   * @param stateDefault
+   */
+  protected void setDefaultState(StateSimpleBase<DerivedState> stateDefault ){
+    this.stateDefault = stateDefault;
   }
   
   
@@ -78,16 +102,15 @@ public abstract class StateCompositeBase
   }
   
   
-  /**This method is used to entry the default state if the actual state is null (first invocation).
-   * The user should override:
-   * <pre>
-   public int entryDefault(){
-      return defaultState.entry(notConsumed);
+  /**This method is used to entry the default state if the actual state is null (first invocation).  */
+  /*package private*/ final void entryDefaultState(){ 
+    if(this instanceof StateParallelBase<?,?>){
+      ((StateParallelBase<?,?>)this).entryDefaultParallelStates();
+    } else {
+      stateDefault.entry(0);
     }
-   * </pre>
-   * @return 0
-   */
-  public abstract int entryDefault();
+  }
+
   
   
   /**This method should be called from outside if the history state should be entered and all history states
@@ -142,11 +165,12 @@ public abstract class StateCompositeBase
    *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#process(Event)} method.
    *   This method sets {@link #mRunToComplete}.
    */
-  @Override public int entry(int isProcessed){
-    super.entry(isProcessed);
+  //@Override 
+  /**package private*/ final void entryComposite(){
+    //super.entry(isConsumed);
     stateAct = null;
     isActive = true;
-    return isProcessed | mRunToComplete;
+    //return isConsumed | mRunToComplete;
   }
   
   /**Processes the event for the states of this composite state.
@@ -176,7 +200,7 @@ public abstract class StateCompositeBase
       //
       //
       if(stateAct == null){
-        entryDefault();
+        entryDefaultState();  //regards also Parallel states.
       } 
       if(stateAct instanceof StateCompositeBase<?,?>){
         cont = ((StateCompositeBase<?,?>)stateAct).process(evTrans); 
@@ -220,7 +244,7 @@ public abstract class StateCompositeBase
    */
   /*package private*/ void setState(StateSimpleBase<DerivedState> stateSimple) { //, EnumState stateNr) {
     if( !enclHasThisState()) {  
-      entry(0);  //executes the entry action of this enclosing state.
+      entry(0);          //executes the entry action of this enclosing state to notify the state by its enclosingState.
     }
    this.stateAct = stateSimple;
    this.isActive = true;

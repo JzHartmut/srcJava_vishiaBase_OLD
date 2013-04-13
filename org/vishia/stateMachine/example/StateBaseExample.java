@@ -46,16 +46,7 @@ public class StateBaseExample {
 
     protected StateTop() {
       super("StateTop");
-    }
-
-    @Override public int entryDefault(){
-      return stateOff.entry(eventNotConsumed);
-    }
-  
-    @Override public int entry(int consumed){
-      super.entry(0);
-      //Work.entry(0);
-      return consumed;
+      setDefaultState(stateOff);
     }
 
     @Override public int process(Event<?,?> evP){
@@ -100,12 +91,9 @@ public class StateBaseExample {
 
     protected StateWork(StateTop superState) {
       super(superState, "Work");
+      setDefaultState(stateReady);
     }
 
-    @Override public int entryDefault(){
-      return stateReady.entry(0);
-    }
-  
     @Override public int trans(Event ev){
       return 0;
     }
@@ -149,10 +137,8 @@ public class StateBaseExample {
       super(superState, "Running");
     }
     
-    @Override public int entry(int cont){
-      super.entry(0);
+    @Override public void entryAction(){
       time = System.currentTimeMillis() + delay;
-      return 0;
     }
 
     @Override public int trans(Event<?,?> ev) {
@@ -202,11 +188,6 @@ public class StateBaseExample {
       addState(stateActive2);
     }
     
-    @Override public int entry(int consumed) {
-      super.entry(consumed);
-      
-      return consumed;
-    }
   
     public int entry(int consumed, StateSimpleBase c1, StateSimpleBase c2) {
       super.entry(consumed);
@@ -236,10 +217,8 @@ public class StateBaseExample {
 
     protected StateActive1(StateActive superState) {
       super(superState, "Active1");
-    }
+      setDefaultState(stateRunning);
 
-    @Override public int entryDefault(){
-      return stateRunning.entry(0);
     }
   
     @Override public int trans(Event ev){
@@ -261,10 +240,8 @@ public class StateBaseExample {
       super(superState, "Running");
     }
     
-    @Override public int entry(int cont){
-      super.entry(0);
+    @Override public void entryAction(){
       time = System.currentTimeMillis() + delay;
-      return 0;
     }
 
     @Override public int trans(Event<?,?> ev) {
@@ -301,12 +278,9 @@ public class StateBaseExample {
 
     protected StateActive2(StateActive superState) {
       super(superState, "Active2");
+      setDefaultState(stateRemainOn);
     }
 
-    @Override public int entryDefault(){
-      return stateRemainOn.entry(0);
-    }
-  
     @Override public int trans(Event ev){
       return eventNotConsumed;
     }
@@ -326,9 +300,6 @@ public class StateBaseExample {
       super(superState, "RemainOn");
     }
 
-    @Override public int entry(int consumed){
-      return super.entry(consumed);
-    }
     
     @Override public int trans(Event<?,?> evP) {
       EventBaseExample ev = (EventBaseExample)evP;
@@ -358,17 +329,9 @@ public class StateBaseExample {
 
     protected StateActive2W(StateWork superState) {
       super(superState, "Active2");
+      setDefaultState(stateRemainOn);
     }
 
-    @Override public int entry(int xx){
-      return super.entry(xx);
-    }
-    
-    
-    @Override public int entryDefault(){
-      return stateRemainOn.entry(0);
-    }
-  
     @Override public int trans(Event ev){
       return eventNotConsumed;
     }

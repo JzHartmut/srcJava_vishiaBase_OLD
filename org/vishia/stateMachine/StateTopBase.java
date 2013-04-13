@@ -69,10 +69,6 @@ class StateCompositeNull extends StateCompositeBase<StateCompositeNull, StateCom
     super(enclState, stateId);
   }
 
-  @Override public int entryDefault() {
-    return 0;
-  }
-
   @Override public int trans(Event<?,?> ev) {
     return 0;
   }

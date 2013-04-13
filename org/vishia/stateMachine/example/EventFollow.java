@@ -44,19 +44,9 @@ public class EventFollow  {
   
   private class MainState extends StateTopBase<MainState>{
   
-    protected MainState() { super("StateM"); }
+    protected MainState() { super("StateM");       setDefaultState(start); }
 
 
-    @Override public int entryDefault(){
-      return start.entry(eventNotConsumed);
-    }
-  
-    @Override public int entry(int consumed){
-      //setState(EState.Null);
-      start.entry(consumed);
-      return consumed;
-    }
-    
   
     /*
     @Override protected int switchState(Event ev){
@@ -74,15 +64,13 @@ public class EventFollow  {
     
     private final class Start extends StateSimpleBase<MainState> {
       
-      protected Start(MainState superState) { super(superState, "Start"); }
+      protected Start(MainState superState) { super(superState, "Start", false); }
 
 
       //protected Start(EventFollow enclosingState) { super(enclosingState); }
   
-      @Override public int entry(int consumed){
-        super.entry(consumed);
+      @Override public void entryAction(){
         EventTimerMng.addTimeOrder(System.currentTimeMillis() + 1000, evDst, evThread);
-        return consumed;
       }
       
       
@@ -107,11 +95,6 @@ public class EventFollow  {
 
       //protected StateA(EventFollow enclosingState) { super(enclosingState); }
   
-      @Override public int entry(int consumed){
-        super.entry(consumed);
-        return consumed | StateSimpleBase.mRunToComplete;   //true because this state has condition transitions.
-      }
-      
       
       @Override public int trans(Event ev){
         if(cond1){

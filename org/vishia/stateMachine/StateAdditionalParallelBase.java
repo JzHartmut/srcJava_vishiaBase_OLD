@@ -48,12 +48,11 @@ extends StateCompositeBase<DerivedState, EnclosingState>
    super(enclState, stateId);
  }
 
- @Override public int entry(int consumed){
+ /**package private*/ final void entryAdditionalParallelBase(){
    ctEntry +=1;
    dateLastEntry = System.currentTimeMillis();
    durationLast = 0;
    setStateParallel(null);
-   return consumed | mRunToComplete;
  }
  
  

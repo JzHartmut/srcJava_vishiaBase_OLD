@@ -352,7 +352,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   void execCommission(FileRemote.CmdEvent commission){
     FileRemote.Cmd cmd = commission.getCmd();
     switch(cmd){
-      case check: copy.checkCopy(commission); break;
+      case check: //copy.checkCopy(commission); break;
       case overwr:
       case abortAll:
       case abortCopyDir:
@@ -595,7 +595,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
           System.out.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - ok listFiles; dt=" + (time1 - time));
           if(files !=null){
             if(useFileChildren){
-              fileRemote.children = files;
+              //fileRemote.children = files;
             } else {
               fileRemote.children = new FileRemote[files.length];
               int iFile = -1;

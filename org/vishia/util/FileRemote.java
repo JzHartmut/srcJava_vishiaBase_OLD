@@ -206,7 +206,7 @@ public class FileRemote extends File
    * If this field should be returned without null, especially on {@link #listFiles()} and the file is a directory, 
    * the {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, Event)} will be called.  
    * */
-  public File[] children;
+  public FileRemote[] children;
   
   public final static int modeCopyReadOnlyMask = 0x00f
   , modeCopyReadOnlyNever = 0x1, modeCopyReadOnlyOverwrite = 0x3, modeCopyReadOnlyAks = 0;

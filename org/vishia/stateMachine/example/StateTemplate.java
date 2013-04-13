@@ -18,69 +18,46 @@ public class StateTemplate {
 
     protected StateTop() {
       super("StateM");
+      setDefaultState(stateReady);
     }
 
-    @Override public int entryDefault(){
-      return stReady.entry(eventNotConsumed);
-    }
-  
+    
+    private final StateSimpleBase<StateTop> stateReady = new StateSimpleBase<StateTop>(this, "Ready", false){
+      @Override public int trans(Event<?,?> ev) {
+        return StateSimpleBase.eventNotConsumed;
+      }
+    };
 
-    /*
-    @Override public int switchState(Event ev) {
-      int cont = notConsumed + complete;
-      switch(stateNr()){
-        //case Idle: cont = stIdle.process(ev); break;
-        case Null:    cont = env.stTop.entry(notConsumed);
-        case Ready:   cont = env.stReady.trans(ev); break;
-        case Process: cont = env.stProcess.process(ev); break;
-      } //switch
-      // TODO Auto-generated method stub
-      return cont;
+    private class StateProcess extends StateCompositeBase<StateProcess, StateTop>{
+
+      protected StateProcess(StateTop superState) { super(superState, "Process"); setDefaultState(stateA); }
+
+      @Override public int trans(Event<?,?> ev){
+        return StateSimpleBase.eventNotConsumed;
+      }
+
+      private final StateSimpleBase<StateProcess> stateA = new StateSimpleBase<StateProcess>(this, "A", false){
+        @Override public int trans(Event<?,?> ev) {
+          return StateSimpleBase.eventNotConsumed;
+        }
+      };
+
+      private final StateSimpleBase<StateProcess> stateB = new StateSimpleBase<StateProcess>(this, "A", false){
+        @Override public int trans(Event<?,?> ev) {
+          return StateSimpleBase.eventNotConsumed;
+        }
+      };
+
     }
-    */
+    StateProcess stateProcess = new StateProcess(stTop);
+
+    
+    
   }
   StateTop stTop = new StateTop();
 
   
-  private class StateReady extends StateSimpleBase<StateTop>{
-    
-    
-    StateReady(StateTop superState) { super(superState, "Ready"); }
-
-    //A(MainState enclosingState){ super(enclosingState); }
   
-    @Override public int trans(Event ev) {
-      return StateSimpleBase.eventNotConsumed;
-    }
-  }
-  StateReady stReady = new StateReady(stTop);
-
-  
-  private class StateProcess extends StateCompositeBase<StateProcess, StateTop>{
-
-    protected StateProcess(StateTop superState) { super(superState, "Process"); }
-
-    @Override public int entryDefault(){
-      return mRunToComplete; //B1.entry(notConsumed);
-    }
-  
-    @Override public int trans(Event ev){
-      return StateSimpleBase.eventNotConsumed;
-    }
-
-    /*
-    @Override public int switchState(Event ev) {
-      int cont = StateSimpleBase.consumed + StateSimpleBase.complete;
-      switch(stateNr()){
-        //case Idle: cont = stIdle.trans(ev); break;
-      }
-      // TODO Auto-generated method stub
-      return cont;
-    }
-    */
-  }
-  StateProcess stProcess = new StateProcess(stTop);
-
 
   
   

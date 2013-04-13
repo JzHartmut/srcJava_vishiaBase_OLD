@@ -16,7 +16,16 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
     
   /**Version, history and license.
    * <ul>
-   * <li>2013-04-07 Hartmut adap: Event<?,?> with 2 generic parameter
+   * <li>2013-04-13 Hartmut re-engineering: 
+   *   <ul>
+   *   <li>The property whether or not there are non-event transitions is set on ctor. It is a property
+   *     established in source code, therefore it should be known in runtime after construction already.
+   *     The entry method does not need to modified because non-event transitions. It may be better because the
+   *     entry method's code should not depend on the trans method's content.  
+   *   <li>entry is final, it can be final now. For overwriting the {@link #entryAction()} is given. It is more simple to use.  
+   *   <li>The trans method is protected: It should not be called from outside in any case.
+   *   </ul>
+   * <li>2013-04-07 Hartmut adapt: Event<?,?> with 2 generic parameter
    * <li>2012-09-17 Hartmut improved.
    * <li>2012-08-30 Hartmut created. The experience with that concept are given since about 2001 in C-language and Java.
    * </ul>
@@ -45,7 +54,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20120917;
+  public static final int version = 20130414;
 
   /**Bit in return value of a Statemachine's {@link #trans(Event)} or entry method for designation, 
    * that the given Event object was used to switch.
@@ -101,13 +110,30 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   public long durationLast;
 
   
+  /**It is either 0 or {@link #mRunToComplete}. Or to the return value of entry. */
+  private final int modeTrans;
+  
   /**The super constructor. 
+   * @param superState The enclosing state which contains this state. It is either a {@link StateTopBase} or a {@link StateCompositeBase}.
+   * @param stateId Any String for debugging. The string should never use for algorithm. It should be used maybe for display the state.
+   * @param transHasConditionals true if the {@link #trans(Event)} routine has conditional transitions.
+   *   Then the entry of this state returns {@link #mRunToComplete} to force invoking of {@link #trans(Event)} in the same cycle.
+   */
+  protected StateSimpleBase(EnclosingState superState, String stateId, boolean transHasConditionals) {
+    this.enclState = superState;
+    this.stateId = stateId;
+    this.modeTrans = transHasConditionals ? mRunToComplete : 0;
+  }
+  
+  
+  /**The super constructor for states which has only event-forced transitions.
    * @param superState The enclosing state which contains this state. It is either a {@link StateTopBase} or a {@link StateCompositeBase}.
    * @param stateId Any String for debugging. The string should never use for algorithm. It should be used maybe for display the state.
    */
   protected StateSimpleBase(EnclosingState superState, String stateId) {
     this.enclState = superState;
     this.stateId = stateId;
+    this.modeTrans = mRunToComplete;  //default: call trans(), it has not disadvantages
   }
   
   
@@ -126,29 +152,35 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
          || enclState.isInState(this);  //the enclosing state has this as active one.
   }
   
-  /**This method sets this state in the enclosing composite state. It should be overridden 
-   * if a entry action is necessary in any state. The overridden form should call this method in form super.entry(isConsumed):
-   * <pre>
-   * public int entry(isConsumed){
-   *  super.entry(0);
-   *  //statements for entry action.
-   *  return isConsumed | runToComplete;  //if the trans action should be entered immediately after the entry.
-   *  return isConsumed | complete;       //if the trans action should not be tested.
-   * </pre>  
-   * 
+  /**This method sets this state in the enclosing composite state. It calls {@link #entryAction()}. 
    * @param isConsumed Information about the usage of an event in a transition, given as input and returned as output.
    * @return The parameter isConsumed may be completed with the bit {@link #mRunToComplete} if this state's {@link #trans(Event)}-
    *   method has non-event but conditional state transitions. Setting of this bit {@link #mRunToComplete} causes
    *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#process(Event)} method.
    *   This method sets {@link #mRunToComplete}.
    */
-  public int entry(int isConsumed){
+  public final int entry(int isConsumed){
     enclState.setState(this);
     ctEntry +=1;
     dateLastEntry = System.currentTimeMillis();
     durationLast = 0;
-    return isConsumed | mRunToComplete;
+    if(this instanceof StateAdditionalParallelBase<?,?>){
+      ((StateAdditionalParallelBase<?,?>)this).entryAdditionalParallelBase();
+    }
+    else if(this instanceof StateParallelBase<?,?>){
+      ((StateParallelBase<?,?>)this).entryParallelBase();
+    }
+    else if(this instanceof StateCompositeBase<?,?>){
+      ((StateCompositeBase<?,?>)this).entryComposite();
+    }
+    entryAction();
+    return isConsumed | modeTrans;
   }
+  
+  
+  /**This method should be overridden if the state needs any entry action. This default method is empty. */
+  protected void entryAction(){}
+  
   
   /**Processes the state. It invokes the {@link #trans(Event)}-method. This method is overridden in the class
    * {@link StateCompositeBase}.The user should not override this method! 
@@ -180,7 +212,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
    *   If an event is consumed it is not used for another switch in the same state machine
    *   but it is used in parallel states. See {@link StateCompositeBase#process(Event)} and {@link StateParallelBase#process(Event)}.
    */
-  public abstract int trans(Event<?,?> ev);
+  protected abstract int trans(Event<?,?> ev);
   
   /**Exit the state; this method may be overridden with exit actions:
    * <pre>
