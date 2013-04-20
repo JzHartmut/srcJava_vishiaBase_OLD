@@ -86,7 +86,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   /**Reference to the enclosing state. With this, the structure of state nesting can be observed in data structures.
    * The State knows its enclosing state to set and check the state identification there. 
    */
-  private final EnclosingState enclState;
+  protected final EnclosingState enclState;
   
   /**The own identification of the state. It is given by constructor. */
   //final EnumState stateId;
@@ -111,7 +111,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
 
   
   /**It is either 0 or {@link #mRunToComplete}. Or to the return value of entry. */
-  private final int modeTrans;
+  protected final int modeTrans;
   
   /**The super constructor. 
    * @param superState The enclosing state which contains this state. It is either a {@link StateTopBase} or a {@link StateCompositeBase}.
@@ -182,13 +182,6 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   protected void entryAction(){}
   
   
-  /**Processes the state. It invokes the {@link #trans(Event)}-method. This method is overridden in the class
-   * {@link StateCompositeBase}.The user should not override this method! 
-   * @param ev Any event
-   * @return see {@link #trans(Event)}.
-   */
-  public int xxxprocess(Event<?,?> ev){ return trans(ev); }
-
   
   /**Checks the trigger and conditions of a state transition. The user should override this method in form (example)
    * <pre>
@@ -232,10 +225,25 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   
   public EnclosingState enclState(){ return enclState; }
   
+  
+  /**Gets the path to this state. The path is build from the {@link #stateId} of all enclosing states
+   * separated with a dot and at least this stateId.
+   * For example "topStateName.compositeState.thisState". 
+   */
+  public CharSequence getStatePath(){
+    StringBuilder uPath = new StringBuilder(120);
+    StateSimpleBase<?> state = this;
+    while((state = state.enclState) !=null){
+      uPath.insert(0,'.').insert(0, state.stateId);
+    }
+    uPath.append('.').append(stateId);
+    return uPath;
+  }
+  
   /**Returns the state Id and maybe some more debug information.
    * @see java.lang.Object#toString()
    */
-  @Override public String toString(){ return stateId.toString(); }
+  @Override public String toString(){ return getStatePath().toString(); }
 
 
 

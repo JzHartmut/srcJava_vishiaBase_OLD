@@ -337,15 +337,15 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
    * @see org.vishia.util.FileRemoteAccessor#prepareCmdEvent(org.vishia.util.FileRemote.CallbackEvent)
    */
   @Override public FileRemote.CmdEvent prepareCmdEvent(FileRemote.CallbackEvent evBack){
-    Event cmdEvent1 = evBack.getOpponent();
-    if(cmdEvent1 !=null){
+    FileRemote.CmdEvent cmdEvent1;
+    if(evBack !=null && (cmdEvent1 = evBack.getOpponent()) !=null){
       if(!cmdEvent1.occupy(evSrc, executerCommission, singleThreadForCommission, false)){
         return null;
       }
     } else {
       cmdEvent1 = new FileRemote.CmdEvent(evSrc, executerCommission, singleThreadForCommission, evBack);
     }
-    return (FileRemote.CmdEvent) cmdEvent1; 
+    return  cmdEvent1; 
   }
   
   

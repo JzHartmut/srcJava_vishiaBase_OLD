@@ -67,6 +67,11 @@ public abstract class StateCompositeBase
    * execution of the {@link #exit()} routine if exit of the enclosing state is processed.*/
   boolean isActive;
   
+  /**If set true, then any state transition is logged with System.out.printf("..."). One can use the 
+   * {@link org.vishia.msgDispatch.MsgRedirectConsole} to use a proper log system. 
+   */
+  public static boolean debugState = true;
+  
   private StateSimpleBase<DerivedState> stateAct;
   
   private StateSimpleBase<DerivedState> stateDefault;
@@ -192,32 +197,24 @@ public abstract class StateCompositeBase
    */
   public int process(final Event<?,?> evP){
     int cont;
-    Event evTrans = evP;
+    Event<?,?> evTrans = evP;
     int catastrophicalCount =  maxStateSwitchesInLoop;
     do{
 
-      StateSimpleBase<DerivedState> statePrev = stateAct;
       //
       //
       if(stateAct == null){
         entryDefaultState();  //regards also Parallel states.
       } 
       if(stateAct instanceof StateCompositeBase<?,?>){
+        //recursively call for the composite inner state
         cont = ((StateCompositeBase<?,?>)stateAct).process(evTrans); 
       } else {
+        StateSimpleBase<DerivedState> statePrev = stateAct;
         cont = stateAct.trans(evTrans);
+        if(debugState) { printStateSwitchInfo(statePrev, evTrans, cont); }
       }
       //
-      DateOrder date = new DateOrder();
-      Thread currThread = Thread.currentThread();
-      String sThread = currThread.getName();
-      if(!isActive){
-        System.out.println("StateCompositeBase - State leaved;." + date.order + "; thread=" + sThread + "; state=" + toString() + "; last=" + stateAct + "; ev:" + evTrans);
-      } else if(statePrev != stateAct){
-        System.out.println("StateCompositeBase - StateSwitch ;." + date.order + "; thread=" + sThread + "; state=" + toString() + "; " + statePrev + ";-->"  + stateAct + "; ev:" + evTrans);
-      } else if(evTrans !=null){
-        System.out.println("StateCompositeBase - Ev not used ;." + date.order + "; thread=" + sThread + "; state=" + toString() + "; " + statePrev + ";-->"  + stateAct + "; ev:" + evTrans);
-      }
       if((cont & StateSimpleBase.mEventConsumed) != 0){
         evTrans = null;
       }
@@ -231,10 +228,37 @@ public abstract class StateCompositeBase
     if(catastrophicalCount <0) {
       throw new RuntimeException("unterminated loop in state switches");
     }
-    cont = trans(evTrans);  //evTrans is null if it was consumed in inner transitions.
-    return cont;  //runToComplete.bit may be set.
+    if(  evTrans != null   //evTrans is null if it was consumed in inner transitions. 
+      || (modeTrans & StateSimpleBase.mRunToComplete) !=0  //state has only conditional transitions
+      ){
+      //process the own transition. Do it after processing the inner state (omg.org)
+      //and only if either an event is present or the state has only conditional transitions.
+      StateSimpleBase<DerivedState> statePrev = stateAct;
+      cont = trans(evTrans); 
+      if(debugState) { printStateSwitchInfo(statePrev, evTrans, cont); }
+    }
+    return cont;  //runToComplete.bit may be set from an inner state transition too.
   }
 
+  
+  
+  private void printStateSwitchInfo(StateSimpleBase<DerivedState> statePrev, Event<?,?> evTrans, int cont) {
+    DateOrder date = new DateOrder();
+    Thread currThread = Thread.currentThread();
+    String sThread = currThread.getName();
+    String sActiveState = getActiveState();
+    if(!isActive){
+      System.out.println("StateCompositeBase - State leaved;." + date.order + "; state " + statePrev + " ==> " + sActiveState + "; ev=" + evTrans + "; thread=" + sThread );
+    } else if((cont & StateSimpleBase.mEventConsumed)!=0) {  //statePrev != stateAct){  //from the same in the same state!
+      System.out.println("StateCompositeBase - StateSwitch ;." + date.order + "; state " + statePrev + " ==> "  + sActiveState + "; ev=" + evTrans + "; thread=" + sThread);
+    } else if(evTrans !=null){ 
+      System.out.println("StateCompositeBase - Ev not used ;." + date.order + "; state " + statePrev + " ==> "  + sActiveState + "; ev=" + evTrans + "; thread=" + sThread);
+    }
+    
+  }
+
+  
+  
 
   /**Sets the state of the composite state.
    * This method should be called
@@ -281,6 +305,33 @@ public abstract class StateCompositeBase
     return super.exit();
   }
 
+  
+  /**Returns the name of the active state of this composite state or the active state of any other state in the chart.
+   * @return
+   */
+  protected String getActiveState(){
+    if(isActive) return getStatePath().toString();
+    else if(enclState !=null){ return enclState.getActiveState(); }
+    else return "--inactive--";
+  }
+  
+  
+  @Override   public CharSequence getStatePath(){
+    StringBuilder uPath = new StringBuilder(120);
+    StateSimpleBase<?> state = this;
+    while((state = state.enclState) !=null){
+      uPath.insert(0,'.').insert(0, state.stateId);
+    }
+    state = this;
+    do{
+      uPath.append('.').append(state.stateId);
+      if(state instanceof StateCompositeBase<?,?>){
+        state = ((StateCompositeBase<?,?>)state).stateAct;
+      } else { state = null; }
+    } while(state !=null);
+    return uPath;
+  }
+  
   
   @Override public String toString(){ return stateId.toString() + ":" + (!isActive ? "null": stateAct.toString()); }
 

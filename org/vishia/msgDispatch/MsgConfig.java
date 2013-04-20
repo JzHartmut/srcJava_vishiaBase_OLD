@@ -82,6 +82,17 @@ MsgConfig::= { <item> } \e.
 
 item::= <#?identNr>[..<#?identNrLast>]  <!.?type> <*|\t|\ \ ?dst> [$$<*|\r|\n|\t|\ \ |$$|:|;?identText>[??<?useInternalText>]]  <*|\r|\n|\t|\ \ ?text>.
    * </pre>
+   * Examples:
+   * <pre>
+1303 i x  $$Ident text is equal to - the output text; some more %d values; val=%d;
+1400 i d  $$Ident text from - internal$$Other output text; val=%d; val2=%d;
+1500 i d  $$Ident text from - internal$$
+   * </pre>
+   * <ul>
+   * <li>1303: The internal text till ; determines the ident number. It is used with the given rest after ; to output.
+   * <li>1400: The internal text till ; determines the ident number, but the output text is another one.
+   * <li>1400: The internal text till ; determines the ident number. The whole internal text is outputted.
+   * </ul>
    * Any line is designated with the semantic 'line'. A line is build by the shown syntax elements. 
    * The semantic have to be used like shown. The semantic identifier are given by the element names of the classes 
    * {@link MsgConfigZbnf} and {@link MsgConfigItem}. The syntax can be another one.
@@ -133,10 +144,13 @@ item::= <#?identNr>[..<#?identNrLast>]  <!.?type> <*|\t|\ \ ?dst> [$$<*|\r|\n|\t
               if(posSep < 0){
                 posSep = text.indexOf(';');
               }
-              if(posSep >0){ //till ; it is the ident text of auto generated messages.
+              if(posSep >0){ //till ; or $$: it is the ident text of auto generated messages.
                 item.identText = text.substring(2, posSep);
                 if(posSep2 >= 0){
-                  item.text = text.substring(posSep2+2);
+                  item.text = text.substring(posSep2+2).trim();
+                  if(item.text.length() == 0){
+                    item.text = null;    //the use internal text.
+                  }
                 } else {
                   item.text = text.substring(2);   //the whole text is the output text too.
                 }
@@ -144,7 +158,7 @@ item::= <#?identNr>[..<#?identNrLast>]  <!.?type> <*|\t|\ \ ?dst> [$$<*|\r|\n|\t
                 throw new IllegalArgumentException("format error, $$ or ; is needed in:" + sLine);
               }
             } else {
-              item.text = text;
+              item.text = text;  //the whole text is the ident string.
             }
             rootParseResult.item.add(item);
           }

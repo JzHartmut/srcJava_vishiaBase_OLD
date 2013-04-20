@@ -112,49 +112,14 @@ public abstract class FileRemoteAccessor implements Closeable
  
   //FileRemote[] listFiles(FileRemote parent);
   
-  /**Creates or prepares a CmdEvent to send to the correct destination. The event is ready to use but not . */
+  /**Creates or prepares a CmdEvent to send to the correct destination. The event is ready to use but not  occupied yet. 
+   * If the evBack contains a CmdEvent as its opponent, it is used. In that way a non-dynamic event management
+   * is possible. */
   public abstract FileRemote.CmdEvent prepareCmdEvent(FileRemote.CallbackEvent evBack);
 
   
-  
   public abstract boolean isLocalFileSystem();
 
-  
-  /**The file object is a java.io.File for the local file system. If it is a remote file system,
-   * the file object may be a instance for communication with the remote file system.
-   * @param file The description of the file.
-   * @return Any object.
-   */
-  //Object createFileObject(FileRemote file);
-  
-  
-  
-  public class XXXCommission
-  {
-    public final static int kCheckFile = 0xcecf1e, kCheck = 0xcec, kCopy = 0xc0b7, kDel = 0xde1ede
-    , kMove = 0x307e, kChgProps = 0xc5a9e, kChgPropsRec = 0xc595ec
-    , kCountLength = 0xc0311e39
-    , kAbortFile = 0xab03df1e, kAbortDir = 0xab03dd13, kAbortAll = 0xab03da11;
-    
-    
-    int cmd;
-    
-    FileRemote src, dst;
-    
-    FileRemote.CallbackEvent callBack;
-    
-    /**For {@link #kChgProps}: a new name. */
-    String newName;
-    
-    /**For {@link #kChgProps}: new properties with bit designation see {@link FileRemote#flags}. 
-     * maskFlags contains bits which properties should change, newFlags contains the value of that bit. */
-    int maskFlags, newFlags;
-    
-    long newDate;
-    
-  }
-  
-  
   
   
 }
