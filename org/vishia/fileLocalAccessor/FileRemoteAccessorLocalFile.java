@@ -214,11 +214,11 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
     if(callback == null){
       thread.run(); //run direct
     } else {
-      if((fileRemote.flags & FileRemote.mThreadIsRunning) ==0) {
-        fileRemote.flags |= FileRemote.mThreadIsRunning;
+      if((fileRemote.getFlags() & FileRemote.mThreadIsRunning) ==0) {
+        fileRemote.internalAccess().setFlagBit(FileRemote.mThreadIsRunning);
         Thread threadObj = new Thread(thread);
         thread.time = System.currentTimeMillis();
-        threadObj.start(); //run in an exttra thread, the caller doesn't wait.
+        threadObj.start(); //run in an extra thread, the caller doesn't wait.
       } else {
         System.err.println("FileRemoteAccessLocalFile.refreshFilePropertiesAndChildren - double call, ignored;");
         callback.relinquish(); //ignore it.
@@ -462,7 +462,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
     }//switch
     if(bOk && dst instanceof FileRemote){
       FileRemote dst1 = (FileRemote)dst;
-      dst1.flags = DataAccess.setBit(dst1.flags, maskFlags, set);
+      dst1.internalAccess().setOrClrFlagBit(maskFlags, set);
     }
     return bOk;
   }
@@ -613,7 +613,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
           time1 = System.currentTimeMillis();
           System.out.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - finish listFiles; dt=" + (time1 - time));
         }
-        fileRemote.flags &= ~FileRemote.mThreadIsRunning;
+        fileRemote.internalAccess().clrFlagBit(FileRemote.mThreadIsRunning);
       }
       catch(Exception exc){
         System.err.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - Thread Excpetion;" + exc.getMessage());

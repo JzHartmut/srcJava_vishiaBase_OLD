@@ -38,6 +38,9 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-04-21 Hartmut new: The {@link #flags} contains bits for {@link #mChecked} to mark files as checked
+   *   with {@link #check(FileRemote, CallbackEvent)}. With that the check state is able to view.
+   * <li>2013-04-21 Hartmut new: The {@link #flags} contains bits for {@link #mCmpContent} etc. for comparison to view.  
    * <li>2013-04-21 Hartmut new: {@link #copyChecked(CallbackEvent, int)} in cohesion with changes 
    *   in {@link org.vishia.fileLocalAccessor.Copy_FileLocalAcc}.
    * <li>2013-04-12 Hartmut chg: Dedicated attributes for {@link CallbackCmd#successCode} etc.
@@ -197,8 +200,8 @@ public class FileRemote extends File
   /**Length of the file. */
   protected long length;
   
-  /**Some flag bits. @see constants #mExist etc.*/
-  public int flags;
+  /**Some flag bits. See constants {@link #mExist} etc.*/
+  protected int flags;
 
   FileRemote parent;
   
@@ -219,58 +222,57 @@ public class FileRemote extends File
   public final static int modeCopyCreateMask = 0xf00
   , modeCopyCreateNever = 0x200, modeCopyCreateYes = 0x300 , modeCopyCreateAsk = 0;
   
-  public final static int  mExist =   1;
-  public final static int  mCanRead =  2;
-  public final static int  mCanWrite =  4;
-  public final static int  mHidden = 0x08;
+  /**Info about the file stored in {@link #flags} returned with {@link #getFlags()}. */
+  public final static int  mExist =   1, mCanRead =  2, mCanWrite =  4, mHidden = 0x08;
   
   /**Info whether the File is a directory. This flag-bit should be present always independent of the {@link #mTested} flag bit. */
-  public final static int  mDirectory = 0x10;
+  public final static int  mDirectory = 0x10, mFile =     0x20;
   
-  public final static int  mFile =     0x20;
-  public final static int  mExecute =     0x40;
-  public final static int  mExecuteAny =     0x80;
-  public final static int  mRelativePath = 0x100;
-  public final static int  mAbsPath = 0x200;
+  /**Info whether it is an executable (executable flag on unix)*/
+  public final static int  mExecute =     0x40, mExecuteAny =     0x80;
+ 
+  /**Type of given path. */
+  public final static int  mRelativePath = 0x100, mAbsPath = 0x200;
+  
+  /**A symbolic link in unix. */
   public final static int  mSymLinkedPath = 0x400;
   
-  public final static int  mCanReadGrp =  0x0800;
-  public final static int  mCanWriteGrp = 0x1000;
-  public final static int  mExecuteGrp =  0x2000;
-  public final static int  mCanReadAny =  0x4000;
-  public final static int  mCanWriteAny = 0x8000;
+  /**Group and any read and write permissions. */
+  public final static int  mCanReadGrp =  0x0800, mCanWriteGrp = 0x1000, mExecuteGrp =  0x2000
+  , mCanReadAny =  0x4000, mCanWriteAny = 0x8000;
 
-  protected final static int  mAbsPathTested = 0x10000;
+  
+  protected final static int  mAbsPathTestedXXX = 0x10000;
+  /**Set if the file is tested physically. If this bit is not set, all other flags are not representable and the file
+   * may be only any path without respect to an existing file.
+   */
   public final static int  mTested =        0x20000;
   //protected final static int mChildrenGotten = 0x40000;
+  
+  /**Set if a thread runs to get file properties. */
   public final static int mThreadIsRunning =0x80000;
 
-  
-  
-  /*
-  public final static int cmdCheckFile = 0xcecf1e, cmdCheck = 0xcec, cmdCopy = 0xc0b7, cmdDel = 0xde1ede
-  , cmdMove = 0x307e, cmdChgProps = 0xc5a9e, cmdChgPropsRec = 0xc595ec
-  , cmdCountLength = 0xc0311e39
-  , cmdAbortFile = 0xab03df1e, cmdAbortDir = 0xab03dd13, cmdAbortAll = 0xab03da11;
+  /**Set if the file is checked and selected thereby by the {@link #check(FileRemote, CallbackEvent)} operation.
+   */
+  public final static int mChecked = 0x00100000;  
 
+  /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
+  public final static int mCmpTimeLen = 0x03000000
+  , cmpTimeEqual = 0x01000000
+  , cmpLenEqual = 0x02000000
+  , cmpLenTimeEqual = 0x03000000;
   
-  
-  /**back event for ask * /
-  public final static int evAskErrorCopy = 0xa58ecb7
+  /**Flags as result of an comparison: the other file is checked by content maybe with restricitons. */
+  public final static int mCmpContent = 0x0c000000
+  , cmpContentEqual = 0x04000000
+  , cmpContentEqualWithoutEndlines = 0x05000000
+  , cmpContentEqualwithoutSpaces = 0x06000000
+  , cmpContentEqualWithoutComments = 0x07000000;
   ;
   
-  
-  
-
-  /**callback cmd * /
-  public final static int acknSuccess = 0x50ce55
-  , acknErrorOpen = 0xe30be6
-  , acknErrorDelete = 0xe3de1ede
-  , acknAbortFile = 0xab03df1e
-  , acknAbortDir = 0xab03dd13
-  , acknAbortAll = 0xab03da11;
-  */
-  
+  /**Flags as result of an comparison: the other file does not exist, or any files of an directory does not exists
+   * or there are differences. */
+  public final static int cmpAlone = 0x10000000, cmpMissingFiles = 0x20000000, cmpFileDifferences = 0x30000000;
   
   /**This is the internal file object. It is handled by the device only. */
   Object oFile;
@@ -1624,6 +1626,39 @@ public class FileRemote extends File
     
     last
   }
+
   
+  /**This inner non static class is only intent to access from a FileRemoteAccessor to any file.
+   * It is not intent to use by any application. 
+   */
+  public class InternalAccess{
+    public int setFlagBit(int bit){ flags |= bit; return flags; }
+    
+    public int clrFlagBit(int bit){ flags &= ~bit; return flags; }
+    
+    public int clrFlagBitChildren(int bit, int recursion){
+      int nrofFiles = 1;
+      if(recursion > 1000) throw new IllegalArgumentException("too many recursion in directory tree");
+      clrFlagBit(bit);
+      if(children !=null){
+        for(FileRemote child: children){
+          if(child !=null){ nrofFiles += clrFlagBitChildren(bit, recursion +1); }
+        }
+      }
+      return nrofFiles;
+    }
+    
+    public int setFlagBits(int mask, int bits){ flags &= ~mask; flags |= bits; return flags; }
+
+    public int setOrClrFlagBit(int bit, boolean set){ if(set){ flags |= bit; } else { flags &= ~bit;} return flags; }
+  
+  }
+  
+  private final InternalAccess acc_ = new InternalAccess();
+  
+  /**This routine is only intent to access from a FileRemoteAccessor to any file.
+   * It is not intent to use by any application. 
+   */
+  public InternalAccess internalAccess(){ return acc_; }
   
 }

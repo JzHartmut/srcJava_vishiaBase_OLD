@@ -472,6 +472,9 @@ public class Copy_FileLocalAcc
           if(++actData.ixSrcCheck < actData.listSrcCheck.length){
             FileRemote src = actData.listSrcCheck[actData.ixSrcCheck];
             FileRemote dst = new FileRemote(actData.dst, src.getName());   //TODO modified name
+            if(src.getName().equals("Fcmd.jar"))
+              Assert.stop();
+            src.internalAccess().setFlagBit(FileRemote.mChecked);
             actData = actData.newEntry(src, dst);
             bCont = true;
           } else if(actData.parent != null){
@@ -547,6 +550,10 @@ public class Copy_FileLocalAcc
     zFilesCheck = 0;
     storedCopyEvents.clear();
     checkedFiles.XXXlistFiles.clear();
+    DataSetCopy1Recurs checked;
+    if( (checked = checkedFiles.listChildren.poll())!=null){
+      checked.src.internalAccess().clrFlagBitChildren(FileRemote.mChecked, 0);
+    }
     checkedFiles.listChildren.clear();
     checkedFiles.src = null;
     checkedFiles.dst = null;
@@ -611,6 +618,7 @@ public class Copy_FileLocalAcc
         }
         else if(cmd == FileRemote.Cmd.check){
           //gets and store data from the event:  ///
+          ev.filesrc.internalAccess().setFlagBit(FileRemote.mChecked);
           actData = checkedFiles.newEntry(ev.filesrc, ev.filedst);  //calls check() processing this actData.
           evBackInfo = ev.getOpponent();                  //available for back information.
           timestart = System.currentTimeMillis();
@@ -979,7 +987,10 @@ public class Copy_FileLocalAcc
     @Override public StateCopyProcess exit(){
       StateCopyProcess encl = super.exit();
       try{
-        if(Copy_FileLocalAcc.this.in!=null){ Copy_FileLocalAcc.this.in.close(); }
+        if(Copy_FileLocalAcc.this.in!=null){ 
+          Copy_FileLocalAcc.this.in.close(); 
+          actData.src.internalAccess().clrFlagBit(FileRemote.mChecked); 
+        }
         Copy_FileLocalAcc.this.in = null;
         if(Copy_FileLocalAcc.this.out!=null){ Copy_FileLocalAcc.this.out.close(); }
         Copy_FileLocalAcc.this.out = null;
@@ -1024,6 +1035,7 @@ public class Copy_FileLocalAcc
       boolean bCont;
       //close currently file if this state is entered from stateAsk. The regular close() is executed on exit of stateCopyFile.
       if(Copy_FileLocalAcc.this.in !=null){
+        actData.src.internalAccess().clrFlagBit(FileRemote.mChecked); 
         try{ Copy_FileLocalAcc.this.in.close();
         } catch(IOException exc){
           System.err.printf("FileRemoteAccessorLocalFile -Copy close src while abort, unexpected error; %s\n", exc.getMessage());

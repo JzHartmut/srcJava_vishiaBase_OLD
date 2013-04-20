@@ -69,7 +69,7 @@ public class AllocInBlock
    * @return
    */
   public static int restSizeBlock(Class<?> parent_type, int sizeBlock)
-  { return 1000;
+  { return sizeBlock;
   }
   
   
