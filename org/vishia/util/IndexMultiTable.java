@@ -127,7 +127,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
   /**actual number of objects stored in this table. */
   private int sizeBlock;
   
-  /**True, than {@link #obj} contains instances of this class too. */
+  /**True, than {@link #values} contains instances of this class too. */
   private boolean isHyperBlock;
   
   /**modification access counter for Iterator. */
@@ -135,12 +135,12 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
   private int modcount;
   
   /**Array of objects appropritate to the keys. */
-  private final Object[] obj = new Object[maxBlock];
+  private final Object[] values = new Object[maxBlock];
   
   /**Array of keys, there are sorted ascending. The same key can occure some times. */ 
   //private final Comparable<Key>[] key = new Comparable[maxBlock];
   
-  private final Key[] key; // = new Key[maxBlock];
+  private final Key[] keys; // = new Key[maxBlock];
   
   /**The parent if it is a child table. */
   private IndexMultiTable<Key, Type> parent;
@@ -200,7 +200,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
       lastkey = minKey__;
       while(helper.table.isHyperBlock)
       { //call it recursively with sub index.
-        int idx = binarySearchFirstKey(helper.table.key, 0, helper.table.sizeBlock, startKey); //, sizeBlock, key1);
+        int idx = binarySearchFirstKey(helper.table.keys, 0, helper.table.sizeBlock, startKey); //, sizeBlock, key1);
         if(idx < 0)
         { /**an non exact found, accept it.
            * use the table with the key lesser than the requested key
@@ -213,14 +213,14 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
         }
         //idx -=1;  //?
         @SuppressWarnings("unchecked")
-        IndexMultiTable<Key, Type> childTable = (IndexMultiTable<Key, Type>)helper.table.obj[helper.idx];
+        IndexMultiTable<Key, Type> childTable = (IndexMultiTable<Key, Type>)helper.table.values[helper.idx];
         helper.idx = idx;
         helper.child = new IteratorHelper(helper); 
         
         helper.child.table = childTable;
         helper = helper.child;  //use the sub-table to iterate.          
       }
-      int idx = binarySearchFirstKey(helper.table.key, 0, helper.table.sizeBlock,  startKey); //, sizeBlock, key1);
+      int idx = binarySearchFirstKey(helper.table.keys, 0, helper.table.sizeBlock,  startKey); //, sizeBlock, key1);
       if(idx < 0)
       { /**an non exact found, accept it.
          * start from the element with first key greater than the requested key
@@ -254,12 +254,12 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
       if(bHasNext)
       { bHasNextProcessed = false;  //call it at next access!
         IndexMultiTable<Key, Type> table = helper.table;
-        assert(table.key[helper.idx].compareTo(lastkey) >= 0);  //test
-        if(table.key[helper.idx].compareTo(lastkey) < 0) throw new RuntimeException("assert");
-        if(table.key[helper.idx].compareTo(lastkey) < 0)
+        assert(table.keys[helper.idx].compareTo(lastkey) >= 0);  //test
+        if(table.keys[helper.idx].compareTo(lastkey) < 0) throw new RuntimeException("assert");
+        if(table.keys[helper.idx].compareTo(lastkey) < 0)
           stop();
-        lastkey = table.key[helper.idx];
-        return (Type)table.obj[helper.idx];
+        lastkey = table.keys[helper.idx];
+        return (Type)table.values[helper.idx];
       }
       else return null;
     }
@@ -285,7 +285,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
       if(bHasNext)
       { if(helper.table.isHyperBlock)
         { //
-          IndexMultiTable<Key, Type> childTable = (IndexMultiTable<Key, Type>)helper.table.obj[helper.idx];
+          IndexMultiTable<Key, Type> childTable = (IndexMultiTable<Key, Type>)helper.table.values[helper.idx];
           if(helper.child == null)
           { //no child yet. later reuse the instance of child.
             helper.child = new IteratorHelper(helper); 
@@ -370,10 +370,10 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
   public IndexMultiTable(Provide provider)
   { //this(1000, 'I');
     this.provider = provider;
-    this.key = (Key[])provider.genArray(maxBlock);
+    this.keys = (Key[])provider.genArray(maxBlock);
     this.minKey__ = (Key)provider.genMin();
     this.maxKey__ = (Key)provider.genMax();
-    for(int idx = 0; idx < maxBlock; idx++){ key[idx] = maxKey__; }
+    for(int idx = 0; idx < maxBlock; idx++){ keys[idx] = maxKey__; }
     sizeBlock = 0;
   }
   
@@ -404,7 +404,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
   { Type lastObj = null;
     //int key1 = arg0.intValue();
     //place object with same key after the last object with the same key.
-    int idx = Arrays.binarySearch(key, arg0); //, sizeBlock, key1);
+    int idx = Arrays.binarySearch(keys, arg0); //, sizeBlock, key1);
     //if(key1 == -37831)
       //stop();
     if(idx < 0)
@@ -412,7 +412,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
     }
     else
     { //if key1 is found, sorting after the last value with that index.
-      while(idx <sizeBlock && key[idx].compareTo(arg0) == 0)  //while the keys are identically
+      while(idx <sizeBlock && keys[idx].compareTo(arg0) == 0)  //while the keys are identically
       { idx+=1; 
       } 
     }
@@ -428,17 +428,17 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
         IndexMultiTable<Key, Type> parents = this;
         while(parents != null)
         { //if(key1 < key[0])
-          if(arg0.compareTo(key[0]) <0)
-          { key[0] = arg0; //correct the key, key1 will be the less of child.
+          if(arg0.compareTo(keys[0]) <0)
+          { keys[0] = arg0; //correct the key, key1 will be the less of child.
           }
           parents = parents.parent;
         }
         //NOTE: if a new child will be created, the key[0] is set with new childs key.
       }
       if(idx < sizeBlock)
-      { if(! (obj[idx] instanceof IndexMultiTable))
+      { if(! (values[idx] instanceof IndexMultiTable))
           stop();
-        child = ((IndexMultiTable<Key, Type>)(obj[idx]));
+        child = ((IndexMultiTable<Key, Type>)(values[idx]));
       }
       else
       { //index after the last block.
@@ -450,16 +450,16 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
         //int idxH = maxBlock / 2;
         if(child.isHyperBlock)
           stop();
-        int idxInChild = Arrays.binarySearch(child.key, arg0);
+        int idxInChild = Arrays.binarySearch(child.keys, arg0);
         if(idxInChild <0){ idxInChild = -idxInChild -1; }
-        else{ while(idxInChild <sizeBlock && key[idxInChild].compareTo(arg0) == 0){ idxInChild+=1;}}
+        else{ while(idxInChild <sizeBlock && keys[idxInChild].compareTo(arg0) == 0){ idxInChild+=1;}}
         
         IndexMultiTable<Key, Type> right;
         
         right = new IndexMultiTable<Key, Type>(provider);
         if(child.isHyperBlock)
         { Key key0right = separateIn2arrays(child,child, right);
-          sortin(idx+1, right.key[0], right);
+          sortin(idx+1, right.keys[0], right);
           if(arg0.compareTo(key0right) >= 0) //key0right)
           { right.put(arg0, obj1);
           }
@@ -470,7 +470,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
         else
         {
           sortInSeparated2arrays(idxInChild, arg0, obj1, child, child, right);
-          sortin(idx+1, right.key[0], right);
+          sortin(idx+1, right.keys[0], right);
         }
       }
       else 
@@ -520,13 +520,13 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
         sortInSeparated2arrays(idx, key1, obj1, this, left, right);
         //the current block is now a hyper block.
         this.isHyperBlock = true;
-        obj[0] = left;
-        obj[1] = right;
-        key[0] = left.key[0]; //minKey__;  //because it is possible to sort in lesser keys.
-        key[1] = right.key[0];
+        values[0] = left;
+        values[1] = right;
+        keys[0] = left.keys[0]; //minKey__;  //because it is possible to sort in lesser keys.
+        keys[1] = right.keys[0];
         for(int idxFill = 2; idxFill < maxBlock; idxFill++)
-        { key[idxFill] = maxKey__; 
-          obj[idxFill] = null;
+        { keys[idxFill] = maxKey__; 
+          values[idxFill] = null;
         }
         sizeBlock = 2;
         left.check();right.check();
@@ -535,12 +535,12 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
     }
     else
     { if(idx < sizeBlock)
-      { System.arraycopy(key, idx, key, idx+1, sizeBlock-idx);
-        System.arraycopy(obj, idx, obj, idx+1, sizeBlock-idx);
+      { System.arraycopy(keys, idx, keys, idx+1, sizeBlock-idx);
+        System.arraycopy(values, idx, values, idx+1, sizeBlock-idx);
       }
       sizeBlock +=1;
-      key[idx] = key1;
-      obj[idx] = obj1;
+      keys[idx] = key1;
+      values[idx] = obj1;
     }
     check();
   }
@@ -570,29 +570,29 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
     final int idxH = maxBlock / 2;
     if(idx < idxH)
     { /**sortin the obj1 in the left table. */
-      System.arraycopy(src.key, idxH, right.key, 0, src.sizeBlock - idxH);
-      System.arraycopy(src.obj, idxH, right.obj, 0, src.sizeBlock - idxH);
+      System.arraycopy(src.keys, idxH, right.keys, 0, src.sizeBlock - idxH);
+      System.arraycopy(src.values, idxH, right.values, 0, src.sizeBlock - idxH);
 
-      System.arraycopy(src.key, 0, left.key, 0, idx);
-      System.arraycopy(src.obj, 0, left.obj, 0, idx);
-      System.arraycopy(src.key, idx, left.key, idx+1, idxH-idx);
-      System.arraycopy(src.obj, idx, left.obj, idx+1, idxH-idx);
-      left.key[idx] = key1;
-      left.obj[idx] = obj1;
+      System.arraycopy(src.keys, 0, left.keys, 0, idx);
+      System.arraycopy(src.values, 0, left.values, 0, idx);
+      System.arraycopy(src.keys, idx, left.keys, idx+1, idxH-idx);
+      System.arraycopy(src.values, idx, left.values, idx+1, idxH-idx);
+      left.keys[idx] = key1;
+      left.values[idx] = obj1;
 
     }  
     else
     { /**sortin the obj1 in the right table. */
-      System.arraycopy(src.key, 0, left.key, 0, idxH);
-      System.arraycopy(src.obj, 0, left.obj, 0, idxH);
+      System.arraycopy(src.keys, 0, left.keys, 0, idxH);
+      System.arraycopy(src.values, 0, left.values, 0, idxH);
       
       int idxR = idx-idxH; //valid for right block.
-      System.arraycopy(src.key, idxH, right.key, 0, idxR);
-      System.arraycopy(src.obj, idxH, right.obj, 0, idxR);
-      System.arraycopy(src.key, idx, right.key, idxR+1, src.sizeBlock - idx);
-      System.arraycopy(src.obj, idx, right.obj, idxR+1, src.sizeBlock - idx);
-      right.key[idxR] = key1;
-      right.obj[idxR] = obj1;
+      System.arraycopy(src.keys, idxH, right.keys, 0, idxR);
+      System.arraycopy(src.values, idxH, right.values, 0, idxR);
+      System.arraycopy(src.keys, idx, right.keys, idxR+1, src.sizeBlock - idx);
+      System.arraycopy(src.values, idx, right.values, idxR+1, src.sizeBlock - idx);
+      right.keys[idxR] = key1;
+      right.values[idxR] = obj1;
     }
     /**Set the sizeBlock and clear the content after copy of all block data,
      * because it is possible that src is equal left or right!
@@ -606,12 +606,12 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
       right.sizeBlock = maxBlock - idxH +1;
     }
     for(int idxFill = left.sizeBlock; idxFill < maxBlock; idxFill++)
-    { left.key[idxFill] = maxKey__; 
-      left.obj[idxFill] = null;
+    { left.keys[idxFill] = maxKey__; 
+      left.values[idxFill] = null;
     }
     for(int idxFill = right.sizeBlock; idxFill < maxBlock; idxFill++)
-    { right.key[idxFill] = maxKey__; 
-      right.obj[idxFill] = null;
+    { right.keys[idxFill] = maxKey__; 
+      right.values[idxFill] = null;
     }
     src.check();
     left.check();
@@ -639,28 +639,28 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
             
     final int idxH = maxBlock / 2;
   
-    System.arraycopy(src.key, idxH, right.key, 0, src.sizeBlock - idxH);
-    System.arraycopy(src.obj, idxH, right.obj, 0, src.sizeBlock - idxH);
+    System.arraycopy(src.keys, idxH, right.keys, 0, src.sizeBlock - idxH);
+    System.arraycopy(src.values, idxH, right.values, 0, src.sizeBlock - idxH);
 
-    System.arraycopy(src.key, 0, left.key, 0, idxH);
-    System.arraycopy(src.obj, 0, left.obj, 0, idxH);
+    System.arraycopy(src.keys, 0, left.keys, 0, idxH);
+    System.arraycopy(src.values, 0, left.values, 0, idxH);
     /**Set the sizeBlock and clear the content after copy of all block data,
      * because it is possible that src is equal left or right!
      */
     left.sizeBlock = idxH;
     for(int idxFill = idxH; idxFill < maxBlock; idxFill++)
-    { left.key[idxFill] = maxKey__; 
-      left.obj[idxFill] = null;
+    { left.keys[idxFill] = maxKey__; 
+      left.values[idxFill] = null;
     }
     right.sizeBlock = maxBlock - idxH;
     for(int idxFill = right.sizeBlock; idxFill < maxBlock; idxFill++)
-    { right.key[idxFill] = maxKey__; 
-      right.obj[idxFill] = null;
+    { right.keys[idxFill] = maxKey__; 
+      right.values[idxFill] = null;
     }
     src.check();
     left.check();
     right.check();
-    return right.key[0];
+    return right.keys[0];
   }
 
 
@@ -677,11 +677,11 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
     for(int ix=0; ix<sizeBlock; ix++){
       if(isHyperBlock){ 
         @SuppressWarnings("unchecked")
-        IndexMultiTable subTable = (IndexMultiTable)obj[ix];
+        IndexMultiTable subTable = (IndexMultiTable)values[ix];
         subTable.clear();
       }
-      obj[ix] = null;
-      key[ix] = maxKey__; 
+      values[ix] = null;
+      keys[ix] = maxKey__; 
     }
     sizeBlock = 0;
     isHyperBlock = false;
@@ -731,11 +731,11 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
 
   //public Type get(Object arg0)
   @SuppressWarnings({ "unchecked" })
-  public Type get(Object key2)
+  public Type get(Object key1)
   { Type lastObj = null;
-    int key1 = ((Integer)(key2)).intValue();
+    assert(key1 instanceof Comparable<?>);
     //place object with same key after the last object with the same key.
-    int idx = Arrays.binarySearch(key, key1); //, sizeBlock, key1);
+    int idx = Arrays.binarySearch(keys, key1); //, sizeBlock, key1);
     if(isHyperBlock)
     { //call it recursively with sub index.
       if(idx < 0)
@@ -749,14 +749,14 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
       { lastObj = null;
       }
       else if(idx < sizeBlock)
-      { child = ((IndexMultiTable<Key, Type>)(obj[idx]));
+      { child = ((IndexMultiTable<Key, Type>)(values[idx]));
         //the child has space.
-        lastObj = child.get(key2); 
+        lastObj = child.get(key1); 
       }
     }
     else
     { if(idx >=0)
-      { lastObj = (Type)obj[idx];
+      { lastObj = (Type)values[idx];
       }
       else  
       { //not found
@@ -1072,21 +1072,21 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
   void check()
   { boolean shouldCheck = false;
     if(shouldCheck)
-    { if(sizeBlock >=1){ assert1(obj[0] != null); }
+    { if(sizeBlock >=1){ assert1(values[0] != null); }
       for(int ii=1; ii < sizeBlock; ii++)
-      { assert1(key[ii-1].compareTo(key[ii]) <= 0);
-        assert1(obj[ii] != null);
-        if(obj[ii] == null)
+      { assert1(keys[ii-1].compareTo(keys[ii]) <= 0);
+        assert1(values[ii] != null);
+        if(values[ii] == null)
           stop();
       }
       if(isHyperBlock)
       { for(int ii=1; ii < sizeBlock; ii++)
-        { assert1(key[ii] == ((IndexMultiTable<Key, Type>)obj[ii]).key[0]); 
+        { assert1(keys[ii] == ((IndexMultiTable<Key, Type>)values[ii]).keys[0]); 
         }
       }
       for(int ii=sizeBlock; ii < maxBlock; ii++)
-      { assert1(key[ii] == maxKey__);
-        assert1(obj[ii] == null);
+      { assert1(keys[ii] == maxKey__);
+        assert1(values[ii] == null);
       }
     }  
   }

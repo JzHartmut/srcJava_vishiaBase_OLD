@@ -11,6 +11,8 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import org.vishia.util.DataAccess;
 import org.vishia.util.Event;
@@ -21,6 +23,7 @@ import org.vishia.util.FileAccessZip;
 import org.vishia.util.FileRemote;
 import org.vishia.util.FileRemoteAccessor;
 import org.vishia.util.FileSystem;
+import org.vishia.util.IndexMultiTable;
 import org.vishia.util.FileRemote.CallbackCmd;
 import org.vishia.util.FileRemote.CallbackEvent;
 import org.vishia.util.FileRemote.Cmd;
@@ -141,6 +144,17 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   
   private FileRemote workingDir;
   
+  IndexMultiTable.Provide<String> idxPathsProvider = new IndexMultiTable.Provide<String>(){
+
+    @Override public String[] genArray(int size){ return new String[size]; }
+
+    @Override public String genMax(){ return "\255\255\255\255\255\255\255\255\255"; }
+
+    @Override public String genMin(){ return " "; }
+  };
+  
+  IndexMultiTable<String, FileRemote> idxPaths = new IndexMultiTable<String, FileRemote>(idxPathsProvider);
+  
   
   public FileRemoteAccessorLocalFile() {
     singleThreadForCommission.startThread();
@@ -159,6 +173,21 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
     return instance;
   }
   
+
+  
+  @Override public FileRemote get( final String sDirP, final String sName){
+    StringBuilder uPath = new StringBuilder(sDirP.replace('\\', '/'));
+    if(uPath.charAt(uPath.length()-1) !='/'){ uPath.append('/'); }
+    if(sName !=null) { uPath.append(sName); }
+    String sPath = uPath.toString();
+    FileRemote ret = idxPaths.get(sPath);
+    if(ret == null){
+      ret = new FileRemote(this, null, sDirP, sName, 0, 0, 0, null, true);
+      idxPaths.put(sPath, ret);
+    }
+    return ret;
+  }
+
   
   
   private File getLocalFile(FileRemote fileRemote){
@@ -286,7 +315,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
         retFiles = new FileRemote[files.length];
         int iFile = -1;
         for(File fileLocal: files){
-          retFiles[++iFile] = newFile(fileLocal, parent);
+          retFiles[++iFile] = newFileInDirectory(fileLocal, parent);
         }
       }
     }
@@ -294,7 +323,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   }
 
   
-  public FileRemote newFile(File fileLocal, FileRemote dir){
+  private FileRemote newFileInDirectory(File fileLocal, FileRemote dir){
     String name;
     //if(fileLocal.isDirectory()){
       //name = fileLocal.getName() + "/";
@@ -306,7 +335,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
     //String sDir = fileLocal.getParent().replace('\\', '/');
     //FileRemote dir = null; //FileRemote.fromFile(parent);
     int flags = fileLocal.isDirectory() ? FileRemote.mDirectory:0;
-    FileRemote fileRemote = new FileRemote(this, dir, sDir, name, 0, 0, flags, fileLocal);
+    FileRemote fileRemote = new FileRemote(this, dir, sDir, name, 0, 0, flags, fileLocal, true);
     //refreshFileProperties(fileRemote, null);  
     return fileRemote;
   }
@@ -597,11 +626,19 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
             if(useFileChildren){
               //fileRemote.children = files;
             } else {
-              fileRemote.children = new FileRemote[files.length];
+              //re-use given children because they may have additional designation in flags.
+              Map<String, FileRemote> oldChildren = fileRemote.children();
+              //but create a new list to prevent keeping old files.
+              fileRemote.clearChildren();
               int iFile = -1;
               for(File file1: files){
-                fileRemote.children[++iFile] = newFile(file1, fileRemote);
+                FileRemote child = null;   
+                if(oldChildren !=null){ child = oldChildren.remove(file1.getName()); }
+                if(child == null){ child = newFileInDirectory(file1, fileRemote); }
+                fileRemote.putChildren(child);
+                child.refreshProperties(null);
               }
+              //oldChildren contains yet removed files.
             }
           }
         }

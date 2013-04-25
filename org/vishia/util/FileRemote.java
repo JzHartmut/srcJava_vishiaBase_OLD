@@ -7,6 +7,8 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile;
 
@@ -38,6 +40,10 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-04-26 Hartmut chg: The constructors of this class should be package private, instead the {@link #get(String, String)}
+   *   and {@link #get(FileRemote, String)} should be used to get an instance of this class. The instances which refers the same file
+   *   on the file system are existing only one time in the application respectively in the {@link FileRemoteAccessor}. 
+   *   In this case additional information can be set to files such as 'selected' or a comparison result. It is in progression.  
    * <li>2013-04-21 Hartmut new: The {@link #flags} contains bits for {@link #mChecked} to mark files as checked
    *   with {@link #check(FileRemote, CallbackEvent)}. With that the check state is able to view.
    * <li>2013-04-21 Hartmut new: The {@link #flags} contains bits for {@link #mCmpContent} etc. for comparison to view.  
@@ -162,6 +168,8 @@ public class FileRemote extends File
 
   private static FileRemoteAccessorSelector accessorSelector;
   
+  private static int ctIdent = 0;
+  
   protected FileRemoteAccessor device;
   
   /**Reference file.
@@ -211,7 +219,9 @@ public class FileRemote extends File
    * If this field should be returned without null, especially on {@link #listFiles()} and the file is a directory, 
    * the {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, Event)} will be called.  
    * */
-  public FileRemote[] children;
+  private Map<String,FileRemote> children;
+  
+  private final int ident;
   
   public final static int modeCopyReadOnlyMask = 0x00f
   , modeCopyReadOnlyNever = 0x1, modeCopyReadOnlyOverwrite = 0x3, modeCopyReadOnlyAks = 0;
@@ -351,8 +361,19 @@ public class FileRemote extends File
       , final String sDirP, final String sName
       , final long length, final long date, final int flags
       , Object oFileP) {
+    this(device, parent, sDirP, sName, length, date, flags, oFileP, true );
+  }
+  
+
+  
+  public FileRemote(final FileRemoteAccessor device
+      , final FileRemote parent
+      , final String sDirP, final String sName
+      , final long length, final long date, final int flags
+      , Object oFileP, boolean OnlySpecialCall) {
     super(sDirP + (sName ==null ? "" : ("/" + sName)));  //it is correct if it is a local file. 
     //super("?");  //NOTE: use the superclass File only as interface. Don't use it as local file instance.
+    this.ident = ++ctIdent;
     String sPath = sDirP.replace('\\', '/');
     this.device = device;
     this.flags = flags;
@@ -392,9 +413,37 @@ public class FileRemote extends File
     this.length = length;
     this.date = date;
     this.sCanonicalPath = this.sDir + this.sFile;  //maybe overwrite from setSymbolicLinkedPath
+    
+    ///
+    if(this.device == null){
+      this.device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
   }
   
- 
+  
+  public static FileRemote get(final FileRemote dir, final String sName ) {
+    
+    FileRemote ret = dir.children.get(sName);
+    if(ret == null){
+      ret = new FileRemote(dir.device, dir, null, sName, 0, 0, 0, null, true);
+      dir.putChildren(ret);  //maybe existing or non existing on file system!
+    }
+    return ret;
+  }
+  
+  public static FileRemote get(final String sDir, final String sName ) {
+    FileRemoteAccessor device = getAccessorSelector().selectFileRemoteAccessor(sDir);
+    return device.get(sDir, sName);
+  }
+  
+  
+  public static FileRemote get(final FileRemoteAccessor device
+  , final String sDirP, final String sName ) {
+    return device.get(sDirP, sName);
+  }
+  
+  
+  
   
   public static boolean setAccessorSelector(FileRemoteAccessorSelector accessorSelectorP){
     boolean wasSetAlready = accessorSelector !=null;
@@ -446,6 +495,30 @@ public class FileRemote extends File
         dir = null;
       }
       return new FileRemote(accessor, dir, sPath, null, len, date, fileProps, src);
+    }
+  }
+  
+  
+  
+  /**Gets the Index of the children sorted by name.
+   * @return
+   */
+  public Map<String,FileRemote> children() { return children; }
+  
+  
+  public void putChildren(FileRemote child){
+    if(children == null){
+      children = new TreeMap<String, FileRemote>();
+    }
+    children.put(child.sFile, child);
+  }
+  
+  
+  public void clearChildren(){
+    if(children == null){
+      children = new TreeMap<String, FileRemote>();
+    } else {
+      children.clear();
     }
   }
   
@@ -732,7 +805,7 @@ public class FileRemote extends File
       }
       if(sParent !=null){
         device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
-        this.parent = new FileRemote(device, null, sParent, null, 0, 0, 0, null); 
+        this.parent = device.get(sParent, null); //new FileRemote(device, null, sParent, null, 0, 0, 0, null); 
       }
     }
     return this.parent;
@@ -852,7 +925,7 @@ public class FileRemote extends File
    * If the children are not gotten up to now they are gotten yet. The method blocks until the information is gotten,
    * see {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, Event)} with null as event parameter.
    */
-  @Override public File[] listFiles(){
+  @Override public FileRemote[] listFiles(){
     if(children == null){
       //The children are not known yet, get it:
       if(device == null){
@@ -860,7 +933,12 @@ public class FileRemote extends File
       }
       device.refreshFilePropertiesAndChildren(this, null);
     }
-    return children;
+    FileRemote[] aChildren = new FileRemote[children.size()];
+    int ix = -1;
+    for(Map.Entry<String, FileRemote> item: children.entrySet()){
+      aChildren[++ix] = item.getValue();
+    }
+    return aChildren;
   }
   
   
@@ -1236,6 +1314,10 @@ public class FileRemote extends File
   }
   
   
+  public int ident(){ return ident; }
+  
+  
+  @Override public String toString(){ return super.toString(); } //sDir + sFile + " @" + ident; }
   
   public enum Cmd {
     /**Ordinary value=0, same as {@link Event.Cmd#free}. */
@@ -1641,8 +1723,8 @@ public class FileRemote extends File
       if(recursion > 1000) throw new IllegalArgumentException("too many recursion in directory tree");
       clrFlagBit(bit);
       if(children !=null){
-        for(FileRemote child: children){
-          if(child !=null){ nrofFiles += clrFlagBitChildren(bit, recursion +1); }
+        for(Map.Entry<String, FileRemote> child: children.entrySet()){
+          if(child !=null){ nrofFiles += child.getValue().internalAccess().clrFlagBitChildren(bit, recursion +1); }
         }
       }
       return nrofFiles;

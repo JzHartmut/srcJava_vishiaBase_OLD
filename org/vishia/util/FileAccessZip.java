@@ -11,6 +11,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.TreeMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -182,6 +183,11 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
   }
   
 
+  @Override public FileRemote get( final String sDirP, final String sName){
+    return null;
+  }
+
+  
 
   @Override
   public void close() throws IOException {
@@ -210,16 +216,16 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     int zChildren = data == null ? 0 : data.children == null ? 0 : (data.children.childNodes == null ? 0
         : data.children.childNodes.size())
         + (data.children.leafData == null ? 0 : data.children.leafData.size());
-    file.children = new FileRemote[zChildren]; //may be [0]
+    //file.children = new TreeMap<String, FileRemote>(); //[zChildren]; //may be [0]
     if (zChildren > 0) {
       int ii = -1;
       if (data.children.childNodes != null){
         for (TreeNodeBase.TreeNode<FileRemote> node1 : data.children.childNodes) {
-          file.children[++ii] = node1.data;
+          file.putChildren( node1.data);
       } }
       if (data.children.leafData != null){
         for (FileRemote node1 : data.children.leafData) {
-          file.children[++ii] = node1;
+          file.putChildren( node1);
       } }
     }
     if(callback !=null){

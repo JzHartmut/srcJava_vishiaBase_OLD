@@ -18,7 +18,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.vishia.stateMachine.StateCompositeBase;
 import org.vishia.stateMachine.StateSimpleBase;
 import org.vishia.stateMachine.StateTopBase;
-import org.vishia.stateMachine.StateTransition;
 import org.vishia.util.Assert;
 import org.vishia.util.Event;
 import org.vishia.util.FileRemote;
@@ -91,6 +90,9 @@ public class Copy_FileLocalAcc
     
     DataSetCopy1Recurs(DataSetCopy1Recurs parent){
       this.parent = parent;
+      if(parent ==null){ //Only the root instance
+        listChildren = new ConcurrentLinkedQueue<DataSetCopy1Recurs>();
+      }
     }
     
     DataSetCopy1Recurs newEntry(FileRemote src, FileRemote dst){
@@ -456,11 +458,16 @@ public class Copy_FileLocalAcc
     do {
       try{ ///
         System.out.println("Copy_FileLocalAcc - check;" + actData.toString());
-        if(!actData.src.isTested()){
+        //if(!actData.src.isTested()){
           actData.src.refreshPropertiesAndChildren(null);
-        }
+        //}
         if(actData.src.isDirectory()){
-          actData.listSrcCheck = actData.src.children;
+          FileRemote[] aChildren = new FileRemote[actData.src.children().size()];
+          int ix = -1;
+          for(Map.Entry<String, FileRemote> item: actData.src.children().entrySet()){
+            aChildren[++ix] = item.getValue();
+          }
+          actData.listSrcCheck = aChildren;
           actData.ixSrcCheck = -1;
         } else {
           zBytesCheck += actData.src.length();
@@ -499,7 +506,7 @@ public class Copy_FileLocalAcc
           long time = System.currentTimeMillis();
           //
           //feedback of progression after about 0.3 second. 
-          if(time > timestart + 300){
+          if(time > timestart + 999999300){
             timestart = time;
             bCont = false;
           }
