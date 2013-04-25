@@ -478,7 +478,7 @@ public class Copy_FileLocalAcc
         if(actData.listSrcCheck !=null) {  //not on the root instance
           if(++actData.ixSrcCheck < actData.listSrcCheck.length){
             FileRemote src = actData.listSrcCheck[actData.ixSrcCheck];
-            FileRemote dst = new FileRemote(actData.dst, src.getName());   //TODO modified name
+            FileRemote dst = src.itsCluster.get(actData.dst, src.getName());   //TODO modified name
             if(src.getName().equals("Fcmd.jar"))
               Assert.stop();
             src.internalAccess().setFlagBit(FileRemote.mChecked);

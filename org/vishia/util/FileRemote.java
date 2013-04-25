@@ -296,7 +296,7 @@ public class FileRemote extends File
    * @param pathname device, path and name. The path may be relative. 
    *   Then the systems current directory is used as reference file. (TODO)
    */
-  public FileRemote(String pathname)
+  private FileRemote(String pathname)
   {
     this(getAccessorSelector().selectFileRemoteAccessor(pathname) //identify device by analyse of path.
         , null //parent is unknown without access
@@ -313,7 +313,7 @@ public class FileRemote extends File
    *   Then the systems current directory is used as reference file. (TODO)
    * @param name name of the file inside the given dir. 
    */
-  public FileRemote(String dir, String name)
+  private FileRemote(String dir, String name)
   {
     this(getAccessorSelector().selectFileRemoteAccessor(dir) //identify device by analyse of path.
         , null //parent is unknown without access
@@ -326,7 +326,7 @@ public class FileRemote extends File
    * @param dir instance describes the directory (parent).
    * @param name name of the file inside the given dir. 
    */
-  public FileRemote(FileRemote dir, String name)
+  private FileRemote(FileRemote dir, String name)
   {
     this(dir.device, dir, dir.getPath(), name, 0, 0, 0, null);
   }
@@ -359,7 +359,7 @@ public class FileRemote extends File
    * @param flags Properties of the file. Maybe 0 if unknown.
    * @param oFileP an system file Object, may be null.
    */
-  public FileRemote(final FileRemoteAccessor device
+  private FileRemote(final FileRemoteAccessor device
       , final FileRemote parent
       , final String sDirP, final String sName
       , final long length, final long date, final int flags
@@ -425,12 +425,17 @@ public class FileRemote extends File
   }
   
   
-  public static FileRemote get(final FileRemote dir, final String sName ) {
-    
-    FileRemote ret = dir.children.get(sName);
+  /**Returns the instance of FileRemote which is the child of this. If the child does not exists
+   * it is created and added as child. That is independent of the existence of the file on the file system.
+   * A non existing child is possible, it may be created on file system later. 
+   * @param sName Name of the child.
+   * @return The child instance.
+   */
+  public FileRemote child(final String sName ) {
+    FileRemote ret = children.get(sName);
     if(ret == null){
-      ret = new FileRemote(null, dir.device, dir, null, sName, 0, 0, 0, null, true);
-      dir.putChildren(ret);  //maybe existing or non existing on file system!
+      ret = new FileRemote(itsCluster, device, this, null, sName, 0, 0, 0, null, true);
+      putChildren(ret);  //maybe existing or non existing on file system!
     }
     return ret;
   }
@@ -510,6 +515,8 @@ public class FileRemote extends File
    */
   public Map<String,FileRemote> children() { return children; }
   
+  
+  public FileRemoteAccessor device() { return device; }
   
   public void putChildren(FileRemote child){
     if(children == null){

@@ -5,6 +5,8 @@ import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import org.vishia.fileRemote.FileCluster;
+
 /**
  * Entry in a zip file which can use as a FileRemote.
  * 
@@ -14,7 +16,7 @@ import java.util.zip.ZipFile;
 public class FileZip extends FileRemote {
   private static final long serialVersionUID = 8789821733982259444L;
 
-  final File theFile;
+  final FileRemote theFile;
 
   /** The ZipFile data. java.util.zip */
   final ZipFile zipFile;
@@ -35,8 +37,9 @@ public class FileZip extends FileRemote {
    */
   TreeNodeBase.TreeNode<FileZip> children;
 
-  public FileZip(File parent) {
-    super(parent.getName());
+  public FileZip(FileRemote parent) {
+    super(parent.itsCluster, parent.device, null, null, parent.getName(), 0, 0, 0, null, true);
+    //super(parent.getName());
     this.theFile = parent;
     ZipFile zipFile = null;
     children = new TreeNodeBase.TreeNode<FileZip>("/", this);
@@ -76,9 +79,9 @@ public class FileZip extends FileRemote {
     }
   }
 
-  public FileZip(FileZip parent, File theFile, ZipFile zipFile, ZipEntry zipEntry) {
-    super(null, null, zipFile.getName() + '/' + zipEntry.getName(), null, zipEntry.getSize()
-        , zipEntry.getTime(), 0, null); 
+  public FileZip(FileZip parent, FileRemote theFile, ZipFile zipFile, ZipEntry zipEntry) {
+    super(parent.itsCluster, parent.device, null, zipFile.getName() + '/' + zipEntry.getName(), null, zipEntry.getSize()
+        , zipEntry.getTime(), 0, null, true); 
     this.sPathZip = zipEntry.getName();
     this.theFile = theFile;
     String sEntryPath = zipEntry.getName();
@@ -94,8 +97,9 @@ public class FileZip extends FileRemote {
     this.zipEntry = zipEntry;
   }
 
-  public FileZip(File theFile, ZipFile zipFile, ZipEntry zipEntry) {
-    super(zipFile.getName());
+  public FileZip(FileRemote theFile, ZipFile zipFile, ZipEntry zipEntry) {
+    super(theFile.itsCluster, theFile.device, null, zipFile.getName() + '/' + zipEntry.getName(), null, zipEntry.getSize()
+        , zipEntry.getTime(), 0, null, true); 
     this.sPathZip = zipEntry.getName();
     this.theFile = theFile;
     this.children = null;
@@ -173,7 +177,8 @@ public class FileZip extends FileRemote {
    * @param args
    */
   public static void main(String[] args) {
-    File file = new File("/home/hartmut/vishia/Java/srcJava_Zbnf.zip");
+    FileCluster fileCluster = new FileCluster();
+    FileRemote file = fileCluster.get("/home/hartmut/vishia/Java/srcJava_Zbnf.zip");
     FileZip fileZip = new FileZip(file);
     //TreeNodeBase.TreeNode<FileZip> test = new TreeNodeBase.TreeNode<FileZip>(fileZip.children, "", null);
     // boolean x = test.isDirectory();

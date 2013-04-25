@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.vishia.util.Assert;
 import org.vishia.util.DataAccess;
 import org.vishia.util.Event;
 import org.vishia.util.EventConsumer;
@@ -551,10 +552,13 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
             fileRemote.setCanonicalAbsPath(canonicalPath);
           }
         } else { //relative path
+          Assert.stop();
+          /*
           if(workingDir == null){
             workingDir = new FileRemote(FileSystem.getCanonicalPath(new File(".")));  //NOTE: should be absolute
           }
-          fileRemote.setReferenceFile(workingDir);  
+          fileRemote.setReferenceFile(workingDir);
+          */  
         }
       } else { //fileLocal not exists:
         //designate it as tested, mExists isn't set.

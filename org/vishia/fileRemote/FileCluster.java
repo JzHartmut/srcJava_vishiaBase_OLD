@@ -26,7 +26,22 @@ public class FileCluster
   
   public FileCluster(){
   }
+
   
+  
+  /**Gets the existing file instance with this path from the file system or creates and registers a new one.
+   * If the file is not existing on the file system it is created anyway because the file may be a new candidate. 
+   */
+  public FileRemote get( final String sPath){
+    String sPath1 = sPath.replace('\\', '/');
+    int posDir = sPath1.lastIndexOf('/');
+    if(posDir >=0){
+      return get(sPath1.substring(0, posDir+1), sPath1.substring(posDir+1));
+    } else {
+      return get(sPath1, null);
+    }
+  }
+
   
   /**Gets the existing file instance with this path from the file system or creates and registers a new one.
    * If the file is not existing on the file system it is created anyway because the file may be a new candidate. 
@@ -45,7 +60,19 @@ public class FileCluster
   }
 
   
-
+  public FileRemote get(final FileRemote dir, final String sName ) {
+    
+    FileRemote ret = dir.children().get(sName);
+    if(ret == null){
+      ret = new FileRemote(this, dir.device(), dir, null, sName, 0, 0, 0, null, true);
+      dir.putChildren(ret);  //maybe existing or non existing on file system!
+    }
+    return ret;
+  }
+  
+  
+  
+  
   
   
 }
