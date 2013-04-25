@@ -73,11 +73,6 @@ public abstract class FileRemoteAccessor implements Closeable
 
   
   
-  /**Gets the existing file instance with this path from the file system or creates and registers a new one.
-   * If the file is not existing on the file system it is created anyway because the file may be a new candidate. 
-   */
-  public abstract FileRemote get( final String sDirP, final String sName);
-  
   
   /**Gets the properties of the file from the physical file.
    * @param file the destination file object.

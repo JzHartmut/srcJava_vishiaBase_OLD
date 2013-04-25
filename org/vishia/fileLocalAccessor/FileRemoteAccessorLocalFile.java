@@ -144,18 +144,6 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   
   private FileRemote workingDir;
   
-  IndexMultiTable.Provide<String> idxPathsProvider = new IndexMultiTable.Provide<String>(){
-
-    @Override public String[] genArray(int size){ return new String[size]; }
-
-    @Override public String genMax(){ return "\255\255\255\255\255\255\255\255\255"; }
-
-    @Override public String genMin(){ return " "; }
-  };
-  
-  IndexMultiTable<String, FileRemote> idxPaths = new IndexMultiTable<String, FileRemote>(idxPathsProvider);
-  
-  
   public FileRemoteAccessorLocalFile() {
     singleThreadForCommission.startThread();
   }
@@ -173,20 +161,6 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
     return instance;
   }
   
-
-  
-  @Override public FileRemote get( final String sDirP, final String sName){
-    StringBuilder uPath = new StringBuilder(sDirP.replace('\\', '/'));
-    if(uPath.charAt(uPath.length()-1) !='/'){ uPath.append('/'); }
-    if(sName !=null) { uPath.append(sName); }
-    String sPath = uPath.toString();
-    FileRemote ret = idxPaths.get(sPath);
-    if(ret == null){
-      ret = new FileRemote(this, null, sDirP, sName, 0, 0, 0, null, true);
-      idxPaths.put(sPath, ret);
-    }
-    return ret;
-  }
 
   
   
@@ -335,7 +309,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
     //String sDir = fileLocal.getParent().replace('\\', '/');
     //FileRemote dir = null; //FileRemote.fromFile(parent);
     int flags = fileLocal.isDirectory() ? FileRemote.mDirectory:0;
-    FileRemote fileRemote = new FileRemote(this, dir, sDir, name, 0, 0, flags, fileLocal, true);
+    FileRemote fileRemote = new FileRemote(dir.itsCluster, this, dir, sDir, name, 0, 0, flags, fileLocal, true);
     //refreshFileProperties(fileRemote, null);  
     return fileRemote;
   }

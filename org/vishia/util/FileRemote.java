@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile;
+import org.vishia.fileRemote.FileCluster;
 
 
 /**This class describes a File, which may be localized at any maybe remote device or which may be a normal local file. 
@@ -166,6 +167,8 @@ public class FileRemote extends File
    */
   public static final int version = 20130421;
 
+  public final FileCluster itsCluster;
+  
   private static FileRemoteAccessorSelector accessorSelector;
   
   private static int ctIdent = 0;
@@ -361,17 +364,18 @@ public class FileRemote extends File
       , final String sDirP, final String sName
       , final long length, final long date, final int flags
       , Object oFileP) {
-    this(device, parent, sDirP, sName, length, date, flags, oFileP, true );
+    this(null, device, parent, sDirP, sName, length, date, flags, oFileP, true );
   }
   
 
   
-  public FileRemote(final FileRemoteAccessor device
+  public FileRemote(final FileCluster cluster, final FileRemoteAccessor device
       , final FileRemote parent
       , final String sDirP, final String sName
       , final long length, final long date, final int flags
       , Object oFileP, boolean OnlySpecialCall) {
     super(sDirP + (sName ==null ? "" : ("/" + sName)));  //it is correct if it is a local file. 
+    this.itsCluster = cluster;
     //super("?");  //NOTE: use the superclass File only as interface. Don't use it as local file instance.
     this.ident = ++ctIdent;
     String sPath = sDirP.replace('\\', '/');
@@ -425,12 +429,13 @@ public class FileRemote extends File
     
     FileRemote ret = dir.children.get(sName);
     if(ret == null){
-      ret = new FileRemote(dir.device, dir, null, sName, 0, 0, 0, null, true);
+      ret = new FileRemote(null, dir.device, dir, null, sName, 0, 0, 0, null, true);
       dir.putChildren(ret);  //maybe existing or non existing on file system!
     }
     return ret;
   }
   
+  /*
   public static FileRemote get(final String sDir, final String sName ) {
     FileRemoteAccessor device = getAccessorSelector().selectFileRemoteAccessor(sDir);
     return device.get(sDir, sName);
@@ -441,7 +446,7 @@ public class FileRemote extends File
   , final String sDirP, final String sName ) {
     return device.get(sDirP, sName);
   }
-  
+  */
   
   
   
@@ -805,7 +810,7 @@ public class FileRemote extends File
       }
       if(sParent !=null){
         device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
-        this.parent = device.get(sParent, null); //new FileRemote(device, null, sParent, null, 0, 0, 0, null); 
+        this.parent = itsCluster.get(sParent, null); //new FileRemote(device, null, sParent, null, 0, 0, 0, null); 
       }
     }
     return this.parent;

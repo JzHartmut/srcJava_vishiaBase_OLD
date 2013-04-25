@@ -183,10 +183,6 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
   }
   
 
-  @Override public FileRemote get( final String sDirP, final String sName){
-    return null;
-  }
-
   
 
   @Override
