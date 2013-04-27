@@ -20,6 +20,8 @@ public abstract class StateCompositeBase
   
   /**Version, history and license
    * <ul>
+   * <li>2013-04-27 Hartmut adapt: The {@link #entry(Event)} and the {@link #entryAction(Event)} should get the event
+   *   from the transition. See {@link StateSimpleBase}.
    * <li>2013-04-13 Hartmut re-engineering: 
    *   <ul>
    *   <li>New method {@link #setDefaultState(StateSimpleBase)}
