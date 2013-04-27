@@ -112,7 +112,7 @@ public abstract class StateCompositeBase
     if(this instanceof StateParallelBase<?,?>){
       ((StateParallelBase<?,?>)this).entryDefaultParallelStates();
     } else {
-      stateDefault.entry(0);
+      stateDefault.entry(null);
     }
   }
 
@@ -123,13 +123,13 @@ public abstract class StateCompositeBase
    * @param isProcessed The bit {@link StateSimpleBase#mEventConsumed} is supplied to return it.
    * @return isProcessed, maybe the additional bits {@link StateSimpleBase#mRunToComplete} is set by user.
    */
-  public final int entryDeepHistory(int isProcessed){
+  public final int entryDeepHistory(Event<?,?> ev){
     StateSimpleBase<DerivedState> stateActHistory = stateAct;  //save it
-    int cont = entry(isProcessed);                  //entry in this state, remark: may be overridden, sets the stateAct to null
+    int cont = entry(ev);                  //entry in this state, remark: may be overridden, sets the stateAct to null
     if(stateActHistory instanceof StateCompositeBase<?,?>){
-      cont = ((StateCompositeBase<?,?>)stateActHistory).entryDeepHistory(cont);
+      cont = ((StateCompositeBase<?,?>)stateActHistory).entryDeepHistory(ev);
     } else {
-      cont = stateActHistory.entry(cont);           //entry in the history sub state.
+      cont = stateActHistory.entry(ev);           //entry in the history sub state.
     }
     return cont;
   }
@@ -140,10 +140,10 @@ public abstract class StateCompositeBase
    * @param isProcessed The bit {@link StateSimpleBase#mEventConsumed} is supplied to return it.
    * @return isProcessed, maybe the additional bits {@link StateSimpleBase#mRunToComplete} is set by user.
    */
-  public final int entryFlatHistory(int isProcessed){
+  public final int entryFlatHistory(Event<?,?> ev){
     StateSimpleBase<DerivedState> stateActHistory = stateAct;  //save it
-    int cont = entry(isProcessed);                  //entry in this state, remark: may be overridden, sets the stateAct to null
-    cont = stateActHistory.entry(cont);             //entry in the history sub state.
+    int cont = entry(ev);                  //entry in this state, remark: may be overridden, sets the stateAct to null
+    cont = stateActHistory.entry(ev);             //entry in the history sub state.
     return cont;
   }
   
@@ -266,9 +266,9 @@ public abstract class StateCompositeBase
    *   with the strong type check with the generic type of state. 
    * @return true if it is in state.
    */
-  /*package private*/ void setState(StateSimpleBase<DerivedState> stateSimple) { //, EnumState stateNr) {
+  /*package private*/ void setState(Event<?,?> ev, StateSimpleBase<DerivedState> stateSimple) { //, EnumState stateNr) {
     if( !enclHasThisState()) {  
-      entry(0);          //executes the entry action of this enclosing state to notify the state by its enclosingState.
+      entry(ev);          //executes the entry action of this enclosing state to notify the state by its enclosingState.
     }
    this.stateAct = stateSimple;
    this.isActive = true;

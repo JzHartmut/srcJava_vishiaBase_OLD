@@ -22,8 +22,8 @@ public class CompositeStates  extends EventConsumer {
     @Override public int trans(Event ev) {
       if(ev instanceof EvX && ((EvX)ev).getCmd() == EvX.Cmd.EvX){
         StateTop enclState1 = exit();
-        int cont = enclState1.Work.C.C1.C1b.entry(mEventConsumed);
-        cont |= enclState1.Work.C.C2.C2a.entry(mEventConsumed);
+        int cont = enclState1.Work.C.C1.C1b.entry(ev);
+        cont |= enclState1.Work.C.C2.C2a.entry(ev);
         return cont;
       }
       else return eventNotConsumed;
@@ -116,7 +116,7 @@ public class CompositeStates  extends EventConsumer {
   
     @Override public int trans(Event ev) {
       if(ev instanceof EvX && ((EvX)ev).getCmd() == EvX.Cmd.EvZ){
-        return exit().C1d.entry(mEventConsumed);
+        return exit().C1d.entry(ev);
       }
       return StateSimpleBase.eventNotConsumed;
     }
@@ -169,7 +169,7 @@ public class CompositeStates  extends EventConsumer {
   
     @Override public int trans(Event ev) {
       if(ev instanceof EvX && ((EvX)ev).getCmd() == EvX.Cmd.EvX){
-        return exit().C2b.entry(mEventConsumed);
+        return exit().C2b.entry(ev);
       }
       //
       return 0;
@@ -225,12 +225,12 @@ public class CompositeStates  extends EventConsumer {
     
 
   
-    public int entry(int consumed, StateSimpleBase c1, StateSimpleBase c2) {
-      super.entry(consumed);
+    public int entry(Event<?,?> ev, StateSimpleBase c1, StateSimpleBase c2) {
+      int consumed = super.entry(ev);
       //setState(EWork.C);
       //C1.entry(consumed);
-      C1.C1a.entry(consumed);
-      C2.C2a.entry(consumed);
+      consumed |= C1.C1a.entry(ev);
+      consumed |= C2.C2a.entry(ev);
       
       return consumed;
     }
@@ -245,8 +245,8 @@ public class CompositeStates  extends EventConsumer {
       
       if(C1.isInState(C1.C1d) && C2.isInState(C2.C2a)) {
         Work enclState1 = exit();
-        enclState1.entry(mEventConsumed);
-        enclState1.B.B3.entry(mEventConsumed);
+        enclState1.entry(ev);
+        enclState1.B.B3.entry(ev);
       }
       return StateSimpleBase.stateCompleted;
       
@@ -297,8 +297,8 @@ public class CompositeStates  extends EventConsumer {
       setDefaultState(Idle);
     }
 
-    @Override public void entryAction(){
-      Work.entry(0);
+    @Override public void entryAction(Event<?,?> ev){
+      Work.entry(ev);
     }
 
     

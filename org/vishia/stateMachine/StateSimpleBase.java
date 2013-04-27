@@ -16,6 +16,15 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
     
   /**Version, history and license.
    * <ul>
+   * <li>2013-04-27 Hartmut chg: The {@link #entry(Event)} and the {@link #entryAction(Event)} should get the event
+   *   from the transition. It needs adaption in users code. The general advantage is: The entry action can use data
+   *   from the event. A user algorithm does not need to process the events data only in the transition. A user code
+   *   can be executed both in a special transition to a state and as entry action. Both possibilities do not distinguish
+   *   in formal possibilities. The second advantage is: If the event is used, it should given to the next entry. If it is
+   *   not used, a 'null' should be given. The user need not pay attention in the correct usage of {@link #mEventConsumed} or not.
+   * <li>2013-04-27 Hartmut new: {@link #mStateEntered} is returned on any {@link #entry(Event)}. If the state is not changed,
+   *   a 'return 0;' should be written in the transition code. With the new bit especially the debugging can distinguish
+   *   a state changed from a non-switching transition.    
    * <li>2013-04-13 Hartmut re-engineering: 
    *   <ul>
    *   <li>The property whether or not there are non-event transitions is set on ctor. It is a property
@@ -54,7 +63,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20130414;
+  public static final int version = 20130428;
 
   /**Bit in return value of a Statemachine's {@link #trans(Event)} or entry method for designation, 
    * that the given Event object was used to switch.
@@ -66,11 +75,17 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
    */
   public final static int eventNotConsumed =0x0;
   
-  /**Bit in return value of a Statemachine's entry method for designation, 
+  /**Bit in return value of a Statemachine's trans and entry method for designation, 
    * that the given State has non-event-driven transitions, therefore the trans method should be called
    * in the same cycle.
    */
   public final static int mRunToComplete =0x2;
+  
+  /**Bit in return value of a Statemachine's trans and entry method for designation, 
+   * that the given State has entered yet. If this bit is not set, an {@link #entry(Event)} action is not called.
+   * It means a state switch has not occurred. Used for debug.
+   */
+  public final static int mStateEntered = 0x4;
   
   /**Bit in return value of a Statemachine's entry method for designation, that either 
    * the given State has only event-driven transitions, therefore the trans method should not be called in the same cycle
@@ -158,9 +173,18 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
    *   method has non-event but conditional state transitions. Setting of this bit {@link #mRunToComplete} causes
    *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#process(Event)} method.
    *   This method sets {@link #mRunToComplete}.
+   * @param ev The event from the transition. It is transferred to the {@link #entryAction(Event)}, especially event data
+   *   can be used there. If the event is not used for transition but given, this entry action have to be called with entry(null).
+   * @return Bits: 
+   * <ul>
+   * <li>If ev not null, then bit {@link #mEventConsumed}. 
+   * <li>If the state is constructed with {@link #StateSimpleBase(StateCompositeBase, String, boolean)} with true
+   *   because it has non-event transitions, the bit {@link #mRunToComplete}, see {@link #modeTrans}.
+   * <li>{@value #mStateEntered} anyway.  
+   * </ul>
    */
-  public final int entry(int isConsumed){
-    enclState.setState(this);
+  public final int entry(Event<?,?> ev) { //int isConsumed){
+    enclState.setState(ev, this);
     ctEntry +=1;
     dateLastEntry = System.currentTimeMillis();
     durationLast = 0;
@@ -168,18 +192,20 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
       ((StateAdditionalParallelBase<?,?>)this).entryAdditionalParallelBase();
     }
     else if(this instanceof StateParallelBase<?,?>){
-      ((StateParallelBase<?,?>)this).entryParallelBase();
+      ((StateParallelBase<?,?>)this).entryParallelBase(ev);
     }
     else if(this instanceof StateCompositeBase<?,?>){
       ((StateCompositeBase<?,?>)this).entryComposite();
     }
-    entryAction();
-    return isConsumed | modeTrans;
+    entryAction(ev);
+    if(ev !=null) return mStateEntered | mEventConsumed | modeTrans;
+    else return mStateEntered | modeTrans;
+    //return isConsumed | modeTrans;
   }
   
   
   /**This method should be overridden if the state needs any entry action. This default method is empty. */
-  protected void entryAction(){}
+  protected void entryAction(Event<?,?> ev){}
   
   
   
@@ -204,6 +230,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
    *   That return value is essential for processing events in composite and cascade states.
    *   If an event is consumed it is not used for another switch in the same state machine
    *   but it is used in parallel states. See {@link StateCompositeBase#process(Event)} and {@link StateParallelBase#process(Event)}.
+   *   Returns 0 if a state switch is not processed. Elsewhere {@link #mStateEntered}. {@link #mStateLeaved}
    */
   protected abstract int trans(Event<?,?> ev);
   

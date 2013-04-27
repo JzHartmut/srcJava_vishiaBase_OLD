@@ -39,7 +39,7 @@ public class EventFollow  {
   
   
   public void startState(){
-    state.entry(0);
+    state.entry(null);
   }
   
   private class MainState extends StateTopBase<MainState>{
@@ -69,7 +69,7 @@ public class EventFollow  {
 
       //protected Start(EventFollow enclosingState) { super(enclosingState); }
   
-      @Override public void entryAction(){
+      @Override public void entryAction(Event<?,?> ev){
         EventTimerMng.addTimeOrder(System.currentTimeMillis() + 1000, evDst, evThread);
       }
       
@@ -80,7 +80,7 @@ public class EventFollow  {
           cond1 = true;
           cond2 = true;
           ev1.sendEvent(EvX.Cmd.EvX);
-          return exit().stateA.entry(StateSimpleBase.mEventConsumed);
+          return exit().stateA.entry(ev);
         } else {
           return StateSimpleBase.stateCompleted;
         }
@@ -98,7 +98,7 @@ public class EventFollow  {
       
       @Override public int trans(Event ev){
         if(cond1){
-          return exit().stateB.entry(StateSimpleBase.eventNotConsumed);
+          return exit().stateB.entry(null);
         } else {
           return 0;
         }
@@ -117,7 +117,7 @@ public class EventFollow  {
       
       @Override public int trans(Event ev){
         if(ev instanceof EvX && ev.getCmd() == EvX.Cmd.EvX){
-          return exit().stateC.entry(StateSimpleBase.mEventConsumed);
+          return exit().stateC.entry(ev);
         } else {
           return StateSimpleBase.stateCompleted;
         }
@@ -137,7 +137,7 @@ public class EventFollow  {
       
       @Override public int trans(Event ev){
         if(ev instanceof EvX && ev.getCmd() == EvX.Cmd.EvX){
-          return exit().stateD.entry(StateSimpleBase.mEventConsumed);
+          return exit().stateD.entry(ev);
         } else {
           return StateSimpleBase.eventNotConsumed;
         }

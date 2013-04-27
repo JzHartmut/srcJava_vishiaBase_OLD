@@ -97,10 +97,10 @@ extends StateCompositeBase<DerivedState, EnclosingState>
    *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#process(Event)} method.
    *   This method sets {@link #mRunToComplete}.
    */
-  /**package private*/ void entryParallelBase(){
+  /**package private*/ void entryParallelBase(Event<?,?> ev){
     entryComposite();
     for(StateCompositeBase<?, DerivedState> state: states){
-      state.setState(null);
+      state.setState(ev, null);
     }
   }
 

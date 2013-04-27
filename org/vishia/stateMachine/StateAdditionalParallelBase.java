@@ -1,5 +1,7 @@
 package org.vishia.stateMachine;
 
+import org.vishia.util.Event;
+
 /**Base class for a composite state which is a parallel state inside another composite state.
  * @author Hartmut Schorrig
  *
@@ -63,7 +65,7 @@ extends StateCompositeBase<DerivedState, EnclosingState>
   * @return true if it is in state.
   */
  @Override
-/*package private*/ void setState(StateSimpleBase<DerivedState> stateSimple) { //, EnumState stateNr) {
+/*package private*/ void setState(Event<?,?> ev, StateSimpleBase<DerivedState> stateSimple) { //, EnumState stateNr) {
    super.setStateParallel(stateSimple);
  }
 

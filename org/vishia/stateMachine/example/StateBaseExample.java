@@ -74,12 +74,12 @@ public class StateBaseExample {
       EventBaseExample ev = (EventBaseExample)evP;
       Cmd cmd = ev == null ? Cmd.Null: ev.getCmd();
       if(cmd == Cmd.on_cont){
-        return exit().stateWork.entryDeepHistory(mEventConsumed);
+        return exit().stateWork.entryDeepHistory(evP);
       }
       else if(cmd == Cmd.on_ready){
         StateTop stateEncl = exit();
-        return stateEncl.stateWork.entry(mEventConsumed)
-              | stateEncl.stateWork.stateReady.entry(mEventConsumed);
+        return stateEncl.stateWork.entry(evP)
+              | stateEncl.stateWork.stateReady.entry(evP);
       }
       else return 0;
     }
@@ -122,8 +122,8 @@ public class StateBaseExample {
       Cmd cmd = ev == null ? Cmd.Null: ev.getCmd();
       if(cmd == Cmd.start){
         StateWork enclState = exit();
-        return enclState.stateActive2.entry(mEventConsumed)
-              | enclState.stateRunning.entry(mEventConsumed);
+        return enclState.stateActive2.entry(ev)
+              | enclState.stateRunning.entry(ev);
       }
       return 0;
     }
@@ -137,7 +137,7 @@ public class StateBaseExample {
       super(superState, "Running");
     }
     
-    @Override public void entryAction(){
+    @Override public void entryAction(Event<?,?> ev){
       time = System.currentTimeMillis() + delay;
     }
 
@@ -147,7 +147,7 @@ public class StateBaseExample {
       if((evConsumedInParallel & mStateLeaved) !=0) return evConsumedInParallel;
       else{
         if(System.currentTimeMillis() - time >=0){
-          return evConsumedInParallel | exit().stateFinit.entry(mRunToComplete);
+          return evConsumedInParallel | exit().stateFinit.entry(ev);
         }
         else return evConsumedInParallel;
       }
@@ -166,10 +166,10 @@ public class StateBaseExample {
       if((evConsumedInParallel | mStateLeaved) !=0) return evConsumedInParallel;
       else{
         if(stateTop.stateWork.stateActive2.stateRemainOn.isInState()){
-          return evConsumedInParallel | exit().stateReady.entry(eventNotConsumed);
+          return evConsumedInParallel | exit().stateReady.entry(null);
         }
         else if(stateTop.stateWork.stateActive2.stateShouldOff.isInState()){
-          return evConsumedInParallel | exit().exit().stateOff.entry(eventNotConsumed);
+          return evConsumedInParallel | exit().exit().stateOff.entry(null);
         }
         
         else return 0;
@@ -190,7 +190,7 @@ public class StateBaseExample {
     
   
     public int entry(int consumed, StateSimpleBase c1, StateSimpleBase c2) {
-      super.entry(consumed);
+      super.entry(null);
       
       return consumed;
     }
@@ -237,16 +237,16 @@ public class StateBaseExample {
   private class StateRunning extends StateSimpleBase<StateActive1>{
 
     StateRunning(StateActive1 superState) {
-      super(superState, "Running");
+      super(superState, "Running", true);
     }
     
-    @Override public void entryAction(){
+    @Override public void entryAction(Event<?,?> ev){
       time = System.currentTimeMillis() + delay;
     }
 
     @Override public int trans(Event<?,?> ev) {
       if(System.currentTimeMillis() - time >=0){
-        return exit().stateFinit.entry(mRunToComplete);
+        return exit().stateFinit.entry(ev);
       }
       else return 0;
     }
@@ -261,10 +261,10 @@ public class StateBaseExample {
 
     @Override public int trans(Event<?,?> ev) {
       if(enclState().enclState().stateActive2.stateRemainOn.isInState()){
-        exit().exit().exit().stateReady.entry(mStateLeaved);
+        return exit().exit().exit().stateReady.entry(ev) | mStateLeaved;
       }
       else if(enclState().enclState().stateActive2.stateShouldOff.isInState()){
-        exit().exit().exit().exit().stateOff.entry(mStateLeaved);
+        return exit().exit().exit().exit().stateOff.entry(ev) | mStateLeaved;
       }
       
       return 0;
@@ -305,7 +305,7 @@ public class StateBaseExample {
       EventBaseExample ev = (EventBaseExample)evP;
       Cmd cmd = ev == null ? Cmd.Null: ev.getCmd();
       if(cmd == Cmd.abort){
-        return exit().exit().exit().exit().stateOff.entry(mEventConsumed | mStateLeaved);
+        return exit().exit().exit().exit().stateOff.entry(ev) | mStateLeaved;
       }
       else return 0;
     }
@@ -355,7 +355,7 @@ public class StateBaseExample {
       EventBaseExample ev = (EventBaseExample)evP;
       Cmd cmd = ev == null ? Cmd.Null: ev.getCmd();
       if(cmd == Cmd.offAfterRunning){
-        return exit().stateShouldOff.entry(mEventConsumed);
+        return exit().stateShouldOff.entry(ev);
       }
       else return 0;
     }
@@ -372,7 +372,7 @@ public class StateBaseExample {
       EventBaseExample ev = (EventBaseExample)evP;
       Cmd cmd = ev == null ? Cmd.Null: ev.getCmd();
       if(cmd == Cmd.abort){
-        return exit().exit().exit().stateOff.entry(mEventConsumed | mStateLeaved);
+        return exit().exit().exit().stateOff.entry(ev) | mStateLeaved;
       }
       else return 0;
     }
