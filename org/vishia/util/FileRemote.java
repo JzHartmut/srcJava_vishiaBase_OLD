@@ -41,6 +41,7 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-04-28 Hartmut chg: re-engineering check and copy
    * <li>2013-04-26 Hartmut chg: The constructors of this class should be package private, instead the {@link #get(String, String)}
    *   and {@link #get(FileRemote, String)} should be used to get an instance of this class. The instances which refers the same file
    *   on the file system are existing only one time in the application respectively in the {@link FileRemoteAccessor}. 
@@ -175,6 +176,10 @@ public class FileRemote extends File
   
   protected FileRemoteAccessor device;
   
+  public boolean selected;
+  
+  public long timeRefresh, timeChildren;
+  
   /**Reference file.
    * This field, the field {@link #referenceFileRef} and the reference inside {@link #referenceFileRef} 
    * are not used if this instance does not contain a relative path. 
@@ -224,7 +229,7 @@ public class FileRemote extends File
    * */
   private Map<String,FileRemote> children;
   
-  private final int ident;
+  private final int _ident;
   
   public final static int modeCopyReadOnlyMask = 0x00f
   , modeCopyReadOnlyNever = 0x1, modeCopyReadOnlyOverwrite = 0x3, modeCopyReadOnlyAks = 0;
@@ -265,10 +270,6 @@ public class FileRemote extends File
   /**Set if a thread runs to get file properties. */
   public final static int mThreadIsRunning =0x80000;
 
-  /**Set if the file is checked and selected thereby by the {@link #check(FileRemote, CallbackEvent)} operation.
-   */
-  public final static int mChecked = 0x00100000;  
-
   /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
   public final static int mCmpTimeLen = 0x03000000
   , cmpTimeEqual = 0x01000000
@@ -276,11 +277,10 @@ public class FileRemote extends File
   , cmpLenTimeEqual = 0x03000000;
   
   /**Flags as result of an comparison: the other file is checked by content maybe with restricitons. */
-  public final static int mCmpContent = 0x0c000000
-  , cmpContentEqual = 0x04000000
-  , cmpContentEqualWithoutEndlines = 0x05000000
-  , cmpContentEqualwithoutSpaces = 0x06000000
-  , cmpContentEqualWithoutComments = 0x07000000;
+  public final static char cmpContentEqual = '='
+  , cmpContentEqualWithoutEndlines = '$'
+  , cmpContentEqualwithoutSpaces = '+'
+  , cmpContentEqualWithoutComments = '#';
   ;
   
   /**Flags as result of an comparison: the other file does not exist, or any files of an directory does not exists
@@ -377,8 +377,15 @@ public class FileRemote extends File
     super(sDirP + (sName ==null ? "" : ("/" + sName)));  //it is correct if it is a local file. 
     this.itsCluster = cluster;
     //super("?");  //NOTE: use the superclass File only as interface. Don't use it as local file instance.
-    this.ident = ++ctIdent;
-    String sPath = sDirP.replace('\\', '/');
+    this._ident = ++ctIdent;
+    String sPath;
+    if(sDirP != null){
+      sPath = sDirP.replace('\\', '/');
+    } else if(parent !=null) {
+      sPath = parent.getPath();
+    } else {
+        sPath = "";
+    }
     this.device = device;
     this.flags = flags;
     this.parent = parent;
@@ -432,7 +439,7 @@ public class FileRemote extends File
    * @return The child instance.
    */
   public FileRemote child(final String sName ) {
-    FileRemote ret = children.get(sName);
+    FileRemote ret = children == null ? null : children.get(sName);
     if(ret == null){
       ret = new FileRemote(itsCluster, device, this, null, sName, 0, 0, 0, null, true);
       putChildren(ret);  //maybe existing or non existing on file system!
@@ -526,13 +533,30 @@ public class FileRemote extends File
   }
   
   
-  public void clearChildren(){
+  public void XXXclearChildren(){
     if(children == null){
       children = new TreeMap<String, FileRemote>();
     } else {
       children.clear();
     }
   }
+  
+  
+  
+  
+  
+  
+  public int setSelected(int mask){
+    selected = true;
+    return 1;
+  }
+  
+  public int resetSelected(int mask){
+    selected = false;
+    return 0;
+  }
+  
+  public boolean isSelected(int mask){ return selected; }
   
   
   /**Sets the properties to this.
@@ -1043,17 +1067,22 @@ public class FileRemote extends File
    * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method in the other execution thread
    * or communication receiving thread.
    * 
-   * @param backEvent The event instance for success. It can be contain a ready-to-use {@link CmdEvent}
+   * @param sFiles Maybe null or empty. If given, some file names separated with ':' or " : " should be used
+   *   in this directory to check and select.
+   * @param sWildcardSelection Maybe null or empty. If given, it is the select mask for files in directories.
+   * @param evback The event instance for success. It can be contain a ready-to-use {@link CmdEvent}
    *   as its opponent. then that is used.
    */
-  public void check(FileRemote dst, FileRemote.CallbackEvent evback){
+  public void check(String sFiles, String sWildcardSelection, FileRemote.CallbackEvent evback){
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
     CmdEvent ev = device.prepareCmdEvent(evback);
     
     ev.filesrc =this;
-    ev.filedst = dst;
+    ev.filedst = null;
+    ev.namesSrc = sFiles;
+    ev.maskSrc = sWildcardSelection;
     //ev.data1 = 0;
     ev.sendEvent(Cmd.check);
   }
@@ -1120,10 +1149,10 @@ public class FileRemote extends File
    *   nothing is copied and an error message is fed back.
    * @param evback The event for status messages and success.
    */
-  public static void copyChecked(FileRemote.CallbackEvent evback, int mode){
+  public void copyChecked(FileRemote.CallbackEvent evback, int mode){
     CmdEvent ev = evback.getOpponent();
     ev.filesrc = null;
-    ev.filedst = null;
+    ev.filedst = this;
     ev.modeCopyOper = mode;
     ev.sendEvent(Cmd.copy);
   }
@@ -1326,7 +1355,7 @@ public class FileRemote extends File
   }
   
   
-  public int ident(){ return ident; }
+  public int ident(){ return _ident; }
   
   
   @Override public String toString(){ return super.toString(); } //sDir + sFile + " @" + ident; }
@@ -1373,6 +1402,15 @@ public class FileRemote extends File
     /**Source and destination files for copy, rename, move or the only one filesrc. filedst may remain null then. */
     public FileRemote filesrc, filedst;
 
+    /**List of names separated with ':' or " : " or empty. If not empty, filesrc is the directory of this files. */
+    public String namesSrc;
+    
+    /**Wildcard mask to select source files if the designated source file(s) are directories. Maybe empty, then all files are used.*/
+    public String maskSrc;
+    
+    /**Designation of destination file names maybe wildcard mask. */
+    public String nameDst;
+    
     /**A order number for the handled file which is gotten from the callback event to ensure thats the right file. */
     //public int orderFile;
     
@@ -1746,6 +1784,8 @@ public class FileRemote extends File
 
     public int setOrClrFlagBit(int bit, boolean set){ if(set){ flags |= bit; } else { flags &= ~bit;} return flags; }
   
+    public void newChildren(){ children = new TreeMap<String, FileRemote>(); }
+    
   }
   
   private final InternalAccess acc_ = new InternalAccess();

@@ -564,6 +564,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
         //designate it as tested, mExists isn't set.
         fileRemote._setProperties(0, 0, FileRemote.mTested, fileLocal);
       }
+      fileRemote.timeRefresh = System.currentTimeMillis();
       if(callback !=null){
         callback.occupy(evSrc, true);
         callback.sendEvent(FileRemote.CallbackCmd.done);
@@ -607,7 +608,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
               //re-use given children because they may have additional designation in flags.
               Map<String, FileRemote> oldChildren = fileRemote.children();
               //but create a new list to prevent keeping old files.
-              fileRemote.clearChildren();
+              fileRemote.internalAccess().newChildren();
               int iFile = -1;
               for(File file1: files){
                 FileRemote child = null;   
@@ -620,6 +621,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
             }
           }
         }
+        fileRemote.timeChildren = System.currentTimeMillis();
         if(callback !=null){
           callback.occupy(evSrc, true);
           long time1 = System.currentTimeMillis();
