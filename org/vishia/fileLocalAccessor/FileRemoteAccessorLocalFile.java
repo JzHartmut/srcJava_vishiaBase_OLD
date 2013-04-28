@@ -379,7 +379,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
     if(co.newName() !=null && ! co.newName().equals(co.filesrc().getName())){
       File fileRenamed = new File(co.filesrc.getParent(), co.newName());
       ok &= co.filesrc.renameTo(fileRenamed);
-      dst = FileRemote.fromFile(fileRenamed);
+      dst = FileRemote.fromFile(co.filesrc.itsCluster, fileRenamed);
     } else {
       dst = co.filesrc;
     }
@@ -401,9 +401,9 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
     FileRemote dst;
     boolean ok = co !=null;
     if(co.newName() !=null && ! co.newName().equals(co.filesrc.getName())){
-      File fileRenamed = new File(co.filesrc.getParent(), co.newName());
+      FileRemote fileRenamed = co.filesrc.getParentFile().child(co.newName());
       ok &= co.filesrc.renameTo(fileRenamed);
-      dst = FileRemote.fromFile(fileRenamed);
+      dst = fileRenamed;
     } else {
       dst = co.filesrc;
     }

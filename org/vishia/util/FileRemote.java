@@ -41,6 +41,8 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-04-29 Hartmut chg: {@link #fromFile(FileCluster, File)} has the FileCluster parameter yet, necessary for the concept.
+   *   This method is not necessary as far as possible because most of Files are a FileRemote instance yet by reference (Fcmd app)
    * <li>2013-04-28 Hartmut chg: re-engineering check and copy
    * <li>2013-04-26 Hartmut chg: The constructors of this class should be package private, instead the {@link #get(String, String)}
    *   and {@link #get(FileRemote, String)} should be used to get an instance of this class. The instances which refers the same file
@@ -486,7 +488,7 @@ public class FileRemote extends File
    * @param src Any File or FileRemote instance.
    * @return src if it is instanceof FileRemote or a new Instance.
    */
-  public static FileRemote fromFile(File src){
+  public static FileRemote fromFile(FileCluster cluster, File src){
     if(src instanceof FileRemote){ return (FileRemote)src; }
     else {
       //it is a file description of standard java in the local file system.
@@ -505,13 +507,19 @@ public class FileRemote extends File
       }
       FileRemoteAccessor accessor = FileRemoteAccessorLocalFile.getInstance();
       File dir1 = src.getParentFile();
-      FileRemote dir;
+      FileRemote dir, file;
       if(dir1 !=null){
-        dir= FileRemote.fromFile(dir1);
+        dir= cluster.get(dir1.getAbsolutePath());
+        file = dir.child(src.getName());
       } else {
         dir = null;
+        file = cluster.get(src.getAbsolutePath());
       }
-      return new FileRemote(accessor, dir, sPath, null, len, date, fileProps, src);
+      file.length = len;
+      file.flags = fileProps;
+      file.date = date;
+      file.oFile = src;
+      return file; //new FileRemote(accessor, dir, sPath, null, len, date, fileProps, src);
     }
   }
   
@@ -1583,10 +1591,10 @@ public class FileRemote extends File
       this.evSrcCmd = evSrcCmd;
     }
     
-    public boolean occupy(EventSource source, File fileSrc, boolean expect){
+    public boolean occupy(EventSource source, FileRemote fileSrc, boolean expect){
       boolean bOccupied = occupy(source, expect); 
       if(bOccupied){
-         this.filesrc = FileRemote.fromFile(fileSrc);
+         this.filesrc = fileSrc;
        }
       return bOccupied;
     }

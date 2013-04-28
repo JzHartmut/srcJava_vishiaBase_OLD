@@ -495,7 +495,7 @@ public class Copy_FileLocalAcc
         } else {
           zBytesCheck += actData.src.length();
           zFilesCheck += 1;
-          actData = actData.parent;
+          //actData = actData.parent;
         }
         //next file:
         DataSetCopy1Recurs next = null;
