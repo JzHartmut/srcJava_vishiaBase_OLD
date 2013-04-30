@@ -214,7 +214,7 @@ public abstract class StateCompositeBase
       } else {
         StateSimpleBase<DerivedState> statePrev = stateAct;
         cont = stateAct.trans(evTrans);
-        if(debugState) { printStateSwitchInfo(statePrev, evTrans, cont); }
+        if(debugState && (cont & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, cont); }
       }
       //
       if((cont & StateSimpleBase.mEventConsumed) != 0){
@@ -237,7 +237,7 @@ public abstract class StateCompositeBase
       //and only if either an event is present or the state has only conditional transitions.
       StateSimpleBase<DerivedState> statePrev = stateAct;
       cont = trans(evTrans); 
-      if(debugState) { printStateSwitchInfo(statePrev, evTrans, cont); }
+      if(debugState && (cont & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, cont); }
     }
     return cont;  //runToComplete.bit may be set from an inner state transition too.
   }
@@ -250,11 +250,11 @@ public abstract class StateCompositeBase
     String sThread = currThread.getName();
     String sActiveState = getActiveState();
     if(!isActive){
-      System.out.println("StateCompositeBase - State leaved;." + date.order + "; state " + statePrev + " ==> " + sActiveState + "; ev=" + evTrans + "; thread=" + sThread );
+      System.out.println("StateCompositeBase - State leaved " + sThread + ";." + date.order + "; state " + statePrev + " ==> " + sActiveState + "; ev=" + evTrans + ";");
     } else if((cont & StateSimpleBase.mEventConsumed)!=0) {  //statePrev != stateAct){  //from the same in the same state!
-      System.out.println("StateCompositeBase - StateSwitch ;." + date.order + "; state " + statePrev + " ==> "  + sActiveState + "; ev=" + evTrans + "; thread=" + sThread);
+      System.out.println("StateCompositeBase - state switch " + sThread + ";." + date.order + "; state " + statePrev + " ==> "  + sActiveState + "; ev=" + evTrans + ";");
     } else if(evTrans !=null){ 
-      System.out.println("StateCompositeBase - Ev not used ;." + date.order + "; state " + statePrev + " ==> "  + sActiveState + "; ev=" + evTrans + "; thread=" + sThread);
+      System.out.println("StateCompositeBase - state switch " + sThread + " - Ev not used ;." + date.order + "; state " + statePrev + " ==> "  + sActiveState + "; ev=" + evTrans + ";");
     }
     
   }

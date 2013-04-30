@@ -41,6 +41,7 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-04-30 Hartmut new: {@link #resetSelectedRecurs(int, int[])}
    * <li>2013-04-29 Hartmut chg: {@link #fromFile(FileCluster, File)} has the FileCluster parameter yet, necessary for the concept.
    *   This method is not necessary as far as possible because most of Files are a FileRemote instance yet by reference (Fcmd app)
    * <li>2013-04-28 Hartmut chg: re-engineering check and copy
@@ -554,14 +555,50 @@ public class FileRemote extends File
   
   
   
-  public int setSelected(int mask){
+  /**Marks the file as selected with the given bits in mask.
+   * @param mask
+   * @return number of Bytes (file length)
+   */
+  public long setSelected(int mask){
     selected = true;
-    return 1;
+    return length();
   }
   
-  public int resetSelected(int mask){
+  /**Resets the selection of this file.
+   * @param mask Mask to reset selection.
+   * @return number of Bytes (file length)
+   */
+  public long resetSelected(int mask){
     selected = false;
-    return 0;
+    return length();
+  }
+  
+  /**Resets the selection of this file and all children.
+   * @param mask Mask to reset selection.
+   * @param nrofFiles Output reference, will be incremented for all files which's selection are reseted.
+   *   Maybe null, the unused.
+   * @return Sum of all bytes (file length) of the reseted files.
+   */
+  public long resetSelectedRecurs(int mask, int[] nrofFiles){
+    return resetSelectedRecurs(mask, nrofFiles, 0);  
+  }
+  
+  
+  
+  private long resetSelectedRecurs(int mask, int[] nrofFiles, int recursion){
+    long bytes = length();
+    if(nrofFiles !=null){ nrofFiles[0] +=1; }
+    selected = false;
+    
+    if(children !=null){
+      for(Map.Entry<String, FileRemote> item: children.entrySet()){
+        FileRemote child = item.getValue();
+        if(child.isSelected(mask)){
+          bytes += child.resetSelectedRecurs(mask, nrofFiles, recursion +1);
+        }
+      }
+    }
+    return bytes;
   }
   
   public boolean isSelected(int mask){ return selected; }

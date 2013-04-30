@@ -213,15 +213,15 @@ public class Copy_FileLocalAcc
   FileOutputStream out = null;
   
   /**The number of bytes which are copied yet in a copy process to calculate how many percent is copied. */
-  int zBytesCopyFile;
+  int zBytesFileCopied;
   
   /**The number of bytes of a copying file to calculate how many percent is copied. */
-  long zBytesFile;
+  private long zBytesFile;
   
   
-  int zFilesCheck, zFilesCopy;
+  private int zFilesCheck, zFilesCopied;
   
-  long zBytesCheck, zBytesCopy;
+  private long zBytesAllCheck, zBytesAllCopied;
   
   /**Buffer for copy. It is allocated static. 
    * Only used in this thread {@link FileRemoteAccessorLocalFile#runCommissions}. 
@@ -257,7 +257,11 @@ public class Copy_FileLocalAcc
   
   /**List of files to handle between {@link #checkCopy(org.vishia.util.FileRemoteAccessor.FileRemote.CallbackEvent)}
    * and {@link #execCopy(org.vishia.util.FileRemoteAccessor.FileRemote.CallbackEvent)}. */
-  final Queue<DataSetCopy1Recurs> checkedFiles = new ConcurrentLinkedQueue<DataSetCopy1Recurs>();
+  final Queue<DataSetCopy1Recurs> XXXcheckedFiles = new ConcurrentLinkedQueue<DataSetCopy1Recurs>();
+  
+  FileRemote fileSrc;
+  
+  boolean bOnlyOneFile;
   
   /**The destination directory for all members in {@link #checkedFiles}.*/
   FileRemote dirDst;
@@ -284,17 +288,17 @@ public class Copy_FileLocalAcc
     order.listCopyFiles.clear();
     FileRemote.CallbackEvent evback = ev.getOpponent();
     if(order.fileSrc.isDirectory()){ 
-      zBytesCheck = 0;
+      zBytesAllCheck = 0;
       zFilesCheck = 0;
       checkDir(order, order.fileSrc, 1);
     } else {
       order.listCopyFiles.add(order.fileSrc);
-      zBytesCheck = ev.filesrc.length();
+      zBytesAllCheck = ev.filesrc.length();
       zFilesCheck = 1;
     }
     checkedOrders.put(new Long(order.ident), order);
     evback.occupy(outer.evSrc, ++ctWorkingId, true);
-    evback.nrofBytesAll = (int)zBytesCheck;  //number between 0...1000
+    evback.nrofBytesAll = (int)zBytesAllCheck;  //number between 0...1000
     evback.nrofFiles = zFilesCheck;  //number between 0...1000
     evback.sendEvent(FileRemote.CallbackCmd.doneCheck);
   }
@@ -316,7 +320,7 @@ public class Copy_FileLocalAcc
         } else {
           order.listCopyFiles.add(file);
           zFilesCheck +=1;
-          zBytesCheck += file.length();
+          zBytesAllCheck += file.length();
         }
       }
     //}catch(IOException exc){
@@ -439,21 +443,26 @@ public class Copy_FileLocalAcc
   
   void startCheck(FileRemote.CmdEvent ev){
     //gets and store data from the event:  ///
-    checkedFiles.clear();
+    //checkedFiles.clear();
+    fileSrc = ev.filesrc;
+    zBytesAllCheck = 0;
+    zFilesCheck = 9;
     actData = new DataSetCopy1Recurs(null);  //The root instance of actData for check. It will be removed after check.
     if(ev.namesSrc !=null && ev.namesSrc.length() >0){
+      bOnlyOneFile = false;
       actData.src = null;
       String[] sFilesSrc1 = ev.namesSrc.split(":");
       for(String sFileSrc: sFilesSrc1){
-        FileRemote fileSrc = ev.filesrc.child(sFileSrc.trim());
-        DataSetCopy1Recurs srcData = actData.newEntry(fileSrc, null);
-        checkedFiles.add(srcData);  //add to the root instance for copy.
+        FileRemote fileSrc1 = ev.filesrc.child(sFileSrc.trim());
+        DataSetCopy1Recurs srcData = actData.newEntry(fileSrc1, null);
+        //checkedFiles.add(srcData);  //add to the root instance for copy.
       }
       actData = actData.listChildren.poll();  //start with the first valid file. Back to the root will taken the next file.
     } else { //only one file
+      bOnlyOneFile = true;
       ev.filesrc.selected = true;
       actData.src = ev.filesrc;
-      checkedFiles.add(actData);  //add to the root instance for copy.
+      //checkedFiles.add(actData);  //add to the root instance for copy.
     }
     //actData = checkedFiles.newEntry(ev.filesrc, ev.filedst);  //calls check() processing this actData.
     evBackInfo = ev.getOpponent();                  //available for back information.
@@ -466,6 +475,9 @@ public class Copy_FileLocalAcc
   
   /**Process the ckeck in {@link StateCopyProcess#stateCheck}
    * @return true if the check has finished, false if the time is over and the check should be continued.
+   */
+  /**
+   * @return
    */
   boolean check(){
     boolean bFinit = false, bCont = false;   
@@ -485,33 +497,35 @@ public class Copy_FileLocalAcc
               child.setSelected(1);  //any directory, because it is recursively.
               //build a new recursive instance for the child to process in a next step.
               DataSetCopy1Recurs childData = actData.newEntry(child, null);
-              actData.listChildren.add(childData);
+              //actData.listChildren.add(childData);
             } else if(true) {  //file is desired to select.
               child.setSelected(1);  //a selected file.
-              zBytesCheck += child.length();
+              zBytesAllCheck += child.length();
               zFilesCheck += 1;
             }
           }
         } else {
-          zBytesCheck += actData.src.length();
+          zBytesAllCheck += actData.src.length();
           zFilesCheck += 1;
           //actData = actData.parent;
         }
         //next file:
-        DataSetCopy1Recurs next = null;
+        DataSetCopy1Recurs nextChild = null;
         if(actData.listChildren !=null){
-          next = actData.listChildren.poll();
-          actData = next;  //recursion in data. execute in next step. 
-        } else {
+          nextChild = actData.listChildren.poll();
+          actData = nextChild;  //recursion in data. execute in next step. 
+        }
+        if(nextChild == null){
           do{
             actData = actData.parent;
             if(actData !=null && actData.listChildren !=null){
-              next = actData.listChildren.poll();
-              if(next !=null){ actData = next; }
-              else { actData = actData.parent; }
+              nextChild = actData.listChildren.poll();
+              if(nextChild !=null){ actData = nextChild; }
+              //else { actData = actData.parent; }
             }
-          } while( next == null && actData !=null);
+          } while( nextChild == null && actData !=null);
         }
+        bCont = actData !=null;
         if(actData ==null){
           //the root instance is reached yet, this check is finished.
           bCont = false;
@@ -522,7 +536,7 @@ public class Copy_FileLocalAcc
           long time = System.currentTimeMillis();
           //
           //feedback of progression after about 0.3 second. 
-          if(time > timestart + 999999300){
+          if(time > timestart + 300){
             timestart = time;
             bCont = false;
           }
@@ -545,14 +559,14 @@ public class Copy_FileLocalAcc
     if(backCmd != FileRemote.CallbackCmd.free){
       if(evBackInfo.occupyRecall(outer.evSrc, false)){
         
-        evBackInfo.promilleCopiedBytes = (int)(((float)(Copy_FileLocalAcc.this.zBytesCopyFile) / Copy_FileLocalAcc.this.zBytesFile) * 1000);  //number between 0...1000
-        if(zBytesCheck >0){
-          evBackInfo.promilleCopiedFiles = (int)(((float)(zBytesCopy) / zBytesCheck) * 1000);  //number between 0...1000
+        evBackInfo.promilleCopiedBytes = (int)(((float)(Copy_FileLocalAcc.this.zBytesFileCopied) / Copy_FileLocalAcc.this.zBytesFile) * 1000);  //number between 0...1000
+        if(zBytesAllCheck >0){
+          evBackInfo.promilleCopiedFiles = (int)(((float)(zBytesAllCopied) / zBytesAllCheck) * 1000);  //number between 0...1000
         } else {
           evBackInfo.promilleCopiedFiles = 0;
         }
         evBackInfo.nrofFiles = zFilesCheck;
-        evBackInfo.nrofBytesAll = (int)zBytesCheck;
+        evBackInfo.nrofBytesAll = (int)zBytesAllCheck;
         if(actData !=null){
           String absPath = actData.src.getAbsolutePath();
           if(absPath.length() > evBackInfo.fileName.length-1){
@@ -570,12 +584,23 @@ public class Copy_FileLocalAcc
   
   
   private DataSetCopy1Recurs getNextCopyData(){
-    actData = checkedFiles.poll();  //start with the first entry.
+    //actData = checkedFiles.poll();  //start with the first entry.
+    actData = new DataSetCopy1Recurs(null);
+    actData.src = fileSrc;
+    if(bOnlyOneFile){
+      String sName = actData.src.getName();
+      FileRemote fileDst = dirDst.child(sName); 
+      actData.dst = fileDst;                                 //complete actData with dst.
+    } else {
+      actData.dst = dirDst;
+    }
+    /*
     if(actData !=null){
       String sName = actData.src.getName();
       FileRemote fileDst = dirDst.child(sName); 
       actData.dst = fileDst;                                 //complete actData with dst.
     }
+    */
     return actData;
   }
   
@@ -584,10 +609,14 @@ public class Copy_FileLocalAcc
   
   
   void copyAbort(){
-    zBytesCheck = 0;
+    zBytesAllCheck = 0;
     zFilesCheck = 0;
     try{
       storedCopyEvents.clear();
+      fileSrc.resetSelectedRecurs(1,null);
+      zBytesAllCheck = zBytesAllCopied = 0;
+      zFilesCheck = zFilesCopied = 0;
+      /*
       for(DataSetCopy1Recurs data: checkedFiles){
         FileRemote src = data.src;
         if(src !=null){  //maybe null at toplevel.
@@ -609,13 +638,15 @@ public class Copy_FileLocalAcc
           }
         }
       }//for
-      checkedFiles.clear();
+      */
+      //checkedFiles.clear();
       try{
         if(out !=null){
           out.close();
           out = null;
         }
         if(in !=null){
+          zFilesCopied +=1;
           in.close();
           in = null;
         }
@@ -670,6 +701,7 @@ public class Copy_FileLocalAcc
           //newDataSetCopy(ev.filesrc, ev.filedst);
           evBackInfo = ev.getOpponent();                 //available for back information.
           timestart = System.currentTimeMillis();
+          zBytesAllCopied = zFilesCopied = 0;
           return exit().stateProcess.stateCopyDirOrFile.entry(ev);
         }
         else if(cmd == FileRemote.Cmd.check){
@@ -805,6 +837,8 @@ public class Copy_FileLocalAcc
      */
     @Override public int trans(Event<?,?> ev) {
       //EventCpy ev = evP;
+      if(actData.src.getName().equals("Iba"))
+        Assert.stop();
       if(actData.src.isDirectory()){
         return exit().stateCopySubdir.entry(ev);  //exit and entry in the same state.
       } else {
@@ -865,7 +899,7 @@ public class Copy_FileLocalAcc
           }
         }
         Copy_FileLocalAcc.this.zBytesFile = actData.src.length();
-        Copy_FileLocalAcc.this.zBytesCopyFile = 0;
+        Copy_FileLocalAcc.this.zBytesFileCopied = 0;
         try{ 
           FileSystem.mkDirPath(actData.dst);
           Copy_FileLocalAcc.this.out = new FileOutputStream(actData.dst);
@@ -996,10 +1030,10 @@ public class Copy_FileLocalAcc
           try{
             int zBytes = Copy_FileLocalAcc.this.in.read(buffer);
             if(zBytes > 0){
-              Copy_FileLocalAcc.this.zBytesCopyFile += zBytes;
-              zBytesCopy += zBytes;
+              Copy_FileLocalAcc.this.zBytesFileCopied += zBytes;
+              zBytesAllCopied += zBytes;
               Copy_FileLocalAcc.this.out.write(buffer, 0, zBytes);
-              //synchronized(this){ try{ wait(20);} catch(InterruptedException exc){} } //only test.
+              //synchronized(this){ try{ wait(50);} catch(InterruptedException exc){} } //only test.
               long time = System.currentTimeMillis();
               //
               //feedback of progression after about 0.3 second. 
@@ -1007,14 +1041,15 @@ public class Copy_FileLocalAcc
                 timestart = time;
                 if(evBackInfo.occupyRecall(outer.evSrc, false)){
                     
-                  evBackInfo.promilleCopiedBytes = (int)(((float)(Copy_FileLocalAcc.this.zBytesCopyFile) / Copy_FileLocalAcc.this.zBytesFile) * 1000);  //number between 0...1000
-                  if(zBytesCheck >0){
-                    evBackInfo.promilleCopiedFiles = (int)(((float)(zBytesCopy) / zBytesCheck) * 1000);  //number between 0...1000
+                  evBackInfo.promilleCopiedBytes = (int)(((float)(Copy_FileLocalAcc.this.zBytesFileCopied) / Copy_FileLocalAcc.this.zBytesFile) * 1000);  //number between 0...1000
+                  if(zBytesAllCheck >0){
+                    evBackInfo.promilleCopiedFiles = (int)(((float)(zBytesAllCopied) / zBytesAllCheck) * 1000);  //number between 0...1000
                   } else {
                     evBackInfo.promilleCopiedFiles = 0;
                   }
-                  evBackInfo.nrofFiles = zFilesCheck - zFilesCopy;
-                  evBackInfo.nrofBytesInFile = (int)zBytesCopy;
+                  evBackInfo.nrofFiles = zFilesCheck - zFilesCopied;
+                  evBackInfo.nrofBytesInFile = zBytesFile - zBytesFileCopied;
+                  evBackInfo.nrofBytesAll = zBytesAllCheck - zBytesAllCopied;
                   String absPath = actData.src.getAbsolutePath();
                   if(absPath.length() > evBackInfo.fileName.length-1){
                     absPath = "..." + absPath.substring(evBackInfo.fileName.length -4);  //the trailing part.
@@ -1056,19 +1091,22 @@ public class Copy_FileLocalAcc
       StateCopyProcess encl = super.exit();
       try{
         if(Copy_FileLocalAcc.this.in!=null){ 
+          zFilesCopied +=1;
           Copy_FileLocalAcc.this.in.close(); 
           actData.src.selected = false;
         }
         Copy_FileLocalAcc.this.in = null;
         if(Copy_FileLocalAcc.this.out!=null){ Copy_FileLocalAcc.this.out.close(); }
         Copy_FileLocalAcc.this.out = null;
-        if(!bCopyFinished){
-          if(!actData.dst.delete()) {
-            System.err.println("FileRemoteAccessorLocalFile - Problem delete after abort; " + actData.dst.getAbsolutePath());
+        if(actData !=null && actData.dst !=null){
+          if(!bCopyFinished){
+            if(!actData.dst.delete()) {
+              System.err.println("FileRemoteAccessorLocalFile - Problem delete after abort; " + actData.dst.getAbsolutePath());
+            }
+          } else {
+            long date = actData.src.lastModified();
+            actData.dst.setLastModified(date);
           }
-        } else {
-          long date = actData.src.lastModified();
-          actData.dst.setLastModified(date);
         }
       } catch(IOException exc){
         System.err.printf("FileRemoteAccessorLocalFile - Problem close; %s\n", actData.dst.getAbsolutePath());
@@ -1104,6 +1142,7 @@ public class Copy_FileLocalAcc
       //close currently file if this state is entered from stateAsk. The regular close() is executed on exit of stateCopyFile.
       actData.src.resetSelected(1);
       if(Copy_FileLocalAcc.this.in !=null){
+        zFilesCopied +=1;
         try{ Copy_FileLocalAcc.this.in.close();
         } catch(IOException exc){
           System.err.printf("FileRemoteAccessorLocalFile -Copy close src while abort, unexpected error; %s\n", exc.getMessage());
@@ -1146,7 +1185,7 @@ public class Copy_FileLocalAcc
       }while(bCont);
       //return isConsumed | StateSimpleBase.mRunToComplete;
       if(actData == null){
-        actData = getNextCopyData();  //maybe more, maybe null
+        //actData = getNextCopyData();  //maybe more, maybe null
       }
     }
     

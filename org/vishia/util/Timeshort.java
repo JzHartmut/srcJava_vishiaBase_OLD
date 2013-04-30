@@ -9,6 +9,7 @@ public class Timeshort {
   
   /**Version, history and license.
    * <ul>
+   * <li>2013-04-30 Hartmut new: {@link #sleep(long)} as wrapper around Thread.sleep() without Exception.
    * <li>2012-10-14 Hartmut created as util class from well known usage.
    * </ul>
    * <br><br>
@@ -36,7 +37,7 @@ public class Timeshort {
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20121014;
+  public static final int version = 20130430;
   
   
   
@@ -77,5 +78,19 @@ public class Timeshort {
   
   public synchronized float millisecShort(int timeshort){ return absTime_Millisec7short * (timeshort - absTime_short); }
   
+  
+  /**Universal wait routine without necessity of a try-catch wrapping.
+   * @param millisec
+   * @return true if it was interrupted.
+   */
+  public static boolean sleep(long millisec){
+    boolean interrupted = false;
+    try{
+      Thread.sleep(millisec); 
+    } catch( InterruptedException exc){
+      interrupted = true;
+    }
+    return interrupted;
+  }
   
 }

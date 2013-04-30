@@ -211,14 +211,13 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
 
   
   @Override public void refreshFilePropertiesAndChildren(final FileRemote fileRemote, final FileRemote.CallbackEvent callback){
-
+    //a temporary instance for the thread routine.
     RunRefreshWithChildren thread = new RunRefreshWithChildren(fileRemote, callback);
-    
     //the method body:
     if(callback == null){
       thread.run(); //run direct
     } else {
-      if((fileRemote.getFlags() & FileRemote.mThreadIsRunning) ==0) {
+      if((fileRemote.getFlags() & FileRemote.mThreadIsRunning) ==0) { //check whether another thread is running with this file.
         fileRemote.internalAccess().setFlagBit(FileRemote.mThreadIsRunning);
         Thread threadObj = new Thread(thread);
         thread.time = System.currentTimeMillis();
@@ -615,7 +614,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
                 if(oldChildren !=null){ child = oldChildren.remove(file1.getName()); }
                 if(child == null){ child = newFileInDirectory(file1, fileRemote); }
                 fileRemote.putChildren(child);
-                child.refreshProperties(null);
+                child.refreshProperties(null);    //should show all sub files with its properties, but not files in sub directories.
               }
               //oldChildren contains yet removed files.
             }
