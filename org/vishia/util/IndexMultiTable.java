@@ -193,7 +193,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
      * @param startKey
      * @param endKey
      */
-    private IteratorImpl(IndexMultiTable<Key, Type> firstTable, Key startKey)
+    IteratorImpl(IndexMultiTable<Key, Type> firstTable, Key startKey)
     { helper = new IteratorHelper(null);
       helper.table = firstTable;
       helper.idx = -1;
@@ -212,9 +212,9 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
           }
         }
         //idx -=1;  //?
+        helper.idx = idx;
         @SuppressWarnings("unchecked")
         IndexMultiTable<Key, Type> childTable = (IndexMultiTable<Key, Type>)helper.table.values[helper.idx];
-        helper.idx = idx;
         helper.child = new IteratorHelper(helper); 
         
         helper.child.table = childTable;
@@ -941,6 +941,13 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
 
 
 
+  public ListIterator<Type> xiterator(Key fromKey)
+  {
+    return null; //new IteratorImpl(this, fromKey);
+  }
+
+
+
   public int xxxlastIndexOf(Object arg0)
   {
     // TODO Auto-generated method stub
@@ -1103,37 +1110,42 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
   
   
   /**Binaray search of the element, which is the first with the given key.
-   * The algorithm is copied from Arrays.binarySearch0(...) and modified.
+   * The algorithm is copied from {@link java.util.Arrays}.binarySearch0(Object[], int, int, key) and modified.
    * @param a
    * @param fromIndex
    * @param toIndex
    * @param key
    * @return
    */
-  private int binarySearchFirstKey(Comparable[] a, int fromIndex, int toIndex, Key key) 
+  int binarySearchFirstKey(Comparable<Key>[] a, int fromIndex, int toIndex, Key key) 
   {
     int low = fromIndex;
     int high = toIndex - 1;
-
+    int mid =0;
+    boolean equal = false;
     while (low <= high) 
     {
-      int mid = (low + high) >> 1;
+      mid = (low + high) >> 1;
       Comparable<Key> midVal = a[mid];
-      Comparable<Key> midValLeft = mid >fromIndex ? a[mid-1] : minKey__;  
-      
-      if (midVal.compareTo(key) < 0)
+      //Comparable<Key> midValLeft = mid >fromIndex ? a[mid-1] : minKey__;  
+      int cmp = midVal.compareTo(key);
+      if ( cmp < 0)
       { low = mid + 1;
+        equal = false;
       }
-      else 
-      { if(midValLeft.compareTo(key) >= 0)
-        { high = mid - 1;  //search in left part also if key before mid is equal
-        }
-        else
-        { return mid;  //midValLeft is lesser, than it is the first element with key!
+      else { // if(cmp >=0){
+        high = mid - 1;   //search in left part also if key before mid is equal
+        equal = cmp ==0;
+      }
+      /*
+      else
+      { { return mid;  //midValLeft is lesser, than it is the first element with key!
         }
       }
+      */
     }
-    return -(low + 1);  // key not found.
+    if(equal) return mid; 
+    else return -(low + 1);  // key not found.
   }
 
 
