@@ -104,6 +104,9 @@ public class Assert
     if(assertObject == null){ 
       assertObject = new Assert(); //if no assertion instance is given, create this. 
     }
+    if(!shouldTrue){
+      stop();   //set a breakpoint here to stop for debugging...
+    }
     assertObject.assertion(shouldTrue);
   }
   

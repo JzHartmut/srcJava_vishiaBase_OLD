@@ -42,6 +42,9 @@ public class TestIndexMultiTable
     idx.put("d4", new Test("d4"));    
     idx.put("d5", new Test("d5"));    
 
+    Test value = idx.get("b21");
+    System.out.println(value.name);
+    
     Iterator<Test> iter = idx.iterator("d");
     Assert.stop();
     while(iter.hasNext()){

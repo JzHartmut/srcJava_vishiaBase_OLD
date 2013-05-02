@@ -74,6 +74,7 @@ public class FileSystem
   /**Version, history and license.
    * Changes:
    * <ul>
+   * <li>2013-05-04 Hartmut chg: {@link #normalizePath(CharSequence)} uses and returns a CharSequence yet.
    * <li>2013-03-31 Hartmut bugfix: {@link #addFileToList(AddFileToList, File, String, int, FilenameFilter, FilenameFilter, int)}
    *   had gotten the content of path/** /sub twice. 
    * <li>2013-03-29 Hartmut new: {@link #cleandir(File)}
@@ -144,7 +145,7 @@ public class FileSystem
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public final static int version = 20130120;
+  public final static int version = 20130503;
 
   public interface AddFileToList
   {
@@ -730,7 +731,7 @@ public class FileSystem
   
   /**Cleans any /../ and /./ from a path, it makes it normalized or canonical.
    * The difference between this canonical approach and java.io.File.getCanonicalpath() is:
-   * The canonical path of a file in a Unix-like filesystem presents the really location of a file
+   * The canonical path of a file in a Unix-like file system presents the really location of a file
    * dissolving symbolic links. A path which is returned by a found File object (not a constructed File)
    * shall have the same path like this normalized one, except slash or backslash.
    * For example
@@ -739,17 +740,23 @@ public class FileSystem
    * @return The originally inp if inp doesn't contain /./ or /../ or backslash, elsewhere a new String
    *   which presents the normalized form of the path. It does not contain backslash but slash as separator.
    *   It does not contain any "/./" or "//" or "/../". 
-   *   It does contain "../" only at start of the result if necessary.
+   *   It does contain "../" only at start if it is necessary for a relative given path.
    */
-  public static CharSequence normalizePath(final String inp){
-    final String inp1 = inp.replace('\\', '/');  //generally use slash
-    int posSlash2 = inp1.indexOf("//");
-    int posDot1 = inp1.indexOf("/./"); 
-    int posDot2 = inp1.indexOf("/../");  
-    if( posDot1>=0 || posSlash2 >=0 || posDot2 >=0 || inp1.startsWith("./") || inp1.endsWith("/.") || inp1.endsWith("/..")){  
+  public static CharSequence normalizePath(final CharSequence inp){
+    int posBackslash = StringFunctions.indexOf(inp, '\\', 0);
+    int x = 5;
+    int posSlash2 = StringFunctions.indexOf(inp, "//", 0);
+    int posDot1 = StringFunctions.indexOf(inp, "/./", 0); 
+    int posDot2 = StringFunctions.indexOf(inp, "/../", 0);  
+    if(posBackslash >=0 ||  posDot1>=0 || posSlash2 >=0 || posDot2 >=0 
+        || StringFunctions.startsWith(inp, "./") || StringFunctions.endsWith(inp, "/.") || StringFunctions.endsWith(inp, "/..")){  
       //need of handling
-      final StringBuilder uPath = new StringBuilder(inp1);
+      final StringBuilder uPath = new StringBuilder(inp);
       do{
+        while(posBackslash >=0){
+          uPath.setCharAt(posBackslash, '/');
+          posBackslash = StringFunctions.indexOf(inp, '\\', posBackslash +1);
+        }
         int posEnd = uPath.length();
         int posNext = posEnd-1;
         if(posDot1 > 0){                                //remove "/." 
@@ -791,7 +798,7 @@ public class FileSystem
       }
       return uPath;
     } 
-    return inp1;
+    return inp;
   }
   
   

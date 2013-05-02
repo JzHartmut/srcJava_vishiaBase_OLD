@@ -724,46 +724,59 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
   }
 
 
+  //public Type get(Object arg0)
+  @SuppressWarnings({ "unchecked" })
+  @Override public Type get(Object key1){
+    assert(key1 instanceof Comparable<?>);
+    return get((Key)key1, true);
+  }
 
 
-
+  /**Searches the object with exact this key or the object which's key is the nearest lesser one.
+   * For example if given is "Bx, By, Bz" as keys and "Bya" is searched, the value with the key "By" is returned.
+   * The user should check the returned object whether it is matching to the key or whether it is able to use.
+   * The found key is unknown outside of this routine but the key or adequate properties should able to get 
+   * from the returned value.
+   * @param key
+   * @return
+   */
+  public Type search(Key key){ return get(key, false); }
 
 
   //public Type get(Object arg0)
   @SuppressWarnings({ "unchecked" })
-  public Type get(Object key1)
-  { Type lastObj = null;
-    assert(key1 instanceof Comparable<?>);
+  public Type get(Key key1, boolean exact)
+  { IndexMultiTable<Key, Type> table = this;
     //place object with same key after the last object with the same key.
-    int idx = Arrays.binarySearch(keys, key1); //, sizeBlock, key1);
-    if(isHyperBlock)
-    { //call it recursively with sub index.
+    while(table.isHyperBlock)
+    { int idx = binarySearchFirstKey(table.keys, 0, table.sizeBlock, key1); //, sizeBlock, key1);
       if(idx < 0)
       { //an non exact found index is possible if it is an Hyper block.
-        idx = -idx-1;  //NOTE: sortin after that map, which index starts with equal or lesser index.
+        idx = -idx-2;  //NOTE: access to the lesser element before the insertion point.
       }
-    
-      idx -=1;
-      IndexMultiTable<Key, Type> child;
       if(idx<0)
-      { lastObj = null;
+      { return null;
       }
-      else if(idx < sizeBlock)
-      { child = ((IndexMultiTable<Key, Type>)(values[idx]));
-        //the child has space.
-        lastObj = child.get(key1); 
+      else
+      { assert(idx < sizeBlock);
+        table = ((IndexMultiTable<Key, Type>)(table.values[idx]));
       }
     }
-    else
-    { if(idx >=0)
-      { lastObj = (Type)values[idx];
+    int idx = binarySearchFirstKey(table.keys, 0, table.sizeBlock, key1); //, sizeBlock, key1);
+    { if(idx < 0){
+        if(exact) return null;
+        else {
+          idx = -idx -2;   //NOTE: access to the lesser element before the insertion point.
+        }
+      }
+      if(idx >=0)
+      { return (Type)table.values[idx];
       }
       else  
-      { //not found
-        lastObj = null;
+      { //not found, before first.
+        return null;
       }  
     }
-    return lastObj;
   }
 
 
@@ -1158,12 +1171,26 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
   
   
   
+  /**This interface is necessary to provide tables and the minimum and maximum value for any user specific type.
+   * For the standard type String use {@link IndexMultiTable#providerString}.
+   * @param <Key>
+   */
   public interface Provide<Key>{
     Key[] genArray(int size);
     Key genMin();
     Key genMax();
   }
 
+  /**Provider for String keys. Used for {@link #IndexMultiTable(Provide)}. */
+  public static final IndexMultiTable.Provide<String> providerString = new IndexMultiTable.Provide<String>(){
+
+    @Override public String[] genArray(int size){ return new String[size]; }
+
+    @Override public String genMax(){ return "\255\255\255\255\255\255\255\255\255"; }
+
+    @Override public String genMin(){ return " "; }
+  };
   
+
   
 }

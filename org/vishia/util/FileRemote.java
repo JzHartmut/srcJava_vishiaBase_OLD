@@ -41,12 +41,13 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-05-04 Hartmut redesigned ctor and order of elements. sDir does not end with "/" up to now.
    * <li>2013-04-30 Hartmut new: {@link #resetSelectedRecurs(int, int[])}
    * <li>2013-04-29 Hartmut chg: {@link #fromFile(FileCluster, File)} has the FileCluster parameter yet, necessary for the concept.
    *   This method is not necessary as far as possible because most of Files are a FileRemote instance yet by reference (Fcmd app)
    * <li>2013-04-28 Hartmut chg: re-engineering check and copy
-   * <li>2013-04-26 Hartmut chg: The constructors of this class should be package private, instead the {@link #get(String, String)}
-   *   and {@link #get(FileRemote, String)} should be used to get an instance of this class. The instances which refers the same file
+   * <li>2013-04-26 Hartmut chg: The constructors of this class should be package private, instead the {@link FileCluster#get(String, String)}
+   *   and {@link #child(String)} should be used to get an instance of this class. The instances which refers the same file
    *   on the file system are existing only one time in the application respectively in the {@link FileRemoteAccessor}. 
    *   In this case additional information can be set to files such as 'selected' or a comparison result. It is in progression.  
    * <li>2013-04-21 Hartmut new: The {@link #flags} contains bits for {@link #mChecked} to mark files as checked
@@ -169,71 +170,8 @@ public class FileRemote extends File
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20130421;
+  public static final int version = 20130504;
 
-  public final FileCluster itsCluster;
-  
-  private static FileRemoteAccessorSelector accessorSelector;
-  
-  private static int ctIdent = 0;
-  
-  protected FileRemoteAccessor device;
-  
-  public boolean selected;
-  
-  public long timeRefresh, timeChildren;
-  
-  /**Reference file.
-   * This field, the field {@link #referenceFileRef} and the reference inside {@link #referenceFileRef} 
-   * are not used if this instance does not contain a relative path. 
-   * That fields should but don't need to set to null.
-   * <br>
-   * If this field and    
-   * 
-   */
-  protected FileRemote referenceFile;
-
-  /**Alternative for referencing of the reference file. */
-  protected FileRemote[] referenceFileRef;
-  
-  /**The directory path of the file. It ends with '/' always.
-   * If the path is absolute, it doesn't contain any "/./" 
-   * or "/../"-parts. Then it is an canonical absolute path.
-   * An absolute path can contain a start string for a remote device designation.
-   * <br> 
-   * The directory path may be relative too. A relative path may be empty "". */
-  protected final String sDir;
-  
-  /**The name with extension of the file. It is empty if this describes a directory. 
-   * */
-  protected final String sFile;
-  
-  /**The unique path to the file or directory entry. If the file is symbolic linked (on UNIX systems),
-   * this field contains the non-linked direct path. But the {@link #sDir} contains the linked path. 
-   */
-  protected String sCanonicalPath;
-  
-  /**Timestamp of the file. */
-  protected long date;
-  
-  /**Length of the file. */
-  protected long length;
-  
-  /**Some flag bits. See constants {@link #mExist} etc.*/
-  protected int flags;
-
-  FileRemote parent;
-  
-  /**The content of a directory. It contains all files, proper for return {@link #listFiles()} without filter. 
-   * The content is valid at the time of calling {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, Event)}.
-   * It is possible that the content of the physical directory is changed meanwhile.
-   * If this field should be returned without null, especially on {@link #listFiles()} and the file is a directory, 
-   * the {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, Event)} will be called.  
-   * */
-  private Map<String,FileRemote> children;
-  
-  private final int _ident;
-  
   public final static int modeCopyReadOnlyMask = 0x00f
   , modeCopyReadOnlyNever = 0x1, modeCopyReadOnlyOverwrite = 0x3, modeCopyReadOnlyAks = 0;
 
@@ -290,50 +228,90 @@ public class FileRemote extends File
    * or there are differences. */
   public final static int cmpAlone = 0x10000000, cmpMissingFiles = 0x20000000, cmpFileDifferences = 0x30000000;
   
+
+  private static FileRemoteAccessorSelector accessorSelector;
+  
+  /**Counter, any instance has an ident number. */
+  private static int ctIdent = 0;
+  
+
+  
+  /**A indent number, Primarily for debug and test. */
+  private final int _ident;
+  
+  
+  /**Any FileRemote instance should be member of a FileCluster. Files in the cluster can be located on several devices.
+   * But they are selected commonly.
+   * */
+  public final FileCluster itsCluster;
+  
+  /**The device which manages the physical files. For the local file system the 
+   * {@link org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile} is used. */
+  protected FileRemoteAccessor device;
+  
+  /**Property whether this file is selected. */
+  public boolean selected;
+  
+  /**The last time where the file was synchronized with its physical properties. */
+  public long timeRefresh, timeChildren;
+  
+  /**Reference file.
+   * This field, the field {@link #referenceFileRef} and the reference inside {@link #referenceFileRef} 
+   * are not used if this instance does not contain a relative path. 
+   * That fields should but don't need to set to null.
+   * <br>
+   * If this field and    
+   * 
+   */
+  protected FileRemote XXXreferenceFile;
+
+  /**Alternative for referencing of the reference file. */
+  protected FileRemote[] XXXreferenceFileRef;
+  
+  /**The directory path of the file. It dies not end with '/' except it is the root.
+   * The directory path is absolute and normalized. It doesn't contain any "/./" 
+   * or "/../"-parts. 
+   * <br>
+   * This absolute path can contain a start string for a remote device designation.
+   * <br> 
+   */  
+  protected final String sDir;
+  
+  /**The name with extension of the file. It is empty if this describes a directory. 
+   * */
+  protected final String sFile;
+  
+  /**The unique path to the file or directory entry. If the file is symbolic linked (on UNIX systems),
+   * this field contains the non-linked direct path. But the {@link #sDir} contains the linked path. 
+   */
+  protected String sCanonicalPath;
+  
+  /**Timestamp of the file. */
+  protected long date;
+  
+  /**Length of the file. */
+  protected long length;
+  
+  /**Some flag bits. See constants {@link #mExist} etc.*/
+  protected int flags;
+
+  /**The parent instance, it is the directory where the file is member of. This reference may be null 
+   * if the parent instance is not used up to now. If it is filled, it is persistent.
+   */
+  FileRemote parent;
+  
+  /**The content of a directory. It contains all files, proper for return {@link #listFiles()} without filter. 
+   * The content is valid at the time of calling {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, Event)}.
+   * It is possible that the content of the physical directory is changed meanwhile.
+   * If this field should be returned without null, especially on {@link #listFiles()} and the file is a directory, 
+   * the {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, Event)} will be called.  
+   * */
+  private Map<String,FileRemote> children;
+  
   /**This is the internal file object. It is handled by the device only. */
   Object oFile;
   
   
-  /**Creates an instance without access to the physical file. Only The directory path and the name 
-   * is stored and the device is identified by analysis of the prefix string of path. 
-   * @param pathname device, path and name. The path may be relative. 
-   *   Then the systems current directory is used as reference file. (TODO)
-   */
-  private FileRemote(String pathname)
-  {
-    this(getAccessorSelector().selectFileRemoteAccessor(pathname) //identify device by analyse of path.
-        , null //parent is unknown without access
-        , pathname, null   //identify the name by analyse of path.
-        , 0, 0, 0, null);  //size etc. and  file object is unknown yet.
-  }
-
-  
-  /**Creates an instance without access to the physical file. Only The path is stored. 
-   */
-  /**Creates an instance without access to the physical file. Only The directory path and the name 
-   * is stored and the device is identified by analysis of the prefix string of path. 
-   * @param dir device and path to the directory (parent). The dir may be relative.
-   *   Then the systems current directory is used as reference file. (TODO)
-   * @param name name of the file inside the given dir. 
-   */
-  private FileRemote(String dir, String name)
-  {
-    this(getAccessorSelector().selectFileRemoteAccessor(dir) //identify device by analyse of path.
-        , null //parent is unknown without access
-        , dir, name
-        , 0, 0, 0, null);  //size etc. and  file object is unknown yet.
-  }
-
-  
-  /**Creates an instance without access to the physical file. Only The path is stored. 
-   * @param dir instance describes the directory (parent).
-   * @param name name of the file inside the given dir. 
-   */
-  private FileRemote(FileRemote dir, String name)
-  {
-    this(dir.device, dir, dir.getPath(), name, 0, 0, 0, null);
-  }
-
   
   
   
@@ -349,8 +327,13 @@ public class FileRemote extends File
    * from the file system calling {@link #refreshProperties(CallbackEvent)}. This operation may be
    * invoked in another thread (depending on the device) and may be need some operation time.
    *  
-   * @param device The device which organizes the access to the file system.
-   * @param sDirP The path to the directory.
+   * @param cluster The cluster where the file is member of. It can be null if the parent is given. 
+   *   It have to be matching to the parent. It do not be null if a parent is not given. 
+   *   A cluster can be created in an application invoking the constructor {@link FileCluster#FileCluster()}.
+   * @param device The device which organizes the access to the file system. It may be null, then the device 
+   *   will be gotten from the parent or from the sDirP.
+   * @param parent The parent file if known or null. If it is null, the sDirP have to be given with the complete absolute path.
+   * @param sDirP The path to the directory. If the parent file is given, either it have to be match to or it should be null.
    *   The standard path separator is the slash "/". 
    *   A backslash will be converted to slash internally, it isn't distinct from the slash.
    *   If this parameter ends with an slash or backslash and the name is null or empty, this is designated 
@@ -361,72 +344,58 @@ public class FileRemote extends File
    * @param date Timestamp of the file. Maybe 0 if unknown.
    * @param flags Properties of the file. Maybe 0 if unknown.
    * @param oFileP an system file Object, may be null.
+   * @param OnlySpecialCall
    */
-  private FileRemote(final FileRemoteAccessor device
-      , final FileRemote parent
-      , final String sDirP, final String sName
-      , final long length, final long date, final int flags
-      , Object oFileP) {
-    this(null, device, parent, sDirP, sName, length, date, flags, oFileP, true );
-  }
-  
-
-  
   public FileRemote(final FileCluster cluster, final FileRemoteAccessor device
       , final FileRemote parent
-      , final String sDirP, final String sName
+      , final CharSequence sDirP, final String sName
       , final long length, final long date, final int flags
       , Object oFileP, boolean OnlySpecialCall) {
-    super(sDirP + (sName ==null ? "" : ("/" + sName)));  //it is correct if it is a local file. 
-    this.itsCluster = cluster;
+    super("??"); //sDirP + (sName ==null ? "" : ("/" + sName)));  //it is correct if it is a local file. 
+    CharSequence sPath;
+    if(sDirP != null){
+      sPath = FileSystem.normalizePath(sDirP);
+    } else if(parent !=null) {
+      sPath = parent.getAbsolutePath();
+    } else {
+      sPath = "";
+    }
+    if(parent !=null){
+      this.parent = parent;
+      if(cluster !=null && cluster != parent.itsCluster){ 
+        throw new IllegalArgumentException("FileRemote.ctor - Mismatching cluster association; parent.itsCluster=" 
+            + parent.itsCluster.toString() + ";  parameter cluster=" + cluster.toString() + ";");
+      }
+      this.itsCluster = parent.itsCluster;
+      this.sDir = parent.getAbsolutePath();// + "/";
+      if(sDirP !=null){
+        sPath = FileSystem.normalizePath(sDirP);
+        if(!sPath.equals(sDir)){
+          throw new IllegalArgumentException("FileRemote.ctor - Mismatching directory path; parent.dir=" 
+            + parent.getAbsolutePath() + ";  parameter sDir=" + sDirP);
+        }
+      }
+    } else {
+      this.parent = null;
+      if(cluster == null) throw new IllegalArgumentException("FileRemote.ctor - cluster is null, should be given;");
+      this.itsCluster = cluster;
+      if(sDirP == null) throw new IllegalArgumentException("FileRemote.ctor - sDirP is null, should be given;");
+      this.sDir = FileSystem.normalizePath(sDirP).toString(); // + "/";
+    }
     //super("?");  //NOTE: use the superclass File only as interface. Don't use it as local file instance.
     this._ident = ++ctIdent;
-    String sPath;
-    if(sDirP != null){
-      sPath = sDirP.replace('\\', '/');
-    } else if(parent !=null) {
-      sPath = parent.getPath();
-    } else {
-        sPath = "";
-    }
     this.device = device;
     this.flags = flags;
-    this.parent = parent;
-    String name1;
-    if(sName == null){
-      int lenPath = sPath.length();
-      int posSep = sPath.lastIndexOf('/'); //, lenPath-2);
-      if(posSep >=0){
-        this.sDir = sPath.substring(0, posSep+1);
-        if(posSep == sPath.length()-1){
-          name1 = "";  //it is a directory.
-          this.flags |= mDirectory;
-        } else {
-          name1 = sPath.substring(posSep+1);
-        }
-      } else { //no / found, it is only a name:
-        this.flags |= mRelativePath;
-        this.sDir = "";
-        name1 = sPath;
-      }
-    } else { //name is given:
-      if(!sPath.endsWith("/")){ sPath += "/";}
-      this.sDir = sPath;
-      name1 = sName;
-    }
-    //if(name1.endsWith("/")){ this.name = name1.substring(0, name1.length()-1); }
-    //else { this.name = name1; }
-    this.sFile = name1;
-    Assert.check(this.sFile !=null);
+    this.sFile = sName;
     Assert.check(this.sDir !=null);
-    Assert.check(!name1.contains("/"));
-    Assert.check(this.sDir.length() == 0 || this.sDir.endsWith("/"));
+    //Assert.check(sName.contains("/"));
+    //Assert.check(this.sDir.length() == 0 || this.sDir.endsWith("/"));
     //TODO Assert.check(!this.sDir.endsWith("//"));
     Assert.check(length >=0);
     oFile = oFileP;
     this.length = length;
     this.date = date;
-    this.sCanonicalPath = this.sDir + this.sFile;  //maybe overwrite from setSymbolicLinkedPath
+    this.sCanonicalPath = this.sDir + (sFile !=null ? "/"  + this.sFile : "");  //maybe overwrite from setSymbolicLinkedPath
     
     ///
     if(this.device == null){
@@ -664,9 +633,9 @@ public class FileRemote extends File
    *  
    * @param ref If the file is given with a relative path, this is the reference file.
    */
-  public void setReferenceFile(FileRemote ref){
-    referenceFile = ref;
-    referenceFileRef = null;
+  public void XXXsetReferenceFile(FileRemote ref){
+    XXXreferenceFile = ref;
+    XXXreferenceFileRef = null;
   }
   
   
@@ -676,9 +645,9 @@ public class FileRemote extends File
    * have to be done only in one instance, the ref. All files which references ref don't need to be changed. 
    * @param ref Reference to a FileRemote[1] which references the reference file for the relative path.
    */
-  public void setReferenceFile(FileRemote[] ref){
-    referenceFile = null;
-    referenceFileRef = ref;
+  public void XXXsetReferenceFile(FileRemote[] ref){
+    XXXreferenceFile = null;
+    XXXreferenceFileRef = ref;
   }
   
   
@@ -832,15 +801,22 @@ public class FileRemote extends File
    * @return path never ending with "/", but canonical, slash as separator. 
    */
   @Override public String getPath(){ 
-    if(sFile !=null && sFile.length() > 0) return sDir + sFile;
-    else {
+    if(sFile !=null && sFile.length() > 0){ 
+      StringBuilder ret = new StringBuilder(sDir);
+      if(sDir.charAt(sDir.length()-1) != '/'){ ret.append('/'); }
+      ret.append(sFile);
+      return ret.toString();
+    } else {
+      return sDir;
+      /*
       int zDir = sDir.length();
-      Assert.check(sDir.charAt(zDir-1) == '/');
+      //Assert.check(sDir.charAt(zDir-1) == '/');
       if(zDir == 1 || zDir == 3 && sDir.charAt(1) == ':'){
         return sDir;  //with ending slash because it is root.
       } else {
         return sDir.substring(0, zDir-1);  //without /
       }
+      */
     }
   }
   
@@ -858,11 +834,11 @@ public class FileRemote extends File
       String sParent;
       int zDir = sDir.length();
       int pDir;
-      Assert.check(sDir.charAt(zDir-1) == '/'); //Should end with slash
+      //Assert.check(sDir.charAt(zDir-1) == '/'); //Should end with slash
       if(sFile == null || sFile.length() == 0){
         //it is a directory, get its parent path
         if(zDir > 1){
-          pDir = sDir.lastIndexOf('/', zDir-2);
+          pDir = sDir.lastIndexOf('/', zDir-1);
           if(pDir == 0 || (pDir == 2 && sDir.charAt(1) == ':')){
             //the root. 
             pDir +=1; //return inclusive the /
@@ -984,13 +960,13 @@ public class FileRemote extends File
   
   
   @Override public String getAbsolutePath(){
-    File ref = referenceFileRef !=null && referenceFileRef.length >=1 && referenceFileRef[0] !=null 
-        ? referenceFileRef[0] : referenceFile;
+    File ref = XXXreferenceFileRef !=null && XXXreferenceFileRef.length >=1 && XXXreferenceFileRef[0] !=null 
+        ? XXXreferenceFileRef[0] : XXXreferenceFile;
     String sAbsPath;
     if(ref !=null){
-      sAbsPath = ref.getAbsolutePath() + '/' + sDir + sFile;
+      sAbsPath = ref.getAbsolutePath() + '/' + sDir + "/" + sFile;
     } else {
-      sAbsPath = sDir + sFile;
+      sAbsPath = getPath(); //sDir + sFile;
     }
     return sAbsPath;
   }

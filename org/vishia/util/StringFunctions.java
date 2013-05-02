@@ -13,6 +13,12 @@ public class StringFunctions {
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-05-04 Hartmut new some methods for usage CharSequence: {@link #compare(CharSequence, int, CharSequence, int, int)},
+   *   {@link #startsWith(CharSequence, CharSequence)}, {@link #endsWith(CharSequence, CharSequence)},
+   *   {@link #indexOf(CharSequence, char, int)}, {@link #indexOf(CharSequence, CharSequence, int)}
+   *   Generally usage of CharSequence as StringBuilder instance saves calculation time in comparison with usage String,
+   *   because a new allocation is saved. This saving can be done any time if the StringBuilder is non thread-shared
+   *   and its reference is not stored permanently but only used immediately in the thread.
    * <li>2013-02-03 Hartmut new  {@link #compare(CharSequence, CharSequence)} and {@link #equals(Object)}.
    * <li>2012-08-22 Hartmut new {@link #copyToBuffer(String, char[])} and {@link #copyToBuffer(String, byte[], Charset)}:
    *   This methods are existent at the C-level. They are usefully if dynamic memory usage should be prevented.
@@ -45,7 +51,7 @@ public class StringFunctions {
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
-  public final static int version = 20120822; 
+  public final static int version = 20130504; 
   
   /**Returns the position of the end of an identifier.
    * @param src The input string
@@ -287,8 +293,6 @@ public class StringFunctions {
     return new String(buffer, 0, ix);
   }
   
-  
-  
   /**Compares two Strings or StringBuilder-content or any other CharSequence.
    * It is the adequate functionality like {@link java.lang.String#compareTo(String)}. 
    * @param s1
@@ -296,18 +300,39 @@ public class StringFunctions {
    * @return 0 if all characters are equal, 1 if s1 > s2,  -1 if s1 < s2
    */
   public static int compare(CharSequence s1, CharSequence s2){
-    int z = Math.min(s1.length(), s2.length());
-    for(int ii=0; ii<z; ++ii){
-      char c1 = s1.charAt(ii), c2 =s2.charAt(ii);
+    return compare(s1, 0, s2, 0, Integer.MAX_VALUE);
+  }  
+  
+  /**Compares two Strings or StringBuilder-content or any other CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#compareTo(String)}. 
+   * @param s1
+   * @param s2
+   * @return 0 if all characters are equal, 1 if s1 > s2,  -1 if s1 < s2
+   */
+  public static int compare(CharSequence s1, int from1, CharSequence s2, int from2, int nrofChars){
+    int i1 = from1 -1;
+    int i2 = from2 -1;  //pre-increment
+    int z = nrofChars + from1;
+    int returnEq = 0;
+    if(z > s1.length()){ 
+      z = s1.length();
+      if(z == s2.length()){ returnEq = 0; }  //both have the same length.
+      else {returnEq = -1; }    //returns -1 if equal because s1 is shorter
+    } 
+    if(z > s2.length()){ 
+      z = s2.length();
+      if(z == s1.length()){ returnEq = 0; }  //both have the same length.
+      else {returnEq = 1; }    //returns 1 if equal because s2 is shorter
+    } 
+    while(++i1 < z){
+      char c1 = s1.charAt(i1), c2 =s2.charAt(++i2);
       if(c1 != c2){
         if(c1 < c2){ return -1; }
         else if(c1 > c2){ return 1; }
       }
     }
     //all chars till z are equal.
-    if(z < s1.length()){ return 1;}  //s1 is greater because longer
-    else if(z < s2.length()){ return -1; }  //s1 is shorter because it determines the shorter length.
-    else return 0;  //are equal
+    return returnEq;
   }
   
   
@@ -326,6 +351,78 @@ public class StringFunctions {
       }
       return true;
     }
+  }
+  
+
+  
+  /**Checks whether the given CharSequence starts with a CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#startsWith(String)}
+   */
+  public static boolean startsWith(CharSequence sq, CharSequence start){
+    return compare(sq, 0, start, 0, start.length()) == 0;
+  }
+  
+
+  /**Checks whether the given CharSequence ends with a CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#startsWith(String)}
+   */
+  public static boolean endsWith(CharSequence sq, CharSequence end){
+    int z = end.length();
+    return compare(sq, sq.length()-z, end, 0, z) == 0;
+  }
+  
+
+  
+  /**Searches the first occurrence of the given CharSequence in a CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#indexOf(String, int)}. 
+   * @param sq A CharSequence
+   * @param str CharSequence which is searched.
+   * @param fromIndex first checked position in sq
+   * @return -1 if not found, else first occurrence where sq.charAt(return) == ch. 
+   */
+  public static int indexOf(CharSequence sq, char ch, int fromIndex){
+    int max = sq.length();
+    int ii = fromIndex-1;  //pre-increment
+    if (fromIndex < 0) {
+        ii = -1;
+    } else if (fromIndex >= max) {
+        return -1;
+    }
+    while(++ii < max){
+      if(sq.charAt(ii) == ch) {
+        return ii;
+      }
+    }
+    return -1;  //not found;
+  }
+  
+
+  /**Checks whether the given CharSequence starts with the  a CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#indexOf(String, int)}. 
+   * @param sq A CharSequence
+   * @param str CharSequence which is searched.
+   * @param fromIndex first checked position in sq
+   * @return -1 if not found, else first occurrence where sq.charAt(return) == ch. 
+   */
+  public static int indexOf(CharSequence sq, CharSequence str, int fromIndex){
+    int max = sq.length() - str.length()+1;
+    int ii = fromIndex-1;  //pre-increment
+    if (fromIndex < 0) {
+        ii = -1;
+    } else if (fromIndex >= max) {
+        return -1;
+    }
+    char ch = str.charAt(0);
+    while(++ii < max){
+      if(sq.charAt(ii) == ch) {
+        int s1 = 0;
+        for(int jj = ii+1; jj < ii + str.length(); ++jj){
+          if(sq.charAt(jj) != str.charAt(++s1)) break;
+        }
+        if(s1 == str.length()) return ii;
+      }
+    }
+    return -1;  //not found;
   }
   
 }
