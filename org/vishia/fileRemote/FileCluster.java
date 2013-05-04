@@ -4,6 +4,7 @@ import org.vishia.util.Assert;
 import org.vishia.util.FileRemote;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
+import org.vishia.util.StringPartBase;
 
 /**This class combines some {@link FileRemote} instances for common usage.
  * It ensures that the same FileRemote object is used for the same string given path.
@@ -14,6 +15,9 @@ public class FileCluster
 {
   /**Version, history and license.
    * <ul>
+   * <li>2013-05-05 Hartmut chg: get(...) now renamed to getFile(...). {@link #getFile(CharSequence, CharSequence, boolean)}
+   *   checks whether a parent instance or deeper child instance is registered already and use that.
+   * <li>2013-05-05 Hartmut new: {@link #check(CharSequence, CharSequence)}  
    * <li>2013-04-22 Hartmut created. The base idea was: Select files and use this selection in another part of application.
    *   It should be ensured that the same instance is used for the selection and other usage.
    * </ul>
@@ -70,57 +74,83 @@ public class FileCluster
   /**Gets the existing file instance with this path from the file system or creates and registers a new one.
    * If the file is not existing on the file system it is created anyway because the file may be a new candidate. 
    */
-  public FileRemote get( final String sPath){
-   return(get(sPath, null));
+  public FileRemote getFile( final CharSequence sPath){
+   return(getFile(sPath, null));
   }
 
   
   /**Gets the existing file instance with this path from the file system or creates and registers a new one.
    * If the file is not existing on the file system it is created anyway because the file may be a new candidate. 
    */
-  public FileRemote get( final String sDirP, final String sName){
+  public FileRemote getFile( final CharSequence sDirP, final CharSequence sName){
+    return getFile(sDirP, sName, false);
+  }  
+  
+  
+  /**Gets the existing file instance with this path from the file system or creates and registers a new one.
+   * If the file is not existing on the file system it is created anyway because the file may be a new candidate. 
+   */
+  public FileRemote getFile( final CharSequence sDirP, final CharSequence sName, boolean strict){
     CharSequence sDir1 = FileSystem.normalizePath(sDirP); //sPath.replace('\\', '/');
+    /*
     StringBuilder uPath = sDir1 instanceof StringBuilder ? (StringBuilder)sDir1: new StringBuilder(sDir1);
-    if(uPath.charAt(uPath.length()-1) !='/'){ uPath.append('/'); }
-    if(sName !=null) { uPath.append(sName); }
+    if(sName !=null) {
+      if(uPath.charAt(uPath.length()-1) !='/'){ uPath.append('/'); }
+      uPath.append(sName); 
+    }
     String sPath = uPath.toString();
-    FileRemote ret = idxPaths.search(sPath);
-    if(ret == null){
-      ret = new FileRemote(this, null, null, sDirP, sName, 0, 0, 0, null, true);
-      idxPaths.put(sPath, ret);
+    */
+    String sPath = sDir1.toString(); 
+    FileRemote dirRet = idxPaths.search(sPath);
+    if(dirRet == null){
+      dirRet = new FileRemote(this, null, null, sDirP, sName, 0, 0, 0, null, true);
+      idxPaths.put(sPath, dirRet);
     } else {
-      String sPathRet = ret.getAbsolutePath();
+      String sPathRet = dirRet.getAbsolutePath();
       int zPathRet = sPathRet.length();
-      if(sPathRet.equals(sPath)){
-        return ret;
-      } else if(sPath.startsWith(sPathRet)
-          && sPath.charAt(zPathRet) == '/'){
-        int posSep1 = zPathRet;
-        //a directory of the file was found.
-        do{
-          int posSep2 = sPath.indexOf('/', posSep1+1);
-          if(posSep2 <0){
-            String sNameRet = sPath.substring(posSep1+1);
-            if(sNameRet.length() ==0) return ret;
-            else {
-              return ret.child(sNameRet);
-            }
-          } else {
-            String sDirRet = sPath.substring(posSep1+1, posSep2);
-            ret = ret.child(sDirRet);
-            posSep1 = posSep2;
+      if(sPath.startsWith(sPathRet)){  //maybe equal too
+        if(sPathRet.length() < sPath.length()){
+          if(sPath.charAt(zPathRet) == '/'){
+            //a directory of the file was found.
+            StringPartBase pathchild = new StringPartBase(sPath, zPathRet+1);
+            dirRet = dirRet.child(pathchild);
+          } else { //other directory name
+            dirRet = new FileRemote(this, null, null, sDirP, sName, 0, 0, 0, null, true);
           }
-        } while(true);  //returns inside.
+        } //else equal.
       } else {
         //another directory
-        ret = new FileRemote(this, null, null, sDirP, sName, 0, 0, 0, null, true);
-        idxPaths.put(sPath, ret);
+        dirRet = new FileRemote(this, null, null, sDirP, sName, 0, 0, 0, null, true);
       }
+      idxPaths.put(sPath, dirRet);
     }
-    return ret;
+    if(sName !=null){
+      FileRemote fileRet = dirRet.child(sName);
+      return fileRet;
+    } else {
+      return dirRet;
+    }
   }
 
+
   
+  /**Gets the existing file instance with this path from the file system or creates and registers a new one.
+   * If the file is not existing on the file system it is created anyway because the file may be a new candidate. 
+   * @param sDirP
+   * @param sName
+   * @return null if the file is not registered.
+   */
+  public FileRemote check( final CharSequence sDirP, final CharSequence sName){
+    CharSequence sDir1 = FileSystem.normalizePath(sDirP); //sPath.replace('\\', '/');
+    StringBuilder uPath = sDir1 instanceof StringBuilder ? (StringBuilder)sDir1: new StringBuilder(sDir1);
+    if(sName !=null) {
+      if(uPath.charAt(uPath.length()-1) !='/'){ uPath.append('/'); }
+      uPath.append(sName); 
+    }
+    String sPath = uPath.toString();
+    FileRemote ret = idxPaths.get(sPath);
+    return ret;
+  }
   
   
 }

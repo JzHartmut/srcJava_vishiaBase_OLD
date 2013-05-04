@@ -2,6 +2,7 @@ package org.vishia.util;
 
 import java.io.File;
 import java.io.FileFilter;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -41,12 +42,18 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-05-05 Hartmut new {@link #mkdir()}, {@link #mkdirs()}, {@link #mkdir(boolean, CallbackEvent)}, 
+   *   {@link #createNewFile()}. 
+   *   TODO some operation uses still the super implementation of File.
+   *   But the super class File should only be used as interface.
+   * <li>2013-05-05 Hartmut chg: {@link #child(CharSequence)}  accepts a path to a sub child.
+   *   New {@link #isChild(CharSequence)}, {@link #isParent(CharSequence)}.  
    * <li>2013-05-04 Hartmut redesigned ctor and order of elements. sDir does not end with "/" up to now.
    * <li>2013-04-30 Hartmut new: {@link #resetSelectedRecurs(int, int[])}
    * <li>2013-04-29 Hartmut chg: {@link #fromFile(FileCluster, File)} has the FileCluster parameter yet, necessary for the concept.
    *   This method is not necessary as far as possible because most of Files are a FileRemote instance yet by reference (Fcmd app)
    * <li>2013-04-28 Hartmut chg: re-engineering check and copy
-   * <li>2013-04-26 Hartmut chg: The constructors of this class should be package private, instead the {@link FileCluster#get(String, String)}
+   * <li>2013-04-26 Hartmut chg: The constructors of this class should be package private, instead the {@link FileCluster#getFile(String, String)}
    *   and {@link #child(String)} should be used to get an instance of this class. The instances which refers the same file
    *   on the file system are existing only one time in the application respectively in the {@link FileRemoteAccessor}. 
    *   In this case additional information can be set to files such as 'selected' or a comparison result. It is in progression.  
@@ -333,6 +340,7 @@ public class FileRemote extends File
    * @param device The device which organizes the access to the file system. It may be null, then the device 
    *   will be gotten from the parent or from the sDirP.
    * @param parent The parent file if known or null. If it is null, the sDirP have to be given with the complete absolute path.
+   *   If parent is given, this file will be added to the parent as child.
    * @param sDirP The path to the directory. If the parent file is given, either it have to be match to or it should be null.
    *   The standard path separator is the slash "/". 
    *   A backslash will be converted to slash internally, it isn't distinct from the slash.
@@ -348,10 +356,11 @@ public class FileRemote extends File
    */
   public FileRemote(final FileCluster cluster, final FileRemoteAccessor device
       , final FileRemote parent
-      , final CharSequence sDirP, final String sName
+      , final CharSequence sDirP, final CharSequence sName
       , final long length, final long date, final int flags
       , Object oFileP, boolean OnlySpecialCall) {
-    super("??"); //sDirP + (sName ==null ? "" : ("/" + sName)));  //it is correct if it is a local file. 
+    //super("??"); //sDirP + (sName ==null ? "" : ("/" + sName)));  //it is correct if it is a local file. 
+    super(sDirP + (sName ==null ? "" : ("/" + sName)));  //it is correct if it is a local file. 
     CharSequence sPath;
     if(sDirP != null){
       sPath = FileSystem.normalizePath(sDirP);
@@ -386,7 +395,7 @@ public class FileRemote extends File
     this._ident = ++ctIdent;
     this.device = device;
     this.flags = flags;
-    this.sFile = sName;
+    this.sFile = sName==null  ? null : sName.toString();
     Assert.check(this.sDir !=null);
     //Assert.check(sName.contains("/"));
     //Assert.check(this.sDir.length() == 0 || this.sDir.endsWith("/"));
@@ -401,37 +410,52 @@ public class FileRemote extends File
     if(this.device == null){
       this.device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
+    if(parent !=null){
+      parent.putChildren(this);
+    }
   }
   
   
   /**Returns the instance of FileRemote which is the child of this. If the child does not exists
    * it is created and added as child. That is independent of the existence of the file on the file system.
    * A non existing child is possible, it may be created on file system later. 
-   * @param sName Name of the child.
+   * @param sName Name of the child or a path to a deeper sub child
    * @return The child instance.
    */
-  public FileRemote child(final String sName ) {
-    FileRemote ret = children == null ? null : children.get(sName);
-    if(ret == null){
-      ret = new FileRemote(itsCluster, device, this, null, sName, 0, 0, 0, null, true);
-      putChildren(ret);  //maybe existing or non existing on file system!
+  public FileRemote child(CharSequence sPathChild ) {
+    CharSequence pathchild1 = FileSystem.normalizePath(sPathChild);
+    StringPartBase pathchild;
+    int posSep;
+    if(( posSep = StringFunctions.indexOf(pathchild1, '/', 0))>=0){
+      pathchild = new StringPartBase(pathchild1, 0, pathchild1.length());
+      pathchild1 = pathchild.lento('/');  //Start with this part of pathchild.
+    } else {
+      pathchild = null; //only one child level.
     }
-    return ret;
+    FileRemote file = this, child;
+    boolean bCont = true;
+    do{
+      child = file.children == null ? null : file.children.get(pathchild1);
+      if(child == null && pathchild !=null){  //a sub directory child
+        //maybe the child directory is registered already, take it.
+        child = itsCluster.check(file.getAbsolutePath(), pathchild1);
+      } 
+      if(child == null){
+        child = new FileRemote(itsCluster, device, file, null, pathchild1, 0, 0, 0, null, true);
+      }
+      if(pathchild !=null){
+        file = child;
+        pathchild1 = pathchild.fromEnd().seek(1).lento('/');
+        if(!pathchild.found()){
+          pathchild.len0end();   //also referred from pathchild1
+          pathchild = null;   //ends.
+        } 
+      } else {
+        bCont = false;  //set in the next loop after pathchild = null.
+      }
+    }while(bCont);
+    return child;
   }
-  
-  /*
-  public static FileRemote get(final String sDir, final String sName ) {
-    FileRemoteAccessor device = getAccessorSelector().selectFileRemoteAccessor(sDir);
-    return device.get(sDir, sName);
-  }
-  
-  
-  public static FileRemote get(final FileRemoteAccessor device
-  , final String sDirP, final String sName ) {
-    return device.get(sDirP, sName);
-  }
-  */
-  
   
   
   public static boolean setAccessorSelector(FileRemoteAccessorSelector accessorSelectorP){
@@ -479,11 +503,11 @@ public class FileRemote extends File
       File dir1 = src.getParentFile();
       FileRemote dir, file;
       if(dir1 !=null){
-        dir= cluster.get(dir1.getAbsolutePath());
+        dir= cluster.getFile(dir1.getAbsolutePath());
         file = dir.child(src.getName());
       } else {
         dir = null;
-        file = cluster.get(src.getAbsolutePath());
+        file = cluster.getFile(src.getAbsolutePath());
       }
       file.length = len;
       file.flags = fileProps;
@@ -800,7 +824,13 @@ public class FileRemote extends File
    * The return path of this routine is the path without dissolving symbolic links.
    * @return path never ending with "/", but canonical, slash as separator. 
    */
-  @Override public String getPath(){ 
+  @Override public String getPath(){ return getPathChars().toString(); } 
+  
+  /**Returns the same as {@link #getPath()} but presents it as the StringBuilder instance which was used
+   * to concatenate. 
+   * @return
+   */
+  public CharSequence getPathChars(){
     if(sFile !=null && sFile.length() > 0){ 
       StringBuilder ret = new StringBuilder(sDir);
       if(sDir.charAt(sDir.length()-1) != '/'){ ret.append('/'); }
@@ -817,10 +847,47 @@ public class FileRemote extends File
         return sDir.substring(0, zDir-1);  //without /
       }
       */
-    }
+    }    
   }
   
   @Override public String getCanonicalPath(){ return sCanonicalPath; }
+  
+  
+  
+  /**Checks whether the given path describes a child (any deepness) of this file and returns the normalized child string.
+   * @param path Any path may contain /../
+   * @return null if path does not describe a child of this.
+   *   The normalized child path from this directory path if it is a child.
+   */
+  public CharSequence isChild(CharSequence path){
+    if(sFile !=null) return null; //a non-directory file does not have children.
+    CharSequence path1 = FileSystem.normalizePath(path);
+    int zDir = sDir.length();
+    int zPath = path1.length();
+    if(zPath > zDir && StringFunctions.startsWith(path1, sDir) && path1.charAt(zDir)== '/'){
+      return path1.subSequence(zDir+1, zPath);
+    }
+    else return null;
+  }
+  
+  
+  
+  /**Checks whether the given path describes a parent (any deepness) of this file and returns the normalized child string.
+   * @param path Any path may contain /../
+   * @return null if path does not describe a parent of this.
+   *   The normalized parent path  if it is a parent.
+   */
+  public CharSequence isParent(CharSequence path){
+    CharSequence path1 = FileSystem.normalizePath(path);
+    CharSequence paththis = getPathChars();
+    int zThis = paththis.length();
+    int zPath = path1.length();
+    if(zThis > zPath && StringFunctions.startsWith(paththis, path1) && paththis.charAt(zPath)== '/'){
+      return path1;
+    }
+    else return null;
+  }
+  
   
   
   /**Gets the parent directory.
@@ -862,7 +929,7 @@ public class FileRemote extends File
       }
       if(sParent !=null){
         device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
-        this.parent = itsCluster.get(sParent, null); //new FileRemote(device, null, sParent, null, 0, 0, 0, null); 
+        this.parent = itsCluster.getFile(sParent, null); //new FileRemote(device, null, sParent, null, 0, 0, 0, null); 
       }
     }
     return this.parent;
@@ -1014,6 +1081,13 @@ public class FileRemote extends File
   }
   
   
+  @Override public boolean createNewFile() throws IOException {
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
+    return device.createNewFile(this, null);
+  }
+  
   
   @Override public boolean delete(){
     if(device == null){
@@ -1080,6 +1154,51 @@ public class FileRemote extends File
     }
   }
   
+  
+  
+  
+  /**Creates the directory named by this abstract pathname.
+   * This routine waits for execution on the file device. If it is a remote device, it may be spend some more time.
+   * See {@link #mkdir(boolean, CallbackEvent)}.
+   * For local file system see {@link java.io.File#mkdir()}.
+   * @return true if this operation was successfully. False if not.
+   */
+  @Override public boolean mkdir(){
+    return mkdir(false, null);
+  }
+  
+  
+  /**Creates the directory named by this abstract pathname , including any
+   * necessary but nonexistent parent directories.  Note that if this
+   * operation fails it may have succeeded in creating some of the necessary
+   * parent directories.<br>
+   * This routine waits for execution on the file device. If it is a remote device, it may be spend some more time.
+   * See {@link #mkdir(boolean, CallbackEvent)}.
+   * For local file system see {@link java.io.File#mkdir()}.
+   * @return true if this operation was successfully. False if not.
+   */
+  @Override public boolean mkdirs(){
+    return mkdir(true, null);
+  }
+  
+  
+  
+  /**Creates the directory named by this abstract pathname
+   * @param recursively Creates necessary but nonexistent parent directories.  Note that if this
+   *   operation fails it may have succeeded in creating some of the necessary
+   *   parent directories.
+   * @param evback If given this routine does not wait. Instead the success will be sent with the given evback
+   *  to the given destination routine given in its constructor {@link CallbackEvent#CallbackEvent(EventConsumer, EventThread, EventSource)}.
+   *  If not given this routine waits till execution, see {@link #mkdir()}
+   * @return false if unsuccessfully, true if evback !=null or successfully. 
+   */
+  public boolean mkdir(boolean recursively, FileRemote.CallbackEvent evback) {
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
+    return device.mkdir(this, recursively, evback);
+  }
+
   
   
   /**Checks a file maybe in a remote device maybe a directory. 
@@ -1395,6 +1514,8 @@ public class FileRemote extends File
     chgPropsRecurs,
     countLength,
     delete,
+    mkDir,
+    mkDirs,
     /**Abort the currently action. */
     abortAll,
     /**Abort the copy process of the current directory or skip this directory if it is asking a file. */
@@ -1780,6 +1901,21 @@ public class FileRemote extends File
     last
   }
 
+  
+  protected class CallbackWait extends EventConsumer{
+    public CallbackWait(){  super("FileRemote"); }
+
+    @Override protected boolean processEvent_(Event<?, ?> ev)
+    {
+      synchronized(FileRemote.this){
+        FileRemote.this.notify();
+      }
+      return true;
+    }
+  }
+  
+  
+  
   
   /**This inner non static class is only intent to access from a FileRemoteAccessor to any file.
    * It is not intent to use by any application. 

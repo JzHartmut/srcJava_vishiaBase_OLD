@@ -56,7 +56,7 @@ public class StringFunctions {
   /**Returns the position of the end of an identifier.
    * @param src The input string
    * @param start at this position the indentier starts.
-   * @param end max number of chars to check
+   * @param endq max number of chars to check
    * @return 0 if src[start] doesn't match to an identifier character, number of found identifier chars after src until end.
    */
   public static int posAfterIdentifier(CharSequence src, int start, int endMax){ return posAfterIdentifier(src, start, endMax, null, null); }
@@ -64,7 +64,7 @@ public class StringFunctions {
   /**Returns the position of the end of an identifier.
    * @param src The input string
    * @param start at this position the identifier starts.
-   * @param end max number of chars to check
+   * @param endq max number of chars to check
    * @param additionalStartChars maybe null, some chars as additional start chars of an identifier.
    * @param additionalChars maybe null, some chars as additional chars of an identifier.
    * @return 0 if src[start] doesn't match to an identifier character, number of found identifier chars after src until end.
@@ -368,7 +368,8 @@ public class StringFunctions {
    */
   public static boolean endsWith(CharSequence sq, CharSequence end){
     int z = end.length();
-    return compare(sq, sq.length()-z, end, 0, z) == 0;
+    if(z > sq.length()) return false;
+    else return compare(sq, sq.length()-z, end, 0, z) == 0;
   }
   
 

@@ -3,6 +3,7 @@ package org.vishia.util;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileFilter;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -98,6 +99,8 @@ public abstract class FileRemoteAccessor implements Closeable
   public abstract List<File> getChildren(FileRemote file, FileFilter filter);
   
   
+  
+  public abstract boolean createNewFile(FileRemote file, FileRemote.CallbackEvent callback) throws IOException;
 
   /**Try to delete the file.
    * @param callback
@@ -105,6 +108,8 @@ public abstract class FileRemoteAccessor implements Closeable
    *   The it returns true if the file is deleted successfully. If the callback is not null, it returns true.
    */
   public abstract boolean delete(FileRemote file, FileRemote.CallbackEvent callback);
+  
+  public abstract boolean mkdir(FileRemote file, boolean subdirs, FileRemote.CallbackEvent callback);
   
   public abstract ReadableByteChannel openRead(FileRemote file, long passPhase);
   

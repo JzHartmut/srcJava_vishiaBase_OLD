@@ -315,6 +315,52 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   }
   
   
+  
+  @Override public boolean createNewFile(FileRemote file, FileRemote.CallbackEvent callback) throws IOException{
+    File file1;
+    if(file.oFile() == null){
+      file.setFileObject(file1 = new File(file.getAbsolutePath()));
+    } else {
+      file1 = (File) file.oFile();
+    }
+    return file1.createNewFile();
+  }
+
+
+
+  
+  @Override public boolean mkdir(FileRemote file, boolean subdirs, FileRemote.CallbackEvent evback){
+    File file1 = (File)file.oFile();
+    if(file1 == null){ 
+      file1 = new File(file.getAbsolutePath());
+      file.setFileObject(file1);
+    }
+    if(!subdirs && evback == null){ 
+      if(subdirs){ return file.mkdirs(); }
+      else { return file.mkdir(); }
+    } else {
+      FileRemote.CmdEvent ev = prepareCmdEvent(evback);
+      ev.filesrc = file;
+      ev.filedst = null;
+      ev.sendEvent(subdirs ? Cmd.mkDirs: Cmd.mkDir);
+      return true;
+    }
+  }
+
+  
+  private void mkdir(boolean recursively, FileRemote.CmdEvent ev) {
+    boolean bOk = mkdir(ev.filesrc, recursively, null);  //call direct
+    FileRemote.CallbackEvent evback = ev.getOpponent();
+    if(evback.occupy(evSrc, true)){
+      evback.sendEvent(bOk ? FileRemote.CallbackCmd.done : FileRemote.CallbackCmd.nok);
+    }
+  }
+
+  
+  
+
+  
+  
   @Override public boolean delete(FileRemote file, FileRemote.CallbackEvent callback){
     File fileLocal = getLocalFile(file);
     if(callback == null){
@@ -366,9 +412,12 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       case chgPropsRecurs:  execChgPropsRecurs(commission); break;
       case countLength:  execCountLength(commission); break;
       case delete:  execDel(commission); break;
+      case mkDir: mkdir(false, commission); 
+      case mkDirs: mkdir(true, commission); 
       
     }
   }
+  
   
   
   private void execChgProps(FileRemote.CmdEvent co){

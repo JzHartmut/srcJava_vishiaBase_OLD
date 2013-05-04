@@ -256,7 +256,17 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     return list;
   }
   
-  
+  @Override public boolean createNewFile(FileRemote file, FileRemote.CallbackEvent callback) throws IOException{
+    if(callback !=null){
+      callback.sendEvent(FileRemote.CallbackCmd.errorDelete);
+    }
+    return false;   // not implement: changing of file.
+  }
+
+
+  @Override public boolean mkdir(FileRemote file, boolean subdirs, FileRemote.CallbackEvent evback){
+    return false;
+  }
   
   @Override public boolean delete(FileRemote file, FileRemote.CallbackEvent callback){
     if(callback !=null){
