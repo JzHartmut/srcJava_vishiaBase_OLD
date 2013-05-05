@@ -63,18 +63,18 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
   //@Override 
   public FileRemote[] XXXlistFiles(FileRemote parent){
     FileZipData data = (FileZipData)parent.oFile;
-    int zChildren = data == null ? 0 : data.children == null ? 0 : (data.children.childNodes == null ? 0
-        : data.children.childNodes.size())
-        + (data.children.leafData == null ? 0 : data.children.leafData.size());
+    int zChildren = data == null ? 0 : data.childrenZip == null ? 0 : (data.childrenZip.childNodes == null ? 0
+        : data.childrenZip.childNodes.size())
+        + (data.childrenZip.leafData == null ? 0 : data.childrenZip.leafData.size());
     FileRemote[] retFiles = new FileRemote[zChildren]; //may be [0]
     if (zChildren > 0) {
       int ii = -1;
-      if (data.children.childNodes != null){
-        for (TreeNodeBase.TreeNode<FileRemote> node1 : data.children.childNodes) {
+      if (data.childrenZip.childNodes != null){
+        for (TreeNodeBase.TreeNode<FileRemote> node1 : data.childrenZip.childNodes) {
           retFiles[++ii] = node1.data;
       } }
-      if (data.children.leafData != null){
-        for (FileRemote node1 : data.children.leafData) {
+      if (data.childrenZip.leafData != null){
+        for (FileRemote node1 : data.childrenZip.leafData) {
           retFiles[++ii] = node1;
       } }
     }
@@ -107,9 +107,9 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     FileZipData dataParent = new FileZipData();
     FileAccessZip zipAccess = getInstance();
     int parentProperties = FileRemote.mDirectory | FileRemote.mExist | FileRemote.mCanRead ; //| FileRemote.mChildrenGotten;
-    String sDirParent = fileZip.getAbsolutePath() + '/';
-    FileRemote fileParent = new FileRemote(fileZip.itsCluster, zipAccess, fileZip, sDirParent, null, fileZip.length(),fileZip.lastModified(), parentProperties, dataParent, true);
-    dataParent.children = new TreeNodeBase.TreeNode<FileRemote>("/", fileParent);
+    String sDirParent = fileZip.getAbsolutePath();
+    FileRemote fileParent = new FileRemote(fileZip.itsCluster, zipAccess, fileZip, "!Zip", fileZip.length(),fileZip.lastModified(), parentProperties, dataParent, true);
+    dataParent.childrenZip = new TreeNodeBase.TreeNode<FileRemote>("/", fileParent);
     ZipFile jZipFile = null;
     try {
       jZipFile = new ZipFile(fileZip);
@@ -151,9 +151,12 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
         }
         TreeNodeBase.TreeNode<FileRemote> parentDirNode;
         if (sep >= 0) {
-          parentDirNode = dataParent.children.getNode(sDirInZip, "/");
+          parentDirNode = dataParent.childrenZip.getNode(sDirInZip, "/");
+          if(parentDirNode == null){
+            parentDirNode = dataParent.childrenZip.getOrCreateNode(sDirInZip, "/");
+          }
         } else {
-          parentDirNode = dataParent.children;
+          parentDirNode = dataParent.childrenZip;
         }
         FileZipData dataChild = new FileZipData(); //theFile, zipFile, entry);
         dataChild.theFile = fileZip;
@@ -166,10 +169,10 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
           Assert.stop();
         } else {
           FileRemote dir = parentDirNode.data;
-          FileRemote fileChild = new FileRemote(dir.itsCluster, zipAccess, dir, sDirChild, sNameChild, sizeChild, dateChild, zipEntryProperties, dataChild, true);
+          FileRemote fileChild = new FileRemote(dir.itsCluster, zipAccess, dir, sNameChild, sizeChild, dateChild, zipEntryProperties, dataChild, true);
           if((zipEntryProperties & FileRemote.mDirectory) !=0){
-            dataChild.children = new TreeNodeBase.TreeNode<FileRemote>(sNameChild, fileChild);
-            parentDirNode.addNode(dataChild.children);
+            dataChild.childrenZip = new TreeNodeBase.TreeNode<FileRemote>(sNameChild, fileChild);
+            parentDirNode.addNode(dataChild.childrenZip);
           } else {
             parentDirNode.addNode(sNameChild, fileChild);        
           }
@@ -209,18 +212,18 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
 
   @Override public void refreshFilePropertiesAndChildren(FileRemote file, FileRemote.CallbackEvent callback) {
     FileZipData data = (FileZipData)file.oFile;
-    int zChildren = data == null ? 0 : data.children == null ? 0 : (data.children.childNodes == null ? 0
-        : data.children.childNodes.size())
-        + (data.children.leafData == null ? 0 : data.children.leafData.size());
+    int zChildren = data == null ? 0 : data.childrenZip == null ? 0 : (data.childrenZip.childNodes == null ? 0
+        : data.childrenZip.childNodes.size())
+        + (data.childrenZip.leafData == null ? 0 : data.childrenZip.leafData.size());
     //file.children = new TreeMap<String, FileRemote>(); //[zChildren]; //may be [0]
     if (zChildren > 0) {
       int ii = -1;
-      if (data.children.childNodes != null){
-        for (TreeNodeBase.TreeNode<FileRemote> node1 : data.children.childNodes) {
+      if (data.childrenZip.childNodes != null){
+        for (TreeNodeBase.TreeNode<FileRemote> node1 : data.childrenZip.childNodes) {
           file.putChildren( node1.data);
       } }
-      if (data.children.leafData != null){
-        for (FileRemote node1 : data.children.leafData) {
+      if (data.childrenZip.leafData != null){
+        for (FileRemote node1 : data.childrenZip.leafData) {
           file.putChildren( node1);
       } }
     }
@@ -235,19 +238,19 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
   @Override public List<File> getChildren(FileRemote file, FileFilter filter){
     FileZipData data = (FileZipData)file.oFile;
     List<File> list = new ArrayList<File>();
-    int zChildren = data == null ? 0 : data.children == null ? 0 : (data.children.childNodes == null ? 0
-        : data.children.childNodes.size())
-        + (data.children.leafData == null ? 0 : data.children.leafData.size());
+    int zChildren = data == null ? 0 : data.childrenZip == null ? 0 : (data.childrenZip.childNodes == null ? 0
+        : data.childrenZip.childNodes.size())
+        + (data.childrenZip.leafData == null ? 0 : data.childrenZip.leafData.size());
     if (zChildren > 0) {
       int ii = -1;
-      if (data.children.childNodes != null){
-        for (TreeNodeBase.TreeNode<FileRemote> node1 : data.children.childNodes) {
+      if (data.childrenZip.childNodes != null){
+        for (TreeNodeBase.TreeNode<FileRemote> node1 : data.childrenZip.childNodes) {
           if ((filter == null) || filter.accept(node1.data)){
             list.add(node1.data);
           }
       } }
-      if (data.children.leafData != null){
-        for (FileRemote node1 : data.children.leafData) {
+      if (data.childrenZip.leafData != null){
+        for (FileRemote node1 : data.childrenZip.leafData) {
           if ((filter == null) || filter.accept(node1)){
             list.add(node1);
           }
@@ -339,7 +342,7 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     File theFile;
     ZipFile zipFile;
     ZipEntry zipEntry;
-    TreeNodeBase.TreeNode<FileRemote> children;
+    TreeNodeBase.TreeNode<FileRemote> childrenZip;
   }
 
   

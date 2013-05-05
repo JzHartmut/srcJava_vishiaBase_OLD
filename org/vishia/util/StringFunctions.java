@@ -398,6 +398,24 @@ public class StringFunctions {
   }
   
 
+  /**Searches the first occurrence of the given CharSequence in a CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#indexOf(String, int)}. 
+   * @param sq A CharSequence
+   * @param str CharSequence which is searched.
+   * @param fromIndex first checked position in sq
+   * @return -1 if not found, else first occurrence where sq.charAt(return) == ch. 
+   */
+  public static int lastIndexOf(CharSequence sq, char ch){
+    int ii = sq.length();
+    while(--ii >=0){
+      if(sq.charAt(ii) == ch) {
+        return ii;
+      }
+    }
+    return -1;  //not found;
+  }
+  
+
   /**Checks whether the given CharSequence starts with the  a CharSequence.
    * It is the adequate functionality like {@link java.lang.String#indexOf(String, int)}. 
    * @param sq A CharSequence

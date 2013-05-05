@@ -276,45 +276,6 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   }
 
   
-  //@Override 
-  public FileRemote[] XXXlistFiles(FileRemote parent){
-    FileRemote[] retFiles = null;
-    if(parent.oFile() == null){
-      
-    }
-    File dir = (File)parent.oFile();
-    if(dir.exists()){
-      File[] files = dir.listFiles();
-      if(files !=null){
-        retFiles = new FileRemote[files.length];
-        int iFile = -1;
-        for(File fileLocal: files){
-          retFiles[++iFile] = newFileInDirectory(fileLocal, parent);
-        }
-      }
-    }
-    return retFiles;
-  }
-
-  
-  private FileRemote newFileInDirectory(File fileLocal, FileRemote dir){
-    String name;
-    //if(fileLocal.isDirectory()){
-      //name = fileLocal.getName() + "/";
-    //} else {
-      name = fileLocal.getName();
-    //}
-    //File parent = fileLocal.getParentFile();
-    String sDir = dir.getAbsolutePath().replace('\\', '/');
-    //String sDir = fileLocal.getParent().replace('\\', '/');
-    //FileRemote dir = null; //FileRemote.fromFile(parent);
-    int flags = fileLocal.isDirectory() ? FileRemote.mDirectory:0;
-    FileRemote fileRemote = new FileRemote(dir.itsCluster, this, dir, sDir, name, 0, 0, flags, fileLocal, true);
-    //refreshFileProperties(fileRemote, null);  
-    return fileRemote;
-  }
-  
-  
   
   @Override public boolean createNewFile(FileRemote file, FileRemote.CallbackEvent callback) throws IOException{
     File file1;
@@ -659,9 +620,13 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
               fileRemote.internalAccess().newChildren();
               int iFile = -1;
               for(File file1: files){
+                String name1 = file1.getName();
                 FileRemote child = null;   
-                if(oldChildren !=null){ child = oldChildren.remove(file1.getName()); }
-                if(child == null){ child = newFileInDirectory(file1, fileRemote); }
+                if(oldChildren !=null){ child = oldChildren.remove(name1); }
+                if(child == null){ 
+                  int flags = file1.isDirectory() ? FileRemote.mDirectory : 0;
+                  child = new FileRemote(fileRemote.itsCluster, fileRemote.device(), fileRemote, name1, 0, 0, flags, file1, true); //newFileInDirectory(file1, fileRemote); }
+                }
                 fileRemote.putChildren(child);
                 child.refreshProperties(null);    //should show all sub files with its properties, but not files in sub directories.
               }

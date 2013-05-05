@@ -275,7 +275,7 @@ public class FileRemote extends File
   /**Alternative for referencing of the reference file. */
   protected FileRemote[] XXXreferenceFileRef;
   
-  /**The directory path of the file. It dies not end with '/' except it is the root.
+  /**The directory path of the file. It does not end with '/' except it is the root.
    * The directory path is absolute and normalized. It doesn't contain any "/./" 
    * or "/../"-parts. 
    * <br>
@@ -284,7 +284,7 @@ public class FileRemote extends File
    */  
   protected final String sDir;
   
-  /**The name with extension of the file. It is empty if this describes a directory. 
+  /**The name with extension of the file or directory name. 
    * */
   protected final String sFile;
   
@@ -356,46 +356,32 @@ public class FileRemote extends File
    */
   public FileRemote(final FileCluster cluster, final FileRemoteAccessor device
       , final FileRemote parent
-      , final CharSequence sDirP, final CharSequence sName
+      , final CharSequence sPath //, CharSequence sName
       , final long length, final long date, final int flags
       , Object oFileP, boolean OnlySpecialCall) {
     //super("??"); //sDirP + (sName ==null ? "" : ("/" + sName)));  //it is correct if it is a local file. 
-    super(sDirP + (sName ==null ? "" : ("/" + sName)));  //it is correct if it is a local file. 
-    CharSequence sPath;
-    if(sDirP != null){
-      sPath = FileSystem.normalizePath(sDirP);
-    } else if(parent !=null) {
-      sPath = parent.getAbsolutePath();
-    } else {
-      sPath = "";
-    }
+    super(parent == null ? sPath.toString() : parent.getPath() + "/" + sPath);  //it is correct if it is a local file. 
     if(parent !=null){
       this.parent = parent;
+      this.sDir = parent.getAbsolutePath();
+      this.sFile = sPath.toString();
       if(cluster !=null && cluster != parent.itsCluster){ 
         throw new IllegalArgumentException("FileRemote.ctor - Mismatching cluster association; parent.itsCluster=" 
             + parent.itsCluster.toString() + ";  parameter cluster=" + cluster.toString() + ";");
       }
       this.itsCluster = parent.itsCluster;
-      this.sDir = parent.getAbsolutePath();// + "/";
-      if(sDirP !=null){
-        sPath = FileSystem.normalizePath(sDirP);
-        if(!sPath.equals(sDir)){
-          throw new IllegalArgumentException("FileRemote.ctor - Mismatching directory path; parent.dir=" 
-            + parent.getAbsolutePath() + ";  parameter sDir=" + sDirP);
-        }
-      }
     } else {
       this.parent = null;
+      int posSep = StringFunctions.lastIndexOf(sPath, '/');
+      this.sDir = sPath.subSequence(0, posSep).toString();
+      this.sFile = sPath.subSequence(posSep+1, sPath.length()).toString();
       if(cluster == null) throw new IllegalArgumentException("FileRemote.ctor - cluster is null, should be given;");
       this.itsCluster = cluster;
-      if(sDirP == null) throw new IllegalArgumentException("FileRemote.ctor - sDirP is null, should be given;");
-      this.sDir = FileSystem.normalizePath(sDirP).toString(); // + "/";
     }
     //super("?");  //NOTE: use the superclass File only as interface. Don't use it as local file instance.
     this._ident = ++ctIdent;
     this.device = device;
     this.flags = flags;
-    this.sFile = sName==null  ? null : sName.toString();
     Assert.check(this.sDir !=null);
     //Assert.check(sName.contains("/"));
     //Assert.check(this.sDir.length() == 0 || this.sDir.endsWith("/"));
@@ -441,7 +427,7 @@ public class FileRemote extends File
         child = itsCluster.check(file.getAbsolutePath(), pathchild1);
       } 
       if(child == null){
-        child = new FileRemote(itsCluster, device, file, null, pathchild1, 0, 0, 0, null, true);
+        child = new FileRemote(itsCluster, device, file, pathchild1, 0, 0, 0, null, true);
       }
       if(pathchild !=null){
         file = child;

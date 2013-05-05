@@ -40,6 +40,37 @@ public class StringPartBase implements CharSequence, Comparable<CharSequence>
    */
   public final static int version = 20130504; 
 
+  
+  /** Flag to force setting the start position after the seeking string. See description on seek(String, int).
+   */
+   public static final int seekEnd = 1;
+
+   /** Flag bit to force seeking backward. This value is contens impilicit in the mSeekBackFromStart or ~End,
+       using to detect internal the backward mode.
+   */
+   private static final int mSeekBackward_ = 0x10;
+
+   /** Flag bit to force seeking left from start (Backward). This value is contens impilicit in the seekBackFromStart
+       using to detect internal the seekBackFromStart-mode.
+   */
+   private static final int mSeekToLeft_ = 0x40;
+
+   /** Flag to force seeking backward from the start position. See description on seek(String).
+   */
+   public static final int seekToLeft = mSeekToLeft_ + mSeekBackward_;
+
+
+   /** Flag to force seeking backward from the end position. See description on seek(String).
+   */
+   public static final int seekBack = 0x20 + mSeekBackward_;
+
+   /** Flag to force seeking forward. See description on seek(String).
+   */
+   public static final int seekNormal = 0;
+
+
+
+  
   final char[] c;
   
   final StringBuilder u;

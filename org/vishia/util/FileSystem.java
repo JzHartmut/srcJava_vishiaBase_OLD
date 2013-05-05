@@ -730,12 +730,7 @@ public class FileSystem
   
   
   /**Cleans any /../ and /./ from a path, it makes it normalized or canonical.
-   * The difference between this canonical approach and java.io.File.getCanonicalpath() is:
-   * The canonical path of a file in a Unix-like file system presents the really location of a file
-   * dissolving symbolic links. A path which is returned by a found File object (not a constructed File)
-   * shall have the same path like this normalized one, except slash or backslash.
-   * For example
-   * 
+   *
    * @param inp Any path which may contain /./ or /../, with backslash or slash-separator.
    * @return The originally inp if inp doesn't contain /./ or /../ or backslash, elsewhere a new String
    *   which presents the normalized form of the path. It does not contain backslash but slash as separator.

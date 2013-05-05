@@ -46,7 +46,7 @@ public class FileCluster
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20130501;
+  public static final int version = 20130505;
   
   /**This index contains the association between paths and its FileRemote instances.
    */
@@ -92,19 +92,27 @@ public class FileCluster
    */
   public FileRemote getFile( final CharSequence sDirP, final CharSequence sName, boolean strict){
     CharSequence sDir1 = FileSystem.normalizePath(sDirP); //sPath.replace('\\', '/');
-    /*
-    StringBuilder uPath = sDir1 instanceof StringBuilder ? (StringBuilder)sDir1: new StringBuilder(sDir1);
-    if(sName !=null) {
+    String sPath;
+    if(sName !=null){
+      //the name should be appended:
+      StringBuilder uPath;  //to concatenate
+      if( (sDirP == sDir1 || !(sDir1 instanceof StringBuilder))){
+        //either sDirP is the same unchanged StringBuilder as sDir1, then let it unchanged! or sDir1 is not a StringBuilder
+        uPath = new StringBuilder(sDir1);
+      } else {
+        //sDir1 is a StringBuilder created temporary from FileSystem.normalizePath(), use it.
+        uPath = (StringBuilder)sDir1;  
+      }
       if(uPath.charAt(uPath.length()-1) !='/'){ uPath.append('/'); }
       uPath.append(sName); 
+      sPath = uPath.toString();
+    } else {
+      sPath = sDir1.toString(); //unchanged.
     }
-    String sPath = uPath.toString();
-    */
-    String sPath = sDir1.toString(); 
-    FileRemote dirRet = idxPaths.search(sPath);
+    FileRemote dirRet = idxPaths.search(sPath.toString());
     if(dirRet == null){
-      dirRet = new FileRemote(this, null, null, sDirP, sName, 0, 0, 0, null, true);
-      idxPaths.put(sPath, dirRet);
+      dirRet = new FileRemote(this, null, null, sPath, 0, 0, 0, null, true);
+      idxPaths.put(sPath.toString(), dirRet);
     } else {
       String sPathRet = dirRet.getAbsolutePath();
       int zPathRet = sPathRet.length();
@@ -115,12 +123,12 @@ public class FileCluster
             StringPartBase pathchild = new StringPartBase(sPath, zPathRet+1);
             dirRet = dirRet.child(pathchild);
           } else { //other directory name
-            dirRet = new FileRemote(this, null, null, sDirP, sName, 0, 0, 0, null, true);
+            dirRet = new FileRemote(this, null, null, sPath, 0, 0, 0, null, true);
           }
         } //else equal.
       } else {
         //another directory
-        dirRet = new FileRemote(this, null, null, sDirP, sName, 0, 0, 0, null, true);
+        dirRet = new FileRemote(this, null, null, sPath, 0, 0, 0, null, true);
       }
       idxPaths.put(sPath, dirRet);
     }

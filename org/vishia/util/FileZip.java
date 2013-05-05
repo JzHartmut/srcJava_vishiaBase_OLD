@@ -10,6 +10,8 @@ import org.vishia.fileRemote.FileCluster;
 /**
  * Entry in a zip file which can use as a FileRemote.
  * 
+ * See {@link FileAccessZip}.
+ * 
  * @author Hartmut Schorrig
  * 
  */
@@ -38,7 +40,7 @@ public class FileZip extends FileRemote {
   TreeNodeBase.TreeNode<FileZip> children;
 
   public FileZip(FileRemote parent) {
-    super(parent.itsCluster, parent.device, null, null, parent.getName(), 0, 0, 0, null, true);
+    super(parent.itsCluster, parent.device, null, parent.getName(), 0, 0, 0, null, true);
     //super(parent.getName());
     this.theFile = parent;
     ZipFile zipFile = null;
@@ -80,7 +82,7 @@ public class FileZip extends FileRemote {
   }
 
   public FileZip(FileZip parent, FileRemote theFile, ZipFile zipFile, ZipEntry zipEntry) {
-    super(parent.itsCluster, parent.device, null, zipFile.getName() + '/' + zipEntry.getName(), null, zipEntry.getSize()
+    super(parent.itsCluster, parent.device, parent, /*zipFile.getName() + '/' +*/ zipEntry.getName(), zipEntry.getSize()
         , zipEntry.getTime(), 0, null, true); 
     this.sPathZip = zipEntry.getName();
     this.theFile = theFile;
@@ -98,7 +100,7 @@ public class FileZip extends FileRemote {
   }
 
   public FileZip(FileRemote theFile, ZipFile zipFile, ZipEntry zipEntry) {
-    super(theFile.itsCluster, theFile.device, null, zipFile.getName() + '/' + zipEntry.getName(), null, zipEntry.getSize()
+    super(theFile.itsCluster, theFile.device, null, zipFile.getName() + '/' + zipEntry.getName(), zipEntry.getSize()
         , zipEntry.getTime(), 0, null, true); 
     this.sPathZip = zipEntry.getName();
     this.theFile = theFile;
