@@ -2,6 +2,7 @@ package org.vishia.stateMachine;
 
 import org.vishia.util.DateOrder;
 import org.vishia.util.Event;
+import org.vishia.util.EventConsumer;
 
 /**Base class for composite states.
  *
@@ -12,14 +13,18 @@ import org.vishia.util.Event;
  *   for example {@link #isInState(StateSimpleBase)}. It helps to prevent confusions with other state instances else
  *   the own one. A mistake is detected to compile time already.
  * @param <EnclosingState> The class type which is the derived type of the enclosing state where this state is member of.
+ *   See {@link StateTopBase}.
  */
 public abstract class StateCompositeBase
 <DerivedState extends StateCompositeBase<DerivedState,?>, EnclosingState extends StateCompositeBase<EnclosingState,?>>
- extends StateSimpleBase<EnclosingState> 
+ extends StateSimpleBase<EnclosingState>
+ implements EventConsumer
 { 
   
   /**Version, history and license
    * <ul>
+   * <li>2013-05-11 Hartmut new: It is a {@link EventConsumer} yet. Especially a timer event needs a destination
+   *   which is this class.
    * <li>2013-04-27 Hartmut adapt: The {@link #entry(Event)} and the {@link #entryAction(Event)} should get the event
    *   from the transition. See {@link StateSimpleBase}.
    * <li>2013-04-13 Hartmut re-engineering: 
@@ -59,7 +64,7 @@ public abstract class StateCompositeBase
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20130414;
+  public static final int version = 20130511;
 
   protected int maxStateSwitchesInLoop = 1000;
   
@@ -90,8 +95,17 @@ public abstract class StateCompositeBase
   }
   
   
-  /**This routine has to be called in the constructor of the derived state after calling the super constructor.
-   * @param stateDefault
+  protected StateCompositeBase(String stateId) {
+    super(stateId);
+    stateAct = null;
+  }
+  
+  
+  /**Sets the default state of this composite. 
+   * This routine has to be called in the constructor of the derived state after calling the super constructor.
+   * @param stateDefault The state which will be set if the composite class was selected 
+   *   but an inner state was not set. The {@link #entry(Event)} to the default state is ivoked
+   *   if this state will be {@link #processEvent(Event)}.
    */
   protected void setDefaultState(StateSimpleBase<DerivedState> stateDefault ){
     this.stateDefault = stateDefault;
@@ -181,7 +195,7 @@ public abstract class StateCompositeBase
   }
   
   /**Processes the event for the states of this composite state.
-   * First the event is applied to the own (inner) states invoking either its {@link StateCompositeBase#process(Event)}
+   * First the event is applied to the own (inner) states invoking either its {@link StateCompositeBase#processEvent(Event)}
    * or its {@link #trans(Event)} method.
    * If this method returns {@link StateSimpleBase#mRunToComplete} that invocation is repeated in a loop, to call
    * the transition of the new state too. But if the event was consumed by the last invocation, it is not supplied again
@@ -197,7 +211,7 @@ public abstract class StateCompositeBase
    * @return The bits {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #trans(Event)}.
    *   Note that if an event is consumed in an inner state, it should not be applied to its enclosing state transitions. 
    */
-  public int process(final Event<?,?> evP){
+  @Override public int processEvent(final Event<?,?> evP){
     int cont;
     Event<?,?> evTrans = evP;
     int catastrophicalCount =  maxStateSwitchesInLoop;
@@ -210,7 +224,7 @@ public abstract class StateCompositeBase
       } 
       if(stateAct instanceof StateCompositeBase<?,?>){
         //recursively call for the composite inner state
-        cont = ((StateCompositeBase<?,?>)stateAct).process(evTrans); 
+        cont = ((StateCompositeBase<?,?>)stateAct).processEvent(evTrans); 
       } else {
         StateSimpleBase<DerivedState> statePrev = stateAct;
         cont = stateAct.trans(evTrans);
@@ -335,7 +349,7 @@ public abstract class StateCompositeBase
   }
   
   
-  @Override public String toString(){ return stateId.toString() + ":" + (!isActive ? "null": stateAct.toString()); }
+  @Override public String toString(){ return stateId.toString() + ":" + (!isActive ? "-inactive-": stateAct.stateId); }
 
   
 }

@@ -1,8 +1,5 @@
 @echo off
-if "%JAVA_JDK%"==""  (
-  if exist D:\Progs\JAVA\jdk1.6.0_21 set JAVA_JDK=D:\Progs\JAVA\jdk1.6.0_21
-  if exist C:\Progs\JAVA\jdk1.6.0_21 set JAVA_JDK=C:\Progs\JAVA\jdk1.6.0_21
-)
+call +findJAVA_JDK.bat
 echo genJavadoc: %DSTDIR%%DST%
 
 echo JAVA_JDK=%JAVA_JDK%

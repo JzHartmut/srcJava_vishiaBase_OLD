@@ -199,15 +199,23 @@ import java.util.concurrent.atomic.AtomicReference;
  *    |                                        |
  *    |-------------ev.sendEvent(cmd)--------->|
  *    |                                        + read data from event
- *                                             + ev.consumed() 
  *                                             |
  * </pre>
- * The event object is created on demand with {@link #Event(Object, EventConsumer, EventThread)}. Then it is {@link #sendEvent(int)}
- * to the destination either with direct call of {@link EventConsumer#processEvent(Event)} or it is stored in the queue of the
- * {@link EventThread} and then processed. <br>
- * While processing, the data are gotten from the event. After them it is no more necessary. One should call {@link #relinquish()}.
- * This routine clears some references from the event to outside. Because the event may no more be referenced the 
- * Garbage Collector removes the event object from memory.
+ * or more simple:
+ * <pre>
+ *   src
+ *    |                                       dst:{@link EventConsumer}
+ *    |                                        |
+ *    |----processEvent(new Event(cmd)-------->|
+ *    |                                        + read data from event
+ *                                             |
+ * </pre>
+ * The event object is created on demand with {@link #Event(Object, EventConsumer, EventThread)}
+ * and send via {@link #sendEvent(int)} to the destination or it is stored in the queue of the {@link EventThread}
+ * and then processed. Alternatively it may created with {@link #Event(Enum)} and applied to any 
+ * {@link EventConsumer#processEvent(Event)}. <br>
+ * While processing, the data are gotten from the event. After them it is no longer necessary. 
+ * Because it is not referenced any more, the garbage collector will be removed it from memory.
  * <br><br>
  * Template for usage:
  * <pre>
@@ -265,7 +273,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * instead new {@link #Event(Object, EventConsumer, EventThread)}. This method returns false if the event object is in use.
  * The handling on the destination side is the same. After read data from the event it should be described as
  * {@link #relinquish()}. Then the occupying is relinquished. Because the event is referred in the source, 
- * it isn't removed by the Garbage Collector in Java. 
+ * it is not removed by the Garbage Collector in Java. 
  * <br><br> 
  * <br><br>
  * Template for usage:
@@ -282,11 +290,14 @@ import java.util.concurrent.atomic.AtomicReference;
  * is not need anymore. The Event can be only relinquished
  * <ul>
  * <li>either it is processed from a queue, and the execution sequence returns back to the check point of the queue
- *   to get the next event. Only then the Event is processed overall. Then it can be relinquised.
+ *   to get the next event. Only then the Event is processed overall. Then it can be relinquished.
  * <li>or the event is processed by only one routine immediately called in the {@link #sendEvent(Enum)} routine
  *   because no queuing is done. Then only this routine is called with the event. Therefore the Event is relinquished
- *   in the {@link #sendEvent(Enum)} routine after calling {@link EventConsumer#processEvent(Event)}.      
+ *   automatically in the {@link #sendEvent(Enum)} routine after calling {@link EventConsumer#processEvent(Event)}.      
  * </ul> 
+ * It is possible that the event is stored in any other queue ('deferred events') inside the 
+ * {@link EventConsumer#processEvent(Event)}. Then the method {@link #donotRelinquish()} can be called therefore
+ * which prevents the relinguish from the event after processing.
  * 
  * <br><br>
  * <b>Exceptions while processing the event</b>:<br>
@@ -514,6 +525,9 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   
   /**Version, history and license
    * <ul>
+   * <li>2013-05-11 Hartmut new: {@link #Event(Enum)} to create an event for direct usage.
+   *   {@link #cmde} does not need to be an Atomic, because {@link #dateCreation} is Atomic
+   *   to designate the occupy-state of the event. 
    * <li>2013-04-12 Hartmut chg: Gardening. The attributes data1, data2, oData, refData are removed. Any special data
    *   should be defined in any derived instance of the event. A common universal data concept may be error-prone
    *   because unspecified types and meanings.
@@ -637,7 +651,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   
   //private final AtomicReference<Cmd> cmde = new AtomicReference<Cmd>();
   
-  private final AtomicReference<CmdEnum> cmde = new AtomicReference<CmdEnum>();
+  private CmdEnum cmde;
   
   //protected int answer;
   
@@ -647,7 +661,8 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   protected long orderId;
   
   /**Timestamp of the request. It is atomic because the timestamp may be an identification
-   * that the event instance is in use (for new-obviating usage like C-programming). */
+   * that the event instance is occupied, see {@link #occupy(EventSource, boolean)}.
+   * It is for new-obviating usage. */
   private final AtomicLong dateCreation = new AtomicLong();
   
   private int dateOrder;
@@ -663,6 +678,22 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   public Event(){
     dateCreation.set(0);
   }
+  
+
+  /**Creates an event as a dynamic object for direct usage without a given {@link EventConsumer}.
+   * This event should be used as parameter immediately for an event consuming routine.
+   * The event is set as occupied already after creation. 
+   * Don't call {@link #occupy(EventSource, boolean)} or {@link #occupy(EventSource, EventConsumer, EventThread, boolean)} should be use
+   * Don't call {@link #sendEvent()} because a destination is not given.
+   * 
+   * @param cmd a given Command. It may be null, it can be overwritten later with {@link #setCmd(Enum)}
+   *   or using {@link #sendEvent(Enum)}.
+   */
+  public Event(CmdEnum cmd){
+    dateCreation.set(System.currentTimeMillis());
+    this.cmde = cmd;
+  }
+  
   
   /**Creates an event as dynamic object for usage. Use {@link #relinquish()} after the event is used and it is not referenced
    * anymore. 
@@ -681,7 +712,6 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
       this.dateOrder = date.order;
     }
     this.source = source;
-    this.cmde.set(null);
     this.evDst = consumer; this.evDstThread = thread;
     this.opponent = null;
   }
@@ -705,7 +735,6 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
       this.dateCreation.set(date.date);
       this.dateOrder = date.order;
     }
-    this.cmde.set(null);
     this.evDst = consumer; this.evDstThread = thread;
     this.opponent = callback;
     if(callback !=null) {
@@ -715,7 +744,10 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   
   
   
-  public CmdEnum getCmd(){ return cmde.get(); }
+  public CmdEnum getCmd(){ return cmde; }
+  
+  
+  public void setCmd(CmdEnum cmd){ cmde = cmd; }
   
   /**Prevent that the event is relinquished after processing.
    * This method should be called in the processing routine of an event
@@ -751,13 +783,22 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   
   
   
-  /**Check whether this event is free and occupies it. An event instance can be re-used. If the {@link #dateCreation()}
-   * is set, the event is occupied. In a target communication with embedded devices often the communication
-   * resources are limited. It means that only one order can be requested at one time, and the execution
+  /**Check whether this event is free and occupies it. An event instance can be re-used. 
+   * If the {@link #dateCreation()} is set, the event is occupied. In a target communication 
+   * with embedded devices often the communication resources are limited. 
+   * It means that only one order can be requested at one time, and the execution
    * should be awaited. The usage of an re-used event for such orders can be help to organize the
    * requests step by step. If the answer-event instance is in use, a request is pending.
    *  
-   * @return true if the event instance is able to use.
+   * @param source Source instance able to use for monitoring the event life cycle. null is admissible.
+   * @param dst The destination instance which should receive this event.
+   *   If null, the dst given by constructor or the last given dst is used.
+   * @param thread A thread which queues the event. If null, the dst method 
+   *   {@link EventConsumer#doprocessEvent(Event)} is invoked in the current thread.
+   * @param expect If true and the event is not able to occupy, then the method 
+   *   {@link EventSource#notifyShouldOccupyButInUse()} from the given source is invoked. 
+   *   It may cause an exception for example. 
+   * @return true if the event instance is occupied and ready to use.
    */
   public boolean occupy(EventSource source, EventConsumer dst, EventThread thread, boolean expect){ 
     DateOrder date = new DateOrder();
@@ -765,7 +806,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
       dateOrder = date.order;
       this.source = source;
       this.ctConsumed =0;
-      this.cmde.set(null);
+      this.cmde = null;
       //if(refData !=null || dst !=null) { this.refData = refData; }
       if(dst != null) { 
         this.evDst = dst;
@@ -900,7 +941,9 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    * <br><br>
    * If any thread waits for this Event object, a {@link Object#notify()} is called. See {@link #occupyRecall(int)}
    * and {@link #occupyRecall(int, Object, EventConsumer, EventThread)}.
-   *  
+   * <br><br> 
+   * If {@link #donotRelinquish()} was called inside the {@link EventConsumer#processEvent(Event)} for this event,
+   * this method return without effect. This is helpfully if the event was stored in another queue for any reason.
    */
   public void relinquish(){
     if(donotRelinquish) return;
@@ -908,7 +951,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
       source.notifyRelinquished(ctConsumed);
     }
     this.stateOfEvent= 'a';
-    this.cmde.set(null);
+    this.cmde = null;
     this.orderId = 0;
     //data1 = data2 = 0;
     source = null;
@@ -941,16 +984,14 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    *   is invoked. After them this event itself is relinquished because it was applicated.
    * </ul>
    * <br><br>
-   * This method is protected because it should be called inside an wrapping method 
-   * <pre>
-   *   public boolean sendEvent_(UserEnumType cmd){ super.sendEvent_(cmd); }
-   * </pre>
-   * to force a type check for admissible cmd values.
    * 
-   * @param cmd Any enum. In the derived implementation a special enum value should be used.
+   * @param cmd The cmd to complete the event.
    * @return true if the event was sent.
    */
   public boolean sendEvent(CmdEnum cmd){
+    cmde = cmd;
+    return sendEvent();
+    /*
     if(source == null)
       source = null;
     CmdEnum cmd1 = this.cmde.get();
@@ -967,6 +1008,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
       notifyShouldSentButInUse();
     }
     return bOk;
+    */
   }
   
 
@@ -975,14 +1017,14 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    * This method can be used by an application if an Event is received but stored for deferred usage.
    * @return true
    */
-  public boolean sendEventAgain(){
+  public boolean sendEvent(){
     if(evDst == null) throw new IllegalArgumentException("event should have a destination");
     if(evDstThread !=null){
       evDstThread.storeEvent(this);
     } else {
       try{
-        donotRelinquish = false;
-        evDst.doprocessEvent(this);
+        donotRelinquish = false;  //it is possible that the processEvent sets donotRelinquish to true.
+        evDst.processEvent(this);
       } catch(Exception exc) {
         System.err.println("Exception while processing an event: " + exc.getMessage());
         exc.printStackTrace(System.err);

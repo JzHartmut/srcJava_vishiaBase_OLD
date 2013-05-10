@@ -18,12 +18,13 @@ public class StateBaseExample {
   private long time = -1;
   
   
-  public final EventConsumer processState = new EventConsumer("StateBaseExample"){
+  public final EventConsumer processState = new EventConsumer(){
 
-    @Override protected boolean processEvent_(Event<?,?> ev) {
-      stateTop.process(ev);
-      return true;
+    @Override public int processEvent(Event<?,?> ev) {
+      stateTop.processEvent(ev);
+      return 1;
     }
+    @Override public String toString(){ return "StateBaseExample"; }
     
   };
   
@@ -49,8 +50,8 @@ public class StateBaseExample {
       setDefaultState(stateOff);
     }
 
-    @Override public int process(Event<?,?> evP){
-      return super.process(evP);
+    @Override public int processEvent(Event<?,?> evP){
+      return super.processEvent(evP);
     }
     
     
@@ -143,7 +144,7 @@ public class StateBaseExample {
 
     @Override public int trans(Event<?,?> ev) {
       //call trans of its parallel states
-      int evConsumedInParallel = enclState().stateActive2.process(ev);
+      int evConsumedInParallel = enclState().stateActive2.processEvent(ev);
       if((evConsumedInParallel & mStateLeaved) !=0) return evConsumedInParallel;
       else{
         if(System.currentTimeMillis() - time >=0){
@@ -162,7 +163,7 @@ public class StateBaseExample {
     }
 
     @Override public int trans(Event<?,?> ev) {
-      int evConsumedInParallel = enclState().stateActive2.process(ev);
+      int evConsumedInParallel = enclState().stateActive2.processEvent(ev);
       if((evConsumedInParallel | mStateLeaved) !=0) return evConsumedInParallel;
       else{
         if(stateTop.stateWork.stateActive2.stateRemainOn.isInState()){
@@ -203,7 +204,7 @@ public class StateBaseExample {
      */
     @Override public int trans(Event ev) {
       
-      return StateSimpleBase.stateCompleted;
+      return 0;
       
     }
     

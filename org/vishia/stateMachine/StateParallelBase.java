@@ -107,10 +107,10 @@ extends StateCompositeBase<DerivedState, EnclosingState>
 
   
   
-  @Override public int process(Event<?,?> ev){
+  @Override public int processEvent(Event<?,?> ev){
     int cont = 0;
     for(StateCompositeBase<?, DerivedState> state: states){
-      cont |= state.process(ev);
+      cont |= state.processEvent(ev);
     }
     if((cont & StateSimpleBase.mEventConsumed) != 0){
       ev = null;

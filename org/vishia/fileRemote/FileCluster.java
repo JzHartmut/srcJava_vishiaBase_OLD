@@ -4,6 +4,7 @@ import org.vishia.util.Assert;
 import org.vishia.util.FileRemote;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
+import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPartBase;
 
 /**This class combines some {@link FileRemote} instances for common usage.
@@ -92,7 +93,8 @@ public class FileCluster
    */
   public FileRemote getFile( final CharSequence sDirP, final CharSequence sName, boolean strict){
     CharSequence sDir1 = FileSystem.normalizePath(sDirP); //sPath.replace('\\', '/');
-    String sPath;
+    //String sPath;
+    /*
     if(sName !=null){
       //the name should be appended:
       StringBuilder uPath;  //to concatenate
@@ -107,31 +109,36 @@ public class FileCluster
       uPath.append(sName); 
       sPath = uPath.toString();
     } else {
-      sPath = sDir1.toString(); //unchanged.
-    }
-    FileRemote dirRet = idxPaths.search(sPath.toString());
+    */
+      //sPath = sDir1.toString(); //unchanged.
+    //}
+    FileRemote dirRet = idxPaths.search(sDir1.toString());
     if(dirRet == null){
-      dirRet = new FileRemote(this, null, null, sPath, 0, 0, 0, null, true);
-      idxPaths.put(sPath.toString(), dirRet);
+      dirRet = new FileRemote(this, null, null, sDir1, 0, 0, 0, null, true);
+      idxPaths.put(sDir1.toString(), dirRet);
     } else {
+      boolean putit = true;
       String sPathRet = dirRet.getAbsolutePath();
       int zPathRet = sPathRet.length();
-      if(sPath.startsWith(sPathRet)){  //maybe equal too
-        if(sPathRet.length() < sPath.length()){
-          if(sPath.charAt(zPathRet) == '/'){
-            //a directory of the file was found.
-            StringPartBase pathchild = new StringPartBase(sPath, zPathRet+1);
+      if(StringFunctions.startsWith(sDir1,sPathRet)){  //maybe equal too
+        if(sPathRet.length() < sDir1.length()){
+          if(sDir1.charAt(zPathRet) == '/'){
+            //any directory of the file was found. Create the child directory.
+            StringPartBase pathchild = new StringPartBase(sDir1, zPathRet+1);
             dirRet = dirRet.child(pathchild);
           } else { //other directory name
-            dirRet = new FileRemote(this, null, null, sPath, 0, 0, 0, null, true);
+            dirRet = new FileRemote(this, null, null, sDir1, 0, 0, 0, null, true);
           }
-        } //else equal.
+        } else{
+          putit = false; //it is the same, found.
+        }
       } else {
         //another directory
-        dirRet = new FileRemote(this, null, null, sPath, 0, 0, 0, null, true);
+        dirRet = new FileRemote(this, null, null, sDir1, 0, 0, 0, null, true);
       }
-      idxPaths.put(sPath, dirRet);
+      if(putit){ idxPaths.put(sDir1.toString(), dirRet); }
     }
+    //create the named file in the directory if given.
     if(sName !=null){
       FileRemote fileRet = dirRet.child(sName);
       return fileRet;

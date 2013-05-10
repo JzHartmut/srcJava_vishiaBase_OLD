@@ -10,26 +10,10 @@ import org.vishia.util.Event;
 import org.vishia.util.EventConsumer;
 import org.vishia.util.EventThread;
 
-public class CompositeStates  extends EventConsumer {
+public class CompositeStates implements EventConsumer {
 
 
   
-  private class Idle extends StateSimpleBase<StateTop>{
-    
-    
-    Idle(StateTop superState) { super(superState, "Idle"); }
-
-    @Override public int trans(Event ev) {
-      if(ev instanceof EvX && ((EvX)ev).getCmd() == EvX.Cmd.EvX){
-        StateTop enclState1 = exit();
-        int cont = enclState1.Work.C.C1.C1b.entry(ev);
-        cont |= enclState1.Work.C.C2.C2a.entry(ev);
-        return cont;
-      }
-      else return eventNotConsumed;
-    }
-  }
-      
 
   private class A extends StateSimpleBase<Work>{
     
@@ -39,7 +23,7 @@ public class CompositeStates  extends EventConsumer {
     //A(MainState enclosingState){ super(enclosingState); }
   
     @Override public int trans(Event ev) {
-      return StateSimpleBase.stateCompleted;
+      return 0;
     }
   }
 
@@ -68,7 +52,7 @@ public class CompositeStates  extends EventConsumer {
       B1(B superState) { super(superState, "B1"); }
       
       @Override public int trans(Event ev) {
-        return StateSimpleBase.stateCompleted;
+        return 0;
       }
     }
     B1 B1 = new B1(this);
@@ -78,7 +62,7 @@ public class CompositeStates  extends EventConsumer {
       B2(B superState) { super(superState, "B2"); }
       
       @Override public int trans(Event ev) {
-        return StateSimpleBase.stateCompleted;
+        return 0;
       }
     }
     B2 B2 = new B2(this);
@@ -89,7 +73,7 @@ public class CompositeStates  extends EventConsumer {
       B3(B superState) { super(superState, "B3"); }
       
       @Override public int trans(Event ev) {
-        return StateSimpleBase.stateCompleted;
+        return 0;
       }
     }
     B3 B3 = new B3(this);
@@ -184,7 +168,7 @@ public class CompositeStates  extends EventConsumer {
 
   
     @Override public int trans(Event ev) {
-      return StateSimpleBase.stateCompleted;
+      return 0;
     }
   }
 
@@ -248,7 +232,7 @@ public class CompositeStates  extends EventConsumer {
         enclState1.entry(ev);
         enclState1.B.B3.entry(ev);
       }
-      return StateSimpleBase.stateCompleted;
+      return 0;
       
     }
 
@@ -294,30 +278,29 @@ public class CompositeStates  extends EventConsumer {
 
     protected StateTop() {
       super("StateTop");
-      setDefaultState(Idle);
+      setDefaultState(stateIdle);
     }
 
     @Override public void entryAction(Event<?,?> ev){
-      Work.entry(ev);
+      stateWork.entry(ev);
     }
 
     
-    /*
-    @Override public int switchState(Event ev) {
-      int cont = 0;
-      switch(stateNr()){
-        case Null: cont = Idle.entry(runToComplete | notConsumed); break;
-        case Idle: cont = Idle.trans(ev); break;
-        case Work: cont = Work.process(ev); break;
+    StateSimpleBase<StateTop> stateIdle = new StateSimpleBase<StateTop>(this, "stateIdle"){
+      
+      @Override public int trans(Event<?,?> ev) {
+        if(ev instanceof EvX && ((EvX)ev).getCmd() == EvX.Cmd.EvX){
+          StateTop enclState1 = exit();
+          int cont = enclState1.stateWork.C.C1.C1b.entry(ev);
+          cont |= enclState1.stateWork.C.C2.C2a.entry(ev);
+          return cont;
+        }
+        else return 0;
       }
-      return cont;
-    }
-    */
-    ///
-
+      
+    };
     
-    Idle Idle = new Idle(this);
-    Work Work = new Work(this);
+    Work stateWork = new Work(this);
   }
   
   
@@ -337,15 +320,15 @@ public class CompositeStates  extends EventConsumer {
 
   
   CompositeStates(EventThread eventThread){
-    super("CompositeStates");
+    //super("CompositeStates");
     this.evThread = eventThread;
   }
   
 
   
-  @Override protected boolean processEvent_(Event ev) {
-    state.process(ev);
-    return true;
+  @Override public int processEvent(Event ev) {
+    state.processEvent(ev);
+    return 1;
   }
   
   

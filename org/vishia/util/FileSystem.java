@@ -732,7 +732,8 @@ public class FileSystem
   /**Cleans any /../ and /./ from a path, it makes it normalized or canonical.
    *
    * @param inp Any path which may contain /./ or /../, with backslash or slash-separator.
-   * @return The originally inp if inp doesn't contain /./ or /../ or backslash, elsewhere a new String
+   *   The input will not be changed.
+   * @return The originally inp if inp doesn't contain /./ or /../ or backslash, elsewhere a new StringBuilder
    *   which presents the normalized form of the path. It does not contain backslash but slash as separator.
    *   It does not contain any "/./" or "//" or "/../". 
    *   It does contain "../" only at start if it is necessary for a relative given path.

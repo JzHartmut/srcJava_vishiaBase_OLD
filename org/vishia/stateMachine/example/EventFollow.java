@@ -22,12 +22,14 @@ public class EventFollow  {
   };
 
   
-  EventConsumer evDst = new EventConsumer("TestEventFollow"){
+  EventConsumer evDst = new EventConsumer(){
 
-    @Override protected boolean processEvent_(Event ev) {
+    @Override public int processEvent(Event ev) {
       state.trans(ev);
-      return true;
+      return 1;
     }
+    
+    @Override public String toString(){ return "TestEventFollow"; }
   };
   
   private final EventThread evThread;
@@ -70,7 +72,7 @@ public class EventFollow  {
       //protected Start(EventFollow enclosingState) { super(enclosingState); }
   
       @Override public void entryAction(Event<?,?> ev){
-        EventTimerMng.addTimeOrder(System.currentTimeMillis() + 1000, evDst, evThread);
+        EventTimerMng.addGlobalTimeOrder(System.currentTimeMillis() + 1000, evDst, evThread);
       }
       
       
@@ -82,7 +84,7 @@ public class EventFollow  {
           ev1.sendEvent(EvX.Cmd.EvX);
           return exit().stateA.entry(ev);
         } else {
-          return StateSimpleBase.stateCompleted;
+          return 0;
         }
       }
     }
@@ -119,7 +121,7 @@ public class EventFollow  {
         if(ev instanceof EvX && ev.getCmd() == EvX.Cmd.EvX){
           return exit().stateC.entry(ev);
         } else {
-          return StateSimpleBase.stateCompleted;
+          return 0;
         }
       }
     }
@@ -157,7 +159,7 @@ public class EventFollow  {
       
     
       @Override public int trans(Event ev) {
-        return StateSimpleBase.stateCompleted;
+        return 0;
       }
     }
 

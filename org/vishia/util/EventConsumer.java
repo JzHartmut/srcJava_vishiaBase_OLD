@@ -7,10 +7,15 @@ package org.vishia.util;
  * @author Hartmut Schorrig
  *
  */
-public abstract class EventConsumer
+public interface EventConsumer
 {
   /**Version, history and license
    * <ul>
+   * <li>2013-05-11 Hartmut chg: It is an interface up to now. The idea to store a name for debugging on 
+   *   anonymous overridden instances is able to implement with an <code>toString(){ return "name"}</code> alternatively.
+   *   The method doProcessEvent is renamed to {@link #processEvent(Event)}. 
+   *   The advantage of interface: multi inheritance. 
+   *   It is used as interface for {@link org.vishia.stateMachine.StateCompositeBase}.
    * <li>2013-04-07 Hartmut adap: Event<?,?> with 2 generic parameter
    * <li>2012-08-30 Hartmut new: This is an abstract class now instead of an interface. 
    *   The application should build an anonymous inner class with it. Because better debugging suppert 
@@ -43,33 +48,25 @@ public abstract class EventConsumer
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20130407;
+  public static final int version = 20130511;
 
-  public final String name;
+  //public final String name;
 
-  public EventConsumer(String name){ this.name = name; }
+  //public EventConsumer(String name){ this.name = name; }
   
-  /**This routine should be overwritten to processes an event. The routine is called inside {@link #doprocessEvent(Event)}.
+  /**This routine should be overwritten to processes an event. 
    * @param ev The event. It contains some data. The type of the event is not specified here. Any events
    *   can be processed.
    * @return true if this method can process this type of event. False if the event doesn't match.
    *   It is possible to build a chain of responsibility. It is possible too to process a event from 
    *   more as one instance. 
    */
-  protected abstract boolean processEvent_(Event<?,?> ev); //{ return false; }
+  int processEvent(Event<?,?> ev); //{ return false; }
   
-  /**Processes a event.
-   * @param ev The event. It contains some data. The type of the event is not specified here. Any events
-   *   can be processed.
-   * @return true if this method can process this type of event. False if the event doesn't match.
-   *   It is possible to build a chain of responsibility. It is possible too to process a event from 
-   *   more as one instance. 
+  /**Bit in return value of a Statemachine's {@link #trans(Event)} or entry method for designation, 
+   * that the given Event object was used to switch.
    */
-  public final boolean doprocessEvent(Event<?, ?> ev){
-    ev.donotRelinquish = false;
-    return processEvent_(ev);
-  }
+  public final static int mEventConsumed =0x1;
   
-  
-  @Override public String toString(){ return name; }
+  //@Override public String toString(){ return name; }
 }

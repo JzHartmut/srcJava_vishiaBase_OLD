@@ -373,8 +373,13 @@ public class FileRemote extends File
     } else {
       this.parent = null;
       int posSep = StringFunctions.lastIndexOf(sPath, '/');
-      this.sDir = sPath.subSequence(0, posSep).toString();
-      this.sFile = sPath.subSequence(posSep+1, sPath.length()).toString();
+      if(posSep >=0){
+        this.sDir = sPath.subSequence(0, posSep).toString();
+        this.sFile = sPath.subSequence(posSep+1, sPath.length()).toString();
+      } else {
+        this.sDir = "";
+        this.sFile = sPath.toString();
+      }
       if(cluster == null) throw new IllegalArgumentException("FileRemote.ctor - cluster is null, should be given;");
       this.itsCluster = cluster;
     }
@@ -819,7 +824,8 @@ public class FileRemote extends File
   public CharSequence getPathChars(){
     if(sFile !=null && sFile.length() > 0){ 
       StringBuilder ret = new StringBuilder(sDir);
-      if(sDir.charAt(sDir.length()-1) != '/'){ ret.append('/'); }
+      int zDir = sDir.length();
+      if(zDir > 0 && sDir.charAt(zDir-1) != '/'){ ret.append('/'); }
       ret.append(sFile);
       return ret.toString();
     } else {
@@ -909,7 +915,7 @@ public class FileRemote extends File
           //the root. 
           pDir = zDir; //return inclusive the /
         } else {
-          pDir = zDir -1;
+          pDir = zDir; // -1;
         }
         sParent = sDir.substring(0, pDir);
       }
@@ -1888,15 +1894,15 @@ public class FileRemote extends File
   }
 
   
-  protected class CallbackWait extends EventConsumer{
-    public CallbackWait(){  super("FileRemote"); }
+  protected class CallbackWait implements EventConsumer{
+    public CallbackWait(){  }
 
-    @Override protected boolean processEvent_(Event<?, ?> ev)
+    @Override public int processEvent(Event<?, ?> ev)
     {
       synchronized(FileRemote.this){
         FileRemote.this.notify();
       }
-      return true;
+      return 1;
     }
   }
   

@@ -2,13 +2,28 @@ package org.vishia.stateMachine;
 
 import org.vishia.util.Event;
 
-/**Base class for a state machine, for the main state.
- * @author Hartmut Schorrig
- *
+/**Base class for a state machine, for the main or top state.
+ * An application should create its top state class using the following pattern:
+ * <pre>
+  class UsersTopState extends StateTopBase<UsersTopState>{
+
+    /**inner state...* /
+    UsersCompositeState stateExample = new UsersCompositeState(this);
+    
+    
+    protected UsersTopState() {
+      super("UsersTopState");
+      setDefaultState(stateExample);
+    }
+
+  }
+ * </pre>
  * @param <DerivedState> The class type of the state which is derived from this class. 
  *   This parameter is used to designate the {@link #stateAct} and all parameters which works with {@link #stateAct}
  *   for example {@link #isInState(StateSimpleBase)}. It helps to prevent confusions with other state instances else
  *   the own one. A mistake is detected to compile time already.
+ * @author Hartmut Schorrig
+ *
  */
 public abstract class StateTopBase <DerivedState extends StateCompositeBase<DerivedState,?>> 
 //extends StateCompositeBase<DerivedState,DerivedState>
@@ -50,10 +65,14 @@ extends StateCompositeBase<DerivedState,StateCompositeNull>
 
 
   protected StateTopBase(String stateId) {
-    super(null, stateId);
+    super(stateId);
   }
 
 
+  /**The trans routine is implemented as an empty routine here. The StateTop has not a capability
+   * to switch any states.
+   * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.util.Event)
+   */
   @Override final public int trans(Event ev){ return 0; }
 
 

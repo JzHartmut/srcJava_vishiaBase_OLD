@@ -1058,7 +1058,7 @@ public class Copy_FileLocalAcc
                   evBackInfo.sendEvent(FileRemote.CallbackCmd.nrofFilesAndBytes );
                 }
                 sendEventInternal(CmdCpyIntern.file); //keep alive the copy process.
-                newState = stateCompleted + mEventConsumed;
+                newState = mEventConsumed;
               } 
             } else if(zBytes == -1){
               //bContCopy = false;
@@ -1087,8 +1087,7 @@ public class Copy_FileLocalAcc
       return newState;
     }
     
-    @Override public StateCopyProcess exit(){
-      StateCopyProcess encl = super.exit();
+    @Override protected void exitAction(){
       try{
         if(Copy_FileLocalAcc.this.in!=null){ 
           zFilesCopied +=1;
@@ -1111,8 +1110,6 @@ public class Copy_FileLocalAcc
       } catch(IOException exc){
         System.err.printf("FileRemoteAccessorLocalFile - Problem close; %s\n", actData.dst.getAbsolutePath());
       }
-      
-      return encl;
     }
   }
 
@@ -1204,7 +1201,7 @@ public class Copy_FileLocalAcc
           evBackInfo.sendEvent(FileRemote.CallbackCmd.done);
           Event<?,?> ev1;
           while( (ev1 = storedCopyEvents.poll() ) !=null) {
-            ev1.sendEventAgain();
+            ev1.sendEvent();
           }
           
         }

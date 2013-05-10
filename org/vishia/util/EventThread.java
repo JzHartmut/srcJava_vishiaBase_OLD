@@ -84,7 +84,8 @@ public class EventThread implements Runnable, Closeable
             event.stateOfEvent = 'e';
             event.notifyDequeued();
             try{
-              event.evDst().doprocessEvent(event);
+              event.donotRelinquish = false;
+              event.evDst().processEvent(event);
             } catch(Exception exc) {
               System.err.println("Exception while processing an event: " + exc.getMessage());
               exc.printStackTrace(System.err);

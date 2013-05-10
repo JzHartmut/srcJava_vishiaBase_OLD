@@ -120,19 +120,20 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   /**Destination for all events which forces actions in the execution thread.
    * 
    */
-  EventConsumer executerCommission = new EventConsumer("FileRemoteAccessorLocal - executerCommision"){
-    @Override protected boolean processEvent_(Event ev) {
+  EventConsumer executerCommission = new EventConsumer(){
+    @Override public int processEvent(Event ev) {
       if(ev instanceof Copy_FileLocalAcc.EventCpy){ //internal Event
-        copy.stateCopy.process(ev);
-        return true;
+        copy.stateCopy.processEvent(ev);
+        return 1;
       } else if(ev instanceof FileRemote.CmdEvent){  //event from extern
             execCommission((FileRemote.CmdEvent)ev);
-        return true;
+        return 1;
       } else {
-        return false;
+        return 0;
       }
     }
-    
+    @Override public String toString(){ return "FileRemoteAccessorLocal - executerCommision"; }
+
   };
   
 
@@ -296,9 +297,9 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       file1 = new File(file.getAbsolutePath());
       file.setFileObject(file1);
     }
-    if(!subdirs && evback == null){ 
-      if(subdirs){ return file.mkdirs(); }
-      else { return file.mkdir(); }
+    if(evback == null){ 
+      if(subdirs){ return file1.mkdirs(); }
+      else { return file1.mkdir(); }
     } else {
       FileRemote.CmdEvent ev = prepareCmdEvent(evback);
       ev.filesrc = file;
@@ -367,14 +368,14 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       case abortAll:
       case abortCopyDir:
       case abortCopyFile:
-      case copy: copy.stateCopy.process(commission); break;
+      case copy: copy.stateCopy.processEvent(commission); break;
       case move: copy.execMove(commission); break;
       case chgProps:  execChgProps(commission); break;
       case chgPropsRecurs:  execChgPropsRecurs(commission); break;
       case countLength:  execCountLength(commission); break;
       case delete:  execDel(commission); break;
-      case mkDir: mkdir(false, commission); 
-      case mkDirs: mkdir(true, commission); 
+      case mkDir: mkdir(false, commission); break;
+      case mkDirs: mkdir(true, commission); break;
       
     }
   }
