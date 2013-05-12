@@ -20,6 +20,8 @@ import org.vishia.stateMachine.StateSimpleBase;
 import org.vishia.stateMachine.StateTopBase;
 import org.vishia.util.Assert;
 import org.vishia.util.Event;
+import org.vishia.util.EventThread;
+import org.vishia.util.EventTimerMng;
 import org.vishia.util.FileRemote;
 import org.vishia.util.FileSystem;
 import org.vishia.util.StringFunctions;
@@ -274,6 +276,7 @@ public class Copy_FileLocalAcc
   Copy_FileLocalAcc(FileRemoteAccessorLocalFile accessor){
     this.outer = accessor;
     evCpy = new EventCpy(accessor);
+    stateCopy = new StateCopyTop(accessor.singleThreadForCommission, null);
   }
   
 
@@ -661,7 +664,7 @@ public class Copy_FileLocalAcc
   
   
   
-  StateCopyTop stateCopy = new StateCopyTop();
+  final StateCopyTop stateCopy;
   
   public class StateCopyTop extends StateTopBase<StateCopyTop>{
 
@@ -669,8 +672,8 @@ public class Copy_FileLocalAcc
     //StateCopyStart start = new StateCopyStart(this);
     StateCopyProcess stateProcess = new StateCopyProcess(this);
 
-    protected StateCopyTop() {
-      super("StateCopyTop");
+    protected StateCopyTop(EventThread thread, EventTimerMng timer) {
+      super("StateCopyTop", thread, timer);
       setDefaultState(stateReady);
     }
 

@@ -277,7 +277,7 @@ public class CompositeStates implements EventConsumer {
   private class StateTop extends StateTopBase<StateTop>{
 
     protected StateTop() {
-      super("StateTop");
+      super("StateTop", evThread, null);
       setDefaultState(stateIdle);
     }
 

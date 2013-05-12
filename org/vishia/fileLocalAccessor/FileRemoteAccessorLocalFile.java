@@ -147,7 +147,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   private FileRemote workingDir;
   
   public FileRemoteAccessorLocalFile() {
-    singleThreadForCommission.startThread();
+    //singleThreadForCommission.startThread();
   }
   
   

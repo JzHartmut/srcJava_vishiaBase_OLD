@@ -18,7 +18,7 @@ import org.vishia.util.EventConsumer;
 public abstract class StateCompositeBase
 <DerivedState extends StateCompositeBase<DerivedState,?>, EnclosingState extends StateCompositeBase<EnclosingState,?>>
  extends StateSimpleBase<EnclosingState>
- implements EventConsumer
+ //implements EventConsumer
 { 
   
   /**Version, history and license
@@ -211,7 +211,7 @@ public abstract class StateCompositeBase
    * @return The bits {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #trans(Event)}.
    *   Note that if an event is consumed in an inner state, it should not be applied to its enclosing state transitions. 
    */
-  @Override public int processEvent(final Event<?,?> evP){
+  public int processEvent(final Event<?,?> evP){  //NOTE: should be protected.
     int cont;
     Event<?,?> evTrans = evP;
     int catastrophicalCount =  maxStateSwitchesInLoop;

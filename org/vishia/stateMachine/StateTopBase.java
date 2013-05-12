@@ -1,6 +1,9 @@
 package org.vishia.stateMachine;
 
 import org.vishia.util.Event;
+import org.vishia.util.EventConsumer;
+import org.vishia.util.EventThread;
+import org.vishia.util.EventTimerMng;
 
 /**Base class for a state machine, for the main or top state.
  * An application should create its top state class using the following pattern:
@@ -28,6 +31,7 @@ import org.vishia.util.Event;
 public abstract class StateTopBase <DerivedState extends StateCompositeBase<DerivedState,?>> 
 //extends StateCompositeBase<DerivedState,DerivedState>
 extends StateCompositeBase<DerivedState,StateCompositeNull>
+implements EventConsumer
 {
 
   /**Version, history and license.
@@ -63,9 +67,33 @@ extends StateCompositeBase<DerivedState,StateCompositeNull>
    */
   public static final int version = 20120917;
 
+  
+  /**Aggregation to the used event queue or the thread for this statemachine.
+   * It can be used to send events to from outer.
+   * Note: Do not send events from any other thread to this directly.
+   * The state machine should processed in only one thread.
+   * But this aggregation may be null if the state machine will be processed in a users thread.
+   */
+  public final EventThread theThread;
+  
+  /**Aggregation to the used timer for time events. See {@link #addTimeOrder(long)}.
+   * It may be null if queued time events are not necessary for this.
+   */
+  public final EventTimerMng theTimer;
+  
+  
 
-  protected StateTopBase(String stateId) {
+  /**Super constructor of a top level state.
+   * @param stateId The name of the state, only used for log and debug.
+   * @param thread maybe null, the used event queue or the thread for this statemachine.
+   *   see {@link #theThread}
+   * @param timer maybe null, the timer which is used for {@link #addTimeOrder(long)}.
+   *   If this statemachine does not use timer events, it may be null.
+   */
+  protected StateTopBase(String stateId, EventThread thread, EventTimerMng timer) {
     super(stateId);
+    this.theThread = thread;
+    this.theTimer = timer;
   }
 
 
@@ -75,7 +103,21 @@ extends StateCompositeBase<DerivedState,StateCompositeNull>
    */
   @Override final public int trans(Event ev){ return 0; }
 
+  /**This method is defined in {@link StateCompositeBase#processEvent(org.vishia.util.Event)}.
+   * It means that a top State is an {@link EventConsumer}. 
+   * It calls the routine {@link StateCompositeBase#processEvent(Event)}} of its superclass
+   * which has the same name and signature, but that routine does not implement the {@link EventConsumer}
+   * Only a top state should accept events from outside.
+   */
+  @Override public int processEvent(final Event<?,?> evP){
+    return super.processEvent(evP);
+  }
 
+  
+  public EventTimerMng.TimeOrder addTimeOrder(long date){
+    return theTimer.addTimeOrder(date, this, theThread);
+  }
+  
   
 }
 

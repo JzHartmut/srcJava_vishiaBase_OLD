@@ -46,7 +46,7 @@ public class EventFollow  {
   
   private class MainState extends StateTopBase<MainState>{
   
-    protected MainState() { super("StateM");       setDefaultState(start); }
+    protected MainState() { super("StateM", evThread, null);       setDefaultState(start); }
 
 
   

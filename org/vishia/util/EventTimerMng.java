@@ -8,9 +8,46 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class EventTimerMng extends Thread implements Closeable{
 
+  
+  /**Version, history and license.
+   * <ul>
+   * <li>2013-05-12 Hartmut new: {@link #identNrEvent} and {@link TimeEvent#isMatchingto(TimeOrder)}
+   * <li>2013-05-11 Hartmut new: {@link #addTimeOrder(TimeOrder)} not only for singleton.
+   * <li>2012...improved
+   * <li>2011-12-27 Hartmut creation for event concept.
+   * </ul>
+   * <br><br>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL is not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   */
+  public static final int version = 20130513;
+
   public static class TimeOrder{
     /**Absolute time when the event should be occurred. */
     final long dateEvent;
+    
+    final int identNrEvent;
     
     final Event<TimeEvent.Cmd, Event.NoOpponent> event;
     
@@ -18,18 +55,20 @@ public class EventTimerMng extends Thread implements Closeable{
     
     final EventThread threadDst;
     
-    TimeOrder(Event<TimeEvent.Cmd, Event.NoOpponent> ev, long date){
+    TimeOrder(Event<TimeEvent.Cmd, Event.NoOpponent> ev, long date, int identNrEvent){
       this.dateEvent = date;
       this.event = ev;
       this.dst = null;  //stored in ev
       this.threadDst = null;
+      this.identNrEvent = identNrEvent;
     }
 
-    TimeOrder(long date, EventConsumer dst, EventThread dstThread){
+    TimeOrder(long date, EventConsumer dst, EventThread dstThread, int identNrEvent){
       this.dateEvent = date;
       this.event = null;  //should be create if need.
       this.dst = dst;  //stored in ev
       this.threadDst = dstThread;
+      this.identNrEvent = identNrEvent;
     }
 
   }
@@ -38,14 +77,16 @@ public class EventTimerMng extends Thread implements Closeable{
   public static class TimeEvent extends Event<TimeEvent.Cmd, Event.NoOpponent>{
     enum Cmd{Time};
     
+    final int identNrEvent;
     
     /**The constructor
      * @param dst A destination object should be given
      * @param thread The destination thread may be null, then the {@link EventConsumer#processEvent(Event)} method
      *   is called in the timer thread.
      */
-    TimeEvent(EventConsumer dst, EventThread thread){
+    TimeEvent(EventConsumer dst, EventThread thread, int identNrEvent){
       super(null, dst, thread);
+      this.identNrEvent = identNrEvent;
     }
     
     /**Checks whether the event is a TimeEvent.
@@ -60,10 +101,34 @@ public class EventTimerMng extends Thread implements Closeable{
       }
     }
 
+    /**Checks whether the received event is matching to the created time order.
+     * An event can be received from an older time order if it is not successfully removed
+     * from an exitAction of any state which has created the time order as its timeout.
+     * It should prevented that a non matching event uses for timeout.
+     * Use the following pattern for timeouts in states:
+     * <pre>
+     * MyState state ...{
+     *   private EventTimerMng.TimeOrder timeOrder;
+     *   ...
+     *  protected void entryAction(Event<?,?> ev){
+     *    timeOrder = stateTop.addTimeOrder(System.currentTimeMillis() + delay);
+     *  ...  
+     *  protected void exitAction(){
+     *    if(timeOrder !=null){ timer.removeTimeOrder(timeOrder); }
+     *  ....  
+     *  private int transXy(EventTimerMng.TimeEvent ev){
+     *    if(ev !=null && ev.isMatchingto(timeOrder)){
+     *      timeOrder = null;
+     * </pre>
+     * @param order
+     * @return true if it is the proper event to the time order.
+     */
+    public boolean isMatchingto(TimeOrder order){ return identNrEvent == order.identNrEvent; }
+    
   }
   
   
-  EventSource evSource = new EventSource("TimerMng"){
+  final EventSource evSource = new EventSource("TimerMng"){
     
   };
   
@@ -79,6 +144,9 @@ public class EventTimerMng extends Thread implements Closeable{
   
   /**true if the wait operation runs in {@link #run()} */
   private boolean bWait;
+  
+  
+  int identNrEvent;
   
   ConcurrentLinkedQueue<TimeOrder> timeEntries = new ConcurrentLinkedQueue<TimeOrder>();
   
@@ -110,12 +178,12 @@ public class EventTimerMng extends Thread implements Closeable{
     if(singleton == null){
       singleton = new EventTimerMng("EventTimerMng");
     }
-    return singleton.addTimeOrder(date, new TimeEvent(dst, thread));
+    return singleton.addTimeOrder(date, new TimeEvent(dst, thread, ++singleton.identNrEvent));
   }
   
 
   public TimeOrder addTimeOrder(long date, EventConsumer dst, EventThread dstThread){
-    TimeOrder order = new TimeOrder(date, dst, dstThread);
+    TimeOrder order = new TimeOrder(date, dst, dstThread, ++this.identNrEvent);
     addTimeOrder(order);
     return order;
   }
@@ -128,7 +196,7 @@ public class EventTimerMng extends Thread implements Closeable{
       Assert.checkMsg (evTime.hasDst(), "The Event must have a destination.");
       Assert.checkMsg (!evTime.isOccupied(), "The Event must not be occupied.");
     }
-    TimeOrder entry = new TimeOrder(evTime, date);
+    TimeOrder entry = new TimeOrder(evTime, date, ++this.identNrEvent);
     addTimeOrder(entry);
     return entry;
   }
@@ -203,7 +271,7 @@ public class EventTimerMng extends Thread implements Closeable{
   
   private void executeTime(TimeOrder entry){
     final Event<TimeEvent.Cmd, Event.NoOpponent> ev = entry.event !=null ? entry.event: 
-      new TimeEvent(entry.dst, entry.threadDst);
+      new TimeEvent(entry.dst, entry.threadDst, entry.identNrEvent);
     ev.occupy(evSource, true);
     ev.sendEvent(TimeEvent.Cmd.Time);
   }

@@ -747,7 +747,11 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   public CmdEnum getCmd(){ return cmde; }
   
   
-  public void setCmd(CmdEnum cmd){ cmde = cmd; }
+  /**Sets the command into the event. The event should be occupied already.
+   * @param cmd any admissible command
+   * @return this to concatenate
+   */
+  public Event<CmdEnum, CmdBack> setCmd(CmdEnum cmd){ cmde = cmd; return this; }
   
   /**Prevent that the event is relinquished after processing.
    * This method should be called in the processing routine of an event

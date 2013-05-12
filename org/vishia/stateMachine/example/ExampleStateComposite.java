@@ -8,11 +8,36 @@ import org.vishia.stateMachine.StateSimpleBase;
 import org.vishia.stateMachine.StateTopBase;
 import org.vishia.util.Assert;
 import org.vishia.util.Event;
+import org.vishia.util.EventConsumer;
+import org.vishia.util.EventSource;
+import org.vishia.util.EventThread;
 import org.vishia.util.EventTimerMng;
 import org.vishia.util.Timeshort;
 
-public class ExampleSimple implements Closeable{
+public class ExampleStateComposite implements Closeable{
 
+  /**A state machine or some state machines in several threads may need a timer to create timer events.
+   * It is possible to create a singleton instance using the static methods of EventTimerMng,
+   * but it is also possible to create some instances of the timer manager. Each instance creates a thread.
+   */
+  final EventTimerMng timer = new EventTimerMng("timer");
+  
+  
+  /**The state machine should be processed in only one thread. Then all transitions can be written
+   * non thread safe, which is some more simple for the user. This instance creates a thread
+   * and contains a queue for events. All events will be stored here and processed in this thread.
+   */
+  final EventThread eventQueue = new EventThread("eventQueue");
+  
+  
+  
+  /**Delay-Parameter for timeout of {@link StateTop.StateProcess.StateActive} */
+  int delay = 1200;
+  
+  
+  public ExampleStateComposite(){
+    eventQueue.startThread();  
+  }
   
   
   /**The type of a user event can be defined in an extra Java source file. 
@@ -38,6 +63,20 @@ public class ExampleSimple implements Closeable{
       super(cmd);
     }
     
+    /**Creates an event as a dynamic object for direct usage without a given {@link EventConsumer}.
+     * This event should be used as parameter immediately for an event consuming routine.
+     */
+    public UserEvent(){
+      super();
+    }
+    
+    /**Creates an event as a dynamic object for direct usage without a given {@link EventConsumer}.
+     * This event should be used as parameter immediately for an event consuming routine.
+     */
+    public UserEvent(EventSource source, EventConsumer dst, EventThread thread){
+      super(source, dst, thread);
+    }
+    
     /**Checks whether the event from its base type to the expected type.
      * @param ev The untyped event
      * @return null if the event does not match the type, elsewhere the casted event.
@@ -56,16 +95,26 @@ public class ExampleSimple implements Closeable{
   
   
   
-  StateTop stateTop = new StateTop();
+  private final StateTop stateTop = new StateTop();
   /**The Top state of the state machine contains all inner states.
    */
   private final class StateTop extends StateTopBase<StateTop>{
 
     protected StateTop() { 
-      super("StateTemplate");
+      super("ExampleStateComposite", eventQueue, timer);
       setDefaultState(stateOff);  //one of the states
     }
 
+    
+    /**This method is overridden only to set a derived class specific breakpoint for debugging.
+     * @see org.vishia.stateMachine.StateTopBase#processEvent(org.vishia.util.Event)
+     */
+    @Override public int processEvent(final Event<?,?> evP){
+      return super.processEvent(evP);   //<<<<<<<<<< set breakpoint here
+    }
+
+
+    
     
     StateOff stateOff = new StateOff(this);
     /**State ready, this state is the idle state.
@@ -77,7 +126,7 @@ public class ExampleSimple implements Closeable{
       /**Transition to process, triggered with EventTemplate.cmd == {@link UserCmd#On}. 
        * Template hint: use an extra method for any transition to see it in the overview (Outline). */
       private int transProcess(UserEvent ev){
-        if(ev.getCmd() == UserEvent.Cmd.on){
+        if(ev !=null && ev.getCmd() == UserEvent.Cmd.on){
           //Template: some actions for the transition should notice here.
           return exit().stateProcess.stateReady.entry(ev);
         }
@@ -105,7 +154,7 @@ public class ExampleSimple implements Closeable{
 
       
       private int transOff(UserEvent ev){
-        if(ev.getCmd() == UserEvent.Cmd.off){
+        if(ev !=null && ev.getCmd() == UserEvent.Cmd.off){
           return exit().stateOff.entry(ev);
         } else return 0;
       }
@@ -127,10 +176,9 @@ public class ExampleSimple implements Closeable{
         
         StateReady(StateProcess enclState){ super(enclState, "Ready", false); }
         
-        /**Transition to process, triggered with EventTemplate.cmd == {@link UserCmd#On}. 
-         * Template hint: use an extra method for any transition to see it in the overview (Outline). */
+        /**Transition to stateActive, triggered with EventTemplate.cmd == {@link UserCmd#start}. */
         private int transActive(UserEvent ev){
-          if(ev.getCmd() == UserEvent.Cmd.start){
+          if(ev !=null && ev.getCmd() == UserEvent.Cmd.start){
             //Template: some actions for the transition should notice here.
             return exit().stateActive.entry(ev);
           }
@@ -159,7 +207,7 @@ public class ExampleSimple implements Closeable{
         private EventTimerMng.TimeOrder timeOrder;
         
         @Override protected void entryAction(Event<?,?> ev){
-          timeOrder = timer.addTimeOrder(System.currentTimeMillis() + delay, this.enclState, null);
+          timeOrder = stateTop.addTimeOrder(System.currentTimeMillis() + delay);
           setOut(true);      
         }
         
@@ -176,9 +224,8 @@ public class ExampleSimple implements Closeable{
         /**Transition to process, triggered with EventTemplate.cmd == {@link UserCmd#On}. 
          * Template hint: use an extra method for any transition to see it in the overview (Outline). */
         private int transReady(EventTimerMng.TimeEvent ev){
-          if(ev !=null){
-            //Template: some actions for the transition should notice here.
-            timeOrder = null;
+          if(ev !=null && ev.isMatchingto(timeOrder)){
+            timeOrder = null;  
             return exit().stateReady.entry(ev);
           }
           else return 0;
@@ -203,43 +250,81 @@ public class ExampleSimple implements Closeable{
   }
 
   
-  /**A state machine or some statemachines in several threads may need a timer to create timer events.
-   * It is possible to create a singleton instance using the static methods of EventTimerMng,
-   * but it is also possible to create some instances of the timer manager. Each instance creates a thread.
+  /**This instance is helpfull for debugging. It is not need for event processing. */
+  EventSource evSource = new EventSource("ExampleStateComposite"){
+    
+  };
+  
+  /**Routine for the out-effect. It may set any binary output maybe via any communication.
+   * In the example it calls println("...");
+   * @param val true or false.
    */
-  EventTimerMng timer = new EventTimerMng("timer");
-  
-  
-  int delay = 1200;
-  
   void setOut(boolean val){
-    System.out.println("ExampleStateSimple - setOut;" + val);
+    System.out.println("ExampleStateComposite - setOut;" + val);
   }
   
   @Override public void close(){
     try{ 
       timer.close();
-    } catch(IOException exc){ System.err.println("ExampleSimple - unexpected;" + exc.getMessage()); }
+      eventQueue.close();
+    } catch(IOException exc){ System.err.println("ExampleStateComposite - unexpected;" + exc.getMessage()); }
   }
   
   /**This method is given only for the simple test of this class.
    * @param args not used
    */
   public static final void main(String[] args){
-    ExampleSimple main = new ExampleSimple();
-    main.test1();
+    ExampleStateComposite main = new ExampleStateComposite();
+    //main.test1();
+    main.test2();
     main.close();
   }
   
   
+  /**This pattern processes the statemachine in the own thread. 
+   * The pattern is able to use especially by condition-triggered state machine, which are processed
+   * in a cyclically time slice. But there should not used a {@link EventTimerMng.TimeEvent}
+   * which is processed in another, the timer thread. Therefore this pattern is not proper
+   * for this example. But it may helpfully for first debugging in the  statemachine's technique.
+   */
   private void test1(){
-    stateTop.processEvent(new UserEvent(UserEvent.Cmd.on));
+    UserEvent ev = new UserEvent();
+    stateTop.processEvent(ev.setCmd(UserEvent.Cmd.on));
     Timeshort.sleep(500);
-    stateTop.processEvent(new UserEvent(UserEvent.Cmd.start));
+    stateTop.processEvent(ev.setCmd(UserEvent.Cmd.start));
     Timeshort.sleep(500);
-    stateTop.processEvent(new UserEvent(UserEvent.Cmd.off));
-    stateTop.processEvent(new UserEvent(UserEvent.Cmd.on));
-    stateTop.processEvent(new UserEvent(UserEvent.Cmd.start));
+    stateTop.processEvent(ev.setCmd(UserEvent.Cmd.off));
+    stateTop.processEvent(ev.setCmd(UserEvent.Cmd.on));
+    stateTop.processEvent(ev.setCmd(UserEvent.Cmd.start));
+    Timeshort.sleep(3000);
+    Assert.stop();    
+  }
+  
+
+  
+  /**This pattern processes the statemachine in its specific thread,
+   * which's queue stores the timer event too. It is the recommended pattern for complex ones.
+   * The event's where created and fired in this thread, in the example. 
+   * In reality the events may be created in different threads from several sources.
+   */
+  private void test2(){
+    UserEvent ev = new UserEvent(evSource, stateTop, stateTop.theThread);
+    ev.sendEvent(UserEvent.Cmd.on);
+    
+    Timeshort.sleep(500);
+    ev = new UserEvent(evSource, stateTop, stateTop.theThread);
+    ev.sendEvent(UserEvent.Cmd.start);
+    
+    Timeshort.sleep(500);
+    ev = new UserEvent(evSource, stateTop, stateTop.theThread);
+    ev.sendEvent(UserEvent.Cmd.off);
+    
+    ev = new UserEvent(evSource, stateTop, stateTop.theThread);
+    ev.sendEvent(UserEvent.Cmd.on);
+    
+    ev = new UserEvent(evSource, stateTop, stateTop.theThread);
+    ev.sendEvent(UserEvent.Cmd.start);
+    
     Timeshort.sleep(3000);
     Assert.stop();    
   }

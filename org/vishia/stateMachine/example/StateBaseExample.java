@@ -46,7 +46,7 @@ public class StateBaseExample {
   private class StateTop extends StateTopBase<StateTop>{
 
     protected StateTop() {
-      super("StateTop");
+      super("StateTop", null, null);
       setDefaultState(stateOff);
     }
 
