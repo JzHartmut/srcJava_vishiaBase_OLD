@@ -162,7 +162,7 @@ public class FileRemote extends File
    * <li> You can redistribute copies of this source to everybody.
    * <li> Every user of this source, also the user of redistribute copies
    *    with or without payment, must accept this license for further using.
-   * <li> But the LPGL ist not appropriate for a whole software product,
+   * <li> But the LPGL is not appropriate for a whole software product,
    *    if this source is only a part of them. It means, the user
    *    must publish this part of source,
    *    but don't need to publish the whole source of the own product.
@@ -177,7 +177,7 @@ public class FileRemote extends File
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20130504;
+  public static final int version = 20130513;
 
   public final static int modeCopyReadOnlyMask = 0x00f
   , modeCopyReadOnlyNever = 0x1, modeCopyReadOnlyOverwrite = 0x3, modeCopyReadOnlyAks = 0;
@@ -573,7 +573,7 @@ public class FileRemote extends File
     long bytes = length();
     if(nrofFiles !=null){ nrofFiles[0] +=1; }
     selected = false;
-    
+    if(recursion > 1000) throw new RuntimeException("FileRemote - resetSelectedRecurs,too many recursion");
     if(children !=null){
       for(Map.Entry<String, FileRemote> item: children.entrySet()){
         FileRemote child = item.getValue();

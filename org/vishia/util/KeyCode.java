@@ -72,6 +72,10 @@ public class KeyCode
    */
   public final static int mSpecialKeys = 0x000f0000;
   
+  /**Mask for the additional ctrl, alt and shift key.
+   * If a key code is mask with them, it can be compared with
+   * #alt, #ctrl. #shift, #ctrlAlt, #shiftAlt, shiftCtrl, shiftCtrlAlt.
+   */
   public final static int mAddKeys = 0xfff00000;
   
   /**Any of control or alt is pressed. */

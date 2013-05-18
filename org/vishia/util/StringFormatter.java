@@ -1006,4 +1006,12 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
     return sDate;
   }
 
+  
+  public static CharSequence floatToText(float val, int nrofChars){
+    CharSequence ret = "?";
+    if(val < 0.001f){ ret = String.format("%1.6f", val); };
+    return ret;
+  }
+  
+  
 }
