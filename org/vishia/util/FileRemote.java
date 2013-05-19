@@ -1088,6 +1088,8 @@ public class FileRemote extends File
     return device.delete(this, null);
   }
   
+  
+  
   /**Deletes a file maybe in a remote device. This is a send-only routine without feedback,
    * because the calling thread should not be waiting for success.
    * The success is notified with invocation of the 
@@ -1112,6 +1114,17 @@ public class FileRemote extends File
       //TODO
     }
   }
+  
+  
+  
+  public void deleteChecked(FileRemote.CallbackEvent evback, int mode){
+    CmdEvent ev = evback.getOpponent();
+    ev.filesrc = this;
+    ev.filedst = null;
+    ev.modeCopyOper = mode;
+    //ev.sendEvent(Cmd.delete);
+  }
+
   
   
   
@@ -1388,8 +1401,10 @@ public class FileRemote extends File
    * because the calling thread should not be waiting for success. The success is notified with invocation of the 
    * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * 
-   * @param dst This file will be created or filled newly. If it is existing but read only,
-   *   nothing is copied and an error message is fed back.
+   * @param dst The destination for move. If dst is a directory this file or directory tree will be copied into.
+   *    If dst is an existing file nothing will be done and an error message will be fed back. 
+   *    If dst does not exist this will be stored as a new file or directory tree as dst.
+   *    Note that this can be a file or a directory tree.
    * @param backEvent The event for success.
    */
   public void moveTo(FileRemote dst, FileRemote.CallbackEvent evback){

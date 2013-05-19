@@ -370,12 +370,28 @@ public class Copy_FileLocalAcc
     timestart = System.currentTimeMillis();
     FileRemote.CallbackCmd cmd;
     FileRemote.CallbackEvent evback = co.getOpponent();
-    if(co.filesrc.renameTo(co.filedst)){
-      cmd = FileRemote.CallbackCmd.done ; 
+    File filedst;
+    if(co.filedst.exists()){
+      if(co.filedst.isDirectory()){
+        filedst = co.filedst.child(co.filesrc.getName());
+      } else {
+        filedst = null;
+      }
     } else {
-      cmd = FileRemote.CallbackCmd.error ; 
+      filedst = co.filedst;  //non exists, create it.
     }
-    System.out.println("FileRemoteAccessorLocalFile - move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
+    if(filedst == null){
+      cmd = FileRemote.CallbackCmd.error;  
+      System.err.println("FileRemoteAccessorLocalFile - forbidden move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
+    } else {
+      if(co.filesrc.renameTo(filedst)){
+        cmd = FileRemote.CallbackCmd.done ; 
+        System.out.println("FileRemoteAccessorLocalFile - move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
+      } else {
+        cmd = FileRemote.CallbackCmd.error ; 
+        System.err.println("FileRemoteAccessorLocalFile - error move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
+      }
+    }
     evback.occupy(outer.evSrc, true);
     evback.sendEvent(cmd);
   }
