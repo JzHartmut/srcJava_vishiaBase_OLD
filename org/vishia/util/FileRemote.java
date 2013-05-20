@@ -42,6 +42,7 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-05-05 Hartmut new {@link #isTested()}
    * <li>2013-05-05 Hartmut new {@link #mkdir()}, {@link #mkdirs()}, {@link #mkdir(boolean, CallbackEvent)}, 
    *   {@link #createNewFile()}. 
    *   TODO some operation uses still the super implementation of File.
@@ -943,6 +944,18 @@ public class FileRemote extends File
   /**Returns true if the file was tested in the past. Returns false only if the file is created
    * and never refreshed.   */
   public boolean isTested(){ return (flags & mTested) == mTested; }
+  
+  
+  /**Returns true if the last time of refreshing is newer than since.
+   * @param since A milliseconds after 1970
+   * @return true if may actual.
+   */
+  public boolean isTested(long since){
+    if(timeRefresh < since) return false;
+    if(isDirectory() && timeChildren < since) return false;
+    return true;
+  }
+  
   
   
   

@@ -1,5 +1,5 @@
 @echo off
-call +findJAVA_JDK.bat
+call ..\..\srcJava_vishiaBase\_make\+findJAVA_JDK.bat
 echo genJavadoc: %DSTDIR%%DST%
 
 echo JAVA_JDK=%JAVA_JDK%
