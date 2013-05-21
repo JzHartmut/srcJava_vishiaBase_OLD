@@ -1548,6 +1548,11 @@ public class FileRemote extends File
     last
   }
   
+  
+  /**Possibilities for comparison. */
+  public enum Ecmp{ ends, starts, contains, equals, always};
+  
+  
   EventSource evSrc = new EventSource("FileLocalAccessor"){
     @Override public void notifyDequeued(){}
     @Override public void notifyConsumed(int ctConsumed){}

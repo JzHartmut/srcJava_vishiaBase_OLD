@@ -69,6 +69,9 @@ public class Copy_FileLocalAcc
     
     /**The source and destination file or directory. */
     FileRemote src, dst;
+    
+    /**True if inside at least one file was selected. */
+    boolean selectAnyFile;
 
     final DataSetCopy1Recurs parent;
     
@@ -82,7 +85,7 @@ public class Copy_FileLocalAcc
       this.parent = parent;
     }
     
-    DataSetCopy1Recurs newEntry(FileRemote src, FileRemote dst){
+    DataSetCopy1Recurs addNewEntry(FileRemote src, FileRemote dst){
       DataSetCopy1Recurs act = new DataSetCopy1Recurs(this);
       act.src = src;
       act.dst = dst;
@@ -246,11 +249,16 @@ public class Copy_FileLocalAcc
   final ConcurrentLinkedQueue<Event<FileRemote.Cmd, FileRemote.CallbackCmd>> storedCopyEvents = new ConcurrentLinkedQueue<Event<FileRemote.Cmd, FileRemote.CallbackCmd>>();
   
   
+  
+  /**Selection mask for files. See {@link FileRemote#check(String, String, org.vishia.util.FileRemote.CallbackEvent)}. */
+  String[] sMaskCheck;
+  
+  
   //final Stack<DataSetCopy1Recurs> XXXrecursDirs = new Stack<DataSetCopy1Recurs>();
   
   /**The actual handled file set with source file, destination file, list files
    *  while running any state or switching between states while check or copy.
-   *  The actData have a parent if it is not the root. The root is {@link #checkedFiles}.
+   *  The actData have a parent if it is not the root. It may have children.
    */
   DataSetCopy1Recurs actData;
   
@@ -465,7 +473,12 @@ public class Copy_FileLocalAcc
     //checkedFiles.clear();
     fileSrc = ev.filesrc;
     zBytesAllCheck = 0;
-    zFilesCheck = 9;
+    zFilesCheck = 0;
+    if(ev.maskSrc == null || ev.maskSrc.isEmpty()){ sMaskCheck = null; }
+    else{
+      sMaskCheck = ev.maskSrc.split(":");
+      for(int ii=0; ii<sMaskCheck.length; ++ii){ sMaskCheck[ii] = sMaskCheck[ii].trim(); }
+    }
     actData = new DataSetCopy1Recurs(null);  //The root instance of actData for check. It will be removed after check.
     if(ev.namesSrc !=null && ev.namesSrc.length() >0){
       bOnlyOneFile = false;
@@ -473,8 +486,7 @@ public class Copy_FileLocalAcc
       String[] sFilesSrc1 = ev.namesSrc.split(":");
       for(String sFileSrc: sFilesSrc1){
         FileRemote fileSrc1 = ev.filesrc.child(sFileSrc.trim());
-        DataSetCopy1Recurs srcData = actData.newEntry(fileSrc1, null);
-        //checkedFiles.add(srcData);  //add to the root instance for copy.
+        actData.addNewEntry(fileSrc1, null); //adds this file to the toplevel actData
       }
       actData = actData.listChildren.poll();  //start with the first valid file. Back to the root will taken the next file.
     } else { //only one file
@@ -498,32 +510,68 @@ public class Copy_FileLocalAcc
   /**
    * @return
    */
-  boolean check(){
+  boolean processCheck(){
     boolean bFinit = false, bCont = false;   
     do {//continue in loop if there is work and the time is not out.
       try{
         System.out.println("Copy_FileLocalAcc - check;" + actData.toString());
         //if(!actData.src.isTested()){
-        actData.src.setSelected(1);
         actData.src.refreshPropertiesAndChildren(null);
         //}
         if(actData.src.isDirectory()){
           //process all sub files
           for(Map.Entry<String, FileRemote> item: actData.src.children().entrySet()){
             FileRemote child = item.getValue();
-            child.refreshProperties(null);
-            if(child.isDirectory()){
-              child.setSelected(1);  //any directory, because it is recursively.
+            boolean select;
+            if(sMaskCheck ==null){ select=true; }
+            else if(child.isDirectory()){
               //build a new recursive instance for the child to process in a next step.
-              DataSetCopy1Recurs childData = actData.newEntry(child, null);
-              //actData.listChildren.add(childData);
-            } else if(true) {  //file is desired to select.
-              child.setSelected(1);  //a selected file.
-              zBytesAllCheck += child.length();
-              zFilesCheck += 1;
+              child.refreshProperties(null);
+              DataSetCopy1Recurs childData = actData.addNewEntry(child, null);
+            }
+            else { //it's a file, check name, TODO parent dir
+              String sChild = child.getName();
+              select=false;
+              int ixMask = -1;
+              do {
+                String s1 = sMaskCheck[++ixMask];
+                FileRemote.Ecmp cmp;
+                int z1 = s1.length();
+                int posNotlastAsterisk = s1.lastIndexOf('*', z1-2);
+                int posSlash = s1.lastIndexOf('/');
+                
+                String sCmpName; 
+                if(s1.charAt(z1-1) == '*' && posNotlastAsterisk >=0){
+                  sCmpName = s1.substring(posNotlastAsterisk+1, z1-1); 
+                  cmp = posSlash >= z1-2 ? FileRemote.Ecmp.always 
+                      : posNotlastAsterisk > posSlash ? FileRemote.Ecmp.contains
+                      : FileRemote.Ecmp.starts;
+                } else { 
+                  sCmpName = s1.substring(posNotlastAsterisk+1, z1);
+                  cmp = posNotlastAsterisk > posSlash ? FileRemote.Ecmp.ends: FileRemote.Ecmp.equals;
+                }
+                switch(cmp){
+                  case starts: select= sChild.startsWith(sCmpName); break;
+                  case ends: select= sChild.endsWith(sCmpName); break;
+                  case contains: select= sChild.contains(sCmpName); break;
+                  case equals: select= sChild.equals(sCmpName); break;
+                  case always: select=true;
+                }
+              }while(ixMask < sMaskCheck.length-1 && !select);
+              if(select){
+                actData.selectAnyFile = true;
+                child.refreshProperties(null);
+                child.setSelected(1);  //a selected file.
+                zBytesAllCheck += child.length();
+                zFilesCheck += 1;
+              }
             }
           }
+          if(actData.selectAnyFile){
+            actData.src.setSelected(1);  //select the directory.
+          }
         } else {
+          actData.src.setSelected(1);
           zBytesAllCheck += actData.src.length();
           zFilesCheck += 1;
           //actData = actData.parent;
@@ -536,7 +584,15 @@ public class Copy_FileLocalAcc
         }
         if(nextChild == null){
           do{
-            actData = actData.parent;
+            
+            DataSetCopy1Recurs parentData = actData.parent;
+            if(parentData !=null){
+              parentData.selectAnyFile |= actData.selectAnyFile;
+              if(parentData.selectAnyFile && parentData.src !=null){
+                parentData.src.setSelected(1);
+              }
+            }
+            actData = parentData;
             if(actData !=null && actData.listChildren !=null){
               nextChild = actData.listChildren.poll();
               if(nextChild !=null){ actData = nextChild; }
@@ -632,7 +688,7 @@ public class Copy_FileLocalAcc
     zFilesCheck = 0;
     try{
       storedCopyEvents.clear();
-      fileSrc.resetSelectedRecurs(1,null);
+      //fileSrc.resetSelectedRecurs(1,null);
       zBytesAllCheck = zBytesAllCopied = 0;
       zFilesCheck = zFilesCopied = 0;
       /*
@@ -770,39 +826,24 @@ public class Copy_FileLocalAcc
     }
 
     
-    StateSimpleBase<StateCopyProcess> stateCheck = new StateSimpleBase<StateCopyProcess>(this, "Check", false){
-      /**Transition to check itself if check() should be continue
-       * or transition to ready if check is finished. 
-       * {@link Copy_FileLocalAcc#check()} sends the continue event.
-       */
-      class Trans {
-        CmdCpyIntern check = CmdCpyIntern.check;
-        /**Transition to check itself if {@link Copy_FileLocalAcc#check()} should be continue.
-          * A continue event will be send.
-          */
-        int stateCheck(){
-          sendEventInternal(CmdCpyIntern.check); //keep alive the copy process.
-          return mEventConsumed; 
-        }
-        int stateReady(Event<?, ?> ev){  
-          return exit().exit().stateReady.entry(ev); 
-        }
-      } private final Trans trans = new Trans();
-      
-      
-      @Override protected void entryAction(Event<?, ?> evP){
-        
+    private final StateSimpleBase<StateCopyProcess> stateCheck = new StateSimpleBase<StateCopyProcess>(this, "Check", false){
+  
+      int transCheck(){
+        sendEventInternal(CmdCpyIntern.check); //keep alive the copy process.
+        return mEventConsumed; 
       }
-      
+
+      int transReady(Event<?, ?> ev){ return exit().exit().stateReady.entry(ev); }
+
       @Override protected int trans(Event<?, ?> evP)
       { ///
         PrepareEventCmd ev = new PrepareEventCmd(evP);  
-        if(ev.cmdi == trans.check){
-          if(check()){
-            return trans.stateReady(evP); //exit().exit().stateReady.entry(ev); 
+        if(ev.cmdi == CmdCpyIntern.check){
+          if(processCheck()){
+            return transReady(evP); //exit().exit().stateReady.entry(ev); 
           }
-          else return trans.stateCheck(); //mEventConsumed;  //remain in state.
-        } else return eventNotConsumed;
+          else return transCheck(); //mEventConsumed;  //remain in state.
+        } else return 0;
       }
     };
     
@@ -964,7 +1005,7 @@ public class Copy_FileLocalAcc
           String sName = child.getName();
           child.resetSelected(1);
           FileRemote childDst = actData.dst.child(sName);
-          actData.newEntry(child, childDst);
+          actData.addNewEntry(child, childDst);
         }
       }
 
