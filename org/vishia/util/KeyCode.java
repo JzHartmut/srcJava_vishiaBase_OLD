@@ -177,6 +177,9 @@ public class KeyCode
   
   public final static int focusLost =  0x000b0000 + 'f'; 
   
+  /**A textfields content is changed. */
+  public final static int valueChanged =  0x000b0000 + 'v'; 
+  
   
   //----- drag and drop ---------------------------------------------------------------
   public final static int dropFiles =    0x000d0000 + 'F'; 

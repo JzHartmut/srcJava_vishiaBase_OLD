@@ -8,7 +8,20 @@ package org.vishia.util;
  * 
  * The class {@link SelectMask} is the standard implementation. A derived class can inheritance 
  * from that class if another superclass isn't necessary. This may be usual for small data classes.
- *  
+ * <br><br>
+ * <b>Usage of the oData parameter</b>:<br>
+ * <pre>
+ * Application
+ *     |--------->SelectMask_ifc
+ *     |                |<|----Implementor
+ *                      |      maybe a table container
+ *                      |             |--oData---------->SelectMask_ifc
+ *                                                           |<|-----------SecondImplementor
+ *                                                           |             maybe an Object
+ *                                                                         which should be
+ *                                                                         selected
+ * </pre> 
+ * The oData maybe instance of SelectMask_ifc, but maybe another one, depends on the first Implementor.
  * @author Hartmut Schorrig
  *
  */
@@ -57,12 +70,16 @@ public interface SelectMask_ifc
   
   /**Removes the selection of the object for the given source.  
    * @param mask The bit which presents the source.
+   * @param oData data which are given with this selection. Maybe the selection should be done
+   *   in this data too. It depends on usage and implementation.
    * @return The select mask before this action is done. 
    */
   public int setDeselect(int mask, Object data);
   
   /**Sets the selection of the object for the given source.  
    * @param mask The bit which presents the source.
+   * @param oData data which are given with this selection. Maybe the selection should be done
+   *   in this data too. It depends on usage and implementation.
    * @return The select mask before this action is done. If it is 0, this source is the only one which has select the object. 
    */
   public int setSelect(int mask, Object data);

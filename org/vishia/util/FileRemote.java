@@ -13,6 +13,7 @@ import java.util.TreeMap;
 
 import org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile;
 import org.vishia.fileRemote.FileCluster;
+import org.vishia.fileRemote.FileCmprResult;
 
 
 /**This class describes a File, which may be localized at any maybe remote device or which may be a normal local file. 
@@ -42,6 +43,8 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-05-24 Hartmut chg: The root will be designated with "/" as {@link #sFile}
+   * <li>2013-05-24 Hartmut new {@link #cmprResult}, {@link #setSelected(int)}
    * <li>2013-05-05 Hartmut new {@link #isTested()}
    * <li>2013-05-05 Hartmut new {@link #mkdir()}, {@link #mkdirs()}, {@link #mkdir(boolean, CallbackEvent)}, 
    *   {@link #createNewFile()}. 
@@ -178,7 +181,7 @@ public class FileRemote extends File
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20130513;
+  public static final int version = 20130524;
 
   public final static int modeCopyReadOnlyMask = 0x00f
   , modeCopyReadOnlyNever = 0x1, modeCopyReadOnlyOverwrite = 0x3, modeCopyReadOnlyAks = 0;
@@ -257,8 +260,10 @@ public class FileRemote extends File
    * {@link org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile} is used. */
   protected FileRemoteAccessor device;
   
+  public FileCmprResult cmprResult;
+  
   /**Property whether this file is selected. */
-  public boolean selected;
+  public boolean XXXselected;
   
   /**The last time where the file was synchronized with its physical properties. */
   public long timeRefresh, timeChildren;
@@ -375,10 +380,17 @@ public class FileRemote extends File
       this.parent = null;
       int posSep = StringFunctions.lastIndexOf(sPath, '/');
       if(posSep >=0){
+        int zPath = sPath.length();
         this.sDir = sPath.subSequence(0, posSep).toString();
-        this.sFile = sPath.subSequence(posSep+1, sPath.length()).toString();
+        if((posSep == 0 && zPath ==1) || (posSep ==2 && sPath.charAt(1)== ':' && zPath == 3)){
+          //it is the root  
+          this.sFile = "/";
+        } else {
+          this.sFile = sPath.subSequence(posSep+1, sPath.length()).toString();
+          //sFile maybe "" if sPath ends with "/"
+        }
       } else {
-        this.sDir = "";
+        this.sDir = "";  //it is a local file
         this.sFile = sPath.toString();
       }
       if(cluster == null) throw new IllegalArgumentException("FileRemote.ctor - cluster is null, should be given;");
@@ -545,7 +557,10 @@ public class FileRemote extends File
    * @return number of Bytes (file length)
    */
   public long setSelected(int mask){
-    selected = true;
+    if(cmprResult == null){
+      cmprResult = new FileCmprResult(this);
+      cmprResult.setSelect(mask, this);
+    }
     return length();
   }
   
@@ -554,8 +569,11 @@ public class FileRemote extends File
    * @return number of Bytes (file length)
    */
   public long resetSelected(int mask){
-    selected = false;
-    return length();
+    if(cmprResult != null){
+      cmprResult.setDeselect(mask, this);
+      return length();
+    }
+    else return 0;
   }
   
   /**Resets the selection of this file and all children.
@@ -573,7 +591,9 @@ public class FileRemote extends File
   private long resetSelectedRecurs(int mask, int[] nrofFiles, int recursion){
     long bytes = length();
     if(nrofFiles !=null){ nrofFiles[0] +=1; }
-    selected = false;
+    if(!isDirectory() && cmprResult !=null){
+      cmprResult.setDeselect(mask, this);
+    }
     if(recursion > 1000) throw new RuntimeException("FileRemote - resetSelectedRecurs,too many recursion");
     if(children !=null){
       for(Map.Entry<String, FileRemote> item: children.entrySet()){
@@ -586,7 +606,7 @@ public class FileRemote extends File
     return bytes;
   }
   
-  public boolean isSelected(int mask){ return selected; }
+  public boolean isSelected(int mask){ return cmprResult !=null && (cmprResult.getSelection() & mask) !=0; }
   
   
   /**Sets the properties to this.
@@ -912,17 +932,24 @@ public class FileRemote extends File
           sParent = null;    //sDir has only one char, it may be a "/", it hasn't a parent.
         }
       } else { //a sFile is given, the sDir is the parent.
-        if(zDir == 1 || (zDir == 3 && sDir.charAt(1) == ':')){
+        if(zDir == 0 || (zDir == 2 && sDir.charAt(1) == ':')){
           //the root. 
           pDir = zDir; //return inclusive the /
+          sParent = sDir.substring(0, pDir) + "/";
         } else {
           pDir = zDir; // -1;
+          sParent = sDir.substring(0, pDir);
         }
-        sParent = sDir.substring(0, pDir);
       }
       if(sParent !=null){
         device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
         this.parent = itsCluster.getFile(sParent, null); //new FileRemote(device, null, sParent, null, 0, 0, 0, null); 
+        if(this.parent.children == null){
+          //at least this is the child of the parent. All other children are unknown yet. 
+          this.parent.children = new TreeMap<String, FileRemote>();
+          this.parent.children.put(this.sFile, this);
+          this.parent.timeChildren = 0; //it may be more children. Not evaluated.
+        }
       }
     }
     return this.parent;

@@ -491,7 +491,7 @@ public class Copy_FileLocalAcc
       actData = actData.listChildren.poll();  //start with the first valid file. Back to the root will taken the next file.
     } else { //only one file
       bOnlyOneFile = true;
-      ev.filesrc.selected = true;
+      //ev.filesrc.selected = true;
       actData.src = ev.filesrc;
       //checkedFiles.add(actData);  //add to the root instance for copy.
     }
@@ -522,18 +522,17 @@ public class Copy_FileLocalAcc
           //process all sub files
           for(Map.Entry<String, FileRemote> item: actData.src.children().entrySet()){
             FileRemote child = item.getValue();
-            boolean select;
-            if(sMaskCheck ==null){ select=true; }
-            else if(child.isDirectory()){
+            if(child.isDirectory()){
               //build a new recursive instance for the child to process in a next step.
               child.refreshProperties(null);
               DataSetCopy1Recurs childData = actData.addNewEntry(child, null);
             }
             else { //it's a file, check name, TODO parent dir
+              boolean select = sMaskCheck == null;  //select if no maks given.
               String sChild = child.getName();
-              select=false;
+              //select=false;
               int ixMask = -1;
-              do {
+              while(!select && ixMask < sMaskCheck.length-1) {
                 String s1 = sMaskCheck[++ixMask];
                 FileRemote.Ecmp cmp;
                 int z1 = s1.length();
@@ -557,7 +556,7 @@ public class Copy_FileLocalAcc
                   case equals: select= sChild.equals(sCmpName); break;
                   case always: select=true;
                 }
-              }while(ixMask < sMaskCheck.length-1 && !select);
+              }
               if(select){
                 actData.selectAnyFile = true;
                 child.refreshProperties(null);
@@ -1152,7 +1151,7 @@ public class Copy_FileLocalAcc
         if(Copy_FileLocalAcc.this.in!=null){ 
           zFilesCopied +=1;
           Copy_FileLocalAcc.this.in.close(); 
-          actData.src.selected = false;
+          actData.src.resetSelected(1);
         }
         Copy_FileLocalAcc.this.in = null;
         if(Copy_FileLocalAcc.this.out!=null){ Copy_FileLocalAcc.this.out.close(); }
