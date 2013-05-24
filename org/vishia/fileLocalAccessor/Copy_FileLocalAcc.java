@@ -15,6 +15,7 @@ import java.util.Stack;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.vishia.fileRemote.FileRemote;
 import org.vishia.stateMachine.StateCompositeBase;
 import org.vishia.stateMachine.StateSimpleBase;
 import org.vishia.stateMachine.StateTopBase;
@@ -22,7 +23,6 @@ import org.vishia.util.Assert;
 import org.vishia.util.Event;
 import org.vishia.util.EventThread;
 import org.vishia.util.EventTimerMng;
-import org.vishia.util.FileRemote;
 import org.vishia.util.FileSystem;
 import org.vishia.util.StringFunctions;
 
@@ -250,7 +250,7 @@ public class Copy_FileLocalAcc
   
   
   
-  /**Selection mask for files. See {@link FileRemote#check(String, String, org.vishia.util.FileRemote.CallbackEvent)}. */
+  /**Selection mask for files. See {@link FileRemote#check(String, String, org.vishia.fileRemote.FileRemote.CallbackEvent)}. */
   String[] sMaskCheck;
   
   

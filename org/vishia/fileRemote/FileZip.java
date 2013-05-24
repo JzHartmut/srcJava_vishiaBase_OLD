@@ -1,11 +1,12 @@
-package org.vishia.util;
+package org.vishia.fileRemote;
 
 import java.io.File;
 import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import org.vishia.fileRemote.FileCluster;
+import org.vishia.util.TreeNodeBase;
+import org.vishia.util.TreeNodeBase.TreeNode;
 
 /**
  * Entry in a zip file which can use as a FileRemote.

@@ -1,6 +1,5 @@
 package org.vishia.fileRemote;
 
-import org.vishia.util.FileRemote;
 import org.vishia.util.SelectMask;
 
 /**Class can be associated with a {@link FileRemote} to store comparison or select information.

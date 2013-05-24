@@ -14,21 +14,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.vishia.fileRemote.FileAccessZip;
+import org.vishia.fileRemote.FileRemote;
+import org.vishia.fileRemote.FileRemoteAccessor;
+import org.vishia.fileRemote.FileRemote.CallbackCmd;
+import org.vishia.fileRemote.FileRemote.CallbackEvent;
+import org.vishia.fileRemote.FileRemote.Cmd;
+import org.vishia.fileRemote.FileRemote.FileRemoteAccessorSelector;
 import org.vishia.util.Assert;
 import org.vishia.util.DataAccess;
 import org.vishia.util.Event;
 import org.vishia.util.EventConsumer;
 import org.vishia.util.EventSource;
 import org.vishia.util.EventThread;
-import org.vishia.util.FileAccessZip;
-import org.vishia.util.FileRemote;
-import org.vishia.util.FileRemoteAccessor;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
-import org.vishia.util.FileRemote.CallbackCmd;
-import org.vishia.util.FileRemote.CallbackEvent;
-import org.vishia.util.FileRemote.Cmd;
-import org.vishia.util.FileRemote.FileRemoteAccessorSelector;
 
 
 /**Implementation for a standard local file.
@@ -39,12 +39,12 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   /**Version, history and license.
    * <ul>
    * <li>2013-03-31 Hartmut bugfix: number of percent in backevent while copy
-   * <li>2012-11-17 Hartmut chg: review of {@link #execChgProps(org.vishia.util.FileRemote.CmdEvent)} etc. It should not work before.
+   * <li>2012-11-17 Hartmut chg: review of {@link #execChgProps(org.vishia.fileRemote.FileRemote.CmdEvent)} etc. It should not work before.
    *   yet not all is tested. 
    * <li>2012-10-01 Hartmut chg: Some adaption because {@link FileRemote#listFiles()} returns File[] and not FileRemote[].
    * <li>2012-10-01 Hartmut experience {@link #useFileChildren}
-   * <li>2012-10-01 Hartmut new: {@link #refreshFilePropertiesAndChildren(FileRemote, org.vishia.util.FileRemote.CallbackEvent)} time measurement
-   * <li>2012-09-26 Hartmut new: {@link #refreshFileProperties(FileRemote, org.vishia.util.FileRemote.CallbackEvent)} 
+   * <li>2012-10-01 Hartmut new: {@link #refreshFilePropertiesAndChildren(FileRemote, org.vishia.fileRemote.FileRemote.CallbackEvent)} time measurement
+   * <li>2012-09-26 Hartmut new: {@link #refreshFileProperties(FileRemote, org.vishia.fileRemote.FileRemote.CallbackEvent)} 
    *   thread with exception msg.
    * <li>2012-08-05 Hartmut new: If the oFile reference is null, the java.io.File instance for the local file will be created anyway.
    * <li>2012-08-03 Hartmut chg: Usage of Event in FileRemote. 
@@ -54,7 +54,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
    *   for example in network hangs.
    * <li>2012-07-28 Hartmut new: Concept of remote files enhanced with respect to {@link FileAccessZip},
    *   see {@link FileRemote}
-   * <li>2012-03-10 Hartmut new: implementation of the {@link FileRemote#chgProps(String, int, int, long, org.vishia.util.FileRemote.CallbackEvent)} etc.
+   * <li>2012-03-10 Hartmut new: implementation of the {@link FileRemote#chgProps(String, int, int, long, org.vishia.fileRemote.FileRemote.CallbackEvent)} etc.
    * <li>2012-02-02 Hartmut chg: {@link #refreshFileProperties(FileRemote, File)}: There was an faulty recursive loop,
    *   more checks. 
    * <li>2012-01-09 Hartmut new: {@link #close()} terminates the thread.
@@ -188,7 +188,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   /**Sets the file properties from the local file.
    * checks whether the file exists and set the {@link FileRemote#mTested} flag any time.
    * If the file exists, the properties of the file were set, elsewhere they were set to 0.
-   * @see {@link org.vishia.util.FileRemoteAccessor#refreshFileProperties(org.vishia.util.FileRemote)}
+   * @see {@link org.vishia.fileRemote.FileRemoteAccessor#refreshFileProperties(org.vishia.fileRemote.FileRemote)}
    */
   @Override public void refreshFileProperties(final FileRemote fileRemote, final FileRemote.CallbackEvent callback)
   { 
@@ -345,7 +345,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   
   /**Creates an CmdEvent if necessary, elsewhere uses the opponent of the given evBack and occupies it.
    * While occupying the Cmdevent is completed with the destination, it is {@link #executerCommission}.
-   * @see org.vishia.util.FileRemoteAccessor#prepareCmdEvent(org.vishia.util.FileRemote.CallbackEvent)
+   * @see org.vishia.fileRemote.FileRemoteAccessor#prepareCmdEvent(org.vishia.fileRemote.FileRemote.CallbackEvent)
    */
   @Override public FileRemote.CmdEvent prepareCmdEvent(FileRemote.CallbackEvent evBack){
     FileRemote.CmdEvent cmdEvent1;

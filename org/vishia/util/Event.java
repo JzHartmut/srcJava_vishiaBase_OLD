@@ -5,6 +5,8 @@ import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.vishia.fileRemote.FileRemote;
+
 
 /**Base class for all events in a event driven software or for communications.
  * Events may contain data. Special data are contained in derived classes of this. The type of the event
@@ -741,6 +743,9 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
       callback.opponent = this;  //Refer this in the callback event. 
     }
   }
+  
+  
+  public void setOrderId(long order){ orderId = order; }
   
   
   

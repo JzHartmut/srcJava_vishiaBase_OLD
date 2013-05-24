@@ -1,4 +1,4 @@
-package org.vishia.util;
+package org.vishia.fileRemote;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -12,8 +12,14 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile;
-import org.vishia.fileRemote.FileCluster;
-import org.vishia.fileRemote.FileCmprResult;
+import org.vishia.util.Assert;
+import org.vishia.util.Event;
+import org.vishia.util.EventConsumer;
+import org.vishia.util.EventSource;
+import org.vishia.util.EventThread;
+import org.vishia.util.FileSystem;
+import org.vishia.util.StringFunctions;
+import org.vishia.util.StringPartBase;
 
 
 /**This class describes a File, which may be localized at any maybe remote device or which may be a normal local file. 
@@ -1836,7 +1842,7 @@ public class FileRemote extends File
     public void copySkipFile(int modeCopyOper){
       FileRemote.CmdEvent evcmd = getOpponent();
       if(evcmd.occupy(evSrcCmd, true)){
-        evcmd.orderId = orderId;
+        evcmd.setOrderId(orderId);
         evcmd.modeCopyOper = modeCopyOper;
         evcmd.sendEvent(FileRemote.Cmd.abortCopyFile);
       }
@@ -1851,7 +1857,7 @@ public class FileRemote extends File
     public void copyOverwriteFile(int modeCopyOper){
       FileRemote.CmdEvent evcmd = getOpponent();
       if(evcmd.occupy(evSrcCmd, true)){
-        evcmd.orderId = orderId;
+        evcmd.setOrderId(orderId);
         evcmd.modeCopyOper = modeCopyOper;
         evcmd.sendEvent(FileRemote.Cmd.overwr);
       }
@@ -1869,7 +1875,7 @@ public class FileRemote extends File
     public void copySkipDir(int modeCopyOper){
       FileRemote.CmdEvent evcmd = getOpponent();
       if(evcmd.occupy(evSrcCmd, true)){
-        evcmd.orderId = orderId;
+        evcmd.setOrderId(orderId);
         evcmd.modeCopyOper = modeCopyOper;
         evcmd.sendEvent(FileRemote.Cmd.abortCopyDir);
       }

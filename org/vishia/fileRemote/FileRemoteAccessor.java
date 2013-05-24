@@ -1,4 +1,4 @@
-package org.vishia.util;
+package org.vishia.fileRemote;
 
 import java.io.Closeable;
 import java.io.File;
@@ -11,7 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile;
-import org.vishia.util.FileAccessZip.FileZipData;
+import org.vishia.fileRemote.FileAccessZip.FileZipData;
+import org.vishia.util.Event;
 
 /**Interface for instances, which organizes a remote access to files.
  * One instance per transfer protocol are need.
@@ -33,7 +34,7 @@ public abstract class FileRemoteAccessor implements Closeable
    * <li>2012-07-28 Hartmut new: Concept of remote files enhanced with respect to {@link FileAccessZip},
    *   see {@link FileRemote}
    * <li>2012-03-10 Hartmut new: {@link Commission#newDate} etc. 
-   *   for {@link FileRemote#chgProps(String, int, int, long, org.vishia.util.FileRemote.CallbackEvent)}.
+   *   for {@link FileRemote#chgProps(String, int, int, long, org.vishia.fileRemote.FileRemote.CallbackEvent)}.
    * <li>2012-01-09 Hartmut new: This class extends from Closeable, because an implementation 
    *  may have an running thread which is need to close. A device should be closeable any time.
    * <li>2012-01-06 Hartmut new {@link #refreshFileProperties(FileRemote)}. 

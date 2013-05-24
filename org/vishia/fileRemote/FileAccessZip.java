@@ -1,4 +1,4 @@
-package org.vishia.util;
+package org.vishia.fileRemote;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -14,6 +14,11 @@ import java.util.List;
 import java.util.TreeMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+
+import org.vishia.util.Assert;
+import org.vishia.util.TreeNodeBase;
+import org.vishia.util.UnexpectedException;
+import org.vishia.util.TreeNodeBase.TreeNode;
 
 public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAccessorLocalFile
 {
@@ -289,7 +294,7 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
    * when the InputStream.close() is invoked. Therefore the returned InputStream is wrapped with {@link FileZipInputStream}.
    * Normally more as one InputStream can be used with one ZipFile. This routine creates a ZipFile instance 
    * only for this one entry.
-   * @see org.vishia.util.FileRemoteAccessor#openInputStream(org.vishia.util.FileRemote, long)
+   * @see org.vishia.fileRemote.FileRemoteAccessor#openInputStream(org.vishia.fileRemote.FileRemote, long)
    */
   @Override public InputStream openInputStream(FileRemote file, long passPhase){
     FileZipData data = (FileZipData)file.oFile;

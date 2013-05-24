@@ -179,11 +179,11 @@ implements SortedTree<IfcType>
   
   protected final String key;
   
-  protected TreeNodeBase<DerivedNode,Data, ?> parent;
+  public TreeNodeBase<DerivedNode,Data, ?> parent;
   
   /**The List of child nodes in order of adding. All nodes in this list are type of the DerivedNode. 
    */
-  protected List<DerivedNode> childNodes;
+  public List<DerivedNode> childNodes;
   
   /**The child nodes sorted to the key. The key is given with the child itself, attribute {@link #key}.
    * This index can contain a so named 'meta node' which holds more as one child with the same key.
@@ -197,7 +197,7 @@ implements SortedTree<IfcType>
    * If you want to refer from a leaf to its parent, use a node without childNodes and left this list empty.
    * @deprecated. It is too much complexity for a treeNode and not typical for it. Should contain in {@link #data}.
    */
-  protected List<Data> leafData;
+  public List<Data> leafData;
   
   /**Any additional data associated with this node. */
   public final Data data;
@@ -400,7 +400,7 @@ implements SortedTree<IfcType>
    * @return always a node with given key
    */
   @SuppressWarnings("unchecked")
-  DerivedNode getOrCreateNode(String path, String separator){
+  public DerivedNode getOrCreateNode(String path, String separator){
     String[] elements = path.split(separator);
     TreeNodeBase<DerivedNode,Data,IfcType> child = this;
     for(String name: elements){

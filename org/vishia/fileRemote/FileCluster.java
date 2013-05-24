@@ -1,7 +1,6 @@
 package org.vishia.fileRemote;
 
 import org.vishia.util.Assert;
-import org.vishia.util.FileRemote;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.StringFunctions;
