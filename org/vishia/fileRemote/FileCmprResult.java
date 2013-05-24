@@ -68,13 +68,18 @@ public class FileCmprResult extends SelectMask
     while( (parent = parent.getParentFile()) !=null
       && parent.cmprResult !=null   //abort while-loop if the parent is not marked 
       ){
-      if(parent.cmprResult.nrofFilesSelected > this.nrofFilesSelected){
-        parent.cmprResult.nrofFilesSelected -=this.nrofFilesSelected;
+      parent.cmprResult.nrofFilesSelected -=this.nrofFilesSelected;
+      if(parent.cmprResult.nrofFilesSelected <=0){
+        parent.cmprResult.nrofFilesSelected = 0;
+        parent.cmprResult.selectMask &= ~mask;
       }
-      if(parent.cmprResult.nrofBytesSelected > this.nrofBytesSelected){
-        parent.cmprResult.nrofBytesSelected -=this.nrofBytesSelected;
+      parent.cmprResult.nrofBytesSelected -=this.nrofBytesSelected;
+      if(parent.cmprResult.nrofBytesSelected <=0){
+        parent.cmprResult.nrofBytesSelected = 0;
       }
     }
+    this.nrofBytesSelected = 0;
+    this.nrofFilesSelected = 0;
     return selectOld;
   }
 
@@ -88,16 +93,16 @@ public class FileCmprResult extends SelectMask
     } else {
       this.nrofBytesSelected = file.length();
       this.nrofFilesSelected = 1;
-    }
-    FileRemote parent = file;
-    //inform all parents about a selection into. Mark it with select it too.
-    while( (parent = parent.getParentFile()) !=null){
-      if(parent.cmprResult == null){
-        parent.cmprResult = new FileCmprResult(parent);
+      FileRemote parent = file;
+      //inform all parents about a selection into. Mark it with select it too.
+      while( (parent = parent.getParentFile()) !=null){
+        if(parent.cmprResult == null){
+          parent.cmprResult = new FileCmprResult(parent);
+        }
+        parent.cmprResult.selectMask |= mask;
+        parent.cmprResult.nrofFilesSelected += this.nrofFilesSelected;
+        parent.cmprResult.nrofBytesSelected += this.nrofBytesSelected;
       }
-      parent.cmprResult.setSelect(mask, null); 
-      parent.cmprResult.nrofFilesSelected += this.nrofFilesSelected;
-      parent.cmprResult.nrofBytesSelected += this.nrofBytesSelected;
     }
     return selectOld;
   }

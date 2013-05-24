@@ -46,7 +46,7 @@ public class SelectMask implements SelectMask_ifc
   public static final int version = 20130428;
 
   
-  int selectMask;
+  protected int selectMask;
   
   @Override public int getSelection()
   { return selectMask; }

@@ -559,8 +559,8 @@ public class FileRemote extends File
   public long setSelected(int mask){
     if(cmprResult == null){
       cmprResult = new FileCmprResult(this);
-      cmprResult.setSelect(mask, this);
     }
+    cmprResult.setSelect(mask, this);
     return length();
   }
   
@@ -591,16 +591,17 @@ public class FileRemote extends File
   private long resetSelectedRecurs(int mask, int[] nrofFiles, int recursion){
     long bytes = length();
     if(nrofFiles !=null){ nrofFiles[0] +=1; }
-    if(!isDirectory() && cmprResult !=null){
+    //if(!isDirectory() && cmprResult !=null){
+    if(cmprResult !=null){
       cmprResult.setDeselect(mask, this);
     }
     if(recursion > 1000) throw new RuntimeException("FileRemote - resetSelectedRecurs,too many recursion");
     if(children !=null){
       for(Map.Entry<String, FileRemote> item: children.entrySet()){
         FileRemote child = item.getValue();
-        if(child.isSelected(mask)){
+        //if(child.isSelected(mask)){
           bytes += child.resetSelectedRecurs(mask, nrofFiles, recursion +1);
-        }
+        //}
       }
     }
     return bytes;
@@ -915,7 +916,10 @@ public class FileRemote extends File
       int zDir = sDir.length();
       int pDir;
       //Assert.check(sDir.charAt(zDir-1) == '/'); //Should end with slash
-      if(sFile == null || sFile.length() == 0){
+      if(sFile.equals("/")){
+        sParent = null;  //root has no parent.
+      }
+      else if(sFile == null || sFile.length() == 0){
         //it is a directory, get its parent path
         if(zDir > 1){
           pDir = sDir.lastIndexOf('/', zDir-1);
@@ -1157,12 +1161,17 @@ public class FileRemote extends File
   
   
   
-  public void deleteChecked(FileRemote.CallbackEvent evback, int mode){
+  /**Deletes all checked and marked files in any level of this directory.
+   * @param evback This event have to be processed and returned from calling 
+   *   {@link #check(String, String, CallbackEvent)}.
+   * @param mode
+   */
+  public void deleteChecked(FileRemote.CallbackEvent evback, int mode){ ////
     CmdEvent ev = evback.getOpponent();
     ev.filesrc = this;
     ev.filedst = null;
     ev.modeCopyOper = mode;
-    //ev.sendEvent(Cmd.delete);
+    ev.sendEvent(Cmd.delete);
   }
 
   

@@ -563,6 +563,10 @@ public class Copy_FileLocalAcc
                 child.setSelected(1);  //a selected file.
                 zBytesAllCheck += child.length();
                 zFilesCheck += 1;
+              } else if(child.isSelected(1)){
+                //count selected files too, selected in the past.
+                zBytesAllCheck += child.length();
+                zFilesCheck += 1;
               }
             }
           }
