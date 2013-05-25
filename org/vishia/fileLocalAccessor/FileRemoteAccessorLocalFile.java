@@ -365,10 +365,13 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
     switch(cmd){
       case check: //copy.checkCopy(commission); break;
       case overwr:
-      case abortAll:
+      case abortAll:     //should abort the state machine!
       case abortCopyDir:
       case abortCopyFile:
-      case copy: copy.stateCopy.processEvent(commission); break;
+      case delChecked:
+      case moveChecked:
+      case copyChecked: 
+        copy.stateCopy.processEvent(commission); break;
       case move: copy.execMove(commission); break;
       case chgProps:  execChgProps(commission); break;
       case chgPropsRecurs:  execChgPropsRecurs(commission); break;
@@ -516,7 +519,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
   
   
   void execDel(FileRemote.CmdEvent co){
-    
+    System.err.println("FileRemoteLocal - execDel not implemented yet.");
   }
 
 

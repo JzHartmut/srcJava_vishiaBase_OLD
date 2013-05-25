@@ -1076,8 +1076,10 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   
   @Override public String toString(){ 
     long nDate = dateCreation.get();
+    if(nDate == 0) return "Event not occupied";
     Date date = new Date(nDate);
-    return "Event cmd=" + cmde.toString() + "; " + (nDate == 0 ? "nonOccupied" : toStringDateFormat.format(date) + "." + dateOrder) + "; src=" + (source !=null ? source.toString() : " noSrc") + "; dst="+ (evDst !=null ? evDst.toString() : " noDst"); 
+    String sCmd = cmde == null ? "null" : cmde.toString();
+    return "Event cmd=" + sCmd + "; " + (nDate == 0 ? "nonOccupied" : toStringDateFormat.format(date) + "." + dateOrder) + "; src=" + (source !=null ? source.toString() : " noSrc") + "; dst="+ (evDst !=null ? evDst.toString() : " noDst"); 
   }
   
   

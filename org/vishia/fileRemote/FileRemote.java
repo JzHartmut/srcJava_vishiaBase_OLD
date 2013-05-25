@@ -1174,10 +1174,12 @@ public class FileRemote extends File
    */
   public void deleteChecked(FileRemote.CallbackEvent evback, int mode){ ////
     CmdEvent ev = evback.getOpponent();
-    ev.filesrc = this;
-    ev.filedst = null;
-    ev.modeCopyOper = mode;
-    ev.sendEvent(Cmd.delete);
+    if(ev.occupy(evSrc, true)){
+      ev.filesrc = this;
+      ev.filedst = null;
+      ev.modeCopyOper = mode;
+      ev.sendEvent(Cmd.delChecked);
+    }
   }
 
   
@@ -1307,7 +1309,7 @@ public class FileRemote extends File
    *   </ul>
    * </ul>  
    * <br><br>
-   * This routine sends a {@link CmdEvent} with {@link Cmd#copy} to the destination. Before that the destination 
+   * This routine sends a {@link CmdEvent} with {@link Cmd#copyChecked} to the destination. Before that the destination 
    * for the event is set with calling of {@link FileRemoteAccessor#prepareCmdEvent(CallbackEvent)}. 
    * That completes the given {@link CallbackEvent} with the necessary {@link CmdEvent} and its correct destination {@link EventConsumer}.
    * <br><br>
@@ -1354,7 +1356,7 @@ public class FileRemote extends File
     ev.filesrc = null;
     ev.filedst = this;
     ev.modeCopyOper = mode;
-    ev.sendEvent(Cmd.copy);
+    ev.sendEvent(Cmd.copyChecked);
   }
   
   
@@ -1379,7 +1381,7 @@ public class FileRemote extends File
    *   </ul>
    * </ul>  
    * <br><br>
-   * This routine sends a {@link CmdEvent} with {@link Cmd#copy} to the destination. Before that the destination 
+   * This routine sends a {@link CmdEvent} with {@link Cmd#copyChecked} to the destination. Before that the destination 
    * for the event is set with calling of {@link FileRemoteAccessor#prepareCmdEvent(CallbackEvent)}. 
    * That completes the given {@link CallbackEvent} with the necessary {@link CmdEvent} and its correct destination {@link EventConsumer}.
    * <br><br>
@@ -1434,7 +1436,7 @@ public class FileRemote extends File
     ev.filesrc =this;
     ev.filedst = dst;
     ev.modeCopyOper = mode;
-    ev.sendEvent(Cmd.copy);
+    ev.sendEvent(Cmd.copyChecked);
 
   }
   
@@ -1570,12 +1572,14 @@ public class FileRemote extends File
     /**Check files. */
     check,
     move,
+    moveChecked,
     /**Copy to dst.*/
-    copy,
+    copyChecked,
     chgProps,
     chgPropsRecurs,
     countLength,
     delete,
+    delChecked,
     mkDir,
     mkDirs,
     /**Abort the currently action. */

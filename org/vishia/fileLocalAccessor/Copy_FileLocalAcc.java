@@ -199,11 +199,13 @@ public class Copy_FileLocalAcc
   /**Mode of copy, see {@link FileRemote#modeCopyCreateAsk}, {@link FileRemote#modeCopyReadOnlyAks}, {@link FileRemote#modeCopyExistAsk}. */
   int modeCopyOper; 
   
-  /**Set one time after receive event to skip in {@link Copy.StateCopyAsk}. 
+  FileRemote.Cmd cmdFile;
+  
+  /**Set one time after receive event to skip in {@link StateAsk.StateCopyAsk}. 
    * Reset if used in the next state transition of the following {@link Copy.StateCopyFileContent}. */
   boolean bAbortDirectory;
   
-  /**Set one time after receive event to overwrite in {@link Copy.StateCopyAsk}. 
+  /**Set one time after receive event to overwrite in {@link StateAsk.StateCopyAsk}. 
    * Reset if used in the next state transition of the following {@link Copy.StateCopyFileContent}. */
   boolean bOverwrfile;
   
@@ -446,7 +448,7 @@ public class Copy_FileLocalAcc
    *     <li>If the file is not finished:
    *     </ul>
    *   </ul>  
-   * <li>State {@link #stateCopyFileFinished}: Check continue:
+   * <li>State {@link #stateNextFile}: Check continue:
    *   <pre>
    *    boolean bCont = false;
         do{
@@ -667,7 +669,7 @@ public class Copy_FileLocalAcc
     actData.src = fileSrc;
     if(bOnlyOneFile){
       String sName = actData.src.getName();
-      FileRemote fileDst = dirDst.child(sName); 
+      FileRemote fileDst = dirDst == null ? null : dirDst.child(sName); 
       actData.dst = fileDst;                                 //complete actData with dst.
     } else {
       actData.dst = dirDst;
@@ -760,18 +762,13 @@ public class Copy_FileLocalAcc
     
     StateCopyReady(StateCopyTop superState) { super(superState, "Ready"); }
 
-    private class TransCopy{
-      FileRemote.Cmd copy = FileRemote.Cmd.copy;
-      int stateCopyDirOrFile(){  return exit().stateProcess.stateCopyDirOrFile.entry(null); }
-    }
-    
     //A(MainState enclosingState){ super(enclosingState); }
   
     @Override public int trans(Event<?,?> evP) {
       if(evP instanceof FileRemote.CmdEvent){
         FileRemote.CmdEvent ev = (FileRemote.CmdEvent)evP;
-        FileRemote.Cmd cmd = ev.getCmd();
-        if(cmd == FileRemote.Cmd.copy){
+        cmdFile = ev.getCmd();
+        if(cmdFile == FileRemote.Cmd.copyChecked || cmdFile == FileRemote.Cmd.delChecked || cmdFile == FileRemote.Cmd.moveChecked ){
           //gets and store data from the event:
           Copy_FileLocalAcc.this.modeCopyOper = ev.modeCopyOper;
           dirDst = ev.filedst;
@@ -780,19 +777,19 @@ public class Copy_FileLocalAcc
           evBackInfo = ev.getOpponent();                 //available for back information.
           timestart = System.currentTimeMillis();
           zBytesAllCopied = zFilesCopied = 0;
-          return exit().stateProcess.stateCopyDirOrFile.entry(ev);
+          return exit().stateProcess.stateDirOrFile.entry(ev);
         }
-        else if(cmd == FileRemote.Cmd.check){
+        else if(cmdFile == FileRemote.Cmd.check){
           startCheck(ev);
           sendEventInternal(CmdCpyIntern.check);   //continue in stateCheckProcess
           return exit().stateProcess.stateCheck.entry(ev);
         } ///
-        else if(cmd == FileRemote.Cmd.abortAll){
+        else if(cmdFile == FileRemote.Cmd.abortAll){
           copyAbort();
           return exit().stateReady.entry(ev);
         }
         else {
-          return eventNotConsumed;
+          return 0;
         }
       }
       else {
@@ -804,18 +801,18 @@ public class Copy_FileLocalAcc
       
   private class StateCopyProcess extends StateCompositeBase<StateCopyProcess, StateCopyTop>{
 
-    StateCopyDirOrFile stateCopyDirOrFile = new StateCopyDirOrFile(this);
-    StateCopySubDir stateCopySubdir = new StateCopySubDir(this);
+    StateDirOrFile stateDirOrFile = new StateDirOrFile(this);
+    StateSubDir stateSubdir = new StateSubDir(this);
     StateCopyFileContent stateCopyFileContent = new StateCopyFileContent(this);
-    StateCopyFileFinished stateCopyFileFinished = new StateCopyFileFinished(this);
-    StateCopyAsk stateCopyAsk = new StateCopyAsk(this);
+    StateNextFile stateNextFile = new StateNextFile(this);
+    StateAsk stateAsk = new StateAsk(this);
 
-    protected StateCopyProcess(StateCopyTop superState) { super(superState, "Process");  setDefaultState(stateCopyDirOrFile);}
+    protected StateCopyProcess(StateCopyTop superState) { super(superState, "Process");  setDefaultState(stateDirOrFile);}
 
 
     @Override public int trans(Event<?,?> evP){
       PrepareEventCmd ev = new PrepareEventCmd(evP);
-      if(ev.cmde == FileRemote.Cmd.check || ev.cmde == FileRemote.Cmd.copy){
+      if(ev.cmde == FileRemote.Cmd.check || ev.cmde == FileRemote.Cmd.copyChecked){
         ev.eve.donotRelinquish();
         storedCopyEvents.add(ev.eve);  //save it, execute later if that cmdCopy is finished.
         return StateSimpleBase.mEventConsumed;
@@ -851,6 +848,119 @@ public class Copy_FileLocalAcc
     };
     
     
+    
+ 
+    
+    
+    protected StateMoveFile stateMoveFile = new StateMoveFile(this);
+    
+    private final class StateMoveFile extends StateSimpleBase<StateCopyProcess>{
+
+      boolean bmove = false, bskip = false, bask = false, berror = false;
+
+      StateMoveFile(StateCopyProcess superState) { super(superState, "MoveFile", true); }
+      
+      @Override protected void entryAction(Event<?,?> ev){
+        if(actData.src.exists()){  //do nothing if src does not exists
+          if(!actData.src.canWrite()){  //can't move it!
+            if((modeCopyOper & FileRemote.modeCopyReadOnlyNever)!=0){
+              bmove = false;
+            } else if((modeCopyOper & FileRemote.modeCopyReadOnlyAks)!=0){
+              bask = true;
+            }
+            else if(!actData.src.setWritable(true)){
+              berror = true;
+            } else {
+              bmove = true;
+            }
+          }
+          if(bmove && actData.dst.exists()){
+            if(!actData.dst.canWrite()){
+              //TODO check dst
+            } else {
+              berror = !actData.dst.delete();  //delete the destination before move.
+            }
+          }
+        } else { //not exists
+          bskip = true;
+        }
+        if(bmove){
+          berror = !actData.src.renameTo(actData.dst);
+        }
+      }
+
+      private int transAsk(Event<?,?> ev){
+        if(bask){ return exit().stateAsk.entry(ev); }
+        else if(berror){ return exit().stateAsk.entry(ev); }
+        else return 0;
+      }
+      
+      private int transNextFile(Event<?,?> ev){
+        return exit().stateNextFile.entry(ev);
+      }
+
+      @Override protected int trans(Event<?,?> ev)
+      { int ret;
+        if((ret = transAsk(ev))!=0) return ret;
+        else return transNextFile(ev);
+      }
+      
+      
+    }
+
+    
+    protected StateDelFile stateDelFile = new StateDelFile(this);
+    
+    private final class StateDelFile extends StateSimpleBase<StateCopyProcess>{
+
+      boolean bdelete = false, bskip = false, bask = false, berror = false;
+
+      StateDelFile(StateCopyProcess superState) { super(superState, "DelFile", true); }
+      
+      @Override protected void entryAction(Event<?,?> ev){
+        if(actData.src.exists()){  //do nothing if src does not exists
+          if(!actData.src.canWrite()){
+            if((modeCopyOper & FileRemote.modeCopyReadOnlyNever)!=0){
+              bdelete = false;
+            } else if((modeCopyOper & FileRemote.modeCopyReadOnlyAks)!=0){
+              bask = true;
+            }
+            else if(!actData.src.setWritable(true)){
+              berror = true;
+            } else {
+              bdelete = true;
+            }
+          } else {
+            bdelete = true;
+          }
+        } else { //not exists
+          bskip = true;
+        }
+        if(bdelete){
+          berror = !actData.src.delete();
+        }
+      }
+      
+      
+      private int transAsk(Event<?,?> ev){
+        if(bask){ return exit().stateAsk.entry(ev); }
+        else if(berror){ return exit().stateAsk.entry(ev); }
+        else return 0;
+      }
+      
+      private int transNextFile(Event<?,?> ev){
+        return exit().stateNextFile.entry(ev);
+      }
+
+      @Override protected int trans(Event<?,?> ev)
+      { int ret;
+        if((ret = transAsk(ev))!=0) return ret;
+        else return transNextFile(ev);
+      }
+      
+    }
+    
+    
   }
 
   
@@ -880,19 +990,37 @@ public class Copy_FileLocalAcc
    * @param ev
    * @return
    */
-  private class StateCopyDirOrFile extends StateSimpleBase<StateCopyProcess>{
+  private class StateDirOrFile extends StateSimpleBase<StateCopyProcess>{
     
     
-    StateCopyDirOrFile(StateCopyProcess superState) { super(superState, "DirOrFile"); }
+    StateDirOrFile(StateCopyProcess superState) { super(superState, "DirOrFile"); }
 
+    
+    private int transCopySubdir(Event<?,?> ev){
+      if(actData.src.isDirectory()){
+        return exit().stateSubdir.entry(ev);
+      } else return 0;
+    }
+    
+    private int transDelFile(Event<?,?> ev){
+      if(cmdFile == FileRemote.Cmd.delChecked){
+        return exit().stateDelFile.entry(ev);
+      } else return 0;
+    }
+    
+    private int transMoveFile(Event<?,?> ev){
+      if(cmdFile == FileRemote.Cmd.move){
+        return exit().stateMoveFile.entry(ev);
+      } else return 0;
+    }
     
     /**This state processes a new {@link DataSetCopy1Recurs} stored in {@link #actData}.
      * It branches to the necessary next state:
      * <ul>
-     * <li>(())-----[src.isDirectory()]---->{@link Copy.StateCopySubDir}
+     * <li>(())-----[src.isDirectory()]---->{@link StateSubDir.StateCopySubDir}
      * <li>(())-----/open, create Files --->{@link Copy.StateCopyFileContent}
      *   <ul>
-     *   <li>? exception ----->{@link Copy.StateCopyAsk}
+     *   <li>? exception ----->{@link StateAsk.StateCopyAsk}
      *   </ul>                   
      * </ul>
      * @param ev
@@ -902,9 +1030,11 @@ public class Copy_FileLocalAcc
       //EventCpy ev = evP;
       if(actData.src.getName().equals("Iba"))
         Assert.stop();
-      if(actData.src.isDirectory()){
-        return exit().stateCopySubdir.entry(ev);  //exit and entry in the same state.
-      } else {
+      int ret;
+      if( (ret = transCopySubdir(ev)) !=0) return ret;
+      if( (ret = transDelFile(ev)) !=0) return ret;
+      if( (ret = transMoveFile(ev)) !=0) return ret;
+      else {
         //It is a file. try to open/create
         StateCopyProcess exitState= exit();  //exit this state to tran to another.
         //
@@ -917,12 +1047,12 @@ public class Copy_FileLocalAcc
             }
             if(!bOk){
               sendEventAsk(actData.dst, FileRemote.CallbackCmd.askDstNotAbletoOverwr );
-              return exitState.stateCopyAsk.entry(null); 
+              return exitState.stateAsk.entry(null); 
             }
           }
           else if((Copy_FileLocalAcc.this.modeCopyOper & FileRemote.modeCopyExistMask) == FileRemote.modeCopyExistSkip){
             //generally don't overwrite existing files:
-            return exitState.stateCopyFileFinished.entry(null); 
+            return exitState.stateNextFile.entry(null); 
           }
           else if(actData.dst.canWrite()){
             //can overwrite, but check timestamp
@@ -932,14 +1062,14 @@ public class Copy_FileLocalAcc
             switch(Copy_FileLocalAcc.this.modeCopyOper & FileRemote.modeCopyExistMask){
               case FileRemote.modeCopyExistAsk: 
                 sendEventAsk(actData.dst, FileRemote.CallbackCmd.askDstOverwr );
-                return exitState.stateCopyAsk.entry(null); 
+                return exitState.stateAsk.entry(null); 
               case FileRemote.modeCopyExistNewer: 
                 if( (timeSrc - timeDst) < 0){
-                  return exitState.stateCopyFileFinished.entry(null); 
-                }  //else: do copy
+                  return exitState.stateNextFile.entry(null); 
+                } break; //else: do copy
               case FileRemote.modeCopyExistOlder: 
                 if( (timeSrc - timeDst) > 0){
-                  return exitState.stateCopyFileFinished.entry(null); 
+                  return exitState.stateNextFile.entry(null); 
                 }  //else: do copy
             }
           } else {  //can not write, readonly
@@ -947,14 +1077,14 @@ public class Copy_FileLocalAcc
             switch(Copy_FileLocalAcc.this.modeCopyOper & FileRemote.modeCopyReadOnlyMask){
               case FileRemote.modeCopyReadOnlyAks: 
                 sendEventAsk(actData.dst, FileRemote.CallbackCmd.askDstReadonly );
-                return exitState.stateCopyAsk.entry(null); 
+                return exitState.stateAsk.entry(null); 
               case FileRemote.modeCopyReadOnlyNever: 
-                return exitState.stateCopyFileFinished.entry(null); 
+                return exitState.stateNextFile.entry(null); 
               case FileRemote.modeCopyReadOnlyOverwrite: {
                 boolean bOk = actData.dst.setWritable(true);
                 if(!bOk){
                   sendEventAsk(actData.dst, FileRemote.CallbackCmd.askDstNotAbletoOverwr );
-                  return exitState.stateCopyAsk.entry(null); 
+                  return exitState.stateAsk.entry(null); 
                 }  //else now try to open to overwrite.
               } break;  
             }
@@ -968,13 +1098,13 @@ public class Copy_FileLocalAcc
           Copy_FileLocalAcc.this.out = new FileOutputStream(actData.dst);
         } catch(IOException exc){
           sendEventAsk(actData.dst, FileRemote.CallbackCmd.askErrorDstCreate );
-          return exitState.stateCopyAsk.entry(null);
+          return exitState.stateAsk.entry(null);
         }
 
         try{ Copy_FileLocalAcc.this.in = new FileInputStream(actData.src);
         } catch(IOException exc){
           sendEventAsk(actData.src, FileRemote.CallbackCmd.askErrorSrcOpen );
-          return exitState.stateCopyAsk.entry(null);
+          return exitState.stateAsk.entry(null);
         }
         return exitState.stateCopyFileContent.entry(null);
       }
@@ -983,10 +1113,10 @@ public class Copy_FileLocalAcc
 
 
   
-  private class StateCopySubDir extends StateSimpleBase<StateCopyProcess>{
+  private class StateSubDir extends StateSimpleBase<StateCopyProcess>{
     
     
-    StateCopySubDir(StateCopyProcess superState) { super(superState, "SubDir", false); }
+    StateSubDir(StateCopyProcess superState) { super(superState, "SubDir", false); }
 
     @Override public void entryAction(Event<?,?> ev){
       //super.entry(consumed);
@@ -999,16 +1129,25 @@ public class Copy_FileLocalAcc
         }
         StringFunctions.copyToBuffer(absPath, evBackInfo.fileName);
         evBackInfo.sendEvent(FileRemote.CallbackCmd.copyDir);
-        actData.dst.mkdirs();
+        if(cmdFile == FileRemote.Cmd.copyChecked || cmdFile == FileRemote.Cmd.moveChecked){
+          actData.dst.mkdirs();
+        }
       }
       //fill child files to handle to the actData.listChildren, independent whether there are files or directories.
-      if(actData.src.children() !=null) for(Map.Entry<String, FileRemote> item: actData.src.children().entrySet()){
-        FileRemote child = item.getValue();
-        if(child.isSelected(1)){
-          String sName = child.getName();
-          child.resetSelected(1);
-          FileRemote childDst = actData.dst.child(sName);
-          actData.addNewEntry(child, childDst);
+      if(actData.src.children() !=null){
+        //Copy all children to preserve ConcurrentModificationException because children may moved or deleted.
+        //Only that children which are processed already may removed by the statemachine's process itself.
+        //Other modifications are able, that files are recognized, but their existence are quest.
+        List<FileRemote> children = new ArrayList<FileRemote>(actData.src.children().values());
+        //for(Map.Entry<String, FileRemote> item: actData.src.children().entrySet()){
+        //  FileRemote child = item.getValue();
+        for(FileRemote child: children){
+          if(child.exists() && child.isSelected(1)){
+            String sName = child.getName();
+            child.resetSelected(1);
+            FileRemote childDst = actData.dst == null ? null : actData.dst.child(sName);
+            actData.addNewEntry(child, childDst);
+          }
         }
       }
 
@@ -1044,9 +1183,9 @@ public class Copy_FileLocalAcc
     @Override public int trans(Event<?,?> ev) {
       if(ev == null) return 0;
       if(ev.getCmd() == CmdCpyIntern.subDir){
-        return exit().stateCopyDirOrFile.entry(ev);  //exit and entry in the same state.
+        return exit().stateDirOrFile.entry(ev);  //exit and entry in the same state.
       } else if(ev.getCmd() == CmdCpyIntern.emptyDir){ 
-        return exit().stateCopyFileFinished.entry(ev);  //exit and entry in the same state.
+        return exit().stateNextFile.entry(ev);  //exit and entry in the same state.
       } else {
         return eventNotConsumed;
       }
@@ -1126,7 +1265,7 @@ public class Copy_FileLocalAcc
             } else if(zBytes == -1){
               //bContCopy = false;
               bCopyFinished = true;
-              newState = exit().stateCopyFileFinished.entry(evP);
+              newState = exit().stateNextFile.entry(evP);
               
             } else {
               //0 bytes ?
@@ -1137,13 +1276,13 @@ public class Copy_FileLocalAcc
             //bContCopy = false;
             System.err.printf("FileRemoteAccessorLocalFile - Copy error; %s\n", exc.getMessage());
             sendEventAsk(actData.dst, FileRemote.CallbackCmd.askErrorCopy );
-            newState = exit().stateCopyAsk.entry(evP);
+            newState = exit().stateAsk.entry(evP);
           }
         }while(newState == -1);
         
       } else if(ev.cmde == FileRemote.Cmd.abortCopyFile ){
         
-        newState = exit().stateCopyFileFinished.entry(evP);
+        newState = exit().stateNextFile.entry(evP);
       } else {
         newState = eventNotConsumed;  //+eventConsumed
       }
@@ -1178,22 +1317,24 @@ public class Copy_FileLocalAcc
 
   
 
-  /**This state is activated after the copy process of one file was finished from {@link StateCopyFileContent}
-   * or if the file was skipped (from {@link StateCopyDirOrFile}. 
+  /**This state is activated after one file was processed from {@link StateCopyFileContent}
+   * or if the file was skipped (from {@link StateDirOrFile}. 
    * <ul>
    * <li>entry: Checks whether there is a further file to copy in the same directory 
    *   or it returns to the parent directory and checks the further files there.
    *   If all files are copied the {@link Copy#actData} are set to null. 
    * <li>trans [actData==null] ==> {@link StateCopyReady}
-   * <li>trans [else] ==> {@link StateCopyDirOrFile}
+   * <li>trans [else] ==> {@link StateDirOrFile}
+   * </ul>
+   * The state has only conditional transitions.
    * <br><br>
    * 
    * @author Hartmut
    *
    */
-  private class StateCopyFileFinished extends StateSimpleBase<StateCopyProcess>{
+  private class StateNextFile extends StateSimpleBase<StateCopyProcess>{
     
-    StateCopyFileFinished(StateCopyProcess superState) { super(superState, "FileFinished"); }
+    StateNextFile(StateCopyProcess superState) { super(superState, "NextFile", true); }
 
     @Override public void entryAction(Event<?,?> ev){
       //super.entry(isConsumed);
@@ -1250,14 +1391,12 @@ public class Copy_FileLocalAcc
     }
     
     
-  
-    @Override public int trans(Event<?,?> evP) {
-      //EventCpy ev = (EventCpy)evP;
-      /*
-      if(ev.getCmd() == CmdCpyIntern.dirFile){
-        return exit().dirOrFile.entry(consumed);
-      }
-      else*/ 
+    
+    /**If another file or directory is found.
+     */
+    private int transDirOrFile(Event<?,?> evP){ return exit().stateDirOrFile.entry(evP); }
+
+    private int transReady(Event<?,?> evP){ 
       if(actData == null){
         //send done Back
         if(evBackInfo.occupyRecall(1000, outer.evSrc, false)){
@@ -1268,21 +1407,24 @@ public class Copy_FileLocalAcc
           }
           
         }
-        return exit().exit().stateReady.entry(null);
-      }
-      else {
-        //another file or directory
-        
-        return exit().stateCopyDirOrFile.entry(null);
-      }
+        return exit().exit().stateReady.entry(evP);
+      } else return 0;
+    }
+
+    
+    
+    @Override public int trans(Event<?,?> evP) {
+      int ret;
+      if((ret = transReady(evP)) !=0) return ret;
+      else return transDirOrFile(evP); //another file or directory
     }
   }
 
 
-  private class StateCopyAsk extends StateSimpleBase<StateCopyProcess>{
+  private class StateAsk extends StateSimpleBase<StateCopyProcess>{
     
     
-    StateCopyAsk(StateCopyProcess superState) { super(superState, "Ask"); }
+    StateAsk(StateCopyProcess superState) { super(superState, "Ask"); }
 
     @Override public void entryAction(Event<?,?> ev){
       //onyl to set a breakpoint.
@@ -1300,16 +1442,16 @@ public class Copy_FileLocalAcc
         if(cmd == FileRemote.Cmd.overwr){
           Copy_FileLocalAcc.this.modeCopyOper = ev.modeCopyOper;
           bOverwrfile = true;
-          return exit().stateCopyDirOrFile.entry(ev);
+          return exit().stateDirOrFile.entry(ev);
         } 
         else if(cmd == FileRemote.Cmd.abortCopyFile){   //it is the skip file.
           Copy_FileLocalAcc.this.modeCopyOper = ev.modeCopyOper;
-          return exit().stateCopyFileFinished.entry(ev);
+          return exit().stateNextFile.entry(ev);
         } 
         else if(cmd == FileRemote.Cmd.abortCopyDir){
           Copy_FileLocalAcc.this.modeCopyOper = ev.modeCopyOper;
           bAbortDirectory = true;
-          return exit().stateCopyFileFinished.entry(ev);
+          return exit().stateNextFile.entry(ev);
         } 
         else if(cmd == FileRemote.Cmd.abortAll){
           copyAbort();
