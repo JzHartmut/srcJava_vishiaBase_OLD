@@ -667,12 +667,12 @@ public class Copy_FileLocalAcc
     //actData = checkedFiles.poll();  //start with the first entry.
     actData = new DataSetCopy1Recurs(null);
     actData.src = fileSrc;
-    if(bOnlyOneFile){
+    if(bOnlyOneFile && dirDst.exists() && dirDst.isDirectory()){
       String sName = actData.src.getName();
       FileRemote fileDst = dirDst == null ? null : dirDst.child(sName); 
       actData.dst = fileDst;                                 //complete actData with dst.
     } else {
-      actData.dst = dirDst;
+      actData.dst = dirDst;  //it is a file.
     }
     /*
     if(actData !=null){
