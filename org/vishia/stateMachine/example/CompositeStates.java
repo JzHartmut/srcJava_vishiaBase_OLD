@@ -1,6 +1,5 @@
 package org.vishia.stateMachine.example;
 
-import net.sf.saxon.exslt.Sets;
 
 import org.vishia.stateMachine.StateCompositeBase;
 import org.vishia.stateMachine.StateParallelBase;

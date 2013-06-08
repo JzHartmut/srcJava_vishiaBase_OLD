@@ -854,6 +854,12 @@ public class Copy_FileLocalAcc
     
     protected StateMoveFile stateMoveFile = new StateMoveFile(this);
     
+    /**Executes move of one file. The move action will be done on entry.
+     * The result of move is set in internal bits. 
+     * The trans routine will be called as runToCompletion. 
+     * Depending on the result of move either state Ask or NextFile will be entered.
+     *
+     */
     private final class StateMoveFile extends StateSimpleBase<StateCopyProcess>{
 
       boolean bmove = false, bskip = false, bask = false, berror = false;
