@@ -1099,12 +1099,15 @@ public class FileRemote extends File
       }
       device.refreshFilePropertiesAndChildren(this, null);
     }
-    FileRemote[] aChildren = new FileRemote[children.size()];
-    int ix = -1;
-    for(Map.Entry<String, FileRemote> item: children.entrySet()){
-      aChildren[++ix] = item.getValue();
+    if(children == null) { return null; }
+    else {
+      FileRemote[] aChildren = new FileRemote[children.size()];
+      int ix = -1;
+      for(Map.Entry<String, FileRemote> item: children.entrySet()){
+        aChildren[++ix] = item.getValue();
+      }
+      return aChildren;
     }
-    return aChildren;
   }
   
   
@@ -1811,6 +1814,10 @@ public class FileRemote extends File
        }
       return bOccupied;
     }
+    
+    public void setFileSrc(FileRemote fileSrc){ this.filesrc = fileSrc; }
+
+    
     
     @Override
     public boolean sendEvent(CallbackCmd cmd){ return super.sendEvent(cmd); }

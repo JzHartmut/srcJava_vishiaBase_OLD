@@ -15,6 +15,8 @@ public class FileCluster
 {
   /**Version, history and license.
    * <ul>
+   * <li>2013-06-15 Hartmut bugfix: create a FileRemote as directory. It is the convention, that the 
+   *   property whether or not a FileRemote is a directory does not depend on a {@link FileRemote#isTested()}.
    * <li>2013-05-05 Hartmut chg: get(...) now renamed to getFile(...). {@link #getFile(CharSequence, CharSequence, boolean)}
    *   checks whether a parent instance or deeper child instance is registered already and use that.
    * <li>2013-05-05 Hartmut new: {@link #check(CharSequence, CharSequence)}  
@@ -113,7 +115,7 @@ public class FileCluster
     //}
     FileRemote dirRet = idxPaths.search(sDir1.toString());
     if(dirRet == null){
-      dirRet = new FileRemote(this, null, null, sDir1, 0, 0, 0, null, true);
+      dirRet = new FileRemote(this, null, null, sDir1, 0, 0, FileRemote.mDirectory, null, true);
       idxPaths.put(sDir1.toString(), dirRet);
     } else {
       boolean putit = true;
@@ -126,14 +128,14 @@ public class FileCluster
             StringPartBase pathchild = new StringPartBase(sDir1, zPathRet+1);
             dirRet = dirRet.child(pathchild);
           } else { //other directory name
-            dirRet = new FileRemote(this, null, null, sDir1, 0, 0, 0, null, true);
+            dirRet = new FileRemote(this, null, null, sDir1, 0, 0, FileRemote.mDirectory, null, true);
           }
         } else{
           putit = false; //it is the same, found.
         }
       } else {
         //another directory
-        dirRet = new FileRemote(this, null, null, sDir1, 0, 0, 0, null, true);
+        dirRet = new FileRemote(this, null, null, sDir1, 0, 0, FileRemote.mDirectory, null, true);
       }
       if(putit){ idxPaths.put(sDir1.toString(), dirRet); }
     }
