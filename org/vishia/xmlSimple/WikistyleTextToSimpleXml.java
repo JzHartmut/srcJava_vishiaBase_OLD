@@ -810,7 +810,8 @@ public class WikistyleTextToSimpleXml
         sLine += sInput.substring(start, lineEnd);  //the text exclusively appended white spaces.
       }  
       if(bSpecialEnd)
-      { start = (end +=1); //NOTE: bSpecialEnd: the next text info starts at 1 ! or |, not at both.
+      { end +=1;
+        start = end; //NOTE: bSpecialEnd: the next text info starts at 1 ! or |, not at both.
       }
       else 
       { start = end +1;

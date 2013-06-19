@@ -294,7 +294,7 @@ public class Copy_FileLocalAcc
   /**Cmd check
    * @param ev
    */
-  void checkCopy(FileRemote.CmdEvent ev){ ///
+  void checkCopy(FileRemote.CmdEvent ev){ 
     CopyOrder order = new CopyOrder(++checkOrderCounter);
     order.fileSrc = ev.filesrc;
     this.modeCopyOper = ev.modeCopyOper;
@@ -471,7 +471,7 @@ public class Copy_FileLocalAcc
   
   
   void startCheck(FileRemote.CmdEvent ev){
-    //gets and store data from the event:  ///
+    //gets and store data from the event:  
     //checkedFiles.clear();
     fileSrc = ev.filesrc;
     zBytesAllCheck = 0;
@@ -783,7 +783,7 @@ public class Copy_FileLocalAcc
           startCheck(ev);
           sendEventInternal(CmdCpyIntern.check);   //continue in stateCheckProcess
           return exit().stateProcess.stateCheck.entry(ev);
-        } ///
+        } 
         else if(cmdFile == FileRemote.Cmd.abortAll){
           copyAbort();
           return exit().stateReady.entry(ev);
@@ -836,8 +836,7 @@ public class Copy_FileLocalAcc
       int transReady(Event<?, ?> ev){ return exit().exit().stateReady.entry(ev); }
 
       @Override protected int trans(Event<?, ?> evP)
-      { ///
-        PrepareEventCmd ev = new PrepareEventCmd(evP);  
+      { PrepareEventCmd ev = new PrepareEventCmd(evP);  
         if(ev.cmdi == CmdCpyIntern.check){
           if(processCheck()){
             return transReady(evP); //exit().exit().stateReady.entry(ev); 
@@ -1269,7 +1268,7 @@ public class Copy_FileLocalAcc
                 newState = mEventConsumed;
               } 
             } else if(zBytes == -1){
-              //bContCopy = false;
+              //bContCopy = false; ///
               bCopyFinished = true;
               newState = exit().stateNextFile.entry(evP);
               
@@ -1306,7 +1305,7 @@ public class Copy_FileLocalAcc
         if(Copy_FileLocalAcc.this.out!=null){ Copy_FileLocalAcc.this.out.close(); }
         Copy_FileLocalAcc.this.out = null;
         if(actData !=null && actData.dst !=null){
-          if(!bCopyFinished){
+          if(!bCopyFinished){ ///
             if(!actData.dst.delete()) {
               System.err.println("FileRemoteAccessorLocalFile - Problem delete after abort; " + actData.dst.getAbsolutePath());
             }
@@ -1347,7 +1346,7 @@ public class Copy_FileLocalAcc
       //stateCopyProcess = EStateCopyProcess.FileFinished;
       boolean bCont;
       //close currently file if this state is entered from stateAsk. The regular close() is executed on exit of stateCopyFile.
-      actData.src.resetSelected(1);
+      actData.src.resetSelected(1); ///
       if(Copy_FileLocalAcc.this.in !=null){
         zFilesCopied +=1;
         try{ Copy_FileLocalAcc.this.in.close();

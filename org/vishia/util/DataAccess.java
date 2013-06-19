@@ -253,6 +253,74 @@ public class DataAccess {
   
   
   
+  /**Invokes the static method which is described with the element.
+   * @param element its {@link DatapathElement#whatisit} == 's'.
+   *   The {@link DatapathElement#name} should contain the full qualified "packagepath.Class.methodname" separated by dot.
+   * @return the return value of the method
+   */
+  protected static Object invokeNew(      
+      DatapathElement element
+    ) //throws ClassNotFoundException{
+  { Object data1 = null;
+    if(element.ident.equals("checkNewless"))
+      Assert.stop();
+    try{ 
+      int posClass = element.ident.lastIndexOf('.');
+      String sClass = element.ident.substring(0, posClass);
+      String sMethod = element.ident.substring(posClass +1);
+      Class<?> clazz = Class.forName(sClass);
+      Constructor<?>[] methods = clazz.getConstructors();
+      boolean bOk = false;
+      for(Constructor<?> method: methods){
+        bOk = false;
+        String sMethodName = method.getName();
+        if(sMethodName.equals(sMethod)){
+          Class<?>[] paramTypes = method.getParameterTypes();
+          
+          Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
+          if(actArgs !=null){
+            bOk = true;
+            try{ 
+              data1 = method.newInstance(actArgs);
+            } catch(IllegalAccessException exc){
+              CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
+              throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+            } catch(InstantiationException exc){
+              CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
+              throw new NoSuchMethodException("DataAccess - new invocation problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+            }
+            break;  //method found.
+          }
+        }
+      }
+      if(!bOk) {
+        Assert.stackInfo("", 5);
+        CharSequence stackInfo = Assert.stackInfo(" called: ", 3, 5);
+        throw new NoSuchMethodException("DataAccess - method not found: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+      }
+    } catch (ClassNotFoundException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (NoSuchMethodException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (SecurityException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (IllegalArgumentException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (InvocationTargetException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
+    //} catch 
+    return data1;    
+  }
+  
+  
+  
+  
   
   /**Invokes the method which is described with the element.
    * @param element its {@link DatapathElement#whatisit} == 'r'.
@@ -752,7 +820,7 @@ public class DataAccess {
     public char whatisit;
     
     /**List of arguments of a method. If null, the method has not arguments. */
-    private List<Object> fnArgs;
+    protected List<Object> fnArgs;
     
     /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
     //public void set_intValue(long val){ constValue = new Long(val); }

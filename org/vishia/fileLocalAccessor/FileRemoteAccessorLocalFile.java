@@ -475,7 +475,7 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
     switch(maskFlags){
       case FileRemote.mCanWrite:{ bOk = dst.setWritable(set); } break;
       case FileRemote.mCanWriteAny:{ bOk = dst.setWritable(set, true); } break;
-      default: { bOk = false; }
+      default: { bOk = true; }   //TODO only writeable supported yet, do rest
     }//switch
     if(bOk && dst instanceof FileRemote){
       FileRemote dst1 = (FileRemote)dst;
