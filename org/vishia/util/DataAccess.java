@@ -20,6 +20,7 @@ import javax.lang.model.type.DeclaredType;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2013-06-23 Hartmut new: {@link #invokeNew(DatapathElement)}.
    * <li>2013-03-26 Hartnut improved: {@link #getData(String, Object, boolean, boolean)} Now accesses to all elements,
    *   also to enclosing and super classes.
    * <li>2013-03-26 Hartmut new: {@link #getDataFromField(String, Object, boolean)}
@@ -215,6 +216,8 @@ public class DataAccess {
         Assert.stop();
       switch(element.whatisit) {
         case 'n': {  //create a new instance, call constructor
+          data1 = invokeNew(element);
+          /*
           Object[] oArgs;
           if(element.fnArgs !=null){
             oArgs =element.fnArgs.toArray();
@@ -227,6 +230,7 @@ public class DataAccess {
             exc.printStackTrace();
               
           }
+          */
         } break;
         case 'r': {
           if(data1 !=null){
@@ -265,32 +269,30 @@ public class DataAccess {
     if(element.ident.equals("checkNewless"))
       Assert.stop();
     try{ 
-      int posClass = element.ident.lastIndexOf('.');
-      String sClass = element.ident.substring(0, posClass);
-      String sMethod = element.ident.substring(posClass +1);
-      Class<?> clazz = Class.forName(sClass);
+      //int posClass = element.ident.lastIndexOf('.');
+      //String sClass = element.ident.substring(0, posClass);
+      //String sMethod = element.ident.substring(posClass +1);
+      Class<?> clazz = Class.forName(element.ident);
       Constructor<?>[] methods = clazz.getConstructors();
       boolean bOk = false;
       for(Constructor<?> method: methods){
         bOk = false;
         String sMethodName = method.getName();
-        if(sMethodName.equals(sMethod)){
-          Class<?>[] paramTypes = method.getParameterTypes();
-          
-          Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
-          if(actArgs !=null){
-            bOk = true;
-            try{ 
-              data1 = method.newInstance(actArgs);
-            } catch(IllegalAccessException exc){
-              CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
-              throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
-            } catch(InstantiationException exc){
-              CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
-              throw new NoSuchMethodException("DataAccess - new invocation problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
-            }
-            break;  //method found.
+        Class<?>[] paramTypes = method.getParameterTypes();
+        
+        Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
+        if(actArgs !=null){
+          bOk = true;
+          try{ 
+            data1 = method.newInstance(actArgs);
+          } catch(IllegalAccessException exc){
+            CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
+            throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+          } catch(InstantiationException exc){
+            CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
+            throw new NoSuchMethodException("DataAccess - new invocation problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
           }
+          break;  //method found.
         }
       }
       if(!bOk) {
@@ -334,33 +336,35 @@ public class DataAccess {
   ){
     Object data1 = null;
     Class<?> clazz = dataPool.getClass();
-    if(element.ident.equals("checkNewless"))
+    if(element.ident.equals("append"))
       Assert.stop();
     try{ 
-      Method[] methods = clazz.getDeclaredMethods();
       boolean bOk = false;
-      for(Method method: methods){
-        bOk = false;
-        if(method.getName().equals(element.ident)){
-          Class<?>[] paramTypes = method.getParameterTypes();
-          
-          Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
-          if(actArgs !=null){
-            bOk = true;
-            try{ 
-              data1 = method.invoke(dataPool, actArgs);
-            } catch(IllegalAccessException exc){
-              CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
-              throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
-            } catch(InvocationTargetException exc){
-              Assert.stop();
-              throw exc;
-            }
+      do{
+        Method[] methods = clazz.getDeclaredMethods();
+        for(Method method: methods){
+          bOk = false;
+          if(method.getName().equals(element.ident)){
+            Class<?>[] paramTypes = method.getParameterTypes();
             
-            break;  //method found.
+            Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
+            if(actArgs !=null){
+              bOk = true;
+              try{ 
+                data1 = method.invoke(dataPool, actArgs);
+              } catch(IllegalAccessException exc){
+                CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
+                throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+              } catch(InvocationTargetException exc){
+                Assert.stop();
+                throw exc;
+              }
+              
+              break;  //method found.
+            }
           }
         }
-      }
+      } while(!bOk && (clazz = clazz.getSuperclass()) !=null);
       if(!bOk) {
         Assert.stackInfo("", 5);
         CharSequence stackInfo = Assert.stackInfo(" called: ", 3, 5);
