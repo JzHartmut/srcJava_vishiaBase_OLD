@@ -24,6 +24,7 @@ public class FileCompare
   
   /**Version and history
    * <ul>
+   * <li>2013-06-27 Hartmut bugfix: close() after new BufferedReader()
    * <li>2012-02-04 Hartmut new: {@link Result#parent}, {@link Result#setToEqual()}
    *   used if after comparison the files are copied (The.file.Commander)
    * </ul>
@@ -300,9 +301,10 @@ public class FileCompare
   boolean compareFileContent(Result result)
   {
     boolean bEqu = true;
+    BufferedReader r1 =null, r2 = null;
     try {
-      BufferedReader r1 = new BufferedReader(new FileReader(result.file1));
-      BufferedReader r2 = new BufferedReader(new FileReader(result.file2));
+      r1 = new BufferedReader(new FileReader(result.file1));
+      r2 = new BufferedReader(new FileReader(result.file2));
       String s1, s2;
       while( bEqu && (s1 = r1.readLine()) !=null){
         s2 = r2.readLine();
@@ -311,9 +313,14 @@ public class FileCompare
           bEqu = false;
         }
       }
+      r1.close();
+      r2.close();
+      r1 = r2 = null;
     } catch( IOException exc){
       result.readProblems = true; bEqu = false;
     }
+    FileSystem.close(r1);
+    FileSystem.close(r2);
     result.equal = bEqu;
     return bEqu;
   }  

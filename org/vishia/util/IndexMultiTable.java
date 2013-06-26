@@ -758,7 +758,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
       { return null;
       }
       else
-      { assert(idx < sizeBlock);
+      { assert(idx < table.sizeBlock);
         table = ((IndexMultiTable<Key, Type>)(table.values[idx]));
       }
     }

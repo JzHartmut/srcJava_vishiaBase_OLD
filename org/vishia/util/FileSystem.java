@@ -34,6 +34,7 @@
 package org.vishia.util;
 
 import java.io.BufferedReader;
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -74,6 +75,7 @@ public class FileSystem
   /**Version, history and license.
    * Changes:
    * <ul>
+   * <li>2013-06-27 Hartmut new: {@link #close(Closeable)}
    * <li>2013-05-04 Hartmut chg: {@link #normalizePath(CharSequence)} uses and returns a CharSequence yet.
    * <li>2013-03-31 Hartmut bugfix: {@link #addFileToList(AddFileToList, File, String, int, FilenameFilter, FilenameFilter, int)}
    *   had gotten the content of path/** /sub twice. 
@@ -859,6 +861,56 @@ public class FileSystem
       else return 2;
     } 
     else return 0;  //src is older.
+  }
+  
+  
+  
+  /**Close operation without exception.
+   * Note: A close is necessary though it might be worked well without close(). The file is closed and released
+   * by the operation system any time if an application is finished. It is a property of modern operation systems.
+   * But if the application runs still, a file may be blocked for access from other applications 
+   * if it was opened to read or write and not closed after them. It is also so in the case of
+   * not referenced file handle instances. Use the following pattern to work with files:
+   * <pre> 
+   * Writer myWriter = null;
+   * try {
+   *   myWriter = new FileWriter(...);  //opens
+   *   ...
+   *   myWriter.write(...)
+   *   myWriter.close();     //closes
+   *   myWriter = null;      //mark it closed in the reference.
+   * } catch(IOException exc) {
+   *   ... do anything
+   *   //NOTE: the myWriter may be closed or not, depending on the exception kind
+   * }
+   * if(myWriter !=null){ FileSystem.close(myWriter); }  //close it if it is remained opened because any exception.
+   * </pre>  
+   * This method helps to close without extra effort of a second exception.
+   * The close() operation should be done outside and after the main exception for the file operation.
+   * <br><br>
+   * The following pattern is erroneous because the file may remained opened and can't be close outside
+   * the routine:
+   * <pre>
+   * void antiPattern() throws IOException {
+   *   myWriter = new FileWriter(...);  //opens
+   *   ...
+   *   myWriter.write(...)
+   *   myWriter.close();     //closes
+   * }
+   * </pre>  
+   * @param file any Closeable instance. If it is null, it is okay. Then no action is done.
+   * @return false if file.close() throws an exception.
+   */
+  public static boolean close(Closeable file){
+    boolean bOk;
+    if(file == null) return true;
+    try {
+      file.close();
+      bOk = true;
+    } catch (IOException e) {
+      bOk = false;
+    }
+    return bOk;
   }
   
   
