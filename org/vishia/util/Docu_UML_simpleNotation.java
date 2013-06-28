@@ -46,6 +46,9 @@ package org.vishia.util;
  *          |<---------- FromAnother
  *          |
  *  ------->|
+ *          |&<------------------------&InnerNonstaticClass
+ *          |                                  |
+ *          |&--&InnerStaticClass
  *    
  * </pre>   
  * All arrows can be used only in horizontal direction. There is not an ASCII character to show

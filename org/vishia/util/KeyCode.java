@@ -180,6 +180,12 @@ public class KeyCode
   /**A textfields content is changed. */
   public final static int valueChanged =  0x000b0000 + 'v'; 
   
+  /**Key code for anything activated. */
+  public final static int activated =  0x000b0000 + 'a'; 
+  
+  /**Key code for anything removed. */
+  public final static int removed =  0x000b0000 + 'x'; 
+  
   
   //----- drag and drop ---------------------------------------------------------------
   public final static int dropFiles =    0x000d0000 + 'F'; 
