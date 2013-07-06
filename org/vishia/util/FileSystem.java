@@ -850,17 +850,21 @@ public class FileSystem
   public static int checkNewless(File src, File dst, boolean removeDstIfOlder){
     if(!dst.exists()) return 1;  //src is new
     else if(!src.exists()) return -1;  //src is not found.
-    else if(src.lastModified() > dst.lastModified()){
-      if(removeDstIfOlder){
-        if(!dst.canWrite()){
-          dst.setWritable(true);
+    else{
+      long srcdate = src.lastModified();
+      long dstdate = dst.lastModified();
+      if(srcdate > dstdate){
+        if(removeDstIfOlder){
+          if(!dst.canWrite()){
+            dst.setWritable(true);
+          }
+          if(dst.delete()){ return 3;}
+          else return 4;
         }
-        if(dst.delete()){ return 3;}
-        else return 4;
-      }
-      else return 2;
-    } 
-    else return 0;  //src is older.
+        else return 2;
+      } 
+      else return 0;  //src is older.
+    }
   }
   
   

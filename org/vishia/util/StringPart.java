@@ -2351,7 +2351,7 @@ that is a liststring and his part The associated String
   */
   public char getCurrentChar()
   { if(start < content.length()){ return content.charAt(start); }
-    else /**@java2c=StringBuilderInThreadCxt.*/ throw new IndexOutOfBoundsException("end of StringPart:" + start); // return cEndOfText;
+    else return '\0'; ///**@java2c=StringBuilderInThreadCxt.*/ throw new IndexOutOfBoundsException("end of StringPart:" + start); // return cEndOfText;
   }
  
   

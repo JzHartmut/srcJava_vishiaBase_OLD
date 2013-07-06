@@ -180,7 +180,7 @@ public class DataAccess {
     //  element = null;  //no more following
     //}
     //else 
-    if(element.ident.startsWith("$position")){
+    if(element.ident.startsWith("$ok")){
       Assert.stop();
     }
     if(element.ident.startsWith("XXXXXXXX$$")){
@@ -400,7 +400,7 @@ public class DataAccess {
       DatapathElement element
     ) //throws ClassNotFoundException{
   { Object data1 = null;
-    if(element.ident.equals("checkNewless"))
+    if(element.ident.contains("xml.Xslt"))
       Assert.stop();
     try{ 
       int posClass = element.ident.lastIndexOf('.');

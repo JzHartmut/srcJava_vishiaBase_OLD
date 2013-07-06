@@ -20,6 +20,7 @@
  * @author Hartmut Schorrig, Germany, Pinzberg
  * @version 2009-03-31  (year-month-day)
  * list of changes: 
+ * 2013-06-30 Hartmut new: exec() for calling from inside Java
  * 2009-12-29 Hartmut new: The transformer class is now able to define via param -xslt:, so the SAXON isn't compiled fix.
  * 2009-12-29 Hartmut new: A Xslp-file is translated to the xsl-format, param -p:, the xsl is stored if param -t: is given.^
  * 2009-12-29 Hartmut new: params for translation may be defined, using name=value as param of invocation.
@@ -169,6 +170,8 @@ public class Xslt
    */ 
   protected XmlMReader xmlMReader;
 
+
+  
   /*---------------------------------------------------------------------------------------------*/
   /** main started from java.
    * <br><br>
@@ -186,7 +189,19 @@ public class Xslt
       </pre>
    * 
    * */
-  public static void main(String [] args)
+  public static void main(String [] sArgs)
+  { 
+    exec(sArgs, true);
+  }
+
+  /**Invocation from another java program without exit the JVM
+   * @param sArgs same like {@link #main(String[])}
+   * @return "" or an error String
+   */
+  public static String exec(String[] sArgs){ return exec(sArgs, false); }
+
+  
+  private static String exec(String [] args, boolean shouldExitVM)
   { Xslt main = new Xslt();     //the main instance
     CmdLine mainCmdLine = main.new CmdLine(args); //the instance to parse arguments and others.
     main.console = mainCmdLine;  //it may be also another instance based on MainCmd_ifc
@@ -218,7 +233,8 @@ public class Xslt
         main.console.setExitErrorLevel(MainCmd_ifc.exitWithErrors);
       }
     }
-    mainCmdLine.exit();
+    if(shouldExitVM){ mainCmdLine.exit();}
+    return mainCmdLine.getExitErrorLevel() == 0 ? "" : "Xslt error=" + mainCmdLine.getExitErrorLevel();
   }
 
   
@@ -272,6 +288,7 @@ public class Xslt
                 false if the argument doesn't match. The parseArgument method in MainCmd throws an exception,
                 the application should be aborted.
     */
+    @Override
     protected boolean testArgument(String arg, int nArg)
     { boolean bOk = true;  //set to false if the argc is not passed
       int posArg = (arg.length()>=2 && arg.charAt(2)==':') ? 3 : 2; //with or without :
@@ -306,6 +323,7 @@ public class Xslt
      * @throws ParseException 
      *
      */
+    @Override
     protected void callWithoutArguments() throws ParseException
     { //:TODO: overwrite with empty method - if the calling without arguments
       //having equal rights than the calling with arguments - no special action.
@@ -320,6 +338,7 @@ public class Xslt
        If there is an inconsistents, a message should be written. It may be also a warning.
        @return true if successfull, false if failed.
     */
+    @Override
     protected boolean checkArguments()
     { boolean bOk = true;
   
