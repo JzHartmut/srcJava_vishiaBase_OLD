@@ -6,6 +6,8 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.vishia.util.StringPart;
 
@@ -17,6 +19,9 @@ public class CmdExecuter implements Closeable
 {
   /**Version and History:
    * <ul>
+   * <li>2013-07-12 Hartmut new: {@link #execute(String[], String, List, List)} for more as one output or error.
+   *   It is nice to write a process output similar to the System.out and to a internal buffer while the process runs.
+   *   Catching in a buffer and write to System.out after the process is finished is not fine if the process needs some time or hangs.
    * <li>2012-11-19 Hartmut bug: Command line arguments in "": now regarded in {@link #splitArgs(String)}.
    * <li>2012-02-02 Hartmut bug: Calling {@link #abortCmd()}: There was a situation were in {@link OutThread#run()} readline() hangs,
    *   though the {@link #process} was destroyed. It isn't solved yet. Test whether it may be better
@@ -146,7 +151,7 @@ public class CmdExecuter implements Closeable
     return execute(cmdArgs, input, output, error, useShell);
   }
   
-  
+
   
   /**Executes a command with arguments and maybe waits for its finishing.
    * @param cmdArgs The command and its arguments. The command is cmdArgs[0]. 
@@ -165,27 +170,63 @@ public class CmdExecuter implements Closeable
   , Appendable error
   , boolean useShell
   )
+  {
+    List<Appendable> outputs, errors;
+    if(output !=null){
+      outputs = new LinkedList<Appendable>();
+      outputs.add(output);
+    } else {
+      outputs = null;
+    }
+    if(error !=null){
+      errors = new LinkedList<Appendable>();
+      errors.add(error);
+    } else {
+      errors = null;
+    }
+    return execute(cmdArgs, input, outputs, errors);
+  }
+  
+  
+  
+  
+  /**Executes a command with arguments and maybe waits for its finishing.
+   * @param cmdArgs The command and its arguments. The command is cmdArgs[0]. 
+   *        Any argument have to be given with one element of this String array.
+   * @param input The input stream of the command. TODO not used yet.
+   * @param output Will be filled with the output of the command.
+   *        If output ==null then no output is expected and the end of command execution is not awaited.
+   *        But in this case error should not be ==null because errors of command invocation are written there.
+   * @param error Will be filled with the error output of the command. 
+   *        Maybe null, then the error output will be written to output 
+   * @return exit code if output !=null. If output==null the end of command execution is not awaited.       
+   */
+  public int execute(String[] cmdArgs
+  , String input
+  , List<Appendable> outputs
+  , List<Appendable> errors
+  )
   { int exitCode;
     processBuilder.command(cmdArgs);
-    if(error == null){ error = output; }
+    if(errors == null){ errors = outputs; }
     //userError = error;
     //userOutput = output;
     try
     {
       process = processBuilder.start();
-      if(error !=null){
+      if(errors !=null){
         //bRunExec = true;
         errThread.bProcessIsRunning = true;
         errThread.processOut = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-        errThread.out = error;
+        errThread.outs = errors;
         synchronized(errThread){ errThread.notify(); }  //wake up to work!
         //processIn = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
       }
-      if(output !=null){
+      if(outputs !=null){
         //bRunExec = true;
         outThread.bProcessIsRunning = true;
         outThread.processOut = new BufferedReader(new InputStreamReader(process.getInputStream()));
-        outThread.out = output;
+        outThread.outs = outputs;
         synchronized(outThread){ outThread.notify(); }  //wake up to work!
         //processIn = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
         exitCode = process.waitFor();  //wait for finishing the process
@@ -212,8 +253,13 @@ public class CmdExecuter implements Closeable
       }
     } 
     catch(Exception exception) { 
-      if(error !=null){
-        try{ error.append( "Problem: ").append(exception.getMessage());}
+      if(errors !=null){
+        try{
+          String sError = "CmdExecuter - Problem;" + exception.getMessage();
+          for(Appendable error : errors){
+            error.append( sError);
+          }
+        }
         catch(IOException exc){ throw new RuntimeException(exc); }
       } else {
         throw new RuntimeException(exception);
@@ -245,8 +291,8 @@ public class CmdExecuter implements Closeable
         System.err.println("error close");
         exc.printStackTrace();
       }
-      outThread.out = null;  //to abort
-      errThread.out = null;
+      outThread.outs = null;  //to abort
+      errThread.outs = null;
     }
     //TODO doesn't work:
     /*
@@ -326,7 +372,7 @@ public class CmdExecuter implements Closeable
     BufferedReader processOut;
     
     /**Output to write.*/
-    Appendable out;
+    List<Appendable> outs;
     
     char state = '.';
     
@@ -337,12 +383,12 @@ public class CmdExecuter implements Closeable
     { state = 'r';
       while(bRunThreads){
         try{
-          if(processOut !=null && out !=null){  //ask only if processOutput is Set.
+          if(processOut !=null && outs !=null){  //ask only if processOutput is Set.
             String sLine;
-            if(out != null && processOut.ready()){
+            if(outs != null && processOut.ready()){
               if( (sLine= processOut.readLine()) !=null){
-                if(out !=null){
-                out.append(sLine).append('\n');
+                for(Appendable out :outs){
+                  out.append(sLine).append('\n');
                 }
               } else {
                 //Because processOut returns null, it is "end of file" for the output stream of the started process.
@@ -353,7 +399,7 @@ public class CmdExecuter implements Closeable
               //yet no output available. The process may be run still, but doesn't produce output.
               //The process may be finished.
               if(!bProcessIsRunning){
-                out = null;  
+                outs = null;  
               } else {
                 Thread.sleep(100);
               }
@@ -363,7 +409,7 @@ public class CmdExecuter implements Closeable
             //no process is active, wait
             try { synchronized(this){ wait(1000); } } catch (InterruptedException exc) { }
           }
-          if(out == null && processOut !=null){  //aborted or process is finished.
+          if(outs == null && processOut !=null){  //aborted or process is finished.
             //if(process !=null){
               synchronized(this){ 
                 processOut.close();
