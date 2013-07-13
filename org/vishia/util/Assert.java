@@ -1,6 +1,9 @@
 package org.vishia.util;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.util.NoSuchElementException;
 
 /**Supports special handling of Outputs and assertions especially in debug phase. 
  * The application can create any special Assert class which extends this class
@@ -30,6 +33,7 @@ public class Assert
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-07-14 Hartmut new: {@link #throwCompleteExceptionMessage(String, Exception)}
    * <li>2013-01-26 Hartmut new: {@link #consoleErr(String, Object...)}, {@link #consoleOut(String, Object...)}:
    *   Possibility to use the original System.out channel even System.setErr() etc. may be invoked.
    * <li> 2013-01-26 Hartmut chg: {@link #assertion(boolean)} etc. are protected now and commented. That are the methods
@@ -146,6 +150,39 @@ public class Assert
     }
     return u;
   }
+  
+  
+  /**Throws with the given exception but with a modified exception text and with a modified exception type.
+   * The sAdd will be added in front of the exception messages - it may be a hint where the exception was thrown.
+   * <br><br>
+   * Exception types: There may be less exception types for evaluation.
+   * <ul>
+   * <li>FileNotFoundException: thrown
+   * <li>IOException: thrown
+   * <li>All other exception types causes a RuntimeException.
+   * </ul>
+   * The thrown exception does not contain the stackTrace of the inputed Excpetion.
+   * 
+   * @param sAdd
+   * @param exc
+   * @throws IOException, RuntimeException
+   */
+  public static void throwCompleteExceptionMessage(String sAdd, Exception exc) 
+  throws IOException
+  {
+    String excText = exc.toString();
+    String excName = exc.getClass().getName();
+    if(excName.equals("FileNotFoundException")){
+      throw new FileNotFoundException(sAdd + exc.getMessage());
+    } else if(exc instanceof IOException){
+      throw new IOException(sAdd + exc.getMessage());
+    } else if(excName.startsWith("NoSuch")){
+      throw new NoSuchElementException(sAdd + excText);
+    } else {
+      throw new RuntimeException(sAdd + excText);
+    }
+  }
+  
   
 
   /**Prepares an information about the stack trace without occurring of a exception in a short (one line) form.

@@ -20,6 +20,9 @@ import javax.lang.model.type.DeclaredType;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * 
+   * <li>2013-07-14 Hartmut chg: {@link #checkAndConvertArgTypes(List, Class[])} now checks super classes and interfaces,
+   * <li>2013-07-14 Hartmut chg: Exception handling for invoked methods.
    * <li>2013-06-23 Hartmut new: {@link #invokeNew(DatapathElement)}.
    * <li>2013-03-26 Hartnut improved: {@link #getData(String, Object, boolean, boolean)} Now accesses to all elements,
    *   also to enclosing and super classes.
@@ -160,7 +163,7 @@ public class DataAccess {
    * @param bContainer If the element is a container, returns it. Elsewhere build a List
    *    to return a container for iteration. A container is any object implementing java.util.Map or java.util.Iterable
    * @return Any data object addressed by the path. Returns null if the last datapath element refers null.
-   * 
+   * @throws Throwable 
    * @throws IllegalArgumentException if the datapath does not address an element. The exception message contains a String
    *  as hint which part does not match.
    */
@@ -170,7 +173,7 @@ public class DataAccess {
       , Map<String, Object> namedDataPool
       //, boolean noException 
       , boolean accessPrivate,  boolean bContainer)
-  throws NoSuchFieldException, IllegalAccessException
+  throws Throwable
   {
     Object data1 = dataPool;
     Iterator<DatapathElement> iter = datapath.iterator();
@@ -261,10 +264,11 @@ public class DataAccess {
    * @param element its {@link DatapathElement#whatisit} == 's'.
    *   The {@link DatapathElement#name} should contain the full qualified "packagepath.Class.methodname" separated by dot.
    * @return the return value of the method
+   * @throws NoSuchMethodException 
    */
   protected static Object invokeNew(      
       DatapathElement element
-    ) //throws ClassNotFoundException{
+    ) throws NoSuchMethodException //throws ClassNotFoundException{
   { Object data1 = null;
     if(element.ident.equals("checkNewless"))
       Assert.stop();
@@ -301,9 +305,6 @@ public class DataAccess {
         throw new NoSuchMethodException("DataAccess - method not found: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
       }
     } catch (ClassNotFoundException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (NoSuchMethodException e) {
       // TODO Auto-generated catch block
       e.printStackTrace();
     } catch (SecurityException e) {
@@ -395,10 +396,10 @@ public class DataAccess {
    * @param element its {@link DatapathElement#whatisit} == 's'.
    *   The {@link DatapathElement#name} should contain the full qualified "packagepath.Class.methodname" separated by dot.
    * @return the return value of the method
+   * @throws Throwable 
    */
-  protected static Object invokeStaticMethod(      
-      DatapathElement element
-    ) //throws ClassNotFoundException{
+  protected static Object invokeStaticMethod( DatapathElement element ) 
+  throws Throwable
   { Object data1 = null;
     if(element.ident.contains("xml.Xslt"))
       Assert.stop();
@@ -436,9 +437,6 @@ public class DataAccess {
     } catch (ClassNotFoundException e) {
       // TODO Auto-generated catch block
       e.printStackTrace();
-    } catch (NoSuchMethodException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
     } catch (SecurityException e) {
       // TODO Auto-generated catch block
       e.printStackTrace();
@@ -446,8 +444,10 @@ public class DataAccess {
       // TODO Auto-generated catch block
       e.printStackTrace();
     } catch (InvocationTargetException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      //Exception in invocation of this method. Use the cause
+      Throwable cause = e.getCause();
+      throw cause;
+      //e.printStackTrace();
     }
     //} catch 
     return data1;    
@@ -499,7 +499,7 @@ public class DataAccess {
         //check super classes and all interface types.
         //if(arg instanceof paramTypes[iParam]){ actArgs[iParam] = arg; }
         String typeName = argType.getName();
-        if(actType == argType){ bOk = true; }
+        if(actType == argType){ bOk = true; }  //check first, fast variant.
         else if(arg instanceof CharSequence){
           if(argType == File.class){ bOk = true; }
           else if(argType == String.class){ bOk = true;  }
@@ -508,9 +508,20 @@ public class DataAccess {
         } else if(typeName.equals("Z") || typeName.equals("boolean")){
           bOk = true; //all can converted to boolean
         } else {
-          Type[] ifcs = actType.getGenericInterfaces();
-          Class[] clazzs = actType.getInterfaces();
-          bOk = false; 
+          //check whether the actType is instanceof the argType in its superclasses and its interfaces.
+          Class<?> supertype = actType;
+          while(!bOk && supertype !=null){
+            if(supertype == argType){
+              bOk = true;
+            } else {
+              Class<?>[] ifcs = supertype.getInterfaces(); //getGenericInterfaces();
+              for(Class<?> ifc: ifcs){
+                if(ifc == argType){
+                  bOk = true;
+                }  
+              }
+            }
+          }
         }
         if(!bOk) { break; }
         if(iParam < argTypes.length-1) { iParam +=1; }
