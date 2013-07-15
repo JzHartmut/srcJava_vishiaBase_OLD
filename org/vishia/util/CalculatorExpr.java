@@ -23,7 +23,7 @@ public class CalculatorExpr
   /**Versio, history and license.
    * <ul>
    * <li>Bugfix because String value and thrown Exception. The class needs a test environment. TODO
-   * <li>2012-12-22 some enhancements while using in {@link org.vishia.textGenerator.TextGenerator}.
+   * <li>2012-12-22 some enhancements while using in {@link org.vishia.JbatExecuter.TextGenerator}.
    * <li>2012-04-17 new {@link #calc(float)} for float and int
    * <li>TODO unary operator, function 
    * <li>2011-10-15 Hartmut creation. The ideas were created in 1979..80 by me.  

@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 import javax.lang.model.type.DeclaredType;
 
@@ -53,7 +54,7 @@ public class DataAccess {
    * <li>2012-11-04 Hartmut chg: parameter bContainer in getData(...): Sometimes a container is ispected
    *   to iterate though only one element is found, sometimes only a simple element is expected
    *   though a container is addressed maybe with one element. 
-   * <li>2012-10-21 Hartmut created. Some algorithm are copied from {@link org.vishia.zTextGen.TextGenerator} in this class.
+   * <li>2012-10-21 Hartmut created. Some algorithm are copied from {@link org.vishia.jbat.JbatExecuter} in this class.
    *   That algorithm are able to use independent in some applications.
    * </ul>
    * 
@@ -192,6 +193,8 @@ public class DataAccess {
     }
     else if(element.whatisit == 'e'){
       data1 = System.getenv(element.ident);
+      if(data1 == null) throw new NoSuchElementException("DataAccess - environment variable not found; " + element.ident);
+      if(iter.hasNext()) throw new IllegalArgumentException("DataAccess - environment variable with sub elements is faulty");
       element = null;  //no next elements expected.
     }
     else if(element.whatisit == 'v'){
