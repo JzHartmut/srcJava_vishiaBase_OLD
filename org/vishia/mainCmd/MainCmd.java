@@ -217,6 +217,7 @@ public abstract class MainCmd implements MainCmd_ifc
   /**Version, able to read as hex yyyymmdd.
    * Changes:
    * <ul>
+   * <li>2013-07-14 Hartmut chg rule for the {@link #addArgument(Argument[])}, see description of {@link Argument}
    * <li>2013-03-10 Hartmut chg Some adjustments in {@link #addArgument(Argument[])},especially old: setArguments(..)
    *   is renamed to addArgument(). It is prepared that an inherited class's main(...) can add some more arguments
    *   than the base class. 
@@ -241,8 +242,8 @@ public abstract class MainCmd implements MainCmd_ifc
    */
   public static int version = 0x20130310;
   
-  /**Interface for anonymous implementation of setting arguments.
-   * The implementation should be written in the simple form:
+  /**Interface for implementation of setting arguments.
+   * The implementation can be written with an anonymous implementation with the simple form:
    * <pre>
    * MainCmd.SetArgument setArgxy = new MainCmd.SetArgument(){
    *   @Override public boolean setArgument(String val){
@@ -263,10 +264,26 @@ public abstract class MainCmd implements MainCmd_ifc
   /**Class to describe one argument. One can be create static instances with constant content. Example:
    * <pre>
    * Argument[] argList =
-   * { new Argument("-arg", "short one-line help text", setmethod)
-   * , new Argument("-x", "the help text", setx)
+   * { new Argument("", " argument without key on first position", setmethod)
+   * , new Argument("-arg", ":keyed argument", setmethod)
+   * , new Argument("-x", ":the help text", setx)
+   * , new Argument("", " argument without key on any position", setx)
    * };
    * </pre>
+   * <ul>
+   * <li>If the {@link #arg} is empty and it is not on the last position, this is a non keyed argument
+   * which is expect on this position in the argument list.
+   * <li>If the {@link #arg} is not empty, it is the key for the argument. Usual it starts with "-"
+   *   but that is not necessary for the algorithm of argument detection. It is only a style of guide
+   *   to give arguments. After the argument one of the character '=' or ':' are possible to follow.
+   *   But that is not necessary too. If that characters follow, the argument key is taken.
+   *   Elsewhere the longest key is detected which is matching. It is possible to request:
+   *   "key1value" and "key11value", the longest key detection wins.
+   * <li>If the {@link #arg} is empty and it is the last Argument[] which is added with {@link MainCmd#addArgument(Argument[])}
+   *   respectively it is the last entry in {@link MainCmd#argList}, then any argument which does not start 
+   *   with the given keys are recognized on any position. In this case the distinction between arguments
+   *   should be done at user level. For example it may be usual to write "key value key2 value".  
+   * </ul>    
    *
    */
   public static class Argument{ 
@@ -398,8 +415,8 @@ public abstract class MainCmd implements MainCmd_ifc
   
   
   
-  /**Sets the argument list for this application 
-   * and adds its help info. This method should be called in order of {@link #addHelpInfo(String)}
+  /**Adds arguments inclusively help info for this application. 
+   * This method should be called in order of {@link #addHelpInfo(String)}
    * to the correct sequence.
    * @param list see {@link Argument}
    */
@@ -604,7 +621,7 @@ public abstract class MainCmd implements MainCmd_ifc
         else if(cmdLineArgs[iArgs].startsWith("---")) { /*ignore it*/ }
         else
         { if(!main.testArgument(cmdLineArgs[iArgs], iArgs))
-          { main.writeError("failed argument:" + cmdLineArgs[iArgs]);
+          { main.writeError("failed argument: " + cmdLineArgs[iArgs]);
             throw new ParseException("failed argument:" + cmdLineArgs[iArgs], iArgs);  //ParseException used from java.text
           }
         }
@@ -722,26 +739,39 @@ public abstract class MainCmd implements MainCmd_ifc
   {
     if(argList !=null){
       Argument emptyArg = null;
+      Argument argFound = null;
+      int argLenFound = 0;
+      int argclen = argc.length();
+      int ixArglist = 0;
+      int lastIxArglist = argList.size()-1;
       for(Argument argTest : argList){
         int argLen = argTest.arg.length();
-        if(argLen == 0){
+        if(false && argLen == 0){
           emptyArg = argTest;
         } else {
-          int argclen = argc.length();
+          boolean bSeparator = false;
           if((argc.startsWith(argTest.arg)                //correct prefix 
                && (  argclen == argLen                      //only the prefix
-                  || ":=".indexOf(argc.charAt(argLen))>=0)  //or prefix ends with the separator characters.
+                  || (bSeparator = ":=".indexOf(argc.charAt(argLen))>=0))  //or prefix ends with the separator characters.
+                  || (argLen == 0 && (ixArglist == nArg || ixArglist == lastIxArglist))                         //argument without key characters
                   )
-            ){ //then the argument is correct and associated to this argTest.
-            String argval = argclen == argLen //no additional value, use argument 
-                          //|| argLen == 0      //argument without prefix (no option)
-                          ? argc              //then use the whole argument as value.
-                          : argc.substring(argLen+1);  //use the argument after the separator as value.
-            boolean bOk = argTest.set.setArgument(argval);   //call the user method for this argument.
-            //if(!bOk) throw new ParseException("Argument value error: " + argc, nArg);
-            return bOk;
+               && argLen >= argLenFound   
+            ){ //then the argument is a candidat
+            argLenFound = bSeparator ? argLen +1 : argLen;
+            argFound = argTest;
           }
         }
+        ixArglist +=1;
+      }
+      if(argFound !=null){
+        //then the argument is correct and associated to this argTest.
+        String argval = argclen == argLenFound //no additional value, use argument 
+                        //|| argLen == 0      //argument without prefix (no option)
+                        ? argc              //then use the whole argument as value.
+                        : argc.substring(argLenFound);  //use the argument after the separator as value.
+        boolean bOk = argFound.set.setArgument(argval);   //call the user method for this argument.
+        //if(!bOk) throw new ParseException("Argument value error: " + argc, nArg);
+        return bOk;
       }
       //argument start string not found:
       if(emptyArg !=null){

@@ -27,6 +27,8 @@ REM  Set the environment variable JAVA_JDK, where bin/javac will be found.
 ::call +findJAVA_JDK.bat
 REM  The java-copiler may be located at a user-specified position.
 REM  Set the environment variable JAVA_JDK, where bin/javac will be found.
+set JAVA_JDK=D:\Programs\JAVA\jdk1.6.0_21
+if exist "%JAVA_JDK%" goto :JavaOk
 set JAVA_JDK=D:\Progs\JAVA\jdk1.6.0_21
 if exist "%JAVA_JDK%" goto :JavaOk
 set JAVA_JDK=D:\Programme\JAVA\jdk1.6.0_21
