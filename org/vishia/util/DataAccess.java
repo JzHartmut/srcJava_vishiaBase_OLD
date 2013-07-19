@@ -202,7 +202,7 @@ public class DataAccess {
         throw new NoSuchFieldException("$?missing-datapool?");
       }
       if(!namedDataPool.containsKey(element.ident)){
-        throw new NoSuchFieldException(element.ident);
+        throw new NoSuchFieldException(element.ident + " ;in datapool, contains; " + namedDataPool.toString() );
       }
       data1 = namedDataPool.get(element.ident);  //maybe null if the value of the key is null.
       element = iter.hasNext() ? iter.next() : null;
@@ -212,13 +212,13 @@ public class DataAccess {
         throw new NoSuchFieldException("$?missing-datapool?");
       }
       if(!namedDataPool.containsKey(element.ident.substring(1))){
-        throw new NoSuchFieldException(element.ident);
+        throw new NoSuchFieldException(element.ident + " ;in datapool, contains; " + namedDataPool.toString());
       }
       data1 = namedDataPool.get(element.ident.substring(1));  //maybe null if the value of the key is null.
       element = iter.hasNext() ? iter.next() : null;
     }
     while(element !=null){
-      if(element.ident.equals("parallelParent"))
+      if(element.ident.equals("absfile"))
         Assert.stop();
       switch(element.whatisit) {
         case 'n': {  //create a new instance, call constructor
@@ -618,6 +618,8 @@ public class DataAccess {
   throws NoSuchFieldException, IllegalAccessException
   {
     Object data1 = null;
+    if(name.equals("compileOptions"))
+      Assert.stop();
     if(dataPool instanceof Map<?, ?>){
       data1 = ((Map<?,?>)dataPool).get(name);
     } 
@@ -631,7 +633,7 @@ public class DataAccess {
           if(bContainer){ data1 = treeNode.listChildren(name); }
           else { data1 = treeNode.getChild(name); }  //if more as one element with that name, select the first one.
           if(data1 == null){
-            throw new NoSuchFieldException(name);
+            throw new NoSuchFieldException(name + " ;in TreeNode, contains; " + treeNode.toString());
           }
         } else throw exc;
       }
@@ -666,6 +668,7 @@ public class DataAccess {
   throws NoSuchFieldException, IllegalAccessException {
     if(recursiveCt > 100) throw new IllegalArgumentException("recursion error");
     Object ret = null;
+    Class<?> clazz2 = clazz;
     boolean bSearchSuperOuter = false;
     try{ 
       Field field = clazz.getDeclaredField(name); 
@@ -675,7 +678,7 @@ public class DataAccess {
     }
     catch(NoSuchFieldException exc){ bSearchSuperOuter = true; }
     if(bSearchSuperOuter){
-      Class<?> superClazz = clazz.getSuperclass();
+      Class<?> superClazz = clazz2 = clazz.getSuperclass();
       if(superClazz !=null){
         try{
           ret = getDataFromField(name, obj, accessPrivate, superClazz, recursiveCt+1);  //searchs in thats enclosing and super classes.  
@@ -687,7 +690,7 @@ public class DataAccess {
       }
     }
     if(bSearchSuperOuter){
-      Class<?> outerClazz = clazz.getEnclosingClass();
+      Class<?> outerClazz = clazz2 = clazz.getEnclosingClass();
       if(outerClazz !=null){
         Object outer = getEnclosingInstance(obj);
         try{
@@ -700,7 +703,7 @@ public class DataAccess {
       }
     }
     if(bSearchSuperOuter){
-      throw new NoSuchFieldException(name);
+      throw new NoSuchFieldException(name + " ;in class ;" + clazz.getCanonicalName() );
     }
     return ret;
   }

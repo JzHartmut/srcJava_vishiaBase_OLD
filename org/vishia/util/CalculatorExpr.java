@@ -1,6 +1,7 @@
 package org.vishia.util;
 
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,10 @@ public class CalculatorExpr
   
   /**Versio, history and license.
    * <ul>
+   * <li>2012-12-22 Hartmut new: Now a value can contain a list of {@link DataAccess.DatapathElement} to access inside java data 
+   *   to evaluate the value. The concept is synchronized with {@link org.vishia.jbat.JbatGenScript}, 
+   *   but not depending on it. The JbatGenScript uses this class, this class participates on the development
+   *   and requirements of jbat.
    * <li>Bugfix because String value and thrown Exception. The class needs a test environment. TODO
    * <li>2012-12-22 some enhancements while using in {@link org.vishia.JbatExecuter.TextGenerator}.
    * <li>2012-04-17 new {@link #calc(float)} for float and int
@@ -59,14 +64,77 @@ public class CalculatorExpr
   public final static int version = 20121222;
   
   
-  
-  public static class Value{
-    char type = '?';
-    long longVal;
-    double doubleVal;
-    boolean boolVal;
-    String stringVal;
-    Object oVal;
+  /**A path to any Java Object or method given with identifier names.
+   * The access is organized using reflection.
+   * <ul>
+   * <li>This class can describe a left value. It may be a Container to which a value is added
+   * or a {@link java.lang.Appendable}, to which a String is added.  
+   * <li>This class can describe a value, which is the result of access to the last element of the path.
+   * </ul>
+   */
+  public static class Datapath
+  {
+    /**The description of the path to any data if the script-element refers data. It is null if the script element
+     * does not refer data. If it is filled, the instances are of type {@link ZbnfDataPathElement}.
+     * If it is used in {@link DataAccess}, its base class {@link DataAccess.DatapathElement} are used. The difference
+     * are the handling of actual values for method calls. See {@link ZbnfDataPathElement#actualArguments}.
+     */
+    protected List<DataAccess.DatapathElement> datapath;
+    
+    public List<DataAccess.DatapathElement> datapath(){ return datapath; }
+    
+
+  }
+   
+   
+  /**A value, maybe a constant, any given Object or an access description to a java program element.
+   * 
+   *
+   */
+  public static class Value extends Datapath{
+    
+    
+    
+    /**Type of the value. 
+     * <ul>
+     * <li>J I D F Z: long, double, boolean, the known Java characters for types see {@link java.lang.Class#getName()}
+     * <li>o: The oVal contains any object.
+     * <li>t: A String stored in stringVal,
+     * <li>d: Access via the data path using reflection
+     * <li>i: Access via the data path using reflection, a String with type and data information is returned.
+     *   That is a functionality to debug the data. 
+     * </ul>
+     */
+    protected char type = '?';
+    protected long longVal;
+    protected double doubleVal;
+    protected boolean boolVal;
+    protected String stringVal;
+    protected Object oVal;
+    
+    public Value(long val){ type = 'J'; longVal = val; }
+    
+    public Value(int val){ type = 'J'; longVal = val; }
+    
+    public Value(double val){ type = 'D'; doubleVal = val; }
+    
+    public Value(float val){ type = 'D'; doubleVal = val; }
+    
+    public Value(boolean val){ type = 'Z'; boolVal = val; }
+    
+    public Value(char val){ type = 'C'; longVal = val; }
+    
+    public Value(String val){ type = 't'; stringVal = val; }
+    
+    public Value(Appendable val){ type = 'a'; oVal = val; }
+    
+    public Value(Object val){ type = 'o'; oVal = val; }
+    
+    public Value(List<DataAccess.DatapathElement> datpath){ type = 'd'; this.datapath = datapath; }
+    
+    public Value(){ type = '?'; }
+    
+    public void setInfoType(){ type = 'i'; }
     
     /**Returns a boolean value. If the type of content is a numeric, false is returned if the value is ==0.
      * If the type is a text, false is returned if the string is empty.
@@ -75,7 +143,7 @@ public class CalculatorExpr
      */
     public boolean booleanValue()
     { switch(type){
-        case 'L': return longVal !=0;
+        case 'J': return longVal !=0;
         case 'D': return doubleVal !=0;
         case 'Z': return boolVal;
         case 't': return stringVal.length() >0;
@@ -85,9 +153,31 @@ public class CalculatorExpr
       }//switch
     }
     
+    public String stringValue(){ 
+      switch(type){
+        case 'J': return Long.toString(longVal);
+        case 'D': return Double.toString(doubleVal);
+        case 'Z': return Boolean.toString(boolVal);
+        case 't': return stringVal;
+        case 'o': return oVal ==null ? "null" : oVal.toString();
+        default:  return "?" + type;
+      }//switch
+    }
+
+    public Object objValue(){ 
+      switch(type){
+        case 'J': return new Long(longVal);
+        case 'D': return new Double(doubleVal);
+        case 'Z': return new Boolean(boolVal);
+        case 't': return stringVal;
+        case 'o': return oVal;
+        default:  return "?" + type;
+      }//switch
+    }
+
     @Override public String toString(){ 
       switch(type){
-        case 'L': return Long.toString(longVal);
+        case 'J': return Long.toString(longVal);
         case 'D': return Double.toString(doubleVal);
         case 'Z': return Boolean.toString(boolVal);
         case 't': return stringVal;
@@ -155,7 +245,7 @@ public class CalculatorExpr
   
   private static final ExpressionType longExpr = new ExpressionType(){
     
-    @Override public char typeChar() { return 'L'; }
+    @Override public char typeChar() { return 'J'; }
     
     @Override public ExpressionType checkArgument(Value accu, Value setit, Object src) {
       if(src instanceof Long){ setit.longVal = (Long)src; return this; }
@@ -189,7 +279,7 @@ public class CalculatorExpr
   private static final Operator setOperation = new Operator("!"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
-        case 'L': accu.longVal = arg.longVal; break;
+        case 'J': accu.longVal = arg.longVal; break;
         case 'D': accu.doubleVal = arg.doubleVal; break;
         case 'Z': accu.boolVal = arg.boolVal; break;
         case 't': accu.stringVal = arg.stringVal; break;
@@ -204,7 +294,7 @@ public class CalculatorExpr
   private static final Operator addOperation = new Operator("+"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
-        case 'L': accu.longVal += arg.longVal; break;
+        case 'J': accu.longVal += arg.longVal; break;
         case 'D': accu.doubleVal += arg.doubleVal; break;
         case 'Z': accu.doubleVal += arg.doubleVal; break;
         default: throw new IllegalArgumentException("unknown type" + type.toString());
@@ -217,7 +307,7 @@ public class CalculatorExpr
   private static final Operator subOperation = new Operator("-"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
-        case 'L': accu.longVal -= arg.longVal; break;
+        case 'J': accu.longVal -= arg.longVal; break;
         case 'D': accu.doubleVal -= arg.doubleVal; break;
         case 'Z': accu.doubleVal -= arg.doubleVal; break;
         default: throw new IllegalArgumentException("unknown type" + type.toString());
@@ -230,7 +320,7 @@ public class CalculatorExpr
   private static final Operator mulOperation = new Operator("*"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
-        case 'L': accu.longVal *= arg.longVal; break;
+        case 'J': accu.longVal *= arg.longVal; break;
         case 'D': accu.doubleVal *= arg.doubleVal; break;
         case 'Z': accu.doubleVal *= arg.doubleVal; break;
         default: throw new IllegalArgumentException("unknown type" + type.toString());
@@ -243,7 +333,7 @@ public class CalculatorExpr
   private static final Operator divOperation = new Operator("/"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
-        case 'L': accu.longVal /= arg.longVal; break;
+        case 'J': accu.longVal /= arg.longVal; break;
         case 'D': accu.doubleVal /= arg.doubleVal; break;
         case 'Z': accu.doubleVal /= arg.doubleVal; break;
         default: throw new IllegalArgumentException("unknown type" + type.toString());
@@ -256,7 +346,7 @@ public class CalculatorExpr
   private static final Operator cmpEqOperation = new Operator(".cmp."){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
-        case 'L': accu.boolVal = accu.longVal == arg.longVal; break;
+        case 'J': accu.boolVal = accu.longVal == arg.longVal; break;
         case 'D': accu.boolVal = Math.abs(accu.doubleVal - arg.doubleVal) < (Math.abs(accu.doubleVal) / 100000); break;
         case 'Z': accu.boolVal = accu.boolVal == arg.boolVal; break;
         case 't': accu.boolVal = accu.stringVal.equals(arg.stringVal); break;
@@ -271,7 +361,7 @@ public class CalculatorExpr
   private static final Operator cmpNeOperation = new Operator("!="){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
-        case 'L': accu.boolVal = accu.longVal != arg.longVal; break;
+        case 'J': accu.boolVal = accu.longVal != arg.longVal; break;
         case 'D': accu.boolVal = Math.abs(accu.doubleVal - arg.doubleVal) >= (Math.abs(accu.doubleVal) / 100000); break;
         case 'Z': accu.boolVal = accu.boolVal != arg.boolVal; break;
         case 't': accu.boolVal = !accu.stringVal.equals(arg.stringVal); break;
@@ -287,7 +377,7 @@ public class CalculatorExpr
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
-        case 'L': accu.boolVal = accu.longVal < arg.longVal; break;
+        case 'J': accu.boolVal = accu.longVal < arg.longVal; break;
         case 'D': accu.boolVal = accu.doubleVal < arg.doubleVal; break;
         case 'Z': accu.boolVal = !accu.boolVal && arg.boolVal; break;
         case 't': accu.boolVal = accu.stringVal.compareTo(arg.stringVal) < 0; break;
@@ -303,7 +393,7 @@ public class CalculatorExpr
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
-        case 'L': accu.boolVal = accu.longVal >= arg.longVal; break;
+        case 'J': accu.boolVal = accu.longVal >= arg.longVal; break;
         case 'D': accu.boolVal = accu.doubleVal >= arg.doubleVal; break;
         case 'Z': accu.boolVal = true; break;
         case 't': accu.boolVal = accu.stringVal.compareTo(arg.stringVal) >= 0; break;
@@ -319,7 +409,7 @@ public class CalculatorExpr
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
-        case 'L': accu.boolVal = accu.longVal > arg.longVal; break;
+        case 'J': accu.boolVal = accu.longVal > arg.longVal; break;
         case 'D': accu.boolVal = accu.doubleVal > arg.doubleVal; break;
         case 'Z': accu.boolVal = accu.boolVal && !arg.boolVal; break;
         case 't': accu.boolVal = accu.stringVal.compareTo(arg.stringVal) > 0; break;
@@ -335,7 +425,7 @@ public class CalculatorExpr
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
-        case 'L': accu.boolVal = accu.longVal <= arg.longVal; break;
+        case 'J': accu.boolVal = accu.longVal <= arg.longVal; break;
         case 'D': accu.boolVal = accu.doubleVal <= arg.doubleVal; break;
         case 'Z': accu.boolVal = true; break;
         case 't': accu.boolVal = accu.stringVal.compareTo(arg.stringVal) <= 0; break;
@@ -351,7 +441,7 @@ public class CalculatorExpr
   
   /**A Operation in the stack of operations.
    */
-  private static final class Operation
+  public static class Operation
   {
     /**The operation Symbol if it is a primitive. */
     final char operation;
@@ -363,21 +453,43 @@ public class CalculatorExpr
     final int ixVariable;
     
     /**A constant value. */
-    final double value;
+    final double value_d;
     
     /**A constant value. */
     final Object oValue;
     
-    Operation(char operation, double value){ this.value = value; this.operation = operation; this.ixVariable = -1; this.oValue = null; }
-    Operation(char operation, int ixVariable){ this.value = 0; this.operation = operation; this.ixVariable = ixVariable; this.oValue = null; }
+    protected Value value;
+    
+    public Operation(char operation){
+      this.operation = operation;
+      this.ixVariable = -1; 
+      this.oValue = null;
+      this.value_d = 0;
+    }
+    
+    Operation(char operation, double value){ this.value_d = value; this.operation = operation; this.ixVariable = -1; this.oValue = null; }
+    Operation(char operation, int ixVariable){ this.value_d = 0; this.operation = operation; this.ixVariable = ixVariable; this.oValue = null; }
     //Operation(char operation, Object oValue){ this.value = 0; this.operation = operation; this.ixVariable = -1; this.oValue = oValue; }
-    Operation(Operator operator, int ixVariable){ this.value = 0; this.operator = operator; this.operation = '.'; this.ixVariable = ixVariable; this.oValue = null; }
-    Operation(Operator operator, Object oValue){ this.value = 0; this.operator = operator; this.operation = '.'; this.ixVariable = -1; this.oValue = oValue; }
+    Operation(Operator operator, int ixVariable){ this.value_d = 0; this.operator = operator; this.operation = '.'; this.ixVariable = ixVariable; this.oValue = null; }
+    Operation(Operator operator, Object oValue){ this.value_d = 0; this.operator = operator; this.operation = '.'; this.ixVariable = -1; this.oValue = oValue; }
   
+    
+    public void add_datapathElement(DataAccess.DatapathElement item){ 
+      if(value == null){ value = new Value(); }
+      if(value.datapath == null){
+        value.datapath = new ArrayList<DataAccess.DatapathElement>();
+      }
+      value.type = 'd';
+      value.datapath.add(item); 
+    }
+    
+
+    
+    
     @Override public String toString(){ 
       if(ixVariable >=0) return operator + " arg[" + ixVariable + "]";
       else if (oValue !=null) return operator + " " + oValue.toString();
-      else return operator + " " + value;
+      else return operator + " " + value_d;
     }
   }
   
@@ -457,13 +569,15 @@ public class CalculatorExpr
   }
   
   /**Converts the given expression in a stack operable form.
-   * @param sExpr
+   * @param sExpr String given expression such as "X*(Y-1)+Z"
+   * @param sIdentifier List of identifiers for variables.
+   * @return null if ok or an error description.
    */
   public String setExpr(String sExpr, String[] sIdentifier)
   {
     this.variables = sIdentifier;
     StringPart sp = new StringPart(sExpr);
-    return multExpr(sp, '!', 1);
+    return multExpr(sp, '!', 1);  //TODO addExpr
   }
   
   /**Converts the given expression in a stack operable form.
@@ -503,6 +617,9 @@ public class CalculatorExpr
   }
   
   
+  public void addToStack(Operation operation){
+    stackExpr.add(operation);
+  }
   
   
   /**The outer expression is a add or subtract expression.
@@ -586,7 +703,7 @@ public class CalculatorExpr
     for(Operation oper: stackExpr){
       final double val2;
       if(oper.ixVariable >=0){ val2 = input; }
-      else { val2 = oper.value; }
+      else { val2 = oper.value_d; }
       switch(oper.operation){
         case '!': val = val2; break;
         case '+': val += val2; break;
@@ -609,7 +726,7 @@ public class CalculatorExpr
     for(Operation oper: stackExpr){
       final float val2;
       if(oper.ixVariable >=0){ val2 = input; }
-      else { val2 = (float)oper.value; }
+      else { val2 = (float)oper.value_d; }
       switch(oper.operation){
         case '!': val = val2; break;
         case '+': val += val2; break;
@@ -632,7 +749,7 @@ public class CalculatorExpr
     for(Operation oper: stackExpr){
       final float val2;
       if(oper.ixVariable >=0){ val2 = input; }
-      else { val2 = (float)oper.value; }
+      else { val2 = (float)oper.value_d; }
       switch(oper.operation){
         case '!': val = val2; break;
         case '+': val += val2; break;
