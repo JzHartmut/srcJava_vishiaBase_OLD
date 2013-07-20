@@ -7,14 +7,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-/**This class provides a calculator for simple expressions. The expressions are given in string format and then converted
- * to a stack oriented running model. 
+/**This class provides a calculator for expressions. The expressions are given in string format 
+ * and then converted to a stack oriented running model. 
  * <br><br>
  * <ul>
  * <li>Use {@link #setExpr(String)} to convert a String given expression to the internal format.
  * <li>Use {@link #calc(float)} for simple operations with one float input, especially for scaling values. It is fast.
  * <li>Use {@link #calc(Object...)} for universal expression calculation. 
  * </ul>
+ * If the expression works with simple variable or constant values, it is fast. For example it is able to use
+ * in a higher frequently graphic application to scale values.
+ * <br><br>
+ * A value or subroutine can use any java elements which are accessed via reflection mechanism.
+ * Write "X * $classpath.Myclass.method(X)" to build an expression which's result depends on the called
+ * static method.
+ *  
  * @author Hartmut Schorrig
  *
  */
@@ -63,6 +70,14 @@ public class CalculatorExpr
    @SuppressWarnings("hiding")
   public final static int version = 20121222;
   
+   
+  public static class DataPathItem extends DataAccess.DatapathElement
+  {
+    protected List<CalculatorExpr> paramExpr;
+
+  }
+   
+   
   
   /**A path to any Java Object or method given with identifier names.
    * The access is organized using reflection.
@@ -83,7 +98,15 @@ public class CalculatorExpr
     
     public List<DataAccess.DatapathElement> datapath(){ return datapath; }
     
+    public void add_datapathElement(DataAccess.DatapathElement item){ 
+      if(datapath == null){
+        datapath = new ArrayList<DataAccess.DatapathElement>();
+      }
+      datapath.add(item); 
+    }
 
+    
+    
   }
    
    
@@ -130,7 +153,7 @@ public class CalculatorExpr
     
     public Value(Object val){ type = 'o'; oVal = val; }
     
-    public Value(List<DataAccess.DatapathElement> datpath){ type = 'd'; this.datapath = datapath; }
+    public Value(List<DataPathItem> datpath){ type = 'd'; this.datapath = datapath; }
     
     public Value(){ type = '?'; }
     
@@ -148,6 +171,18 @@ public class CalculatorExpr
         case 'Z': return boolVal;
         case 't': return stringVal.length() >0;
         case 'o': return oVal !=null;
+        case '?': throw new IllegalArgumentException("the type is not determined while operation.");
+        default: throw new IllegalArgumentException("unknown type char: " + type);
+      }//switch
+    }
+    
+    public double doubleValue()
+    { switch(type){
+        case 'J': return longVal;
+        case 'D': return doubleVal;
+        case 'Z': return boolVal ? 1.0 : 0;
+        case 't': return Double.parseDouble(stringVal);
+        case 'o': throw new IllegalArgumentException("Double expected, object given.");
         case '?': throw new IllegalArgumentException("the type is not determined while operation.");
         default: throw new IllegalArgumentException("unknown type char: " + type);
       }//switch
@@ -190,8 +225,17 @@ public class CalculatorExpr
   
   
   
-  private abstract static class ExpressionType{
+  /**Common interface for the type of expression.
+   */
+  private interface ExpressionType{
     abstract char typeChar();
+    
+    /**Checks the input value and set it to val2 maybe with converted type.
+     * @param accu The accumalator contains the current type.
+     * @param val2 ready to set with src.
+     * @param src Any object of data.
+     * @return type of the expression.
+     */
     abstract ExpressionType checkArgument(Value accu, Value val2, Object src);
   }
   
@@ -216,12 +260,12 @@ public class CalculatorExpr
       else if(src instanceof Short){ setit.longVal = (Short)src; return longExpr; }
       else if(src instanceof Byte){ setit.longVal = (Byte)src; return longExpr; }
       else if(src instanceof Character){ setit.longVal = (Character)src; return longExpr; }  //use its UTF16-code.
-      else if(src instanceof Double){ setit.doubleVal = (Double)src; accu.doubleVal = accu.longVal;
-        return longExpr;
+      else if(src instanceof Double){ setit.doubleVal = (Double)src; 
+        if(accu.type !='D') { accu.doubleVal = accu.doubleValue(); }  //work with double if long was stored.
+        return longExpr;  //TODO
       }
-      else throw new IllegalArgumentException("src type");
+      else { setit.oVal = src; return objExpr; }
     }
-
   };
   
   private static final ExpressionType stringExpr = new ExpressionType(){
@@ -257,6 +301,16 @@ public class CalculatorExpr
         return longExpr;
       }
       else throw new IllegalArgumentException("src type");
+    }
+
+  };
+  
+  private static final ExpressionType objExpr = new ExpressionType(){
+    
+    @Override public char typeChar() { return 'o'; }
+    
+    @Override public ExpressionType checkArgument(Value accu, Value setit, Object src) {
+      throw new IllegalArgumentException("no operation available for Object type.");
     }
 
   };
@@ -460,8 +514,9 @@ public class CalculatorExpr
     
     protected Value value;
     
-    public Operation(char operation){
-      this.operation = operation;
+    public Operation(String operation){
+      this.operation = operation.charAt(0);
+      this.operator = operations.get(operation);
       this.ixVariable = -1; 
       this.oValue = null;
       this.value_d = 0;
@@ -476,11 +531,8 @@ public class CalculatorExpr
     
     public void add_datapathElement(DataAccess.DatapathElement item){ 
       if(value == null){ value = new Value(); }
-      if(value.datapath == null){
-        value.datapath = new ArrayList<DataAccess.DatapathElement>();
-      }
       value.type = 'd';
-      value.datapath.add(item); 
+      value.add_datapathElement(item); 
     }
     
 
@@ -580,8 +632,10 @@ public class CalculatorExpr
     return multExpr(sp, '!', 1);  //TODO addExpr
   }
   
-  /**Converts the given expression in a stack operable form.
-   * @param sExpr
+  /**Converts the given expression in a stack operable form. One variable with name "X" will be created.
+   * It means the expression can use "X" as variable.
+   * @param sExpr For example "5.0*X" or "(X*X+1.5*X)"
+   * @see #setExpr(String, String[])
    */
   public String setExpr(String sExpr)
   {
@@ -765,7 +819,8 @@ public class CalculatorExpr
   
   
   /**Calculates the expression with some inputs, often only 1 input.
-   * Before calculate, one should have defined the expression using 
+   * Before calculate, one should have defined the expression using {@link #setExpr(String)}
+   * or {@link #setExpr(String, String[])}.
    * @param args Array of some inputs
    * @return The result of the expression.
    */
@@ -777,6 +832,84 @@ public class CalculatorExpr
       //Get the operand either from args or from Operation
       Object oVal2;
       if(oper.ixVariable >=0){ oVal2 = args[oper.ixVariable]; }  //an input value
+      else { oVal2 = oper.oValue; }                              //a constant value inside the Operation
+      //
+      //Convert the value adequate the given type of expression:
+      check = check.checkArgument(accu, val2, oVal2);    //may change the type.
+      //
+      //executes the operation:
+      check = oper.operator.operate(check, accu, val2);  //operate, may change the type if the operator forces it.
+    }
+    accu.type = check.typeChar();  //store the result type
+    return accu;
+  }
+  
+  
+
+  
+  
+  
+  
+  
+  /**Prepares the data access. First the arguments should be evaluated if a method will be called.
+   * @param datapath
+   * @param javaVariables
+   * @return
+   * @throws Throwable
+   */
+  private Object getDataAccess(List<DataAccess.DatapathElement> datapath, Map<String, Object> javaVariables) 
+  throws Throwable {
+    for(DataAccess.DatapathElement dataElement : datapath){  
+      //loop over all elements of the path to check whether it is a method and it have arguments.
+      DataPathItem zd = dataElement instanceof DataPathItem ? (DataPathItem)dataElement : null;
+      //A DatapathItem contains the path to parameter.
+      if(zd !=null && zd.paramExpr !=null){
+        //it is a element with arguments, usual a method call. 
+        zd.removeAllActualArguments();
+        for(CalculatorExpr expr: zd.paramExpr){
+          //evaluate its value.
+          Value value = expr.calcDataAccess(javaVariables);
+          zd.addActualArgument(value.objValue());
+        }
+      }
+    }
+    //Now access the data.
+    Object oVal2 = DataAccess.getData(datapath, null, javaVariables, false, false);
+    return oVal2;
+  }
+  
+  
+  
+  
+  
+  
+  /**Calculates the expression with possible access to any stored object data and access support via reflection.
+   * An value can contain a {@link Datapath#datapath} which describe any class's field or method
+   * which were found via a reflection access. The datapath is build calling {@link #setExpr(String)}
+   * or {@link #setExpr(String, String[])} using the form "$var.reflectionpath"
+   * 
+   * @param javaVariables Any data which are access-able with its name. It is the first part of a datapath.
+   * @param args Some args given immediately. Often numerical args.
+   * @return The result wrapped with a Value instance. This Value contains the type info too. 
+   * @throws Throwable Any exception is possible. Especially {@link java.lang.NoSuchFieldException} or such
+   *   if the access via reflection is done.
+   */
+  public Value calcDataAccess(Map<String, Object> javaVariables, Object... args) throws Throwable{
+    Value accu = new Value();
+    Value val2 = new Value();
+    ExpressionType check = startExpr;
+    for(Operation oper: stackExpr){
+      //Get the operand either from args or from Operation
+      Object oVal2;
+      if(oper.ixVariable >=0){ oVal2 = args[oper.ixVariable]; }  //an input value
+      else if(oper.value !=null){
+        val2 = oper.value;
+        if(val2.datapath !=null){
+          oVal2 = getDataAccess(val2.datapath, javaVariables);
+        } else {
+          oVal2 = val2.objValue();
+        }
+      }
       else { oVal2 = oper.oValue; }                              //a constant value inside the Operation
       //
       //Convert the value adequate the given type of expression:
