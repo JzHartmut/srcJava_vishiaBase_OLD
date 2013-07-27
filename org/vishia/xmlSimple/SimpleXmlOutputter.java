@@ -20,6 +20,7 @@ public class SimpleXmlOutputter
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-07-28: Hartmut new The {@link #convertString(String)} is now public.
    * <li>2009-05-24: Hartmut The out arg for write is a OutputSteamWriter, not a basic Writer. 
    *             Because: The charset of the writer is got and written in the head line.
    *             The write routine should used to write a byte stream only.
@@ -136,7 +137,7 @@ public class SimpleXmlOutputter
             out.write(elementTagEnd());
             bContent = true;
           }
-          out.write(convert(content.text()) );
+          out.write(convertString(content.text()).toString() );
           nIndent = -1;  //no indentation, write the rest and all subnodes in one line.
         } else if(!content.getName().startsWith("@")){ 
           if(!bContent){
@@ -152,7 +153,7 @@ public class SimpleXmlOutputter
       if(text !=null){
         out.write(elementTagEnd());
         bContent = true;
-        out.write(convert(text));
+        out.write(convertString(text).toString());
       }
     }
     if(bContent) {
@@ -181,13 +182,18 @@ public class SimpleXmlOutputter
   }
 
   public static String attribute(String name, String value)
-  { return name + "=\"" + convert(value) + "\" ";
+  { return name + "=\"" + convertString(value) + "\" ";
   }
   
 
-  private static String convert(String textP)
+  /**Replaces XML special character.
+   * @param textP
+   * @return textP without effort if such special character are not present,
+   *   elsewhere a prepared string in a StringBuilder.
+   */
+  public static CharSequence convertString(String textP)
   { int pos2;
-    StringBuffer[] buffer = new StringBuffer[1]; 
+    StringBuilder[] buffer = new StringBuilder[1]; 
     String[] text = new String[1];
     text[0] = textP;
     if((pos2 = text[0].indexOf('&')) >=0)         //NOTE: convert & first!!!
@@ -202,14 +208,23 @@ public class SimpleXmlOutputter
     if(  (pos2 = text[0].indexOf('\"')) >=0)
     { convert(buffer, text, pos2, '\"', "&quot;");
     }
+    if(  (pos2 = text[0].indexOf('\'')) >=0)
+    { convert(buffer, text, pos2, '\'', "&apos;");
+    }
+    if((pos2 = text[0].indexOf('\n')) >=0)
+    { convert(buffer, text, pos2, '\n', "&#x0a;");
+    }
+    if((pos2 = text[0].indexOf('\r')) >=0)
+    { convert(buffer, text, pos2, '\n', "&#x0d;");
+    }
     if(buffer[0] == null) return textP; //directly and fast if no special chars.
-    else return buffer[0].toString();  //only if special chars were present.
+    else return buffer[0]; //.toString();  //only if special chars were present.
   }  
     
-  private static void convert(StringBuffer[] buffer, String text[], int pos1, char cc, String sNew)
+  private static void convert(StringBuilder[] buffer, String text[], int pos1, char cc, String sNew)
   {
     if(buffer[0] == null) 
-    { buffer[0] = new StringBuffer(text[0]);
+    { buffer[0] = new StringBuilder(text[0]);
     }
     do
     { buffer[0].replace(pos1, pos1+1, sNew);
