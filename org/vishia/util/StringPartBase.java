@@ -134,14 +134,21 @@ abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
   }
   
   
+  /* (non-Javadoc)
+   * @see java.lang.CharSequence#charAt(int)
+   */
   @Override
   public char charAt(int index){ return cq.charAt(begin + index); }
 
-  @Override
-  public int length(){ return end - begin; }
+  /* (non-Javadoc)
+   * @see java.lang.CharSequence#length()
+   */
+  @Override public int length(){ return end - begin; }
 
-  @Override
-  public CharSequence subSequence(int start, int end)
+  /* (non-Javadoc)
+   * @see java.lang.CharSequence#subSequence(int, int)
+   */
+  @Override public CharSequence subSequence(int start, int end)
   { //if(this.begin+end > this.end ) throw new IndexOutOfBoundsException();
     return new StringPartBase(this.cq, start, end);
   }
@@ -269,6 +276,9 @@ abcdefghijklmnopqrstuvwxyz  The associated String
   
   
 
+  /* (non-Javadoc)
+   * @see java.lang.Comparable#compareTo(java.lang.Object)
+   */
   @Override public int compareTo(CharSequence str2)
   { return StringFunctions.compare(this, 0, str2, 0, Integer.MAX_VALUE);
   }
@@ -276,6 +286,9 @@ abcdefghijklmnopqrstuvwxyz  The associated String
 
 
   
+  /* (non-Javadoc)
+   * @see java.lang.Object#toString()
+   */
   @Override public String toString(){ 
     char[] chars = new char[this.end - this.begin];  //Copy the content, but it is temporary only. Neccesary for String(char[])
     int ichars = -1;

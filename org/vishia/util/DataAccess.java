@@ -5,14 +5,14 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.TreeMap;
 
-import javax.lang.model.type.DeclaredType;
 
 /**This class contains methods to access data and invoke methods with symbolic access using reflection mechanism.
  * @author Hartmut Schorrig
@@ -21,7 +21,7 @@ import javax.lang.model.type.DeclaredType;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
-   * 
+   * <li>2013-07-28 Hartmut chg: improvement of conversion of method arguments.
    * <li>2013-07-14 Hartmut chg: {@link #checkAndConvertArgTypes(List, Class[])} now checks super classes and interfaces,
    * <li>2013-07-14 Hartmut chg: Exception handling for invoked methods.
    * <li>2013-06-23 Hartmut new: {@link #invokeNew(DatapathElement)}.
@@ -88,6 +88,84 @@ public class DataAccess {
 
   static final Class<?> ifcMainCmdLogging_ifc = getClass("org.vishia.mainCmd.MainCmdLogging_ifc");
   
+  
+  
+  protected static interface Conversion
+  {
+    Object convert(Object src); 
+    boolean canConvert(Object src); 
+  }
+  
+  
+  protected static Conversion long2int = new Conversion(){
+    @Override public Object convert(Object src){
+      return new Integer(((Long)src).intValue());
+    }
+    @Override public boolean canConvert(Object src){
+      long val = ((Long)src).longValue();
+      return  val <= 0x7fffffffL && val >= 0xFFFFFFFF80000000L;
+    }
+  };
+  
+  protected static Conversion number2bool = new Conversion(){
+    @Override public Object convert(Object src){
+      return new Boolean(((Number)src).longValue() !=0);
+    }
+    @Override public boolean canConvert(Object src){
+      return true;
+    }
+  };
+  
+  
+  protected static Conversion obj2bool = new Conversion(){
+    @Override public Object convert(Object src){
+      return new Boolean(src != null);
+    }
+    @Override public boolean canConvert(Object src){
+      return true;
+    }
+  };
+  
+  
+  protected static Conversion obj2String = new Conversion(){
+    @Override public Object convert(Object src){
+      return src.toString();
+    }
+    @Override public boolean canConvert(Object src){
+      return true;
+    }
+  };
+  
+  protected static Conversion charSeq2File = new Conversion(){
+    @Override public Object convert(Object src){
+      return new File(src.toString());
+    }
+    @Override public boolean canConvert(Object src){
+      return true;
+    }
+  };
+  
+  protected static Conversion obj2obj = new Conversion(){
+    @Override public Object convert(Object src){
+      return src;
+    }
+    @Override public boolean canConvert(Object src){
+      return true;
+    }
+  };
+  
+  static Map<String, Conversion> conversion = initConversion();
+  
+  private static Map<String, Conversion> initConversion(){
+    Map<String, Conversion> conversion1 = new TreeMap<String, Conversion>();
+    conversion1.put("java.lang.Long:int", long2int);
+    conversion1.put("java.lang.Number:boolean", number2bool);
+    conversion1.put("java.lang.Object:boolean", obj2bool);
+    conversion1.put("java.lang.CharSequence:java.io.File", charSeq2File);
+    conversion1.put("java.lang.CharSequence:java.lang.String", obj2String);
+    conversion1.put("java.lang.Object:java.lang.String", obj2String);
+    return conversion1;
+  }
   
   private final static Class<?> getClass(String name){
     try{
@@ -174,7 +252,7 @@ public class DataAccess {
       , Map<String, Object> namedDataPool
       //, boolean noException 
       , boolean accessPrivate, boolean bContainer)
-  throws Throwable
+  throws Exception
   {
     Object data1 = dataPool;
     Iterator<DatapathElement> iter = datapath.iterator();
@@ -184,7 +262,7 @@ public class DataAccess {
     //  element = null;  //no more following
     //}
     //else 
-    if(element.ident.startsWith("$ok")){
+    if(element.ident.startsWith("debug")){
       Assert.stop();
     }
     if(element.ident.startsWith("XXXXXXXX$$")){
@@ -193,6 +271,9 @@ public class DataAccess {
     }
     else if(element.whatisit == 'e'){
       data1 = System.getenv(element.ident);
+      if(data1 == null) {
+        data1 = System.getProperty(element.ident);  //read from Java system property
+      }
       if(data1 == null) throw new NoSuchElementException("DataAccess - environment variable not found; " + element.ident);
       if(iter.hasNext()) throw new IllegalArgumentException("DataAccess - environment variable with sub elements is faulty");
       element = null;  //no next elements expected.
@@ -372,7 +453,7 @@ public class DataAccess {
       if(!bOk) {
         Assert.stackInfo("", 5);
         CharSequence stackInfo = Assert.stackInfo(" called: ", 3, 5);
-        throw new NoSuchMethodException("DataAccess - method not found: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+        throw new NoSuchMethodException("DataAccess - method not found: " + dataPool.getClass().getName() + "." + element.ident + "(...)" + stackInfo);
       }
       //Method method = clazz.getDeclaredMethod(element.ident);
       //data1 = method.invoke(dataPool);
@@ -402,7 +483,7 @@ public class DataAccess {
    * @throws Throwable 
    */
   protected static Object invokeStaticMethod( DatapathElement element ) 
-  throws Throwable
+  throws Exception
   { Object data1 = null;
     if(element.ident.contains("xml.Xslt"))
       Assert.stop();
@@ -449,7 +530,8 @@ public class DataAccess {
     } catch (InvocationTargetException e) {
       //Exception in invocation of this method. Use the cause
       Throwable cause = e.getCause();
-      throw cause;
+      if(cause instanceof Exception) throw (Exception)cause;
+      else new RuntimeException(cause);
       //e.printStackTrace();
     }
     //} catch 
@@ -487,11 +569,17 @@ public class DataAccess {
       )  ){
       //check it
       boolean bOk = true;
-      int iParam = 0;
+      int iParam = 0;  //iterator-index in argTypes, maybe less then ix
       //check the matching of parameter types inclusive convertibility.
       Class<?> argType = null;
-      for(Object arg: providedArgs){
-        Class<?> actType = arg.getClass();
+      Conversion[] conversions = new Conversion[providedArgs.size()];
+      int ix = -1;    //iterator-index in actTypes
+      Iterator<Object> iter = providedArgs.iterator();
+      while(bOk && iter.hasNext()) {
+        Object actValue = iter.next();
+        bOk = false;   //check for this arg
+        ix +=1;
+        Class<?> actType = actValue.getClass();
         if(iParam == argTypes.length-1 && providedArgs.size() > iParam+1 && argTypes[iParam].isArray()){
           //There are more given arguments and the last one is an array or a variable argument list.
           //store the rest in lastArrayArg instead.
@@ -500,32 +588,11 @@ public class DataAccess {
           argType = argTypes[iParam];
         }
         //check super classes and all interface types.
-        //if(arg instanceof paramTypes[iParam]){ actArgs[iParam] = arg; }
-        String typeName = argType.getName();
-        if(actType == argType){ bOk = true; }  //check first, fast variant.
-        else if(arg instanceof CharSequence){
-          if(argType == File.class){ bOk = true; }
-          else if(argType == String.class){ bOk = true;  }
-          else if(argType == CharSequence.class){ bOk = true;  }
-          else {bOk = false; }
-        } else if(typeName.equals("Z") || typeName.equals("boolean")){
-          bOk = true; //all can converted to boolean
-        } else {
-          //check whether the actType is instanceof the argType in its superclasses and its interfaces.
-          Class<?> supertype = actType;
-          while(!bOk && supertype !=null){
-            if(supertype == argType){
-              bOk = true;
-            } else {
-              Class<?>[] ifcs = supertype.getInterfaces(); //getGenericInterfaces();
-              for(Class<?> ifc: ifcs){
-                if(ifc == argType){
-                  bOk = true;
-                }  
-              }
-            }
-          }
-        }
+        Conversion conv = checkArgTypes(argType, actType, actValue);
+        if(conv != null){ 
+          conversions[ix] = conv; 
+          bOk = true; 
+        }  //check first, fast variant.
         if(!bOk) { break; }
         if(iParam < argTypes.length-1) { iParam +=1; }
       } //for, terminated with some breaks.
@@ -535,16 +602,21 @@ public class DataAccess {
         if(argTypes.length < providedArgs.size()){
           Class<?> lastType = argTypes[argTypes.length-1].getComponentType();
           //create the appropriate array type:
-          //A String is typical especially for invocation of a static main(String[] args)
-          if(lastType == String.class){ lastArrayArg = new String[providedArgs.size() - argTypes.length +1]; }
-          else { lastArrayArg = new String[providedArgs.size() - argTypes.length +1]; }
+          if(lastType == String.class){ 
+            //A String is typical especially for invocation of a static main(String[] args)
+            lastArrayArg = new String[providedArgs.size() - argTypes.length +1]; }
+          else {
+            //TODO what else
+            lastArrayArg = new String[providedArgs.size() - argTypes.length +1]; }
         } else {
           lastArrayArg = null;
         }
         actArgs = new Object[argTypes.length];
         Object[] dstArgs = actArgs;
         iParam = 0;  //now convert instances:
+        ix = -1;
         for(Object arg: providedArgs){
+          ix +=1;
           if(dstArgs == actArgs){
             if(iParam >= argTypes.length-1 && lastArrayArg !=null){
               //The last arg is ready to fill, but there are more given arguments and the last one is an array or a variable argument list.
@@ -559,7 +631,12 @@ public class DataAccess {
           } //else: it fills the last array of variable argument list. remain argType unchanged.
           Object actArg;
           String typeName = argType.getName();
-          if(arg instanceof CharSequence){
+          assert(conversions[ix] !=null);
+          //if(conversions[ix] !=null){
+            actArg = conversions[ix].convert(arg);
+          //}
+          /*
+          else if(arg instanceof CharSequence){
             if(argType == File.class){ actArg = new File(((CharSequence)arg).toString()); }
             else if(argType == String.class){ actArg = ((CharSequence)arg).toString(); }
             else {
@@ -575,6 +652,7 @@ public class DataAccess {
           } else {
             actArg = arg;
           }
+          */
           dstArgs[iParam] = actArg;
           iParam +=1;
         } //for, terminated with some breaks.
@@ -587,9 +665,67 @@ public class DataAccess {
     return actArgs;
   }
   
+
+  
+  protected static Conversion checkArgTypes(Class<?> argType, Class<?> actType, Object arg){
+    Conversion conv = null;
+    Class<?> supertype = actType;
+    while(conv == null && supertype !=null){
+      conv = checkIfcTypes(argType, supertype, arg);
+      if(conv == null){
+        supertype = supertype.getSuperclass();
+      }
+    }
+    return conv;
+  }
+  
+  
+
+    
+  /**Checks the given type and all its interface types.
+   * If actType is an interface, all super interfaces are checked after them.
+   * If actType is a class, all interfaces are checked but not the superclass.
+   * This routine will be called recursively for the interfaces.
+   * To get the interfaces of a class and all super interfaces of an interface,
+   * the routine {@link java.lang.Class#getInterfaces()} is called.
+   * 
+   * @param argType Requested type of the argument
+   * @param ifcType Maybe derived type of the arg
+   * @param arg The argument itself to check value ranges for conversion using {@link Conversion#canConvert(Object)}.
+   * @return null if it does not match, elsewhere a conversion routine for arg.
+   */
+  protected static Conversion checkIfcTypes(Class<?> argType, Class<?> ifcType, Object arg){
+    Conversion conv = checkTypes(argType, ifcType, arg);
+    if(conv == null){
+      Class<?>[] superIfcs = ifcType.getInterfaces();
+      int ix = -1;
+      int zz = superIfcs.length;
+      while(conv == null && ++ix < zz) {
+        Class<?> superIfc = superIfcs[ix];
+        conv = checkIfcTypes(argType, superIfc, arg); 
+      }
+    }
+    return conv;
+  }
   
   
   
+
+  protected static Conversion checkTypes(Class<?> argType, Class<?> actType, Object arg){
+    if(argType == actType){ return obj2obj; }
+    else {
+      String conversion2 = actType.getName() + ":" + argType.getName(); //forex "Long:int"
+      Conversion conv = conversion.get(conversion2); //search the conversion
+      if(conv !=null && !conv.canConvert(arg)){
+        conv = null;    //arg does not match.
+      }
+      return conv;
+    }
+  }
+  
+  
+  
+
   /**Gets data from a field or from an indexed container.
    *    
    * <ul>
@@ -884,5 +1020,6 @@ public class DataAccess {
     }
   }
 
+  
   
 }

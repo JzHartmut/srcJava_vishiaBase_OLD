@@ -13,6 +13,7 @@ public class StringFunctions {
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-07-28 Hartmut new: {@link #isEmptyOrOnlyWhitespaces(CharSequence)} 
    * <li>2013-05-04 Hartmut new some methods for usage CharSequence: {@link #compare(CharSequence, int, CharSequence, int, int)},
    *   {@link #startsWith(CharSequence, CharSequence)}, {@link #endsWith(CharSequence, CharSequence)},
    *   {@link #indexOf(CharSequence, char, int)}, {@link #indexOf(CharSequence, CharSequence, int)}
@@ -373,6 +374,24 @@ public class StringFunctions {
   }
   
 
+  
+  /**Returns false if at least one char was found in text which is not a whitespace.
+   * A whitespace is one of " \t\n\r" 
+   * @param text to check
+   * @return true if text is empty or contains only whitespaces.
+   */
+  public static boolean isEmptyOrOnlyWhitespaces(CharSequence text){
+    char cc;
+    int zz = text.length();
+    int ii = -1;
+    while(++ii < zz){
+      cc = text.charAt(ii);
+      if(" \t\n\r".indexOf(cc) <0){ return false; } //other character than whitespace
+    }
+    return true;
+  }
+  
+  
   
   /**Searches the first occurrence of the given CharSequence in a CharSequence.
    * It is the adequate functionality like {@link java.lang.String#indexOf(String, int)}. 

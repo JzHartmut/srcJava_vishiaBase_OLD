@@ -124,8 +124,6 @@ public class CalculatorExpr
      * <li>o: The oVal contains any object.
      * <li>t: A String stored in stringVal,
      * <li>d: Access via the data path using reflection
-     * <li>i: Access via the data path using reflection, a String with type and data information is returned.
-     *   That is a functionality to debug the data. 
      * </ul>
      */
     protected char type = '?';
@@ -156,8 +154,6 @@ public class CalculatorExpr
     public Value(List<DataPathItem> datpath){ type = 'd'; this.datapath = datapath; }
     
     public Value(){ type = '?'; }
-    
-    public void setInfoType(){ type = 'i'; }
     
     /**Returns a boolean value. If the type of content is a numeric, false is returned if the value is ==0.
      * If the type is a text, false is returned if the string is empty.
@@ -855,10 +851,10 @@ public class CalculatorExpr
    * @param datapath
    * @param javaVariables
    * @return
-   * @throws Throwable
+   * @throws Exception
    */
   private Object getDataAccess(List<DataAccess.DatapathElement> datapath, Map<String, Object> javaVariables) 
-  throws Throwable {
+  throws Exception {
     for(DataAccess.DatapathElement dataElement : datapath){  
       //loop over all elements of the path to check whether it is a method and it have arguments.
       DataPathItem zd = dataElement instanceof DataPathItem ? (DataPathItem)dataElement : null;
@@ -891,10 +887,10 @@ public class CalculatorExpr
    * @param javaVariables Any data which are access-able with its name. It is the first part of a datapath.
    * @param args Some args given immediately. Often numerical args.
    * @return The result wrapped with a Value instance. This Value contains the type info too. 
-   * @throws Throwable Any exception is possible. Especially {@link java.lang.NoSuchFieldException} or such
+   * @throws Exception Any exception is possible. Especially {@link java.lang.NoSuchFieldException} or such
    *   if the access via reflection is done.
    */
-  public Value calcDataAccess(Map<String, Object> javaVariables, Object... args) throws Throwable{
+  public Value calcDataAccess(Map<String, Object> javaVariables, Object... args) throws Exception{
     Value accu = new Value();
     Value val2 = new Value();
     ExpressionType check = startExpr;

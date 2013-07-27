@@ -428,15 +428,19 @@ public class FileRemote extends File
   
   /**Returns the instance of FileRemote which is the child of this. If the child does not exists
    * it is created and added as child. That is independent of the existence of the file on the file system.
-   * A non existing child is possible, it may be created on file system later. 
-   * @param sName Name of the child or a path to a deeper sub child
-   * @return The child instance.
+   * A non existing child is possible, it may be created on file system later.
+   * <br>
+   * TODO: test if the path mets a file but the path is not on its end. Then it may be a IllegalArgumentException. 
+   * @param sName Name of the child or a path to a deeper sub child. If the name ends with a slash
+   *   or backslash, the returned instance will be created as subdirectory.
+   * @return The child instance. 
    */
   public FileRemote child(CharSequence sPathChild ) {
     CharSequence pathchild1 = FileSystem.normalizePath(sPathChild);
     StringPartBase pathchild;
-    int posSep;
-    if(( posSep = StringFunctions.indexOf(pathchild1, '/', 0))>=0){
+    int posSep1;
+    if(( posSep1 = StringFunctions.indexOf(pathchild1, '/', 0))>=0){
+      //NOTE: pathchild1 maybe an instanceof StringPartBase too, but it acts as a CharSequence! 
       pathchild = new StringPartBase(pathchild1, 0, pathchild1.length());
       pathchild1 = pathchild.lento('/');  //Start with this part of pathchild.
     } else {
@@ -444,6 +448,7 @@ public class FileRemote extends File
     }
     FileRemote file = this, child;
     boolean bCont = true;
+    int flagNewFile = FileRemote.mDirectory;
     do{
       child = file.children == null ? null : file.children.get(pathchild1);
       if(child == null && pathchild !=null){  //a sub directory child
@@ -451,13 +456,18 @@ public class FileRemote extends File
         child = itsCluster.check(file.getAbsolutePath(), pathchild1);
       } 
       if(child == null){
-        child = new FileRemote(itsCluster, device, file, pathchild1, 0, 0, 0, null, true);
+        child = new FileRemote(itsCluster, device, file, pathchild1, 0, 0, flagNewFile, null, true);
       }
       if(pathchild !=null){
         file = child;
         pathchild1 = pathchild.fromEnd().seek(1).lento('/');
         if(!pathchild.found()){
+          //no slash on end:
+          flagNewFile = FileRemote.mFile;
           pathchild.len0end();   //also referred from pathchild1
+          if(pathchild.length() ==0){
+            bCont = false;
+          }
           pathchild = null;   //ends.
         } 
       } else {
