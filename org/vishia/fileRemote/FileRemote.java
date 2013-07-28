@@ -49,6 +49,7 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-07-29 Hartmut chg: {@link #moveTo(String, FileRemote, CallbackEvent)} now have a parameter with file names. 
    * <li>2013-05-24 Hartmut chg: The root will be designated with "/" as {@link #sFile}
    * <li>2013-05-24 Hartmut new {@link #cmprResult}, {@link #setSelected(int)}
    * <li>2013-05-05 Hartmut new {@link #isTested()}
@@ -1456,14 +1457,15 @@ public class FileRemote extends File
   
   
   
-  /**Moves a file maybe in a remote device to another file.
-   * If the devices are the same, it sends a commission only to the device. The action is done in the
-   * other device respectively in another thread {@link FileRemoteAccessorLocalFile#runCommissions}
-   * if this is a local file on this computer.<br><br>
-   * Depending on the file system the moving is a copy with deleting the source if this and dst are
-   * at the same partition, then it is a lightweight operation. If this and dst are at different 
-   * partitions, the operation file system will be copy it and then delete this. It means,
-   * this operation can be need some time for large files.
+  /**Moves this file or some files in this directory to another file(s) maybe in a remote device.
+   * If the devices are the same, it sends a commission only to the device. 
+   * The action is done in the other device respectively in another thread for local files
+   * in {@link org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile#executerCommission}.
+   * <br><br>
+   * Depending on the file system the moving may be a copy with deleting the source. 
+   * But if this and dst are at the same partition, then it is a lightweight operation. 
+   * If this and dst are at different partitions, the operation file system will be copy it 
+   * and then delete this. It means, this operation can be need some time for large files.
    * <br><br> 
    * If this and dst are at different devices, this routine copies and deletes.
    * <br><br>
@@ -1471,18 +1473,23 @@ public class FileRemote extends File
    * because the calling thread should not be waiting for success. The success is notified with invocation of the 
    * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * 
-   * @param dst The destination for move. If dst is a directory this file or directory tree will be copied into.
-   *    If dst is an existing file nothing will be done and an error message will be fed back. 
+   * @param sFiles maybe null or "". Elsewhere it contains a list of files in this directory 
+   *   which are to move. The files are separated with dots and can have white spaces before and after the dot
+   *   for better readability. Write for example "myfile1.ext : myfile2.ext"
+   *   If it is empty, this will be moved to dst.
+   * @param dst The destination for move. If dst is a directory this file or directory tree 
+   *   will be copied into. If dst is an existing file nothing will be done and an error message will be fed back. 
    *    If dst does not exist this will be stored as a new file or directory tree as dst.
    *    Note that this can be a file or a directory tree.
    * @param backEvent The event for success.
    */
-  public void moveTo(FileRemote dst, FileRemote.CallbackEvent evback){
+  public void moveTo(String sFiles, FileRemote dst, FileRemote.CallbackEvent evback){
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
     CmdEvent ev = device.prepareCmdEvent(evback);
     ev.filesrc = this;
+    ev.namesSrc = sFiles;
     ev.filedst = dst;
     ev.sendEvent(Cmd.move);
   }

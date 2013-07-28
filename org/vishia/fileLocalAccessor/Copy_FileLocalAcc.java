@@ -31,6 +31,7 @@ public class Copy_FileLocalAcc
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-07-29 Hartmut chg: {@link #execMove(org.vishia.fileRemote.FileRemote.CmdEvent) now have a parameter with file names. 
    * <li>2013-04-21 Hartmut redesign check, copy
    * <li>2013-04-00 Hartmut created, extra class dissolved from {@link FileRemoteAccessorLocalFile}
    * </ul>
@@ -381,26 +382,40 @@ public class Copy_FileLocalAcc
     FileRemote.CallbackCmd cmd;
     FileRemote.CallbackEvent evback = co.getOpponent();
     File filedst;
-    if(co.filedst.exists()){
-      if(co.filedst.isDirectory()){
-        filedst = co.filedst.child(co.filesrc.getName());
-      } else {
-        filedst = null;
+    boolean bOk = false;      
+      
+    if(co.namesSrc !=null && co.namesSrc.length() >0){
+      String[] afilesSrc = co.namesSrc.split(":");
+      for(String sFileSrc : afilesSrc){
+        FileRemote fileSrc1 = co.filesrc.child(sFileSrc.trim());
+        FileRemote fileDst1 = co.filedst.child(sFileSrc.trim());
+        bOk = fileSrc1.renameTo(fileDst1);
+        if(!bOk) break;
       }
     } else {
-      filedst = co.filedst;  //non exists, create it.
+      if(co.filedst.exists()){
+        if(co.filedst.isDirectory()){
+          filedst = co.filedst.child(co.filesrc.getName());
+        } else {
+          filedst = null;
+        }
+      } else {
+        filedst = co.filedst;  //non exists, create it.
+      }
+      if(filedst == null){
+        cmd = FileRemote.CallbackCmd.error;  
+        System.err.println("FileRemoteAccessorLocalFile - forbidden move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
+      } else {
+        bOk =  co.filesrc.renameTo(filedst);
+      }
+    
     }
-    if(filedst == null){
-      cmd = FileRemote.CallbackCmd.error;  
-      System.err.println("FileRemoteAccessorLocalFile - forbidden move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
+    if(bOk){
+      cmd = FileRemote.CallbackCmd.done ; 
+      System.out.println("FileRemoteAccessorLocalFile - move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
     } else {
-      if(co.filesrc.renameTo(filedst)){
-        cmd = FileRemote.CallbackCmd.done ; 
-        System.out.println("FileRemoteAccessorLocalFile - move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
-      } else {
-        cmd = FileRemote.CallbackCmd.error ; 
-        System.err.println("FileRemoteAccessorLocalFile - error move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
-      }
+      cmd = FileRemote.CallbackCmd.error ; 
+      System.err.println("FileRemoteAccessorLocalFile - error move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
     }
     evback.occupy(outer.evSrc, true);
     evback.sendEvent(cmd);
