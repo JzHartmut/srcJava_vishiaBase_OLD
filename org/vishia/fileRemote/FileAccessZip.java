@@ -20,7 +20,7 @@ import org.vishia.util.TreeNodeBase;
 import org.vishia.util.UnexpectedException;
 import org.vishia.util.TreeNodeBase.TreeNode;
 
-public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAccessorLocalFile
+public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAccessorLocalFile
 {
   /**Version, history and license.
    * <ul>
@@ -396,6 +396,15 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     @Override
     public boolean markSupported() { return s.markSupported(); }
 
+  }
+
+
+
+  @Override
+  public boolean setLastModified(FileRemote file, long time)
+  {
+    // TODO Auto-generated method stub
+    return false;
   }
   
   

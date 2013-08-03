@@ -537,6 +537,7 @@ public class Copy_FileLocalAcc
         //}
         if(actData.src.isDirectory()){
           //process all sub files
+          long time1 = System.currentTimeMillis();
           for(Map.Entry<String, FileRemote> item: actData.src.children().entrySet()){
             FileRemote child = item.getValue();
             if(child.isDirectory()){
@@ -576,7 +577,9 @@ public class Copy_FileLocalAcc
               }
               if(select){
                 actData.selectAnyFile = true;
-                child.refreshProperties(null);
+                if(!child.isTested(time1-55000)) { //don't refresh if it was refreshed for 5 seconds.
+                  child.refreshProperties(null);   ////
+                }
                 child.setSelected(1);  //a selected file.
                 zBytesAllCheck += child.length();
                 zFilesCheck += 1;

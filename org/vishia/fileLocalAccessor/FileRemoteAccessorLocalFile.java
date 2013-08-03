@@ -33,7 +33,7 @@ import org.vishia.util.IndexMultiTable;
 
 /**Implementation for a standard local file.
  */
-public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
+public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
 {
   
   /**Version, history and license.
@@ -240,6 +240,14 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       list.add(file1);
     }
     return list;
+  }
+
+  
+  
+  @Override public boolean setLastModified(FileRemote file, long time)
+  { File ffile = (File)file.oFile();
+    if(ffile !=null){ return ffile.setLastModified(time); }
+    else return false;
   }
 
   
@@ -602,8 +610,9 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
       this.callback = callback;
     }
     
-    public void run(){
+    public void run(){  ////
       try{
+        time = System.currentTimeMillis();
         refreshFileProperties(fileRemote, null);
         File fileLocal = getLocalFile(fileRemote);
         //fileRemote.flags |= FileRemote.mChildrenGotten;
@@ -630,11 +639,16 @@ public class FileRemoteAccessorLocalFile extends FileRemoteAccessor
                 if(child == null){ 
                   int flags = file1.isDirectory() ? FileRemote.mDirectory : 0;
                   child = new FileRemote(fileRemote.itsCluster, fileRemote.device(), fileRemote, name1, 0, 0, flags, file1, true); //newFileInDirectory(file1, fileRemote); }
+                  child.refreshProperties(null);    //should show all sub files with its properties, but not files in sub directories.
+                } else {
+                  if(!child.isTested(time - 1000)){
+                    child.refreshProperties(null);    //should show all sub files with its properties, but not files in sub directories.
+                  }
                 }
                 fileRemote.putChildren(child);
-                child.refreshProperties(null);    //should show all sub files with its properties, but not files in sub directories.
               }
               //oldChildren contains yet removed files.
+              System.out.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - ok refresh; " + files.length + " files; dt=" + (System.currentTimeMillis() - time));
             }
           }
         }

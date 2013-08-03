@@ -20,10 +20,12 @@ import org.vishia.util.Event;
  * @author Hartmut Schorrig
  *
  */
-public abstract class FileRemoteAccessor implements Closeable
+public interface FileRemoteAccessor extends Closeable
 {
   /**Version, history and license.
    * <ul>
+   * <li>2012-09-12 Hartmut chg: Now it is an interface, not an abstract class, only formal.
+   * <li>2012-09-12 Hartmut new: {@link #setLastModified(FileRemote, long)}. 
    * <li>2012-09-12 Hartmut bugfix: {@link #getChildren(FileRemote, FileFilter)} here only abstract.
    * <li>2012-08-12 Hartmut new: {@link #openInputStream(FileRemote, long)}
    * <li>2012-08-12 Hartmut new: {@link #getChildren(FileRemote, FileFilter)} implemented here.
@@ -99,6 +101,8 @@ public abstract class FileRemoteAccessor implements Closeable
   
   public abstract List<File> getChildren(FileRemote file, FileFilter filter);
   
+  
+  boolean setLastModified(FileRemote file, long time);
   
   
   public abstract boolean createNewFile(FileRemote file, FileRemote.CallbackEvent callback) throws IOException;

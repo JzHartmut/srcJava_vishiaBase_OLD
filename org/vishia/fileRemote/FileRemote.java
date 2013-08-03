@@ -823,6 +823,19 @@ public class FileRemote extends File
   }
   
   
+  @Override public boolean setLastModified(long time) {
+    this.date = time;
+    if(oFile !=null){
+      if(device == null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+      }
+      return device.setLastModified(this, time);
+    } else {
+      return super.setLastModified(time);
+    }
+  }
+
+  
   public Object oFile(){ return oFile; }
   
   public void setFileObject(Object oFile){ this.oFile = oFile; }
