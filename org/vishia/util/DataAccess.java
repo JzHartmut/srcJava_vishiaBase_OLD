@@ -282,10 +282,11 @@ public class DataAccess {
       if(namedDataPool ==null){
         throw new NoSuchFieldException("$?missing-datapool?");
       }
-      if(!namedDataPool.containsKey(element.ident)){
+      data1 = namedDataPool.get(element.ident);  //maybe null if the value of the key is null.
+      if(data1 == null && !namedDataPool.containsKey(element.ident)){
         throw new NoSuchFieldException(element.ident + " ;in datapool, contains; " + namedDataPool.toString() );
       }
-      data1 = namedDataPool.get(element.ident);  //maybe null if the value of the key is null.
+      //data1 maybe ==null if the key was found. 
       element = iter.hasNext() ? iter.next() : null;
     }
     else if(element.ident.startsWith("XXXXXXXXXX$")){
@@ -346,7 +347,7 @@ public class DataAccess {
   
   /**Invokes the static method which is described with the element.
    * @param element its {@link DatapathElement#whatisit} == 's'.
-   *   The {@link DatapathElement#name} should contain the full qualified "packagepath.Class.methodname" separated by dot.
+   *   The {@link DatapathElement#identArgJbat} should contain the full qualified "packagepath.Class.methodname" separated by dot.
    * @return the return value of the method
    * @throws NoSuchMethodException 
    */
@@ -411,7 +412,7 @@ public class DataAccess {
   
   /**Invokes the method which is described with the element.
    * @param element its {@link DatapathElement#whatisit} == 'r'.
-   *   The {@link DatapathElement#name} should contain the "methodname" inside the class of datapool.
+   *   The {@link DatapathElement#identArgJbat} should contain the "methodname" inside the class of datapool.
    * @param dataPool The instance which is the instance of the method.
    * @return the return value of the method
    */
@@ -478,7 +479,7 @@ public class DataAccess {
   
   /**Invokes the static method which is described with the element.
    * @param element its {@link DatapathElement#whatisit} == 's'.
-   *   The {@link DatapathElement#name} should contain the full qualified "packagepath.Class.methodname" separated by dot.
+   *   The {@link DatapathElement#identArgJbat} should contain the full qualified "packagepath.Class.methodname" separated by dot.
    * @return the return value of the method
    * @throws Throwable 
    */

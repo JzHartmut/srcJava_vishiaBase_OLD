@@ -32,9 +32,26 @@ import org.vishia.bridgeC.AllocInBlock;
 
  */
 
-/**This class contains sorted references of objects with an integer key 
- * in tables of a limited size, but more as one table (a tree) if necessary.
- * This class contains the table of objects and the table of key of type integer. 
+/**This class contains sorted references of objects (values) with an comparable key 
+ * in one or more tables of a limited size. 
+ * <ul>
+ * <li>In opposite to a {@link java.util.TreeMap} the key should not unique for all values.
+ *   More as one value can have the same key. The method {@link #get(Object)} defined in 
+ *   {@link java.util.Map} searches the first Object with the given key. 
+ *   The method {@link #put(Comparable, Object)} does not remove an existing value but it puts the new value
+ *   after the last existing one.  
+ * <li>There is a method {@link #iterator(Comparable)} which starts on the first occurrence of the key
+ *   or after a key which is lesser at the next key which is greater than the given key.
+ *   It iterates to the end of the collection. The user can check the key in the returned {@link java.util.Map.Entry}
+ *   whether the key is proper. In this kind a sorted view of a part of the content can be done.
+ * <li>The container consist of one or more instances which have a limited size. If a table in one instance is filled,
+ *   two new instances will be created in memory which contains the half amount of elements and the original
+ *   instance is changed to a hyper table. The size of the instances are equal and less. It means, the search time
+ *   is less and the memory requirement is constant. In this kind this class is able to use in C programming
+ *   with a block heap of equal size blocks in an non-dynamic memory management system (long living
+ *   fast realtime system).    
+ * </ul>
+ * This class contains the table of objects and the table of key of type Comparable. 
  * The tables are simple arrays of a fix size.
  * <br>
  * An instance of this class may be either a hyper table which have some children, 
@@ -80,11 +97,13 @@ import org.vishia.bridgeC.AllocInBlock;
  *
  * @param <Type>
  */
-public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<Key,Type>, Iterable<Type>
+public class IndexMultiTable<Key extends Comparable<Key>, Type> 
+implements Map<Key,Type>, Iterable<Type>
 {
   
   /**Version, history and license.
    * <ul>
+   * <li>2013-08-07 Hartmut improved.
    * <li>2013-04-21 Hartmut created, derived from {@link IndexMultiTableInteger}.
    * </ul>
    * <br><br>
@@ -112,7 +131,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20130421;
+  public static final int version = 20130807;
 
   final Key minKey__;
   
@@ -122,25 +141,25 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
   
   /**The maximal nr of elements in a block, maximal value of sizeBlock.
    * It is the same value as obj.length or key.length. */
-  private final static int maxBlock = AllocInBlock.restSizeBlock(IndexMultiTable.class, 80) / 8; //C: 8=sizeof(int) + sizeof(Object*) 
+  protected final static int maxBlock = AllocInBlock.restSizeBlock(IndexMultiTable.class, 80) / 8; //C: 8=sizeof(int) + sizeof(Object*) 
 
   /**actual number of objects stored in this table. */
-  private int sizeBlock;
+  protected int sizeBlock;
   
   /**True, than {@link #values} contains instances of this class too. */
-  private boolean isHyperBlock;
+  protected boolean isHyperBlock;
   
   /**modification access counter for Iterator. */
-  @SuppressWarnings("unused")
-  private int modcount;
+  //@SuppressWarnings("unused")
+  protected int modcount;
   
   /**Array of objects appropritate to the keys. */
-  private final Object[] values = new Object[maxBlock];
+  protected final Object[] values = new Object[maxBlock];
   
   /**Array of keys, there are sorted ascending. The same key can occure some times. */ 
   //private final Comparable<Key>[] key = new Comparable[maxBlock];
   
-  private final Key[] keys; // = new Key[maxBlock];
+  protected final Key[] keys; // = new Key[maxBlock];
   
   /**The parent if it is a child table. */
   private IndexMultiTable<Key, Type> parent;
@@ -155,7 +174,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
    *
    * @param <Type>
    */
-  private class IteratorImpl implements Iterator<Type>
+  protected final class IteratorImpl implements Iterator<Type>
   {
 
     /**The helper contains the values of the iterator. Because there are a tree of tables,
@@ -165,7 +184,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
      * than, the next table is got, than the child is initialized and referenced here.  
      * 
      */
-    private IndexMultiTable.IteratorHelper helper;
+    public IndexMultiTable.IteratorHelper<Key, Type> helper;
     
     /**True if hasNext. The value is valid only if {@link bHasNextProcessed} is true.*/
     private boolean bHasNext = false;
@@ -174,14 +193,13 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
     private boolean bHasNextProcessed = false;
     
     @SuppressWarnings("unused")
-    private int modcount;
+    private int modcountxxx;
     
     /**Only for test. */
-    //private Key lastkey; 
     private Key lastkey; 
     
-    private IteratorImpl(IndexMultiTable<Key, Type> firstTable)
-    { helper = new IteratorHelper(null);
+    protected IteratorImpl(IndexMultiTable<Key, Type> firstTable)
+    { helper = new IteratorHelper<Key, Type>(null);
       helper.table = firstTable;
       helper.idx = -1;
       lastkey = minKey__;
@@ -194,7 +212,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
      * @param endKey
      */
     IteratorImpl(IndexMultiTable<Key, Type> firstTable, Key startKey)
-    { helper = new IteratorHelper(null);
+    { helper = new IteratorHelper<Key, Type>(null);
       helper.table = firstTable;
       helper.idx = -1;
       lastkey = minKey__;
@@ -215,10 +233,10 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
         helper.idx = idx;
         @SuppressWarnings("unchecked")
         IndexMultiTable<Key, Type> childTable = (IndexMultiTable<Key, Type>)helper.table.values[helper.idx];
-        helper.child = new IteratorHelper(helper); 
+        helper.childHelper = new IteratorHelper<Key, Type>(helper); 
         
-        helper.child.table = childTable;
-        helper = helper.child;  //use the sub-table to iterate.          
+        helper.childHelper.table = childTable;
+        helper = helper.childHelper;  //use the sub-table to iterate.          
       }
       int idx = binarySearchFirstKey(helper.table.keys, 0, helper.table.sizeBlock,  startKey); //, sizeBlock, key1);
       if(idx < 0)
@@ -246,6 +264,10 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
     
     
     
+    /**Implements the standard behavior for {@link java.util.Iterator#next()}.
+     * For internal usage the {@link #helper} is set.
+     * With them 
+     */
     @SuppressWarnings("unchecked")
     public Type next()
     { if(!bHasNextProcessed)
@@ -264,7 +286,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
       else return null;
     }
 
-    
+    Key getKeyForNext(){ return lastkey; }
     
     /**executes the next(), on entry {@link bHasNextProcessed} is false.
      * If the table is a child table and its end is reached, this routine is called recursively
@@ -286,13 +308,13 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
       { if(helper.table.isHyperBlock)
         { //
           IndexMultiTable<Key, Type> childTable = (IndexMultiTable<Key, Type>)helper.table.values[helper.idx];
-          if(helper.child == null)
+          if(helper.childHelper == null)
           { //no child yet. later reuse the instance of child.
-            helper.child = new IteratorHelper(helper); 
+            helper.childHelper = new IteratorHelper(helper); 
           }
-          helper.child.idx = -1;  //increment as first action.
-          helper.child.table = childTable;
-          helper = helper.child;  //use the sub-table to iterate.          
+          helper.childHelper.idx = -1;  //increment as first action.
+          helper.childHelper.table = childTable;
+          helper = helper.childHelper;  //use the sub-table to iterate.          
         }
         else
         { //else: bHasNext is true.
@@ -344,15 +366,15 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
   {
     /**If not null, this helper is associated to a deeper level of table, the parent
      * contains the iterator value of the higher table.*/
-    private final IteratorHelper<Key, Type> parentIter;
+    protected final IteratorHelper<Key, Type> parentIter;
     
     /**If not null, an either an empty instance for a deeper level of tables is allocated already 
      * or the child is used actual. The child is used, if the child or its child 
      * is the current IteratorHelper stored on {@link IteratorImpl#helper}. */ 
-    private IteratorHelper<Key, Type> child;
+    protected IteratorHelper<Key, Type> childHelper;
     
     /**Current index in the associated table. */ 
-    private int idx;
+    protected int idx;
     
     /**The associated table, null if the instance is not used yet. */
     IndexMultiTable<Key, Type> table;
@@ -367,12 +389,12 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
   
   
   /**constructs an empty instance without data. */
-  public IndexMultiTable(Provide provider)
+  public IndexMultiTable(Provide<Key> provider)
   { //this(1000, 'I');
     this.provider = provider;
-    this.keys = (Key[])provider.genArray(maxBlock);
-    this.minKey__ = (Key)provider.genMin();
-    this.maxKey__ = (Key)provider.genMax();
+    this.keys = provider.genArray(maxBlock);
+    this.minKey__ = provider.genMin();
+    this.maxKey__ = provider.genMax();
     for(int idx = 0; idx < maxBlock; idx++){ keys[idx] = maxKey__; }
     sizeBlock = 0;
   }
@@ -445,7 +467,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
         child = null;
         stop();
       }
-      if(child.sizeBlock == maxBlock)
+      if(child !=null && child.sizeBlock == maxBlock)
       { //this child is full, divide it before using
         //int idxH = maxBlock / 2;
         if(child.isHyperBlock)
@@ -693,10 +715,10 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
 
 
 
-  public boolean containsKey(Object arg0)
-  {
-    // TODO Auto-generated method stub
-    return false;
+  @SuppressWarnings("unchecked")
+  public boolean containsKey(Object key)
+  { boolean[] found = new boolean[1];
+    return searchInTables((Key)key, true, found) !=null || found[0];
   }
 
 
@@ -719,8 +741,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
 
   public Set<java.util.Map.Entry<Key, Type>> entrySet()
   {
-    // TODO Auto-generated method stub
-    return null;
+    return entrySet;
   }
 
 
@@ -728,7 +749,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
   @SuppressWarnings({ "unchecked" })
   @Override public Type get(Object key1){
     assert(key1 instanceof Comparable<?>);
-    return get((Key)key1, true);
+    return searchInTables((Key)key1, true, null);
   }
 
 
@@ -740,12 +761,25 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
    * @param key
    * @return
    */
-  public Type search(Key key){ return get(key, false); }
+  //@SuppressWarnings("cast")
+  @SuppressWarnings("unchecked")
+  public Type search(Key key){ 
+    return searchInTables(key, false, null);
+  }
 
 
-  //public Type get(Object arg0)
-  @SuppressWarnings({ "unchecked" })
-  public Type get(Key key1, boolean exact)
+  /**Searches the key in the tables.
+   * @param key1 The key
+   * @param exact if true then returns null and retFound[0] = false if the key was not found
+   *   if false then returns the first value at or after the key, see {@link #search(Comparable)}.
+   * @param retFound If null then not used. If not null then it must initialized with new boolean[1].
+   *   If the key was found, the retFound[0] is set to true. If the key is not found, the retFound is not
+   *   used. If the key is found and the value for this key is null, retFound[0] is set to true.
+   *   Only with this the {@link #containsKey(Object)} works probably. 
+   * @return null if the key is not found elsewhere the value on the found position which may be null.
+   */
+  @SuppressWarnings("unchecked")
+  protected Type searchInTables(Key key1, boolean exact, boolean[] retFound)
   { IndexMultiTable<Key, Type> table = this;
     //place object with same key after the last object with the same key.
     while(table.isHyperBlock)
@@ -770,7 +804,8 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
         }
       }
       if(idx >=0)
-      { return (Type)table.values[idx];
+      { if(retFound !=null){ retFound[0] = true; }
+        return (Type)table.values[idx];
       }
       else  
       { //not found, before first.
@@ -844,98 +879,6 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
 
 
 
-  public boolean xxxadd(Type arg0)
-  {
-    // TODO Auto-generated method stub
-    return false;
-  }
-
-
-
-
-
-
-
-  public void xxxadd(int arg0, Type arg1)
-  {
-    // TODO Auto-generated method stub
-    
-  }
-
-
-
-
-
-
-
-  public boolean xxxaddAll(Collection<? extends Type> arg0)
-  {
-    // TODO Auto-generated method stub
-    return false;
-  }
-
-
-
-
-
-
-
-  public boolean xxxaddAll(int arg0, Collection<? extends Type> arg1)
-  {
-    // TODO Auto-generated method stub
-    return false;
-  }
-
-
-
-
-
-
-
-  public boolean xxxcontains(Object arg0)
-  {
-    // TODO Auto-generated method stub
-    return false;
-  }
-
-
-
-
-
-
-
-  public boolean xxxcontainsAll(Collection<?> arg0)
-  {
-    // TODO Auto-generated method stub
-    return false;
-  }
-
-
-
-
-
-
-
-  public Type xxxget(int arg0)
-  {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-
-
-
-
-
-
-  public int xxxindexOf(Object arg0)
-  {
-    // TODO Auto-generated method stub
-    return 0;
-  }
-
-
-
 
 
 
@@ -951,124 +894,6 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
   {
     return new IteratorImpl(this, fromKey);
   }
-
-
-
-  public ListIterator<Type> xiterator(Key fromKey)
-  {
-    return null; //new IteratorImpl(this, fromKey);
-  }
-
-
-
-  public int xxxlastIndexOf(Object arg0)
-  {
-    // TODO Auto-generated method stub
-    return 0;
-  }
-
-
-
-
-
-
-
-  public ListIterator<Type> xxxlistIterator()
-  {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-
-
-
-
-
-
-  public ListIterator<Type> xxxlistIterator(int arg0)
-  {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-
-
-
-
-
-
-  public Type xxxremove(int arg0)
-  {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-
-
-
-
-
-
-  public boolean xxxremoveAll(Collection<?> arg0)
-  {
-    // TODO Auto-generated method stub
-    return false;
-  }
-
-
-
-
-
-
-
-  public boolean xxxretainAll(Collection<?> arg0)
-  {
-    // TODO Auto-generated method stub
-    return false;
-  }
-
-
-
-
-
-
-
-  public Type xxxset(int arg0, Type arg1)
-  {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-
-
-
-
-
-
-  public List<Type> xxxsubList(int arg0, int arg1)
-  {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-
-
-
-
-
-
-  public Object[] xxxtoArray()
-  {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-
-
-
-
-
-
 
 
 
@@ -1144,11 +969,11 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
       int cmp = midVal.compareTo(key);
       if ( cmp < 0)
       { low = mid + 1;
-        equal = false;
+        //equal = false;
       }
       else { // if(cmp >=0){
         high = mid - 1;   //search in left part also if key before mid is equal
-        equal = cmp ==0;
+        equal = equal || cmp ==0;  //one time equal set, it remain set.
       }
       /*
       else
@@ -1157,7 +982,7 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
       }
       */
     }
-    if(equal) return mid; 
+    if(equal) return low > mid ? low : mid;  //one time found, then it is low or mid 
     else return -(low + 1);  // key not found.
   }
 
@@ -1165,8 +990,9 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
   @Override
   public void putAll(Map<? extends Key, ? extends Type> m)
   {
-    // TODO Auto-generated method stub
-    
+    for(Map.Entry<? extends Key, ? extends Type> e: m.entrySet()){
+      put(e.getKey(), e.getValue());
+    }
   }
   
   
@@ -1192,5 +1018,150 @@ public class IndexMultiTable<Key extends Comparable<Key>, Type> implements Map<K
   };
   
 
+  Set<Map.Entry<Key, Type>> entrySet = new Set<java.util.Map.Entry<Key, Type>>()
+  {
+
+    @Override
+    public boolean add(Map.Entry<Key, Type> e)
+    {
+      put(e.getKey(), e.getValue());
+      return true;
+    }
+
+    @Override
+    public boolean addAll(Collection<? extends java.util.Map.Entry<Key, Type>> c)
+    { for(Map.Entry<Key, Type> e: c){
+        put(e.getKey(), e.getValue());
+      }
+      return true;
+    }
+
+    @Override
+    public void clear()
+    {
+      IndexMultiTable.this.clear();
+    }
+
+    @Override
+    public boolean contains(Object o)
+    { return IndexMultiTable.this.containsValue(o);
+    }
+
+    @Override
+    public boolean containsAll(Collection<?> c)
+    { boolean ok = true;
+      for(Object obj: c){
+        if(!IndexMultiTable.this.containsValue(obj)){
+          ok = false;
+        }
+      }
+      return ok;
+    }
+
+    @Override
+    public boolean isEmpty()
+    {
+      // TODO Auto-generated method stub
+      return false;
+    }
+
+    @Override
+    public Iterator<java.util.Map.Entry<Key, Type>> iterator()
+    { return new EntrySetIterator();
+    }
+
+    @Override
+    public boolean remove(Object o)
+    {
+      // TODO Auto-generated method stub
+      return false;
+    }
+
+    @Override
+    public boolean removeAll(Collection<?> c)
+    {
+      // TODO Auto-generated method stub
+      return false;
+    }
+
+    @Override
+    public boolean retainAll(Collection<?> c)
+    {
+      // TODO Auto-generated method stub
+      return false;
+    }
+
+    @Override
+    public int size()
+    {
+      // TODO Auto-generated method stub
+      return 0;
+    }
+
+    @Override
+    public Object[] toArray()
+    {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public <T> T[] toArray(T[] a)
+    {
+      // TODO Auto-generated method stub
+      return null;
+    }
+    
+  };
+  
+  
+  
+  protected class EntrySetIterator implements Iterator<Map.Entry<Key, Type>>
+  {
+
+    private final IteratorImpl tableIter = (IteratorImpl)IndexMultiTable.this.iterator();
+    
+    @Override public boolean hasNext()
+    {
+      return tableIter.hasNext();
+    }
+
+    @Override public Map.Entry<Key, Type> next()
+    {
+      IteratorHelper<Key, Type> helper = tableIter.helper;
+      Type value = tableIter.next();
+      Key key = tableIter.getKeyForNext();
+      return new Entry(key, value); 
+    }
+
+    @Override
+    public void remove()
+    {
+      // TODO Auto-generated method stub
+      
+    }
+    
+  };
+  
+  
+  protected class Entry implements Map.Entry<Key, Type>{
+    final Type value; final Key key;
+    Entry(Key key, Type value){ this.key = key; this.value = value; }
+    @Override public Key getKey()
+    { return key;
+    }
+    @Override
+    public Type getValue()
+    { return value;
+    }
+    
+    @Override
+    public Type setValue(Type value)
+    { throw new IllegalArgumentException("IndexMultiTable.Entry does not support setValue()");
+    }
+    
+    @Override public String toString(){ return "[ " + key + ", " + value + " ]"; }
+  }
+  
   
 }
