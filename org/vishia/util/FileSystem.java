@@ -969,6 +969,14 @@ public class FileSystem
   
   
   
+  /**Builds a File which is a directory of
+   * @param dirParent parent, maybe null then unused. If posFile==0 then the current directory is returned.
+   * @param sPath path from dirParent or as absolute or relative path.
+   * @param posFile the substring(0..posFile) of path is used.
+   *   if 0 then sPath is ignored.
+   * @return The File object build from the input arguments. Whether the file exists or it is a directory
+   *   is not tested here.
+   */
   private static File buildDir(File dirParent, String sPath, int posFile){
     final File fDir;
     String sPathDir;
@@ -995,6 +1003,19 @@ public class FileSystem
   
   
   
+  /**Executes adding file to the given list.
+   * First all directories are evaluated. This routine is called recursively for directories.
+   * After them the files in this directory are evaluated and listed.
+   * @param listFiles destination list
+   * @param dir base directory or null
+   * @param sPath can contain '/' but not '\'
+   * @param posWildcard first position of a '*' in the path
+   * @param filterName filter for the file names or null
+   * @param filterAlldir filter for directories or null
+   * @param recursivect counter for recursively call. If it is >1000 this routine is aborted to prevent
+   *   too many recursions because any error.
+   * @return
+   */
   private static boolean addFileToList(AddFileToList listFiles, File dir, String sPath, int posWildcard
     , FilenameFilter filterName, FilenameFilter filterAlldir, int recursivect
     ) {

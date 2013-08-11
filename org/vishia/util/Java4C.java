@@ -89,4 +89,7 @@ public interface Java4C {
   /**Declare the String as const char* in C-language. */
   public @interface zeroTermString{}
   
+  /**The method is translated building a simple macro. */
+  public @interface define{}
+  
 }

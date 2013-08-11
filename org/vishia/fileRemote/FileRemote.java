@@ -18,6 +18,7 @@ import org.vishia.util.EventConsumer;
 import org.vishia.util.EventSource;
 import org.vishia.util.EventThread;
 import org.vishia.util.FileSystem;
+import org.vishia.util.SelectMask_ifc;
 import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPartBase;
 
@@ -38,7 +39,7 @@ import org.vishia.util.StringPartBase;
  * @author Hartmut Schorrig
  *
  */
-public class FileRemote extends File
+public class FileRemote extends File implements SelectMask_ifc
 {
   public interface FileRemoteAccessorSelector
   {
@@ -49,6 +50,7 @@ public class FileRemote extends File
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-08-09 Hartmut new: implements {@link SelectMask_ifc} for the {@link #cmprResult}.
    * <li>2013-07-29 Hartmut chg: {@link #moveTo(String, FileRemote, CallbackEvent)} now have a parameter with file names. 
    * <li>2013-05-24 Hartmut chg: The root will be designated with "/" as {@link #sFile}
    * <li>2013-05-24 Hartmut new {@link #cmprResult}, {@link #setSelected(int)}
@@ -623,6 +625,33 @@ public class FileRemote extends File
     }
     return bytes;
   }
+  
+  /**Returns the selection of a {@link #cmprResult} or 0 if it is not present.
+   * @see org.vishia.util.SelectMask_ifc#getSelection()
+   */
+  @Override public int getSelection()
+  { return cmprResult == null ? 0 : cmprResult.getSelection();
+  }
+
+
+  /**Deselects a bit in the existing {@link #cmprResult} or does nothing if it is not present.
+   * @see org.vishia.util.SelectMask_ifc#setDeselect(int, java.lang.Object)
+   */
+  @Override public int setDeselect(int mask, Object data)
+  { if(cmprResult == null) return 0;
+    else return cmprResult.setDeselect(mask, data);
+  }
+
+
+  /**Selects a bit in the {@link #cmprResult}, creates it if it is not existing yet.
+   * @see org.vishia.util.SelectMask_ifc#setSelect(int, java.lang.Object)
+   */
+  @Override public int setSelect(int mask, Object data)
+  { if(cmprResult == null){ cmprResult = new  FileCmprResult(this); }
+    return cmprResult.setSelect(mask, data);
+  }
+  
+
   
   public boolean isSelected(int mask){ return cmprResult !=null && (cmprResult.getSelection() & mask) !=0; }
   
@@ -2059,5 +2088,6 @@ public class FileRemote extends File
    * It is not intent to use by any application. 
    */
   public InternalAccess internalAccess(){ return acc_; }
-  
+
+
 }

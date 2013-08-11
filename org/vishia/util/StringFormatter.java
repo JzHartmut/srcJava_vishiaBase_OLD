@@ -204,6 +204,14 @@ public class StringFormatter
   { return buffer.toString();
   }
 
+  /**Gets the accumulated content.
+   * 
+   * @return The buffer representing the accumulated content.
+   */
+  public CharSequence getBuffer()
+  { return buffer;
+  }
+
   /**Sets an deviant decimal separator for floating point digigs, country-specific. */
   public void setDecimalSeparator(char sep)
   { cDecimalSeparator = sep;

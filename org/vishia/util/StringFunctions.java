@@ -13,6 +13,9 @@ public class StringFunctions {
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-08-10 Hartmut new: {@link #parseIntRadix(String, int, int, int, int[], String)} now can skip
+   *   over some characters. In this kind a number like 2"123'456.1 is able to read.
+   * <li>2013-08-10 Hartmut new: {@link #parseLong(String, int, int, int, int[], String)} as counterpart to parseInt  
    * <li>2013-07-28 Hartmut new: {@link #isEmptyOrOnlyWhitespaces(CharSequence)} 
    * <li>2013-05-04 Hartmut new some methods for usage CharSequence: {@link #compare(CharSequence, int, CharSequence, int, int)},
    *   {@link #startsWith(CharSequence, CharSequence)}, {@link #endsWith(CharSequence, CharSequence)},
@@ -52,7 +55,7 @@ public class StringFunctions {
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
-  public final static int version = 20130504; 
+  public final static int version = 20130810; 
   
   /**Returns the position of the end of an identifier.
    * @param src The input string
@@ -105,7 +108,8 @@ public class StringFunctions {
    * @throws never. All possible digits where scanned, the rest of non-scanable digits are returned.
    *  At example the String contains "-123.45" it returns -123, and the retSize is 3.
    */
-  public static int parseIntRadix(final String srcP, final int pos, final int sizeP, final int radix, final int[] parsedChars)
+  public static int parseIntRadix(final String srcP, final int pos, final int sizeP, final int radix
+      , final int[] parsedChars, final String spaceChars)
   { int val = 0;
     boolean bNegativ;
     int digit;
@@ -114,18 +118,22 @@ public class StringFunctions {
     int size = srcP.length() - pos;
     if(size > sizeP){ size = sizeP; }
     int maxDigit = (radix <=10) ? '0' + radix -1 : '9'; 
-    int maxHexDigitLower = 'A' + radix - 11; 
-    int maxHexDigitUpper = 'a' + radix - 11; 
     if(srcP.charAt(ixSrc) == '-') { ixSrc+=1; size -=1; bNegativ = true; }
     else { bNegativ = false; }
-    while(size > 0 && (digit = (cc = srcP.charAt(ixSrc)) - '0') >=0 
-         && (  cc <= maxDigit 
-            || (radix >10 && (  cc >= 'A' && (digit = (cc - 'A'+ 10)) <=radix
-                             || cc >= 'a' && (digit = (cc - 'a'+ 10)) <=radix)
-         )  )                )
-    { val = radix * val + digit;
-      ixSrc+=1;
-      size -=1;
+    while(--size >= 0){
+      cc = srcP.charAt(ixSrc);
+      if(spaceChars !=null && spaceChars.indexOf(cc)>=0){
+        ixSrc +=1;
+      } else if((digit = cc - '0') >=0 
+          && (  cc <= maxDigit 
+              || (radix >10 && (  cc >= 'A' && (digit = (cc - 'A'+ 10)) <=radix
+                               || cc >= 'a' && (digit = (cc - 'a'+ 10)) <=radix)
+           )  )                )
+      { val = radix * val + digit;
+        ixSrc+=1;
+      } else {
+        break;
+      }
     }
     if(bNegativ){ val = -val; }
     if(parsedChars !=null){
@@ -133,6 +141,53 @@ public class StringFunctions {
     }
     return( val);
   }
+  
+
+  
+  @Java4C.define public static int parseIntRadix(final String srcP, final int pos, final int sizeP, final int radix, final int[] parsedChars)
+  {
+    return parseIntRadix(srcP, pos, sizeP, radix, parsedChars, null);
+  }
+
+  
+  /**Adequate method for long values, see {@link #parseIntRadix(String, int, int, int, int[], String)}.
+   */
+  public static long parseLong(final String srcP, final int pos, final int sizeP, final int radix
+      , final int[] parsedChars, final String spaceChars)
+  { long val = 0;
+    //exact same lines as parseInt
+    boolean bNegativ;
+    int digit;
+    char cc;
+    int ixSrc = pos;
+    int size = srcP.length() - pos;
+    if(size > sizeP){ size = sizeP; }
+    int maxDigit = (radix <=10) ? '0' + radix -1 : '9'; 
+    if(srcP.charAt(ixSrc) == '-') { ixSrc+=1; size -=1; bNegativ = true; }
+    else { bNegativ = false; }
+    while(--size >= 0){
+      cc = srcP.charAt(ixSrc);
+      if(spaceChars !=null && spaceChars.indexOf(cc)>=0){
+        ixSrc +=1;
+      } else if((digit = cc - '0') >=0 
+          && (  cc <= maxDigit 
+              || (radix >10 && (  cc >= 'A' && (digit = (cc - 'A'+ 10)) <=radix
+                               || cc >= 'a' && (digit = (cc - 'a'+ 10)) <=radix)
+           )  )                )
+      { val = radix * val + digit;
+        ixSrc+=1;
+      } else {
+        break;
+      }
+    }
+    if(bNegativ){ val = -val; }
+    if(parsedChars !=null){
+      parsedChars[0] = ixSrc - pos;
+    }
+    return( val);
+  }
+  
+
   
   
   /**Parses a given String backward and convert it to the integer number.
