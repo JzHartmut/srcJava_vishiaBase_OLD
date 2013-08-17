@@ -28,14 +28,14 @@ import java.util.TreeMap;
 public class CalculatorExpr
 {
   
-  /**Versio, history and license.
+  /**Version, history and license.
    * <ul>
    * <li>2012-12-22 Hartmut new: Now a value can contain a list of {@link DataAccess.DatapathElement} to access inside java data 
-   *   to evaluate the value. The concept is synchronized with {@link org.vishia.jbat.JbatGenScript}, 
+   *   to evaluate the value. The concept is synchronized with {@link org.vishia.zbatch.ZbatchGenScript}, 
    *   but not depending on it. The JbatGenScript uses this class, this class participates on the development
    *   and requirements of jbat.
    * <li>Bugfix because String value and thrown Exception. The class needs a test environment. TODO
-   * <li>2012-12-22 some enhancements while using in {@link org.vishia.JbatExecuter.TextGenerator}.
+   * <li>2012-12-22 some enhancements while using in {@link org.vishia.ZbatchExecuter.TextGenerator}.
    * <li>2012-04-17 new {@link #calc(float)} for float and int
    * <li>TODO unary operator, function 
    * <li>2011-10-15 Hartmut creation. The ideas were created in 1979..80 by me.  
@@ -162,6 +162,7 @@ public class CalculatorExpr
      */
     public boolean booleanValue()
     { switch(type){
+        case 'I':
         case 'J': return longVal !=0;
         case 'D': return doubleVal !=0;
         case 'Z': return boolVal;
@@ -174,6 +175,7 @@ public class CalculatorExpr
     
     public double doubleValue()
     { switch(type){
+        case 'I':
         case 'J': return longVal;
         case 'D': return doubleVal;
         case 'Z': return boolVal ? 1.0 : 0;
@@ -186,6 +188,7 @@ public class CalculatorExpr
     
     public String stringValue(){ 
       switch(type){
+        case 'I':
         case 'J': return Long.toString(longVal);
         case 'D': return Double.toString(doubleVal);
         case 'Z': return Boolean.toString(boolVal);
@@ -197,6 +200,7 @@ public class CalculatorExpr
 
     public Object objValue(){ 
       switch(type){
+        case 'I':
         case 'J': return new Long(longVal);
         case 'D': return new Double(doubleVal);
         case 'Z': return new Boolean(boolVal);
@@ -208,6 +212,7 @@ public class CalculatorExpr
 
     @Override public String toString(){ 
       switch(type){
+        case 'I':
         case 'J': return Long.toString(longVal);
         case 'D': return Double.toString(doubleVal);
         case 'Z': return Boolean.toString(boolVal);
@@ -329,6 +334,7 @@ public class CalculatorExpr
   private static final Operator setOperation = new Operator("!"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
+        case 'I':
         case 'J': accu.longVal = arg.longVal; break;
         case 'D': accu.doubleVal = arg.doubleVal; break;
         case 'Z': accu.boolVal = arg.boolVal; break;
@@ -344,6 +350,7 @@ public class CalculatorExpr
   private static final Operator addOperation = new Operator("+"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
+        case 'I':
         case 'J': accu.longVal += arg.longVal; break;
         case 'D': accu.doubleVal += arg.doubleVal; break;
         case 'Z': accu.doubleVal += arg.doubleVal; break;
@@ -357,6 +364,7 @@ public class CalculatorExpr
   private static final Operator subOperation = new Operator("-"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
+        case 'I':
         case 'J': accu.longVal -= arg.longVal; break;
         case 'D': accu.doubleVal -= arg.doubleVal; break;
         case 'Z': accu.doubleVal -= arg.doubleVal; break;
@@ -370,6 +378,7 @@ public class CalculatorExpr
   private static final Operator mulOperation = new Operator("*"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
+        case 'I':
         case 'J': accu.longVal *= arg.longVal; break;
         case 'D': accu.doubleVal *= arg.doubleVal; break;
         case 'Z': accu.doubleVal *= arg.doubleVal; break;
@@ -383,6 +392,7 @@ public class CalculatorExpr
   private static final Operator divOperation = new Operator("/"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
+        case 'I':
         case 'J': accu.longVal /= arg.longVal; break;
         case 'D': accu.doubleVal /= arg.doubleVal; break;
         case 'Z': accu.doubleVal /= arg.doubleVal; break;
@@ -396,6 +406,7 @@ public class CalculatorExpr
   private static final Operator cmpEqOperation = new Operator(".cmp."){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
+        case 'I':
         case 'J': accu.boolVal = accu.longVal == arg.longVal; break;
         case 'D': accu.boolVal = Math.abs(accu.doubleVal - arg.doubleVal) < (Math.abs(accu.doubleVal) / 100000); break;
         case 'Z': accu.boolVal = accu.boolVal == arg.boolVal; break;
@@ -411,6 +422,7 @@ public class CalculatorExpr
   private static final Operator cmpNeOperation = new Operator("!="){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
+        case 'I':
         case 'J': accu.boolVal = accu.longVal != arg.longVal; break;
         case 'D': accu.boolVal = Math.abs(accu.doubleVal - arg.doubleVal) >= (Math.abs(accu.doubleVal) / 100000); break;
         case 'Z': accu.boolVal = accu.boolVal != arg.boolVal; break;
@@ -427,6 +439,7 @@ public class CalculatorExpr
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
+        case 'I':
         case 'J': accu.boolVal = accu.longVal < arg.longVal; break;
         case 'D': accu.boolVal = accu.doubleVal < arg.doubleVal; break;
         case 'Z': accu.boolVal = !accu.boolVal && arg.boolVal; break;
@@ -443,6 +456,7 @@ public class CalculatorExpr
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
+        case 'I':
         case 'J': accu.boolVal = accu.longVal >= arg.longVal; break;
         case 'D': accu.boolVal = accu.doubleVal >= arg.doubleVal; break;
         case 'Z': accu.boolVal = true; break;
@@ -459,6 +473,7 @@ public class CalculatorExpr
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
+        case 'I':
         case 'J': accu.boolVal = accu.longVal > arg.longVal; break;
         case 'D': accu.boolVal = accu.doubleVal > arg.doubleVal; break;
         case 'Z': accu.boolVal = accu.boolVal && !arg.boolVal; break;
@@ -475,6 +490,7 @@ public class CalculatorExpr
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
+        case 'I':
         case 'J': accu.boolVal = accu.longVal <= arg.longVal; break;
         case 'D': accu.boolVal = accu.doubleVal <= arg.doubleVal; break;
         case 'Z': accu.boolVal = true; break;
@@ -489,11 +505,22 @@ public class CalculatorExpr
    
 
   
-  /**A Operation in the stack of operations.
+  /**A Operation in the stack of operations. It contains the operator and the value.
+   * <ul>
+   * <li>The operator operates with the current stack context.
+   * <li>An unary operator will be applied to the value firstly. 
+   * <li>The value may be given as constant value or as index to a given variable or as any object.
+   * </ul>
    */
   public static class Operation
   {
-    /**The operation Symbol if it is a primitive. */
+    /**The operation Symbol if it is a primitive. 
+     * <ul>
+     * <li>! Take the value
+     * <li>+ - * / :arithmetic operation
+     * <li>& | : bitwise operation
+     * <li>A O X: boolean operation and, or, xor 
+     * */
     final char operation;
     
     /**The operator for this operation. */
@@ -531,8 +558,23 @@ public class CalculatorExpr
       value.add_datapathElement(item); 
     }
     
-
+    public void set_intValue(int val){
+      if(value == null){ value = new Value(); }
+      value.type = 'I';
+      value.longVal = val;
+    }
     
+    
+    public void set_textValue(String val){
+      if(value == null){ value = new Value(); }
+      value.type = 't';
+      value.stringVal = val;
+    }
+    
+    
+    public void setOperator(String op){
+      Assert.stop();
+    }
     
     @Override public String toString(){ 
       if(ixVariable >=0) return operator + " arg[" + ixVariable + "]";
@@ -541,7 +583,7 @@ public class CalculatorExpr
     }
   }
   
-  private final List<Operation> stackExpr = new LinkedList<Operation>();
+  protected final List<Operation> stackExpr = new ArrayList<Operation>();
   
   private String[] variables;
   

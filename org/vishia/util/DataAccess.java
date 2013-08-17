@@ -54,7 +54,7 @@ public class DataAccess {
    * <li>2012-11-04 Hartmut chg: parameter bContainer in getData(...): Sometimes a container is ispected
    *   to iterate though only one element is found, sometimes only a simple element is expected
    *   though a container is addressed maybe with one element. 
-   * <li>2012-10-21 Hartmut created. Some algorithm are copied from {@link org.vishia.jbat.JbatExecuter} in this class.
+   * <li>2012-10-21 Hartmut created. Some algorithm are copied from {@link org.vishia.zbatch.ZbatchExecuter} in this class.
    *   That algorithm are able to use independent in some applications.
    * </ul>
    * 
