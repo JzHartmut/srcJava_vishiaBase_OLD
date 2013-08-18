@@ -2,7 +2,6 @@ package org.vishia.util;
 
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -30,6 +29,9 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-08-18 Hartmut new: {@link Operation#unaryOperator}
+   * <li>2013-08-19 Hartmut chg: The {@link DataAccess.DatapathElement} is a attribute of a {@link Operation}, not of a {@link Value}.
+   *   A value is only a container for constant values or results.
    * <li>2012-12-22 Hartmut new: Now a value can contain a list of {@link DataAccess.DatapathElement} to access inside java data 
    *   to evaluate the value. The concept is synchronized with {@link org.vishia.zbatch.ZbatchGenScript}, 
    *   but not depending on it. The JbatGenScript uses this class, this class participates on the development
@@ -70,6 +72,7 @@ public class CalculatorExpr
    @SuppressWarnings("hiding")
   public final static int version = 20121222;
   
+   
    
   public static class DataPathItem extends DataAccess.DatapathElement
   {
@@ -114,7 +117,7 @@ public class CalculatorExpr
    * 
    *
    */
-  public static class Value extends Datapath{
+  public static class Value { //extends Datapath{
     
     
     
@@ -151,7 +154,7 @@ public class CalculatorExpr
     
     public Value(Object val){ type = 'o'; oVal = val; }
     
-    public Value(List<DataPathItem> datpath){ type = 'd'; this.datapath = datapath; }
+    //public Value(List<DataPathItem> datpath){ type = 'd'; this.datapath = datapath; }
     
     public Value(){ type = '?'; }
     
@@ -249,6 +252,14 @@ public class CalculatorExpr
   }
   
   
+  private abstract static class UnaryOperator{
+    private final String name; 
+    UnaryOperator(String name){ this.name = name; }
+    abstract ExpressionType operate(ExpressionType Type, Value val);
+    @Override public String toString(){ return name; }
+  }
+  
+  
   
   private static final ExpressionType startExpr = new ExpressionType(){
     
@@ -331,6 +342,38 @@ public class CalculatorExpr
   };
   
   
+  private static final UnaryOperator notOperation = new UnaryOperator("~u"){
+    @Override public ExpressionType operate(ExpressionType type, Value accu) {
+      switch(type.typeChar()){
+        case 'I':
+        case 'J': accu.longVal = ~accu.longVal; break;
+        //case 'D': accu.doubleVal = accu.doubleVal; break;
+        case 'Z': accu.boolVal = !accu.boolVal; break;
+        //case 't': accu.stringVal = accu.stringVal; break;
+        //case 'o': accu.oVal = accu.oVal; break;
+        default: throw new IllegalArgumentException("unknown type" + type.toString());
+      }
+      return type;
+    }
+  };
+  
+   
+  private static final UnaryOperator negOperation = new UnaryOperator("-u"){
+    @Override public ExpressionType operate(ExpressionType type, Value accu) {
+      switch(type.typeChar()){
+        case 'I':
+        case 'J': accu.longVal = -accu.longVal; break;
+        case 'D': accu.doubleVal = -accu.doubleVal; break;
+        case 'Z': accu.boolVal = !accu.boolVal; break;
+        //case 't': accu.stringVal = accu.stringVal; break;
+        //case 'o': accu.oVal = accu.oVal; break;
+        default: throw new IllegalArgumentException("unknown type" + type.toString());
+      }
+      return type;
+    }
+  };
+  
+   
   private static final Operator setOperation = new Operator("!"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
@@ -505,15 +548,22 @@ public class CalculatorExpr
    
 
   
-  /**A Operation in the stack of operations. It contains the operator and the value.
+  /**An Operation in the list of operations. It contains the operator and maybe a operand.
    * <ul>
    * <li>The operator operates with the current stack context.
    * <li>An unary operator will be applied to the value firstly. 
-   * <li>The value may be given as constant value or as index to a given variable or as any object.
+   * <li>The operand may be given as constant value, then it is stored with its type in {@link #value}.
+   * <li>The operand may be given as index to the given input variables for expression calculation.
+   *   Then {@link #ixVariable} is set >=0
+   * <li>The operand may be referenced in top of stack, then {@link #ixVariable} = {@value #kStackOperand}
+   * <li>The operand may be gotten from any java object, then {@link #datapath} is set.  
    * </ul>
    */
   public static class Operation
   {
+    /**Designation of {@link Operation#ixVariable} that the operand should be located in the top of stack. */
+    private static final int kStackOperand = -2; 
+     
     /**The operation Symbol if it is a primitive. 
      * <ul>
      * <li>! Take the value
@@ -521,21 +571,34 @@ public class CalculatorExpr
      * <li>& | : bitwise operation
      * <li>A O X: boolean operation and, or, xor 
      * */
-    final char operation;
+    private char operation;
     
     /**The operator for this operation. */
     Operator operator;
     
-    /**Number of input variable from array. */
-    final int ixVariable;
+    UnaryOperator unaryOperator;
     
-    /**A constant value. */
-    final double value_d;
+    /**Number of input variable from array or special designation.
+     * See {@link #kStackOperand} */
+    int ixVariable;
     
-    /**A constant value. */
-    final Object oValue;
+    /**A constant value. @deprecated, use value*/
+    @Deprecated
+    double value_d;
     
+    /**A constant value. @deprecated, use value*/
+    @Deprecated
+    Object oValue;
+    
+    /**It is used for constant values which's type is stored there too. */
     protected Value value;
+    
+    /**Set if the value of the operation should be gotten by data access on calculation time. */
+    protected DataAccess datapath;
+    
+    public Operation(){
+      this.ixVariable = -1; 
+    }
     
     public Operation(String operation){
       this.operation = operation.charAt(0);
@@ -552,10 +615,12 @@ public class CalculatorExpr
     Operation(Operator operator, Object oValue){ this.value_d = 0; this.operator = operator; this.operation = '.'; this.ixVariable = -1; this.oValue = oValue; }
   
     
+    
+    public boolean hasOperator(){ return operator !=null; }
+    
     public void add_datapathElement(DataAccess.DatapathElement item){ 
-      if(value == null){ value = new Value(); }
-      value.type = 'd';
-      value.add_datapathElement(item); 
+      if(datapath == null){ datapath = new DataAccess();}
+      datapath.add_datapathElement(item); 
     }
     
     public void set_intValue(int val){
@@ -570,26 +635,43 @@ public class CalculatorExpr
       value.type = 't';
       value.stringVal = val;
     }
+
+    /**Designates that the operand should be located in the top of stack. */
+    public void setStackOperand(){ ixVariable = kStackOperand; }
     
     
-    public void setOperator(String op){
-      Assert.stop();
+    
+    public boolean setUnaryOperator(String op){
+      this.unaryOperator = unaryOperators.get(op);
+      return this.operator !=null; 
+    }
+    
+    public boolean setOperator(String op){
+      this.operation = op.charAt(0);
+      this.operator = operations.get(op);
+      return this.operator !=null; 
     }
     
     @Override public String toString(){ 
       if(ixVariable >=0) return operator + " arg[" + ixVariable + "]";
       else if (oValue !=null) return operator + " " + oValue.toString();
+      else if (value !=null) return operator + " " + value.toString();
       else return operator + " " + value_d;
     }
   }
   
-  protected final List<Operation> stackExpr = new ArrayList<Operation>();
+  /**All Operations which acts with the accumulator and the stack of values.
+   * They will be executed one after another. All calculation rules of prior should be regarded
+   * in this order of operations already. It will not be checked here.
+   */
+  protected final List<Operation> stackOperations = new ArrayList<Operation>();
   
   private String[] variables;
   
   
   
   static Map<String, Operator> operations;
+  static Map<String, UnaryOperator>  unaryOperators;
   
   
   public CalculatorExpr(){
@@ -613,6 +695,10 @@ public class CalculatorExpr
       operations.put("ge", cmpGreaterEqualOperation);
       operations.put("eq", cmpEqOperation);
       operations.put("ne", cmpNeOperation);
+      unaryOperators = new TreeMap<String, UnaryOperator>();
+      unaryOperators.put("~",  notOperation);   //not for boolean
+      unaryOperators.put("-",  negOperation);   //not for boolean
+
     }
   }
   
@@ -683,37 +769,6 @@ public class CalculatorExpr
   }
   
 
-  
-  /**Adds a operation to the execution stack.
-   * Operation:
-   * <ul>
-   * <li>+, - * /
-   * <li> < > = l, g 
-   * </ul>
-   * @param val
-   * @param operation
-   */
-  public void addExprToStack(Object val, String operation){
-    Operator operator = operations.get(operation);
-    if(operator == null) throw new IllegalArgumentException("unknown Operation: " + operation);
-    Operation stackelement = new Operation(operator, val);
-    stackExpr.add(stackelement);
-  }
-  
-  
-  public void addExprToStack(int ixInputValue, String operation){
-    Operator operator = operations.get(operation);
-    if(operator == null) throw new IllegalArgumentException("unknown Operation: " + operation);
-    Operation stackelement = new Operation(operator, ixInputValue);
-    stackExpr.add(stackelement);
-  }
-  
-  
-  public void addToStack(Operation operation){
-    stackExpr.add(operation);
-  }
-  
-  
   /**The outer expression is a add or subtract expression.
    * call recursively for any number of operands.
    * call {@link #multExpr(StringPart, char)} to get the argument values.
@@ -751,7 +806,7 @@ public class CalculatorExpr
         int ix;
         for(ix = 0; ix< variables.length; ++ix){
           if(variables[ix].equals(sIdent)){
-            stackExpr.add(new Operation(operation, ix));
+            stackOperations.add(new Operation(operation, ix));
             ix = Integer.MAX_VALUE-1; //break;
           }
         }
@@ -759,7 +814,7 @@ public class CalculatorExpr
           return("unknown variable" + sIdent);
         }
       } else if(sp.scanFloatNumber().scanOk()){
-        stackExpr.add(new Operation(operation, sp.getLastScannedFloatNumber()));
+        stackOperations.add(new Operation(operation, sp.getLastScannedFloatNumber()));
       }
     }catch(ParseException exc){
       return("ParseException float number"); 
@@ -773,6 +828,44 @@ public class CalculatorExpr
     }
     return null;  //ok
   }
+  
+
+  
+  /**Adds the given operation to the list of operations. The list of operations is executed one after another.
+   * All calculation rules such as parenthesis, prior of multiplication, functions arguments etc.
+   * should be regarded by the user. 
+   * @param operation
+   */
+  public void addOperation(Operation operation){
+    stackOperations.add(operation);
+  }
+  
+  
+  
+  /**Adds a operation to the execution stack.
+   * Operation:
+   * <ul>
+   * <li>+, - * /
+   * <li> < > = l, g 
+   * </ul>
+   * @param val
+   * @param operation
+   */
+  public void XXXaddExprToStack(Object val, String operation){
+    Operator operator = operations.get(operation);
+    if(operator == null) throw new IllegalArgumentException("unknown Operation: " + operation);
+    Operation stackelement = new Operation(operator, val);
+    stackOperations.add(stackelement);
+  }
+  
+  
+  public void XXXaddExprToStack(int ixInputValue, String operation){
+    Operator operator = operations.get(operation);
+    if(operator == null) throw new IllegalArgumentException("unknown Operation: " + operation);
+    Operation stackelement = new Operation(operator, ixInputValue);
+    stackOperations.add(stackelement);
+  }
+  
   
   
   /**Calculate with more as one input value.
@@ -792,7 +885,7 @@ public class CalculatorExpr
    */
   public double calc(double input)
   { double val = 0;
-    for(Operation oper: stackExpr){
+    for(Operation oper: stackOperations){
       final double val2;
       if(oper.ixVariable >=0){ val2 = input; }
       else { val2 = oper.value_d; }
@@ -815,7 +908,7 @@ public class CalculatorExpr
    */
   public float calc(float input)
   { float val = 0;
-    for(Operation oper: stackExpr){
+    for(Operation oper: stackOperations){
       final float val2;
       if(oper.ixVariable >=0){ val2 = input; }
       else { val2 = (float)oper.value_d; }
@@ -838,7 +931,7 @@ public class CalculatorExpr
    */
   public float calc(int input)
   { float val = 0;
-    for(Operation oper: stackExpr){
+    for(Operation oper: stackOperations){
       final float val2;
       if(oper.ixVariable >=0){ val2 = input; }
       else { val2 = (float)oper.value_d; }
@@ -866,7 +959,7 @@ public class CalculatorExpr
     Value accu = new Value();
     Value val2 = new Value();
     ExpressionType check = startExpr;
-    for(Operation oper: stackExpr){
+    for(Operation oper: stackOperations){
       //Get the operand either from args or from Operation
       Object oVal2;
       if(oper.ixVariable >=0){ oVal2 = args[oper.ixVariable]; }  //an input value
@@ -936,17 +1029,16 @@ public class CalculatorExpr
     Value accu = new Value();
     Value val2 = new Value();
     ExpressionType check = startExpr;
-    for(Operation oper: stackExpr){
+    for(Operation oper: stackOperations){
       //Get the operand either from args or from Operation
       Object oVal2;
       if(oper.ixVariable >=0){ oVal2 = args[oper.ixVariable]; }  //an input value
+      else if(oper.datapath !=null){
+        oVal2 = oper.datapath.getDataObj(javaVariables, false);
+      }
       else if(oper.value !=null){
         val2 = oper.value;
-        if(val2.datapath !=null){
-          oVal2 = getDataAccess(val2.datapath, javaVariables);
-        } else {
-          oVal2 = val2.objValue();
-        }
+        oVal2 = val2.objValue();
       }
       else { oVal2 = oper.oValue; }                              //a constant value inside the Operation
       //

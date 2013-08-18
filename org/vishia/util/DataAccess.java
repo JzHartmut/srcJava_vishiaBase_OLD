@@ -21,6 +21,10 @@ import java.util.TreeMap;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2013-08-18 Hartmut new: This class now contains the List of {@link #datapath} as only one attribute.
+   *   Now this class can be used instead a <code>List<DataAccess.DatapathElement></code> as bundled instance.
+   * <li>2013-08-18 Hartmut new: {@link DataAccessSet} is moved from the {@link org.vishia.zbatch.ZbatchGenScript}
+   *   because it is more universal.
    * <li>2013-07-28 Hartmut chg: improvement of conversion of method arguments.
    * <li>2013-07-14 Hartmut chg: {@link #checkAndConvertArgTypes(List, Class[])} now checks super classes and interfaces,
    * <li>2013-07-14 Hartmut chg: Exception handling for invoked methods.
@@ -155,6 +159,136 @@ public class DataAccess {
   };
   
   static Map<String, Conversion> conversion = initConversion();
+  
+  
+  
+  /**The description of the path to any data if the script-element refers data. It is null if the script element
+   * does not refer data. If it is filled, the instances are of type {@link ZbnfDataPathElement}.
+   * If it is used in {@link DataAccess}, its base class {@link DataAccess.DatapathElement} are used. The difference
+   * are the handling of actual values for method calls. See {@link ZbnfDataPathElement#actualArguments}.
+   */
+  protected List<DataAccess.DatapathElement> datapath;
+  
+  public final List<DataAccess.DatapathElement> datapath(){ return datapath; }
+  
+  public void add_datapathElement(DataAccess.DatapathElement item){ 
+    if(datapath == null){
+      datapath = new ArrayList<DataAccess.DatapathElement>();
+    }
+    datapath.add(item); 
+  }
+
+
+
+  public Object getDataObj( Map<String, Object> localVariables , boolean bContainer) 
+  throws Exception{
+    return getDataObj(datapath, localVariables, bContainer);
+  }
+
+  
+  
+  
+  /**Returns the reference from a given datapath.
+   * It can contain only one element which is:
+   * <ul>
+   * <li>An environment variable: returns its String content. 
+   * <li>The designation 'out' or 'err': returns System.out or System.err as Appendable.
+   * <li>The designation 'file': returns the main file output as Appendable.
+   * </ul>
+   * The first element can be
+   * <ul>
+   * <li>An local variable
+   * <li>An element of data1
+   * </ul>
+   * All other elements are elements inside the found element before.
+   * 
+   * @param dataPath List of elements of the datapath. 
+   * @param localVariables
+   * @param bContainer
+   * @return An object.
+   * @throws Exception 
+   */
+  public static Object getDataObj(List<DataAccess.DatapathElement> dataPath
+      , Map<String, Object> localVariables
+      , boolean bContainer)
+  throws Exception
+  {  
+    Object dataValue = null;
+    
+    boolean bWriteErrorInOutput = false;
+    boolean accessPrivate = true;
+    
+    if(dataPath.size() >=1 && dataPath.get(0).ident !=null && dataPath.get(0).ident.equals("$checkDeps"))
+      Assert.stop();
+    //calculate all actual arguments:
+    
+    //out, err, file for the given Appendable output channels.
+    if(dataPath.size()==1){
+      DataAccess.DatapathElement dataElement = dataPath.get(0);
+      if(dataElement.ident.equals("out")){
+        dataValue = System.out;
+      }
+      else if(dataElement.ident.equals("err")){
+        dataValue = System.err;
+      }
+      if(dataElement.ident.equals("xxxfile")){
+        dataValue = null; //outFile;
+      }
+    }
+    if(dataValue ==null){
+      for(DataAccess.DatapathElement dataElement : dataPath){  //loop over all elements of the path with or without arguments.
+        if(dataElement.fnArgsExpr !=null){
+          //it is a element with arguments, usual a method call. 
+          dataElement.removeAllActualArguments();
+          /*
+          for(TextGenScript.Argument zarg: zd.actualArguments){
+            Object oValue = getContent(zarg, localVariables, false);
+            zd.addActualArgument(oValue);
+          }
+          */
+          for(CalculatorExpr expr: dataElement.fnArgsExpr){
+            Object oValue = expr.calcDataAccess(localVariables); 
+            if(oValue == null){
+              oValue = "??: path access: " + dataPath + "?>";
+              if(!bWriteErrorInOutput){
+                throw new IllegalArgumentException(oValue.toString());
+              }
+            }
+            dataElement.addActualArgument(oValue);
+          }
+        }
+      }
+      try{
+        dataValue = DataAccess.getData(dataPath, null, localVariables, accessPrivate, bContainer);
+      } catch(NoSuchMethodException exc){
+        dataValue = "??: path not found: " + dataPath + "on " + exc.getMessage() + ".??";
+        if(!bWriteErrorInOutput){
+          throw new IllegalArgumentException(dataValue.toString());
+        }
+      } catch(NoSuchFieldException exc){
+        dataValue = "??: path not found: " + dataPath + "on " + exc.getMessage() + ".??";
+        if(!bWriteErrorInOutput){
+          throw new IllegalArgumentException(dataValue.toString());
+        }
+      } catch(IllegalAccessException exc) {
+        dataValue = "??: path access error: " + dataPath + "on " + exc.getMessage() + ".??";
+        if(!bWriteErrorInOutput){
+          throw new IllegalArgumentException(dataValue.toString());
+        }
+      } catch(Exception exc){
+        throw exc;
+      }
+    }
+    return dataValue;
+  }
+  
+  
+  
+
+  
+  
+  
+  
   
   private static Map<String, Conversion> initConversion(){
     Map<String, Conversion> conversion1 = new TreeMap<String, Conversion>();
@@ -948,7 +1082,135 @@ public class DataAccess {
     return set ? value | mask : value & ~mask;
   }
   
+  
 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  /**This class extends its outer class and provides the capability to set the data path
+   * especially from a ZBNF parser result.
+   * It can be instantiate if that capability is necessary, and used than as a DataAccess instance.
+   * The reason for the derivation - more structure.
+   */
+  public static class DataAccessSet extends DataAccess{
+
+    public DatapathElementSet new_datapathElement(){ return new DatapathElementSet(); }
+
+    public void set_envVariable(String ident){
+      if(datapath == null){
+        datapath = new ArrayList<DataAccess.DatapathElement>();
+      }
+      DataAccess.DatapathElement element = new DataAccess.DatapathElement();
+      element.whatisit = 'e';
+      element.ident = ident;
+      datapath.add(element); 
+    }
+    
+
+    public void set_startVariable(String ident){
+      if(datapath == null){
+        datapath = new ArrayList<DataAccess.DatapathElement>();
+      }
+      DataAccess.DatapathElement element = new DataAccess.DatapathElement();
+      element.whatisit = 'v';
+      element.ident = ident;
+      datapath.add(element); 
+    }
+    
+    
+    public DatapathElementSet new_newJavaClass()
+    { DatapathElementSet value = new DatapathElementSet();
+      value.whatisit = 'n';
+      //ScriptElement contentElement = new ScriptElement('J', null); ///
+      //subContent.content.add(contentElement);
+      return value;
+    }
+    
+    public void add_newJavaClass(DatapathElementSet val) { add_datapathElement(val); }
+
+
+    public DatapathElementSet new_staticJavaMethod()
+    { DatapathElementSet value = new DatapathElementSet();
+      value.whatisit = 's';
+      return value;
+      //ScriptElement contentElement = new ScriptElement('j', null); ///
+      //subContent.content.add(contentElement);
+      //return contentElement;
+    }
+    
+    public void add_staticJavaMethod(DatapathElementSet val) { add_datapathElement(val); }
+
+
+
+    
+  }
+
+ 
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  /**This class extends a {@link DatapathElement} and provides the capability to set the data path
+   * especially from a ZBNF parser result.
+   * It is instantiated if the {@link DataAccessSet} is used.
+   */
+  public static class DatapathElementSet extends DatapathElement{
+  
+    public CalculatorExpr new_argument(){
+      CalculatorExpr actualArgument = new CalculatorExpr();
+      //ScriptElement actualArgument = new ScriptElement('e', null);
+      //ZbnfDataPathElement actualArgument = new ZbnfDataPathElement();
+      return actualArgument;
+    }
+
+    
+    /**From Zbnf.
+     * The Arguments of type {@link Statement} have to be resolved by evaluating its value in the data context. 
+     * The value is stored in {@link DataAccess.DatapathElement#addActualArgument(Object)}.
+     * See {@link #add_datapathElement(org.vishia.util.DataAccess.DatapathElement)}.
+     * @param val The Scriptelement which describes how to get the value.
+     */
+    public void add_argument(CalculatorExpr val){ 
+      if(fnArgsExpr == null){ fnArgsExpr = new ArrayList<CalculatorExpr>(); }
+      fnArgsExpr.add(val);
+    } 
+    
+    public void set_javapath(String text){ this.ident = text; }
+    
+
+
+  }
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   
   /**Class holds one element for access to data.
@@ -976,8 +1238,14 @@ public class DataAccess {
      * </ul>
      */
     public char whatisit;
-    
-    /**List of arguments of a method. If null, the method has not arguments. */
+
+    /**Expressions to calculate the {@link #fnArgs}.
+     * The arguments of a subroutine can be given directly, then the expression is not necessary
+     * and this reference is null.
+     */
+    protected List<CalculatorExpr> fnArgsExpr;
+
+    /**List of arguments of a method. If null, it is not a method or the method has not arguments. */
     protected List<Object> fnArgs;
     
     /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
