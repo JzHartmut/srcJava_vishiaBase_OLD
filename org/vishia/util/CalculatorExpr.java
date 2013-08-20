@@ -317,7 +317,7 @@ public class CalculatorExpr
 
   };
   
-  private static final ExpressionType objExpr = new ExpressionType(){
+  protected static final ExpressionType objExpr = new ExpressionType(){
     
     @Override public char typeChar() { return 'o'; }
     
@@ -327,7 +327,7 @@ public class CalculatorExpr
 
   };
   
-  private static final ExpressionType booleanExpr = new ExpressionType(){
+  protected static final ExpressionType booleanExpr = new ExpressionType(){
 
     @Override public char typeChar() { return 'Z'; }
     
@@ -342,7 +342,24 @@ public class CalculatorExpr
   };
   
   
-  private static final UnaryOperator notOperation = new UnaryOperator("~u"){
+  private static final UnaryOperator boolOperation = new UnaryOperator("bool "){
+    @Override public ExpressionType operate(ExpressionType type, Value accu) {
+      accu.boolVal = accu.booleanValue();
+      accu.type = 'Z';
+      return booleanExpr;
+    }
+  };
+  
+   
+  private static final UnaryOperator boolNotOperation = new UnaryOperator("b!"){
+    @Override public ExpressionType operate(ExpressionType type, Value accu) {
+      accu.boolVal = !accu.booleanValue();
+      return booleanExpr;
+    }
+  };
+  
+   
+  private static final UnaryOperator bitNotOperation = new UnaryOperator("~u"){
     @Override public ExpressionType operate(ExpressionType type, Value accu) {
       switch(type.typeChar()){
         case 'I':
@@ -473,6 +490,24 @@ public class CalculatorExpr
         case 'o': accu.boolVal = !(accu.oVal == null && arg.oVal == null) || (accu.oVal !=null && arg.oVal !=null && !accu.oVal.equals(arg.oVal)); break;
         default: throw new IllegalArgumentException("unknown type" + type.toString());
       }
+      return booleanExpr;
+    }
+  };
+  
+   
+  private static final Operator boolOrOperation = new Operator("||"){
+    @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
+      accu.boolVal = accu.booleanValue() || arg.booleanValue();
+      accu.type = 'Z';
+      return booleanExpr;
+    }
+  };
+  
+   
+  private static final Operator boolAndOperation = new Operator("&&"){
+    @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
+      accu.boolVal = accu.booleanValue() && arg.booleanValue();
+      accu.type = 'Z';
       return booleanExpr;
     }
   };
@@ -618,6 +653,8 @@ public class CalculatorExpr
     
     public boolean hasOperator(){ return operator !=null; }
     
+    public boolean hasUnaryOperator(){ return unaryOperator !=null; }
+    
     public void add_datapathElement(DataAccess.DatapathElement item){ 
       if(datapath == null){ datapath = new DataAccess();}
       datapath.add_datapathElement(item); 
@@ -653,10 +690,16 @@ public class CalculatorExpr
     }
     
     @Override public String toString(){ 
-      if(ixVariable >=0) return operator + " arg[" + ixVariable + "]";
-      else if (oValue !=null) return operator + " " + oValue.toString();
-      else if (value !=null) return operator + " " + value.toString();
-      else return operator + " " + value_d;
+      StringBuilder u = new StringBuilder();
+      u.append(operator);
+      if(unaryOperator !=null){ u.append(" ").append(unaryOperator); }
+      if(ixVariable >=0) u.append(" arg[").append(ixVariable).append("]");
+      else if(ixVariable == kStackOperand) u.append(" stack");
+      else if(datapath !=null) u.append(datapath.toString());
+      else if (oValue !=null) u.append(" oValue:").append(oValue.toString());
+      else if (value !=null) u.append(" ").append(value.toString());
+      else u.append(" double:").append(value_d);
+      return u.toString();
     }
   }
   
@@ -695,8 +738,12 @@ public class CalculatorExpr
       operations.put("ge", cmpGreaterEqualOperation);
       operations.put("eq", cmpEqOperation);
       operations.put("ne", cmpNeOperation);
+      operations.put("||", boolOrOperation);
+      operations.put("&&", boolAndOperation);
       unaryOperators = new TreeMap<String, UnaryOperator>();
-      unaryOperators.put("~",  notOperation);   //not for boolean
+      unaryOperators.put("b",  boolOperation);   //not for boolean
+      unaryOperators.put("b!",  boolNotOperation);   //not for boolean
+      unaryOperators.put("~",  bitNotOperation);   //not for boolean
       unaryOperators.put("-",  negOperation);   //not for boolean
 
     }
