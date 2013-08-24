@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.TreeMap;
 
+import org.vishia.zbatch.ZbatchGenScript.XXXZbnfDataPathElement;
+
 
 /**This class contains methods to access data and invoke methods with symbolic access using reflection mechanism.
  * @author Hartmut Schorrig
@@ -1083,7 +1085,7 @@ public class DataAccess {
   }
   
   
-  @Override public String toString(){ return datapath.toString(); }
+  @Override public String toString(){ return datapath !=null ? datapath.toString() : "emtpy DataAccess"; }
   
   
   
@@ -1102,6 +1104,11 @@ public class DataAccess {
 
     public DatapathElementSet new_datapathElement(){ return new DatapathElementSet(); }
 
+    public void add_datapathElement(DatapathElementSet val){ 
+      super.add_datapathElement(val); //Note: super does not get a DatapathElementSet but only its superclass.
+    }
+    
+    
     public void set_envVariable(String ident){
       if(datapath == null){
         datapath = new ArrayList<DataAccess.DatapathElement>();
