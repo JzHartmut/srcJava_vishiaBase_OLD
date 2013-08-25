@@ -75,12 +75,6 @@ public class CalculatorExpr
   
    
    
-  public static class DataPathItem extends DataAccess.DatapathElement
-  {
-    protected List<CalculatorExpr> paramExpr;
-
-  }
-   
    
   
   /**A path to any Java Object or method given with identifier names.
@@ -1152,34 +1146,6 @@ public class CalculatorExpr
   
   
   
-  /**Prepares the data access. First the arguments should be evaluated if a method will be called.
-   * @param datapath
-   * @param javaVariables
-   * @return
-   * @throws Exception
-   */
-  private Object getDataAccess(List<DataAccess.DatapathElement> datapath, Map<String, Object> javaVariables) 
-  throws Exception {
-    for(DataAccess.DatapathElement dataElement : datapath){  
-      //loop over all elements of the path to check whether it is a method and it have arguments.
-      DataPathItem zd = dataElement instanceof DataPathItem ? (DataPathItem)dataElement : null;
-      //A DatapathItem contains the path to parameter.
-      if(zd !=null && zd.paramExpr !=null){
-        //it is a element with arguments, usual a method call. 
-        zd.removeAllActualArguments();
-        for(CalculatorExpr expr: zd.paramExpr){
-          //evaluate its value.
-          Value value = expr.calcDataAccess(javaVariables);
-          zd.addActualArgument(value.objValue());
-        }
-      }
-    }
-    //Now access the data.
-    Object oVal2 = DataAccess.getData(datapath, null, javaVariables, false, false);
-    return oVal2;
-  }
-  
-  
   
   
   
@@ -1196,6 +1162,7 @@ public class CalculatorExpr
    *   if the access via reflection is done.
    */
   public Value calcDataAccess(Map<String, Object> javaVariables, Object... args) throws Exception{
+    accu = new Value(); //empty
     Value val3 = new Value();  //Instance to hold values for the right side operand.
     Value val2; //Reference to the right side operand
     ExpressionType check = startExpr;
@@ -1213,7 +1180,7 @@ public class CalculatorExpr
       }
       else if(oper.datapath !=null){
         val2 = val3;
-        oval2 = oper.datapath.getDataObj(javaVariables, false);
+        oval2 = oper.datapath.getDataObj(javaVariables, true, false);
       }
       else {
         val2 = oper.value;

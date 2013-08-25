@@ -13,7 +13,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.TreeMap;
 
-import org.vishia.zbatch.ZbatchGenScript.XXXZbnfDataPathElement;
+import org.vishia.zbatch.ZbatchZbnfExpression;
+
 
 
 /**This class contains methods to access data and invoke methods with symbolic access using reflection mechanism.
@@ -182,27 +183,26 @@ public class DataAccess {
 
 
 
-  public Object getDataObj( Map<String, Object> localVariables , boolean bContainer) 
+  /**Searches the Object maybe invoking some methods which is referred with this instances, {@link #datapath}. 
+   * @param localVariables All Java variables of the environment.
+   * @param bContainer true then returns a found container or build one.
+   * @return Maybe null only if the last reference refers null. 
+   * @throws Exception on any not found or etc.
+   */
+  public Object getDataObj( Map<String, Object> localVariables , boolean accessPrivate, boolean bContainer) 
   throws Exception{
-    return getDataObj(datapath, localVariables, bContainer);
+    return getDataCalcArgs(datapath, localVariables, accessPrivate, bContainer);
   }
 
   
   
   
-  /**Returns the reference from a given datapath.
-   * It can contain only one element which is:
-   * <ul>
-   * <li>An environment variable: returns its String content. 
-   * <li>The designation 'out' or 'err': returns System.out or System.err as Appendable.
-   * <li>The designation 'file': returns the main file output as Appendable.
-   * </ul>
-   * The first element can be
-   * <ul>
-   * <li>An local variable
-   * <li>An element of data1
-   * </ul>
-   * All other elements are elements inside the found element before.
+  /**Returns the reference from a given datapath, calculates all arguments of methods before.
+   * In opposite to {@link #getData(List, Object, Map, boolean, boolean)} 
+   * or {@link #getData(List, Object, Map, boolean, boolean)} this routine calculates all method's arguments
+   * if their are such before the methods are called. The expression to calculate is stored in 
+   * {@link DatapathElement#fnArgsExpr} whereby the calculated results are stored in {@link DatapathElement#fnArgs}.
+   * Further explanation for the datapath see {@link #getData(List, Object, Map, boolean, boolean)}. 
    * 
    * @param dataPath List of elements of the datapath. 
    * @param localVariables
@@ -210,15 +210,14 @@ public class DataAccess {
    * @return An object.
    * @throws Exception 
    */
-  public static Object getDataObj(List<DataAccess.DatapathElement> dataPath
+  public static Object getDataCalcArgs(List<DataAccess.DatapathElement> dataPath
       , Map<String, Object> localVariables
-      , boolean bContainer)
+      , boolean accessPrivate, boolean bContainer)
   throws Exception
   {  
     Object dataValue = null;
     
     boolean bWriteErrorInOutput = false;
-    boolean accessPrivate = true;
     
     if(dataPath.size() >=1 && dataPath.get(0).ident !=null && dataPath.get(0).ident.equals("$checkDeps"))
       Assert.stop();
@@ -240,46 +239,10 @@ public class DataAccess {
     if(dataValue ==null){
       for(DataAccess.DatapathElement dataElement : dataPath){  //loop over all elements of the path with or without arguments.
         if(dataElement.fnArgsExpr !=null){
-          //it is a element with arguments, usual a method call. 
-          dataElement.removeAllActualArguments();
-          /*
-          for(TextGenScript.Argument zarg: zd.actualArguments){
-            Object oValue = getContent(zarg, localVariables, false);
-            zd.addActualArgument(oValue);
-          }
-          */
-          for(CalculatorExpr expr: dataElement.fnArgsExpr){
-            Object oValue = expr.calcDataAccess(localVariables); 
-            if(oValue == null){
-              oValue = "??: path access: " + dataPath + "?>";
-              if(!bWriteErrorInOutput){
-                throw new IllegalArgumentException(oValue.toString());
-              }
-            }
-            dataElement.addActualArgument(oValue);
-          }
+          dataElement.calculateArguments(localVariables);
         }
       }
-      try{
-        dataValue = DataAccess.getData(dataPath, null, localVariables, accessPrivate, bContainer);
-      } catch(NoSuchMethodException exc){
-        dataValue = "??: path not found: " + dataPath + "on " + exc.getMessage() + ".??";
-        if(!bWriteErrorInOutput){
-          throw new IllegalArgumentException(dataValue.toString());
-        }
-      } catch(NoSuchFieldException exc){
-        dataValue = "??: path not found: " + dataPath + "on " + exc.getMessage() + ".??";
-        if(!bWriteErrorInOutput){
-          throw new IllegalArgumentException(dataValue.toString());
-        }
-      } catch(IllegalAccessException exc) {
-        dataValue = "??: path access error: " + dataPath + "on " + exc.getMessage() + ".??";
-        if(!bWriteErrorInOutput){
-          throw new IllegalArgumentException(dataValue.toString());
-        }
-      } catch(Exception exc){
-        throw exc;
-      }
+      dataValue = DataAccess.getData(dataPath, null, localVariables, accessPrivate, bContainer);
     }
     return dataValue;
   }
@@ -386,7 +349,6 @@ public class DataAccess {
       List<DatapathElement> datapath
       , Object dataPool
       , Map<String, Object> namedDataPool
-      //, boolean noException 
       , boolean accessPrivate, boolean bContainer)
   throws Exception
   {
@@ -551,62 +513,50 @@ public class DataAccess {
    *   The {@link DatapathElement#identArgJbat} should contain the "methodname" inside the class of datapool.
    * @param dataPool The instance which is the instance of the method.
    * @return the return value of the method
+   * @throws InvocationTargetException 
+   * @throws NoSuchMethodException 
    */
   static Object invokeMethod(      
     DatapathElement element
   , Object dataPool
-  ){
+  ) throws InvocationTargetException, NoSuchMethodException{
     Object data1 = null;
     Class<?> clazz = dataPool.getClass();
     if(element.ident.equals("append"))
       Assert.stop();
-    try{ 
-      boolean bOk = false;
-      do{
-        Method[] methods = clazz.getDeclaredMethods();
-        for(Method method: methods){
-          bOk = false;
-          if(method.getName().equals(element.ident)){
-            Class<?>[] paramTypes = method.getParameterTypes();
-            
-            Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
-            if(actArgs !=null){
-              bOk = true;
-              try{ 
-                data1 = method.invoke(dataPool, actArgs);
-              } catch(IllegalAccessException exc){
-                CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
-                throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
-              } catch(InvocationTargetException exc){
-                Assert.stop();
-                throw exc;
-              }
-              
-              break;  //method found.
+    boolean bOk = false;
+    do{
+      Method[] methods = clazz.getDeclaredMethods();
+      for(Method method: methods){
+        bOk = false;
+        if(method.getName().equals(element.ident)){
+          Class<?>[] paramTypes = method.getParameterTypes();
+          
+          Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
+          if(actArgs !=null){
+            bOk = true;
+            try{ 
+              data1 = method.invoke(dataPool, actArgs);
+            } catch(IllegalAccessException exc){
+              CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
+              throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+            } catch(InvocationTargetException exc){
+              Assert.stop();
+              throw exc;
             }
+            
+            break;  //method found.
           }
         }
-      } while(!bOk && (clazz = clazz.getSuperclass()) !=null);
-      if(!bOk) {
-        Assert.stackInfo("", 5);
-        CharSequence stackInfo = Assert.stackInfo(" called: ", 3, 5);
-        throw new NoSuchMethodException("DataAccess - method not found: " + dataPool.getClass().getName() + "." + element.ident + "(...)" + stackInfo);
       }
-      //Method method = clazz.getDeclaredMethod(element.ident);
-      //data1 = method.invoke(dataPool);
-    } catch (NoSuchMethodException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (SecurityException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (IllegalArgumentException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (InvocationTargetException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+    } while(!bOk && (clazz = clazz.getSuperclass()) !=null);
+    if(!bOk) {
+      Assert.stackInfo("", 5);
+      CharSequence stackInfo = Assert.stackInfo(" called: ", 3, 5);
+      throw new NoSuchMethodException("DataAccess - method not found: " + dataPool.getClass().getName() + "." + element.ident + "(...)" + stackInfo);
     }
+    //Method method = clazz.getDeclaredMethod(element.ident);
+    //data1 = method.invoke(dataPool);
     //} catch 
     return data1;    
   }
@@ -1178,25 +1128,26 @@ public class DataAccess {
    */
   public static class DatapathElementSet extends DatapathElement{
   
-    public CalculatorExpr new_argument(){
-      CalculatorExpr actualArgument = new CalculatorExpr();
+    public ZbatchZbnfExpression new_argument(){
+      ZbatchZbnfExpression actualArgument = new ZbatchZbnfExpression();
       //ScriptElement actualArgument = new ScriptElement('e', null);
       //ZbnfDataPathElement actualArgument = new ZbnfDataPathElement();
       return actualArgument;
     }
 
-    
     /**From Zbnf.
      * The Arguments of type {@link Statement} have to be resolved by evaluating its value in the data context. 
      * The value is stored in {@link DataAccess.DatapathElement#addActualArgument(Object)}.
      * See {@link #add_datapathElement(org.vishia.util.DataAccess.DatapathElement)}.
      * @param val The Scriptelement which describes how to get the value.
      */
-    public void add_argument(CalculatorExpr val){ 
+    public void add_argument(ZbatchZbnfExpression val){ 
       if(fnArgsExpr == null){ fnArgsExpr = new ArrayList<CalculatorExpr>(); }
+      val.closeExprPreparation();
       fnArgsExpr.add(val);
     } 
     
+
     public void set_javapath(String text){ this.ident = text; }
     
 
@@ -1276,7 +1227,7 @@ public class DataAccess {
     /**Set a float (double) argument of a access method. From Zbnf <#f?floatArg>. */
     //public void set_floatArg(double arg){ addToList(arg); }
     
-    /**Adds any argument. This method is called from {@link #set_floatArg(double)} etc. */
+    /**Adds any argument with its value.  */
     public void addActualArgument(Object arg){
       if(fnArgs == null){
         fnArgs = new LinkedList<Object>();
@@ -1284,9 +1235,29 @@ public class DataAccess {
       fnArgs.add(arg);
     }
     
+    /**Adds any expression to calculate as argument.
+     * @param val An expression
+     */
+    public void addArgumentExpression(CalculatorExpr val){ 
+      if(fnArgsExpr == null){ fnArgsExpr = new ArrayList<CalculatorExpr>(); }
+      fnArgsExpr.add(val);
+    } 
     
-    public void removeAllActualArguments(){ if(fnArgs !=null){ fnArgs.clear(); }}
-    
+
+    public void calculateArguments(Map<String, Object> localVariables) 
+    throws Exception{
+      if(fnArgsExpr !=null){
+        //it is a element with arguments, usual a method call. 
+        if(fnArgs !=null){ fnArgs.clear(); }
+        for(CalculatorExpr expr: fnArgsExpr){
+          CalculatorExpr.Value value = expr.calcDataAccess(localVariables); //maybe calls overridden method of ZbatchGenScript.Expression
+          Object oValue = value.objValue();
+          addActualArgument(oValue);
+        }
+      }
+      
+    }
+
     /**For debugging.*/
     @Override public String toString(){
       if(whatisit !='r'){ return ident;}

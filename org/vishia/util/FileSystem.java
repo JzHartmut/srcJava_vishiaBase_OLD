@@ -1301,6 +1301,24 @@ public class FileSystem
   }
   
   
+  /**Returns true if the given file exists. This method transscripts {@link java.io.File.exists()}
+   * to support simple usage for jbatch.
+   * @param file Any file
+   * @return true if this file exists.
+   */
+  public boolean exists(File file){ return file.exists(); }
+  
+  
+  /**Returns true if this file describes a root directory.
+   * A root directory is either "/" or "D:/" whereby "D" is a drive letter in Windows.
+   * The file can be given as relativ path with ".."
+   * @param file Any file
+   * @return true if it is the root.
+   */
+  public boolean isRoot(File file){ 
+    CharSequence sName = absolutePath(file.getPath(), null);
+    return sName.equals("/") || sName.length() ==3 && sName.subSequence(1,3).equals(":/");
+  }
   
   /**The main routine contains only tests.
    * @param args
