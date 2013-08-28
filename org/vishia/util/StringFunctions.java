@@ -13,6 +13,7 @@ public class StringFunctions {
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-08-29 Hartmut bugfix: {@link #compare(CharSequence, int, CharSequence, int, int)}, {@link #indexOf(CharSequence, CharSequence, int)}
    * <li>2013-08-10 Hartmut new: {@link #parseIntRadix(String, int, int, int, int[], String)} now can skip
    *   over some characters. In this kind a number like 2"123'456.1 is able to read.
    * <li>2013-08-10 Hartmut new: {@link #parseLong(String, int, int, int, int[], String)} as counterpart to parseInt  
@@ -359,11 +360,18 @@ public class StringFunctions {
     return compare(s1, 0, s2, 0, Integer.MAX_VALUE);
   }  
   
-  /**Compares two Strings or StringBuilder-content or any other CharSequence.
-   * It is the adequate functionality like {@link java.lang.String#compareTo(String)}. 
-   * @param s1
-   * @param s2
-   * @return 0 if all characters are equal, 1 if s1 > s2,  -1 if s1 < s2
+  
+  
+  /**Compares two CharSequence (Strings, StringBuilder-content etc.
+   * It is the adequate functionality like {@link java.lang.String#compareTo(String)}.
+   *  
+   * @param s1 left char sequence
+   * @param from1 start position
+   * @param s2 right char sequence
+   * @param from2 start position
+   * @param nrofChars maximal number of chars to compare. It can be {@link java.lang.Integer#MAX_VALUE}
+   *   to compare all characters to the end.
+   * @return 0 if all characters are equal, 1 if the part of s1 > s2,  -1 if s1 < s2.
    */
   public static int compare(CharSequence s1, int from1, CharSequence s2, int from2, int nrofChars){
     int i1 = from1 -1;
@@ -372,13 +380,20 @@ public class StringFunctions {
     int returnEq = 0;
     if(z > s1.length()){ 
       z = s1.length();
-      if(z == s2.length()){ returnEq = 0; }  //both have the same length.
+      int nrofChars1 = z - from1;
+      int z2= from2 + nrofChars1;
+      if( z2 == s2.length()){ returnEq = 0; }  //both have the same length after shorten.
+      else if(z2 > s2.length()){
+        int nrofChars2 = s2.length() - from2;
+        z = from1 + nrofChars2;   //reduce length because s2
+        returnEq = 1;  //returns 1 if equal because s2 is shorter
+      }
       else {returnEq = -1; }    //returns -1 if equal because s1 is shorter
     } 
-    if(z > s2.length()){ 
-      z = s2.length();
-      if(z == s1.length()){ returnEq = 0; }  //both have the same length.
-      else {returnEq = 1; }    //returns 1 if equal because s2 is shorter
+    else if((from2 + nrofChars) > s2.length()){ 
+      //s2 is shorter than the requested or adjusted length:
+      z = (s2.length()-from2) + from1;
+      returnEq = 1;     //returns 1 if equal because s2 is shorter
     } 
     while(++i1 < z){
       char c1 = s1.charAt(i1), c2 =s2.charAt(++i2);
@@ -490,12 +505,12 @@ public class StringFunctions {
   }
   
 
-  /**Checks whether the given CharSequence starts with the  a CharSequence.
+  /**Checks whether the given CharSequence contains the other given CharSequence.
    * It is the adequate functionality like {@link java.lang.String#indexOf(String, int)}. 
    * @param sq A CharSequence
    * @param str CharSequence which is searched.
    * @param fromIndex first checked position in sq
-   * @return -1 if not found, else first occurrence where sq.charAt(return) == ch. 
+   * @return -1 if not found, else first occurrence of str in sq which is >= fromIndex. 
    */
   public static int indexOf(CharSequence sq, CharSequence str, int fromIndex){
     int max = sq.length() - str.length()+1;
@@ -510,9 +525,12 @@ public class StringFunctions {
       if(sq.charAt(ii) == ch) {
         int s1 = 0;
         for(int jj = ii+1; jj < ii + str.length(); ++jj){
-          if(sq.charAt(jj) != str.charAt(++s1)) break;
+          if(sq.charAt(jj) != str.charAt(++s1)){
+            s1 = -1; //designate: not found
+            break;
+          }
         }
-        if(s1 == str.length()) return ii;
+        if(s1 >0) return ii;  //found.
       }
     }
     return -1;  //not found;

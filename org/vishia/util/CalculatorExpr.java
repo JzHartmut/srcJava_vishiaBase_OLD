@@ -130,7 +130,7 @@ public class CalculatorExpr
     protected double doubleVal;
     protected float floatVal;
     protected boolean boolVal;
-    protected CharSequence stringVal;
+    protected StringSeq stringVal;
     protected Object oVal;
     
     public Value(long val){ type = 'J'; longVal = val; }
@@ -145,7 +145,7 @@ public class CalculatorExpr
     
     public Value(char val){ type = 'C'; longVal = val; }
     
-    public Value(String val){ type = 't'; stringVal = val; }
+    public Value(String val){ type = 't'; stringVal = StringSeq.create(val); }
     
     public Value(Appendable val){ type = 'a'; oVal = val; }
     
@@ -186,15 +186,23 @@ public class CalculatorExpr
       }//switch
     }
     
-    public CharSequence stringValue(){ 
+    /**Returns the reference to the StringBuilder-buffer if the result is a concatenation of strings.
+     * The StringBuilder-buffer can be changed after them in any public application, 
+     * because the Value is only returned on end of calculation. 
+     * Returns a reference to String in all other cases.
+     * 
+     * @return
+     */
+    public StringSeq stringValue(){ 
       switch(type){
-        case 'I': return Integer.toString(intVal);
-        case 'J': return Long.toString(longVal);
-        case 'D': return Double.toString(doubleVal);
-        case 'Z': return Boolean.toString(boolVal);
+        case 'I': return StringSeq.create(Integer.toString(intVal));
+        case 'J': return StringSeq.create(Long.toString(longVal));
+        case 'D': return StringSeq.create(Double.toString(doubleVal));
+        case 'Z': return StringSeq.create(Boolean.toString(boolVal));
         case 't': return stringVal;
-        case 'o': return oVal ==null ? "null" : oVal.toString();
-        default:  return "?" + type;
+        case 'o': return StringSeq.create(oVal ==null ? "null" : oVal.toString());
+        case '?': return StringSeq.create("??");
+        default:  return StringSeq.create("?" + type);
       }//switch
     }
 
@@ -210,6 +218,8 @@ public class CalculatorExpr
       }//switch
     }
 
+
+    
     @Override public String toString(){ 
       switch(type){
         case 'I': return Integer.toString(intVal);
@@ -397,16 +407,10 @@ public class CalculatorExpr
     @Override public char typeChar() { return 't'; }
     
     @Override public ExpressionType checkArgument(Value accu, Value val2) {
-      switch(val2.type){
-        case 'I': val2.stringVal = Integer.toString(val2.intVal); break;
-        case 'J': val2.stringVal = Long.toString(val2.longVal); break;
-        case 'F': val2.stringVal = Float.toString(val2.floatVal); break;
-        case 'D': val2.stringVal = Double.toString(val2.doubleVal); break;
-        case 't': break;
-        case 'o': val2.stringVal = val2.oVal == null ? "null" : val2.oVal.toString(); break;
-        case 'Z': val2.stringVal = val2.boolVal ? "true" : "false"; break;
-        default: throw new IllegalArgumentException("src type");
-      } //switch  
+      if(val2.type !='t'){ 
+        val2.stringVal = val2.stringValue();
+        val2.type = 't';
+      }
       return this;
     }
 
@@ -752,7 +756,7 @@ public class CalculatorExpr
     public void set_textValue(String val){
       if(value == null){ value = new Value(); }
       value.type = 't';
-      value.stringVal = val;
+      value.stringVal = StringSeq.create(val);
     }
 
     /**Designates that the operand should be located in the top of stack. */
@@ -1167,48 +1171,58 @@ public class CalculatorExpr
     Value val2; //Reference to the right side operand
     ExpressionType check = startExpr;
     for(Operation oper: listOperations){
-      //Get the operand either from args or from Operation
-      Object oval2;
-      if(oper.ixVariable >=0){ 
-        val2 = val3;
-        oval2 = args[oper.ixVariable];
-      }  //an input value
-      else if(oper.ixVariable == Operation.kStackOperand){
-        val2 = accu;
-        accu = stack.pop();
-        oval2 = null;
+      if(accu.type == 'Z' && 
+          ( !accu.boolVal && oper.operator == boolAndOperation  //false remain false on and operation
+          || accu.boolVal && oper.operator == boolOrOperation   //true remain true on or operation
+        ) ){
+        //don't get arguments, no side effect (like in Java, C etc.
+      } else {
+        //Get the operand either from args or from Operation
+        Object oval2;
+        if(oper.ixVariable >=0){ 
+          val2 = val3;
+          oval2 = args[oper.ixVariable];
+        }  //an input value
+        else if(oper.ixVariable == Operation.kStackOperand){
+          val2 = accu;
+          accu = stack.pop();
+          oval2 = null;
+        }
+        else if(oper.datapath !=null){
+          val2 = val3;
+          oval2 = oper.datapath.getDataObj(javaVariables, true, false);
+        }
+        else {
+          val2 = oper.value;
+          oval2 = null;
+        }
+        //
+        //Convert a Object-wrapped value into its real representation.
+        if(oval2 !=null){
+          if(oval2 instanceof Long)             { val2.longVal =   ((Long)oval2).longValue(); val2.type = 'J'; }
+          else if(oval2 instanceof Integer)     { val2.intVal = ((Integer)oval2).intValue(); val2.type = 'I'; }
+          else if(oval2 instanceof Short)       { val2.intVal =   ((Short)oval2).intValue(); val2.type = 'I'; }
+          else if(oval2 instanceof Byte)        { val2.intVal =    ((Byte)oval2).intValue(); val2.type = 'I'; }
+          else if(oval2 instanceof Boolean)     { val2.boolVal = ((Boolean)oval2).booleanValue(); val2.type = 'Z'; }
+          else if(oval2 instanceof Double)      { val2.doubleVal = ((Double)oval2).doubleValue(); val2.type = 'D'; }
+          else if(oval2 instanceof Float)       { val2.doubleVal = ((Float)oval2).floatValue(); val2.type = 'F'; }
+          else if(oval2 instanceof StringSeq){ val2.stringVal = (StringSeq)oval2; val2.type = 't'; }
+          else                                  { val2.oVal = oval2; val2.type = 'L'; }
+          val2.oVal = oval2;;
+        }
+        if(oper.operator == setOperation && accu.type != '?'){
+          stack.push(accu);
+          accu = new Value();
+        }
+        //Convert the value adequate the given type of expression:
+        check = check.checkArgument(accu, val2);    //may change the type.
+        //
+        //executes the operation:
+        if(oper.unaryOperator !=null){
+          oper.unaryOperator.operate(check, val2);
+        }
+        check = oper.operator.operate(check, accu, val2);  //operate, may change the type if the operator forces it.
       }
-      else if(oper.datapath !=null){
-        val2 = val3;
-        oval2 = oper.datapath.getDataObj(javaVariables, true, false);
-      }
-      else {
-        val2 = oper.value;
-        oval2 = null;
-      }
-      //
-      //Convert a Object-wrapped value into its real representation.
-      if(oval2 !=null){
-        if(oval2 instanceof Long)             { val2.longVal =   ((Long)oval2).longValue(); val2.type = 'J'; }
-        else if(oval2 instanceof Integer)     { val2.intVal = ((Integer)oval2).intValue(); val2.type = 'I'; }
-        else if(oval2 instanceof Short)       { val2.intVal =   ((Short)oval2).intValue(); val2.type = 'I'; }
-        else if(oval2 instanceof Byte)        { val2.intVal =    ((Byte)oval2).intValue(); val2.type = 'I'; }
-        else if(oval2 instanceof Boolean)     { val2.boolVal = ((Boolean)oval2).booleanValue(); val2.type = 'Z'; }
-        else if(oval2 instanceof Double)      { val2.doubleVal = ((Double)oval2).doubleValue(); val2.type = 'D'; }
-        else if(oval2 instanceof Float)       { val2.doubleVal = ((Float)oval2).floatValue(); val2.type = 'F'; }
-        else if(oval2 instanceof CharSequence){ val2.stringVal = (CharSequence)oval2; val2.type = 't'; }
-        else                                  { val2.oVal = oval2; val2.type = 'L'; }
-        val2.oVal = oval2;;
-      }
-      if(oper.operator == setOperation && accu.type != '?'){
-        stack.push(accu);
-        accu = new Value();
-      }
-      //Convert the value adequate the given type of expression:
-      check = check.checkArgument(accu, val2);    //may change the type.
-      //
-      //executes the operation:
-      check = oper.operator.operate(check, accu, val2);  //operate, may change the type if the operator forces it.
     }
     return accu;
   }

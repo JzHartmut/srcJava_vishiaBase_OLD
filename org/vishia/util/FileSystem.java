@@ -75,6 +75,7 @@ public class FileSystem
   /**Version, history and license.
    * Changes:
    * <ul>
+   * <li>2013-08-29 Hartmut bugfix: {@link #normalizePath(CharSequence)}, {@link #isAbsolutePath(CharSequence)}
    * <li>2013-06-27 Hartmut new: {@link #close(Closeable)}
    * <li>2013-05-04 Hartmut chg: {@link #normalizePath(CharSequence)} uses and returns a CharSequence yet.
    * <li>2013-03-31 Hartmut bugfix: {@link #addFileToList(AddFileToList, File, String, int, FilenameFilter, FilenameFilter, int)}
@@ -552,18 +553,43 @@ public class FileSystem
   }
   
   
+
+  
+  
   /**Returns true if the String which describes a file path is recognized as an absolute path.
    * The conditions to recognize as absolute path are:
    * <ul>
    * <li>Start with slash or backslash
-   * <li>Contains a ':' as second char. In this case on windows it is a drive letter.
-   *   the path should used as absolute path mostly, because an access to another drive is done,
-   *   the current directory or another directory couldn't be applied.
+   * <li>Contains a ':' as second char following by '/' or '\'. 
+   *   In this case on windows it is another drive as absolute path.
+   * </ul>  
+   * @param filePath 
+   * @return true if it is such an absolute path
+   */
+  public static boolean isAbsolutePath(CharSequence filePath)
+  { char cc;
+    return filePath.length() >=3 && filePath.charAt(1)== ':' //a drive using is detect as absolute path.
+           && ( (cc=filePath.charAt(2))== '/' || cc == '\\')  //slash or backslash as first char
+        || filePath.length() >=1 
+           && ( (cc=filePath.charAt(0))== '/' || cc == '\\') //slash or backslash as first char
+           ;
+  }
+  
+
+  
+  
+  /**Returns true if the String which describes a file path is recognized as an absolute path.
+   * The conditions to recognize as absolute path are:
+   * <ul>
+   * <li>Start with slash or backslash
+   * <li>Contains a ':' as second char. In this case on windows it is another drive.
+   *   the path should be used as absolute path mostly, because 
+   *   the current directory or any other base directory couldn't be applied.
    * </ul>  
    * @param filePath 
    * @return
    */
-  public static boolean isAbsolutePathOrDrive(String filePath)
+  public static boolean isAbsolutePathOrDrive(CharSequence filePath)
   { char cc;
     return (filePath.length() >=2 && filePath.charAt(1)== ':') //a drive using is detect as absolute path.
         || (filePath.length() >=1 
@@ -573,7 +599,6 @@ public class FileSystem
     
   }
   
-
   
   
   /**Gets the canonical path of a file without exception and with unique slashes. 
@@ -741,62 +766,134 @@ public class FileSystem
    *   It does contain "../" only at start if it is necessary for a relative given path.
    */
   public static CharSequence normalizePath(final CharSequence inp){
+    CharSequence test = inp;
+    StringBuilder uPath = null;
     int posBackslash = StringFunctions.indexOf(inp, '\\', 0);
-    int x = 5;
+    if(posBackslash >=0){
+      test = uPath = new StringBuilder(inp);
+      do {
+        uPath.setCharAt(posBackslash, '/');
+        posBackslash = StringFunctions.indexOf(inp, '\\', posBackslash +1);
+      } while(posBackslash >=0);
+    }
+    int x = 6;
+    
+    int posNext = 0;
+    int pos;
+    while( (pos = StringFunctions.indexOf(test, "//", posNext)) >=0){
+      if(uPath ==null){ test = uPath = new StringBuilder(inp); }
+      uPath.delete(pos, pos+1);
+      posNext = pos;  //search from pos, it may be found "somewhat///follow"
+    }
+    posNext =0;
+    while( (pos = StringFunctions.indexOf(test, "/./", posNext)) >=0){
+      if(uPath ==null){ test = uPath = new StringBuilder(inp); }
+      uPath.delete(pos, pos+2);
+      posNext = pos;  //search from pos, it may be found "somewhat/././follow"
+    }
+    posNext =1;
+    while( (pos = StringFunctions.indexOf(test, "/../", posNext)) >=0){
+      if(uPath ==null){ test = uPath = new StringBuilder(inp); }
+      int posStart = uPath.lastIndexOf("/", pos-1);
+      //remove "folder/../"
+      uPath.delete(posStart+1, pos+4);  //delete from 0 in case of "folder/../somemore"
+      posNext = pos+1;  //search from pos, it may be found "folder/../folder/../follow"
+    }
+    int posEnd = test.length();
+    while( StringFunctions.endsWith(test, "/..")){
+      if(uPath ==null){ test = uPath = new StringBuilder(inp); }
+      int posStart = uPath.lastIndexOf("/", posEnd-4);
+      if(posStart < 0){
+        //it contains "folder/..", replace it by "."
+        uPath.setLength(1); uPath.setCharAt(0, '.');
+      } else {
+        //remove "/folder/.." 
+        if(posStart == 0 || posStart == 2 && uPath.charAt(1)==':'){
+          posStart +=1;   //but don't remove a slash on start of absolute path.
+        }
+        uPath.delete(posStart, posEnd); 
+        posEnd = posStart;  //it has removed on end
+      }  
+    }
+    while( StringFunctions.endsWith(test, "/.")){
+      if(uPath ==null){ test = uPath = new StringBuilder(inp); }
+      int posStart = posEnd -2;
+      if(posStart == 0 || posStart == 2 && uPath.charAt(1)==':'){
+        posStart +=1;   //but don't remove a slash on start of absolute path.
+      }
+      uPath.delete(posStart, posEnd); 
+      posEnd = posStart;  //it has removed on end
+    }
+    while( StringFunctions.startsWith(test, "./")){
+      if(uPath ==null){ test = uPath = new StringBuilder(inp); }
+      uPath.delete(0, 2); 
+    }
+    return test;
+  
+    /*
     int posSlash2 = StringFunctions.indexOf(inp, "//", 0);
     int posDot1 = StringFunctions.indexOf(inp, "/./", 0); 
-    int posDot2 = StringFunctions.indexOf(inp, "/../", 0);  
-    if(posBackslash >=0 ||  posDot1>=0 || posSlash2 >=0 || posDot2 >=0 
-        || StringFunctions.startsWith(inp, "./") || StringFunctions.endsWith(inp, "/.") || StringFunctions.endsWith(inp, "/..")){  
+    int posDot2 = StringFunctions.indexOf(inp, "/../", 1);
+    int posDot2e = StringFunctions.endsWith(inp, "/..") ? posEnd-3 : -1; 
+    //check whether any operation is necessary:
+    if(posDot1>=0 || posSlash2 >=0 || posDot2 >0 
+        || StringFunctions.startsWith(inp, "./") || StringFunctions.endsWith(inp, "/.") || posDot2e >0){  
       //need of handling
-      final StringBuilder uPath = new StringBuilder(inp);
+      if(uPath ==null){ uPath = new StringBuilder(inp); }
       do{
-        while(posBackslash >=0){
-          uPath.setCharAt(posBackslash, '/');
-          posBackslash = StringFunctions.indexOf(inp, '\\', posBackslash +1);
-        }
-        int posEnd = uPath.length();
-        int posNext = posEnd-1;
-        if(posDot1 > 0){                                //remove "/." 
+        int posNext = posEnd-1;        //The position for continue.
+        //the first ocurrences are handled in each while step
+        if(posDot1 >= 0){                                //remove "/." 
           uPath.delete(posDot1, posDot1+2); posNext = posDot1; 
           if(posSlash2 > posDot1){ posSlash2 -=2; }  //shift to left because remove
           if(posDot2 > posDot1){ posDot2 -=2; }
+          if(posDot2e > posDot1){ posDot2e -=2; }
           posEnd -=2;
         }
-        if(posSlash2 > 0){                                //remove "/" 
+        if(posSlash2 >= 0){                                //remove "/" 
           uPath.delete(posSlash2, posSlash2+1); 
           if(posNext > posSlash2){ posNext = posSlash2; } 
           if(posDot2 > posSlash2){ posDot2 -=1; }  //shift to left because remove
+          if(posDot2e > posSlash2){ posDot2e -=1; }  //shift to left because remove
           posEnd -=1;
         }  
         if(posDot2 > 0){
           int posStart = uPath.lastIndexOf("/", posDot2-1);
-          if(posStart >=0){                            //remove "/path/.. 
-            uPath.delete(posStart, posDot2+3); 
+          //remove "folder/../"
+          uPath.delete(posStart+1, posDot2+4);  //delete from 0 in case of "folder/../somemore"
+          posNext = 0;
+          posEnd -= posDot2+4 - posStart+1 +1;
+          if(posDot2e >= 0){ posDot2e = posNext -3; }  //shift to left because remove
+        }
+        if(posDot2e > 0){
+          int posStart = uPath.lastIndexOf("/", posDot2-1);
+          if(posStart < 0){
+            //it contains "folder/..", replace it by "."
+            uPath.setLength(1); uPath.setCharAt(0, '.');
+          } else {
+            //remove "/folder/.." 
+            if(posStart == 0 || posStart == 3 && uPath.charAt(1)==':'){
+              posStart +=1;   //but don't remove a slash on start of absolute path.
+            }
+            uPath.delete(posStart, posDot2+4); 
             if(posNext > posStart){ posNext = posStart; }
-            posEnd -=posDot2 - posStart +3;
+            posEnd = posStart;  //it has removed on end
           }  
-          else if(posDot2 > 0){                         //remove "path/../"
-            uPath.delete(0, posDot2+4);
-            posNext = 0;
-            posEnd -= posDot2+4;
-          } 
-          else { //don't remove "../" at begin.
-            posNext = 3;
-          }
         }
         posSlash2 = uPath.indexOf("//", posNext);
         posDot1 = uPath.indexOf("/./", posNext); 
-        posDot2 = uPath.indexOf("/../", posNext);
-        if(posDot1 < 0 && posEnd >=2 && uPath.charAt(posEnd-2)=='/' && uPath.charAt(posEnd-1)=='.' ){ posDot1 = posEnd-2; }
-        if(posDot2 < 0 && posEnd >= 3 && uPath.charAt(posEnd-3)=='/' && uPath.charAt(posEnd-2)=='.'  && uPath.charAt(posEnd-1)=='.' ){ posDot2 = posEnd-3; }
+        posDot2 = uPath.indexOf("/../", posNext+1);  //should have any "folder/../" before
+        if(posDot1 < 0 && posEnd >=2 && uPath.charAt(posEnd-2)=='/' && uPath.charAt(posEnd-1)=='.' ){ 
+          posDot1 = posEnd-2;   //endswith "/."
+        }
+        posDot2e = StringFunctions.endsWith(uPath, "/..") ? posEnd-3:-1;
       } while( posDot1>=0 || posSlash2 >=0 || posDot2 >=0);
       if(uPath.charAt(0)=='.' && uPath.charAt(1)=='/' ){
         uPath.delete(0, 2); //remove "./" on  start, all others "/./ are removed already
       }
       return uPath;
-    } 
-    return inp;
+    }
+    */ 
   }
   
   
@@ -1317,8 +1414,14 @@ public class FileSystem
    */
   public boolean isRoot(File file){ 
     CharSequence sName = absolutePath(file.getPath(), null);
+    return isRoot(sName);
+  }
+  
+  
+  public boolean isRoot(CharSequence sName){
     return sName.equals("/") || sName.length() ==3 && sName.subSequence(1,3).equals(":/");
   }
+  
   
   /**The main routine contains only tests.
    * @param args
