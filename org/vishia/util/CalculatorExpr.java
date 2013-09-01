@@ -293,6 +293,7 @@ public class CalculatorExpr
     @Override public char typeChar() { return '!'; }
     
     @Override public ExpressionType checkArgument(Value accu, Value val2) {
+      accu.type = val2.type;
       switch(val2.type){
         case 'I': return intExpr; 
         case 'J': return longExpr; 
@@ -320,12 +321,13 @@ public class CalculatorExpr
     @Override public ExpressionType checkArgument(Value accu, Value val2) {
       switch(val2.type){
         case 'I': return this; 
-        case 'J': accu.longVal = accu.intVal; return longExpr; 
-        case 'F': accu.floatVal = accu.intVal; return floatExpr; 
-        case 'D': accu.doubleVal = accu.intVal; return doubleExpr; 
-        case 'Z': return booleanExpr; 
+        case 'J': accu.longVal = accu.intVal; accu.type = 'J'; return longExpr; 
+        case 'F': accu.floatVal = accu.intVal; accu.type = 'F'; return floatExpr; 
+        case 'D': accu.doubleVal = accu.intVal; accu.type = 'D'; return doubleExpr; 
+        case 'Z': accu.boolVal = accu.intVal !=0; accu.type = 'Z'; return booleanExpr; 
         case 't': {
           try{ val2.longVal = Long.parseLong(val2.stringVal.toString());
+            val2.type = 'J'; 
             return this; 
           } catch(Exception exc){ throw new IllegalArgumentException("CalculatorExpr - String converion error"); }
         }
@@ -344,10 +346,10 @@ public class CalculatorExpr
     
     @Override public ExpressionType checkArgument(Value accu, Value val2) {
       switch(val2.type){
-        case 'I': val2.longVal = val2.intVal; return this; 
+        case 'I': val2.longVal = val2.intVal; val2.type = 'J'; return this; 
         case 'J': return this; 
-        case 'F': accu.floatVal = accu.longVal; return floatExpr; 
-        case 'D': accu.doubleVal = accu.longVal; return doubleExpr; 
+        case 'F': accu.floatVal = accu.longVal; accu.type = 'F'; return floatExpr; 
+        case 'D': accu.doubleVal = accu.longVal; accu.type = 'D'; return doubleExpr; 
         default: throw new IllegalArgumentException("src type");
       } //switch  
     }
@@ -363,10 +365,10 @@ public class CalculatorExpr
     
     @Override public ExpressionType checkArgument(Value accu, Value val2) {
       switch(val2.type){
-        case 'I': val2.floatVal = val2.intVal; return this; 
-        case 'J': val2.doubleVal = val2.longVal; return doubleExpr; 
+        case 'I': val2.floatVal = val2.intVal; val2.type = 'F'; return this; 
+        case 'J': val2.doubleVal = val2.longVal; val2.type = 'D'; return doubleExpr; 
         case 'F': return this; 
-        case 'D': accu.doubleVal = accu.floatVal; return doubleExpr; 
+        case 'D': accu.doubleVal = accu.floatVal; accu.type = 'D'; return doubleExpr; 
         default: throw new IllegalArgumentException("src type");
       } //switch  
     }
@@ -382,9 +384,9 @@ public class CalculatorExpr
     
     @Override public ExpressionType checkArgument(Value accu, Value val2) {
       switch(val2.type){
-        case 'I': val2.doubleVal = val2.intVal; return this; 
-        case 'J': val2.doubleVal = val2.longVal; return this; 
-        case 'F': val2.doubleVal = val2.floatVal; return this; 
+        case 'I': val2.doubleVal = val2.intVal; val2.type = 'D'; return this; 
+        case 'J': val2.doubleVal = val2.longVal; val2.type = 'D'; return this; 
+        case 'F': val2.doubleVal = val2.floatVal; val2.type = 'D'; return this; 
         case 'D': return this; 
         default: throw new IllegalArgumentException("src type");
       } //switch  
@@ -402,12 +404,12 @@ public class CalculatorExpr
     
     @Override public ExpressionType checkArgument(Value accu, Value val2) {
       switch(val2.type){
-        case 'I': val2.boolVal = val2.intVal !=0; break;
-        case 'J': val2.boolVal = val2.longVal != 0; break;
-        case 'F': val2.boolVal = val2.floatVal !=0; break;
-        case 'D': val2.boolVal = val2.floatVal !=0; break;
-        case 't': val2.boolVal = val2.stringVal !=null && val2.stringVal.length() >0; break;
-        case '0': val2.boolVal = val2.oVal !=null; break;
+        case 'I': val2.boolVal = val2.intVal !=0; val2.type = 'Z'; break;
+        case 'J': val2.boolVal = val2.longVal != 0; val2.type = 'Z'; break;
+        case 'F': val2.boolVal = val2.floatVal !=0; val2.type = 'Z'; break;
+        case 'D': val2.boolVal = val2.floatVal !=0; val2.type = 'Z'; break;
+        case 't': val2.boolVal = val2.stringVal !=null && val2.stringVal.length() >0; val2.type = 'Z'; break;
+        case '0': val2.boolVal = val2.oVal !=null; val2.type = 'Z'; break;
         case 'Z': break; 
         default: throw new IllegalArgumentException("src type");
       } //switch  
@@ -835,7 +837,10 @@ public class CalculatorExpr
         unaryOperators.add(unaryOperator);
         unaryOperators.add(unary);
         unaryOperator = null;  //it is added
+      } else {
+        unaryOperator = unary;
       }
+      
     }
     
     public boolean addUnaryOperator(String op){
@@ -893,39 +898,6 @@ public class CalculatorExpr
    */
   public static class SetExpr //extends CalculatorExpr
   {
-    /**Version, history and license.
-     * <ul>
-     * <li>2013-08-16 Hartmut created
-     * </ul>
-     * 
-     * <b>Copyright/Copyleft</b>:
-     * For this source the LGPL Lesser General Public License, published by the Free Software Foundation is valid.
-     * It means:
-     * <ol>
-     * <li> You can use this source without any restriction for any desired purpose.
-     * <li> You can redistribute copies of this source to everybody.
-     * <li> Every user of this source, also the user of redistribute copies
-     *    with or without payment, must accept this license for further using.
-     * <li> But the LPGL is not appropriate for a whole software product,
-     *    if this source is only a part of them. It means, the user
-     *    must publish this part of source,
-     *    but don't need to publish the whole source of the own product.
-     * <li> You can study and modify (improve) this source
-     *    for own using or for redistribution, but you have to license the
-     *    modified sources likewise under this LGPL Lesser General Public License.
-     *    You mustn't delete this Copyright/Copyleft inscription in this source file.
-     * </ol>
-     * If you are intent to use this sources without publishing its usage, you can get
-     * a second license subscribing a special contract with the author. 
-     * 
-     * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
-     * 
-     * 
-     */
-    @SuppressWarnings("hiding")
-    static final public int version = 20131003;
-
-
     private CalculatorExpr.Operation actOperation; // = new Operation("!");
     
     private List<CalculatorExpr.Operator> unaryOperators = new ArrayList<CalculatorExpr.Operator>(); // = new Operation("!");
@@ -944,6 +916,17 @@ public class CalculatorExpr
       this.expr = parent.expr;
       this.parent = parent;
     }
+    
+    
+    /**Creates a new instance of this class for sub expressions (parenthesis, arguments).
+     * This method should be overridden and should create the derived instance if a derived
+     * expression algorithm is used.
+     * 
+     * @param parent may be null.
+     * @return a new instance which refers the parent.
+     */
+    public SetExpr new_SetExpr(SetExpr parent){ return new SetExpr(parent); }
+    
     
     
     public SetExpr new_boolOrOperation(){
@@ -966,7 +949,7 @@ public class CalculatorExpr
     
     
     
-    public SetExpr new_boolStartOperation(){
+    public SetExpr XXXnew_boolStartOperation(){
       //if(actOperation !=null){ addToOperations(); }
       assert(actOperation == null);
       actOperation = new CalculatorExpr.Operation("!", -1);
@@ -977,7 +960,7 @@ public class CalculatorExpr
     /**Designates the end of a multiplication operation. Takes the operation into the expression list.
      * @param val this, unused
      */
-    public void add_boolStartOperation(SetExpr val){
+    public void XXXadd_boolStartOperation(SetExpr val){
       addToOperations(); 
     }
     
@@ -1006,7 +989,7 @@ public class CalculatorExpr
     }
     
     public SetExpr new_parenthesisCondition(){ 
-      SetExpr subExpr = new SetExpr(this);
+      SetExpr subExpr = new_SetExpr(this);
       return subExpr;
     }
     
@@ -1021,12 +1004,12 @@ public class CalculatorExpr
 
     
     
-    public SetExpr new_boolExpr(){ 
+    public SetExpr XXXnew_boolExpr(){ 
       return this;
     }
 
     
-    public void add_boolExpr(SetExpr  val){ 
+    public void XXXadd_boolExpr(SetExpr  val){ 
       if(actOperation !=null){
         if(actOperation.hasOperator()){
           actOperation.addUnaryOperator("b");
@@ -1189,6 +1172,11 @@ public class CalculatorExpr
     }
     
 
+    /**Creates a new {@link DataAccess.DatapathElementSet} instance for a {@link DataAccess.DatapathElement}
+     * This method should be overridden if the arguments of a method should support derived features
+     * of a derived instance of this class.
+     * @return
+     */
     public DataAccess.DatapathElementSet new_datapathElement(){ return new DataAccess.DatapathElementSet(); }
     
     public void add_datapathElement(DataAccess.DatapathElementSet val){ 
@@ -1674,7 +1662,10 @@ public class CalculatorExpr
           else if(oval2 instanceof Double)      { val2.doubleVal = ((Double)oval2).doubleValue(); val2.type = 'D'; }
           else if(oval2 instanceof Float)       { val2.doubleVal = ((Float)oval2).floatValue(); val2.type = 'F'; }
           else if(oval2 instanceof StringSeq){ val2.stringVal = (StringSeq)oval2; val2.type = 't'; }
-          else                                  { val2.oVal = oval2; val2.type = 'L'; }
+          else                                  { 
+            Assert.stop();
+            val2.oVal = oval2; val2.type = 'L'; 
+          }
           val2.oVal = oval2;;
         }
         if(oper.operator == setOperation && accu.type != '?'){
