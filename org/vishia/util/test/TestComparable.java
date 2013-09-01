@@ -1,4 +1,4 @@
-package org.vishia.test;
+package org.vishia.util.test;
 
 import java.util.Collection;
 import java.util.Iterator;

@@ -1,4 +1,4 @@
-package org.vishia.test;
+package org.vishia.util.test;
 
 import java.io.IOException;
 import java.io.PipedWriter;

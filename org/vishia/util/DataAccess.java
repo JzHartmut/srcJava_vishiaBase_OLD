@@ -1144,7 +1144,7 @@ public class DataAccess {
     public void add_argument(ZbatchZbnfExpression val){ 
       if(fnArgsExpr == null){ fnArgsExpr = new ArrayList<CalculatorExpr>(); }
       val.closeExprPreparation();
-      fnArgsExpr.add(val);
+      fnArgsExpr.add(val.expr);
     } 
     
 

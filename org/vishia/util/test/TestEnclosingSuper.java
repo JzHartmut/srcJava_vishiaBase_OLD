@@ -1,4 +1,4 @@
-package org.vishia.test;
+package org.vishia.util.test;
 
 public class TestEnclosingSuper
 {

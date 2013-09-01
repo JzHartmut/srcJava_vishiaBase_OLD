@@ -1,4 +1,4 @@
-package org.vishia.test;
+package org.vishia.util.test;
 
 import org.vishia.util.Assert;
 import org.vishia.util.StringFunctions;
@@ -30,4 +30,8 @@ public class TestStringFunctions
     Assert.check(pos == 3);
     
   }  
+  
+  
+
+  
 }

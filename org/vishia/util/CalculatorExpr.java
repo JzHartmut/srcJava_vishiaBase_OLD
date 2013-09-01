@@ -7,8 +7,14 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.TreeMap;
 
-/**This class provides a calculator for expressions. The expressions are given in string format 
- * and then converted to a stack oriented running model. 
+/**This class provides a calculator for expressions. The expression are given 
+ * in the reverse polish notation. It can be converted either from a simple string format
+ * or from a {@link org.vishia.zbnf.ZbnfJavaOutput} output from a Zbnf parsing process 
+ * and then converted to the internal format for a stack oriented running model. 
+ * <br><br>
+ * This class contains the expression itself and the capability to calculate in a single thread.
+ * The calculation can be execute with one or some given values (usual float, integer type)
+ * or it can access any Java internal variables using the capability of {@link DataAccess}.
  * <br><br>
  * <ul>
  * <li>Use {@link #setExpr(String)} to convert a String given expression to the internal format.
@@ -18,10 +24,11 @@ import java.util.TreeMap;
  * If the expression works with simple variable or constant values, it is fast. For example it is able to use
  * in a higher frequently graphic application to scale values.
  * <br><br>
- * A value or subroutine can use any java elements which are accessed via reflection mechanism.
+ * TODO see DataAccess: A value or subroutine can use any java elements which are accessed via reflection mechanism.
  * Write "X * $classpath.Myclass.method(X)" to build an expression which's result depends on the called
  * static method.
- *  
+ * <br><br>
+ * To test the capability and the correctness use {@link org.vishia.util.test.TestCalculatorExpr}. 
  * @author Hartmut Schorrig
  *
  */
@@ -30,7 +37,8 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
-   * <li>2014-08-18 Hartmut new: {@link Operation#unaryOperator}
+   * <li>2013-08-18 Hartmut new: CalculatorExpr: now supports unary ( expression in parenthesis ). 
+   * <li>2013-08-18 Hartmut new: {@link Operation#unaryOperator}
    * <li>2013-08-19 Hartmut chg: The {@link DataAccess.DatapathElement} is a attribute of a {@link Operation}, not of a {@link Value}.
    *   A value is only a container for constant values or results.
    * <li>2012-12-22 Hartmut new: Now a value can contain a list of {@link DataAccess.DatapathElement} to access inside java data 
@@ -253,17 +261,20 @@ public class CalculatorExpr
   }
   
   
-  private abstract static class Operator{
+  public abstract static class Operator{
     private final String name; 
-    Operator(String name){ this.name = name; }
-    abstract ExpressionType operate(ExpressionType Type, Value accu, Value arg);
+    protected Operator(String name){ this.name = name; }
+    
+    protected abstract ExpressionType operate(ExpressionType Type, Value accu, Value arg);
+    
+    protected abstract boolean isUnary();
     @Override public String toString(){ return name; }
   }
   
                                                   
-  private abstract static class UnaryOperator{
+  private abstract static class XXXUnaryOperator{
     private final String name; 
-    UnaryOperator(String name){ this.name = name; }
+    XXXUnaryOperator(String name){ this.name = name; }
     abstract ExpressionType operate(ExpressionType Type, Value val);
     @Override public String toString(){ return name; }
   }
@@ -423,25 +434,27 @@ public class CalculatorExpr
   
   
   
-  private static final UnaryOperator boolOperation = new UnaryOperator("bool "){
-    @Override public ExpressionType operate(ExpressionType type, Value accu) {
-      accu.boolVal = accu.booleanValue();
-      accu.type = 'Z';
+  private static final Operator boolOperation = new Operator("bool "){
+    @Override public ExpressionType operate(ExpressionType type, Value val, Value val2) {
+      val.boolVal = val.booleanValue();
+      val.type = 'Z';
       return booleanExpr;
     }
+    @Override public boolean isUnary(){ return true; }
   };
   
    
-  private static final UnaryOperator boolNotOperation = new UnaryOperator("b!"){
-    @Override public ExpressionType operate(ExpressionType type, Value accu) {
-      accu.boolVal = !accu.booleanValue();
+  private static final Operator boolNotOperation = new Operator("b!"){
+    @Override public ExpressionType operate(ExpressionType type, Value val, Value value2) {
+      val.boolVal = !val.booleanValue();
       return booleanExpr;
     }
+    @Override public boolean isUnary(){ return true; }
   };
   
    
-  private static final UnaryOperator bitNotOperation = new UnaryOperator("~u"){
-    @Override public ExpressionType operate(ExpressionType type, Value accu) {
+  private static final Operator bitNotOperation = new Operator("~u"){
+    @Override public ExpressionType operate(ExpressionType type, Value accu, Value value2) {
       switch(type.typeChar()){
         case 'B': case 'S': 
         case 'I': accu.intVal = ~accu.intVal; break;
@@ -454,11 +467,12 @@ public class CalculatorExpr
       }
       return type;
     }
+    @Override public boolean isUnary(){ return true; }
   };
   
    
-  private static final UnaryOperator negOperation = new UnaryOperator("-u"){
-    @Override public ExpressionType operate(ExpressionType type, Value accu) {
+  private static final Operator negOperation = new Operator("-u"){
+    @Override public ExpressionType operate(ExpressionType type, Value accu, Value val2) {
       switch(type.typeChar()){
         case 'B': case 'S': 
         case 'I': accu.intVal = -accu.intVal; break;
@@ -471,6 +485,7 @@ public class CalculatorExpr
       }
       return type;
     }
+    @Override public boolean isUnary(){ return true; }
   };
   
    
@@ -490,6 +505,7 @@ public class CalculatorExpr
       }
       return type;
     }
+    @Override public boolean isUnary(){ return false; }
   };
   
    
@@ -504,6 +520,7 @@ public class CalculatorExpr
       }
       return type;
     }
+    @Override public boolean isUnary(){ return false; }
   };
   
    
@@ -518,6 +535,7 @@ public class CalculatorExpr
       }
       return type;
     }
+    @Override public boolean isUnary(){ return false; }
   };
   
    
@@ -532,6 +550,7 @@ public class CalculatorExpr
       }
       return type;
     }
+    @Override public boolean isUnary(){ return false; }
   };
   
    
@@ -546,6 +565,7 @@ public class CalculatorExpr
       }
       return type;
     }
+    @Override public boolean isUnary(){ return false; }
   };
   
    
@@ -562,6 +582,7 @@ public class CalculatorExpr
       }
       return booleanExpr;
     }
+    @Override public boolean isUnary(){ return false; }
   };
   
    
@@ -578,6 +599,7 @@ public class CalculatorExpr
       }
       return booleanExpr;
     }
+    @Override public boolean isUnary(){ return false; }
   };
   
    
@@ -587,6 +609,7 @@ public class CalculatorExpr
       accu.type = 'Z';
       return booleanExpr;
     }
+    @Override public boolean isUnary(){ return false; }
   };
   
    
@@ -596,6 +619,7 @@ public class CalculatorExpr
       accu.type = 'Z';
       return booleanExpr;
     }
+    @Override public boolean isUnary(){ return false; }
   };
   
    
@@ -613,6 +637,7 @@ public class CalculatorExpr
       }
       return booleanExpr;
     }
+    @Override public boolean isUnary(){ return false; }
   };
   
    
@@ -630,6 +655,7 @@ public class CalculatorExpr
       }
       return booleanExpr;
     }
+    @Override public boolean isUnary(){ return false; }
   };
   
    
@@ -647,6 +673,7 @@ public class CalculatorExpr
       }
       return booleanExpr;
     }
+    @Override public boolean isUnary(){ return false; }
   };
   
    
@@ -664,6 +691,7 @@ public class CalculatorExpr
       }
       return booleanExpr;
     }
+    @Override public boolean isUnary(){ return false; }
   };
   
    
@@ -683,7 +711,19 @@ public class CalculatorExpr
   public static class Operation
   {
     /**Designation of {@link Operation#ixVariable} that the operand should be located in the top of stack. */
-    private static final int kStackOperand = -2; 
+    protected static final int kArgumentUndefined = -4; 
+     
+    /**Designation of {@link Operation#ixVariable} that the operand should be located in the top of stack. */
+    public static final int kConstant = -1; 
+     
+    /**Designation of {@link Operation#ixVariable} that the operand should be located in the top of stack. */
+    public static final int kDatapath = -5; 
+     
+    /**Designation of {@link Operation#ixVariable} that the operand should be located in the top of stack. */
+    public static final int kStackOperand = -2; 
+     
+    /**Designation of {@link Operation#ixVariable} that the operand is the accumulator for unary operation. */
+    public static final int kUnaryOperation = -3; 
      
     /**The operation Symbol if it is a primitive. 
      * <ul>
@@ -695,13 +735,17 @@ public class CalculatorExpr
     private char operation;
     
     /**The operator for this operation. */
-    Operator operator;
+    protected Operator operator;
     
-    UnaryOperator unaryOperator;
+    /**Either it is null or the operation has a single unary operator for the argument. */
+    Operator unaryOperator;
+    
+    /**Either it is null or the operation has some unary operators (more as one). */
+    List<Operator> unaryOperators;
     
     /**Number of input variable from array or special designation.
      * See {@link #kStackOperand} */
-    int ixVariable;
+    protected int ixVariable;
     
     /**A constant value. @deprecated, use value*/
     @Deprecated
@@ -718,28 +762,36 @@ public class CalculatorExpr
     protected DataAccess datapath;
     
     public Operation(){
-      this.ixVariable = -1; 
+      this.ixVariable = kArgumentUndefined;
     }
     
-    public Operation(String operation){
-      this.operation = operation.charAt(0);
-      this.operator = operators.get(operation);
-      this.ixVariable = -1; 
-      this.oValue = null;
-      this.value_d = 0;
+    public Operation(Operator op, int ixVariable){
+      this.operator = op;
+      this.ixVariable = ixVariable; 
+      if(op.isUnary()){
+        assert(ixVariable == kUnaryOperation);
+      }
     }
     
-    Operation(char operation, double value){ this.value_d = value; this.operation = operation; this.ixVariable = -1; this.oValue = null; }
-    Operation(char operation, int ixVariable){ this.value_d = 0; this.operation = operation; this.ixVariable = ixVariable; this.oValue = null; }
+    public Operation(String op, int ixVariable){
+      setOperator(op);
+      this.ixVariable = ixVariable;
+    }
+    
+    Operation(String operation, double value){ 
+      this.value_d = value; this.operator = getOperator(operation); this.ixVariable = kConstant; this.oValue = null; 
+    }
+    //Operation(char operation, int ixVariable){ this.value_d = 0; this.operation = operation; this.ixVariable = ixVariable; this.oValue = null; }
     //Operation(char operation, Object oValue){ this.value = 0; this.operation = operation; this.ixVariable = -1; this.oValue = oValue; }
-    Operation(Operator operator, int ixVariable){ this.value_d = 0; this.operator = operator; this.operation = '.'; this.ixVariable = ixVariable; this.oValue = null; }
-    Operation(Operator operator, Object oValue){ this.value_d = 0; this.operator = operator; this.operation = '.'; this.ixVariable = -1; this.oValue = oValue; }
+    Operation(Operator operator, Object oValue){ 
+      this.value_d = 0; this.operator = operator; this.operation = '.'; this.ixVariable = kConstant; this.oValue = oValue; 
+    }
   
     
     
     public boolean hasOperator(){ return operator !=null; }
     
-    public boolean hasUnaryOperator(){ return unaryOperator !=null; }
+    public boolean hasUnaryOperator(){ return unaryOperator !=null || unaryOperators !=null; }
     
     public void add_datapathElement(DataAccess.DatapathElement item){ 
       if(datapath == null){ datapath = new DataAccess();}
@@ -764,21 +816,61 @@ public class CalculatorExpr
     
     
     
-    public boolean setUnaryOperator(String op){
-      this.unaryOperator = unaryOperators.get(op);
-      return this.operator !=null; 
+    
+    
+    /**Sets one of some unary operators.
+     * @param unary
+     */
+    public void addUnaryOperator(Operator unary){
+      if(unaryOperators !=null){
+        unaryOperators.add(unary);
+      }
+      else if(unaryOperator !=null){
+        //it is the second one:
+        unaryOperators = new ArrayList<Operator>();
+        unaryOperators.add(unaryOperator);
+        unaryOperators.add(unary);
+        unaryOperator = null;  //it is added
+      }
     }
+    
+    public boolean addUnaryOperator(String op){
+      Operator unary = operators.get(op);
+      if(unary !=null) {
+        addUnaryOperator(unary);
+        return true;
+      } else {
+        return false;
+      }
+    }
+    
+    
+    
+    public void setOperator(Operator op){
+      this.operator = op;
+      if(op.isUnary()){
+        ixVariable = kUnaryOperation;
+      }
+    }
+    
+    
     
     public boolean setOperator(String op){
       this.operation = op.charAt(0);
-      this.operator = operators.get(op);
+      Operator op1 = operators.get(op);
+      if(op1 !=null){ 
+        setOperator(op1);
+      }
       return this.operator !=null; 
     }
+    
+    
     
     @Override public String toString(){ 
       StringBuilder u = new StringBuilder();
       u.append(operator);
       if(unaryOperator !=null){ u.append(" ").append(unaryOperator); }
+      if(unaryOperators !=null){ u.append(" ").append(unaryOperators); }
       if(ixVariable >=0) u.append(" arg[").append(ixVariable).append("]");
       else if(ixVariable == kStackOperand) u.append(" stack");
       else if(datapath !=null) u.append(datapath.toString());
@@ -822,6 +914,13 @@ public class CalculatorExpr
    * <li>"ge" "le" "gt" "lt" "eq" "ne" other form of comparators
    * <li>"||" "&&" known logical opeators
    * </ul>
+   * Unary operators:
+   * <ul> 
+   * <li>"b" Convert to boolean.
+   * <li>"b!" boolean not operator
+   * <li>"u~" bit negation operator
+   * <li>"u-" numeric negation
+   * </ul>
    */
   protected static Map<String, Operator> operators;
   
@@ -829,13 +928,9 @@ public class CalculatorExpr
   /**Map of all available unary operators associated with its String expression.
    * It will be initialized with:
    * <ul>
-   * <li>"b" Convert to boolean.
-   * <li>"b!" boolean not operator
-   * <li>"~" bit negation operator
-   * <li>"-" numeric negation
    * </ul>
    */
-  protected static Map<String, UnaryOperator>  unaryOperators;
+  //protected static Map<String, UnaryOperator>  unaryOperators;
   
   
   public CalculatorExpr(){
@@ -861,11 +956,10 @@ public class CalculatorExpr
       operators.put("ne", cmpNeOperation);
       operators.put("||", boolOrOperation);
       operators.put("&&", boolAndOperation);
-      unaryOperators = new TreeMap<String, UnaryOperator>();
-      unaryOperators.put("b",  boolOperation);   //not for boolean
-      unaryOperators.put("b!",  boolNotOperation);   //not for boolean
-      unaryOperators.put("~",  bitNotOperation);   //not for boolean
-      unaryOperators.put("-",  negOperation);   //not for boolean
+      operators.put("ub",  boolOperation);   //not for boolean
+      operators.put("u!",  boolNotOperation);   //not for boolean
+      operators.put("u~",  bitNotOperation);   //not for boolean
+      operators.put("u-",  negOperation);   //not for boolean
 
     }
   }
@@ -921,7 +1015,7 @@ public class CalculatorExpr
   {
     this.variables = sIdentifier;
     StringPart sp = new StringPart(sExpr);
-    return multExpr(sp, '!', 1);  //TODO addExpr
+    return multExpr(sp, "!", 1);  //TODO addExpr
   }
   
   /**Converts the given expression in a stack operable form. One variable with name "X" will be created.
@@ -933,7 +1027,7 @@ public class CalculatorExpr
   {
     this.variables = new String[]{"X"};
     StringPart sp = new StringPart(sExpr);
-    return addExpr(sp, '!',1);
+    return addExpr(sp, "!", 1);
   }
   
 
@@ -944,7 +1038,7 @@ public class CalculatorExpr
    * @param operation The first operation.
    * @return this
    */
-  private String addExpr(StringPart sp, char operation, int recursion)
+  private String addExpr(StringPart sp, String operation, int recursion)
   { String sError = null;
     if(recursion > 1000) throw new RuntimeException("recursion");
     sError = multExpr(sp, operation, recursion +1);
@@ -952,7 +1046,7 @@ public class CalculatorExpr
       char cc = sp.getCurrentChar();
       if("+-".indexOf(cc)>=0){
         sp.seek(1).scanOk();
-        return addExpr(sp, cc, recursion+1);
+        return addExpr(sp, ""+cc, recursion+1);
       }
     }
     return null;
@@ -966,7 +1060,7 @@ public class CalculatorExpr
    * @param operation
    * @return
    */
-  private String multExpr(StringPart sp, char operation, int recursion)
+  private String multExpr(StringPart sp, String operation, int recursion)
   { if(recursion > 1000) throw new RuntimeException("recursion");
     try{
       if(sp.scanIdentifier().scanOk()){
@@ -991,7 +1085,7 @@ public class CalculatorExpr
       char cc = sp.getCurrentChar();
       if("*/".indexOf(cc)>=0){
         sp.seek(1).scanOk();
-        return multExpr(sp, cc, recursion+1);
+        return multExpr(sp, ""+cc, recursion+1);
       }
     }
     return null;  //ok
@@ -1007,6 +1101,13 @@ public class CalculatorExpr
   public void addOperation(Operation operation){
     listOperations.add(operation);
   }
+  
+  
+  /**Gets a operator to prepare operations.
+   * @param op Any of "+", "-" etc.
+   * @return null if op is faulty.
+   */
+  public static Operator getOperator(String op){ return operators.get(op); }
   
   
   
@@ -1169,7 +1270,7 @@ public class CalculatorExpr
     accu = new Value(); //empty
     Value val3 = new Value();  //Instance to hold values for the right side operand.
     Value val2; //Reference to the right side operand
-    ExpressionType check = startExpr;
+    ExpressionType type = startExpr;
     for(Operation oper: listOperations){
       if(accu.type == 'Z' && 
           ( !accu.boolVal && oper.operator == boolAndOperation  //false remain false on and operation
@@ -1215,13 +1316,20 @@ public class CalculatorExpr
           accu = new Value();
         }
         //Convert the value adequate the given type of expression:
-        check = check.checkArgument(accu, val2);    //may change the type.
+        if(!oper.operator.isUnary()){  //if unary, don't change the type
+          type = type.checkArgument(accu, val2);    //may change the type.
+        }
         //
         //executes the operation:
         if(oper.unaryOperator !=null){
-          oper.unaryOperator.operate(check, val2);
+          oper.unaryOperator.operate(type, val2, null);   //change the right value
         }
-        check = oper.operator.operate(check, accu, val2);  //operate, may change the type if the operator forces it.
+        else if(oper.unaryOperators !=null){
+          for(Operator unary: oper.unaryOperators){
+            unary.operate(type, val2, null);   //change the right value
+          }
+        }
+        type = oper.operator.operate(type, accu, val2);  //operate, may change the type if the operator forces it.
       }
     }
     return accu;
