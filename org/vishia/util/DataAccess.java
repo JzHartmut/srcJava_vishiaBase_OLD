@@ -13,7 +13,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.TreeMap;
 
-import org.vishia.zbatch.ZbatchZbnfExpression;
 
 
 
@@ -1128,8 +1127,8 @@ public class DataAccess {
    */
   public static class DatapathElementSet extends DatapathElement{
   
-    public ZbatchZbnfExpression new_argument(){
-      ZbatchZbnfExpression actualArgument = new ZbatchZbnfExpression();
+    public CalculatorExpr.SetExpr new_argument(){
+      CalculatorExpr.SetExpr actualArgument = new CalculatorExpr.SetExpr();
       //ScriptElement actualArgument = new ScriptElement('e', null);
       //ZbnfDataPathElement actualArgument = new ZbnfDataPathElement();
       return actualArgument;
@@ -1141,7 +1140,7 @@ public class DataAccess {
      * See {@link #add_datapathElement(org.vishia.util.DataAccess.DatapathElement)}.
      * @param val The Scriptelement which describes how to get the value.
      */
-    public void add_argument(ZbatchZbnfExpression val){ 
+    public void add_argument(CalculatorExpr.SetExpr val){ 
       if(fnArgsExpr == null){ fnArgsExpr = new ArrayList<CalculatorExpr>(); }
       val.closeExprPreparation();
       fnArgsExpr.add(val.expr);

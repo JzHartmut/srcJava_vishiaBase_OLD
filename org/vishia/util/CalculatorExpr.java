@@ -3,9 +3,11 @@ package org.vishia.util;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Stack;
 import java.util.TreeMap;
+
 
 /**This class provides a calculator for expressions. The expression are given 
  * in the reverse polish notation. It can be converted either from a simple string format
@@ -37,7 +39,9 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
-   * <li>2013-08-18 Hartmut new: CalculatorExpr: now supports unary ( expression in parenthesis ). 
+   * <li>2013-09-02 Hartmut new: {@link CalculatorExpr.SetExpr} to set from a ZbnfParseResult using {@link org.vishia.zbnf.ZbnfJavaOutput}.
+   *   This class can be invoked without ZbnfParser too, it is independent of it. But it isn't practicable. 
+   * <li>2013-09-02 Hartmut new: CalculatorExpr: now supports unary ( expression in parenthesis ). 
    * <li>2013-08-18 Hartmut new: {@link Operation#unaryOperator}
    * <li>2013-08-19 Hartmut chg: The {@link DataAccess.DatapathElement} is a attribute of a {@link Operation}, not of a {@link Value}.
    *   A value is only a container for constant values or results.
@@ -96,9 +100,9 @@ public class CalculatorExpr
   public static class Datapath
   {
     /**The description of the path to any data if the script-element refers data. It is null if the script element
-     * does not refer data. If it is filled, the instances are of type {@link ZbnfDataPathElement}.
+     * does not refer data. If it is filled, the instances are of type {@link DataAccess.DatapathElementSet}.
      * If it is used in {@link DataAccess}, its base class {@link DataAccess.DatapathElement} are used. The difference
-     * are the handling of actual values for method calls. See {@link ZbnfDataPathElement#actualArguments}.
+     * are the handling of actual values for method calls. See {@link DataAccess.DatapathElementSet#actualArguments}.
      */
     protected List<DataAccess.DatapathElement> datapath;
     
@@ -880,6 +884,368 @@ public class CalculatorExpr
       return u.toString();
     }
   }
+  
+  
+  /**This class provides a Zbnf interface to the CalculatorExpr. It contains only methods
+   * to store Zbnf parse results for the expression.
+   * @author Hartmut Schorrig
+   *
+   */
+  public static class SetExpr //extends CalculatorExpr
+  {
+    /**Version, history and license.
+     * <ul>
+     * <li>2013-08-16 Hartmut created
+     * </ul>
+     * 
+     * <b>Copyright/Copyleft</b>:
+     * For this source the LGPL Lesser General Public License, published by the Free Software Foundation is valid.
+     * It means:
+     * <ol>
+     * <li> You can use this source without any restriction for any desired purpose.
+     * <li> You can redistribute copies of this source to everybody.
+     * <li> Every user of this source, also the user of redistribute copies
+     *    with or without payment, must accept this license for further using.
+     * <li> But the LPGL is not appropriate for a whole software product,
+     *    if this source is only a part of them. It means, the user
+     *    must publish this part of source,
+     *    but don't need to publish the whole source of the own product.
+     * <li> You can study and modify (improve) this source
+     *    for own using or for redistribution, but you have to license the
+     *    modified sources likewise under this LGPL Lesser General Public License.
+     *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+     * </ol>
+     * If you are intent to use this sources without publishing its usage, you can get
+     * a second license subscribing a special contract with the author. 
+     * 
+     * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+     * 
+     * 
+     */
+    @SuppressWarnings("hiding")
+    static final public int version = 20131003;
+
+
+    private CalculatorExpr.Operation actOperation; // = new Operation("!");
+    
+    private List<CalculatorExpr.Operator> unaryOperators = new ArrayList<CalculatorExpr.Operator>(); // = new Operation("!");
+    
+    public final CalculatorExpr expr;
+    
+    private final SetExpr parent;
+    
+    public SetExpr(){
+      this.expr = new CalculatorExpr();
+      this.parent = null;
+    }
+    
+    
+    public SetExpr(SetExpr parent){
+      this.expr = parent.expr;
+      this.parent = parent;
+    }
+    
+    
+    public SetExpr new_boolOrOperation(){
+      if(actOperation !=null){ addToOperations(); }
+      return this;
+    }
+    
+    
+    /**Designates the end of a multiplication operation. Takes the operation into the expression list.
+     * @param val this, unused
+     */
+    public void add_boolOrOperation(SetExpr val){
+      if(actOperation ==null){
+        actOperation = new CalculatorExpr.Operation();
+        actOperation.setStackOperand();  
+      }
+      actOperation.setOperator("||");
+      addToOperations(); 
+    }
+    
+    
+    
+    public SetExpr new_boolStartOperation(){
+      //if(actOperation !=null){ addToOperations(); }
+      assert(actOperation == null);
+      actOperation = new CalculatorExpr.Operation("!", -1);
+      return this;
+    }
+    
+    
+    /**Designates the end of a multiplication operation. Takes the operation into the expression list.
+     * @param val this, unused
+     */
+    public void add_boolStartOperation(SetExpr val){
+      addToOperations(); 
+    }
+    
+    
+    public SetExpr new_boolAndOperation(){
+      if(actOperation !=null){ addToOperations(); }
+      return this;
+    }
+    
+    
+    /**Designates the end of a multiplication operation. Takes the operation into the expression list.
+     * @param val this, unused
+     */
+    public void add_boolAndOperation(SetExpr val){
+      if(actOperation ==null){
+        actOperation = new CalculatorExpr.Operation();
+        actOperation.setStackOperand();  
+      }
+      actOperation.setOperator("&&");
+      addToOperations(); 
+    }
+    
+    
+    public void set_boolNot(String val){
+      unaryOperators.add(CalculatorExpr.getOperator("u!"));
+    }
+    
+    public SetExpr new_parenthesisCondition(){ 
+      SetExpr subExpr = new SetExpr(this);
+      return subExpr;
+    }
+    
+    public void add_parenthesisCondition(SetExpr val){
+      if(val.actOperation !=null){
+        val.addToOperations();  //if it is a start operation.
+      }
+      if(unaryOperators !=null){
+        addUnaryToOperations();
+      }
+    }
+
+    
+    
+    public SetExpr new_boolExpr(){ 
+      return this;
+    }
+
+    
+    public void add_boolExpr(SetExpr  val){ 
+      if(actOperation !=null){
+        if(actOperation.hasOperator()){
+          actOperation.addUnaryOperator("b");
+        }
+        addToOperations();
+      }
+    }
+
+    
+    public SetExpr XXXnew_objExpr(){ 
+      return this;
+    }
+
+    public void XXXadd_objExpr(SetExpr  val){ 
+      if(actOperation ==null){
+        actOperation = new CalculatorExpr.Operation();
+        actOperation.setStackOperand();  
+      }
+      addToOperations(); 
+    }
+
+    public SetExpr new_cmpOperation(){
+      if(actOperation !=null){
+        addToOperations();  //if it is a start operation.
+      }
+      actOperation = new CalculatorExpr.Operation();
+      return this;
+    }
+    
+    public void add_cmpOperation(SetExpr val){
+      addToOperations(); 
+    }
+
+    
+    public void set_cmpOperator(String val){
+      if(actOperation ==null){
+        assert(false);
+        actOperation = new CalculatorExpr.Operation();
+      }
+      actOperation.setOperator(val);
+    }
+    
+    
+    public SetExpr xxxnew_numExpression(){ 
+      return this;
+    }
+
+    
+    public void xxxadd_numExpression(SetExpr  val){ 
+      
+    }
+
+    
+    
+    public void set_unaryOperator(String op){
+      CalculatorExpr.Operator unaryOp = CalculatorExpr.getOperator("u" + op);
+      assert(unaryOp !=null);  //should match to syntax prescript
+      unaryOperators.add(unaryOp);
+    }
+    
+    /**Designates, that a expression in parenthesis is given, which should be calculated firstly.
+     * @return this
+     */
+    public SetExpr new_parenthesisExpr(){
+      if(actOperation !=null){ //A start operation before
+        addToOperations();
+      }
+      return this;
+    }
+    
+    public void add_parenthesisExpr(SetExpr val){
+      //assert(actOperation == null);  //it was added before on end of expression.   
+      if(actOperation !=null){
+        addToOperations();  //if it is a start operation.
+      }
+      //actOperation = new Operation();
+      //actOperation.setStackOperand();  //NOTE the operation will be set by following set_multOperation() etc.
+    }
+
+    public SetExpr XXXnew_startOperation(){
+      return this;
+    }
+    
+    public void XXXadd_startOperation(SetExpr val){
+      addToOperations(); 
+    }
+
+    /**Designates the start of a new adding operation. The first start value should be taken into the
+     * stackOperation statement list as start operation.
+     * @return this
+     */
+    public SetExpr new_addOperation(){
+      if(actOperation !=null){ addToOperations(); }
+      assert(actOperation == null);  //will be set by values. operator will be set by add_addOperation
+      return this;  
+    }
+    
+    /**Designates the end of an add operation. Takes the operation into the expression list.
+     * @param val this, unused
+     */
+    public void add_addOperation(SetExpr val){
+      if(actOperation ==null){
+        actOperation = new CalculatorExpr.Operation();
+        actOperation.setStackOperand();  
+      }
+      actOperation.setOperator("+");
+      addToOperations(); 
+    }
+
+    public SetExpr new_multOperation(){
+      if(actOperation !=null){ addToOperations(); }
+      assert(actOperation == null);  //will be set by values. operator will be set by add_addOperation
+      return this;
+    }
+    
+    /**Designates the end of a multiplication operation. Takes the operation into the expression list.
+     * @param val this, unused
+     */
+    public void add_multOperation(SetExpr val){
+      if(actOperation ==null){
+        actOperation = new CalculatorExpr.Operation();
+        actOperation.setStackOperand();  
+      }
+      actOperation.setOperator("*");
+      addToOperations(); 
+    }
+
+
+    /**Sets a value to the current operation. 
+     * @param val
+     */
+    public void set_intValue(int val){
+      if(actOperation == null){ actOperation = new CalculatorExpr.Operation(); }
+      actOperation.set_intValue(val);
+    }
+    
+    
+    
+    public void set_text(String val){
+      if(actOperation == null){ actOperation = new CalculatorExpr.Operation(); }
+      actOperation.set_textValue(val);
+    }
+    
+    
+    
+    
+    
+    public void set_startVariable(String ident){
+      if(actOperation == null){ actOperation = new CalculatorExpr.Operation(); }
+      DataAccess.DatapathElement element = new DataAccess.DatapathElement();
+      element.whatisit = 'v';
+      element.ident = ident;
+      actOperation.add_datapathElement(element);
+    }
+    
+    public SetExpr new_datapath(){ return this; }
+    
+    public void add_datapath(SetExpr val){ 
+      //actOperation.add_datapathElement(val); 
+    }
+    
+
+    public DataAccess.DatapathElementSet new_datapathElement(){ return new DataAccess.DatapathElementSet(); }
+    
+    public void add_datapathElement(DataAccess.DatapathElementSet val){ 
+      if(actOperation == null){ actOperation = new CalculatorExpr.Operation(); }
+      actOperation.add_datapathElement(val); 
+    }
+    
+
+    /**This routine must be called at least. It adds a simple value to the operation list.
+     * If any second value was added already, the routine does nothing.
+     */
+    public void closeExprPreparation(){
+      if(actOperation !=null){
+        addToOperations();
+      }
+    }
+    
+    private void addToOperations(){
+      if(!actOperation.hasOperator()){
+        actOperation.setOperator("!");  //it is initial value
+      }
+      if(unaryOperators.size()==1){
+          actOperation.addUnaryOperator(unaryOperators.get(0));
+      } else if(unaryOperators.size()>1) {
+        ListIterator<CalculatorExpr.Operator> iter = unaryOperators.listIterator();
+        while(iter.hasPrevious()){
+          CalculatorExpr.Operator unary = iter.previous();
+          actOperation.addUnaryOperator(unary);
+        }
+      }
+      unaryOperators.clear();  //a new one is necessary.
+      expr.addOperation(actOperation);
+      actOperation = null;  //a new one is necessary.
+    }
+
+
+    
+    /**Adds the {@link #actUnaryOperation} to the expression statements.
+     * 
+     */
+    private void addUnaryToOperations(){
+      if(unaryOperators !=null){
+        ListIterator<CalculatorExpr.Operator> iter = unaryOperators.listIterator();
+        while(iter.hasNext()){ iter.next(); }  //walk to end
+        while(iter.hasPrevious()){             //operate backward
+          CalculatorExpr.Operator unaryOp = iter.previous();
+          CalculatorExpr.Operation unaryOperation = new CalculatorExpr.Operation(unaryOp, CalculatorExpr.Operation.kUnaryOperation);
+          expr.addOperation(unaryOperation);    //add the unary as operation. Apply on accu.
+        }
+        unaryOperators.clear();  //a new one is necessary.
+      }
+    }
+  }
+
+  
+  
+  
   
   /**All Operations which acts with the accumulator and the stack of values.
    * They will be executed one after another. All calculation rules of prior should be regarded
