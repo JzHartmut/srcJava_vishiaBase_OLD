@@ -142,7 +142,7 @@ public class CalculatorExpr
     protected double doubleVal;
     protected float floatVal;
     protected boolean boolVal;
-    protected StringSeq stringVal;
+    protected CharSequence stringVal;
     protected Object oVal;
     
     public Value(long val){ type = 'J'; longVal = val; }
@@ -157,7 +157,7 @@ public class CalculatorExpr
     
     public Value(char val){ type = 'C'; longVal = val; }
     
-    public Value(String val){ type = 't'; stringVal = StringSeq.create(val); }
+    public Value(String val){ type = 't'; stringVal = val; }
     
     public Value(Appendable val){ type = 'a'; oVal = val; }
     
@@ -205,7 +205,7 @@ public class CalculatorExpr
      * 
      * @return
      */
-    public StringSeq stringValue(){ 
+    public CharSequence stringValue(){ 
       switch(type){
         case 'I': return StringSeq.create(Integer.toString(intVal));
         case 'J': return StringSeq.create(Long.toString(longVal));
@@ -904,10 +904,15 @@ public class CalculatorExpr
     
     public final CalculatorExpr expr;
     
-    private final SetExpr parent;
+    protected final SetExpr parent;
     
-    public SetExpr(){
+    public SetExpr(boolean d){
       this.expr = new CalculatorExpr();
+      this.parent = null;
+    }
+    
+    public SetExpr(CalculatorExpr expr){
+      this.expr = expr;
       this.parent = null;
     }
     
@@ -1609,14 +1614,14 @@ public class CalculatorExpr
   
   
   
-  /**Calculates the expression with possible access to any stored object data and access support via reflection.
+  /**Calculates the expression with possible access to any stored object data with access via reflection.
    * An value can contain a {@link Datapath#datapath} which describe any class's field or method
    * which were found via a reflection access. The datapath is build calling {@link #setExpr(String)}
    * or {@link #setExpr(String, String[])} using the form "$var.reflectionpath"
    * 
    * @param javaVariables Any data which are access-able with its name. It is the first part of a datapath.
-   * @param args Some args given immediately. Often numerical args.
-   * @return The result wrapped with a Value instance. This Value contains the type info too. 
+   * @param args Some args given immediately. Often numerical args. Often not used.
+   * @return The result wrapped with a Value instance. This Value contains also the type info. 
    * @throws Exception Any exception is possible. Especially {@link java.lang.NoSuchFieldException} or such
    *   if the access via reflection is done.
    */
@@ -1626,7 +1631,7 @@ public class CalculatorExpr
     Value val2; //Reference to the right side operand
     ExpressionType type = startExpr;
     for(Operation oper: listOperations){
-      if(accu.type == 'Z' && 
+      if(accu.type == 'Z' && //special for boolean operation: don't evaluate an operand if it is not necessary.
           ( !accu.boolVal && oper.operator == boolAndOperation  //false remain false on and operation
           || accu.boolVal && oper.operator == boolOrOperation   //true remain true on or operation
         ) ){
@@ -1636,11 +1641,11 @@ public class CalculatorExpr
         Object oval2;
         if(oper.ixVariable >=0){ 
           val2 = val3;
-          oval2 = args[oper.ixVariable];
+          oval2 = args[oper.ixVariable];   //may throw ArrayOutOfBoundsException if less arguments
         }  //an input value
         else if(oper.ixVariable == Operation.kStackOperand){
           val2 = accu;
-          accu = stack.pop();
+          accu = stack.pop();              //may throw Exception if the stack is emtpy.
           oval2 = null;
         }
         else if(oper.datapath !=null){
@@ -1648,7 +1653,7 @@ public class CalculatorExpr
           oval2 = oper.datapath.getDataObj(javaVariables, true, false);
         }
         else {
-          val2 = oper.value;
+          val2 = oper.value;              //immediate value.
           oval2 = null;
         }
         //
@@ -1661,11 +1666,8 @@ public class CalculatorExpr
           else if(oval2 instanceof Boolean)     { val2.boolVal = ((Boolean)oval2).booleanValue(); val2.type = 'Z'; }
           else if(oval2 instanceof Double)      { val2.doubleVal = ((Double)oval2).doubleValue(); val2.type = 'D'; }
           else if(oval2 instanceof Float)       { val2.doubleVal = ((Float)oval2).floatValue(); val2.type = 'F'; }
-          else if(oval2 instanceof StringSeq){ val2.stringVal = (StringSeq)oval2; val2.type = 't'; }
-          else                                  { 
-            Assert.stop();
-            val2.oVal = oval2; val2.type = 'L'; 
-          }
+          else if(oval2 instanceof StringSeq)   { val2.stringVal = (StringSeq)oval2; val2.type = 't'; }
+          else                                  { val2.stringVal = oval2.toString(); val2.type = 't'; }
           val2.oVal = oval2;;
         }
         if(oper.operator == setOperation && accu.type != '?'){

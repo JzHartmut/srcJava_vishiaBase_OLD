@@ -1122,18 +1122,30 @@ public class DataAccess {
   
   
   /**This class extends a {@link DatapathElement} and provides the capability to set the data path
-   * especially from a ZBNF parser result.
-   * It is instantiated if the {@link DataAccessSet} is used.
+   * especially from a ZBNF parser result, see {@link org.vishia.zbnf.ZbnfJavaOutput}.
+   * It is instantiated if the {@link DataAccessSet} is used, see {@link DataAccessSet#new_datapathElement()}
    */
   public static class DatapathElementSet extends DatapathElement{
   
+    /**Creates a new instance of {@link CalculatorExpr}. 
+     * This routine may be overridden if an derived class will use an enhanced expression.
+     * @return any CalculatorExpr instance.
+     */
+    public CalculatorExpr new_CaluclatorExpr(){ return new CalculatorExpr(); }
+
+    
+    /**Creates a new Expression Set instance to add any properties of an expression.
+     * This method is used especially by {@link org.vishia.zbnf.ZbnfJavaOutput} to set
+     * results from the parser. This method may be overridden for enhanced capabilities.
+     * @return
+     */
     public CalculatorExpr.SetExpr new_argument(){
-      CalculatorExpr.SetExpr actualArgument = new CalculatorExpr.SetExpr();
+      CalculatorExpr.SetExpr actualArgument = new CalculatorExpr.SetExpr(new_CaluclatorExpr());
       //ScriptElement actualArgument = new ScriptElement('e', null);
       //ZbnfDataPathElement actualArgument = new ZbnfDataPathElement();
       return actualArgument;
     }
-
+    
     /**From Zbnf.
      * The Arguments of type {@link Statement} have to be resolved by evaluating its value in the data context. 
      * The value is stored in {@link DataAccess.DatapathElement#addActualArgument(Object)}.
