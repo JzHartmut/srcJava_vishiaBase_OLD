@@ -1,10 +1,10 @@
 package org.vishia.util;
 
-/**This is a universal interface to mark instances as select-able and to support selection. 
- * It supports up to 32 sources or users for selection. The management of users should be defined
+/**This is a universal interface to mark instances to support selection. 
+ * It supports up to 32 sources or users for mark. The management of users should be defined
  * at user level. A source is represented by a bit in the 32-bit-value of the mask.
  * Usual only one source for selection may existing. 
- * It is possible that two or less more sources do a selection independently.
+ * It is possible that two or less more sources do a mark independently.
  * 
  * The class {@link SelectMask} is the standard implementation. A derived class can inheritance 
  * from that class if another superclass isn't necessary. This may be usual for small data classes.
@@ -12,7 +12,7 @@ package org.vishia.util;
  * <b>Usage of the oData parameter</b>:<br>
  * <pre>
  * Application
- *     |--------->SelectMask_ifc
+ *     |--------->MarkMask_ifc
  *     |                |<|----Implementor
  *                      |      maybe a table container
  *                      |             |--oData---------->SelectMask_ifc
@@ -25,11 +25,16 @@ package org.vishia.util;
  * @author Hartmut Schorrig
  *
  */
-public interface SelectMask_ifc
+public interface MarkMask_ifc
 {
   
   /**Version, history and license.
    * <ul>
+   * <li>2013-04-28 Hartmut rename: This interface is called now 'MarkMask_ifc' instead 'SelectMask_ifc'.
+   *   It is a problem of wording: The instances are only marked, not yet 'selected'. See application
+   *   of this interface in {@link org.vishia.gral.widget.GralFileSelector}: A selected line is the current one
+   *   or some marked lines.
+   * <li>2013-04-28 Hartmut chg: Use the mask for selection of mark bits.   
    * <li>2013-04-28 Hartmut chg: new parameter data proper to use. Adaption necessary. Left it empty if it don't need. 
    * <li>2011-11-28 Hartmut creation
    * </ul>
@@ -65,23 +70,23 @@ public interface SelectMask_ifc
    * If it is not 0, any source (represented by each bit) has selected this source. 
    * @return bits of selection, 0 if it is not selected.
    */
-  public int getSelection();
+  public int getMark();
   
   
-  /**Removes the selection of the object for the given source.  
+  /**Removes the mark bits of the object for the given source.  
    * @param mask The bit which presents the source.
-   * @param oData data which are given with this selection. Maybe the selection should be done
+   * @param oData data which are given with this mark. Maybe the mark should be done
    *   in this data too. It depends on usage and implementation.
-   * @return The select mask before this action is done. 
+   * @return The mark bits before this action is done. 
    */
-  public int setDeselect(int mask, Object data);
+  public int setNonMarked(int mask, Object data);
   
-  /**Sets the selection of the object for the given source.  
+  /**Sets the mark bits of the object for the given source.  
    * @param mask The bit which presents the source.
-   * @param oData data which are given with this selection. Maybe the selection should be done
+   * @param oData data which are given with this mark. Maybe the mark should be done
    *   in this data too. It depends on usage and implementation.
-   * @return The select mask before this action is done. If it is 0, this source is the only one which has select the object. 
+   * @return The mark bits before this action is done. If it is 0, this source is the only one which has marks the object. 
    */
-  public int setSelect(int mask, Object data);
+  public int setMarked(int mask, Object data);
 
 }

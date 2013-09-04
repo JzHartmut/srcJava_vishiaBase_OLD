@@ -11,7 +11,7 @@ package org.vishia.util;
  * @author Hartmut Schorrig
  *
  */
-public class SelectMask implements SelectMask_ifc
+public class SelectMask implements MarkMask_ifc
 {
   /**Version, history and license.
    * <ul>
@@ -48,16 +48,16 @@ public class SelectMask implements SelectMask_ifc
   
   protected int selectMask;
   
-  @Override public int getSelection()
+  @Override public int getMark()
   { return selectMask; }
   
-  @Override public int setDeselect(int mask, Object data)
+  @Override public int setNonMarked(int mask, Object data)
   { int selectMask1 = selectMask;
     selectMask &= ~mask;
     return selectMask1;
   }
   
-  @Override public int setSelect(int mask, Object data)
+  @Override public int setMarked(int mask, Object data)
   { int selectMask1 = selectMask;
     selectMask |= mask;
     return selectMask1;

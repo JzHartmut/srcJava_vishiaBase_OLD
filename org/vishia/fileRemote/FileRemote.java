@@ -18,7 +18,7 @@ import org.vishia.util.EventConsumer;
 import org.vishia.util.EventSource;
 import org.vishia.util.EventThread;
 import org.vishia.util.FileSystem;
-import org.vishia.util.SelectMask_ifc;
+import org.vishia.util.MarkMask_ifc;
 import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPartBase;
 
@@ -39,7 +39,7 @@ import org.vishia.util.StringPartBase;
  * @author Hartmut Schorrig
  *
  */
-public class FileRemote extends File implements SelectMask_ifc
+public class FileRemote extends File implements MarkMask_ifc
 {
   public interface FileRemoteAccessorSelector
   {
@@ -50,10 +50,15 @@ public class FileRemote extends File implements SelectMask_ifc
 
   /**Version, history and license.
    * <ul>
-   * <li>2013-08-09 Hartmut new: implements {@link SelectMask_ifc} for the {@link #cmprResult}.
+   * <li>2013-08-09 Hartmut chg: The {@link MarkMask_ifc} is renamed, all methods {@link #setMarked(int)}
+   *   etc. are named 'marked' instead of 'selected'. 
+   *   It is a problem of wording: The instances are only marked, not yet 'selected'. See application
+   *   of this interface in {@link org.vishia.gral.widget.GralFileSelector}: A selected line is the current one
+   *   or some marked lines.
+   * <li>2013-08-09 Hartmut new: implements {@link MarkMask_ifc} for the {@link #cmprResult}.
    * <li>2013-07-29 Hartmut chg: {@link #moveTo(String, FileRemote, CallbackEvent)} now have a parameter with file names. 
    * <li>2013-05-24 Hartmut chg: The root will be designated with "/" as {@link #sFile}
-   * <li>2013-05-24 Hartmut new {@link #cmprResult}, {@link #setSelected(int)}
+   * <li>2013-05-24 Hartmut new {@link #cmprResult}, {@link #setMarked(int)}
    * <li>2013-05-05 Hartmut new {@link #isTested()}
    * <li>2013-05-05 Hartmut new {@link #mkdir()}, {@link #mkdirs()}, {@link #mkdir(boolean, CallbackEvent)}, 
    *   {@link #createNewFile()}. 
@@ -62,7 +67,7 @@ public class FileRemote extends File implements SelectMask_ifc
    * <li>2013-05-05 Hartmut chg: {@link #child(CharSequence)}  accepts a path to a sub child.
    *   New {@link #isChild(CharSequence)}, {@link #isParent(CharSequence)}.  
    * <li>2013-05-04 Hartmut redesigned ctor and order of elements. sDir does not end with "/" up to now.
-   * <li>2013-04-30 Hartmut new: {@link #resetSelectedRecurs(int, int[])}
+   * <li>2013-04-30 Hartmut new: {@link #resetMarkedRecurs(int, int[])}
    * <li>2013-04-29 Hartmut chg: {@link #fromFile(FileCluster, File)} has the FileCluster parameter yet, necessary for the concept.
    *   This method is not necessary as far as possible because most of Files are a FileRemote instance yet by reference (Fcmd app)
    * <li>2013-04-28 Hartmut chg: re-engineering check and copy
@@ -270,9 +275,6 @@ public class FileRemote extends File implements SelectMask_ifc
   protected FileRemoteAccessor device;
   
   public FileCmprResult cmprResult;
-  
-  /**Property whether this file is selected. */
-  public boolean XXXselected;
   
   /**The last time where the file was synchronized with its physical properties. */
   public long timeRefresh, timeChildren;
@@ -571,89 +573,89 @@ public class FileRemote extends File implements SelectMask_ifc
   
   
   
-  /**Marks the file as selected with the given bits in mask.
+  /**Marks the file with the given bits in mask.
    * @param mask
    * @return number of Bytes (file length)
    */
-  public long setSelected(int mask){
+  public long setMarked(int mask){
     if(cmprResult == null){
       cmprResult = new FileCmprResult(this);
     }
-    cmprResult.setSelect(mask, this);
+    cmprResult.setMarked(mask, this);
     return length();
   }
   
-  /**Resets the selection of this file.
-   * @param mask Mask to reset selection.
+  /**Resets the mark bits of this file.
+   * @param mask Mask to reset bits.
    * @return number of Bytes (file length)
    */
-  public long resetSelected(int mask){
+  public long resetMarked(int mask){
     if(cmprResult != null){
-      cmprResult.setDeselect(mask, this);
+      cmprResult.setNonMarked(mask, this);
       return length();
     }
     else return 0;
   }
   
-  /**Resets the selection of this file and all children.
-   * @param mask Mask to reset selection.
-   * @param nrofFiles Output reference, will be incremented for all files which's selection are reseted.
+  /**Resets the mark bits of this file and all children.
+   * @param mask Mask to reset mark bits.
+   * @param nrofFiles Output reference, will be incremented for all files which's mark are reseted.
    *   Maybe null, the unused.
    * @return Sum of all bytes (file length) of the reseted files.
    */
-  public long resetSelectedRecurs(int mask, int[] nrofFiles){
-    return resetSelectedRecurs(mask, nrofFiles, 0);  
+  public long resetMarkedRecurs(int mask, int[] nrofFiles){
+    return resetMarkedRecurs(mask, nrofFiles, 0);  
   }
   
   
   
-  private long resetSelectedRecurs(int mask, int[] nrofFiles, int recursion){
+  private long resetMarkedRecurs(int mask, int[] nrofFiles, int recursion){
     long bytes = length();
     if(nrofFiles !=null){ nrofFiles[0] +=1; }
     //if(!isDirectory() && cmprResult !=null){
     if(cmprResult !=null){
-      cmprResult.setDeselect(mask, this);
+      cmprResult.setNonMarked(mask, this);
     }
-    if(recursion > 1000) throw new RuntimeException("FileRemote - resetSelectedRecurs,too many recursion");
+    if(recursion > 1000) throw new RuntimeException("FileRemote - resetMarkedRecurs,too many recursion");
     if(children !=null){
       for(Map.Entry<String, FileRemote> item: children.entrySet()){
         FileRemote child = item.getValue();
-        //if(child.isSelected(mask)){
-          bytes += child.resetSelectedRecurs(mask, nrofFiles, recursion +1);
+        //if(child.isMarked(mask)){
+          bytes += child.resetMarkedRecurs(mask, nrofFiles, recursion +1);
         //}
       }
     }
     return bytes;
   }
   
-  /**Returns the selection of a {@link #cmprResult} or 0 if it is not present.
-   * @see org.vishia.util.SelectMask_ifc#getSelection()
+  /**Returns the mark of a {@link #cmprResult} or 0 if it is not present.
+   * @see org.vishia.util.MarkMask_ifc#getMark()
    */
-  @Override public int getSelection()
-  { return cmprResult == null ? 0 : cmprResult.getSelection();
+  @Override public int getMark()
+  { return cmprResult == null ? 0 : cmprResult.getMark();
   }
 
 
-  /**Deselects a bit in the existing {@link #cmprResult} or does nothing if it is not present.
-   * @see org.vishia.util.SelectMask_ifc#setDeselect(int, java.lang.Object)
+  /**resets a marker bit in the existing {@link #cmprResult} or does nothing if the bit is not present.
+   * @see org.vishia.util.MarkMask_ifc#setNonMarked(int, java.lang.Object)
    */
-  @Override public int setDeselect(int mask, Object data)
+  @Override public int setNonMarked(int mask, Object data)
   { if(cmprResult == null) return 0;
-    else return cmprResult.setDeselect(mask, data);
+    else return cmprResult.setNonMarked(mask, data);
   }
 
 
-  /**Selects a bit in the {@link #cmprResult}, creates it if it is not existing yet.
-   * @see org.vishia.util.SelectMask_ifc#setSelect(int, java.lang.Object)
+  /**marks a bit in the {@link #cmprResult}, creates it if it is not existing yet.
+   * @see org.vishia.util.MarkMask_ifc#setMarked(int, java.lang.Object)
    */
-  @Override public int setSelect(int mask, Object data)
+  @Override public int setMarked(int mask, Object data)
   { if(cmprResult == null){ cmprResult = new  FileCmprResult(this); }
-    return cmprResult.setSelect(mask, data);
+    return cmprResult.setMarked(mask, data);
   }
   
 
   
-  public boolean isSelected(int mask){ return cmprResult !=null && (cmprResult.getSelection() & mask) !=0; }
+  public boolean isMarked(int mask){ return cmprResult !=null && (cmprResult.getMark() & mask) !=0; }
   
   
   /**Sets the properties to this.
@@ -1680,7 +1682,7 @@ public class FileRemote extends File implements SelectMask_ifc
     /**List of names separated with ':' or " : " or empty. If not empty, filesrc is the directory of this files. */
     public String namesSrc;
     
-    /**Wildcard mask to select source files if the designated source file(s) are directories. Maybe empty, then all files are used.*/
+    /**Wildcard mask to mark source files if the designated source file(s) are directories. Maybe empty, then all files are used.*/
     public String maskSrc;
     
     /**Designation of destination file names maybe wildcard mask. */

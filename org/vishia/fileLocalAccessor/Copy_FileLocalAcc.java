@@ -580,10 +580,10 @@ public class Copy_FileLocalAcc
                 if(!child.isTested(time1-55000)) { //don't refresh if it was refreshed for 5 seconds.
                   child.refreshProperties(null);   ////
                 }
-                child.setSelected(1);  //a selected file.
+                child.setMarked(1);  //a selected file.
                 zBytesAllCheck += child.length();
                 zFilesCheck += 1;
-              } else if(child.isSelected(1)){
+              } else if(child.isMarked(1)){
                 //count selected files too, selected in the past.
                 zBytesAllCheck += child.length();
                 zFilesCheck += 1;
@@ -591,10 +591,10 @@ public class Copy_FileLocalAcc
             }
           }
           if(actData.selectAnyFile){
-            actData.src.setSelected(1);  //select the directory.
+            actData.src.setMarked(1);  //select the directory.
           }
         } else {
-          actData.src.setSelected(1);
+          actData.src.setMarked(1);
           zBytesAllCheck += actData.src.length();
           zFilesCheck += 1;
           //actData = actData.parent;
@@ -612,7 +612,7 @@ public class Copy_FileLocalAcc
             if(parentData !=null){
               parentData.selectAnyFile |= actData.selectAnyFile;
               if(parentData.selectAnyFile && parentData.src !=null){
-                parentData.src.setSelected(1);
+                parentData.src.setMarked(1);
               }
             }
             actData = parentData;
@@ -1165,9 +1165,9 @@ public class Copy_FileLocalAcc
         //for(Map.Entry<String, FileRemote> item: actData.src.children().entrySet()){
         //  FileRemote child = item.getValue();
         for(FileRemote child: children){
-          if(child.exists() && child.isSelected(1)){
+          if(child.exists() && child.isMarked(1)){
             String sName = child.getName();
-            child.resetSelected(1);
+            child.resetMarked(1);
             FileRemote childDst = actData.dst == null ? null : actData.dst.child(sName);
             actData.addNewEntry(child, childDst);
           }
@@ -1317,7 +1317,7 @@ public class Copy_FileLocalAcc
         if(Copy_FileLocalAcc.this.in!=null){ 
           zFilesCopied +=1;
           Copy_FileLocalAcc.this.in.close(); 
-          actData.src.resetSelected(1);
+          actData.src.resetMarked(1);
         }
         Copy_FileLocalAcc.this.in = null;
         if(Copy_FileLocalAcc.this.out!=null){ Copy_FileLocalAcc.this.out.close(); }
@@ -1364,7 +1364,7 @@ public class Copy_FileLocalAcc
       //stateCopyProcess = EStateCopyProcess.FileFinished;
       boolean bCont;
       //close currently file if this state is entered from stateAsk. The regular close() is executed on exit of stateCopyFile.
-      actData.src.resetSelected(1); ///
+      actData.src.resetMarked(1); ///
       if(Copy_FileLocalAcc.this.in !=null){
         zFilesCopied +=1;
         try{ Copy_FileLocalAcc.this.in.close();
@@ -1401,7 +1401,7 @@ public class Copy_FileLocalAcc
           } else {
             bCont = true;  //get parent till another actData is found
             if(actData.src !=null){
-              actData.src.resetSelected(1);  //It is processed.
+              actData.src.resetMarked(1);  //It is processed.
             }
           }
         }

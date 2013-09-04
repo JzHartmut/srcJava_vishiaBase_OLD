@@ -58,8 +58,8 @@ public class FileCmprResult extends SelectMask
   public int nrofFilesSelected(){ return nrofFilesSelected; } 
   
   
-  @Override public int setDeselect(int mask, Object data)
-  { int selectOld = super.setDeselect(mask, null);
+  @Override public int setNonMarked(int mask, Object data)
+  { int selectOld = super.setNonMarked(mask, null);
     if(file.isDirectory()){
       
     }
@@ -83,8 +83,8 @@ public class FileCmprResult extends SelectMask
   }
 
   @Override
-  public int setSelect(int mask, Object data)
-  { int selectOld = super.setSelect(mask, null);
+  public int setMarked(int mask, Object data)
+  { int selectOld = super.setMarked(mask, null);
     //FileRemote file = (FileRemote)data;
     if(file.isDirectory()){
       //remain selection info set from children
