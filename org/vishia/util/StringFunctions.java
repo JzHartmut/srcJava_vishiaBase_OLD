@@ -13,6 +13,7 @@ public class StringFunctions {
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-09-07 Hartmut new: {@link #convertTranscription(CharSequence, char)} used form {@link SpecialCharStrings#resolveCircumScription(String)}
    * <li>2013-08-29 Hartmut bugfix: {@link #compare(CharSequence, int, CharSequence, int, int)}, {@link #indexOf(CharSequence, CharSequence, int)}
    * <li>2013-08-10 Hartmut new: {@link #parseIntRadix(String, int, int, int, int[], String)} now can skip
    *   over some characters. In this kind a number like 2"123'456.1 is able to read.
@@ -535,5 +536,75 @@ public class StringFunctions {
     }
     return -1;  //not found;
   }
+  
+  
+  
+  
+  /**Resolves the given String containing some transcription chars (usual backslash) 
+   * to a string with the appropriate character codes.
+   * In the result String all char-pairs beginning with the transciptionChar are replaced by
+   * one char. If the String doesn't contain a transcriptChar, the method returns the input string
+   * in a as soon as possible calculation time.
+   * <ul>
+   * <li>The transcript char following by n r t f b will converted to the known control character codes:
+   * <li>\n newline 0x0a
+   * <li>etc TODO
+   * <li>\s will converted to a single space. It is useful in input situations
+   *     where a space will have another effect.
+   * <li>\a will converted to the code 0x02, known in this class {@link cStartOfText}.
+   *     It is useful wether a String may be contain a code for start of text.
+   * <li>\e will converted to the code 0x03, known in this class {@link cEndOfText}.
+   * <li>\x0123 Convert from given hex code TODO
+   * <li>\\ is the backslash itself.
+   * <li>All other chars after the transcription char will be converted to the same char, 
+   *     for example "\{" to "{". Don't use this feature for normal alphabetic chars
+   *     because some extensions in a future may be conflict with them. But this feature
+   *     may be useful if an input text uses the special characters in a special way.
+   * </ul> 
+   * @param src The input string
+   * @param transcriptChar the transcript character, usual a '\\'
+   * @return The output string with replaces backslash pairs. It is a non-referenced StringBuilder
+   *   if the src contains transcription chars, it is src itself if src does not contain transcription chars.
+   */
+  public static CharSequence convertTranscription(CharSequence src, char transcriptChar)
+  { CharSequence sResult;
+    int posSwitch = indexOf(src,transcriptChar, 0);
+    if(posSwitch < 0)
+    { sResult = src;
+    }
+    else
+    { //escape character is found before end
+      StringBuffer sbReturn = new StringBuffer(src);
+      while(posSwitch >=0)
+      { if(posSwitch < sbReturn.length()-1)
+        { sbReturn.deleteCharAt(posSwitch);
+          /*do not delete a \ as last character, because the next algorithm failed
+           *in such case. The \ will kept. It is a possible input sequence of a user,
+           *and it shouldn't be throw an IndexOutofBoundaryException!
+           */  
+        }
+        char cNext = sbReturn.charAt(posSwitch);
+        int iChangedChar;
+        if( (iChangedChar = "snrtfb".indexOf(cNext)) >=0)
+        { sbReturn.setCharAt(posSwitch, " \n\r\t\f\b".charAt(iChangedChar));
+        }
+        else if( cNext == 'a')
+        { // \a means end of file, coded inside with 4 = EOT (end of transmission).
+          sbReturn.setCharAt(posSwitch, SpecialCharStrings.cStartOfText);
+        }
+        else if( cNext == 'e')
+        { // \e means end of file, coded inside with 4 = EOT (end of transmission).
+          sbReturn.setCharAt(posSwitch, SpecialCharStrings.cEndOfText);
+        }
+        else
+        { //the char after cEscape is valid and not changed!
+        }
+        posSwitch = sbReturn.toString().indexOf(transcriptChar, posSwitch+1);
+      }
+      sResult = sbReturn;
+    }
+    return sResult;
+  }
+
   
 }

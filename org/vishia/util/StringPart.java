@@ -74,6 +74,8 @@ public class StringPart
    * <br>
    * commit history:
    * <ul>
+   * <li>2013-09-07 Hartmut new: {@link #scanTranscriptionToAnyChar(CharSequence[], String, char, char, char)}
+   *   the {@link #getCircumScriptionToAnyChar(String)} does not work correctly (it has a bug). Use the new one.
    * <li>2013-01-20 Hartmut TODO: The {@link #content} should be a CharSequence. Then the instance of content may be a StringBuilder.
    *   All content.substring should be replaced by content.subsequence(). The content.indexof-Method should be implemented here.
    *   Advantage: A derived class can use the {@link #content} as StringBuilder and it can shift the string by operating with
@@ -1114,22 +1116,13 @@ that is a liststring and his part The associated String
   }
 
 
-
-
-
-
-  /**Returns the position of one of the chars in sChars within the part, started inside the part with fromIndex,
-     returns -1 if the char is not found in the part started from 'fromIndex'.
-    @param sChars contents some chars to find. The char with code 
-    @param fromIndex start of search within the part.
-    @param maxToTest maximal numbers of chars to test. It may be Integer.MAX_VALUE. 
-    @return position of first founded char inside the actual part, but not greater than maxToTest, if no chars is found unitl maxToTest,
-            but -1 if the end is reached.
-  */
-  public int indexOfAnyChar(String sChars, final int fromWhere, final int maxToTest)
-  { int pos = start + fromWhere;
+  public int indexOfAnyChar(String sChars, final int fromWhere, final int maxToTest){
+    { int pos = start + fromWhere;
     int max = (end - pos) < maxToTest ? end : pos + maxToTest;
-    while(pos < max && sChars.indexOf(content.charAt(pos)) < 0) pos +=1;
+    char cc;
+    while(pos < max && sChars.indexOf(cc = content.charAt(pos)) < 0){  //end char not found:
+      pos += 1;
+    }
     int nChars = pos - start;
     if(pos < max 
       || (pos == max && sChars.indexOf(cEndOfText) >= 0)
@@ -1138,6 +1131,54 @@ that is a liststring and his part The associated String
     }
     else { nChars = -1; }
     return nChars;
+  }
+  }
+
+
+
+
+  /**Returns the position of one of the chars in sChars within the part, started inside the part with fromIndex,
+     returns -1 if the char is not found in the part started from 'fromIndex'.
+    @param sChars contents some chars to find. If it contains the char with code {@link #cEndOfText}
+      then the number of chars till the end of this text are returned if no char was found.
+      If a char with code of {@link #cEndOfText} is found in this string, it is the end of this search process too.
+    @param fromIndex start of search within the part.
+    @param maxToTest maximal numbers of chars to test. It may be Integer.MAX_VALUE.
+    @param transcriptChar any char which is the transcription designation char, especially '\\'.
+      Set to 0 if no transcription should be regarded.
+    @param quotationStartChar any char which is the start char of a quotation. Set to 0 if no quotation should be regarded.
+    @param quotationEndChar the adequate end char   
+    @return position of first founded char inside the actual part, but not greater than maxToTest, if no chars is found unitl maxToTest,
+            but -1 if the end is reached.
+  */
+  public int indexOfAnyChar(String sChars, final int fromWhere, final int maxToTest
+      , char transcriptChar, char quotationStartChar, char quotationEndChar)
+  { int pos = start + fromWhere;
+    int max = (end - pos) < maxToTest ? end : start + maxToTest;
+    boolean bNotFound = true;
+    while(pos < max && bNotFound){ 
+      char cc = content.charAt(pos);
+      if(cc == quotationStartChar && cc !=0)
+      { int endQuotion = indexEndOfQuotation(quotationEndChar, transcriptChar, pos - start, max - start);
+        if(endQuotion < 0){ pos = max; }
+        else{ pos = endQuotion + start; }
+      }
+      else if(cc == transcriptChar && cc != 0 && pos < (max-1)){
+        pos +=2;
+      }
+      else
+      { if(sChars.indexOf(cc) >= 0){ 
+        bNotFound = false; 
+        } else{ 
+          pos +=1; 
+        }
+      }
+    }
+    if(bNotFound){
+      if(sChars.indexOf(cEndOfText) >= 0) return pos - start;  // it is found because cEndOfText is searched too.
+      else return -1;
+    }
+    else return (pos - start);
   }
 
   
@@ -1311,6 +1352,35 @@ that is a liststring and his part The associated String
     while(pos < max && bNotFound)
     { char cc = content.charAt(pos++);
       if(cc == '\\' && (pos+1) < max)
+      { pos += 1; //on \ overread the next char, test char after them!
+      }
+      else if(cc == cEndQuotion)
+      { bNotFound = false;
+      }
+    }
+    return (bNotFound ? -1 : (pos - start));
+  }
+
+  
+  
+  
+
+  /**Searches the end of a quoted string. In Generally, a backslash skips over the next char
+   * and does not test it as end of the quotion.  
+   * @param fromWhere Offset after start to start search. 
+   *                  It may be 0 if the quotion starts at start, it is the position of the left
+   *                  quotion mark.
+   * @param maxToTest Limit for searching, offset from start. It may be Integer.MAX_INT
+   * @return -1 if no end of quotion is found, else the position of the char after the quotion, 
+   *          at least 2 because a quotion has up to 2 chars, the quotion marks itself.
+   */
+  public int indexEndOfQuotation(char cEndQuotion, char transcriptChar, final int fromWhere, final int maxToTest)
+  { int pos = start + fromWhere +1;
+    int max = (end - pos) < maxToTest ? end : pos + maxToTest;
+    boolean bNotFound = true;
+    while(pos < max && bNotFound)
+    { char cc = content.charAt(pos++);
+      if(cc == transcriptChar && cc !=0 && (pos+1) < max)
       { pos += 1; //on \ overread the next char, test char after them!
       }
       else if(cc == cEndQuotion)
@@ -2257,6 +2327,8 @@ that is a liststring and his part The associated String
   
   private String getCircumScriptionToAnyChar_p(String sCharsEnd, boolean bOutsideQuotion)
   { String sResult;
+    if(start == 4910)
+      Assert.stop();
     final char cEscape = '\\';
     int posEnd    = (sCharsEnd == null) ? end 
                   : bOutsideQuotion ? indexOfAnyCharOutsideQuotion(sCharsEnd, 0, end-start)
@@ -2289,6 +2361,47 @@ that is a liststring and his part The associated String
     }
     fromEnd();
     return sResult;
+  }
+
+
+  
+  /**Scans a String with transcription till one of end characters, maybe outside any quotation.
+   *  The end of the string is determined by any of the given chars.
+   *  But a char directly after the transcription char is not detected as an end char.
+   *  Example: scanTranscriptionToAnyChar(dst, "<", '\\', '\"', '\"') 
+   *  does not end at a char > after an \ and does not end inside the quotation,
+   *  it detects the string "this \< is a \"quotation\"!" till a simple "<".
+   *  Every char after the transcriptChar is accepted. But the known subscription chars
+   *  \n, \r, \t, \f, \b are converted to their control-char- equivalence.
+   *  The \s and \e mean start and end of text, coded with ASCII-STX and ETX = 0x2 and 0x3.</br></br>
+   *  The actual part is tested for this, after this operation the actual part begins
+   *  after the getting chars!
+   *
+   * @param dst if it is null, then no result will be stored, elsewhere a CharSequence[1].
+   * @param sCharsEnd End characters
+   * @param transcriptChar typically '\\', 0 if not used
+   * @param quotationStartChar typically '\"', may be "<" or such, 0 if not used
+   * @param quotationEndChar The end char, typically '\"', may be ">" or such, 0 if not used
+   * @return
+   * @since 2013-09-07
+   */
+  public StringPart scanTranscriptionToAnyChar(CharSequence[] dst, String sCharsEnd
+      , char transcriptChar, char quotationStartChar, char quotationEndChar)
+  { if(scanEntry()){
+      if(start == 4910)
+        Assert.stop();
+      int posEnd = indexOfAnyChar(sCharsEnd, 0, end-start, transcriptChar, quotationStartChar, quotationEndChar);
+      if(posEnd >=0){
+        lento(posEnd);
+        if(dst !=null){
+          dst[0] = StringFunctions.convertTranscription(getCurrentPart(), transcriptChar);
+        }
+        fromEnd();
+      } else {
+        bCurrentOk = false;
+      }
+    }
+    return this;
   }
 
 
