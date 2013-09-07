@@ -365,6 +365,7 @@ public class StringFunctions {
   
   /**Compares two CharSequence (Strings, StringBuilder-content etc.
    * It is the adequate functionality like {@link java.lang.String#compareTo(String)}.
+   * but it works proper with {@link java.lang.CharSequence}. See example on {@link #equals(Object)}.
    *  
    * @param s1 left char sequence
    * @param from1 start position
@@ -409,7 +410,19 @@ public class StringFunctions {
   
   
   /**Compares two Strings or StringBuilder-content or any other CharSequence.
-   * It is the adequate functionality like {@link java.lang.String#compareTo(String)}. 
+   * It is the adequate functionality like {@link java.lang.String#equals(Object)}.
+   * But the  {@link java.lang.String#equals(Object)} does only compare instances of Strings,
+   * it does not compare a String with any other {@link java.lang.CharSequence} whether there are equal.
+   * Not that: <pre>
+   * String str = "abc";
+   * String str2 = "abc";
+   * StringBuilder sb = new StringBuilder(str);
+   * assert(str.equals(str2));
+   * assert(str.contentEquals(sb));  //special String comparator
+   * assert( ! str.equals(sb));      //it is not equals, sb is not a String.
+   * assert(StringFunctions.equals(str, sb));
+   * assert(StringFunctions.equals(sb, str)); //compares any CharSequences
+   * </pre>
    * @param s1
    * @param s2
    * @return 0 if all characters are equal, 1 if s1 > s2,  -1 if s1 < s2
@@ -429,6 +442,7 @@ public class StringFunctions {
   
   /**Checks whether the given CharSequence starts with a CharSequence.
    * It is the adequate functionality like {@link java.lang.String#startsWith(String)}
+   * but it works proper with {@link java.lang.CharSequence}. See example on {@link #equals(Object)}.
    */
   public static boolean startsWith(CharSequence sq, CharSequence start){
     return compare(sq, 0, start, 0, start.length()) == 0;
@@ -437,6 +451,7 @@ public class StringFunctions {
 
   /**Checks whether the given CharSequence ends with a CharSequence.
    * It is the adequate functionality like {@link java.lang.String#startsWith(String)}
+   * but it works proper with {@link java.lang.CharSequence}. See example on {@link #equals(Object)}.
    */
   public static boolean endsWith(CharSequence sq, CharSequence end){
     int z = end.length();

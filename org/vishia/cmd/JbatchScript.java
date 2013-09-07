@@ -110,7 +110,7 @@ public class JbatchScript {
   
   //final Map<String, Statement> zmakeTargets = new TreeMap<String, Statement>();
   
-  final Map<String, Statement> subtextScripts = new TreeMap<String, Statement>();
+  final Map<String, Statement> subScripts = new TreeMap<String, Statement>();
   
   
   
@@ -155,7 +155,7 @@ public class JbatchScript {
   public final Statement getFileScript(){ return scriptFile; }
   
   
-  public Statement getSubtextScript(CharSequence name){ return subtextScripts.get(name.toString()); }
+  public Statement getSubtextScript(CharSequence name){ return subScripts.get(name.toString()); }
   
   
   public List<Statement> getListScriptVariables(){ return listScriptVariables; }
@@ -369,6 +369,13 @@ public class JbatchScript {
     
     
     
+    public void set_textReplf(String text){
+      if(subContent == null){ subContent = new StatementList(this); }
+      subContent.set_text(text);
+    }
+    
+    
+    
     /**From Zbnf, a part <:>...<.> */
     public StatementList new_textExpr(){ return subContent = new StatementList(); }
     
@@ -516,7 +523,10 @@ public class JbatchScript {
      */
     public Statement new_textOut(){ return new Statement(parentList, 'T', null); }
 
-    public void add_textOut(Statement val){ subContent.content.add(val); } //localVariableScripts.add(val); } 
+    public void add_textOut(Statement val){ 
+      if(subContent == null){ subContent = new StatementList(this); }
+      subContent.content.add(val); 
+    } 
     
     
     public void set_newline(){
@@ -745,7 +755,7 @@ public class JbatchScript {
 
     
     
-    public CallStatement new_callSubtext()
+    public CallStatement new_callScript()
     { if(subContent == null){ subContent = new StatementList(this); }
       CallStatement contentElement = new CallStatement(parentList);
       subContent.content.add(contentElement);
@@ -753,7 +763,7 @@ public class JbatchScript {
       return contentElement;
     }
     
-    public void add_callSubtext(CallStatement val){}
+    public void add_callScript(CallStatement val){}
 
     
 
@@ -813,9 +823,6 @@ public class JbatchScript {
     }
     
     //public void set_variableValue(String text){ subContent.content.add(new ScriptElement('v', text)); }
-    
-    /**Set from ZBNF:  (\?*\?)<?listElement> */
-    //public void set_listElement(){ subContent.content.add(new ScriptElement('e', null)); }
     
     public Statement new_forInputContent()
     { if(subContent == null){ subContent = new StatementList(this); }
@@ -937,7 +944,7 @@ public class JbatchScript {
     
     public boolean bElse;
     
-    public CalculatorExpr expr;
+    public CalculatorExpr XXXexpr;
     
     IfCondition(StatementList parentList, char whatis){
       super(parentList, whatis, null);
@@ -1174,7 +1181,7 @@ public class JbatchScript {
   
   
   /**Main class for ZBNF parse result.
-   * This class has the enclosing class to store {@link ZbatchGenScript#subtextScripts}, {@link ZbatchGenScript#listScriptVariables}
+   * This class has the enclosing class to store {@link ZbatchGenScript#subScripts}, {@link ZbatchGenScript#listScriptVariables}
    * etc. while parsing the script. The <code><:file>...<.file></code>-script is stored here locally
    * and used as the main file script only if it is the first one of main or included script. The same behaviour is used  
    * <pre>
@@ -1207,15 +1214,13 @@ public class JbatchScript {
     //public void add_ZmakeTarget(Statement val){ zmakeTargets.put(val.name, val); }
     
     
-    public Statement new_subtext(){ return new Statement(null, 'X', null); }
+    public Statement new_subScript(){ return new Statement(null, 'X', null); }
     
-    public void add_subtext(Statement val){ 
+    public void add_subScript(Statement val){ 
       if(val.identArgJbat == null){
-        //scriptFileSub = new ScriptElement('Y', null); 
-        
         val.identArgJbat = "main";
       }
-      subtextScripts.put(val.identArgJbat, val); 
+      subScripts.put(val.identArgJbat, val); 
     }
     
     public Statement new_genFile(){ return scriptFileSub = new Statement(null, 'Y', null); }

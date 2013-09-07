@@ -114,7 +114,7 @@ public class JbatchExecuter {
   @SuppressWarnings("hiding")
   static final public int version = 20121010;
 
-  protected Object data;
+  protected Object XXXdata;
   
   protected String sError = null;
   
@@ -158,7 +158,10 @@ public class JbatchExecuter {
   }
   
   
-  public void setOutfile(Appendable outfile){ this.outFile = outfile; }
+  public void setOutfile(Appendable outfile){ 
+    this.outFile = outfile; 
+    scriptVariables.put("text", outfile);
+  }
   
   public Appendable outFile(){ return outFile; }
   
@@ -180,15 +183,18 @@ public class JbatchExecuter {
    *   Especially it is used for {@link org.vishia.zmake.Zmake to set the currDir.} 
    * @throws IOException
    */
-  public Map<String, Object> genScriptVariables(JbatchScript genScript, Object userData, boolean accessPrivate) 
+  public Map<String, Object> genScriptVariables(JbatchScript genScript, boolean accessPrivate) 
   throws IOException
   {
     this.genScript = genScript;
-    this.data = userData;
+    //this.data = userData;
     this.bAccessPrivate = accessPrivate;
     CurrDir currDirWrapper = new CurrDir();
     currDirWrapper.currDir = new File(".").getAbsoluteFile().getParentFile();
-    
+    StringSeq cd = new StringSeq();
+    cd.change(FileSystem.normalizePath(currDirWrapper.currDir.getAbsolutePath()));
+    scriptVariables.put("$CD", cd);
+    scriptVariables.put("currDir", currDirWrapper);
     scriptVariables.put("currDir", currDirWrapper);
     scriptVariables.put("error", accessError);
     scriptVariables.put("mainCmdLogging", log);
@@ -211,26 +217,33 @@ public class JbatchExecuter {
   }
   
 
+
   
+  public void reset(){
+    bScriptVariableGenerated = false;
+    scriptVariables.clear();
+    sError = null;
+  }
   
   
   /**Generates an output with the given script.
    * @param genScript Generation script in java-prepared form. Parse it with {@link #parseGenScript(File, Appendable)}.
-   * @param userData The data which are used in the script
-   * @param out Any output
+   * @param out Any output. It is used for direct text output and it is stored as variable "text"
+   *   to write "<+text>...<.+>" to output to it.
    * @return If null, it is okay. Elsewhere a readable error message.
    * @throws IOException only if out.append throws it.
    */
-  public String genContent(JbatchScript genScript, Object userData, boolean accessPrivate, Appendable out) 
+  public String genContent(JbatchScript genScript, boolean accessPrivate, Appendable out) 
   throws IOException
   {
     this.bAccessPrivate = accessPrivate;
-    this.data = userData;
+    //this.data = userData;
     this.genScript = genScript;
 
     if(!bScriptVariableGenerated){
-      genScriptVariables(genScript, userData, accessPrivate);
+      genScriptVariables(genScript, accessPrivate);
     }
+    setScriptVariable("text", out);
     JbatchScript.Statement contentScript = genScript.getFileScript();
     ExecuteLevel genFile = new ExecuteLevel(null, scriptVariables);
     String sError = genFile.execute(contentScript.subContent, out, false);
@@ -320,11 +333,12 @@ public class JbatchExecuter {
     
     
     /**Put a value to a maybe inner local variable written with "name.subname.name".
-     * Get the content is supported by {@link DataAccess}
+     * Replace a given StringSeq with a given value as CharSequence by preserving the current instance
+     * of StringSeq. It means all references to this StringSeq, especially script variables, are changed.
      * @param ident May contain dots
      * @param value The value to store.
      */
-    void putLocalVariable(String ident, Object value){
+    void putOrReplaceLocalVariable(String ident, Object value){
       int start=0, end;
       Map<String, Object> var1 = localVariables;
       String ident1;
@@ -340,7 +354,14 @@ public class JbatchExecuter {
         start = end+1;
       }
       ident1 = ident.substring(start);
-      var1.put(ident1, value);
+      ////
+      Object oldvalue = var1.get(ident1);
+      if(oldvalue !=null && oldvalue instanceof StringSeq && value instanceof CharSequence){
+        //replace the inner CharSequence.
+        ((StringSeq)oldvalue).change((CharSequence)value);
+      } else {
+        var1.put(ident1, value);
+      }
     }
     
     
@@ -412,14 +433,7 @@ public class JbatchExecuter {
             uBuffer.append(newline);
           } break;
           case 'T': textAppendToVarOrOut(contentElement); break; 
-          case 'S': { //create a new local variable.
-            CharSequence text = evalString(contentElement);
-            //StringBuilder uBufferVariable = new StringBuilder();
-            //ExecuteLevel genVariable = new ExecuteLevel(this, localVariables);
-            //JbatchScript.StatementList content = contentElement.getSubContent();
-            //genVariable.execute(content, uBufferVariable, false);
-            putLocalVariable(contentElement.identArgJbat, text);
-          } break;
+          case 'S': setStringVariable(contentElement); break; 
           case 'P': { //create a new local variable as pipe
             StringBuilder uBufferVariable = new StringBuilder();
             localVariables.put(contentElement.identArgJbat, uBufferVariable);
@@ -442,10 +456,7 @@ public class JbatchExecuter {
             Object value = evalObject(contentElement, false);
             localVariables.put(contentElement.identArgJbat, value);
           } break;
-          case 'e': {  //<*datatext>
-            final CharSequence text = evalString(contentElement); //ascertainText(contentElement.expression, localVariables);
-            uBuffer.append(text); 
-          } break;
+          case 'e': executeDatatext(contentElement, out); break; 
           case 's': {
             executeSubroutine(contentElement, out);
           } break;
@@ -600,44 +611,29 @@ public class JbatchExecuter {
     {
       //Object check = getContent(ifBlock, localVariables, false);
       
-      Object check;
-      try{ 
-        check = ifBlock.expression.calcDataAccess(localVariables);
-        //check = ascertainValue(ifBlock.expression, data, localVariables, false);
-      } catch(Exception exc){
-        check = null;
-      }
-      boolean bCondition;
-      if(ifBlock.XXXcondition !=null && ifBlock.bElse){ //condition.sumExpression.constValue !=null && ifBlock.condition.sumExpression.constValue.equals("else")){
-        bCondition = true;  //if the else block is found, all others have returned false.
-      }
-      else {
-        if(ifBlock.expr != null){
-          CalculatorExpr.Value result = ifBlock.expr.calc(check);
-          bCondition = result.booleanValue();
-        } else {
-          /*
-          if(ifBlock.operator !=null){
-            String value = check == null ? "null" : check.toString();
-            if(ifBlock.operator.equals("!=")){
-              bCondition = check == null || !value.trim().equals(ifBlock.value); 
-            } else if(ifBlock.operator.equals("==")){
-              bCondition = check != null && value.trim().equals(ifBlock.value); 
-            } else {
-              writeError(" faulty operator " + ifBlock.operator, out);
-              bCondition = false;
-            }
-            */
-          bCondition= check !=null;
-        }
-      }
-      if(bCondition){
+      CalculatorExpr.Value check;
+      check = ifBlock.expression.calcDataAccess(localVariables);
+      boolean bCheck = check.booleanValue();
+      if(bCheck){
         execute(ifBlock.subContent, out, bIfHasNext);
       }
-      return bCondition;
+      return bCheck;
     }
     
     
+    
+    
+    void setStringVariable(JbatchScript.Statement statement) 
+    throws Exception 
+    {
+      CharSequence text = evalString(statement);
+      if(statement.identArgJbat.equals("$CD")){
+        //special handling of current directory:
+        setCurrDir(text);  //normalize, set "currDir"
+      } else {
+        putOrReplaceLocalVariable(statement.identArgJbat, text);
+      }
+    } 
     
     
     /**Invocation for <+name>text<.+>
@@ -649,34 +645,30 @@ public class JbatchExecuter {
       String name = contentElement.identArgJbat;
       Appendable out1;
       Object variable = localVariables.get(name);
-      if(variable !=null){
-        if(variable instanceof Appendable){
-          out1 = (Appendable)variable;
-        }
-        else if(variable instanceof CharSequence){
-          out1 = new StringBuilder(((CharSequence)variable));
-        }
-        else {
-          out1 = null;
-        }
-      } else {
-        out1 = null;
+      boolean put;
+      if(variable == null){
+        throw new NoSuchElementException("JbatExecuter - textAppend, variable not found; "+ name);
       }
-      if(out1 == null){
-        
-      } else {
-        ExecuteLevel genContent = new ExecuteLevel(this, localVariables);
-        genContent.execute(contentElement.subContent, out1, false);
-        if(out1 instanceof StringBuilder && variable != out1){
-          if(variable instanceof String){ //a stored String should be replaced by a String.
-            localVariables.put(name, out1.toString());  //replace content.
-          }
-          else if(variable instanceof CharSequence){
-            localVariables.put(name, out1);  //replace content.
-          }
-        } else {
-          //The variable in the container was used, don't put again.
-        }
+      if(variable instanceof StringSeq){
+        out1 = ((StringSeq)variable).changeIt();
+        put = false;
+      }
+      else if(variable instanceof Appendable){
+        out1 = (Appendable)variable;  //append, it may be a StringBuilder.
+        put = false;
+      }
+      else if(variable instanceof CharSequence){  //especially a String
+        //don't change this charSequence, build a new one
+        out1 = new StringBuilder(((CharSequence)variable));
+        put = true;
+      }
+      else {
+        throw new NoSuchElementException("JbatExecuter - textAppend, variable faulty type; " + variable.getClass().getName());
+      }
+      ExecuteLevel genContent = new ExecuteLevel(this, localVariables);
+      genContent.execute(contentElement.subContent, out1, false);
+      if(put){
+        localVariables.put(name, out1);  //replace content.
       }
     }
     
@@ -845,24 +837,45 @@ public class JbatchExecuter {
     throws Exception
     {
       CharSequence arg = evalString(statement);
-      String sCurrDir;
-      if(FileSystem.isAbsolutePathOrDrive(arg)){
-        localVariables.put("$CD", arg);          //sets the absolute path
-        sCurrDir = arg.toString();
-      } else {
-        StringSeq cd1 = (StringSeq)localVariables.get("$CD");
-        StringBuilder u = cd1.changeIt(); //new StringBuilder(cd1.length() + arg.length()+1);
-        u.append('/').append(arg);   //concatenate a relativ path
-        cd1.change(FileSystem.normalizePath(u));   //resolve "xxx/../xxx"
-        sCurrDir = cd1.toString();
-        //localVariables.put("$CD", cd1);
-      }
-      CurrDir currDirWrapper = (CurrDir)localVariables.get("currDir");
-      currDirWrapper.currDir = new File(sCurrDir);
-     
+      setCurrDir(arg); 
     }
 
+    
+    private void setCurrDir(CharSequence arg){
+      String sCurrDir;
+      final CharSequence arg1;
+      StringSeq cd1 = (StringSeq)localVariables.get("$CD");
+      if(FileSystem.isAbsolutePathOrDrive(arg)){
+        arg1 = arg;
+      } else {
+        StringBuilder u = cd1.changeIt(); //new StringBuilder(cd1.length() + arg.length()+1);
+        u.append('/').append(arg);   //concatenate a relativ path
+        arg1 = u;
+      }
+      cd1.change(FileSystem.normalizePath(arg1));   //resolve "xxx/../xxx"
+      sCurrDir = cd1.toString();
+      CurrDir currDirWrapper = (CurrDir)localVariables.get("currDir");
+      currDirWrapper.currDir = new File(sCurrDir);
+      
+    }
+    
      
+    
+    private void executeDatatext(JbatchScript.Statement statement, Appendable out)  //<*datatext>
+    throws IllegalArgumentException, Exception
+    {
+      Object obj = evalDatapathOrExpr(statement); //ascertainText(contentElement.expression, localVariables);
+      if(obj instanceof CalculatorExpr.Value){
+        obj = ((CalculatorExpr.Value)obj).objValue();
+      }
+      final CharSequence text;
+      if(statement.textArg !=null){ //it is a format string:
+         text = String.format(statement.textArg.toString(), obj);
+      } else {
+        text = obj.toString();
+      }
+      out.append(text); 
+    }
     
     void executeOpenfile(JbatchScript.Statement contentElement) 
     throws IllegalArgumentException, Exception
@@ -923,11 +936,35 @@ public class JbatchExecuter {
     
     
     
+    /**Checks either the {@link JbatchScript.Argument#dataAccess} or, if it is null,
+     * the {@link JbatchScript.Argument#expression}. Returns either the Object which is gotten
+     * by the {@link DataAccess#getDataObj(Map, boolean, boolean)} or which is calculated
+     * by the expression. Returns an instance of {@link CalculatorExpr.Value} if it is 
+     * a result by an expression.
+     * @param arg
+     * @return
+     * @throws Exception
+     */
+    public Object evalDatapathOrExpr(JbatchScript.Argument arg) throws Exception{
+      if(arg.dataAccess !=null){
+        Object o = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
+        if(o==null){ return "null"; }
+        else {return o; }
+      } else if(arg.expression !=null){
+        CalculatorExpr.Value value = arg.expression.calcDataAccess(localVariables);
+        if(value.isObjValue()){ return value.objValue(); }
+        else return value;
+      } else throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
+    }
+    
+    
+    
     public CharSequence evalString(JbatchScript.Argument arg) throws Exception{
       if(arg.textArg !=null) return arg.textArg;
       else if(arg.dataAccess !=null){
         Object o = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
-        return StringSeq.create(o.toString());
+        if(o==null){ return "null"; }
+        else {return o.toString(); }
       } else if(arg.subContent !=null){
         StringBuilder u = new StringBuilder();
         executeNewlevel(arg.subContent, u, false);

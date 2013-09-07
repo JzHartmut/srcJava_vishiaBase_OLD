@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
 
 import org.vishia.bridgeC.AllocInBlock;
@@ -98,11 +99,13 @@ import org.vishia.bridgeC.AllocInBlock;
  * @param <Type>
  */
 public class IndexMultiTable<Key extends Comparable<Key>, Type> 
-implements Map<Key,Type>, Iterable<Type>
+implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 {
   
   /**Version, history and license.
    * <ul>
+   * <li>2013-09-07 Hartmut chg: {@link #put(Comparable, Object)} should not create more as one object
+   *   with the same key. Use add to do so.
    * <li>2013-08-07 Hartmut improved.
    * <li>2013-04-21 Hartmut created, derived from {@link IndexMultiTableInteger}.
    * </ul>
@@ -146,7 +149,7 @@ implements Map<Key,Type>, Iterable<Type>
   /**actual number of objects stored in this table. */
   protected int sizeBlock;
   
-  /**True, than {@link #values} contains instances of this class too. */
+  /**True, than {@link #aValues} contains instances of this class too. */
   protected boolean isHyperBlock;
   
   /**modification access counter for Iterator. */
@@ -154,12 +157,12 @@ implements Map<Key,Type>, Iterable<Type>
   protected int modcount;
   
   /**Array of objects appropritate to the keys. */
-  protected final Object[] values = new Object[maxBlock];
+  protected final Object[] aValues = new Object[maxBlock];
   
   /**Array of keys, there are sorted ascending. The same key can occure some times. */ 
   //private final Comparable<Key>[] key = new Comparable[maxBlock];
   
-  protected final Key[] keys; // = new Key[maxBlock];
+  protected final Key[] aKeys; // = new Key[maxBlock];
   
   /**The parent if it is a child table. */
   private IndexMultiTable<Key, Type> parent;
@@ -218,7 +221,7 @@ implements Map<Key,Type>, Iterable<Type>
       lastkey = minKey__;
       while(helper.table.isHyperBlock)
       { //call it recursively with sub index.
-        int idx = binarySearchFirstKey(helper.table.keys, 0, helper.table.sizeBlock, startKey); //, sizeBlock, key1);
+        int idx = binarySearchFirstKey(helper.table.aKeys, 0, helper.table.sizeBlock, startKey); //, sizeBlock, key1);
         if(idx < 0)
         { /**an non exact found, accept it.
            * use the table with the key lesser than the requested key
@@ -232,13 +235,13 @@ implements Map<Key,Type>, Iterable<Type>
         //idx -=1;  //?
         helper.idx = idx;
         @SuppressWarnings("unchecked")
-        IndexMultiTable<Key, Type> childTable = (IndexMultiTable<Key, Type>)helper.table.values[helper.idx];
+        IndexMultiTable<Key, Type> childTable = (IndexMultiTable<Key, Type>)helper.table.aValues[helper.idx];
         helper.childHelper = new IteratorHelper<Key, Type>(helper); 
         
         helper.childHelper.table = childTable;
         helper = helper.childHelper;  //use the sub-table to iterate.          
       }
-      int idx = binarySearchFirstKey(helper.table.keys, 0, helper.table.sizeBlock,  startKey); //, sizeBlock, key1);
+      int idx = binarySearchFirstKey(helper.table.aKeys, 0, helper.table.sizeBlock,  startKey); //, sizeBlock, key1);
       if(idx < 0)
       { /**an non exact found, accept it.
          * start from the element with first key greater than the requested key
@@ -276,12 +279,12 @@ implements Map<Key,Type>, Iterable<Type>
       if(bHasNext)
       { bHasNextProcessed = false;  //call it at next access!
         IndexMultiTable<Key, Type> table = helper.table;
-        assert(table.keys[helper.idx].compareTo(lastkey) >= 0);  //test
-        if(table.keys[helper.idx].compareTo(lastkey) < 0) throw new RuntimeException("assert");
-        if(table.keys[helper.idx].compareTo(lastkey) < 0)
+        assert(table.aKeys[helper.idx].compareTo(lastkey) >= 0);  //test
+        if(table.aKeys[helper.idx].compareTo(lastkey) < 0) throw new RuntimeException("assert");
+        if(table.aKeys[helper.idx].compareTo(lastkey) < 0)
           stop();
-        lastkey = table.keys[helper.idx];
-        return (Type)table.values[helper.idx];
+        lastkey = table.aKeys[helper.idx];
+        return (Type)table.aValues[helper.idx];
       }
       else return null;
     }
@@ -307,7 +310,7 @@ implements Map<Key,Type>, Iterable<Type>
       if(bHasNext)
       { if(helper.table.isHyperBlock)
         { //
-          IndexMultiTable<Key, Type> childTable = (IndexMultiTable<Key, Type>)helper.table.values[helper.idx];
+          IndexMultiTable<Key, Type> childTable = (IndexMultiTable<Key, Type>)helper.table.aValues[helper.idx];
           if(helper.childHelper == null)
           { //no child yet. later reuse the instance of child.
             helper.childHelper = new IteratorHelper(helper); 
@@ -392,10 +395,10 @@ implements Map<Key,Type>, Iterable<Type>
   public IndexMultiTable(Provide<Key> provider)
   { //this(1000, 'I');
     this.provider = provider;
-    this.keys = provider.genArray(maxBlock);
+    this.aKeys = provider.genArray(maxBlock);
     this.minKey__ = provider.genMin();
     this.maxKey__ = provider.genMax();
-    for(int idx = 0; idx < maxBlock; idx++){ keys[idx] = maxKey__; }
+    for(int idx = 0; idx < maxBlock; idx++){ aKeys[idx] = maxKey__; }
     sizeBlock = 0;
   }
   
@@ -413,7 +416,17 @@ implements Map<Key,Type>, Iterable<Type>
   }
   */
   
+
   
+  public Type put(Key key, Type obj){
+    return putOrAdd(key, obj, false);
+  }
+
+  
+  public Type add(Key key, Type obj){
+    return putOrAdd(key, obj, true);
+  }
+
   
   
   /**Put a object in the table. The key may be ambiguous, a new object with the same key is placed
@@ -422,21 +435,26 @@ implements Map<Key,Type>, Iterable<Type>
    * 
    */
   @SuppressWarnings("unchecked")
-  public Type put(Key arg0, Type obj1)
+  private Type putOrAdd(Key arg0, Type obj1, boolean shouldAdd)
   { Type lastObj = null;
+    boolean found;
     //int key1 = arg0.intValue();
     //place object with same key after the last object with the same key.
-    int idx = Arrays.binarySearch(keys, arg0); //, sizeBlock, key1);
+    int idx = Arrays.binarySearch(aKeys, arg0); //, sizeBlock, key1);
     //if(key1 == -37831)
       //stop();
     if(idx < 0)
     { idx = -idx-1;  //NOTE: sortin after that map, which index starts with equal or lesser index.
+      found = false;
     }
     else
     { //if key1 is found, sorting after the last value with that index.
-      while(idx <sizeBlock && keys[idx].compareTo(arg0) == 0)  //while the keys are identically
-      { idx+=1; 
-      } 
+      found = true;
+      if(isHyperBlock || shouldAdd){
+        while(idx <sizeBlock && aKeys[idx].compareTo(arg0) == 0)  //while the keys are identically
+        { idx+=1; 
+        }
+      }
     }
     if(isHyperBlock)
     { //call it recursively with sub index.
@@ -450,17 +468,17 @@ implements Map<Key,Type>, Iterable<Type>
         IndexMultiTable<Key, Type> parents = this;
         while(parents != null)
         { //if(key1 < key[0])
-          if(arg0.compareTo(keys[0]) <0)
-          { keys[0] = arg0; //correct the key, key1 will be the less of child.
+          if(arg0.compareTo(aKeys[0]) <0)
+          { aKeys[0] = arg0; //correct the key, key1 will be the less of child.
           }
           parents = parents.parent;
         }
         //NOTE: if a new child will be created, the key[0] is set with new childs key.
       }
       if(idx < sizeBlock)
-      { if(! (values[idx] instanceof IndexMultiTable))
+      { if(! (aValues[idx] instanceof IndexMultiTable))
           stop();
-        child = ((IndexMultiTable<Key, Type>)(values[idx]));
+        child = ((IndexMultiTable<Key, Type>)(aValues[idx]));
       }
       else
       { //index after the last block.
@@ -472,16 +490,16 @@ implements Map<Key,Type>, Iterable<Type>
         //int idxH = maxBlock / 2;
         if(child.isHyperBlock)
           stop();
-        int idxInChild = Arrays.binarySearch(child.keys, arg0);
+        int idxInChild = Arrays.binarySearch(child.aKeys, arg0);
         if(idxInChild <0){ idxInChild = -idxInChild -1; }
-        else{ while(idxInChild <sizeBlock && keys[idxInChild].compareTo(arg0) == 0){ idxInChild+=1;}}
+        else{ while(idxInChild <sizeBlock && aKeys[idxInChild].compareTo(arg0) == 0){ idxInChild+=1;}}
         
         IndexMultiTable<Key, Type> right;
         
         right = new IndexMultiTable<Key, Type>(provider);
         if(child.isHyperBlock)
         { Key key0right = separateIn2arrays(child,child, right);
-          sortin(idx+1, right.keys[0], right);
+          sortin(idx+1, right.aKeys[0], right);
           if(arg0.compareTo(key0right) >= 0) //key0right)
           { right.put(arg0, obj1);
           }
@@ -492,27 +510,28 @@ implements Map<Key,Type>, Iterable<Type>
         else
         {
           sortInSeparated2arrays(idxInChild, arg0, obj1, child, child, right);
-          sortin(idx+1, right.keys[0], right);
+          sortin(idx+1, right.aKeys[0], right);
         }
       }
       else 
       { //the child has space.
-        child.put(arg0, obj1); 
+        child.putOrAdd(arg0, obj1, shouldAdd); 
       }
     }
     else
     {
       if(idx <0)
-      { //not found
-        //lastObj = null;
-        idx = -idx -1;
+      { idx = -idx -1;
+        sortin(idx, arg0, obj1);  //idx+1 because sortin after found position.            
       }
       else
       { //found
-        //lastObj = (Type)obj[idx];
-        //idx +=1;  
+        if(!found || shouldAdd){
+          sortin(idx, arg0, obj1);  //idx+1 because sortin after found position.            
+        } else {
+          aValues[idx] = obj1;   //replace the existing one.
+        }
       }
-      sortin(idx, arg0, obj1);  //idx+1 because sortin after found position.            
     }
     check();
     return lastObj;
@@ -542,13 +561,13 @@ implements Map<Key,Type>, Iterable<Type>
         sortInSeparated2arrays(idx, key1, obj1, this, left, right);
         //the current block is now a hyper block.
         this.isHyperBlock = true;
-        values[0] = left;
-        values[1] = right;
-        keys[0] = left.keys[0]; //minKey__;  //because it is possible to sort in lesser keys.
-        keys[1] = right.keys[0];
+        aValues[0] = left;
+        aValues[1] = right;
+        aKeys[0] = left.aKeys[0]; //minKey__;  //because it is possible to sort in lesser keys.
+        aKeys[1] = right.aKeys[0];
         for(int idxFill = 2; idxFill < maxBlock; idxFill++)
-        { keys[idxFill] = maxKey__; 
-          values[idxFill] = null;
+        { aKeys[idxFill] = maxKey__; 
+          aValues[idxFill] = null;
         }
         sizeBlock = 2;
         left.check();right.check();
@@ -557,12 +576,12 @@ implements Map<Key,Type>, Iterable<Type>
     }
     else
     { if(idx < sizeBlock)
-      { System.arraycopy(keys, idx, keys, idx+1, sizeBlock-idx);
-        System.arraycopy(values, idx, values, idx+1, sizeBlock-idx);
+      { System.arraycopy(aKeys, idx, aKeys, idx+1, sizeBlock-idx);
+        System.arraycopy(aValues, idx, aValues, idx+1, sizeBlock-idx);
       }
       sizeBlock +=1;
-      keys[idx] = key1;
-      values[idx] = obj1;
+      aKeys[idx] = key1;
+      aValues[idx] = obj1;
     }
     check();
   }
@@ -592,29 +611,29 @@ implements Map<Key,Type>, Iterable<Type>
     final int idxH = maxBlock / 2;
     if(idx < idxH)
     { /**sortin the obj1 in the left table. */
-      System.arraycopy(src.keys, idxH, right.keys, 0, src.sizeBlock - idxH);
-      System.arraycopy(src.values, idxH, right.values, 0, src.sizeBlock - idxH);
+      System.arraycopy(src.aKeys, idxH, right.aKeys, 0, src.sizeBlock - idxH);
+      System.arraycopy(src.aValues, idxH, right.aValues, 0, src.sizeBlock - idxH);
 
-      System.arraycopy(src.keys, 0, left.keys, 0, idx);
-      System.arraycopy(src.values, 0, left.values, 0, idx);
-      System.arraycopy(src.keys, idx, left.keys, idx+1, idxH-idx);
-      System.arraycopy(src.values, idx, left.values, idx+1, idxH-idx);
-      left.keys[idx] = key1;
-      left.values[idx] = obj1;
+      System.arraycopy(src.aKeys, 0, left.aKeys, 0, idx);
+      System.arraycopy(src.aValues, 0, left.aValues, 0, idx);
+      System.arraycopy(src.aKeys, idx, left.aKeys, idx+1, idxH-idx);
+      System.arraycopy(src.aValues, idx, left.aValues, idx+1, idxH-idx);
+      left.aKeys[idx] = key1;
+      left.aValues[idx] = obj1;
 
     }  
     else
     { /**sortin the obj1 in the right table. */
-      System.arraycopy(src.keys, 0, left.keys, 0, idxH);
-      System.arraycopy(src.values, 0, left.values, 0, idxH);
+      System.arraycopy(src.aKeys, 0, left.aKeys, 0, idxH);
+      System.arraycopy(src.aValues, 0, left.aValues, 0, idxH);
       
       int idxR = idx-idxH; //valid for right block.
-      System.arraycopy(src.keys, idxH, right.keys, 0, idxR);
-      System.arraycopy(src.values, idxH, right.values, 0, idxR);
-      System.arraycopy(src.keys, idx, right.keys, idxR+1, src.sizeBlock - idx);
-      System.arraycopy(src.values, idx, right.values, idxR+1, src.sizeBlock - idx);
-      right.keys[idxR] = key1;
-      right.values[idxR] = obj1;
+      System.arraycopy(src.aKeys, idxH, right.aKeys, 0, idxR);
+      System.arraycopy(src.aValues, idxH, right.aValues, 0, idxR);
+      System.arraycopy(src.aKeys, idx, right.aKeys, idxR+1, src.sizeBlock - idx);
+      System.arraycopy(src.aValues, idx, right.aValues, idxR+1, src.sizeBlock - idx);
+      right.aKeys[idxR] = key1;
+      right.aValues[idxR] = obj1;
     }
     /**Set the sizeBlock and clear the content after copy of all block data,
      * because it is possible that src is equal left or right!
@@ -628,12 +647,12 @@ implements Map<Key,Type>, Iterable<Type>
       right.sizeBlock = maxBlock - idxH +1;
     }
     for(int idxFill = left.sizeBlock; idxFill < maxBlock; idxFill++)
-    { left.keys[idxFill] = maxKey__; 
-      left.values[idxFill] = null;
+    { left.aKeys[idxFill] = maxKey__; 
+      left.aValues[idxFill] = null;
     }
     for(int idxFill = right.sizeBlock; idxFill < maxBlock; idxFill++)
-    { right.keys[idxFill] = maxKey__; 
-      right.values[idxFill] = null;
+    { right.aKeys[idxFill] = maxKey__; 
+      right.aValues[idxFill] = null;
     }
     src.check();
     left.check();
@@ -661,28 +680,28 @@ implements Map<Key,Type>, Iterable<Type>
             
     final int idxH = maxBlock / 2;
   
-    System.arraycopy(src.keys, idxH, right.keys, 0, src.sizeBlock - idxH);
-    System.arraycopy(src.values, idxH, right.values, 0, src.sizeBlock - idxH);
+    System.arraycopy(src.aKeys, idxH, right.aKeys, 0, src.sizeBlock - idxH);
+    System.arraycopy(src.aValues, idxH, right.aValues, 0, src.sizeBlock - idxH);
 
-    System.arraycopy(src.keys, 0, left.keys, 0, idxH);
-    System.arraycopy(src.values, 0, left.values, 0, idxH);
+    System.arraycopy(src.aKeys, 0, left.aKeys, 0, idxH);
+    System.arraycopy(src.aValues, 0, left.aValues, 0, idxH);
     /**Set the sizeBlock and clear the content after copy of all block data,
      * because it is possible that src is equal left or right!
      */
     left.sizeBlock = idxH;
     for(int idxFill = idxH; idxFill < maxBlock; idxFill++)
-    { left.keys[idxFill] = maxKey__; 
-      left.values[idxFill] = null;
+    { left.aKeys[idxFill] = maxKey__; 
+      left.aValues[idxFill] = null;
     }
     right.sizeBlock = maxBlock - idxH;
     for(int idxFill = right.sizeBlock; idxFill < maxBlock; idxFill++)
-    { right.keys[idxFill] = maxKey__; 
-      right.values[idxFill] = null;
+    { right.aKeys[idxFill] = maxKey__; 
+      right.aValues[idxFill] = null;
     }
     src.check();
     left.check();
     right.check();
-    return right.keys[0];
+    return right.aKeys[0];
   }
 
 
@@ -699,11 +718,11 @@ implements Map<Key,Type>, Iterable<Type>
     for(int ix=0; ix<sizeBlock; ix++){
       if(isHyperBlock){ 
         @SuppressWarnings("unchecked")
-        IndexMultiTable subTable = (IndexMultiTable)values[ix];
+        IndexMultiTable subTable = (IndexMultiTable)aValues[ix];
         subTable.clear();
       }
-      values[ix] = null;
-      keys[ix] = maxKey__; 
+      aValues[ix] = null;
+      aKeys[ix] = maxKey__; 
     }
     sizeBlock = 0;
     isHyperBlock = false;
@@ -783,7 +802,7 @@ implements Map<Key,Type>, Iterable<Type>
   { IndexMultiTable<Key, Type> table = this;
     //place object with same key after the last object with the same key.
     while(table.isHyperBlock)
-    { int idx = binarySearchFirstKey(table.keys, 0, table.sizeBlock, key1); //, sizeBlock, key1);
+    { int idx = binarySearchFirstKey(table.aKeys, 0, table.sizeBlock, key1); //, sizeBlock, key1);
       if(idx < 0)
       { //an non exact found index is possible if it is an Hyper block.
         idx = -idx-2;  //NOTE: access to the lesser element before the insertion point.
@@ -793,10 +812,10 @@ implements Map<Key,Type>, Iterable<Type>
       }
       else
       { assert(idx < table.sizeBlock);
-        table = ((IndexMultiTable<Key, Type>)(table.values[idx]));
+        table = ((IndexMultiTable<Key, Type>)(table.aValues[idx]));
       }
     }
-    int idx = binarySearchFirstKey(table.keys, 0, table.sizeBlock, key1); //, sizeBlock, key1);
+    int idx = binarySearchFirstKey(table.aKeys, 0, table.sizeBlock, key1); //, sizeBlock, key1);
     { if(idx < 0){
         if(exact) return null;
         else {
@@ -805,7 +824,7 @@ implements Map<Key,Type>, Iterable<Type>
       }
       if(idx >=0)
       { if(retFound !=null){ retFound[0] = true; }
-        return (Type)table.values[idx];
+        return (Type)table.aValues[idx];
       }
       else  
       { //not found, before first.
@@ -917,21 +936,21 @@ implements Map<Key,Type>, Iterable<Type>
   void check()
   { boolean shouldCheck = false;
     if(shouldCheck)
-    { if(sizeBlock >=1){ assert1(values[0] != null); }
+    { if(sizeBlock >=1){ assert1(aValues[0] != null); }
       for(int ii=1; ii < sizeBlock; ii++)
-      { assert1(keys[ii-1].compareTo(keys[ii]) <= 0);
-        assert1(values[ii] != null);
-        if(values[ii] == null)
+      { assert1(aKeys[ii-1].compareTo(aKeys[ii]) <= 0);
+        assert1(aValues[ii] != null);
+        if(aValues[ii] == null)
           stop();
       }
       if(isHyperBlock)
       { for(int ii=1; ii < sizeBlock; ii++)
-        { assert1(keys[ii] == ((IndexMultiTable<Key, Type>)values[ii]).keys[0]); 
+        { assert1(aKeys[ii] == ((IndexMultiTable<Key, Type>)aValues[ii]).aKeys[0]); 
         }
       }
       for(int ii=sizeBlock; ii < maxBlock; ii++)
-      { assert1(keys[ii] == maxKey__);
-        assert1(values[ii] == null);
+      { assert1(aKeys[ii] == maxKey__);
+        assert1(aValues[ii] == null);
       }
     }  
   }
