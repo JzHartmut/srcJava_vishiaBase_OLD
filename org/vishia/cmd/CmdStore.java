@@ -5,11 +5,17 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+
+import org.vishia.cmd.JbatchScript.Statement;
+import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.StringPart;
+import org.vishia.xmlSimple.XmlException;
+import org.vishia.zbatch.Zbatch;
 
 
 /**This class stores some prepared commands. The input of the store is a file, 
@@ -30,6 +36,8 @@ public class CmdStore
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-09-08 Hartmut new: {@link CmdBlock#jbatSub} may replace the {@link CmdBlock#listBlockCmds}
+   *   and may replace the {@link PrepareCmd} in future, first test. 
    * <li>2012-02-19 Hartmut chg: {@link #readCmdCfg(File)} accepts $ENV, commentlines with // and #
    *   and start of command not with spaces on line start.
    * <li>2011-12-31 Hartmut chg {@link CmdBlock#title} is new, the syntax of configfile is changed.
@@ -78,13 +86,27 @@ public class CmdStore
     /**Some commands of this block. */
     public final List<PrepareCmd> listBlockCmds = new LinkedList<PrepareCmd>();
 
+    /**Any Jbat subroutine which should be invoked instead of the {@link #listBlockCmds}. */
+    protected final JbatchScript.Statement jbatSub;
+    
+    public CmdBlock(){
+      jbatSub = null;
+    }
+    
+    public CmdBlock(JbatchScript.Statement jbatSub){
+      this.jbatSub = jbatSub;
+      this.name = jbatSub.getIdent();
+    }
+    
     /**Possible call from {@link org.vishia.zbnf.ZbnfJavaOutput}. Creates an instance of one command */
     public PrepareCmd new_cmd(){ return new PrepareCmd(); }
+    
     
     /**Possible call from {@link org.vishia.zbnf.ZbnfJavaOutput}. Adds the instance of command */
     public void add_cmd(PrepareCmd cmd)
     { cmd.prepareListCmdReplace();
       listBlockCmds.add(cmd); 
+      
     }
     
     /**Returns all commands which are contained in this CmdBlock. */
@@ -100,7 +122,7 @@ public class CmdStore
   /**Contains all commands read from the configuration file in the read order. */
   private final Map<String, CmdBlock> idxCmd = new TreeMap<String, CmdBlock>();
 
-  private String XXXsyntaxCmd = "Cmds::={ <cmd> }\\e. "
+  private final String XXXsyntaxCmd = "Cmds::={ <cmd> }\\e. "
     + "cmd::= <* :?name> : { <*\\n?cmd> \\n } ."; 
 
   
@@ -115,10 +137,32 @@ public class CmdStore
   
   /**Possible call from {@link org.vishia.zbnf.ZbnfJavaOutput}. Adds the instance of command block. */
   public void add_CmdBlock(CmdBlock value){ listCmds.add(value); idxCmd.put(value.name, value); }
+
+  
+  
+  public JbatchScript readCmdCfgJbat(File cfgFile, MainCmdLogging_ifc log) 
+  throws FileNotFoundException, IllegalArgumentException, IllegalAccessException
+  , InstantiationException, IOException, ParseException, XmlException
+  {
+    
+    Zbatch zbatch = new Zbatch(log);
+    JbatchScript script = zbatch.translateAndSetGenCtrl(cfgFile, new File(cfgFile.getParentFile(), cfgFile.getName() + ".check.xml"));
+    for(Map.Entry<String, Statement> e: script.subScripts.entrySet()){
+      CmdBlock cmdBlock = new CmdBlock(e.getValue());
+      add_CmdBlock(cmdBlock);
+    }
+    return script;
+  }
+
+  
   
   
   public String readCmdCfg(File cfgFile)
-  { String sError = null;
+  { 
+    //if(cfgFile.getName().endsWith(".jbat.cfg")){
+    //  return readCmdCfgJbat(cfgFile, null);
+    //}
+    String sError = null;
     BufferedReader reader = null;
     try{
       reader = new BufferedReader(new FileReader(cfgFile));

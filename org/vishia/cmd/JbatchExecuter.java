@@ -246,10 +246,42 @@ public class JbatchExecuter {
     setScriptVariable("text", out);
     JbatchScript.Statement contentScript = genScript.getFileScript();
     ExecuteLevel genFile = new ExecuteLevel(null, scriptVariables);
-    String sError = genFile.execute(contentScript.subContent, out, false);
-    return sError;
+    String sError1 = genFile.execute(contentScript.subContent, out, false);
+    return sError1;
   }
 
+  
+  /**Initializes, especially all script variables.
+   * @param genScript Generation script in java-prepared form. Parse it with {@link #parseGenScript(File, Appendable)}.
+   * @param out Any output. It is used for direct text output and it is stored as variable "text"
+   *   to write "<+text>...<.+>" to output to it.
+   * @return If null, it is okay. Elsewhere a readable error message.
+   * @throws IOException only if out.append throws it.
+   */
+  public String initialize(JbatchScript genScript, boolean accessPrivate) 
+  throws IOException
+  {
+    this.bAccessPrivate = accessPrivate;
+    //this.data = userData;
+    this.genScript = genScript;
+
+    if(!bScriptVariableGenerated){
+      genScriptVariables(genScript, accessPrivate);
+    }
+    return null;
+  }
+
+  
+  public String execSub(JbatchScript.Statement statement, boolean accessPrivate, Appendable out) 
+  throws IOException
+  {
+    ExecuteLevel level = new ExecuteLevel(null, scriptVariables);
+    String sError1 = level.execute(statement.subContent, out, false);
+    return sError1;
+  }
+  
+  
+  
   
   public Object getScriptVariable(String name){ return scriptVariables.get(name); }
 

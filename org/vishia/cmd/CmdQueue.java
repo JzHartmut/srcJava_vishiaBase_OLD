@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.vishia.cmd.CmdStore.CmdBlock;
 //import org.vishia.mainCmd.MainCmd_ifc;
 //import org.vishia.mainCmd.Report;
+import org.vishia.util.Assert;
 
 /**This class stores some prepared commands for execution and executes it one after another.
  * The commands can contain placeholder for files.
@@ -21,6 +22,8 @@ public class CmdQueue implements Closeable
   
   /**Version, history and license.
    * <ul>
+   * <li>2013-09-08 Hartmut new: {@link #jbatchExecuter} now included. TODO: it should use the {@link #executer}
+   *   instead create a new one per call.
    * <li>2013-02-09 Hartmut chg: {@link #abortCmd()} now clears the queue too. The clearing of the command queue is a good idea, because while a program execution hangs, some unnecessary requests
    * may be initiated. 
    * <li>2013-02-03 Hartmut chg: better execution exception, uses log in {@link #execCmds(Appendable)}
@@ -62,6 +65,9 @@ public class CmdQueue implements Closeable
     //final CmdStore.CmdBlock cmdBlock;
     //public final List<PrepareCmd> listCmds;
     public final PrepareCmd cmd;
+    
+    public final JbatchScript.Statement jbat;
+    
     final File[] files;
     File currentDir;
     
@@ -75,6 +81,22 @@ public class CmdQueue implements Closeable
      */
     public PendingCmd(PrepareCmd cmd, File[] files, File currentDir)
     { this.cmd = cmd;
+      this.jbat = null;
+      this.files = files;
+      this.currentDir = currentDir;
+    }
+
+    /**Constructs a cmd which is added to a queue to execute in another thread.
+     * @param cmd The prepared cmd
+     * @param files Some files which may be used by the command.
+     *   Note that a reference to another {@link CmdGetFileArgs_ifc} can't be used
+     *   if that selection is valid only on calling time. Therefore the yet selected files
+     *   should be referenced.CmdGetFileArgs_ifc
+     * @param currentDir
+     */
+    public PendingCmd(JbatchScript.Statement cmd, File[] files, File currentDir)
+    { this.cmd = null;
+      this.jbat = cmd;
       this.files = files;
       this.currentDir = currentDir;
     }
@@ -97,6 +119,8 @@ public class CmdQueue implements Closeable
   private final ConcurrentLinkedQueue<PendingCmd> pendingCmds = new ConcurrentLinkedQueue<PendingCmd>();
   
   private final CmdExecuter executer = new CmdExecuter();
+  
+  private final JbatchExecuter jbatchExecuter = new JbatchExecuter(null);
   
   //private final MainCmd_ifc mainCmd;
 
@@ -128,6 +152,18 @@ public class CmdQueue implements Closeable
     cmdError = userErr;
   }
   
+  
+  
+  public void initExecuter(JbatchScript script){
+    try{ 
+      jbatchExecuter.initialize(script, false);
+    }catch(IOException exc){
+      Assert.stop();
+      //System.err
+    }
+  }
+  
+  
   /**@deprecated it does nothing.
    * @param file
    */
@@ -152,8 +188,12 @@ public class CmdQueue implements Closeable
    */
   public int addCmd(CmdBlock cmdBlock, File[] files, File currentDir)
   {
-    for(PrepareCmd cmd: cmdBlock.getCmds()){
-      pendingCmds.add(new PendingCmd(cmd, files, currentDir));  //to execute.
+    if(cmdBlock.jbatSub !=null){
+      pendingCmds.add(new PendingCmd(cmdBlock.jbatSub, files, currentDir));  //to execute.
+    } else {
+      for(PrepareCmd cmd: cmdBlock.getCmds()){
+        pendingCmds.add(new PendingCmd(cmd, files, currentDir));  //to execute.
+      }
     }
     return pendingCmds.size();
   }
@@ -197,9 +237,8 @@ public class CmdQueue implements Closeable
           executer.setCurrentDir(cmd1.currentDir);
           sCmdShow.append(cmd1.currentDir).append(">");
         }
-        Class<?> javaClass = cmd1.cmd.getJavaClass();
-        if(javaClass !=null){
-          
+        if(cmd1.jbat !=null){
+          jbatchExecuter.execSub(cmd1.jbat, false, outStatus);
         } else {
           //a operation system command:
           String[] sCmd = cmd1.cmd.prepareCmd(cmd1);

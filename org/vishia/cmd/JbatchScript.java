@@ -1,11 +1,6 @@
 package org.vishia.cmd;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -16,15 +11,9 @@ import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.Assert;
 import org.vishia.util.CalculatorExpr;
 import org.vishia.util.DataAccess;
-import org.vishia.util.FileSystem;
 import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPart;
-import org.vishia.util.StringPartFromFileLines;
 import org.vishia.util.StringSeq;
-import org.vishia.util.UnexpectedException;
-import org.vishia.xmlSimple.SimpleXmlOutputter;
-import org.vishia.xmlSimple.XmlException;
-import org.vishia.xmlSimple.XmlNode;
 
 
 /**This class contains control data and sub-routines to generate output texts from internal data.
@@ -503,7 +492,7 @@ public class JbatchScript {
         subContent = new StatementList();
       }
       else if("IVL".indexOf(whatisit)>=0){
-        subContent = new StatementList(this, true);
+        subContent = new StatementList(this);
       }
     }
     
@@ -711,7 +700,7 @@ public class JbatchScript {
 
     
     public Statement new_if()
-    { StatementList subGenContent = new StatementList(this, true);
+    { StatementList subGenContent = new StatementList(this);
       Statement contentElement = new Statement(parentList, 'F', null);
       contentElement.subContent = subGenContent;  //The contentElement contains a genContent. 
       subContent.content.add(contentElement);
@@ -723,7 +712,7 @@ public class JbatchScript {
 
     
     public IfCondition new_ifBlock()
-    { StatementList subGenContent = new StatementList(this, true);
+    { StatementList subGenContent = new StatementList(this);
       IfCondition contentElement = new IfCondition(parentList, 'G');
       contentElement.subContent = subGenContent;  //The contentElement contains a genContent. 
       subContent.content.add(contentElement);
@@ -743,7 +732,7 @@ public class JbatchScript {
     public void add_hasNext(Statement val){}
 
     public Statement new_elseBlock()
-    { StatementList subGenContent = new StatementList(this, true);
+    { StatementList subGenContent = new StatementList(this);
       Statement contentElement = new Statement(parentList, 'E', null);
       contentElement.subContent = subGenContent;  //The contentElement contains a genContent. 
       subContent.content.add(contentElement);
@@ -1023,10 +1012,10 @@ public class JbatchScript {
     final Argument parentStatement;
     
     /**True if < genContent> is called for any input, (?:forInput?) */
-    public final boolean isContentForInput;
+    //public final boolean XXXisContentForInput;
     
     /**Set from ZBNF: */
-    public boolean expandFiles;
+    public boolean XXXexpandFiles;
 
     public String cmpnName;
     
@@ -1064,18 +1053,20 @@ public class JbatchScript {
     
     public StatementList()
     { this.parentStatement = null;
-      this.isContentForInput = false;
+      //this.isContentForInput = false;
     }
         
     public StatementList(Argument parentStatement)
     { this.parentStatement = parentStatement;
-      this.isContentForInput = false;
+      //this.isContentForInput = false;
     }
         
+    /*
     public StatementList(Argument parentStatement, boolean isContentForInput)
     { this.parentStatement = parentStatement;
-      this.isContentForInput = isContentForInput;
+      //this.isContentForInput = isContentForInput;
     }
+    */
         
     /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
      */
