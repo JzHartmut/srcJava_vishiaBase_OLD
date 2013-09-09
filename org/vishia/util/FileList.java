@@ -98,18 +98,28 @@ public class FileList
   }
   
   
-  void list(){
+  public static void list(String dir, String mask) throws IOException
+  {
+    FileList.Args args = new FileList.Args();
+    args.sDirectory = dir;
+    args.crc = true;
+    args.sMask = mask;
+    args.sFileList = dir + "/.filelist";
+    FileList main = new FileList(args);
+    main.list();
+  }
+  
+  
+  /**Creates a list of all files which's path and mask is given by {@link #args}. 
+   * @throws IOException */
+  protected void list() throws IOException
+  {
     List<FileSystem.FileAndBasePath> list = new LinkedList<FileSystem.FileAndBasePath>();
     FileSystem.addFilesWithBasePath(new File(args.sDirectory), args.sMask, list);
     Writer out = null;
-    try {
-      out = new java.io.FileWriter(args.sFileList);
-      for(FileSystem.FileAndBasePath entry: list){
-        writeOneFile(out, entry);
-      }
-    } catch (IOException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+    out = new java.io.FileWriter(args.sFileList);
+    for(FileSystem.FileAndBasePath entry: list){
+      writeOneFile(out, entry);
     }
     if(out !=null) { try{ out.close(); } catch(IOException exc){}}
   }

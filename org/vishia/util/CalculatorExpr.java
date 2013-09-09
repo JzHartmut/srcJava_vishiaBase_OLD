@@ -288,25 +288,6 @@ public class CalculatorExpr
   }
   
   
-  public abstract static class Operator{
-    private final String name; 
-    protected Operator(String name){ this.name = name; }
-    
-    protected abstract ExpressionType operate(ExpressionType Type, Value accu, Value arg);
-    
-    protected abstract boolean isUnary();
-    @Override public String toString(){ return name; }
-  }
-  
-                                                  
-  private abstract static class XXXUnaryOperator{
-    private final String name; 
-    XXXUnaryOperator(String name){ this.name = name; }
-    abstract ExpressionType operate(ExpressionType Type, Value val);
-    @Override public String toString(){ return name; }
-  }
-  
-  
   
   /**The type of val2 determines the expression type. The accu is not used because it is a set operation. 
    * The accu will be set with the following operation.
@@ -325,7 +306,7 @@ public class CalculatorExpr
         case 'C': return intExpr; 
         case 'Z': return booleanExpr; 
         case 't': return stringExpr; 
-        case 'o': return stringExpr;   //first operand is any object type. 
+        case 'o': return objExpr;   //first operand is any object type. 
         default: throw new IllegalArgumentException("src type");
       } //switch  
     }
@@ -468,7 +449,73 @@ public class CalculatorExpr
   };
   
 
+  /**Only used for the first and only one operand.
+   * 
+   */
+  private static final ExpressionType objExpr = new ExpressionType(){
+    
+    @Override public char typeChar() { return 'o'; }
+    
+    /**Converts both operands to strings and returns stringExpression
+     * @see org.vishia.util.CalculatorExpr.ExpressionType#checkArgument(org.vishia.util.CalculatorExpr.Value, org.vishia.util.CalculatorExpr.Value)
+     */
+    @Override public ExpressionType checkArgument(Value accu, Value val2) {
+      if(accu.type !='t'){
+        //especially any object.
+        accu.stringVal = accu.stringValue();
+        accu.type = 't';
+      }
+      if(val2.type !='t'){ 
+        val2.stringVal = val2.stringValue();
+        val2.type = 't';
+      }
+      return stringExpr;
+    }
+
+    @Override public String toString(){ return "Type=t"; }
+
+
+  };
   
+
+
+  
+  
+  
+  
+  public abstract static class Operator{
+    private final String name; 
+    protected Operator(String name){ this.name = name; }
+    
+    protected abstract ExpressionType operate(ExpressionType Type, Value accu, Value arg);
+    
+    protected abstract boolean isUnary();
+    @Override public String toString(){ return name; }
+  }
+  
+                                                  
+  
+  private static final Operator setOperation = new Operator("!"){
+    @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
+      accu.type = type.typeChar();
+      switch(accu.type){
+        case 'B': case 'S': 
+        case 'C': case 'I': accu.intVal = arg.intVal; break;
+        case 'J': accu.longVal = arg.longVal; break;
+        case 'F': accu.floatVal = arg.floatVal; break;
+        case 'D': accu.doubleVal = arg.doubleVal; break;
+        case 'Z': accu.boolVal = arg.boolVal; break;
+        case 't': accu.stringVal = arg.stringVal; break;
+        case 'o': accu.oVal = arg.oVal; break;
+        default: throw new IllegalArgumentException("unknown type" + type.toString());
+      }
+      return type;
+    }
+    @Override public boolean isUnary(){ return false; }
+  };
+  
+   
+
   
   
   private static final Operator boolOperation = new Operator("bool "){
@@ -523,26 +570,6 @@ public class CalculatorExpr
       return type;
     }
     @Override public boolean isUnary(){ return true; }
-  };
-  
-   
-  private static final Operator setOperation = new Operator("!"){
-    @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
-      accu.type = type.typeChar();
-      switch(accu.type){
-        case 'B': case 'S': 
-        case 'C': case 'I': accu.intVal = arg.intVal; break;
-        case 'J': accu.longVal = arg.longVal; break;
-        case 'F': accu.floatVal = arg.floatVal; break;
-        case 'D': accu.doubleVal = arg.doubleVal; break;
-        case 'Z': accu.boolVal = arg.boolVal; break;
-        case 't': accu.stringVal = arg.stringVal; break;
-        case 'o': accu.oVal = arg.oVal; break;
-        default: throw new IllegalArgumentException("unknown type" + type.toString());
-      }
-      return type;
-    }
-    @Override public boolean isUnary(){ return false; }
   };
   
    
@@ -1724,7 +1751,7 @@ public class CalculatorExpr
           else if(oval2 instanceof Double)      { val2.doubleVal = ((Double)oval2).doubleValue(); val2.type = 'D'; }
           else if(oval2 instanceof Float)       { val2.doubleVal = ((Float)oval2).floatValue(); val2.type = 'F'; }
           else if(oval2 instanceof StringSeq)   { val2.stringVal = (StringSeq)oval2; val2.type = 't'; }
-          else                                  { val2.stringVal = oval2.toString(); val2.type = 't'; }
+          else                                  { val2.oVal = oval2; val2.type = 'o'; }
           val2.oVal = oval2;;
         }
         if(oper.operator == setOperation && accu.type != '?'){

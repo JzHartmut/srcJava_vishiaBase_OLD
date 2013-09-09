@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.vishia.cmd.CmdStore.CmdBlock;
@@ -69,6 +70,7 @@ public class CmdQueue implements Closeable
     public final JbatchScript.Statement jbat;
     
     final File[] files;
+    final Object args;
     File currentDir;
     
     /**Constructs a cmd which is added to a queue to execute in another thread.
@@ -83,6 +85,7 @@ public class CmdQueue implements Closeable
     { this.cmd = cmd;
       this.jbat = null;
       this.files = files;
+      this.args = null;
       this.currentDir = currentDir;
     }
 
@@ -94,10 +97,11 @@ public class CmdQueue implements Closeable
      *   should be referenced.CmdGetFileArgs_ifc
      * @param currentDir
      */
-    public PendingCmd(JbatchScript.Statement cmd, File[] files, File currentDir)
+    public PendingCmd(JbatchScript.Statement cmd, Object args, File currentDir)
     { this.cmd = null;
       this.jbat = cmd;
-      this.files = files;
+      this.files = null;
+      this.args = args;
       this.currentDir = currentDir;
     }
 
@@ -186,13 +190,13 @@ public class CmdQueue implements Closeable
    * @param files Some files
    * @return Number of members in queue pending for execution.
    */
-  public int addCmd(CmdBlock cmdBlock, File[] files, File currentDir)
+  public int addCmd(CmdBlock cmdBlock, Object args, File currentDir)
   {
     if(cmdBlock.jbatSub !=null){
-      pendingCmds.add(new PendingCmd(cmdBlock.jbatSub, files, currentDir));  //to execute.
+      pendingCmds.add(new PendingCmd(cmdBlock.jbatSub, args, currentDir));  //to execute.
     } else {
       for(PrepareCmd cmd: cmdBlock.getCmds()){
-        pendingCmds.add(new PendingCmd(cmd, files, currentDir));  //to execute.
+        pendingCmds.add(new PendingCmd(cmd, (File[])args, currentDir));  //to execute.
       }
     }
     return pendingCmds.size();
@@ -238,7 +242,7 @@ public class CmdQueue implements Closeable
           sCmdShow.append(cmd1.currentDir).append(">");
         }
         if(cmd1.jbat !=null){
-          jbatchExecuter.execSub(cmd1.jbat, false, outStatus);
+          jbatchExecuter.execSub(cmd1.jbat, (Map<String, Object>)cmd1.args, false, outStatus);
         } else {
           //a operation system command:
           String[] sCmd = cmd1.cmd.prepareCmd(cmd1);

@@ -272,10 +272,21 @@ public class JbatchExecuter {
   }
 
   
-  public String execSub(JbatchScript.Statement statement, boolean accessPrivate, Appendable out) 
+  /**Executes any sub routine.
+   * @param statement
+   * @param accessPrivate
+   * @param out
+   * @return
+   * @throws IOException
+   */
+  public String execSub(JbatchScript.Statement statement, Map<String, Object> args
+      , boolean accessPrivate, Appendable out) 
   throws IOException
   {
     ExecuteLevel level = new ExecuteLevel(null, scriptVariables);
+    //The args should be added to the localVariables of the subroutines level:
+    level.localVariables.putAll(args);
+    //Executes the statements of the sub routine:
     String sError1 = level.execute(statement.subContent, out, false);
     return sError1;
   }

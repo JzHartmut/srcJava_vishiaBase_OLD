@@ -98,6 +98,24 @@ public class CmdStore
       this.name = jbatSub.getIdent();
     }
     
+    public Map<String, Object> getArguments(CmdGetFileArgs_ifc getterFiles){
+      if(jbatSub !=null){
+        Map<String, Object> args = new TreeMap<String, Object>();
+        for(JbatchScript.Argument arg :jbatSub.arguments){
+          String name1 = arg.identArgJbat;
+          if(name1.equals("file1")){ args.put("file1", getterFiles.getFile1()); }
+          else if(name1.equals("file2")){ args.put("file2", getterFiles.getFile2()); }
+          else if(name1.equals("file3")){ args.put("file3", getterFiles.getFile3()); }
+          else if(name1.equals("dir1")){ args.put("dir1", getterFiles.getFile1().getParentFile()); }
+          else if(name1.equals("dir2")){ args.put("dir2", getterFiles.getFile2().getParentFile()); }
+          else if(name1.equals("dir3")){ args.put("dir3", getterFiles.getFile3().getParentFile()); }
+        }
+        return args;
+      } else {
+        return null;
+      }
+    }
+    
     /**Possible call from {@link org.vishia.zbnf.ZbnfJavaOutput}. Creates an instance of one command */
     public PrepareCmd new_cmd(){ return new PrepareCmd(); }
     
