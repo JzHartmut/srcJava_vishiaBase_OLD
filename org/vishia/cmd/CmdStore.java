@@ -100,6 +100,7 @@ public class CmdStore
     
     public Map<String, Object> getArguments(CmdGetFileArgs_ifc getterFiles){
       if(jbatSub !=null){
+        getterFiles.prepareFileSelection();
         Map<String, Object> args = new TreeMap<String, Object>();
         for(JbatchScript.Argument arg :jbatSub.arguments){
           String name1 = arg.identArgJbat;

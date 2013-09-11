@@ -13,6 +13,9 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.zip.CRC32;
 
 import org.vishia.mainCmd.MainCmd;
@@ -98,13 +101,19 @@ public class FileList
   }
   
   
-  public static void list(String dir, String mask) throws IOException
+  /**Static method to create a list from any directory maybe with selected files.
+   * @param dir path to any directory.
+   * @param mask Use "*" to select all files.
+   * @param sFilelist Name of the file list relative to the dir, can contain a relative path.
+   * @throws IOException
+   */
+  public static void list(String dir, String mask, String sFilelist) throws IOException
   {
     FileList.Args args = new FileList.Args();
     args.sDirectory = dir;
     args.crc = true;
     args.sMask = mask;
-    args.sFileList = dir + "/.filelist";
+    args.sFileList = dir + "/" + sFilelist;
     FileList main = new FileList(args);
     main.list();
   }
@@ -116,10 +125,14 @@ public class FileList
   {
     List<FileSystem.FileAndBasePath> list = new LinkedList<FileSystem.FileAndBasePath>();
     FileSystem.addFilesWithBasePath(new File(args.sDirectory), args.sMask, list);
+    Map<String, FileSystem.FileAndBasePath> sort = new TreeMap<String, FileSystem.FileAndBasePath>();
+    for(FileSystem.FileAndBasePath entry: list){
+      sort.put(entry.localPath, entry);  //sort alphabetical
+    }
     Writer out = null;
     out = new java.io.FileWriter(args.sFileList);
-    for(FileSystem.FileAndBasePath entry: list){
-      writeOneFile(out, entry);
+    for(Map.Entry<String, FileSystem.FileAndBasePath> entry: sort.entrySet()){
+      writeOneFile(out, entry.getValue());
     }
     if(out !=null) { try{ out.close(); } catch(IOException exc){}}
   }
@@ -129,7 +142,8 @@ public class FileList
   
   
   @SuppressWarnings("boxing")
-  private void writeOneFile(Writer out, FileSystem.FileAndBasePath entry) throws IOException{
+  private void writeOneFile(Writer out, FileSystem.FileAndBasePath entry) throws IOException
+  {
     long date = entry.file.lastModified();
     long length = entry.file.length();
     formatter.reset();
@@ -141,18 +155,24 @@ public class FileList
     if(!entry.file.canWrite()){ flags.setCharAt(4, 'r'); }
     if(entry.file.isHidden()){ flags.setCharAt(5, 'H'); }
     int crc = 0;
-    if(args.crc && !entry.file.isDirectory()){
-      crcCalculator.reset();
-      InputStream inp = new FileInputStream(entry.file);
-      byte[] buffer = new byte[4096];
-      int bytes;
-      while((bytes = inp.read(buffer)) >0){
-        crcCalculator.update(buffer, 0, bytes);
+    if(args.crc && entry.file.isDirectory()){
+      formatter.add("==DIR===");
+    } else {
+      try{
+        crcCalculator.reset();
+        InputStream inp = new FileInputStream(entry.file);
+        byte[] buffer = new byte[4096];
+        int bytes;
+        while((bytes = inp.read(buffer)) >0){
+          crcCalculator.update(buffer, 0, bytes);
+        }
+        inp.close();
+        crc = (int)crcCalculator.getValue();
+        formatter.addHex(crc, 8);
+      } catch(Exception exc){
+        formatter.add("????????");        
       }
-      inp.close();
-      crc = (int)crcCalculator.getValue();
     }
-    formatter.addHex(crc, 8);
     formatter.add(' ');
     out.append(dateFormat.format(new Date(date)));
     out.append(flags);
