@@ -75,14 +75,19 @@ public class FileList
   {
     public char cCmd;
     
+    /**Directory where the list is regarded to. */
     public String sDirectory;
     
     public String sMask;
+    
+    /**Any output for operation. One line per file. */
+    public Appendable out;
     
     //public String sDateFormat = "yyyy-MM-dd_HH:mm:ss";
     
     public boolean crc = true;
     
+    /**Name, maybe path of the file list relative to {@link #sDirectory}. */
     public String sFileList;
   }
   
@@ -98,6 +103,9 @@ public class FileList
   
   public FileList(Args args){
     this.args = args;
+    if(args.out == null){
+      args.out = System.out;
+    }
   }
   
   
@@ -182,7 +190,30 @@ public class FileList
   }
   
   
-  void touch(){
+  
+  /**Static method to create a list from any directory maybe with selected files.
+   * @param dir path to any directory.
+   * @param mask Use "*" to select all files.
+   * @param sFilelist Name of the file list relative to the dir, can contain a relative path.
+   * @throws IOException
+   */
+  public static void touch(String dir, String sFilelist, Appendable out) throws IOException
+  {
+    FileList.Args args = new FileList.Args();
+    args.out = out;
+    args.sDirectory = dir;
+    args.crc = true;
+    args.sMask = "*";
+    args.sFileList = dir + "/" + sFilelist;
+    FileList main = new FileList(args);
+    main.touch();
+  }
+  
+  
+
+  
+  
+  public void touch(){
     BufferedReader inp = null;
     File dir = new File(args.sDirectory);
     try {
@@ -209,25 +240,35 @@ public class FileList
       sPath = sLine.substring(53);
       File file = new File(dir, sPath);
       if(!file.exists()){
-        System.out.println("FileList - touch, file not exist; " + sPath); 
+        args.out.append("FileList - touch, file not exist; ").append(sPath).append("\n"); 
+      } else if(file.isDirectory()){
+        //do nothing for a directory.
       } else {
         long lastModify = file.lastModified();
-        if(file.length() == listlen && Math.abs(listtime - lastModify) > 4000){
-          //check crc
-          crcCalculator.reset();
-          InputStream inp = new FileInputStream(file);
-          byte[] buffer = new byte[4096];
-          int bytes;
-          while((bytes = inp.read(buffer)) >0){
-            crcCalculator.update(buffer, 0, bytes);
+        if(file.length() == listlen){
+          if(Math.abs(listtime - lastModify) > 4000){
+            //check crc
+            crcCalculator.reset();
+            InputStream inp = new FileInputStream(file);
+            byte[] buffer = new byte[4096];
+            int bytes;
+            while((bytes = inp.read(buffer)) >0){
+              crcCalculator.update(buffer, 0, bytes);
+            }
+            inp.close();
+            int crc = (int)crcCalculator.getValue();
+            int crclist = StringFunctions.parseIntRadix(sLine, 43, 8, 16, null);
+            if(crc == crclist){
+              file.setLastModified(listtime);
+              args.out.append("FileList - touching; ").append(sPath).append("\n"); 
+            } else {
+              args.out.append("FileList - touch, file with same length is changed; ").append(sPath).append("\n"); 
+            }
+          } else {
+            //file may not be changed, has the correct timestamp
           }
-          inp.close();
-          int crc = (int)crcCalculator.getValue();
-          int crclist = StringFunctions.parseIntRadix(sLine, 43, 8, 16, null);
-          if(crc == crclist){
-            file.setLastModified(listtime);
-            System.out.println("FileList - touching; " + sPath); 
-          }
+        } else {
+          args.out.append("FileList - touch, file is changed; ").append(sPath).append("\n"); 
         }
       }
       //System.out.println(filetime.toGMTString() + " " + sPath);

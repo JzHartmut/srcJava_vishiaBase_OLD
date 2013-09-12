@@ -23,6 +23,7 @@ import java.util.TreeMap;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2013-09-14 Hartmut new: support of null as Argument.
    * <li>2013-08-18 Hartmut new: This class now contains the List of {@link #datapath} as only one attribute.
    *   Now this class can be used instead a <code>List<DataAccess.DatapathElement></code> as bundled instance.
    * <li>2013-08-18 Hartmut new: {@link DataAccessSet} is moved from the {@link org.vishia.zbatch.ZbatchGenScript}
@@ -665,21 +666,26 @@ public class DataAccess {
         Object actValue = iter.next();
         bOk = false;   //check for this arg
         ix +=1;
-        Class<?> actType = actValue.getClass();
-        if(iParam == argTypes.length-1 && providedArgs.size() > iParam+1 && argTypes[iParam].isArray()){
-          //There are more given arguments and the last one is an array or a variable argument list.
-          //store the rest in lastArrayArg instead.
-          argType = argTypes[iParam].getComponentType();
+        if(actValue == null){
+          bOk = true;  //may be compatible with all ones.
+          conversions[ix] = obj2obj;
         } else {
-          argType = argTypes[iParam];
+          Class<?> actType = actValue.getClass();
+          if(iParam == argTypes.length-1 && providedArgs.size() > iParam+1 && argTypes[iParam].isArray()){
+            //There are more given arguments and the last one is an array or a variable argument list.
+            //store the rest in lastArrayArg instead.
+            argType = argTypes[iParam].getComponentType();
+          } else {
+            argType = argTypes[iParam];
+          }
+          //check super classes and all interface types.
+          Conversion conv = checkArgTypes(argType, actType, actValue);
+          if(conv != null){ 
+            conversions[ix] = conv; 
+            bOk = true; 
+          }  //check first, fast variant.
+          if(!bOk) { break; }
         }
-        //check super classes and all interface types.
-        Conversion conv = checkArgTypes(argType, actType, actValue);
-        if(conv != null){ 
-          conversions[ix] = conv; 
-          bOk = true; 
-        }  //check first, fast variant.
-        if(!bOk) { break; }
         if(iParam < argTypes.length-1) { iParam +=1; }
       } //for, terminated with some breaks.
       if(bOk){

@@ -174,9 +174,25 @@ public class CmdStore
   }
 
   
+  public String readCmdCfg(File cfgFile, MainCmdLogging_ifc log, CmdQueue executerToInit)
+  { String error = readCmdCfgOld(cfgFile);
+    if(error ==null){
+      File cmdCfgJbat = new File(cfgFile.getParentFile(), cfgFile.getName() + ".jbat");
+      if(cmdCfgJbat.exists()){
+        try{ 
+          JbatchScript script = readCmdCfgJbat(cmdCfgJbat, log);
+          executerToInit.initExecuter(script);
+          //main.cmdSelector.initExecuter(script);
+        } catch(Exception exc){
+          log.writeError("CmdStore - JbatScript;", exc);
+        }
+      }
+
+    }
+    return error;
+  }  
   
-  
-  public String readCmdCfg(File cfgFile)
+  public String readCmdCfgOld(File cfgFile)
   { 
     //if(cfgFile.getName().endsWith(".jbat.cfg")){
     //  return readCmdCfgJbat(cfgFile, null);

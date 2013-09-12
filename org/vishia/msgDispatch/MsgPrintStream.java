@@ -9,16 +9,10 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**This class adapts an PrintStream such as System.err to the LogMessage-System.
- * The first part of the stream is converted to a message ident number. This allows especially the redirection of
- * outputs to {@link System#err} or {@link System#out} to the message system.
- * <br><br>
- * All characters from the output string till a semicolon or colon are used to build a message number from this text.
- * The {@link LogMessage} interface needs a number to identify the message, the {@link org.vishia.msgDispatch.MsgDispatcher} 
- * needs numbers to dispatch. If any identification string is used the first time, a number is created automatically.
- * If the same start text is used a second one (especially if an output was invoked a second time), the start text
- * is identified and the same number is used. One can sort messages with that number.
- * <br><br>
- * This first part is divide into 2 divisions: before and after a " - " to build message number ranges.
+ * The first part of the message string till a semicolon or colon is used to build a number, 
+ * whereby a number range (group) is determined by the left division
+ * before a " - " or "-". Anytime if a message with the same first part is sent, the same number will be associated. 
+ * Only at first time a number will be created.
  * <br><br>
  * One should write all outputs in the form:
  * <pre>
@@ -27,20 +21,29 @@ import java.util.concurrent.atomic.AtomicInteger;
  * This is a form which may be proper outside this class too. One should inform about the source of the message, 
  * then what's happen, then some more information. If one uses a semicolon as separator, it's able to present such messages
  * for example in an Excel sheet.
- * <br>
- * The first part of the message string is used to build a number, whereby a number range (group) is determined by the left division
- * before a " - " or '-'. Anytime if a message with the same first part is sent, the same number will be associated. 
- * Only at first time a number will be created.
- * <br>
+ * <br><br>
+ * The ident number of the message allows especially the redirection of
+ * outputs to {@link System#err} or {@link System#out} to the message system: The {@link LogMessage} interface 
+ * needs a number to identify the message, the {@link org.vishia.msgDispatch.MsgDispatcher} 
+ * needs numbers to dispatch. If any identification string is used the first time, a number is created automatically.
+ * If the same start text is used a second one (especially if an output was invoked a second time), the start text
+ * is identified and the same number is used. One can sort messages with that number.
+ * <br><br>
+ * This first part is divide into 2 divisions: before and after a " - " to build message number ranges.
+ * One should write " - " (with spaces left and right). This is used as separator. Only if a " - " is not found, a simple
+ * "-" character is used as separator. If no separator is found, it is a non grouped message. One should use groups because
  * Examples for separation first division (group):
  * <pre>
  * "Source - second division"
  * "Source-specification - second division"
  * "Source-second division"
  * </pre>
- * One should write " - " (with spaces left and right). This is used as separator. Only if a " - " is not found, a simple
- * '-' character is used as separator. If no separator is found, it is a non grouped message. One should use groups because
  * the message dispatcher can deal with ranges.
+ * <br><br>
+ * It is possible to preset the number association to the first-part-texts. Use {@link #setMsgIdents(MsgText_ifc)}.
+ * This can be used in conclusion with {@link org.vishia.msgDispatch.MsgConfig#setMsgDispaching(MsgDispatcher, String)}
+ * to set the dispatching of this message. 
+ * <br><br>
  * @author Hartmut Schorrig
  *
  */
@@ -48,6 +51,10 @@ public class MsgPrintStream implements MsgPrintStream_ifc
 {
   /**Version, history and license.
    * <ul>
+   * <li>2013-09-14 Hartmut chg: The {@link PrintStreamAdapter#print(String)} does not dispatch the text directly
+   *   but does append it to an internal line buffer till an newline "\n" is detected. It is because the
+   *   super method append(CharSequence) calls this method. A PrintStream can be referred as {@link java.lang.Appendable}
+   *   and the output can be done with ref.append("start - string;").append(parameter).append("\n") too!
    * <li>2013-01-26 Hartmut new: {@link #setMsgGroupIdent(String, int, int)} to handle message dispatching 
    *   with known or probably texts.
    * <li>2013-01-26 Hartmut chg: Limitation of ident numbers to its range.   
@@ -270,7 +277,7 @@ public class MsgPrintStream implements MsgPrintStream_ifc
   
   
   
-  void convertToMsg(String pre, String identString, Object... args) {
+  protected void convertToMsg(String pre, String identString, Object... args) {
     int posSemicolon = identString.indexOf(';');
     int posColon = identString.indexOf(':');
     int posSep = posColon < 0 || posSemicolon < posColon ? posSemicolon : posColon;  //more left char of ; :
@@ -314,7 +321,7 @@ public class MsgPrintStream implements MsgPrintStream_ifc
       nIdent = new Integer(nIdent1);
       idxIdent.put(sPreIdent, nIdent);
     } //nIdent == null
-    logOut.sendMsg(nIdent, identString, args);
+    logOut.sendMsg(nIdent.intValue(), identString, args);
   }
 
   
@@ -325,7 +332,7 @@ public class MsgPrintStream implements MsgPrintStream_ifc
    * But the outStream should not be empty.
    * 
    */
-  private final OutputStream outStream = new OutputStream() {
+  protected final OutputStream outStream = new OutputStream() {
     
     @Override
     public void write(int b) throws IOException
@@ -338,6 +345,7 @@ public class MsgPrintStream implements MsgPrintStream_ifc
     
     final String pre;
     
+    StringBuilder uLine = new StringBuilder();
     
     PrintStreamAdapter(String pre) {
       super(outStream);
@@ -345,19 +353,39 @@ public class MsgPrintStream implements MsgPrintStream_ifc
     }
     
     
-    /**This method from PrintStream is invoked if print(String), println(String), printf(String, args)
-     * or format(String, args) is invoked from the PrintStream. Only this method have to be override
-     * to implement the msg dispatching functionality.
-     * 
+    /**This method is called if {@link java.io.OutputStream#append} was invoked
      * @see java.io.PrintStream#print(java.lang.String)
      */
-    @Override public void print(String s) { convertToMsg(pre, s); }
+    @Override public void print(String s) { 
+      int posLf = s.indexOf('\n');
+      if(posLf >=0){
+        if(uLine.length() == 0){
+          convertToMsg(pre, s.substring(0, posLf +1));  //full line in is
+        } else {
+          uLine.append(s.substring(0, posLf +1));  //append till \n and output
+          convertToMsg(pre, uLine.toString());
+          uLine.setLength(0);
+        }
+        if(posLf < s.length() -1){  //there is someone after \n. Two \n where not accepted yet.
+          uLine.append(s.substring(posLf +1));
+        }
+      } else { //s without newline, append it only.
+        uLine.append(s);
+      }
+    }
     
     /**The println method is used usually. 
      * 
      * @see java.io.PrintStream#println(java.lang.String)
      */
-    @Override public void println(String s) { convertToMsg(pre, s); }
+    @Override public void println(String s) { 
+      if(uLine.length() == 0){
+        convertToMsg(pre, s);
+      } else {
+        uLine.append(s);
+        convertToMsg(pre, uLine.toString());
+      }
+    }
 
     @Override public PrintStream printf(String s, Object... args) { 
       convertToMsg(pre, s, args); return this; 

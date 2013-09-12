@@ -202,6 +202,7 @@ public class JbatchExecuter {
     scriptVariables.put("nrElementInContainer", null);
     scriptVariables.put("out", System.out);
     scriptVariables.put("err", System.err);
+    scriptVariables.put("null", null);
     scriptVariables.put("jbat", this);
     //scriptVariables.put("debug", new ZbatchDebugHelper());
     scriptVariables.put("file", new FileSystem());
