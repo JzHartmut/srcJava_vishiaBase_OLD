@@ -11,7 +11,9 @@ import java.util.List;
 import org.vishia.fileRemote.FileRemote;
 import org.vishia.fileRemote.FileRemoteAccessor;
 import org.vishia.fileRemote.FileRemote.CallbackEvent;
+import org.vishia.fileRemote.FileRemote.Cmd;
 import org.vishia.fileRemote.FileRemote.CmdEvent;
+import org.vishia.util.Event;
 
 public class FileAccessorLocalJava7 implements FileRemoteAccessor
 {
@@ -33,6 +35,8 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
   @Override
   public List<File> getChildren(FileRemote file, FileFilter filter)
   {
+    
+    
     // TODO Auto-generated method stub
     return null;
   }
@@ -73,7 +77,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
   }
 
   @Override
-  public CmdEvent prepareCmdEvent(CallbackEvent evBack)
+  public CmdEvent prepareCmdEvent(Event<?, FileRemote.Cmd> evBack)
   {
     // TODO Auto-generated method stub
     return null;
@@ -105,6 +109,13 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
   {
     // TODO Auto-generated method stub
     return false;
+  }
+
+  @Override
+  public void getChildren(FileRemote file, FileFilter filter, int depth, CallbackFile callback)
+  {
+    // TODO Auto-generated method stub
+    
   }
   
 }

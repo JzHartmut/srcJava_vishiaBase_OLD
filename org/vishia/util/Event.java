@@ -665,7 +665,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   /**Timestamp of the request. It is atomic because the timestamp may be an identification
    * that the event instance is occupied, see {@link #occupy(EventSource, boolean)}.
    * It is for new-obviating usage. */
-  private final AtomicLong dateCreation = new AtomicLong();
+  protected final AtomicLong dateCreation = new AtomicLong();
   
   private int dateOrder;
   

@@ -242,7 +242,17 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
     return list;
   }
 
-  
+  @Override public void getChildren(FileRemote file, FileFilter filter, int depth, CallbackFile callback)
+  {
+    refreshFilePropertiesAndChildren(file, null);
+    for(Map.Entry<String, FileRemote> file1: file.children().entrySet()){
+      callback.offerFile(file1.getValue());
+    }
+    callback.finished();
+    // TODO Auto-generated method stub
+    
+  }
+
   
   @Override public boolean setLastModified(FileRemote file, long time)
   { File ffile = (File)file.oFile();
@@ -355,14 +365,14 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
    * While occupying the Cmdevent is completed with the destination, it is {@link #executerCommission}.
    * @see org.vishia.fileRemote.FileRemoteAccessor#prepareCmdEvent(org.vishia.fileRemote.FileRemote.CallbackEvent)
    */
-  @Override public FileRemote.CmdEvent prepareCmdEvent(FileRemote.CallbackEvent evBack){
+  @Override public FileRemote.CmdEvent prepareCmdEvent(Event<?, FileRemote.Cmd>  evBack){
     FileRemote.CmdEvent cmdEvent1;
-    if(evBack !=null && (cmdEvent1 = evBack.getOpponent()) !=null){
+    if(evBack !=null && (cmdEvent1 = (FileRemote.CmdEvent)evBack.getOpponent()) !=null){
       if(!cmdEvent1.occupy(evSrc, executerCommission, singleThreadForCommission, false)){
         return null;
       }
     } else {
-      cmdEvent1 = new FileRemote.CmdEvent(evSrc, executerCommission, singleThreadForCommission, evBack);
+      cmdEvent1 = new FileRemote.CmdEvent(evSrc, executerCommission, singleThreadForCommission, (FileRemote.CallbackEvent)evBack);
     }
     return  cmdEvent1; 
   }
@@ -387,8 +397,17 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
       case delete:  execDel(commission); break;
       case mkDir: mkdir(false, commission); break;
       case mkDirs: mkdir(true, commission); break;
+      case getChildren: getChildren(commission); break;
+
       
     }
+  }
+  
+  
+  
+  private void getChildren(FileRemote.CmdEvent ev){
+    FileRemote.ChildrenEvent evback = ev.getOpponentChildrenEvent();
+    getChildren(ev.filesrc(), evback.filter, evback.depth, evback.callbackChildren);
   }
   
   
@@ -678,5 +697,6 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
       return FileRemoteAccessorLocalFile.getInstance();
     }
   };
+
   
 }

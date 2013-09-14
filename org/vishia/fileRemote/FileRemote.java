@@ -6,10 +6,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile;
 import org.vishia.util.Assert;
@@ -50,6 +53,14 @@ public class FileRemote extends File implements MarkMask_ifc
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-09-15 Hartmut new: {@link #getChildren(ChildrenEvent)} should work proper with
+   *   {@link java.nio.file.Files#walkFileTree(java.nio.file.Path, java.util.Set, int, java.nio.file.FileVisitor)}.
+   *   The event should be called back on 300 ms with the gathered files. If the access needs more time,
+   *   it should be able to have more events to present a part of files, or to abort it.
+   *   The concept is tested in java-6 yet.  
+   * <li>2013-09-15 Hartmut new: Ideas from Java-7 java.nio.Files in the concept of FileRemote: 
+   *   The FileRemote is an instance independent of the file system and stores the file's data. 
+   *   If Java-7 is present, it should be used. But the Java-6 will be held compatible.
    * <li>2013-08-09 Hartmut chg: The {@link MarkMask_ifc} is renamed, all methods {@link #setMarked(int)}
    *   etc. are named 'marked' instead of 'selected'. 
    *   It is a problem of wording: The instances are only marked, not yet 'selected'. See application
@@ -1181,6 +1192,33 @@ public class FileRemote extends File implements MarkMask_ifc
   }
   
   
+  
+  
+  /**Gets the children of this directory maybe as part of them if the access needs more time.
+   * The routine ends immediately (does not block for file access), because the access is done
+   * in an extra FileRemoteAccessor-Thread. The result is supplied by the callback event.
+   * @param evback This event will be used to send files after a less time (300 ms yet)
+   * TODO
+   * @param time The time for event.
+   */
+  public void getChildren(ChildrenEvent evback){
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
+    CmdEvent ev = device.prepareCmdEvent(evback);
+    if(ev!=null){
+      ev.filesrc = this;
+      ev.filedst = null;
+      ev.sendEvent(Cmd.getChildren);
+    }
+    
+  }
+  
+  
+  
+  
+  
+  
   @Override public boolean createNewFile() throws IOException {
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
@@ -1654,6 +1692,8 @@ public class FileRemote extends File implements MarkMask_ifc
     abortCopyFile,
     /**Overwrite a read-only file. */
     overwr,
+    /**Gets the children. */
+    getChildren,
     /**Last. */
     last
   }
@@ -1742,6 +1782,8 @@ public class FileRemote extends File implements MarkMask_ifc
      * @see org.vishia.util.Event#getOpponent()
      */
     @Override public CallbackEvent getOpponent(){ return (CallbackEvent)super.getOpponent(); }
+    
+    public ChildrenEvent getOpponentChildrenEvent(){ return (ChildrenEvent)super.getOpponent(); }
     
 
     
@@ -2091,5 +2133,109 @@ public class FileRemote extends File implements MarkMask_ifc
    */
   public InternalAccess internalAccess(){ return acc_; }
 
+  
+  
+  /**Event class to send children files of a directory.
+   * Internally the event creates a proper {@link CmdEvent} to forward the request to the execution thread.
+   * An event instance can be held persistent. It is {@link Event#occupy(EventSource, boolean)}
+   * if it is used as callback.
+   * 
+   */
+  public static class ChildrenEvent extends Event<FileRemote.CallbackCmd, FileRemote.Cmd>
+  {
+    private final Queue<FileRemote> newChildren = new ConcurrentLinkedQueue<FileRemote>();
 
+    private long startTime;
+
+    /**Source of the forward event, the oppenent of this. It is the instance which creates the event. */
+    private final EventSource evSrcCmd;
+    
+    public FileFilter filter; 
+    public int depth; 
+  
+    public boolean finished;
+    
+    /**Creates a non-occupied event. This event contains an EventSource which is used for the forward event.
+     * @param dst The callback routine.
+     * @param thread A thread to store this callback event, or null if the callback should be execute in the source thread.
+     * @param evSrcCmd The event source for the opponent command event.
+     */
+    public ChildrenEvent(EventConsumer dst, EventThread thread, EventSource evSrcCmd){ 
+      super(null, dst, thread, new CmdEvent()); 
+      this.evSrcCmd = evSrcCmd;
+    }
+    
+    @Override public CmdEvent getOpponent(){ return (CmdEvent)super.getOpponent(); }
+
+    
+
+    /**Polls one file from the queue. If the return value is null, the queue is empty yet
+     * and this action should be terminate. The event will be send newly if more files are available.
+     * @return
+     */
+    public FileRemote poll(){
+      FileRemote file = newChildren.poll();
+      if(file == null){
+        startTime = System.currentTimeMillis();
+      }
+      return file;
+    }
+  
+  
+    
+
+    /**The implementation of the callback interface 
+     * for {@link FileRemoteAccessor#getChildren(FileRemote, FileFilter, int, org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)}
+     * It is used in {@link FileRemote#getChildren(ChildrenEvent)}.
+     * It is an protected non-static inner instance of the class {@link ChildrenEvent} because its implementing routines
+     * should have access to the event data, especially {@link ChildrenEvent#newChildren}.
+     */
+    public FileRemoteAccessor.CallbackFile callbackChildren = new FileRemoteAccessor.CallbackFile()
+    {
+
+      /* (non-Javadoc)
+       * @see org.vishia.fileRemote.FileRemoteAccessor.CallbackFile#offerFile(org.vishia.fileRemote.FileRemote)
+       */
+      @Override public int offerFile(FileRemote file)
+      {
+        newChildren.offer(file);
+        long time = System.currentTimeMillis();
+        if(time - startTime > 300 && !isOccupied()){  
+          //after a minimum of time and only if the last evaluation of the event is finished:
+          occupy(evSrcCmd, false);
+          finished = false;
+          sendEvent();
+        }
+        // TODO Auto-generated method stub
+        return 0;
+      }
+
+      /**It is the last action from get children.
+       * If there are some files yet in the queue, send the event for the last time.
+       * But wait till the other thread has finished it.
+       */
+      @Override public void finished()
+      { if(occupyRecall(4000, evSrcCmd, false)){
+          finished = true;
+          sendEvent();
+        } else { //receiver may hang.
+        }
+      }
+
+      @Override public void start()
+      {
+        startTime = System.currentTimeMillis();
+      }
+      
+      
+    };
+    
+    
+    
+    
+  }
+  
+
+  
+  
 }

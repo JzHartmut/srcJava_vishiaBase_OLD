@@ -15,7 +15,10 @@ import java.util.TreeMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import org.vishia.fileRemote.FileRemote.Cmd;
+import org.vishia.fileRemote.FileRemote.CmdEvent;
 import org.vishia.util.Assert;
+import org.vishia.util.Event;
 import org.vishia.util.TreeNodeBase;
 import org.vishia.util.UnexpectedException;
 import org.vishia.util.TreeNodeBase.TreeNode;
@@ -325,7 +328,7 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
   }
 
   
-  @Override public FileRemote.CmdEvent prepareCmdEvent(FileRemote.CallbackEvent evBack){
+  @Override public FileRemote.CmdEvent prepareCmdEvent(Event<?, FileRemote.Cmd> evBack){
     return null; //TODO
   }
 
@@ -406,7 +409,13 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
     // TODO Auto-generated method stub
     return false;
   }
-  
+
+  @Override
+  public void getChildren(FileRemote file, FileFilter filter, int depth, CallbackFile callback)
+  {
+    // TODO Auto-generated method stub
+    
+  }
   
   
 }

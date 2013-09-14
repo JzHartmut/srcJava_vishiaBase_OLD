@@ -12,26 +12,6 @@ import java.util.Set;
 import org.vishia.bridgeC.AllocInBlock;
 
 
-/* Created: Hartmut Schorrig, ca. 2007-06
- * Changed:
- * 2009-05-08 Hartmut corr/bugfix: IteratorImpl(IndexMultiTableInteger<Type> firstTable, int startKey) used in iterator(startkey):
- *                    If a non-exakt start key is found, the iterator starts from the key after it. 
- *                    If no data are available, hasnext() returns false now. TODO test if one hyperTable contains the same key as the next, some more same keys!
- * 2009-04-28 Hartmut new: iterator(key) to start the iterator from a current position. It is the first position with the given key. 
- *                    corr: Some empty methods are signed with xxxName, this methods were come from planned but not implemented interface
- *                    meditated: implement ListInterface instead Interface to supply getPrevious() to iterate starting from a key forward and backward.
- *                    corr: binarySearch self implemented, regarding the first occurrence of a key.
- * 2009-04-26 Hartmut meditated: Several key types in one file isn't good! The search routines are optimal only if the key type is fix.
- *                                There are some adequate classes necessary for int, long keys.
- *                    docu
- *                    chg: Using of class AllocInBlock to get the size of a block.
- *                    corr: Now more deepness as 2 tables is programmed and tested. Older versions support only 2 tables.
- *                          It was 1000000 entries max. with a table size of 1000.
- * 2009-03-01 Hartmut new: IndexMultiTableInteger(int size, char type): in preparation of using, functionality not ready yet.
- *                    planned: Type may be int, long, String, size are able to choose. The arrays should be assigned not as embedded instances in C. 
- *                    new: method get() does anything, not tested in all cases.
-
- */
 
 /**This class contains sorted references of objects (values) with an comparable key 
  * in one or more tables of a limited size. 
@@ -104,10 +84,29 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   /**Version, history and license.
    * <ul>
+   * <li>2013-09-15 Hartmut new: Implementation of {@link #delete(int)} and {@link EntrySetIterator#remove()}.
+   * <li>2013-09-15 Hartmut chg: rename and public {@link #search(Comparable, boolean, boolean[])}.  
    * <li>2013-09-07 Hartmut chg: {@link #put(Comparable, Object)} should not create more as one object
    *   with the same key. Use add to do so.
    * <li>2013-08-07 Hartmut improved.
    * <li>2013-04-21 Hartmut created, derived from {@link IndexMultiTableInteger}.
+   * <li>2009-05-08 Hartmut corr/bugfix: IteratorImpl(IndexMultiTableInteger<Type> firstTable, int startKey) used in iterator(startkey):
+   *                    If a non-exakt start key is found, the iterator starts from the key after it. 
+   *                    If no data are available, hasnext() returns false now. TODO test if one hyperTable contains the same key as the next, some more same keys!
+   * <li>2009-04-28 Hartmut new: iterator(key) to start the iterator from a current position. It is the first position with the given key. 
+   *                    corr: Some empty methods are signed with xxxName, this methods were come from planned but not implemented interface
+   *                    meditated: implement ListInterface instead Interface to supply getPrevious() to iterate starting from a key forward and backward.
+   *                    corr: binarySearch self implemented, regarding the first occurrence of a key.
+   * <li>2009-04-26 Hartmut meditated: Several key types in one file isn't good! The search routines are optimal only if the key type is fix.
+   *                                There are some adequate classes necessary for int, long keys.
+   *                    docu
+   *                    chg: Using of class AllocInBlock to get the size of a block.
+   *                    corr: Now more deepness as 2 tables is programmed and tested. Older versions support only 2 tables.
+   *                          It was 1000000 entries max. with a table size of 1000.
+   * <li>2009-03-01 Hartmut new: IndexMultiTableInteger(int size, char type): in preparation of using, functionality not ready yet.
+   *                    planned: Type may be int, long, String, size are able to choose. The arrays should be assigned not as embedded instances in C. 
+   *                    new: method get() does anything, not tested in all cases.
+   * <li>2007-06-00 Hartmut Created.                  
    * </ul>
    * <br><br>
    * <b>Copyright/Copyleft</b>:
@@ -149,6 +148,9 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   /**actual number of objects stored in this table. */
   protected int sizeBlock;
   
+  /**The index of the first entry overall. */
+  protected int ixValue0;
+  
   /**True, than {@link #aValues} contains instances of this class too. */
   protected boolean isHyperBlock;
   
@@ -167,7 +169,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   /**The parent if it is a child table. */
   private IndexMultiTable<Key, Type> parent;
   
-  
+  /**Index of this table in its parent. */
+  private int ixInParent;
  
   
   
@@ -565,6 +568,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         aValues[1] = right;
         aKeys[0] = left.aKeys[0]; //minKey__;  //because it is possible to sort in lesser keys.
         aKeys[1] = right.aKeys[0];
+        left.ixInParent = 0;
+        right.ixInParent = 1;
         for(int idxFill = 2; idxFill < maxBlock; idxFill++)
         { aKeys[idxFill] = maxKey__; 
           aValues[idxFill] = null;
@@ -661,6 +666,33 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
 
 
+  
+  /**Deletes the element on ix in the current table.
+   * @param ix
+   */
+  protected void delete(int ix){
+    Key keydel = aKeys[ix];
+    sizeBlock -=1;
+    if(ix < sizeBlock){
+      System.arraycopy(aKeys, ix+1, aKeys, ix, sizeBlock-ix);
+      System.arraycopy(aValues, ix+1, aValues, ix, sizeBlock-ix);
+    }
+    aKeys[sizeBlock] = maxKey__;
+    aValues[sizeBlock] = null;   //prevent dangling references!
+    if(sizeBlock == 0 && parent !=null){
+      //this sub-table is empty
+      ////
+      int ixParent = binarySearchFirstKey(parent.aKeys, 0, parent.sizeBlock, keydel); //, sizeBlock, key1);
+      if(ixParent < 0)
+      { ixParent = -ixParent-1;  
+      }
+      parent.delete(ixParent);  //call recursively.
+      //it has delete the child table. The table may be referenced by an iterator still.
+      //But the iterator won't detect hasNext() and it continoues on its parent iterator too. 
+    }
+  }
+  
+  
 
 
   /**separates the src into two arrays with the half size .
@@ -737,7 +769,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   @SuppressWarnings("unchecked")
   public boolean containsKey(Object key)
   { boolean[] found = new boolean[1];
-    return searchInTables((Key)key, true, found) !=null || found[0];
+    return search((Key)key, true, found) !=null || found[0];
   }
 
 
@@ -768,7 +800,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   @SuppressWarnings({ "unchecked" })
   @Override public Type get(Object key1){
     assert(key1 instanceof Comparable<?>);
-    return searchInTables((Key)key1, true, null);
+    return search((Key)key1, true, null);
   }
 
 
@@ -783,7 +815,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   //@SuppressWarnings("cast")
   @SuppressWarnings("unchecked")
   public Type search(Key key){ 
-    return searchInTables(key, false, null);
+    return search(key, false, null);
   }
 
 
@@ -793,12 +825,15 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    *   if false then returns the first value at or after the key, see {@link #search(Comparable)}.
    * @param retFound If null then not used. If not null then it must initialized with new boolean[1].
    *   If the key was found, the retFound[0] is set to true. If the key is not found, the retFound is not
-   *   used. If the key is found and the value for this key is null, retFound[0] is set to true.
+   *   touched. If the key is found and the value for this key is null, retFound[0] is set to true.
    *   Only with this the {@link #containsKey(Object)} works probably. 
-   * @return null if the key is not found elsewhere the value on the found position which may be null.
+   * @return The exact found value or the non exact found value with key before. 
+   *   null if the key is lesser than all other keys (it should the first position).
+   *   null if the value for this key is null.
+   *   null if exact = true and the key is not found.
    */
   @SuppressWarnings("unchecked")
-  protected Type searchInTables(Key key1, boolean exact, boolean[] retFound)
+  public Type search(Key key1, boolean exact, boolean[] retFound)
   { IndexMultiTable<Key, Type> table = this;
     //place object with same key after the last object with the same key.
     while(table.isHyperBlock)
@@ -821,9 +856,11 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         else {
           idx = -idx -2;   //NOTE: access to the lesser element before the insertion point.
         }
+      } else {
+        if(retFound !=null){ retFound[0] = true; } //idx >=0; }
       }
       if(idx >=0)
-      { if(retFound !=null){ retFound[0] = true; }
+      { 
         return (Type)table.aValues[idx];
       }
       else  
@@ -1086,7 +1123,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
     @Override
     public Iterator<java.util.Map.Entry<Key, Type>> iterator()
-    { return new EntrySetIterator();
+    { return IndexMultiTable.this.new EntrySetIterator();
     }
 
     @Override
@@ -1126,7 +1163,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
     @Override
     public <T> T[] toArray(T[] a)
-    {
+    { 
       // TODO Auto-generated method stub
       return null;
     }
@@ -1156,8 +1193,13 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     @Override
     public void remove()
     {
-      // TODO Auto-generated method stub
-      
+      tableIter.helper.table.delete(tableIter.helper.idx);
+      tableIter.helper.idx -=1;  //maybe -1 if first was deleted.
+      //IndexMultiTable.IteratorHelper<Key, Type> helperTest = tableIter.helper;
+      while(tableIter.helper.parentIter !=null && tableIter.helper.table.sizeBlock ==0){
+        tableIter.helper = tableIter.helper.parentIter;
+        tableIter.helper.idx -=1;  //on idx it is the next, it has deleted the child table!
+      }
     }
     
   };

@@ -24,9 +24,10 @@ public interface FileRemoteAccessor extends Closeable
 {
   /**Version, history and license.
    * <ul>
-   * <li>2012-09-12 Hartmut chg: Now it is an interface, not an abstract class, only formal.
-   * <li>2012-09-12 Hartmut new: {@link #setLastModified(FileRemote, long)}. 
-   * <li>2012-09-12 Hartmut bugfix: {@link #getChildren(FileRemote, FileFilter)} here only abstract.
+   * <li>2012-09-14 Hartmut new: {@link CallbackFile}. 
+   * <li>2012-08-12 Hartmut chg: Now it is an interface, not an abstract class, only formal.
+   * <li>2012-08-12 Hartmut new: {@link #setLastModified(FileRemote, long)}. 
+   * <li>2012-08-12 Hartmut bugfix: {@link #getChildren(FileRemote, FileFilter)} here only abstract.
    * <li>2012-08-12 Hartmut new: {@link #openInputStream(FileRemote, long)}
    * <li>2012-08-12 Hartmut new: {@link #getChildren(FileRemote, FileFilter)} implemented here.
    * <li>2012-08-12 Hartmut chg: up to now this is not an interface but an abstract class. It contains common method implementation.
@@ -101,7 +102,9 @@ public interface FileRemoteAccessor extends Closeable
   
   public abstract List<File> getChildren(FileRemote file, FileFilter filter);
   
+  public void getChildren(FileRemote file, FileFilter filter, int depth, CallbackFile callback);
   
+
   boolean setLastModified(FileRemote file, long time);
   
   
@@ -127,11 +130,33 @@ public interface FileRemoteAccessor extends Closeable
   /**Creates or prepares a CmdEvent to send to the correct destination. The event is ready to use but not  occupied yet. 
    * If the evBack contains a CmdEvent as its opponent, it is used. In that way a non-dynamic event management
    * is possible. */
-  public abstract FileRemote.CmdEvent prepareCmdEvent(FileRemote.CallbackEvent evBack);
+  public abstract FileRemote.CmdEvent prepareCmdEvent(Event<?, FileRemote.Cmd> evBack);
 
   
   public abstract boolean isLocalFileSystem();
 
-  
-  
+  /**This interface is used as callback for {@link FileRemoteAccessor#getChildren(FileRemote, FileFilter)}
+   */
+  public interface CallbackFile
+  {
+    /**Invoked before start of {@link java.nio.file.Files#walkFileTree(java.nio.file.Path, java.util.Set, int, java.nio.file.FileVisitor)}.
+     * or an adequate communication.
+     */
+    void start();
+    
+    /**Invoked for any file of the directory.
+     * It is invoked in the thread which executes a FileRemote action.
+     * It is possible to create an event and store it in a queue but there are necessary some more events
+     * it may not be good.
+     * @param file
+     * @return TODO information to abort, maybe boolean.
+     */
+    int offerFile(FileRemote file);
+    
+    /**Invoked after finishing a {@link java.nio.file.Files#walkFileTree(java.nio.file.Path, java.util.Set, int, java.nio.file.FileVisitor)}.
+     */
+    void finished();
+  }
+
+
 }

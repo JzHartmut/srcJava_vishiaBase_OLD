@@ -1,5 +1,7 @@
 package org.vishia.fileRemote;
 
+import java.util.Queue;
+
 import org.vishia.util.SelectMask;
 
 /**Class can be associated with a {@link FileRemote} to store comparison or select information.
@@ -92,7 +94,11 @@ public class FileCmprResult extends SelectMask
     } else {
       this.nrofBytesSelected = file.length();
       this.nrofFilesSelected = 1;
+      /*
       FileRemote parent = file;
+      while( (parent = parent.getParentFile()) !=null){
+        //if()
+      }
       //inform all parents about a selection into. Mark it with select it too.
       while( (parent = parent.getParentFile()) !=null){
         if(parent.cmprResult == null){
@@ -102,6 +108,7 @@ public class FileCmprResult extends SelectMask
         parent.cmprResult.nrofFilesSelected += this.nrofFilesSelected;
         parent.cmprResult.nrofBytesSelected += this.nrofBytesSelected;
       }
+      */
     }
     return selectOld;
   }
