@@ -236,17 +236,33 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
     File data = (File)file.oFile();
     File[] children = data.listFiles(filter);
     List<File> list = new LinkedList<File>();
-    for(File file1: children){
-      list.add(file1);
+    if(children !=null){
+      for(File file1: children){
+        list.add(file1);
+      }
     }
     return list;
   }
 
+  /**Variant of getChildren for non-Java-7. Firstly all children without its properties are gotten
+   * from the operation system using {@link java.io.File#list()}. Therefore {@link #refreshFilePropertiesAndChildren(FileRemote, CallbackEvent)}
+   * will be called. Then this list is iterated and the file properties are gotten using 
+   * {@link #refreshFileProperties(FileRemote, CallbackEvent)}. In any iteration step the file
+   * is offered to the application calling {@link FileRemoteAccessor.CallbackFile#offerFile(FileRemote)}.
+   * 
+   * @see org.vishia.fileRemote.FileRemoteAccessor#getChildren(org.vishia.fileRemote.FileRemote, java.io.FileFilter, int, org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)
+   */
   @Override public void getChildren(FileRemote file, FileFilter filter, int depth, CallbackFile callback)
   {
     refreshFilePropertiesAndChildren(file, null);
-    for(Map.Entry<String, FileRemote> file1: file.children().entrySet()){
-      callback.offerFile(file1.getValue());
+    Map<String, FileRemote> children = file.children();
+    callback.start();
+    if(children !=null){
+      for(Map.Entry<String, FileRemote> file1: children.entrySet()){
+        FileRemote file2 = file1.getValue();
+        refreshFileProperties(file2, null);
+        callback.offerFile(file2);
+      }
     }
     callback.finished();
     // TODO Auto-generated method stub
@@ -658,10 +674,10 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
                 if(child == null){ 
                   int flags = file1.isDirectory() ? FileRemote.mDirectory : 0;
                   child = new FileRemote(fileRemote.itsCluster, fileRemote.device(), fileRemote, name1, 0, 0, flags, file1, true); //newFileInDirectory(file1, fileRemote); }
-                  child.refreshProperties(null);    //should show all sub files with its properties, but not files in sub directories.
+                  //child.refreshProperties(null);    //should show all sub files with its properties, but not files in sub directories.
                 } else {
                   if(!child.isTested(time - 1000)){
-                    child.refreshProperties(null);    //should show all sub files with its properties, but not files in sub directories.
+                    //child.refreshProperties(null);    //should show all sub files with its properties, but not files in sub directories.
                   }
                 }
                 fileRemote.putChildren(child);

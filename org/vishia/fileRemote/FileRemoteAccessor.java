@@ -24,7 +24,7 @@ public interface FileRemoteAccessor extends Closeable
 {
   /**Version, history and license.
    * <ul>
-   * <li>2012-09-14 Hartmut new: {@link CallbackFile}. 
+   * <li>2012-09-14 Hartmut new: {@link CallbackFile}, {@link #getChildren(FileRemote, FileFilter, int, CallbackFile)}. 
    * <li>2012-08-12 Hartmut chg: Now it is an interface, not an abstract class, only formal.
    * <li>2012-08-12 Hartmut new: {@link #setLastModified(FileRemote, long)}. 
    * <li>2012-08-12 Hartmut bugfix: {@link #getChildren(FileRemote, FileFilter)} here only abstract.
@@ -90,6 +90,18 @@ public interface FileRemoteAccessor extends Closeable
   public abstract void refreshFileProperties(FileRemote file, FileRemote.CallbackEvent callback);
 
   /**Gets the properties and the children of the file from the physical file.
+   * <br><br>
+   * The properties of the children are not gotten for the Standard-PC-Filesystem using Java-6. 
+   * It may use too many calculation time.
+   * Use {@link #refreshFileProperties(FileRemote, org.vishia.fileRemote.FileRemote.CallbackEvent)}
+   * in a loop for any file only if it is necessary. Check the {@link FileRemote#isTested(long)} therefore.
+   * <br><br>
+   * For Java-7 the main properties of all children are gotten too, because the system call deliver it.
+   * To document that, the {@link FileRemote#timeRefresh} is set to the new time.
+   * For other remote file systems it should be also do so. Usual the main properties of the children
+   * should be present if the name of the children is gotten. The main properties are length, 
+   * timestamp last modified, read or write able.
+   * 
    * @param file the destination file object.
    * @param callback If null then the method waits for response from the maybe remote file system
    *   with a suitable timeout. 
