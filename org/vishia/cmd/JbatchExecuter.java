@@ -10,8 +10,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 
 import org.vishia.cmd.CmdExecuter;
@@ -145,6 +147,9 @@ public class JbatchExecuter {
    * in their local variables pool. The value is either a String, CharSequence or any Object pointer.  */
   //final Map<String, String> scriptEnvVariables = new TreeMap<String, String>();
   
+  
+  protected final Queue<JbatchThread> threads = new ConcurrentLinkedQueue<JbatchThread>();
+  
   private boolean bScriptVariableGenerated;
   
   
@@ -195,7 +200,6 @@ public class JbatchExecuter {
     cd.change(FileSystem.normalizePath(currDirWrapper.currDir.getAbsolutePath()));
     scriptVariables.put("$CD", cd);
     scriptVariables.put("currDir", currDirWrapper);
-    scriptVariables.put("currDir", currDirWrapper);
     scriptVariables.put("error", accessError);
     scriptVariables.put("mainCmdLogging", log);
     scriptVariables.put("nextNr", nextNr);
@@ -234,7 +238,7 @@ public class JbatchExecuter {
    * @return If null, it is okay. Elsewhere a readable error message.
    * @throws IOException only if out.append throws it.
    */
-  public String genContent(JbatchScript genScript, boolean accessPrivate, Appendable out) 
+  public void execute(JbatchScript genScript, boolean accessPrivate, boolean bWaitForThreads, Appendable out) 
   throws IOException
   {
     this.bAccessPrivate = accessPrivate;
@@ -248,7 +252,19 @@ public class JbatchExecuter {
     JbatchScript.Statement contentScript = genScript.getFileScript();
     ExecuteLevel genFile = new ExecuteLevel(null, scriptVariables);
     String sError1 = genFile.execute(contentScript.subContent, out, false);
-    return sError1;
+    if(bWaitForThreads){
+      boolean bWait = true;
+      while(bWait){
+        synchronized(threads){
+          bWait = threads.size() !=0;
+          if(bWait){
+            try{ threads.wait(1000); }
+            catch(InterruptedException exc){}
+          }
+        }
+      }
+
+    }
   }
 
   
@@ -311,6 +327,18 @@ public class JbatchExecuter {
     return new IndexMultiTable<String, Object>(IndexMultiTable.providerString);
   }
   
+  
+  public void runThread(ExecuteLevel executeLevel, JbatchScript.Statement statement){
+    executeLevel.execute(statement.subContent, null, false);
+    synchronized(threads){
+      threads.remove(this);
+      if(threads.size() == 0){
+        threads.notify();
+      }
+    }
+  }
+  
+
 
   /**
    * @param sError
@@ -371,7 +399,8 @@ public class JbatchExecuter {
       } else {
         localVariables.putAll(parentVariables);  //use the same if it is not a subText, only a 
       }
-      localVariables.put("jbatExecuteLevel", this);
+      localVariables.put("jbatSub", this);
+      localVariables.put("jbatSubVariables", localVariables);
     }
 
     
@@ -445,7 +474,7 @@ public class JbatchExecuter {
      * @throws IOException 
      */
     public String execute(JbatchScript.StatementList contentScript, final Appendable out, boolean bContainerHasNext) 
-    throws IOException 
+    //throws IOException 
     {
       String sError = null;
       Appendable uBuffer = out;
@@ -504,6 +533,8 @@ public class JbatchExecuter {
           case 's': {
             executeSubroutine(contentElement, out);
           } break;
+          case 'x': executeThread(contentElement); break;
+          case 'm': executeMove(contentElement); break;
           case 'c': executeCmdline(contentElement); break;
           case 'd': executeChangeCurrDir(contentElement); break;
           case 'C': { //generation <:for:name:path> <genContent> <.for>
@@ -522,11 +553,12 @@ public class JbatchExecuter {
             sError = "break";
           } break;
           default: 
-            uBuffer.append(" ===ERROR: unknown type '" + contentElement.elementType + "' :ERROR=== ");
+            uBuffer.append("Jbat - execute-unknown type; '" + contentElement.elementType + "' :ERROR=== ");
           }//switch
           
         } catch(Exception exc){
-          //check onerror
+          //any statement has thrown an exception.
+          //check onerror after this statement, it is stored in the statement.
           boolean found = false;
           exc.printStackTrace();
           if(contentElement.onerror !=null){
@@ -548,7 +580,8 @@ public class JbatchExecuter {
             throw new IllegalArgumentException (exc.getMessage());
           }
         }
-      }
+      }//while
+      
       return sError;
     }
     
@@ -809,6 +842,24 @@ public class JbatchExecuter {
     
     
     
+    /**executes statements in another thread.
+     */
+    private void executeThread(JbatchScript.Statement statement) 
+    throws IOException
+    { JbatchThread thread = new JbatchThread();
+      synchronized(threads){
+        threads.add(thread);
+      }
+      thread.executeLevel = this;
+      thread.statement = statement;
+      Thread threadmng = new Thread(thread, "jbat");
+      threadmng.start();  
+      //it does not wait on finishing this thread.
+    }
+
+    
+    
+    
     /**Generates or executes any sub content.
      * @param script
      * @param out
@@ -816,7 +867,7 @@ public class JbatchExecuter {
      * @throws IOException
      */
     public String executeSubLevel(JbatchScript.Statement script, Appendable out) 
-    throws IOException
+    //throws IOException
     {
       ExecuteLevel genContent;
       if(script.subContent.bContainsVariableDef){
@@ -919,6 +970,17 @@ public class JbatchExecuter {
         text = obj.toString();
       }
       out.append(text); 
+    }
+    
+    void executeMove(JbatchScript.Statement statement) 
+    throws IllegalArgumentException, Exception
+    {
+      CharSequence s1 = evalString(statement.arguments.get(0));
+      CharSequence s2 = evalString(statement.arguments.get(1));
+      File fileSrc = new File(s1.toString());
+      File fileDst = new File(s2.toString());
+      boolean bOk = fileSrc.renameTo(fileDst);
+      if(!bOk) throw new IOException("move not successfully");
     }
     
     void executeOpenfile(JbatchScript.Statement contentElement) 
@@ -1123,4 +1185,19 @@ public class JbatchExecuter {
     
   }
 
+  
+  
+  protected class JbatchThread implements Runnable
+  {
+    ExecuteLevel executeLevel;
+    ////
+    JbatchScript.Statement statement;
+
+    @Override public void run(){ 
+      runThread(executeLevel, statement); 
+    }
+    
+  }
+  
+  
 }

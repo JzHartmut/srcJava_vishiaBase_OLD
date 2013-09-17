@@ -610,6 +610,35 @@ public class JbatchScript {
     
     
     /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
+    public Argument new_p1(){ return new Argument(parentList); }
+    
+    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
+    public void add_p1(Argument val){ 
+      if(arguments == null){ arguments = new ArrayList<Argument>(); }
+      if(arguments.size() >=1){
+        arguments.set(0,val);
+      } else {  //size is 0
+        arguments.add(val);
+      }
+    }
+    
+    
+    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
+    public Argument new_p2(){ return new Argument(parentList); }
+    
+    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
+    public void add_p2(Argument val){ 
+      if(arguments == null){ arguments = new ArrayList<Argument>(); }
+      if(arguments.size() >=2){
+        arguments.set(1,val);
+      } else {
+        while(arguments.size() < 1){ arguments.add(null); }  //empty
+        arguments.add(val);
+      }
+    }
+    
+    
+    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
     public Argument new_actualArgument(){ return new Argument(parentList); }
     
     /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
@@ -743,6 +772,30 @@ public class JbatchScript {
     public void add_elseBlock(Statement val){}
 
     
+    ////
+    public Statement new_threadBlock()
+    { if(subContent == null){ subContent = new StatementList(this); }
+      return subContent.new_threadBlock();
+    }
+    
+    public void add_threadBlock(Statement val){subContent.add_threadBlock(val);}
+
+    
+    public Statement new_move()
+    { if(subContent == null){ subContent = new StatementList(this); }
+      return subContent.new_move();
+    }
+    
+    public void add_move(Statement val){subContent.add_move(val);}
+
+    
+    public Statement new_copy()
+    { if(subContent == null){ subContent = new StatementList(this); }
+      return subContent.new_copy();
+    }
+    
+    public void add_copy(Statement val){subContent.add_copy(val);}
+
     
     public CallStatement new_callScript()
     { if(subContent == null){ subContent = new StatementList(this); }
@@ -888,7 +941,10 @@ public class JbatchScript {
       case 'Z': return "<:target:" + identArgJbat + ">";
       case 'Y': return "<:file>";
       case 'b': return "break;";
-      case 'X': return "<:subtext:" + identArgJbat + ">";
+      case 'c': return "cmd;";
+      case 'm': return "move;";
+      case 'x': return "thread";
+      case 'y': return "copy";
       default: return "(??" + elementType + " " + textArg + "?)";
       }
     }
@@ -1131,6 +1187,36 @@ public class JbatchScript {
     }
     
     public void add_whileBlock(Statement val){}
+
+
+    public Statement new_threadBlock()
+    { Statement contentElement = new Statement(this, 'x', null);
+      content.add(contentElement);
+      onerrorAccu = null; withoutOnerror.add(contentElement);
+      return contentElement;
+    }
+    
+    public void add_threadBlock(Statement val){}
+
+
+    public Statement new_move()
+    { Statement contentElement = new Statement(this, 'm', null);
+      content.add(contentElement);
+      onerrorAccu = null; withoutOnerror.add(contentElement);
+      return contentElement;
+    }
+    
+    public void add_move(Statement val){}
+
+
+    public Statement new_copy()
+    { Statement contentElement = new Statement(this, 'y', null);
+      content.add(contentElement);
+      onerrorAccu = null; withoutOnerror.add(contentElement);
+      return contentElement;
+    }
+    
+    public void add_copy(Statement val){}
 
 
     public void set_cd(String val)

@@ -1289,8 +1289,31 @@ public class FileSystem
   
   
 
+  /**Searches the first lien with given text in 1 file, returns the line or null.
+   * @param file The file
+   * @param what content to search, a simple text, not an regular expression.
+   * @return null if nothing was found, elsewhere the line.
+   * @throws IOException File not found or any file read exception.
+   */
+  public static String grep1line(File file, String what)
+  throws IOException
+  {
+    String retLine = null;
+    BufferedReader r1 = new BufferedReader(new FileReader(file));
+    String sLine;
+    boolean fileOut = false;
+    while( retLine == null && (sLine = r1.readLine()) !=null){
+      if(sLine.contains(what)){
+        retLine = sLine;  //breaks
+      }
+    }
+    return retLine;
+  }
 
-
+  
+  
+  
+  
   /**This is equal the usual grep, but with given files. TODO this method is not ready yet.
    * @param files
    * @param what

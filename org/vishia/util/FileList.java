@@ -135,7 +135,13 @@ public class FileList
     FileSystem.addFilesWithBasePath(new File(args.sDirectory), args.sMask, list);
     Map<String, FileSystem.FileAndBasePath> sort = new TreeMap<String, FileSystem.FileAndBasePath>();
     for(FileSystem.FileAndBasePath entry: list){
-      sort.put(entry.localPath, entry);  //sort alphabetical
+      boolean bExclude = false;
+      if(entry.localPath.startsWith("/.bzr")){ 
+        bExclude = true;
+      }
+      if(!bExclude){  
+        sort.put(entry.localPath, entry);  //sort alphabetical
+      }
     }
     Writer out = null;
     out = new java.io.FileWriter(args.sFileList);
