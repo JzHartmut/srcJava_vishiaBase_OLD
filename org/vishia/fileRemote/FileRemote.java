@@ -253,11 +253,16 @@ public class FileRemote extends File implements MarkMask_ifc
   , cmpLenEqual = 0x02000000
   , cmpLenTimeEqual = 0x03000000;
   
+  /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
+  public final static int mCmpContent = 0x0C000000
+  , cmpContentEqual = 0x04000000
+  , cmpContentNotEqual = 0x08000000;
+  
   /**Flags as result of an comparison: the other file is checked by content maybe with restricitons. */
-  public final static char cmpContentEqual = '='
-  , cmpContentEqualWithoutEndlines = '$'
-  , cmpContentEqualwithoutSpaces = '+'
-  , cmpContentEqualWithoutComments = '#';
+  public final static char charCmpContentEqual = '='
+  , charCmpContentEqualWithoutEndlines = '$'
+  , charCmpContentEqualwithoutSpaces = '+'
+  , charCmpContentEqualWithoutComments = '#';
   ;
   
   /**Flags as result of an comparison: the other file does not exist, or any files of an directory does not exists
@@ -501,7 +506,7 @@ public class FileRemote extends File implements MarkMask_ifc
   }
   
   
-  private static FileRemoteAccessorSelector getAccessorSelector(){
+  static FileRemoteAccessorSelector getAccessorSelector(){
     if(accessorSelector == null){
       accessorSelector = FileRemoteAccessorLocalFile.selectLocalFileAlways;
     }
@@ -1358,6 +1363,21 @@ public class FileRemote extends File implements MarkMask_ifc
   }
 
   
+  
+  public static void cmpFiles(FileRemote dir1, FileRemote dir2){
+    //dir1 = file1; dir2 = file2;
+    if(dir1.device == null){
+      dir1.device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(dir1.getAbsolutePath());
+    }
+    if(dir2.device == null){
+      dir2.device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(dir2.getAbsolutePath());
+    }
+    FileRemoteCallbackCmp callback = new FileRemoteCallbackCmp(dir1, dir2);
+    dir1.device.getChildren(dir1, null, Integer.MAX_VALUE, callback);
+  }
+  
+  
+
   
   /**Checks a file maybe in a remote device maybe a directory. 
    * This is a send-only routine without immediate feedback, because the calling thread should not be waiting 

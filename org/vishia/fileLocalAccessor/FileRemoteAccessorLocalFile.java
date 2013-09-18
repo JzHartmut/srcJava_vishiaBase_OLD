@@ -262,6 +262,10 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
         FileRemote file2 = file1.getValue();
         refreshFileProperties(file2, null);
         callback.offerFile(file2);
+        if(file2.isDirectory() && depth >1){
+          //recursively in directory!
+          getChildren(file2, filter, depth-1, callback);  
+        }
       }
     }
     callback.finished();

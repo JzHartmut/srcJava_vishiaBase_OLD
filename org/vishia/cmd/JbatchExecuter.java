@@ -329,7 +329,13 @@ public class JbatchExecuter {
   
   
   public void runThread(ExecuteLevel executeLevel, JbatchScript.Statement statement){
-    executeLevel.execute(statement.subContent, null, false);
+    try{ 
+      executeLevel.execute(statement.subContent, null, false);
+    } 
+    catch(Exception exc){
+      //TODO anything with the environment onerror statement?
+      exc.printStackTrace(System.out);
+    }
     synchronized(threads){
       threads.remove(this);
       if(threads.size() == 0){
@@ -479,9 +485,10 @@ public class JbatchExecuter {
       String sError = null;
       Appendable uBuffer = out;
       //Generate direct requested output. It is especially on inner content-scripts.
-      Iterator<JbatchScript.Statement> iter = contentScript.content.iterator();
-      while(iter.hasNext() && sError == null){
-        JbatchScript.Statement contentElement = iter.next();
+      int ixStatement = -1;
+      //Iterator<JbatchScript.Statement> iter = contentScript.content.iterator();
+      while(++ixStatement < contentScript.content.size()) { //iter.hasNext() && sError == null){
+        JbatchScript.Statement contentElement = contentScript.content.get(ixStatement); //iter.next();
         //for(TextGenScript.ScriptElement contentElement: contentScript.content){
         try{    
           switch(contentElement.elementType){
@@ -560,22 +567,25 @@ public class JbatchExecuter {
           //any statement has thrown an exception.
           //check onerror after this statement, it is stored in the statement.
           boolean found = false;
-          exc.printStackTrace();
-          if(contentElement.onerror !=null){
-            String sError1 = exc.getMessage();
-            localVariables.put("errorMsg", sError1);
-            Iterator<JbatchScript.Onerror> iterError = contentElement.onerror.iterator();
-            while(!found && iterError.hasNext()) {
-              JbatchScript.Onerror onerror = iterError.next();
-              found = onerror.errorType == '?';
-              if(found){
-                sError = executeSubLevel(onerror, out);
-              }
+          char excType = '?';
+          while(++ixStatement < contentScript.content.size()) { //iter.hasNext() && sError == null){
+            contentElement = contentScript.content.get(ixStatement); //iter.next();
+            char onerrorType;
+            if(contentElement.elementType == '?' 
+              && ((onerrorType = ((JbatchScript.Onerror)contentElement).errorType) == excType
+                 || onerrorType == '?'  
+              )  ){
+              found = true;
             }
           }
-          if(!found){
+          if(found){
+            String sError1 = exc.getMessage();
+            localVariables.put("errorMsg", sError1);
+            executeSubLevel(contentElement, out);
+          } else {
             sError = exc.getMessage();
             System.err.println("Jbat - execute-exception; " + exc.getMessage());
+            exc.printStackTrace();
             //throw exc;
             throw new IllegalArgumentException (exc.getMessage());
           }

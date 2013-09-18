@@ -931,13 +931,15 @@ public class JbatchScript {
       case 'e': return "<*" +   ">";  //expressions.get(0).datapath
       //case 'g': return "<$" + path + ">";
       case 's': return "call " + identArgJbat;
+      case 'B': return "{ statementblock }";
+      case '?': return "onerror";
       case 'I': return "(?forInput?)...(/?)";
       case 'L': return "(?forList " + textArg + "?)";
       case 'C': return "<:for:Container " + textArg + "?)";
-      case 'F': return "<:if:Container " + textArg + "?)";
-      case 'G': return "<:elsif-condition " + textArg + "?)";
+      case 'F': return "if";
+      case 'G': return "elsif";
       case 'N': return "<:hasNext> content <.hasNext>";
-      case 'E': return "<:else>";
+      case 'E': return "else";
       case 'Z': return "<:target:" + identArgJbat + ">";
       case 'Y': return "<:file>";
       case 'b': return "break;";
@@ -1052,7 +1054,7 @@ public class JbatchScript {
     }
  
     Onerror(StatementList parentList){
-      super(parentList, 'B', null);
+      super(parentList, '?', null);
     }
  }
   
