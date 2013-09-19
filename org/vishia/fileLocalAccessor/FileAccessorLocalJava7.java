@@ -112,7 +112,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
   }
 
   @Override
-  public void getChildren(FileRemote file, FileFilter filter, int depth, CallbackFile callback)
+  public void walkFileTree(FileRemote file, FileFilter filter, int depth, CallbackFile callback)
   {
     // TODO Auto-generated method stub
     

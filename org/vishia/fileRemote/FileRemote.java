@@ -60,6 +60,28 @@ import org.vishia.util.StringPartBase;
  *   equal, new etc. in any comparison. This bits can be used by applications.  
  * </ul>
  * <br><br>
+ * <b>How to create instances of this class?</b><br>
+ * You must create or have at least one {@link FileCluster} firstly which is application-width.
+ * The FileCluster prevents more instances of FileRemote for the same physical file and supports
+ * additional properties for a file as instance of FileRemote.  
+ * If you have any other FileRemote instance, it knows its {@link #itsCluster}.
+ * You can create a child of an existing file by given path using {@link #child(CharSequence)} whereby
+ * the child can be a deeper one, the path is a relative path from the given parent. This FileRemote instance
+ * describes a possible existing file or maybe a non existing one, adequate like creation of instances
+ * of {@link java.io.File}. Note that on {@link #refreshPropertiesAndChildren(CallbackEvent)} this instance will be removed
+ * from the children list if it is not existing.
+ * <br>
+ * You can get any FileRemote instance with any absolute path calling {@link FileCluster#getFile(CharSequence)}.
+ * This instance will be created if it is not existing, or it will be get from an existing instance
+ * of this RemoteFile inside the cluster. The instance won't be deleted if the physical file is not existing.
+ * For example you can create <pre>
+ *   FileRemote testFile = theFileCluster.getFile("X:/MyPath/file.ext");
+ * </pre>  
+ * This instance is existing independent of the existence of such a physical file. But <pre>
+ *   if(testFile.exists()){....
+ * <pre>
+ * may return false.   
+ * <br><br>
  * This class inherits from {@link java.io.File} in the determination as interface. The advantage is:
  * <ul>
  * <li>The class File defines the interface to the remote files too. No extra definition of access methods is need.
@@ -365,7 +387,31 @@ public class FileRemote extends File implements MarkMask_ifc
   
   
   
-  /**Constructs the instance. If the length parameter is given or it is 0, 
+  /**Constructs an instance. The constructor is protected because only special methods
+   * constructs an instance in knowledge of existing instances in {@link FileCluster}.
+   * <br><br>
+   * 
+   *  
+   * @param cluster The cluster where the file is member of. It can be null if the parent is given. 
+   *   It have to be matching to the parent. It do not be null if a parent is not given. 
+   *   A cluster can be created in an application invoking the constructor {@link FileCluster#FileCluster()}.
+   * @param device The device which organizes the access to the file system. It may be null, then the device 
+   *   will be gotten from the parent or from the sDirP.
+   * @param parent The parent file if known or null. If it is null, the sDirP have to be given with the complete absolute path.
+   *   If parent is given, this file will be added to the parent as child.
+   * @param sPath The path to the directory. If the parent file is given, either it have to be match to or it should be null.
+   *   The standard path separator is the slash "/". 
+   *   A backslash will be converted to slash internally, it isn't distinct from the slash.
+   *   If this parameter ends with an slash or backslash and the name is null or empty, this is designated 
+   *   as an directory descriptor. {@link #mDirectory} will be set in {@link #flags}.
+   * @param length The length of the file. Maybe 0 if unknown. 
+   * @param date Timestamp of the file. Maybe 0 if unknown.
+   * @param flags Properties of the file. Maybe 0 if unknown.
+   * @param oFileP an system file Object, may be null.
+   * @param OnlySpecialCall
+   */
+  /*
+   *    * If the length parameter is given or it is 0, 
    * this invocation does not force any access to the file system. The parameter may be given
    * by a complete communication or file access before construction of this. 
    * Then they are given as parameter for this constructor.
@@ -376,28 +422,9 @@ public class FileRemote extends File implements MarkMask_ifc
    * The properties of the real file inclusively the length and date can be gotten 
    * from the file system calling {@link #refreshProperties(CallbackEvent)}. This operation may be
    * invoked in another thread (depending on the device) and may be need some operation time.
-   *  
-   * @param cluster The cluster where the file is member of. It can be null if the parent is given. 
-   *   It have to be matching to the parent. It do not be null if a parent is not given. 
-   *   A cluster can be created in an application invoking the constructor {@link FileCluster#FileCluster()}.
-   * @param device The device which organizes the access to the file system. It may be null, then the device 
-   *   will be gotten from the parent or from the sDirP.
-   * @param parent The parent file if known or null. If it is null, the sDirP have to be given with the complete absolute path.
-   *   If parent is given, this file will be added to the parent as child.
-   * @param sDirP The path to the directory. If the parent file is given, either it have to be match to or it should be null.
-   *   The standard path separator is the slash "/". 
-   *   A backslash will be converted to slash internally, it isn't distinct from the slash.
-   *   If this parameter ends with an slash or backslash and the name is null or empty, this is designated 
-   *   as an directory descriptor. {@link #mDirectory} will be set in {@link #flags}.
-   * @param sName Name of the file. If null then the name is gotten from the last part of path
-   *   after the last slash or backslash.
-   * @param length The length of the file. Maybe 0 if unknown. 
-   * @param date Timestamp of the file. Maybe 0 if unknown.
-   * @param flags Properties of the file. Maybe 0 if unknown.
-   * @param oFileP an system file Object, may be null.
-   * @param OnlySpecialCall
+
    */
-  public FileRemote(final FileCluster cluster, final FileRemoteAccessor device
+  protected FileRemote(final FileCluster cluster, final FileRemoteAccessor device
       , final FileRemote parent
       , final CharSequence sPath //, CharSequence sName
       , final long length, final long date, final int flags
@@ -1042,6 +1069,18 @@ public class FileRemote extends File implements MarkMask_ifc
   
   
   
+  /**Returns true if the file seems to be existing.
+   * If the FileRemote instance was never refreshed with the physical file system,
+   * the {@link #refreshProperties(CallbackEvent)} is called yet. But if the file was refreshed already,
+   * the existing flag is returned only. To assure that the existing of the file is correct,
+   * call {@link #refreshProperties(CallbackEvent)} before this call on a proper time.
+   * Note that an invocation of {@link java.io.File#exists()} may have the same problem. The file
+   * may exist in the time of this call, but it may not exist ever more in the future if the application
+   * will deal with it. Usage of a file for opening a reader or writer without Exception is the only one
+   * assurance whether the file exists really. Note that a deletion of an opened file will be prevent
+   * from the operation system.
+   * @see java.io.File#exists()
+   */
   @Override public boolean exists(){ 
     if((flags & mTested) ==0){
       //The children are not known yet, get it:
@@ -1052,6 +1091,9 @@ public class FileRemote extends File implements MarkMask_ifc
     }
     return (flags & mExist) !=0; 
   }
+  
+  
+  
   
   @Override public boolean isFile(){ 
     if((flags & mTested) ==0){
@@ -1064,10 +1106,20 @@ public class FileRemote extends File implements MarkMask_ifc
     return (flags & mFile) !=0; 
   }
   
+  
+  
+  
+  /**Returns true if the FileRemote instance was created as directory
+   * or if any {@link #refreshProperties(CallbackEvent)} call before this call
+   * has detected that it is an directory.
+   * @see java.io.File#isDirectory()
+   */
   @Override public boolean isDirectory(){ 
     //NOTE: The mDirectory bit should be present any time. Don't refresh! 
     return (flags & mDirectory) !=0; 
   }
+  
+  
   
   @Override public boolean canWrite(){ 
     if((flags & mTested) ==0){
@@ -1079,6 +1131,8 @@ public class FileRemote extends File implements MarkMask_ifc
     }
     return (flags & mCanWrite) !=0; 
   }
+  
+  
   
   @Override public boolean canRead(){ 
     if((flags & mTested) ==0){
@@ -1333,6 +1387,24 @@ public class FileRemote extends File implements MarkMask_ifc
 
   
   
+  /**Compare the both given file trees. The start files will be marked with {@link FileMark#markRoot}
+   * Any child file will be marked with the bits
+   * <ul>
+   * <li>{@link FileMark#cmpAlone}
+   * <li>{@link FileMark#cmpContentEqual}
+   * <li>{@link FileMark#cmpContentNotEqual}
+   * </ul>
+   * Any child directory and this directories will be marked with {@link FileMark#markDir}
+   * and conditional additional with 
+   * <ul>
+   * <li>{@link FileMark#cmpFileDifferences}
+   * <li>{@link FileMark#cmpMissingFiles}
+   * </ul>
+   * The application is responsible for removing the mark after them. The application may show the mark
+   * in any kind and then invoke {@link FileRemote#resetMarked(int)}.
+   * @param dir1 Start dir
+   * @param dir2 The other start dir for comparison.
+   */
   public static void cmpFiles(FileRemote dir1, FileRemote dir2){
     //dir1 = file1; dir2 = file2;
     if(dir1.device == null){
@@ -1341,8 +1413,10 @@ public class FileRemote extends File implements MarkMask_ifc
     if(dir2.device == null){
       dir2.device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(dir2.getAbsolutePath());
     }
+    dir1.setMarked(FileMark.markRoot);
+    dir2.setMarked(FileMark.markRoot);
     FileRemoteCallbackCmp callback = new FileRemoteCallbackCmp(dir1, dir2);
-    dir1.device.getChildren(dir1, null, Integer.MAX_VALUE, callback);
+    dir1.device.walkFileTree(dir1, null, Integer.MAX_VALUE, callback);
   }
   
   
@@ -2113,6 +2187,22 @@ public class FileRemote extends File implements MarkMask_ifc
   
     public void newChildren(){ children = new TreeMap<String, FileRemote>(); }
     
+    /**Creates a new file as child of this file.
+     * @param cluster
+     * @param device
+     * @param sPath
+     * @param length
+     * @param date
+     * @param flags
+     * @param oFileP
+     * @return
+     */
+    public FileRemote newChild(final CharSequence sPath
+        , final long length, final long date, final int flags
+        , Object oFileP){
+      return new FileRemote(itsCluster, device, FileRemote.this, sPath, length, date, flags, oFileP, true);
+    }
+    
   }
   
   private final InternalAccess acc_ = new InternalAccess();
@@ -2174,7 +2264,7 @@ public class FileRemote extends File implements MarkMask_ifc
     
 
     /**The implementation of the callback interface 
-     * for {@link FileRemoteAccessor#getChildren(FileRemote, FileFilter, int, org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)}
+     * for {@link FileRemoteAccessor#walkFileTree(FileRemote, FileFilter, int, org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)}
      * It is used in {@link FileRemote#getChildren(ChildrenEvent)}.
      * It is an protected non-static inner instance of the class {@link ChildrenEvent} because its implementing routines
      * should have access to the event data, especially {@link ChildrenEvent#newChildren}.
@@ -2185,7 +2275,7 @@ public class FileRemote extends File implements MarkMask_ifc
       /* (non-Javadoc)
        * @see org.vishia.fileRemote.FileRemoteAccessor.CallbackFile#offerFile(org.vishia.fileRemote.FileRemote)
        */
-      @Override public int offerFile(FileRemote file)
+      @Override public Result offerFile(FileRemote file)
       {
         newChildren.offer(file);
         long time = System.currentTimeMillis();
@@ -2196,7 +2286,7 @@ public class FileRemote extends File implements MarkMask_ifc
           sendEvent();
         }
         // TODO Auto-generated method stub
-        return 0;
+        return Result.cont;
       }
 
       /**It is the last action from get children.

@@ -43,22 +43,23 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
     {
     }
     
-    @Override public int offerFile(FileRemote file)
+    @Override public Result offerFile(FileRemote file)
     {
       CharSequence path = FileSystem.normalizePath(file.getAbsolutePath());
       CharSequence localPath = path.subSequence(zBasePath1+1, path.length());
       FileRemote file2 = dir2.child(localPath);
-      if(file2.isDirectory()){
-        file2.refreshPropertiesAndChildren(null);        
+      if(!file2.exists()){
+        file.setMarked(FileMark.cmpAlone);
+        file.mark.setMarkParent(FileMark.cmpMissingFiles, false);
+        return Result.skipSubtree;  //if it is a directory, skip it.        
       } else {
-        
-        if(file2.exists()){
-          compareFile(file, file2);
+        if(file2.isDirectory()){
+          file2.refreshPropertiesAndChildren(null);        
         } else {
-          file.setMarked(FileMark.cmpAlone);
+          compareFile(file, file2);
         }
+        return Result.cont;
       }
-      return 0;
     }
 
     
@@ -106,6 +107,8 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
       } else {
         file1.setMarked(FileMark.cmpContentNotEqual);
         file2.setMarked(FileMark.cmpContentNotEqual);
+        file1.mark.setMarkParent(FileMark.cmpFileDifferences, false);
+        file2.mark.setMarkParent(FileMark.cmpFileDifferences, false);
       }
     }
     

@@ -9,9 +9,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import org.vishia.fileRemote.FileAccessZip;
@@ -250,27 +252,48 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
    * {@link #refreshFileProperties(FileRemote, CallbackEvent)}. In any iteration step the file
    * is offered to the application calling {@link FileRemoteAccessor.CallbackFile#offerFile(FileRemote)}.
    * 
-   * @see org.vishia.fileRemote.FileRemoteAccessor#getChildren(org.vishia.fileRemote.FileRemote, java.io.FileFilter, int, org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)
+   * @see org.vishia.fileRemote.FileRemoteAccessor#walkFileTree(org.vishia.fileRemote.FileRemote, java.io.FileFilter, int, org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)
    */
-  @Override public void getChildren(FileRemote file, FileFilter filter, int depth, CallbackFile callback)
+  @Override public void walkFileTree(FileRemote file, FileFilter filter, int depth, CallbackFile callback)
+  {
+    callback.start();
+    walkSubTree(file, filter, depth, callback);
+    callback.finished();
+  }
+    
+  public FileRemoteAccessor.CallbackFile.Result walkSubTree(FileRemote file, FileFilter filter, int depth, CallbackFile callback)
   {
     refreshFilePropertiesAndChildren(file, null);
     Map<String, FileRemote> children = file.children();
-    callback.start();
+    FileRemoteAccessor.CallbackFile.Result result = FileRemoteAccessor.CallbackFile.Result.cont;
     if(children !=null){
-      for(Map.Entry<String, FileRemote> file1: children.entrySet()){
+      Iterator<Map.Entry<String, FileRemote>> iter = children.entrySet().iterator();
+      while(result == FileRemoteAccessor.CallbackFile.Result.cont && iter.hasNext()) {
+        Map.Entry<String, FileRemote> file1 = iter.next();
         FileRemote file2 = file1.getValue();
         refreshFileProperties(file2, null);
-        callback.offerFile(file2);
-        if(file2.isDirectory() && depth >1){
-          //recursively in directory!
-          getChildren(file2, filter, depth-1, callback);  
+        result = callback.offerFile(file2);
+        if(  result != FileRemoteAccessor.CallbackFile.Result.terminate) {
+          if( file2.isDirectory() 
+            && depth >1 
+            && result != FileRemoteAccessor.CallbackFile.Result.skipSubtree
+            ){
+              //recursively in directory!
+              result = walkSubTree(file2, filter, depth-1, callback);  
+          } else {
+            if(result == FileRemoteAccessor.CallbackFile.Result.skipSubtree){
+              //continue with some more children
+              result = FileRemoteAccessor.CallbackFile.Result.cont;
+            }
+          }
         }
       }
     }
-    callback.finished();
-    // TODO Auto-generated method stub
-    
+    if(result == FileRemoteAccessor.CallbackFile.Result.skipSiblings){
+      //continue with parent.
+      result = FileRemoteAccessor.CallbackFile.Result.cont;
+    }
+    return result;  //maybe terminate
   }
 
   
@@ -427,7 +450,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   
   private void getChildren(FileRemote.CmdEvent ev){
     FileRemote.ChildrenEvent evback = ev.getOpponentChildrenEvent();
-    getChildren(ev.filesrc(), evback.filter, evback.depth, evback.callbackChildren);
+    walkFileTree(ev.filesrc(), evback.filter, evback.depth, evback.callbackChildren);
   }
   
   
@@ -677,7 +700,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
                 if(oldChildren !=null){ child = oldChildren.remove(name1); }
                 if(child == null){ 
                   int flags = file1.isDirectory() ? FileRemote.mDirectory : 0;
-                  child = new FileRemote(fileRemote.itsCluster, fileRemote.device(), fileRemote, name1, 0, 0, flags, file1, true); //newFileInDirectory(file1, fileRemote); }
+                  child = fileRemote.internalAccess().newChild(name1, 0, 0, flags, file1); 
                   //child.refreshProperties(null);    //should show all sub files with its properties, but not files in sub directories.
                 } else {
                   if(!child.isTested(time - 1000)){

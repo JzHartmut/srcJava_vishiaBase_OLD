@@ -1,5 +1,7 @@
 package org.vishia.fileRemote;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 
 import org.vishia.util.SelectMask;
@@ -59,10 +61,28 @@ public class FileMark extends SelectMask
   /**Flags as result of an comparison: the other file is checked by content maybe with restricitons. */
   public static final char charCmpContentEqualwithoutSpaces = '+';
 
+  /**Flags means that this file is the root of mark. */
+  public static final int markRoot = 0x00100000;
+
+  /**Flags means that this file is any directory which is in the mark tree. */
+  public static final int markDir = 0x00200000;
+
 
   /**Flags as result of an comparison: the other file does not exist, or any files of an directory does not exists
    * or there are differences. */
-  public static final int cmpAlone = 0x10000000;
+  public static final int cmpAlone = 0x01000000;
+
+
+  /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
+  //public static final int cmpTimeEqual = 0x01000000;
+
+  /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
+  //public static final int cmpLenEqual = 0x02000000;
+
+
+  /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
+  public static final int cmpLenTimeEqual = 0x02000000;
+
 
 
   /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
@@ -75,24 +95,12 @@ public class FileMark extends SelectMask
 
   /**Flags as result of an comparison: the other file does not exist, or any files of an directory does not exists
    * or there are differences. */
-  public static final int cmpFileDifferences = 0x30000000;
-
-
-  /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
-  public static final int cmpLenEqual = 0x02000000;
-
-
-  /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
-  public static final int cmpLenTimeEqual = 0x03000000;
-
+  public static final int cmpMissingFiles = 0x10000000;
 
   /**Flags as result of an comparison: the other file does not exist, or any files of an directory does not exists
    * or there are differences. */
-  public static final int cmpMissingFiles = 0x20000000;
+  public static final int cmpFileDifferences = 0x20000000;
 
-
-  /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
-  public static final int cmpTimeEqual = 0x01000000;
 
   
   protected final FileRemote itsFile;
@@ -135,8 +143,7 @@ public class FileMark extends SelectMask
     return selectOld;
   }
 
-  @Override
-  public int setMarked(int mask, Object data)
+  @Override public int setMarked(int mask, Object data)
   { int selectOld = super.setMarked(mask, null);
     //FileRemote file = (FileRemote)data;
     if(itsFile.isDirectory()){
@@ -146,9 +153,10 @@ public class FileMark extends SelectMask
       this.nrofBytesSelected = itsFile.length();
       this.nrofFilesSelected = 1;
       /*
-      FileRemote parent = file;
+      FileRemote parent = itsFile;
+      List<FileRemote> parents = null;
       while( (parent = parent.getParentFile()) !=null){
-        //if()
+        if(parent.mark !=null && parent.mark.selectMask & Mark)
       }
       //inform all parents about a selection into. Mark it with select it too.
       while( (parent = parent.getParentFile()) !=null){
@@ -163,5 +171,52 @@ public class FileMark extends SelectMask
     }
     return selectOld;
   }
+  
+  
+  public void setMarkParent(int mask, boolean count){
+    FileRemote parent = itsFile;
+    List<FileRemote> parents = null;
+    FileRemote lastDirParent = itsFile;
+    if((selectMask & markRoot) ==0){
+      while( (parent = parent.getParentFile()) !=null){  //break inside!
+        if(parent.mark !=null && (parent.mark.selectMask & (FileMark.markDir | FileMark.markRoot))!=0){
+          lastDirParent = parent;
+          parent.mark.selectMask |= mask;
+          if(count){
+            parent.mark.nrofFilesSelected += this.nrofFilesSelected;
+            parent.mark.nrofBytesSelected += this.nrofBytesSelected;
+          }
+          if((parent.mark.selectMask & FileMark.markRoot)!=0){
+            break;
+          }
+        } else {
+          if(parents == null){ parents = new LinkedList<FileRemote>(); }
+          parents.add(parent);  //in case of found a markRoot, mark all that with markDir
+        }
+      }
+      if(parent !=null){ //any markRoot found
+        if(parents !=null){ //but not all markDir existing:
+          //This routine is done only the first time if any parent is marked as root
+          //but all other child directories in the path are not marked. 
+          for(FileRemote parent1: parents){
+            parent1.setMarked(mask | FileMark.markDir);
+            if(count){
+              parent.mark.nrofFilesSelected += this.nrofFilesSelected;
+              parent.mark.nrofBytesSelected += this.nrofBytesSelected;
+            }
+          }
+        } else {
+          //all ok
+        }
+      } else {
+        //a markRoot was not found, set the markRoot to the last valid file.
+        lastDirParent.setMarked(FileMark.markRoot);
+      }
+    }
+  }
+  
+  
+  
+  
   
 }

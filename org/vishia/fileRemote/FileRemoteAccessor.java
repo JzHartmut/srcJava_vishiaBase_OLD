@@ -24,7 +24,7 @@ public interface FileRemoteAccessor extends Closeable
 {
   /**Version, history and license.
    * <ul>
-   * <li>2012-09-14 Hartmut new: {@link CallbackFile}, {@link #getChildren(FileRemote, FileFilter, int, CallbackFile)}. 
+   * <li>2012-09-14 Hartmut new: {@link CallbackFile}, {@link #walkFileTree(FileRemote, FileFilter, int, CallbackFile)}. 
    * <li>2012-08-12 Hartmut chg: Now it is an interface, not an abstract class, only formal.
    * <li>2012-08-12 Hartmut new: {@link #setLastModified(FileRemote, long)}. 
    * <li>2012-08-12 Hartmut bugfix: {@link #getChildren(FileRemote, FileFilter)} here only abstract.
@@ -114,7 +114,14 @@ public interface FileRemoteAccessor extends Closeable
   
   public abstract List<File> getChildren(FileRemote file, FileFilter filter);
   
-  public void getChildren(FileRemote file, FileFilter filter, int depth, CallbackFile callback);
+  /**Walks through all children of the given file and call the {@link CallbackFile#offerFile(FileRemote)}
+   * for any file. 
+   * @param file The start file. With it {@link CallbackFile#start()} will be called.
+   * @param filter Any filter which files will be accepted.
+   * @param depth depth, at least 1 should be use.
+   * @param callback The callback instance for any file.
+   */
+  public void walkFileTree(FileRemote file, FileFilter filter, int depth, CallbackFile callback);
   
 
   boolean setLastModified(FileRemote file, long time);
@@ -151,6 +158,17 @@ public interface FileRemoteAccessor extends Closeable
    */
   public interface CallbackFile
   {
+    /**It is similar {@link java.nio.file.FileVisitResult}.
+     * This class is defined here because it runs with Java-6 too.
+     */
+    public enum Result
+    {
+      cont
+      , terminate
+      , skipSiblings
+      , skipSubtree
+    }
+
     /**Invoked before start of {@link java.nio.file.Files#walkFileTree(java.nio.file.Path, java.util.Set, int, java.nio.file.FileVisitor)}.
      * or an adequate communication.
      */
@@ -163,12 +181,14 @@ public interface FileRemoteAccessor extends Closeable
      * @param file
      * @return TODO information to abort, maybe boolean.
      */
-    int offerFile(FileRemote file);
+    Result offerFile(FileRemote file);
     
     /**Invoked after finishing a {@link java.nio.file.Files#walkFileTree(java.nio.file.Path, java.util.Set, int, java.nio.file.FileVisitor)}.
      */
     void finished();
   }
 
+  
+  
 
 }
