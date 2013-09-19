@@ -712,6 +712,10 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   
   
   
+  /**Access selector which uses {@link FileRemoteAccessorLocalFile} for any path.
+   * It is the standard for normal PC programs.
+   * 
+   */
   public static FileRemote.FileRemoteAccessorSelector selectLocalFileAlways = new FileRemote.FileRemoteAccessorSelector() {
     @Override public FileRemoteAccessor selectFileRemoteAccessor(String sPath) {
       return FileRemoteAccessorLocalFile.getInstance();

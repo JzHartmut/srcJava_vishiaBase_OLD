@@ -26,26 +26,63 @@ import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPartBase;
 
 
-/**This class describes a File, which may be localized at any maybe remote device or which may be a normal local file. 
- * A remote file should be accessed by FileRemoteChannel implementations. It may be any information
- * at an embedded hardware, not only in a standard network.
- * This class executes a remote access only if properties of the file are requested.
- * It stores information about the file without access. 
+/**This class stores the name and some attributes of one File. 
+ * The file may be localized on any maybe remote device or it may be a normal local file.
+ * The information of the file (date, size, attributes) are accessible in a fast way. 
+ * But therefore they may be correct or not: A file on its data storage can be changed or removed. 
+ * The data of this class should be refreshed if it seems to be necessary. 
+ * Such an refresh operation can be done if there is enough time, no traffic on system level. 
+ * Then the information about the file may be actual and fast accessible if an application needs one of them.
  * <br><br>
- * This class inherits from java.lang.File. The advantage is:
+ * In comparison to the standard {@link java.io.File} the information are gotten from the operation system in any case, 
+ * the access is correct but slow.
+ * <br><br>
+ * A remote file should be accessed by {@link FileRemoteAccessor} implementations. It may be any information
+ * on an embedded hardware, not only in a standard network. For example the access to zip archives are implemented by
+ * {@link FileAccessZip}. A file can be present only with one line in a text document which contains path, size, date.
+ * In this case the content is not available, but the properties of the file. See {@link org.vishia.util.FileList}.
+ * <br><br>
+ * This class stores the following information (overview)
+ * <ul>
+ * <li>path, timestamp, length, flags for read/write etc. like known for file systems.
+ * <li>parent and children of this file in its file tree context.
+ * <li>time of last refresh: {@link #timeRefresh} and {@link #timeChildren}. With this information
+ *   an application can decide whether the file should be {@link #refreshProperties(CallbackEvent)}
+ *   or whether its propertees seems to be actual valid.   
+ * <li>Aggregation to its {@link FileRemoteAccessor}: {@link #device} to refresh.
+ * <li>Aggregation to any data which are necessary to access the physical file for the 
+ *   FileRemoteAccessor implementation. This is an instance of {@link java.io.File} for local files.
+ * <li>Aggregation to its {@link FileCluster}: {@link #itsCluster}. 
+ *   The cluster assures that only one FileRemote instance exists for one physical file inside an application.
+ *   In this case some additional properties can be stored to the FileRemote instance like selected etc.
+ *   which are seen application-width.
+ * <li>Information about a mark state. There are some bits for simple mark or for mark that it is
+ *   equal, new etc. in any comparison. This bits can be used by applications.  
+ * </ul>
+ * <br><br>
+ * This class inherits from {@link java.io.File} in the determination as interface. The advantage is:
  * <ul>
  * <li>The class File defines the interface to the remote files too. No extra definition of access methods is need.
- * <li>Any reference to a file can store the reference to a remote file too.
- * <li>The implementation for local files is given without additional effort.
+ * <li>Any reference to a this class can be store in a reference of type java.io.File. The user can deal with it
+ *   without knowledge about the FileRemote concept in a part of its software. Only the refreshing
+ *   should be regulated in the proper part of the application. 
  * </ul> 
- * If the file is a local file, the standard java file access algorithm are used.
+ * 
  * @author Hartmut Schorrig
  *
  */
 public class FileRemote extends File implements MarkMask_ifc
 {
+  /**interface to build an instance, which decides about the instance for physical access to files
+   * in knowledge of the path. The implementing instance should be present as singleton on instantiation of this class.
+   */
   public interface FileRemoteAccessorSelector
   {
+    /**The structure of path, usual a start string should be decide which access instance should be used.
+     * For example "C:path" accesses the local disk but "$Device:path" should access an embedded device.
+     * @param sPath
+     * @return
+     */
     FileRemoteAccessor selectFileRemoteAccessor(String sPath);
   }
 
@@ -248,28 +285,13 @@ public class FileRemote extends File implements MarkMask_ifc
   public final static int mThreadIsRunning =0x80000;
 
   /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
-  public final static int mCmpTimeLen = 0x03000000
-  , cmpTimeEqual = 0x01000000
-  , cmpLenEqual = 0x02000000
-  , cmpLenTimeEqual = 0x03000000;
+  public final static int mCmpTimeLen = 0x03000000;
   
   /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
-  public final static int mCmpContent = 0x0C000000
-  , cmpContentEqual = 0x04000000
-  , cmpContentNotEqual = 0x08000000;
+  public final static int mCmpContent = 0x0C000000;
   
-  /**Flags as result of an comparison: the other file is checked by content maybe with restricitons. */
-  public final static char charCmpContentEqual = '='
-  , charCmpContentEqualWithoutEndlines = '$'
-  , charCmpContentEqualwithoutSpaces = '+'
-  , charCmpContentEqualWithoutComments = '#';
-  ;
-  
-  /**Flags as result of an comparison: the other file does not exist, or any files of an directory does not exists
-   * or there are differences. */
-  public final static int cmpAlone = 0x10000000, cmpMissingFiles = 0x20000000, cmpFileDifferences = 0x30000000;
-  
-
+  /**Instance of the application-width selector for {@link FileRemoteAccessor}.
+   */
   private static FileRemoteAccessorSelector accessorSelector;
   
   /**Counter, any instance has an ident number. */
@@ -290,23 +312,11 @@ public class FileRemote extends File implements MarkMask_ifc
    * {@link org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile} is used. */
   protected FileRemoteAccessor device;
   
-  public FileCmprResult cmprResult;
+  /**A mark and count instance for this file. It is null if it is not necessary. */
+  public FileMark mark;
   
   /**The last time where the file was synchronized with its physical properties. */
   public long timeRefresh, timeChildren;
-  
-  /**Reference file.
-   * This field, the field {@link #referenceFileRef} and the reference inside {@link #referenceFileRef} 
-   * are not used if this instance does not contain a relative path. 
-   * That fields should but don't need to set to null.
-   * <br>
-   * If this field and    
-   * 
-   */
-  protected FileRemote XXXreferenceFile;
-
-  /**Alternative for referencing of the reference file. */
-  protected FileRemote[] XXXreferenceFileRef;
   
   /**The directory path of the file. It does not end with '/' except it is the root.
    * The directory path is absolute and normalized. It doesn't contain any "/./" 
@@ -594,10 +604,10 @@ public class FileRemote extends File implements MarkMask_ifc
    * @return number of Bytes (file length)
    */
   public long setMarked(int mask){
-    if(cmprResult == null){
-      cmprResult = new FileCmprResult(this);
+    if(mark == null){
+      mark = new FileMark(this);
     }
-    cmprResult.setMarked(mask, this);
+    mark.setMarked(mask, this);
     return length();
   }
   
@@ -606,8 +616,8 @@ public class FileRemote extends File implements MarkMask_ifc
    * @return number of Bytes (file length)
    */
   public long resetMarked(int mask){
-    if(cmprResult != null){
-      cmprResult.setNonMarked(mask, this);
+    if(mark != null){
+      mark.setNonMarked(mask, this);
       return length();
     }
     else return 0;
@@ -628,9 +638,9 @@ public class FileRemote extends File implements MarkMask_ifc
   private long resetMarkedRecurs(int mask, int[] nrofFiles, int recursion){
     long bytes = length();
     if(nrofFiles !=null){ nrofFiles[0] +=1; }
-    //if(!isDirectory() && cmprResult !=null){
-    if(cmprResult !=null){
-      cmprResult.setNonMarked(mask, this);
+    //if(!isDirectory() && mark !=null){
+    if(mark !=null){
+      mark.setNonMarked(mask, this);
     }
     if(recursion > 1000) throw new RuntimeException("FileRemote - resetMarkedRecurs,too many recursion");
     if(children !=null){
@@ -644,34 +654,34 @@ public class FileRemote extends File implements MarkMask_ifc
     return bytes;
   }
   
-  /**Returns the mark of a {@link #cmprResult} or 0 if it is not present.
+  /**Returns the mark of a {@link #mark} or 0 if it is not present.
    * @see org.vishia.util.MarkMask_ifc#getMark()
    */
   @Override public int getMark()
-  { return cmprResult == null ? 0 : cmprResult.getMark();
+  { return mark == null ? 0 : mark.getMark();
   }
 
 
-  /**resets a marker bit in the existing {@link #cmprResult} or does nothing if the bit is not present.
+  /**resets a marker bit in the existing {@link #mark} or does nothing if the bit is not present.
    * @see org.vishia.util.MarkMask_ifc#setNonMarked(int, java.lang.Object)
    */
   @Override public int setNonMarked(int mask, Object data)
-  { if(cmprResult == null) return 0;
-    else return cmprResult.setNonMarked(mask, data);
+  { if(mark == null) return 0;
+    else return mark.setNonMarked(mask, data);
   }
 
 
-  /**marks a bit in the {@link #cmprResult}, creates it if it is not existing yet.
+  /**marks a bit in the {@link #mark}, creates it if it is not existing yet.
    * @see org.vishia.util.MarkMask_ifc#setMarked(int, java.lang.Object)
    */
   @Override public int setMarked(int mask, Object data)
-  { if(cmprResult == null){ cmprResult = new  FileCmprResult(this); }
-    return cmprResult.setMarked(mask, data);
+  { if(mark == null){ mark = new  FileMark(this); }
+    return mark.setMarked(mask, data);
   }
   
 
   
-  public boolean isMarked(int mask){ return cmprResult !=null && (cmprResult.getMark() & mask) !=0; }
+  public boolean isMarked(int mask){ return mark !=null && (mark.getMark() & mask) !=0; }
   
   
   /**Sets the properties to this.
@@ -714,41 +724,6 @@ public class FileRemote extends File implements MarkMask_ifc
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
     device.refreshFilePropertiesAndChildren(this, callback);
-  }
-  
-  
-  /**Sets the reference for a given relative path to the named file. 
-   * <br><br>
-   * <b>Concepts of relative paths</b>:
-   * <ul>
-   * <li><b>Current directory</b>: In a local file-system most of the operation systems knows a <i>current directory</i> which is
-   *   the base for relative paths. The <i>current directory</i> is a property of the running process on
-   *   operation system. A java.io.File with a relative path references to this <i>current directory</i> 
-   *   which can be gotten by system calls. <br>
-   *   This class needs a direct reference to the <i>current directory</i> given with this method.
-   * <li><b>relative link</b>: For links (browser, XML) another concept is usually: A relative path starts
-   *   from that file which contains the link. This field should refer that source file then.
-   * </ul>
-   * This method should not be called with any reference if the file contains an absolute path. The reference
-   * file is not used then.
-   *  
-   * @param ref If the file is given with a relative path, this is the reference file.
-   */
-  public void XXXsetReferenceFile(FileRemote ref){
-    XXXreferenceFile = ref;
-    XXXreferenceFileRef = null;
-  }
-  
-  
-  /**Sets the reference for a given relative path to the file references with ref.
-   * This is a alternative to {@link #setReferenceFile(FileRemote)}. Only one of them should be invoked,
-   * the last invocation wins. The advantage of this method: Changing of a referencing file
-   * have to be done only in one instance, the ref. All files which references ref don't need to be changed. 
-   * @param ref Reference to a FileRemote[1] which references the reference file for the relative path.
-   */
-  public void XXXsetReferenceFile(FileRemote[] ref){
-    XXXreferenceFile = null;
-    XXXreferenceFileRef = ref;
   }
   
   
@@ -1140,14 +1115,8 @@ public class FileRemote extends File implements MarkMask_ifc
   
   
   @Override public String getAbsolutePath(){
-    File ref = XXXreferenceFileRef !=null && XXXreferenceFileRef.length >=1 && XXXreferenceFileRef[0] !=null 
-        ? XXXreferenceFileRef[0] : XXXreferenceFile;
     String sAbsPath;
-    if(ref !=null){
-      sAbsPath = ref.getAbsolutePath() + '/' + sDir + "/" + sFile;
-    } else {
-      sAbsPath = getPath(); //sDir + sFile;
-    }
+    sAbsPath = getPath(); //sDir + sFile;
     return sAbsPath;
   }
   

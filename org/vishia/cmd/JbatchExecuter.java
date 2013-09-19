@@ -990,7 +990,7 @@ public class JbatchExecuter {
       File fileSrc = new File(s1.toString());
       File fileDst = new File(s2.toString());
       boolean bOk = fileSrc.renameTo(fileDst);
-      if(!bOk) throw new IOException("move not successfully");
+      if(!bOk) throw new IOException("JbatchExecuter - move not successfully; " + fileSrc.getAbsolutePath() + " to " + fileDst.getAbsolutePath());;
     }
     
     void executeOpenfile(JbatchScript.Statement contentElement) 

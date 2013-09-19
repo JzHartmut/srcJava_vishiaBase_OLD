@@ -55,7 +55,7 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
         if(file2.exists()){
           compareFile(file, file2);
         } else {
-          file.setMarked(FileRemote.cmpAlone);
+          file.setMarked(FileMark.cmpAlone);
         }
       }
       return 0;
@@ -101,11 +101,11 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
         }
       }
       if(equal){
-        file1.setMarked(FileRemote.cmpContentEqual);
-        file2.setMarked(FileRemote.cmpContentEqual);
+        file1.setMarked(FileMark.cmpContentEqual);
+        file2.setMarked(FileMark.cmpContentEqual);
       } else {
-        file1.setMarked(FileRemote.cmpContentNotEqual);
-        file2.setMarked(FileRemote.cmpContentNotEqual);
+        file1.setMarked(FileMark.cmpContentNotEqual);
+        file2.setMarked(FileMark.cmpContentNotEqual);
       }
     }
     
