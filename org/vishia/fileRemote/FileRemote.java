@@ -546,9 +546,11 @@ public class FileRemote extends File implements MarkMask_ifc
   static FileRemoteAccessorSelector getAccessorSelector(){
     if(accessorSelector == null){
       accessorSelector = FileRemoteAccessorLocalFile.selectLocalFileAlways;
+      // accessorSelector = FileAccessorLocalJava7.selectLocalFileAlways;
     }
     return accessorSelector;
   }
+  
   
   
   
@@ -577,7 +579,7 @@ public class FileRemote extends File implements MarkMask_ifc
         if(src.canExecute()){ fileProps |= mExecute | mExecuteGrp | mExecuteAny; }
         if(src.isHidden()){ fileProps |= mHidden; }
       }
-      FileRemoteAccessor accessor = FileRemoteAccessorLocalFile.getInstance();
+      FileRemoteAccessor accessor = accessorSelector.selectFileRemoteAccessor(src.getAbsolutePath()); 
       File dir1 = src.getParentFile();
       FileRemote dir, file;
       if(dir1 !=null){

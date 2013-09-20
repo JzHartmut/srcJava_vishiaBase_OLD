@@ -13,24 +13,17 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-
 import org.vishia.fileRemote.FileAccessZip;
 import org.vishia.fileRemote.FileRemote;
 import org.vishia.fileRemote.FileRemoteAccessor;
-import org.vishia.fileRemote.FileRemote.CallbackCmd;
 import org.vishia.fileRemote.FileRemote.CallbackEvent;
 import org.vishia.fileRemote.FileRemote.Cmd;
-import org.vishia.fileRemote.FileRemote.FileRemoteAccessorSelector;
 import org.vishia.util.Assert;
-import org.vishia.util.DataAccess;
 import org.vishia.util.Event;
 import org.vishia.util.EventConsumer;
 import org.vishia.util.EventSource;
 import org.vishia.util.EventThread;
 import org.vishia.util.FileSystem;
-import org.vishia.util.IndexMultiTable;
 
 
 /**Implementation for a standard local file.
@@ -160,7 +153,16 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
    */
   public static FileRemoteAccessor getInstance(){
     if(instance == null){
-      instance = new FileRemoteAccessorLocalFile();
+      ClassLoader classLoader = ClassLoader.getSystemClassLoader();
+      try{ 
+        classLoader.loadClass("java.nio.file.Files");
+        @SuppressWarnings("unchecked")
+        Class<? extends FileRemoteAccessor> clazz = 
+          (Class<? extends FileRemoteAccessor>)classLoader.loadClass("org.vishia.fileLocalAccessor.FileAccessorLocalJava7");
+          instance = clazz.newInstance(); //new FileAccessorLocalJava7();
+      } catch(Exception exc){
+        instance = new FileRemoteAccessorLocalFile();  //use fallback strategy
+      }
     }
     return instance;
   }

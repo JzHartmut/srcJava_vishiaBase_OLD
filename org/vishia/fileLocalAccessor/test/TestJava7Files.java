@@ -1,7 +1,6 @@
 package org.vishia.fileLocalAccessor.test;
 
 import java.io.IOException;
-import java.nio.file.FileSystem;
 import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
