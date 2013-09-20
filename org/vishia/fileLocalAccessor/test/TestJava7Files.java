@@ -30,7 +30,7 @@ public class TestJava7Files
     Set<FileVisitOption> options = new TreeSet<FileVisitOption>();
     
     try {
-      Files.walkFileTree(path, options, 1, visitor);
+      Files.walkFileTree(path, options, 2, visitor);
     } catch (IOException e) {
       // TODO Auto-generated catch block
       e.printStackTrace();

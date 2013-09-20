@@ -79,7 +79,7 @@ import org.vishia.util.StringPartBase;
  * </pre>  
  * This instance is existing independent of the existence of such a physical file. But <pre>
  *   if(testFile.exists()){....
- * <pre>
+ * </pre>
  * may return false.   
  * <br><br>
  * This class inherits from {@link java.io.File} in the determination as interface. The advantage is:
@@ -2261,7 +2261,17 @@ public class FileRemote extends File implements MarkMask_ifc
     }
   
   
-    
+    protected void offerChild(FileRemote child){
+      newChildren.offer(child);
+      long time = System.currentTimeMillis();
+      if(time - startTime > 300 && !isOccupied()){  
+        //after a minimum of time and only if the last evaluation of the event is finished:
+        occupy(evSrcCmd, false);
+        finished = false;
+        sendEvent();
+      }
+      
+    }
 
     /**The implementation of the callback interface 
      * for {@link FileRemoteAccessor#walkFileTree(FileRemote, FileFilter, int, org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)}
@@ -2272,20 +2282,23 @@ public class FileRemote extends File implements MarkMask_ifc
     public FileRemoteAccessor.CallbackFile callbackChildren = new FileRemoteAccessor.CallbackFile()
     {
 
+      @Override public Result offerDir(FileRemote file){
+        //offerChild(file);
+        return Result.cont;
+      }
+      
+      @Override public Result finishedDir(FileRemote file){
+        return Result.cont;      
+      }
+      
+      
+
       /* (non-Javadoc)
        * @see org.vishia.fileRemote.FileRemoteAccessor.CallbackFile#offerFile(org.vishia.fileRemote.FileRemote)
        */
       @Override public Result offerFile(FileRemote file)
       {
-        newChildren.offer(file);
-        long time = System.currentTimeMillis();
-        if(time - startTime > 300 && !isOccupied()){  
-          //after a minimum of time and only if the last evaluation of the event is finished:
-          occupy(evSrcCmd, false);
-          finished = false;
-          sendEvent();
-        }
-        // TODO Auto-generated method stub
+        offerChild(file);
         return Result.cont;
       }
 

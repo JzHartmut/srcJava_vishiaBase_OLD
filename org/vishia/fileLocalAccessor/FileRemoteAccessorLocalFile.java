@@ -267,30 +267,27 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
     Map<String, FileRemote> children = file.children();
     FileRemoteAccessor.CallbackFile.Result result = FileRemoteAccessor.CallbackFile.Result.cont;
     if(children !=null){
-      Iterator<Map.Entry<String, FileRemote>> iter = children.entrySet().iterator();
-      while(result == FileRemoteAccessor.CallbackFile.Result.cont && iter.hasNext()) {
-        Map.Entry<String, FileRemote> file1 = iter.next();
-        FileRemote file2 = file1.getValue();
-        refreshFileProperties(file2, null);
-        result = callback.offerFile(file2);
-        if(  result != FileRemoteAccessor.CallbackFile.Result.terminate) {
-          if( file2.isDirectory() 
-            && depth >1 
-            && result != FileRemoteAccessor.CallbackFile.Result.skipSubtree
-            ){
-              //recursively in directory!
+      result = callback.offerDir(file);
+      if(result == FileRemoteAccessor.CallbackFile.Result.cont){ //only walk through subdir if cont
+        Iterator<Map.Entry<String, FileRemote>> iter = children.entrySet().iterator();
+        while(result == FileRemoteAccessor.CallbackFile.Result.cont && iter.hasNext()) {
+          Map.Entry<String, FileRemote> file1 = iter.next();
+          FileRemote file2 = file1.getValue();
+          refreshFileProperties(file2, null);
+          if(file2.isDirectory()){
+            if(depth >1){
               result = walkSubTree(file2, filter, depth-1, callback);  
-          } else {
-            if(result == FileRemoteAccessor.CallbackFile.Result.skipSubtree){
-              //continue with some more children
-              result = FileRemoteAccessor.CallbackFile.Result.cont;
+            } else {
+              result = callback.offerFile(file2);  //show it as file instead walk through tree
             }
+          } else {
+            result = callback.offerFile(file2);
           }
         }
-      }
+      } 
     }
-    if(result == FileRemoteAccessor.CallbackFile.Result.skipSiblings){
-      //continue with parent.
+    if(result != FileRemoteAccessor.CallbackFile.Result.terminate){
+      //continue with parent. Also if offerDir returns skipSubdir or any file returns skipSiblings.
       result = FileRemoteAccessor.CallbackFile.Result.cont;
     }
     return result;  //maybe terminate

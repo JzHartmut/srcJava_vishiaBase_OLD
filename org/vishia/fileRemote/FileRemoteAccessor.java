@@ -174,6 +174,24 @@ public interface FileRemoteAccessor extends Closeable
      */
     void start();
     
+    /**Invoked for any directory.
+     * It is invoked in the thread which executes a FileRemote action.
+     * It is possible to create an event and store it in a queue but there are necessary some more events
+     * it may not be good.
+     * @param file
+     * @return TODO information to abort, maybe boolean.
+     */
+    Result offerDir(FileRemote file);
+    
+    /**Invoked on end of walking through a directory.
+     * It is invoked in the thread which executes a FileRemote action.
+     * It is possible to create an event and store it in a queue but there are necessary some more events
+     * it may not be good.
+     * @param file
+     * @return TODO information to abort, maybe boolean.
+     */
+    Result finishedDir(FileRemote file);
+    
     /**Invoked for any file of the directory.
      * It is invoked in the thread which executes a FileRemote action.
      * It is possible to create an event and store it in a queue but there are necessary some more events

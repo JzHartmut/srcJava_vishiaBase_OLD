@@ -43,6 +43,31 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
     {
     }
     
+    @Override public Result offerDir(FileRemote file){
+      if(file == dir1){ return Result.cont; } //the first entry
+      else {
+        CharSequence path = FileSystem.normalizePath(file.getAbsolutePath());
+        CharSequence localPath = path.subSequence(zBasePath1+1, path.length());
+        FileRemote file2 = dir2.child(localPath);
+        if(!file2.exists()){
+          file.setMarked(FileMark.cmpAlone);
+          file.mark.setMarkParent(FileMark.cmpMissingFiles, false);
+          return Result.skipSubtree;  //if it is a directory, skip it.        
+        } else {
+          file2.refreshPropertiesAndChildren(null);        
+          return Result.cont;
+        }
+      }
+    }
+    
+    /**Checks whether all files are compared or whether there are alone files.
+     */
+    @Override public Result finishedDir(FileRemote file){
+      
+      return Result.cont;      
+    }
+    
+    
     @Override public Result offerFile(FileRemote file)
     {
       CharSequence path = FileSystem.normalizePath(file.getAbsolutePath());
@@ -53,11 +78,7 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
         file.mark.setMarkParent(FileMark.cmpMissingFiles, false);
         return Result.skipSubtree;  //if it is a directory, skip it.        
       } else {
-        if(file2.isDirectory()){
-          file2.refreshPropertiesAndChildren(null);        
-        } else {
-          compareFile(file, file2);
-        }
+        compareFile(file, file2);
         return Result.cont;
       }
     }
@@ -150,5 +171,32 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
     }
 
   
+    
+    FileRemoteAccessor.CallbackFile callbackSecond = new FileRemoteAccessor.CallbackFile()
+    {
+
+      @Override public void start() { }
+      @Override public void finished() { }
+
+      @Override public Result offerDir(FileRemote file){
+        return Result.cont;      
+      }
+      
+      @Override public Result finishedDir(FileRemote file){
+        return Result.cont;      
+      }
+      
+      
+
+      @Override
+      public Result offerFile(FileRemote file)
+      {
+        return Result.cont;
+      }
+
+      
+    };
+    
+    
   
 }
