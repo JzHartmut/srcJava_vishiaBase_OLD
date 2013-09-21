@@ -282,9 +282,9 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       if(bHasNext)
       { bHasNextProcessed = false;  //call it at next access!
         IndexMultiTable<Key, Type> table = helper.table;
-        assert(table.aKeys[helper.idx].compareTo(lastkey) >= 0);  //test
-        if(table.aKeys[helper.idx].compareTo(lastkey) < 0) throw new RuntimeException("assert");
-        if(table.aKeys[helper.idx].compareTo(lastkey) < 0)
+        assert(compare(table.aKeys[helper.idx],lastkey) >= 0);  //test
+        if(compare(table.aKeys[helper.idx],lastkey) < 0) throw new RuntimeException("assert");
+        if(compare(table.aKeys[helper.idx],lastkey) < 0)
           stop();
         lastkey = table.aKeys[helper.idx];
         return (Type)table.aValues[helper.idx];
@@ -454,7 +454,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     { //if key1 is found, sorting after the last value with that index.
       found = true;
       if(isHyperBlock || shouldAdd){
-        while(idx <sizeBlock && aKeys[idx].compareTo(arg0) == 0)  //while the keys are identically
+        while(idx <sizeBlock && compare(aKeys[idx],arg0) == 0)  //while the keys are identically
         { idx+=1; 
         }
       }
@@ -471,7 +471,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         IndexMultiTable<Key, Type> parents = this;
         while(parents != null)
         { //if(key1 < key[0])
-          if(arg0.compareTo(aKeys[0]) <0)
+          if(compare(arg0,aKeys[0]) <0)
           { aKeys[0] = arg0; //correct the key, key1 will be the less of child.
           }
           parents = parents.parent;
@@ -495,7 +495,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           stop();
         int idxInChild = Arrays.binarySearch(child.aKeys, arg0);
         if(idxInChild <0){ idxInChild = -idxInChild -1; }
-        else{ while(idxInChild <sizeBlock && aKeys[idxInChild].compareTo(arg0) == 0){ idxInChild+=1;}}
+        else{ while(idxInChild <sizeBlock && compare(aKeys[idxInChild],arg0) == 0){ idxInChild+=1;}}
         
         IndexMultiTable<Key, Type> right;
         
@@ -503,7 +503,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         if(child.isHyperBlock)
         { Key key0right = separateIn2arrays(child,child, right);
           sortin(idx+1, right.aKeys[0], right);
-          if(arg0.compareTo(key0right) >= 0) //key0right)
+          if(compare(arg0,key0right) >= 0) //key0right)
           { right.put(arg0, obj1);
           }
           else
@@ -827,6 +827,12 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    */
   protected int compare(Comparable<Key> val1, Key key){
     int cmp;
+    if(val1 instanceof CharSequence){
+      //prevent String.compareTo(AnyOtherCharSequence) because only String.compareTo(String) works:
+      //but enables comparison of any other key type.
+      CharSequence key1 = key instanceof CharSequence ? (CharSequence)key : key.toString();
+      cmp = StringFunctions.compare((CharSequence)val1, key1);  
+    }
     if(val1 instanceof String){
       cmp = ((String)val1).compareTo(key.toString());
     } else {
@@ -939,8 +945,10 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
 
 
-  public Collection<Type> values()
+  @Override public Collection<Type> values()
   {
+    //Should return an implementation of Collection which deals with the inner data.
+    //see iterator(), entrySet
     // TODO Auto-generated method stub
     return null;
   }
@@ -991,7 +999,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     if(shouldCheck)
     { if(sizeBlock >=1){ assert1(aValues[0] != null); }
       for(int ii=1; ii < sizeBlock; ii++)
-      { assert1(aKeys[ii-1].compareTo(aKeys[ii]) <= 0);
+      { assert1(compare(aKeys[ii-1],aKeys[ii]) <= 0);
         assert1(aValues[ii] != null);
         if(aValues[ii] == null)
           stop();

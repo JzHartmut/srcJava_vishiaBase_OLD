@@ -517,7 +517,7 @@ public class FileRemote extends File implements MarkMask_ifc
     }
     FileRemote file = this, child;
     boolean bCont = true;
-    int flagNewFile = FileRemote.mDirectory;
+    int flagNewFile = 0; //FileRemote.mDirectory;
     do{
       child = file.children == null ? null : file.children.get(pathchild1);
       if(child == null && pathchild !=null){  //a sub directory child

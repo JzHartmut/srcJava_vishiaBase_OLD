@@ -114,8 +114,9 @@ public class FileCluster
       //sPath = sDir1.toString(); //unchanged.
     //}
     FileRemote dirRet = idxPaths.search(sDir1.toString());
+    int flagDir = sName == null ? 0 : FileRemote.mDirectory;  //if name is given, it is a directory. Elsewhere undefined.
     if(dirRet == null){
-      dirRet = new FileRemote(this, null, null, sDir1, 0, 0, 0, 0, FileRemote.mDirectory, null, true);
+      dirRet = new FileRemote(this, null, null, sDir1, 0, 0, 0, 0, flagDir, null, true);
       idxPaths.put(sDir1.toString(), dirRet);
     } else {
       boolean putit = true;
@@ -129,14 +130,14 @@ public class FileCluster
             dirRet = dirRet.child(pathchild);
             putit = false;  //it is existed as child of any file in the cluster.
           } else { //other directory name
-            dirRet = new FileRemote(this, null, null, sDir1, 0, 0, 0, 0, FileRemote.mDirectory, null, true);
+            dirRet = new FileRemote(this, null, null, sDir1, 0, 0, 0, 0, flagDir, null, true);
           }
         } else{
           putit = false; //it is the same, found.
         }
       } else {
         //another directory
-        dirRet = new FileRemote(this, null, null, sDir1, 0, 0, 0, 0, FileRemote.mDirectory, null, true);
+        dirRet = new FileRemote(this, null, null, sDir1, 0, 0, 0, 0, flagDir, null, true);
       }
       if(putit){ idxPaths.put(sDir1.toString(), dirRet); }
     }

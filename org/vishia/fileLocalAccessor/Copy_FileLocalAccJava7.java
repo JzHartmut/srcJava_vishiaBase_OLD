@@ -1158,10 +1158,11 @@ public class Copy_FileLocalAccJava7
         //Copy all children to preserve ConcurrentModificationException because children may moved or deleted.
         //Only that children which are processed already may removed by the statemachine's process itself.
         //Other modifications are able, that files are recognized, but their existence are quest.
-        List<FileRemote> children = new ArrayList<FileRemote>(actData.src.children().values());
-        //for(Map.Entry<String, FileRemote> item: actData.src.children().entrySet()){
-        //  FileRemote child = item.getValue();
-        for(FileRemote child: children){
+        
+        //List<FileRemote> children = new ArrayList<FileRemote>(actData.src.children().values());
+        for(Map.Entry<String, FileRemote> item: actData.src.children().entrySet()){
+          FileRemote child = item.getValue();
+        //for(FileRemote child: children){
           if(child.exists() && child.isMarked(1)){
             String sName = child.getName();
             child.resetMarked(1);
