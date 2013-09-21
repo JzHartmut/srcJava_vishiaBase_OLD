@@ -818,6 +818,22 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     return search(key, false, null);
   }
 
+  
+  
+  /**Assures that if val1 is a String, the key is converted toString() before comparison.
+   * @param val1
+   * @param key
+   * @return
+   */
+  protected int compare(Comparable<Key> val1, Key key){
+    int cmp;
+    if(val1 instanceof String){
+      cmp = ((String)val1).compareTo(key.toString());
+    } else {
+      cmp = val1.compareTo(key);  //compare CharSequence, not only Strings
+    }
+    return cmp;
+  }
 
   /**Searches the key in the tables.
    * @param key1 The key
@@ -1022,7 +1038,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       mid = (low + high) >> 1;
       Comparable<Key> midVal = a[mid];
       //Comparable<Key> midValLeft = mid >fromIndex ? a[mid-1] : minKey__;  
-      int cmp = midVal.compareTo(key);
+      int cmp = compare(midVal, key);
       if ( cmp < 0)
       { low = mid + 1;
         //equal = false;
@@ -1051,6 +1067,15 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     }
   }
   
+  
+  @Override
+  public String toString(){
+    StringBuilder u = new StringBuilder();
+    if(isHyperBlock){ u.append("IdxTableHyperBlock; "); } else { u.append("IndexMultiTable; ");}
+    if(sizeBlock >1){ u.append(aKeys[0]).append(" ..").append(sizeBlock).append(".. ").append(aKeys[sizeBlock -1]); }
+    else { u.append(aKeys[0]); }
+    return u.toString();
+  }
   
   
   /**This interface is necessary to provide tables and the minimum and maximum value for any user specific type.

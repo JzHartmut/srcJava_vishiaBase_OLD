@@ -21,6 +21,7 @@ import org.vishia.util.EventConsumer;
 import org.vishia.util.EventSource;
 import org.vishia.util.EventThread;
 import org.vishia.util.FileSystem;
+import org.vishia.util.IndexMultiTable;
 import org.vishia.util.MarkMask_ifc;
 import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPartBase;
@@ -483,6 +484,7 @@ public class FileRemote extends File implements MarkMask_ifc
     if(parent !=null){
       parent.putChildren(this);
     }
+    System.out.println("FileRemote; " + _ident + "; " + sCanonicalPath);
   }
   
   
@@ -619,20 +621,10 @@ public class FileRemote extends File implements MarkMask_ifc
   
   public void putChildren(FileRemote child){
     if(children == null){
-      children = new TreeMap<String, FileRemote>();
+      children = new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString);  //TreeMap<String, FileRemote>();
     }
     children.put(child.sFile, child);
   }
-  
-  
-  public void XXXclearChildren(){
-    if(children == null){
-      children = new TreeMap<String, FileRemote>();
-    } else {
-      children.clear();
-    }
-  }
-  
   
   
   
@@ -1075,7 +1067,7 @@ public class FileRemote extends File implements MarkMask_ifc
         this.parent = itsCluster.getFile(sParent, null); //new FileRemote(device, null, sParent, null, 0, 0, 0, null); 
         if(this.parent.children == null){
           //at least this is the child of the parent. All other children are unknown yet. 
-          this.parent.children = new TreeMap<String, FileRemote>();
+          this.parent.children = new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString);  //TreeMap<String, FileRemote>();
           this.parent.children.put(this.sFile, this);
           this.parent.timeChildren = 0; //it may be more children. Not evaluated.
         }
@@ -2239,7 +2231,7 @@ public class FileRemote extends File implements MarkMask_ifc
     
     public int setOrClrFlagBit(int bit, boolean set){ if(set){ flags |= bit; } else { flags &= ~bit;} return flags; }
   
-    public void newChildren(){ children = new TreeMap<String, FileRemote>(); }
+    public void newChildren(){ children = new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString); } //TreeMap<String, FileRemote>(); }
     
     /**Creates a new file as child of this file.
      * @param cluster

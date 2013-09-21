@@ -47,15 +47,20 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
       if(file == dir1){ return Result.cont; } //the first entry
       else {
         CharSequence path = FileSystem.normalizePath(file.getAbsolutePath());
-        CharSequence localPath = path.subSequence(zBasePath1+1, path.length());
-        FileRemote file2 = dir2.child(localPath);
-        if(!file2.exists()){
-          file.setMarked(FileMark.cmpAlone);
-          file.mark.setMarkParent(FileMark.cmpMissingFiles, false);
-          return Result.skipSubtree;  //if it is a directory, skip it.        
-        } else {
-          file2.refreshPropertiesAndChildren(null);        
+        if(path.length() <= zBasePath1){
+          System.err.println("FileRemoteCallbackCmp - faulty FileRemote; " + path);
           return Result.cont;
+        } else {
+          CharSequence localPath = path.subSequence(zBasePath1+1, path.length());
+          FileRemote file2 = dir2.child(localPath);
+          if(!file2.exists()){
+            file.setMarked(FileMark.cmpAlone);
+            file.mark.setMarkParent(FileMark.cmpMissingFiles, false);
+            return Result.skipSubtree;  //if it is a directory, skip it.        
+          } else {
+            file2.refreshPropertiesAndChildren(null);        
+            return Result.cont;
+          }
         }
       }
     }
@@ -109,6 +114,9 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
                 || Math.abs(date1 - date2 - 3600000) < minDiffTimestamp
                  ) && mode == onlyTimestamp){ 
         equal = equalDaylightSaved = contentEqual = contentEqualWithoutEndline = false;
+      } else if(Math.abs(date1 - date2) < minDiffTimestamp && len1 == len2){
+        //Date is equal, len is equal, don't spend time for check content.
+        equal = equalDaylightSaved = lenEqual = true;
       } else {
         //timestamp is not tested.
         if(len1 != len2){

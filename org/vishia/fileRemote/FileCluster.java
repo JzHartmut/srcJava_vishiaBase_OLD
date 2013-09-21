@@ -127,6 +127,7 @@ public class FileCluster
             //any directory of the file was found. Create the child directory.
             StringPartBase pathchild = new StringPartBase(sDir1, zPathRet+1);
             dirRet = dirRet.child(pathchild);
+            putit = false;  //it is existed as child of any file in the cluster.
           } else { //other directory name
             dirRet = new FileRemote(this, null, null, sDir1, 0, 0, 0, 0, FileRemote.mDirectory, null, true);
           }
