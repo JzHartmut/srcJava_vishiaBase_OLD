@@ -359,7 +359,7 @@ public class FileRemote extends File implements MarkMask_ifc
   protected String sCanonicalPath;
   
   /**Timestamp of the file. */
-  protected long date;
+  protected long date, dateCreation, dateLastAccess;
   
   /**Length of the file. */
   protected long length;
@@ -427,7 +427,7 @@ public class FileRemote extends File implements MarkMask_ifc
   protected FileRemote(final FileCluster cluster, final FileRemoteAccessor device
       , final FileRemote parent
       , final CharSequence sPath //, CharSequence sName
-      , final long length, final long date, final int flags
+      , final long length, final long dateLastModified, long dateCreation, long dateLastAccess, final int flags
       , Object oFileP, boolean OnlySpecialCall) {
     //super("??"); //sDirP + (sName ==null ? "" : ("/" + sName)));  //it is correct if it is a local file. 
     super(parent == null ? sPath.toString() : parent.getPath() + "/" + sPath);  //it is correct if it is a local file. 
@@ -471,7 +471,9 @@ public class FileRemote extends File implements MarkMask_ifc
     Assert.check(length >=0);
     oFile = oFileP;
     this.length = length;
-    this.date = date;
+    this.date = dateLastModified;
+    this.dateCreation = dateCreation;
+    this.dateLastAccess = dateLastAccess;
     this.sCanonicalPath = this.sDir + (sFile !=null ? "/"  + this.sFile : "");  //maybe overwrite from setSymbolicLinkedPath
     
     ///
@@ -484,6 +486,11 @@ public class FileRemote extends File implements MarkMask_ifc
   }
   
   
+  
+  public FileRemote child(CharSequence sPathChild){
+    return child(sPathChild, 0, 0, 0,0, 0);
+  }
+  
   /**Returns the instance of FileRemote which is the child of this. If the child does not exists
    * it is created and added as child. That is independent of the existence of the file on the file system.
    * A non existing child is possible, it may be created on file system later.
@@ -493,7 +500,9 @@ public class FileRemote extends File implements MarkMask_ifc
    *   or backslash, the returned instance will be created as subdirectory.
    * @return The child instance. 
    */
-  public FileRemote child(CharSequence sPathChild ) {
+  private FileRemote child(CharSequence sPathChild, int flags, int length
+      , long dateLastModified, long dateCreation, long dateLastAccess 
+      ) {
     CharSequence pathchild1 = FileSystem.normalizePath(sPathChild);
     StringPartBase pathchild;
     int posSep1;
@@ -514,7 +523,8 @@ public class FileRemote extends File implements MarkMask_ifc
         child = itsCluster.check(file.getAbsolutePath(), pathchild1);
       } 
       if(child == null){
-        child = new FileRemote(itsCluster, device, file, pathchild1, 0, 0, flagNewFile, null, true);
+        child = new FileRemote(itsCluster, device, file, pathchild1, length
+            , dateLastModified,dateCreation,dateLastAccess, flagNewFile, null, true);
       }
       if(pathchild !=null){
         file = child;
@@ -725,10 +735,14 @@ public class FileRemote extends File implements MarkMask_ifc
    * @param flags
    * @param oFileP reference to a file Object, for example java.io.File for local files.
    */
-  public void _setProperties(final long length, final long date, final int flags
+  public void _setProperties(final long length
+      , final long date, long dateCreation, long dateAccess
+      , final int flags
       , Object oFileP) {
     this.length = length;
     this.date = date;
+    this.dateCreation = dateCreation;
+    this.dateLastAccess = dateAccess;
     this.flags = flags;
     this.oFile = oFileP;
   }
@@ -871,6 +885,36 @@ public class FileRemote extends File implements MarkMask_ifc
       device.refreshFileProperties(this, null);
     }
     return date; 
+  }
+  
+  
+  /**Returns the creation time of the file if the file system supports it. 
+   * Elsewhere returns 0.
+   */
+  public long creationTime(){ 
+    if((flags & mTested) ==0){
+      //The children are not known yet, get it:
+      if(device == null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+      }
+      device.refreshFileProperties(this, null);
+    }
+    return dateCreation; 
+  }
+  
+  
+  /**Returns the last access time of the file if the file system supports it. 
+   * Elsewhere returns 0.
+   */
+  public long lastAccessTime(){ 
+    if((flags & mTested) ==0){
+      //The children are not known yet, get it:
+      if(device == null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+      }
+      device.refreshFileProperties(this, null);
+    }
+    return dateLastAccess; 
   }
   
   
@@ -2185,6 +2229,14 @@ public class FileRemote extends File implements MarkMask_ifc
     
     public int setFlagBits(int mask, int bits){ flags &= ~mask; flags |= bits; return flags; }
 
+    
+    public void setLengthAndDate(long length, long dateLastModified, long dateCreation, long dateLastAccess){
+      FileRemote.this.date = dateLastModified;
+      FileRemote.this.dateLastAccess = dateLastAccess;
+      FileRemote.this.dateCreation = dateCreation;
+      FileRemote.this.length = length;
+    }
+    
     public int setOrClrFlagBit(int bit, boolean set){ if(set){ flags |= bit; } else { flags &= ~bit;} return flags; }
   
     public void newChildren(){ children = new TreeMap<String, FileRemote>(); }
@@ -2200,9 +2252,15 @@ public class FileRemote extends File implements MarkMask_ifc
      * @return
      */
     public FileRemote newChild(final CharSequence sPath
-        , final long length, final long date, final int flags
+        , final long length, final long dateLastModified, long dateCreation, long dateLastAccess, final int flags
         , Object oFileP){
-      return new FileRemote(itsCluster, device, FileRemote.this, sPath, length, date, flags, oFileP, true);
+      return new FileRemote(itsCluster, device, FileRemote.this, sPath, length
+          , dateLastModified, dateCreation,FileRemote.this.dateLastAccess, flags, oFileP, true);
+    }
+    
+    
+    public void setChildren(Map<String,FileRemote> children){
+      FileRemote.this.children = children; //simple replace, the FileRemoteAccessor supplies it correct.
     }
     
   }

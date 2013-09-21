@@ -9,6 +9,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.file.FileVisitOption;
+import java.nio.file.FileVisitResult;
+import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,12 +23,17 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
+import org.vishia.fileRemote.FileCluster;
 import org.vishia.fileRemote.FileRemote;
 import org.vishia.fileRemote.FileRemoteAccessor;
 import org.vishia.fileRemote.FileRemote.CallbackEvent;
 import org.vishia.fileRemote.FileRemote.Cmd;
 import org.vishia.fileRemote.FileRemote.CmdEvent;
+import org.vishia.fileRemote.FileRemoteAccessor.CallbackFile;
 import org.vishia.util.Assert;
 import org.vishia.util.Event;
 import org.vishia.util.EventConsumer;
@@ -172,6 +180,44 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
   */
   
   
+  
+  
+  protected static void setAttributes(FileRemote fileRemote, Path path, BasicFileAttributes attribs){
+    FileTime fileTime = attribs.lastModifiedTime();
+    long dateLastModified = fileTime.toMillis();
+    long dateCreation = attribs.creationTime().toMillis();
+    long dateLastAccess = attribs.lastAccessTime().toMillis();
+    long length = attribs.size();
+    int flags = FileRemote.mExist | FileRemote.mTested;
+    if(attribs.isDirectory()){ flags |= FileRemote.mDirectory; }
+    if(attribs.isSymbolicLink()){
+      try{
+        Path target = Files.readSymbolicLink(path);
+        fileRemote.setSymbolicLinkedPath(target.toAbsolutePath().toString());
+      }catch(IOException exc){
+        System.err.println("FileAccessorLocalJava7 - Problem on SymbolicLinkPath; " + fileRemote.getAbsolutePath());
+        fileRemote.setCanonicalAbsPath(fileRemote.getAbsolutePath());
+      }
+    } else {
+      fileRemote.setCanonicalAbsPath(fileRemote.getAbsolutePath());
+    }
+    int flagMask = FileRemote.mExist | FileRemote.mTested | FileRemote.mDirectory;
+    if(attribs instanceof DosFileAttributes){
+      DosFileAttributes dosAttribs = (DosFileAttributes)attribs;
+      flagMask |= FileRemote.mHidden | FileRemote.mCanWrite| FileRemote.mCanRead; 
+      if(dosAttribs.isHidden()){ flags |= FileRemote.mHidden; }
+      if(!dosAttribs.isReadOnly()){ flags |= FileRemote.mCanWrite; }
+      if(attribs.isRegularFile()){ flags |= FileRemote.mCanRead; }
+      //if(dosAttribs.canExecute()){ flags |= FileRemote.mExecute; }
+    }
+    fileRemote.internalAccess().setFlagBits(flagMask, flags);
+    fileRemote.internalAccess().setLengthAndDate(length, dateLastModified, dateCreation, dateLastAccess);
+  }
+  
+  
+  
+
+  
   /**Sets the file properties from the local file.
    * checks whether the file exists and set the {@link FileRemote#mTested} flag any time.
    * If the file exists, the properties of the file were set, elsewhere they were set to 0.
@@ -239,7 +285,23 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
    * 
    * @see org.vishia.fileRemote.FileRemoteAccessor#walkFileTree(org.vishia.fileRemote.FileRemote, java.io.FileFilter, int, org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)
    */
-  @Override public void walkFileTree(FileRemote file, FileFilter filter, int depth, CallbackFile callback)
+  public void walkFileTree(FileRemote dir, FileFilter filter, int depth, CallbackFile callback)
+  { ///
+    callback.start();
+    String sPath = dir.getAbsolutePath();
+    Path pathdir = Paths.get(sPath);
+    FileVisitor<Path> visitor = new WalkFileTreeVisitor(dir.itsCluster, true, callback);
+    Set<FileVisitOption> options = new TreeSet<FileVisitOption>();
+    try{ 
+      Files.walkFileTree(pathdir, options, depth, visitor);  
+    } catch(IOException exc){
+      
+    }
+    callback.finished();
+  }
+
+  
+  public void XwalkFileTree(FileRemote file, FileFilter filter, int depth, CallbackFile callback)
   {
     callback.start();
     walkSubTree(file, filter, depth, callback);
@@ -278,6 +340,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
     return result;  //maybe terminate
   }
 
+  
   
   @Override public boolean setLastModified(FileRemote file, long time)
   { File ffile = (File)file.oFile();
@@ -593,31 +656,12 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
       this.callback = callback;
     }
     
-    public void run() {
+    public void run() {///
       String sPath = fileRemote.getAbsolutePath();
       Path pathfile = Paths.get(sPath);
       try{
         BasicFileAttributes attribs = Files.readAttributes(pathfile, systemAttribtype);
-        FileTime fileTime = attribs.lastModifiedTime();
-        long date = fileTime.toMillis();
-        long length = attribs.size();
-        int flags = FileRemote.mExist | FileRemote.mTested;
-        if(attribs.isDirectory()){ flags |= FileRemote.mDirectory; }
-        if(attribs.isSymbolicLink()){
-          Path target = Files.readSymbolicLink(pathfile);
-          fileRemote.setSymbolicLinkedPath(target.toAbsolutePath().toString());
-        } else {
-          fileRemote.setSymbolicLinkedPath(sPath);
-        }
-        if(attribs instanceof DosFileAttributes){
-          DosFileAttributes dosAttribs = (DosFileAttributes)attribs;
-          if(dosAttribs.isHidden()){ flags |= FileRemote.mHidden; }
-          if(!dosAttribs.isReadOnly()){ flags |= FileRemote.mCanWrite; }
-          if(attribs.isRegularFile()){ flags |= FileRemote.mCanRead; }
-          //if(dosAttribs.canExecute()){ flags |= FileRemote.mExecute; }
-        }
-        File fileLocal = getLocalFile(fileRemote);
-        fileRemote._setProperties(length, date, flags, fileLocal);
+        setAttributes(fileRemote, pathfile, attribs);
       }catch(IOException exc){
         fileRemote.internalAccess().clrFlagBit(FileRemote.mExist);
       }
@@ -674,7 +718,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
                 if(oldChildren !=null){ child = oldChildren.remove(name1); }
                 if(child == null){ 
                   int flags = file1.isDirectory() ? FileRemote.mDirectory : 0;
-                  child = fileRemote.internalAccess().newChild(name1, 0, 0, flags, file1); 
+                  child = fileRemote.internalAccess().newChild(name1, 0, 0,0,0, flags, file1); 
                   //child.refreshProperties(null);    //should show all sub files with its properties, but not files in sub directories.
                 } else {
                   if(!child.isTested(time - 1000)){
@@ -706,6 +750,93 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
   }
     
 
+  
+  /**This class is the general FileVisitor for the adaption layer to FileRemote.
+   * It will be created on the fly if any request is proceed with the given
+   * {@link FileRemoteAccessor.CallbackFile} callback interface of the FileRemote layer.
+   * All callback are translated 1:1 between the both interfaces. But an instance of 
+   * FileRemote is created or gotten from the {@link FileCluster} and delivered to the
+   * FileRemote-Callback. Additional the children are refreshed if all children are walked through.
+   * @author hartmut
+   *
+   */
+  protected static class WalkFileTreeVisitor implements FileVisitor<Path>
+  {
+    FileCluster fileCluster;
+    FileRemote currDir;
+    boolean refresh;
+    FileRemoteAccessor.CallbackFile callback;
+    Map<String,FileRemote> children;
+    
+    
+    
+    
+    public WalkFileTreeVisitor(FileCluster fileCluster, boolean refresh,
+        CallbackFile callback)
+    {
+      this.fileCluster = fileCluster;
+      this.refresh = refresh;
+      this.callback = callback;
+    }
+
+    private FileVisitResult translateResult(FileRemoteAccessor.CallbackFile.Result result){
+      FileVisitResult ret;
+      switch(result){
+        case cont: ret = FileVisitResult.CONTINUE; break;
+        case skipSiblings: ret = FileVisitResult.SKIP_SIBLINGS; break;
+        case skipSubtree: ret = FileVisitResult.SKIP_SUBTREE; break;
+        case terminate: ret = FileVisitResult.TERMINATE; break;
+        default: ret = FileVisitResult.TERMINATE;
+      }
+      return ret;      
+    }
+    
+    @Override
+    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+        throws IOException
+    {
+      CharSequence cPath = FileSystem.normalizePath(dir.toString());
+      currDir = fileCluster.getFile(cPath);
+      if(refresh){
+        children = new TreeMap<String,FileRemote>();
+      }
+      FileRemoteAccessor.CallbackFile.Result result = callback.offerDir(currDir);
+      return translateResult(result);
+    }
+
+    @Override
+    public FileVisitResult postVisitDirectory(Path dir, IOException exc)
+        throws IOException
+    { FileRemoteAccessor.CallbackFile.Result result = callback.finishedDir(currDir);
+      if(refresh){
+        currDir.internalAccess().setChildren(children);  //Replace the map.
+        currDir.timeChildren = System.currentTimeMillis();
+      }
+      return translateResult(result);
+    }
+
+    @Override
+    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+        throws IOException
+    {
+      String name = file.getFileName().toString();
+      FileRemote fileRemote = currDir.child(name);
+      setAttributes(fileRemote, file, attrs);
+      if(refresh){
+        children.put(name, fileRemote);
+      }
+      FileRemoteAccessor.CallbackFile.Result result = callback.offerFile(fileRemote);
+      return translateResult(result);
+    }
+
+    @Override
+    public FileVisitResult visitFileFailed(Path file, IOException exc)
+        throws IOException
+    {
+      return FileVisitResult.CONTINUE;
+    }
+ 
+  }
   
   
   

@@ -625,7 +625,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
         if(fileLocal.canExecute()){ flags |= FileRemote.mExecute; }
         if(fileLocal.isDirectory()){ flags |= FileRemote.mDirectory; }
         if(fileLocal.isDirectory()){ flags |= FileRemote.mDirectory; }
-        fileRemote._setProperties(length, date, flags, fileLocal);
+        fileRemote._setProperties(length, date, 0, 0, flags, fileLocal);
         if(fileLocal.isAbsolute()){
           String pathCleaned = FileSystem.cleanAbsolutePath(path);
           if(!canonicalPath.startsWith(pathCleaned)){
@@ -644,7 +644,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
         }
       } else { //fileLocal not exists:
         //designate it as tested, mExists isn't set.
-        fileRemote._setProperties(0, 0, FileRemote.mTested, fileLocal);
+        fileRemote._setProperties(0, 0, 0, 0, FileRemote.mTested, fileLocal);
       }
       fileRemote.timeRefresh = System.currentTimeMillis();
       if(callback !=null){
@@ -699,7 +699,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
                 if(oldChildren !=null){ child = oldChildren.remove(name1); }
                 if(child == null){ 
                   int flags = file1.isDirectory() ? FileRemote.mDirectory : 0;
-                  child = fileRemote.internalAccess().newChild(name1, 0, 0, flags, file1); 
+                  child = fileRemote.internalAccess().newChild(name1, 0, 0, 0, 0, flags, file1); 
                   //child.refreshProperties(null);    //should show all sub files with its properties, but not files in sub directories.
                 } else {
                   if(!child.isTested(time - 1000)){
