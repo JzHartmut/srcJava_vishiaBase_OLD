@@ -763,10 +763,23 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
    */
   protected static class WalkFileTreeVisitor implements FileVisitor<Path>
   {
+    
+    
+    
+    /**Data chained from a first parent to deepness of dir tree for each level.
+     * This data are created while {@link FileAccessorLocalJava7#walkFileTree(FileRemote, FileFilter, int, CallbackFile)} runs. 
+     */
     private class CurrDirChildren{
+      /**The directory of the level. */
       FileRemote dir;
+      /**parallel structure of all children.
+       * This children are set on {@link WalkFileTreeVisitor#postVisitDirectory(Path, IOException)}
+       * to the {@link #dir}.
+       */
       Map<String,FileRemote> children;
-      CurrDirChildren parent;     
+      /**The parent. null on first parent. */
+      CurrDirChildren parent;
+      
       CurrDirChildren(FileRemote dir, CurrDirChildren parent){
         this.dir = dir; this.parent = parent;
         if(refresh){
@@ -832,6 +845,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
       if(refresh){  //es fehlen alle, die nicht als file erscheinen weil das dir auf Gegenseite nicht vorhanden ist.
         curr.dir.internalAccess().setChildren(curr.children);  //Replace the map.
         curr.dir.timeChildren = System.currentTimeMillis();
+        curr.dir.internalAccess().setChildrenRefreshed();
       }
       System.out.println("FileRemoteAccessorLocalJava7 - callback - post dir; " + curr.dir.getAbsolutePath());
       curr = curr.parent;
@@ -850,6 +864,8 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
       setAttributes(fileRemote, file, attrs);
       if(refresh){
         curr.children.put(name, fileRemote);
+        curr.dir.internalAccess().setRefreshed();
+
       }
       FileRemoteAccessor.CallbackFile.Result result = callback.offerFile(fileRemote);
       return translateResult(result);

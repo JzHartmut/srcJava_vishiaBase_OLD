@@ -12,6 +12,7 @@ import java.util.Stack;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.vishia.fileRemote.FileMark;
 import org.vishia.fileRemote.FileRemote;
 import org.vishia.stateMachine.StateCompositeBase;
 import org.vishia.stateMachine.StateSimpleBase;
@@ -1316,6 +1317,10 @@ public class Copy_FileLocalAccJava7
           zFilesCopied +=1;
           Copy_FileLocalAccJava7.this.in.close(); 
           actData.src.resetMarked(1);
+          actData.src.resetMarked(FileMark.mCmpFile);
+          actData.dst.resetMarked(FileMark.mCmpFile);
+          actData.src.setDirShouldRefresh();
+          actData.dst.setDirShouldRefresh();
         }
         Copy_FileLocalAccJava7.this.in = null;
         if(Copy_FileLocalAccJava7.this.out!=null){ Copy_FileLocalAccJava7.this.out.close(); }

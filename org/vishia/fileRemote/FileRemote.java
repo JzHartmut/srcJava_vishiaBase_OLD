@@ -6,12 +6,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile;
@@ -297,7 +295,8 @@ public class FileRemote extends File implements MarkMask_ifc
   , mCanReadAny =  0x4000, mCanWriteAny = 0x8000;
 
   
-  protected final static int  mAbsPathTestedXXX = 0x10000;
+  public final static int  mShouldRefresh = 0x10000;
+  
   /**Set if the file is tested physically. If this bit is not set, all other flags are not representable and the file
    * may be only any path without respect to an existing file.
    */
@@ -627,8 +626,17 @@ public class FileRemote extends File implements MarkMask_ifc
   }
   
   
+  public void setShouldRefresh(){
+    flags |= mShouldRefresh;
+  }
   
   
+  public void setDirShouldRefresh(){
+    if(parent !=null) parent.setShouldRefresh();
+  }
+  
+  
+  public boolean shouldRefresh(){ return (flags & mShouldRefresh )!=0; }
   
   /**Marks the file with the given bits in mask.
    * @param mask
@@ -1312,7 +1320,8 @@ public class FileRemote extends File implements MarkMask_ifc
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    if(device.isLocalFileSystem()){
+    device.delete(this, backEvent);
+    if(false && device.isLocalFileSystem()){
       boolean bOk;
       if(isDirectory()){
         bOk = FileSystem.rmdir(this);
@@ -2235,6 +2244,11 @@ public class FileRemote extends File implements MarkMask_ifc
     
     public int setOrClrFlagBit(int bit, boolean set){ if(set){ flags |= bit; } else { flags &= ~bit;} return flags; }
   
+    
+    public void setRefreshed(){ flags &= ~mShouldRefresh; timeRefresh = System.currentTimeMillis(); }
+    
+    public void setChildrenRefreshed(){ flags &= ~mShouldRefresh; timeRefresh = timeChildren = System.currentTimeMillis(); }
+    
     public void newChildren(){ children = new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString); } //TreeMap<String, FileRemote>(); }
     
     /**Creates a new file as child of this file.

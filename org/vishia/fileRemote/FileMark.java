@@ -74,13 +74,14 @@ public class FileMark extends SelectMask
 
 
   /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
-  //public static final int cmpTimeEqual = 0x01000000;
+  public static final int cmpContentNotEqual = 0x08000000;
+
 
   /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
   //public static final int cmpLenEqual = 0x02000000;
 
 
-  /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
+  /**Flags as result of an comparison: the other file has the same length and same time stamp, it seems it may be equal, but not tested. */
   public static final int cmpLenTimeEqual = 0x02000000;
 
 
@@ -89,9 +90,11 @@ public class FileMark extends SelectMask
   public static final int cmpContentEqual = 0x04000000;
 
 
-  /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
-  public static final int cmpContentNotEqual = 0x08000000;
-
+  /**mask of all bits for comparison one file.
+   * 
+   */
+  public static final int mCmpFile = 0x0f000000;
+  
 
   /**Flags as result of an comparison: the other file does not exist, or any files of an directory does not exists
    * or there are differences. */
