@@ -5,14 +5,16 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 
+import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
+import org.vishia.util.StringFunctions;
 
 public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
 {
-    FileRemote dir1, dir2;
+    private final FileRemote dir1, dir2;
     
-    String basepath1;
-    int zBasePath1;
+    private final String basepath1;
+    private final int zBasePath1;
     
     
     int mode;
@@ -48,17 +50,21 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
       else {
         CharSequence path = FileSystem.normalizePath(file.getAbsolutePath());
         if(path.length() <= zBasePath1){
+          //it should be file == dir1, but there is a second instance of the start directory.
           System.err.println("FileRemoteCallbackCmp - faulty FileRemote; " + path);
           return Result.cont;
         } else {
           CharSequence localPath = path.subSequence(zBasePath1+1, path.length());
+          //System.out.println("FileRemoteCallbackCmp - dir; " + localPath);
           FileRemote file2 = dir2.child(localPath);
           if(!file2.exists()){
             file.setMarked(FileMark.cmpAlone);
             file.mark.setMarkParent(FileMark.cmpMissingFiles, false);
             return Result.skipSubtree;  //if it is a directory, skip it.        
           } else {
-            file2.refreshPropertiesAndChildren(null);        
+            file2.device.walkFileTree(file2, null, 1, callbackMarkSecondAlone);
+            //waitfor
+            //file2.refreshPropertiesAndChildren(null);        
             return Result.cont;
           }
         }
@@ -77,12 +83,16 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
     {
       CharSequence path = FileSystem.normalizePath(file.getAbsolutePath());
       CharSequence localPath = path.subSequence(zBasePath1+1, path.length());
+      //System.out.println("FileRemoteCallbackCmp - file; " + localPath);
+      if(StringFunctions.compare(localPath, "supportBase/SupportBase.rpy")==0)
+        Assert.stop();
       FileRemote file2 = dir2.child(localPath);
       if(!file2.exists()){
         file.setMarked(FileMark.cmpAlone);
         file.mark.setMarkParent(FileMark.cmpMissingFiles, false);
         return Result.skipSubtree;  //if it is a directory, skip it.        
       } else {
+        file2.resetMarked(FileMark.cmpAlone);
         compareFile(file, file2);
         return Result.cont;
       }
@@ -180,31 +190,37 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
 
   
     
-    FileRemoteAccessor.CallbackFile callbackSecond = new FileRemoteAccessor.CallbackFile()
+    /**Callback to mark all files of the second directory as 'alone' on open directory.
+     * If the files are found, there are marked as 'equal' or 'non equal' then, this selection
+     * will be reset. 
+     * 
+     */
+    final FileRemoteAccessor.CallbackFile callbackMarkSecondAlone = new FileRemoteAccessor.CallbackFile()
     {
 
-      @Override public void start() { }
-      @Override public void finished() { }
+      @Override
+      public void finished()
+      { }
 
-      @Override public Result offerDir(FileRemote file){
-        return Result.cont;      
-      }
-      
-      @Override public Result finishedDir(FileRemote file){
-        return Result.cont;      
-      }
-      
-      
+      @Override
+      public Result finishedDir(FileRemote file)
+      { return Result.cont; }
+
+      @Override
+      public Result offerDir(FileRemote file)
+      { return Result.cont; }
 
       @Override
       public Result offerFile(FileRemote file)
-      {
+      { 
+        file.setMarked(FileMark.cmpAlone);
         return Result.cont;
       }
 
+      @Override
+      public void start()
+      { }
       
     };
-    
-    
   
 }

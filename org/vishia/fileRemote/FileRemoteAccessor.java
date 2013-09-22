@@ -116,6 +116,10 @@ public interface FileRemoteAccessor extends Closeable
   
   /**Walks through all children of the given file and call the {@link CallbackFile#offerFile(FileRemote)}
    * for any file. 
+   * The callback is done in another thread, because it may be a result of communication.
+   * This routine does not wait for finish. The last call {@link CallbackFile#finished()}
+   * is the last action of that.
+   *  
    * @param file The start file. With it {@link CallbackFile#start()} will be called.
    * @param filter Any filter which files will be accepted.
    * @param depth depth, at least 1 should be use.
@@ -207,6 +211,32 @@ public interface FileRemoteAccessor extends Closeable
   }
 
   
+  /**Use this as template for anonymous implementation. Frequently without 'static'.*/
+  static FileRemoteAccessor.CallbackFile callbackTemplate = new FileRemoteAccessor.CallbackFile()
+  {
+
+    @Override public void start() {  }
+    @Override public void finished() {  }
+
+    @Override public Result offerDir(FileRemote file) {
+      return Result.cont;      
+    }
+    
+    @Override public Result finishedDir(FileRemote file) {
+      return Result.cont;      
+    }
+    
+    
+
+    @Override public Result offerFile(FileRemote file) {
+      return Result.cont;
+    }
+
+    
+  };
   
+  
+  
+
 
 }

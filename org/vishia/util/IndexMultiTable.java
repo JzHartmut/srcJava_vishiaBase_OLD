@@ -832,9 +832,6 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       //but enables comparison of any other key type.
       CharSequence key1 = key instanceof CharSequence ? (CharSequence)key : key.toString();
       cmp = StringFunctions.compare((CharSequence)val1, key1);  
-    }
-    if(val1 instanceof String){
-      cmp = ((String)val1).compareTo(key.toString());
     } else {
       cmp = val1.compareTo(key);  //compare CharSequence, not only Strings
     }

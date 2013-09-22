@@ -484,7 +484,7 @@ public class FileRemote extends File implements MarkMask_ifc
     if(parent !=null){
       parent.putChildren(this);
     }
-    System.out.println("FileRemote; " + _ident + "; " + sCanonicalPath);
+    //System.out.println("FileRemote - ctor; " + _ident + "; " + sCanonicalPath);
   }
   
   
@@ -1451,6 +1451,10 @@ public class FileRemote extends File implements MarkMask_ifc
     if(dir2.device == null){
       dir2.device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(dir2.getAbsolutePath());
     }
+    int markReset = FileMark.markDir | FileMark.markDir | FileMark.cmpAlone | FileMark.cmpContentEqual
+      | FileMark.cmpFileDifferences | FileMark.cmpContentNotEqual | FileMark.cmpMissingFiles;
+    dir1.resetMarkedRecurs(markReset, null);
+    dir2.resetMarkedRecurs(markReset, null);
     dir1.setMarked(FileMark.markRoot);
     dir2.setMarked(FileMark.markRoot);
     FileRemoteCallbackCmp callback = new FileRemoteCallbackCmp(dir1, dir2);

@@ -34,6 +34,7 @@ import org.vishia.fileRemote.FileRemote.CallbackEvent;
 import org.vishia.fileRemote.FileRemote.Cmd;
 import org.vishia.fileRemote.FileRemote.CmdEvent;
 import org.vishia.fileRemote.FileRemoteAccessor.CallbackFile;
+import org.vishia.fileRemote.FileRemoteAccessor.CallbackFile.Result;
 import org.vishia.util.Assert;
 import org.vishia.util.Event;
 import org.vishia.util.EventConsumer;
@@ -762,13 +763,23 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
    */
   protected static class WalkFileTreeVisitor implements FileVisitor<Path>
   {
-    FileCluster fileCluster;
-    FileRemote currDir;
-    boolean refresh;
-    FileRemoteAccessor.CallbackFile callback;
-    Map<String,FileRemote> children;
+    private class CurrDirChildren{
+      FileRemote dir;
+      Map<String,FileRemote> children;
+      CurrDirChildren parent;     
+      CurrDirChildren(FileRemote dir, CurrDirChildren parent){
+        this.dir = dir; this.parent = parent;
+        if(refresh){
+          children = new TreeMap<String,FileRemote>();
+        }
+      }
+    }
     
+    final FileCluster fileCluster;
+    final boolean refresh;
+    final FileRemoteAccessor.CallbackFile callback;
     
+    private CurrDirChildren curr;
     
     
     public WalkFileTreeVisitor(FileCluster fileCluster, boolean refresh,
@@ -777,6 +788,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
       this.fileCluster = fileCluster;
       this.refresh = refresh;
       this.callback = callback;
+      curr = null;  //starts without parent.
     }
 
     private FileVisitResult translateResult(FileRemoteAccessor.CallbackFile.Result result){
@@ -795,23 +807,34 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
         throws IOException
     {
+      Path namepath = dir.getFileName();
+      String name = namepath == null ? "/" : namepath.toString();
       CharSequence cPath = FileSystem.normalizePath(dir.toString());
-      currDir = fileCluster.getFile(cPath);
-      if(refresh){
-        children = new TreeMap<String,FileRemote>();
+      FileRemote dir1 = fileCluster.getFile(cPath);
+      setAttributes(dir1, dir, attrs);
+      if(refresh && curr !=null){
+        curr.children.put(name, dir1);
       }
-      FileRemoteAccessor.CallbackFile.Result result = callback.offerDir(currDir);
+      FileRemoteAccessor.CallbackFile.Result result = callback.offerDir(dir1);
+      if(result == Result.cont){
+        curr = new CurrDirChildren(dir1, curr);
+        System.out.println("FileRemoteAccessorLocalJava7 - callback - pre dir; " + curr.dir.getAbsolutePath());
+      } else {
+        System.out.println("FileRemoteAccessorLocalJava7 - callback - pre dir don't entry; " + curr.dir.getAbsolutePath());
+      }
       return translateResult(result);
     }
 
     @Override
     public FileVisitResult postVisitDirectory(Path dir, IOException exc)
         throws IOException
-    { FileRemoteAccessor.CallbackFile.Result result = callback.finishedDir(currDir);
-      if(refresh){
-        currDir.internalAccess().setChildren(children);  //Replace the map.
-        currDir.timeChildren = System.currentTimeMillis();
+    { FileRemoteAccessor.CallbackFile.Result result = callback.finishedDir(curr.dir);
+      if(refresh){  //es fehlen alle, die nicht als file erscheinen weil das dir auf Gegenseite nicht vorhanden ist.
+        curr.dir.internalAccess().setChildren(curr.children);  //Replace the map.
+        curr.dir.timeChildren = System.currentTimeMillis();
       }
+      System.out.println("FileRemoteAccessorLocalJava7 - callback - post dir; " + curr.dir.getAbsolutePath());
+      curr = curr.parent;
       return translateResult(result);
     }
 
@@ -820,10 +843,13 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
         throws IOException
     {
       String name = file.getFileName().toString();
-      FileRemote fileRemote = currDir.child(name);
+      System.out.println("FileRemoteAccessorLocalJava7 - callback - file; " + name);
+      if(name.equals("SupportBase.rpy"))
+        Assert.stop();
+      FileRemote fileRemote = curr.dir.child(name);
       setAttributes(fileRemote, file, attrs);
       if(refresh){
-        children.put(name, fileRemote);
+        curr.children.put(name, fileRemote);
       }
       FileRemoteAccessor.CallbackFile.Result result = callback.offerFile(fileRemote);
       return translateResult(result);
