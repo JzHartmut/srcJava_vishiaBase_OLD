@@ -823,7 +823,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
       Path namepath = dir.getFileName();
       String name = namepath == null ? "/" : namepath.toString();
       CharSequence cPath = FileSystem.normalizePath(dir.toString());
-      FileRemote dir1 = fileCluster.getFile(cPath);
+      FileRemote dir1 = fileCluster.getDir(cPath);
       setAttributes(dir1, dir, attrs);
       if(refresh && curr !=null){
         curr.children.put(name, dir1);

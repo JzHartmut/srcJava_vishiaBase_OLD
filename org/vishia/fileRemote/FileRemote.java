@@ -594,11 +594,11 @@ public class FileRemote extends File implements MarkMask_ifc
       File dir1 = src.getParentFile();
       FileRemote dir, file;
       if(dir1 !=null){
-        dir= cluster.getFile(dir1.getAbsolutePath());
+        dir= cluster.getDir(dir1.getAbsolutePath());
         file = dir.child(src.getName());
       } else {
         dir = null;
-        file = cluster.getFile(src.getAbsolutePath());
+        file = cluster.getDir(src.getAbsolutePath());
       }
       file.length = len;
       file.flags = fileProps;

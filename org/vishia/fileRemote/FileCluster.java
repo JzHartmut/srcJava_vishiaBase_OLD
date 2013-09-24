@@ -73,10 +73,10 @@ public class FileCluster
 
   
   
-  /**Gets the existing file instance with this path from the file system or creates and registers a new one.
+  /**Gets the existing directory instance with this path from the file system or creates and registers a new one.
    * If the file is not existing on the file system it is created anyway because the file may be a new candidate. 
    */
-  public FileRemote getFile( final CharSequence sPath){
+  public FileRemote getDir( final CharSequence sPath){
    return(getFile(sPath, null));
   }
 
@@ -114,7 +114,7 @@ public class FileCluster
       //sPath = sDir1.toString(); //unchanged.
     //}
     FileRemote dirRet = idxPaths.search(sDir1.toString());
-    int flagDir = sName == null ? 0 : FileRemote.mDirectory;  //if name is given, it is a directory. Elsewhere undefined.
+    int flagDir = sName == null ? FileRemote.mDirectory : 0;  //if name is not given, it is a directory. Elsewhere a file.
     if(dirRet == null){
       dirRet = new FileRemote(this, null, null, sDir1, 0, 0, 0, 0, flagDir, null, true);
       idxPaths.put(sDir1.toString(), dirRet);
@@ -123,13 +123,13 @@ public class FileCluster
       String sPathRet = dirRet.getAbsolutePath();
       int zPathRet = sPathRet.length();
       if(StringFunctions.startsWith(sDir1,sPathRet)){  //maybe equal too
-        if(sPathRet.length() < sDir1.length()){
-          if(sDir1.charAt(zPathRet) == '/'){
+        if(sPathRet.length() < sDir1.length()){ //any super directory found.
+          if(sDir1.charAt(zPathRet) == '/'){    //is it that?
             //any directory of the file was found. Create the child directory.
             StringPartBase pathchild = new StringPartBase(sDir1, zPathRet+1);
             dirRet = dirRet.child(pathchild);
             putit = false;  //it is existed as child of any file in the cluster.
-          } else { //other directory name
+          } else { //other directory name, not found.
             dirRet = new FileRemote(this, null, null, sDir1, 0, 0, 0, 0, flagDir, null, true);
           }
         } else{
