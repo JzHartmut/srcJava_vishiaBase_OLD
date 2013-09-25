@@ -336,12 +336,6 @@ public class JbatchExecuter {
       //TODO anything with the environment onerror statement?
       exc.printStackTrace(System.out);
     }
-    synchronized(threads){
-      threads.remove(this);
-      if(threads.size() == 0){
-        threads.notify();
-      }
-    }
   }
   
 
@@ -407,6 +401,7 @@ public class JbatchExecuter {
       }
       localVariables.put("jbatSub", this);
       localVariables.put("jbatSubVariables", localVariables);
+      localVariables.put("jbatExecuteLevel", this);
     }
 
     
@@ -556,19 +551,19 @@ public class JbatchExecuter {
             executeIfContainerHasNext(contentElement, out, bContainerHasNext);
           } break;
           case '=': executeAssign(contentElement); break;
-          case 'b': {
-            sError = "break";
-          } break;
+          case 'b': { sError = "break"; } break;
+          case '?': break;  //don't execute a onerror, skip it.
           default: 
             uBuffer.append("Jbat - execute-unknown type; '" + contentElement.elementType + "' :ERROR=== ");
           }//switch
           
         } catch(Exception exc){
           //any statement has thrown an exception.
-          //check onerror after this statement, it is stored in the statement.
+          //check onerror with proper error type anywhere after this statement, it is stored in the statement.
+          //continue there.
           boolean found = false;
           char excType = '?';
-          while(++ixStatement < contentScript.content.size()) { //iter.hasNext() && sError == null){
+          while(!found && ++ixStatement < contentScript.content.size()) { //iter.hasNext() && sError == null){
             contentElement = contentScript.content.get(ixStatement); //iter.next();
             char onerrorType;
             if(contentElement.elementType == '?' 
@@ -1205,6 +1200,13 @@ public class JbatchExecuter {
 
     @Override public void run(){ 
       runThread(executeLevel, statement); 
+      synchronized(threads){
+        boolean bOk = threads.remove(this);
+        assert(bOk);
+        if(threads.size() == 0){
+          threads.notify();
+        }
+      }
     }
     
   }

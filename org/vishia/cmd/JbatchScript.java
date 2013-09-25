@@ -695,6 +695,7 @@ public class JbatchScript {
 
     public void add_onerror(Onerror val){
       if(subContent == null){ subContent = new StatementList(this); }
+      subContent.content.add(val);
       if(subContent.onerrorAccu == null){ subContent.onerrorAccu = new LinkedList<Onerror>(); }
       for( Statement previousStatement: subContent.withoutOnerror){
         previousStatement.onerror = onerror;  
@@ -732,12 +733,15 @@ public class JbatchScript {
     { StatementList subGenContent = new StatementList(this);
       Statement contentElement = new Statement(parentList, 'F', null);
       contentElement.subContent = subGenContent;  //The contentElement contains a genContent. 
-      subContent.content.add(contentElement);
-      subContent.onerrorAccu = null; subContent.withoutOnerror.add(contentElement);
       return contentElement;
     }
     
-    public void add_if(Statement val){}
+    public void add_if(Statement val){
+      if(subContent == null) { subContent = new StatementList(this); }
+      subContent.content.add(val);
+      subContent.onerrorAccu = null; subContent.withoutOnerror.add(val);
+      
+    }
 
     
     public IfCondition new_ifBlock()
