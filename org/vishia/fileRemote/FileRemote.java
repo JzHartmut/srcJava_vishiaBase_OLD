@@ -481,13 +481,19 @@ public class FileRemote extends File implements MarkMask_ifc
       this.device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
     if(parent !=null){
-      parent.putChildren(this);
+      parent.putNewChild(this);
     }
     //System.out.println("FileRemote - ctor; " + _ident + "; " + sCanonicalPath);
   }
   
   
   
+  /**Gets or creates a child with the given name. 
+   * If the child is not existing, it is create as a new FileRemote instance which is not tested.
+   * @param sPathChild Name or relativ pathname of the child.
+   *   It can be contain "/" or "\", if more as one level of child should be created.
+   * @return The child, not null.
+   */
   public FileRemote child(CharSequence sPathChild){
     return child(sPathChild, 0, 0, 0,0, 0);
   }
@@ -546,7 +552,18 @@ public class FileRemote extends File implements MarkMask_ifc
     return child;
   }
   
+ 
+  public FileRemote getChild(CharSequence name){
+    return children == null ? null : children.get(name);
+  }
   
+  
+  /**Gets the Index of the children sorted by name.
+   * @return
+   */
+  public Map<String,FileRemote> children() { return children; }
+  
+ 
   public static boolean setAccessorSelector(FileRemoteAccessorSelector accessorSelectorP){
     boolean wasSetAlready = accessorSelector !=null;
     accessorSelector = accessorSelectorP;
@@ -610,19 +627,18 @@ public class FileRemote extends File implements MarkMask_ifc
   
   
   
-  /**Gets the Index of the children sorted by name.
-   * @return
-   */
-  public Map<String,FileRemote> children() { return children; }
-  
-  
+ 
   public FileRemoteAccessor device() { return device; }
   
-  public void putChildren(FileRemote child){
+  void putNewChild(FileRemote child){
     if(children == null){
       children = new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString);  //TreeMap<String, FileRemote>();
     }
     children.put(child.sFile, child);
+    if(child.parent != this){
+      assert(child.parent == null);
+      child.parent = this;
+    }
   }
   
   
@@ -2251,15 +2267,9 @@ public class FileRemote extends File implements MarkMask_ifc
     
     public void newChildren(){ children = new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString); } //TreeMap<String, FileRemote>(); }
     
-    /**Creates a new file as child of this file.
-     * @param cluster
-     * @param device
-     * @param sPath
-     * @param length
-     * @param date
-     * @param flags
-     * @param oFileP
-     * @return
+    /**Creates a new file as child of this file. It does not add the child itself because it may be gathered
+     * in an seconst container and then exchanged. Only for internal use.
+     * @return The new child, contains this as parent, but not added to this.
      */
     public FileRemote newChild(final CharSequence sPath
         , final long length, final long dateLastModified, long dateCreation, long dateLastAccess, final int flags
@@ -2268,6 +2278,8 @@ public class FileRemote extends File implements MarkMask_ifc
           , dateLastModified, dateCreation,FileRemote.this.dateLastAccess, flags, oFileP, true);
     }
     
+    public void putNewChild(FileRemote child){ FileRemote.this.putNewChild(child); }
+
     
     public void setChildren(Map<String,FileRemote> children){
       FileRemote.this.children = children; //simple replace, the FileRemoteAccessor supplies it correct.

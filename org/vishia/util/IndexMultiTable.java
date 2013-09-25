@@ -421,7 +421,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
 
   
-  public Type put(Key key, Type obj){
+  @Override public Type put(Key key, Type obj){
     return putOrAdd(key, obj, false);
   }
 
@@ -457,6 +457,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         while(idx <sizeBlock && compare(aKeys[idx],arg0) == 0)  //while the keys are identically
         { idx+=1; 
         }
+      } else {
+        lastObj = (Type)aValues[idx];
       }
     }
     if(isHyperBlock)
@@ -518,7 +520,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       }
       else 
       { //the child has space.
-        child.putOrAdd(arg0, obj1, shouldAdd); 
+        lastObj = child.putOrAdd(arg0, obj1, shouldAdd); 
       }
     }
     else

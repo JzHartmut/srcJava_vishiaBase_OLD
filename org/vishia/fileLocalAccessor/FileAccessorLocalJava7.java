@@ -726,7 +726,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
                     //child.refreshProperties(null);    //should show all sub files with its properties, but not files in sub directories.
                   }
                 }
-                fileRemote.putChildren(child);
+                fileRemote.internalAccess().putNewChild(child);
               }
               //oldChildren contains yet removed files.
               System.out.println("FileAccessorLocalJava7.refreshFilePropertiesAndChildren - ok refresh; " + files.length + " files; dt=" + (System.currentTimeMillis() - time));

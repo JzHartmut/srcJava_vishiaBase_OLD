@@ -228,11 +228,11 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
       int ii = -1;
       if (data.childrenZip.childNodes != null){
         for (TreeNodeBase.TreeNode<FileRemote> node1 : data.childrenZip.childNodes) {
-          file.putChildren( node1.data);
+          file.putNewChild( node1.data);
       } }
       if (data.childrenZip.leafData != null){
         for (FileRemote node1 : data.childrenZip.leafData) {
-          file.putChildren( node1);
+          file.putNewChild( node1);
       } }
     }
     if(callback !=null){
