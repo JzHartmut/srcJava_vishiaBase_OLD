@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 
 import org.vishia.cmd.CmdExecuter;
+import org.vishia.cmd.JbatchScript.Statement;
 import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.Assert;
 import org.vishia.util.CalculatorExpr;
@@ -848,15 +849,32 @@ public class JbatchExecuter {
     
     
     /**executes statements in another thread.
+     * @throws Exception 
      */
     private void executeThread(JbatchScript.Statement statement) 
-    throws IOException
-    { JbatchThread thread = new JbatchThread();
+    throws Exception
+    { JbatchThreadResult result = null;
+      if(statement.assignObj !=null && statement.assignObj.size() >=1){
+        DataAccess assignObj = statement.assignObj.get(0);  //only one is admissible in syntax.
+        ////
+        Object oResult;
+        try{ oResult = assignObj.getDataObj(localVariables, bAccessPrivate, false); } 
+        catch(NoSuchFieldException exc){ oResult = null; }
+        if(oResult != null){
+          if(!(oResult instanceof JbatchThreadResult)){
+            throw new IllegalArgumentException("JbatchExecuter - thread assign failure; found type of assignObj is " + oResult.getClass().getCanonicalName());
+          }
+          result = (JbatchThreadResult) oResult;
+          result.clear();
+        } else{
+          result = new JbatchThreadResult();
+          storeValue(assignObj, result);
+        }
+      }
+      JbatchThread thread = new JbatchThread(this, statement, result);
       synchronized(threads){
         threads.add(thread);
       }
-      thread.executeLevel = this;
-      thread.statement = statement;
       Thread threadmng = new Thread(thread, "jbat");
       threadmng.start();  
       //it does not wait on finishing this thread.
@@ -1014,9 +1032,11 @@ public class JbatchExecuter {
     {
       Object val = evalObject(contentElement, false);
       //Object val = ascertainValue(contentElement.expression, data, localVariables, false);
-      if(contentElement.assignObj !=null){
+      if(contentElement.assignObj !=null){ ////
         for(DataAccess assignObj1 : contentElement.assignObj){
-        
+          storeValue(assignObj1, val);
+          
+          /*
           //It is a path to any object, get it:
           Object oOut = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
           //
@@ -1040,9 +1060,66 @@ public class JbatchExecuter {
               throw new NoSuchFieldException("AssignObject type not supported: " + assignObj1.datapath().toString());
             }
           }
+          */
         }
       }
       
+    }
+    
+    
+    
+    /**Stores the given value in a new variable.
+     * The path refers to a non-existing variable.
+     * The path may have more as one elements. 
+     * Usual the path has only 1 element, it stores in the {@link #localVariables}.
+     * 
+     * @param path
+     * @param val
+     * @throws NoSuchFieldException
+     * @throws IllegalAccessException
+     * @throws IOException 
+     */
+    @SuppressWarnings("unchecked")
+    void storeValue(DataAccess path, Object val) 
+    throws NoSuchFieldException, IllegalAccessException, IOException{
+      Object dst = localVariables;
+      Iterator<DataAccess.DatapathElement> iter = path.datapath().iterator();
+      DataAccess.DatapathElement variable;
+      while(iter.hasNext()) {
+        variable = iter.next();
+        Object dst2;
+        try{ dst2 = DataAccess.getData(variable.ident, dst, true, false);}
+        catch(NoSuchFieldException exc){ dst2 = null; }
+        if(dst2 == null){
+          assert(dst instanceof Map<?, ?>);
+          if(iter.hasNext()){
+            dst2 = new IndexMultiTable<String, Object>(IndexMultiTable.providerString);
+            ((Map<String, Object>)dst).put(variable.ident, dst2);
+            dst = dst2;
+          } else {
+            ((Map<String, Object>)dst).put(variable.ident, val);
+          }
+        } else {
+          if(iter.hasNext()){
+            dst = dst2;
+          } else {
+            //the last element is found, try assign the value to it, it should be any container or Appendable.
+            if(dst instanceof Appendable){
+              final CharSequence cVal;
+              if(!(val instanceof CharSequence)){
+                cVal = val.toString();
+              } else {
+                cVal = (CharSequence)val;
+              }
+              ((Appendable)dst).append(cVal);
+            } else if(dst instanceof List){
+              ((List)dst).add(val);
+            } else {
+              throw new IllegalArgumentException("JbatchExecuter - can't add value to; " + path);
+            }
+          }
+        }
+      }
     }
     
     
@@ -1192,11 +1269,48 @@ public class JbatchExecuter {
 
   
   
+  protected class JbatchThreadResult implements CharSequence
+  {
+    StringBuilder uText = new StringBuilder();
+    
+    /**State of thread execution. 
+     * <ul>
+     * <li>i: init
+     * <li>r: runs
+     * <li>y: finished
+     * </ul>
+     */
+    char state = 'i';
+
+    
+    protected void clear(){
+      state = 'i';
+    }
+    
+    @Override public char charAt(int index){ return uText.charAt(index); }
+
+    @Override public int length(){ return uText.length(); }
+
+    @Override public CharSequence subSequence(int start, int end){ return uText.subSequence(start, end); }
+    
+  }
+  
+  
+  
   protected class JbatchThread implements Runnable
   {
-    ExecuteLevel executeLevel;
-    ////
-    JbatchScript.Statement statement;
+    final ExecuteLevel executeLevel;
+
+    final JbatchScript.Statement statement;
+
+    final JbatchThreadResult result;
+    
+    public JbatchThread(ExecuteLevel executeLevel, Statement statement, JbatchThreadResult result)
+    {
+      this.executeLevel = executeLevel;
+      this.statement = statement;
+      this.result = result;
+    }
 
     @Override public void run(){ 
       runThread(executeLevel, statement); 
