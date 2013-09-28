@@ -1,6 +1,6 @@
 package org.vishia.stateMachine;
 
-import org.vishia.util.Event;
+import org.vishia.event.Event;
 
 /**Base class for a composite state which is a parallel state inside another composite state.
  * @author Hartmut Schorrig

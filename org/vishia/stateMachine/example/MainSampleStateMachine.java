@@ -1,7 +1,7 @@
 package org.vishia.stateMachine.example;
 
-import org.vishia.util.EventSource;
-import org.vishia.util.EventThread;
+import org.vishia.event.EventSource;
+import org.vishia.event.EventThread;
 
 public class MainSampleStateMachine
 {

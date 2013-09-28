@@ -1,12 +1,12 @@
 package org.vishia.stateMachine.example;
 
+import org.vishia.event.Event;
+import org.vishia.event.EventConsumer;
+import org.vishia.event.EventSource;
+import org.vishia.event.EventThread;
+import org.vishia.event.EventTimerMng;
 import org.vishia.stateMachine.StateSimpleBase;
 import org.vishia.stateMachine.StateTopBase;
-import org.vishia.util.Event;
-import org.vishia.util.EventConsumer;
-import org.vishia.util.EventSource;
-import org.vishia.util.EventThread;
-import org.vishia.util.EventTimerMng;
 
 public class EventFollow  {
   

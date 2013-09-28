@@ -1,4 +1,4 @@
-package org.vishia.util;
+package org.vishia.event;
 
 /**This interface describe the consumer interface for events.
  * The class which implements this interface is able to get events for example from a common queue

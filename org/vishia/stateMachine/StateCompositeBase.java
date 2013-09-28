@@ -1,8 +1,8 @@
 package org.vishia.stateMachine;
 
+import org.vishia.event.Event;
+import org.vishia.event.EventConsumer;
 import org.vishia.util.DateOrder;
-import org.vishia.util.Event;
-import org.vishia.util.EventConsumer;
 
 /**Base class for composite states.
  *

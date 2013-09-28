@@ -27,6 +27,10 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import org.vishia.event.Event;
+import org.vishia.event.EventConsumer;
+import org.vishia.event.EventSource;
+import org.vishia.event.EventThread;
 import org.vishia.fileRemote.FileCluster;
 import org.vishia.fileRemote.FileRemote;
 import org.vishia.fileRemote.FileRemoteAccessor;
@@ -36,10 +40,6 @@ import org.vishia.fileRemote.FileRemote.CmdEvent;
 import org.vishia.fileRemote.FileRemoteAccessor.CallbackFile;
 import org.vishia.fileRemote.FileRemoteAccessor.CallbackFile.Result;
 import org.vishia.util.Assert;
-import org.vishia.util.Event;
-import org.vishia.util.EventConsumer;
-import org.vishia.util.EventSource;
-import org.vishia.util.EventThread;
 import org.vishia.util.FileSystem;
 
 public class FileAccessorLocalJava7 implements FileRemoteAccessor

@@ -3,15 +3,15 @@ package org.vishia.stateMachine.example;
 import java.io.Closeable;
 import java.io.IOException;
 
+import org.vishia.event.Event;
+import org.vishia.event.EventConsumer;
+import org.vishia.event.EventSource;
+import org.vishia.event.EventThread;
+import org.vishia.event.EventTimerMng;
 import org.vishia.stateMachine.StateCompositeBase;
 import org.vishia.stateMachine.StateSimpleBase;
 import org.vishia.stateMachine.StateTopBase;
 import org.vishia.util.Assert;
-import org.vishia.util.Event;
-import org.vishia.util.EventConsumer;
-import org.vishia.util.EventSource;
-import org.vishia.util.EventThread;
-import org.vishia.util.EventTimerMng;
 import org.vishia.util.Timeshort;
 
 public class ExampleStateComposite implements Closeable{
@@ -107,7 +107,7 @@ public class ExampleStateComposite implements Closeable{
 
     
     /**This method is overridden only to set a derived class specific breakpoint for debugging.
-     * @see org.vishia.stateMachine.StateTopBase#processEvent(org.vishia.util.Event)
+     * @see org.vishia.stateMachine.StateTopBase#processEvent(org.vishia.event.Event)
      */
     @Override public int processEvent(final Event<?,?> evP){
       return super.processEvent(evP);   //<<<<<<<<<< set breakpoint here
@@ -134,7 +134,7 @@ public class ExampleStateComposite implements Closeable{
       }
       
       /**The trans method need not be commented. 
-       * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.util.Event)
+       * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.Event)
        */
       @Override public int trans(Event<?,?> ev) {
         UserEvent ev1 = UserEvent.typeof(ev);  //convert the event to the expected derived class.
@@ -186,7 +186,7 @@ public class ExampleStateComposite implements Closeable{
         }
         
         /**The trans method need not be commented. 
-         * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.util.Event)
+         * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.Event)
          */
         @Override public int trans(Event<?,?> ev) {
           UserEvent ev1 = UserEvent.typeof(ev);  //convert the event to the expected derived class.
@@ -232,7 +232,7 @@ public class ExampleStateComposite implements Closeable{
         }
         
         /**The trans method need not be commented. 
-         * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.util.Event)
+         * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.Event)
          */
         @Override public int trans(Event<?,?> ev) {
           int cont;

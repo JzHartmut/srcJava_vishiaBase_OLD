@@ -1,13 +1,13 @@
 package org.vishia.stateMachine.example;
 
 
+import org.vishia.event.Event;
+import org.vishia.event.EventConsumer;
+import org.vishia.event.EventThread;
 import org.vishia.stateMachine.StateCompositeBase;
 import org.vishia.stateMachine.StateParallelBase;
 import org.vishia.stateMachine.StateSimpleBase;
 import org.vishia.stateMachine.StateTopBase;
-import org.vishia.util.Event;
-import org.vishia.util.EventConsumer;
-import org.vishia.util.EventThread;
 
 public class CompositeStates implements EventConsumer {
 
@@ -222,7 +222,7 @@ public class CompositeStates implements EventConsumer {
      * Because this state has 2 parallel combined states intern it calls the {@link #trans(Event)}
      * of both parallel states with the given event.
      * If 
-     * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.util.Event)
+     * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.Event)
      */
     @Override public int trans(Event ev) {
       

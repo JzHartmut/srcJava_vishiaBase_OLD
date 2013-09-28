@@ -12,12 +12,12 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.vishia.event.Event;
+import org.vishia.event.EventConsumer;
+import org.vishia.event.EventSource;
+import org.vishia.event.EventThread;
 import org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile;
 import org.vishia.util.Assert;
-import org.vishia.util.Event;
-import org.vishia.util.EventConsumer;
-import org.vishia.util.EventSource;
-import org.vishia.util.EventThread;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.MarkMask_ifc;
@@ -192,7 +192,7 @@ public class FileRemote extends File implements MarkMask_ifc
    *     for more as some 100 milliseconds. It is better to clear a table and continue working in graphic. 
    *     If the properties are gotten from the remote system then the table will be filled.
    *     That may be invoked from another thread, the communication thread for the remote device
-   *     or by an event mechanism (see {@link FileRemote.CallbackEvent} respectively {@link org.vishia.util.Event}.
+   *     or by an event mechanism (see {@link FileRemote.CallbackEvent} respectively {@link org.vishia.event.Event}.
    *   <li>The routine {@link #fromFile(File)} reads are properties of a local file if one is given.
    *     In that case the {@link #refreshProperties(CallbackEvent)} need not be invoked additionally.
    *   <li>{@link #openRead(long)} and {@link #openWrite(long)} accepts a non-given device.
@@ -1909,7 +1909,7 @@ public class FileRemote extends File implements MarkMask_ifc
     }
 
     /** Gets the callback event which is given on construction.
-     * @see org.vishia.util.Event#getOpponent()
+     * @see org.vishia.event.Event#getOpponent()
      */
     @Override public CallbackEvent getOpponent(){ return (CallbackEvent)super.getOpponent(); }
     

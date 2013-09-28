@@ -1,9 +1,11 @@
-package org.vishia.util;
+package org.vishia.event;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import org.vishia.util.Assert;
 
 
 public class EventTimerMng extends Thread implements Closeable{

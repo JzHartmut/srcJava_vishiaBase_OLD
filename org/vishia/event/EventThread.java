@@ -1,4 +1,4 @@
-package org.vishia.util;
+package org.vishia.event;
 
 import java.io.Closeable;
 import java.io.IOException;

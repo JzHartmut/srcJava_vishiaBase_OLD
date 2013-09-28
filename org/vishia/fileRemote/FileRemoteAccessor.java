@@ -10,9 +10,9 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.vishia.event.Event;
 import org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile;
 import org.vishia.fileRemote.FileAccessZip.FileZipData;
-import org.vishia.util.Event;
 
 /**Interface for instances, which organizes a remote access to files.
  * One instance per transfer protocol are need.

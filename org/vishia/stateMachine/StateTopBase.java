@@ -1,9 +1,9 @@
 package org.vishia.stateMachine;
 
-import org.vishia.util.Event;
-import org.vishia.util.EventConsumer;
-import org.vishia.util.EventThread;
-import org.vishia.util.EventTimerMng;
+import org.vishia.event.Event;
+import org.vishia.event.EventConsumer;
+import org.vishia.event.EventThread;
+import org.vishia.event.EventTimerMng;
 
 /**Base class for a state machine, for the main or top state.
  * An application should create its top state class using the following pattern:
@@ -99,11 +99,11 @@ implements EventConsumer
 
   /**The trans routine is implemented as an empty routine here. The StateTop has not a capability
    * to switch any states.
-   * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.util.Event)
+   * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.Event)
    */
   @Override final public int trans(Event ev){ return 0; }
 
-  /**This method is defined in {@link StateCompositeBase#processEvent(org.vishia.util.Event)}.
+  /**This method is defined in {@link StateCompositeBase#processEvent(org.vishia.event.Event)}.
    * It means that a top State is an {@link EventConsumer}. 
    * It calls the routine {@link StateCompositeBase#processEvent(Event)}} of its superclass
    * which has the same name and signature, but that routine does not implement the {@link EventConsumer}

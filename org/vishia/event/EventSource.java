@@ -1,4 +1,4 @@
-package org.vishia.util;
+package org.vishia.event;
 
 /**Access to the current source of a event. It is referred inside any event.
  * The source is that class, which has transmitted the event.

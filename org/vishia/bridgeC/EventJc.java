@@ -1,9 +1,9 @@
 package org.vishia.bridgeC;
 
-import org.vishia.util.Event;
-import org.vishia.util.EventConsumer;
-import org.vishia.util.EventSource;
-import org.vishia.util.EventThread;
+import org.vishia.event.Event;
+import org.vishia.event.EventConsumer;
+import org.vishia.event.EventSource;
+import org.vishia.event.EventThread;
 
 /**This class extends the {@link Event} only with the capability of deletion from Memory for non-Garbage-Collecting C/C++ usage.
  * @author Hartmut Schorrig

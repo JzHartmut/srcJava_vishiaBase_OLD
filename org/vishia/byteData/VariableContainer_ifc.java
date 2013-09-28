@@ -22,7 +22,7 @@
  *******************************************************************************/ 
 package org.vishia.byteData;
 
-import org.vishia.util.Event;
+import org.vishia.event.Event;
 
 
 /**This interface defines the access to search a variable in any container. 
