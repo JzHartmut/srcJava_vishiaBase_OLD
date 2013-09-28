@@ -407,39 +407,6 @@ public class JbatchExecuter {
 
     
     
-    /**Put a value to a maybe inner local variable written with "name.subname.name".
-     * Replace a given StringSeq with a given value as CharSequence by preserving the current instance
-     * of StringSeq. It means all references to this StringSeq, especially script variables, are changed.
-     * @param ident May contain dots
-     * @param value The value to store.
-     */
-    void putOrReplaceLocalVariable(String ident, Object value){
-      int start=0, end;
-      Map<String, Object> var1 = localVariables;
-      String ident1;
-      while( (end = ident.indexOf('.')) >0){
-        ident1 = ident.substring(start, end);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> var2 = (Map<String, Object>)localVariables.get(ident1);
-        if(var2 ==null){
-          var2 = new TreeMap<String, Object>();
-          var1.put(ident1, var2);
-        }
-        var1 = var2;
-        start = end+1;
-      }
-      ident1 = ident.substring(start);
-      ////
-      Object oldvalue = var1.get(ident1);
-      if(oldvalue !=null && oldvalue instanceof StringSeq && value instanceof CharSequence){
-        //replace the inner CharSequence.
-        ((StringSeq)oldvalue).change((CharSequence)value);
-      } else {
-        var1.put(ident1, value);
-      }
-    }
-    
-    
     
     
     /**Executes an inner script part maybe with a new level of nested local variables.
@@ -706,17 +673,31 @@ public class JbatchExecuter {
     
     
     
+    /**Creates or sets a string variable, maybe an environment variable.
+     * It calls {@link DataAccess#storeValue(List, Map, Object, boolean)}.
+     * It means the text value will be append to a {@link java.lang.Appendable}
+     * or it replaces the CharSequence on a {@link org.vishia.util.StringSeq}.
+     * If the variable is a script variable as StringSeq, its content is changed.
+     * 
+     * @param statement
+     * @throws Exception
+     */
     void setStringVariable(JbatchScript.Statement statement) 
     throws Exception 
     {
       CharSequence text = evalString(statement);
-      if(statement.identArgJbat.equals("$CD")){
-        //special handling of current directory:
-        setCurrDir(text);  //normalize, set "currDir"
-      } else {
-        putOrReplaceLocalVariable(statement.identArgJbat, text);
+      if(statement.assignObj !=null && statement.assignObj.size() >=1) {
+        List<DataAccess.DatapathElement> assignPath = statement.assignObj.get(0).datapath();
+        if(assignPath.size() == 1 && assignPath.get(0).ident.equals("$CD")){
+          //special handling of current directory:
+          setCurrDir(text);  //normalize, set "currDir"
+        } else {
+          DataAccess.storeValue(assignPath, localVariables, text, true);
+          //putOrReplaceLocalVariable(statement.identArgJbat, text);
+        }
       }
     } 
+    
     
     
     /**Invocation for <+name>text<.+>
@@ -868,7 +849,7 @@ public class JbatchExecuter {
           result.clear();
         } else{
           result = new JbatchThreadResult();
-          storeValue(assignObj, result);
+          DataAccess.storeValue(assignObj.datapath(), localVariables, result, true);
         }
       }
       JbatchThread thread = new JbatchThread(this, statement, result);
@@ -1034,7 +1015,7 @@ public class JbatchExecuter {
       //Object val = ascertainValue(contentElement.expression, data, localVariables, false);
       if(contentElement.assignObj !=null){ ////
         for(DataAccess assignObj1 : contentElement.assignObj){
-          storeValue(assignObj1, val);
+          DataAccess.storeValue(assignObj1.datapath(), localVariables, val, true);
           
           /*
           //It is a path to any object, get it:
@@ -1064,62 +1045,6 @@ public class JbatchExecuter {
         }
       }
       
-    }
-    
-    
-    
-    /**Stores the given value in a new variable.
-     * The path refers to a non-existing variable.
-     * The path may have more as one elements. 
-     * Usual the path has only 1 element, it stores in the {@link #localVariables}.
-     * 
-     * @param path
-     * @param val
-     * @throws NoSuchFieldException
-     * @throws IllegalAccessException
-     * @throws IOException 
-     */
-    @SuppressWarnings("unchecked")
-    void storeValue(DataAccess path, Object val) 
-    throws NoSuchFieldException, IllegalAccessException, IOException{
-      Object dst = localVariables;
-      Iterator<DataAccess.DatapathElement> iter = path.datapath().iterator();
-      DataAccess.DatapathElement variable;
-      while(iter.hasNext()) {
-        variable = iter.next();
-        Object dst2;
-        try{ dst2 = DataAccess.getData(variable.ident, dst, true, false);}
-        catch(NoSuchFieldException exc){ dst2 = null; }
-        if(dst2 == null){
-          assert(dst instanceof Map<?, ?>);
-          if(iter.hasNext()){
-            dst2 = new IndexMultiTable<String, Object>(IndexMultiTable.providerString);
-            ((Map<String, Object>)dst).put(variable.ident, dst2);
-            dst = dst2;
-          } else {
-            ((Map<String, Object>)dst).put(variable.ident, val);
-          }
-        } else {
-          if(iter.hasNext()){
-            dst = dst2;
-          } else {
-            //the last element is found, try assign the value to it, it should be any container or Appendable.
-            if(dst instanceof Appendable){
-              final CharSequence cVal;
-              if(!(val instanceof CharSequence)){
-                cVal = val.toString();
-              } else {
-                cVal = (CharSequence)val;
-              }
-              ((Appendable)dst).append(cVal);
-            } else if(dst instanceof List){
-              ((List)dst).add(val);
-            } else {
-              throw new IllegalArgumentException("JbatchExecuter - can't add value to; " + path);
-            }
-          }
-        }
-      }
     }
     
     

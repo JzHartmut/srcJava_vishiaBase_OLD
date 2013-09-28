@@ -1130,12 +1130,20 @@ public class JbatchScript {
     }
     */
         
-    /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
+    /**Defines or changes an environment variable with value. set NAME = TEXT;
+     * Handle in the same kind like a String variable
      */
-    public Statement new_setEnvVar(){ return new Statement(null, 'S', null); } ///
+    public Statement new_setEnvVar(){ 
+      return new Statement(null, 'S', null); 
+    } 
 
+    /**Defines or changes an environment variable with value. set NAME = TEXT;
+     * Handle in the same kind like a String variable but appends a '$' to the first name.
+     */
     public void add_setEnvVar(Statement val){ 
-      val.identArgJbat = "$" + val.identArgJbat;
+      //change the first identifier to $name
+      val.assignObj.get(0).datapath().get(0).ident = "$" + val.assignObj.get(0).datapath().get(0).ident;
+      //val.identArgJbat = "$" + val.identArgJbat;
       content.add(val); 
       onerrorAccu = null; withoutOnerror.add(val);
     } 

@@ -1,6 +1,7 @@
 package org.vishia.util;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -195,6 +196,81 @@ public class DataAccess {
   }
 
   
+  
+  /**Stores the given value in the data path.
+   * <ul>
+   * <li>If the variable referred by the path exists, it should be a {@link java.util.List} or
+   * a {@link java.lang.Appendable}. Then the value is added or appended to it.
+   * <li>If the variable referred by the path does not exists, it is tried to add. The adding is
+   *   possible only if the parent variable is of type {@link java.util.Map} with a String as key.
+   * <li>If the path consists of more as one element and any parent element does not exists too,
+   *   it is added only if its parent is of type {@link java.util.Map} with a String as key.
+   * <li>The parent of the first element is the variables container. It is of type Map. 
+   * <li>If the path consists of only one element and this element is a new one, it is created 
+   *   as a new variable in the variables container.
+   * <li>If the path consists of some elements and all of them are Map or one of them does not exist,
+   *   a Tree of Maps is build in variable.      
+   * </ul>
+   * The path refers to a non-existing variable.
+   * The path may have more as one elements. 
+   * Usual the path has only 1 element, it stores in the {@link #localVariables}.
+   * 
+   * @param path
+   * @param variables
+   * @param value
+   * @throws IllegalAccessException
+   * @throws IOException if append fails.
+   * @throws IllegalAccessException if a field exists but can't access. Note that private members can be accessed.
+   */
+  @SuppressWarnings("unchecked")
+  public static void storeValue(List<DatapathElement> path, Map<String, ?> variables, Object value, boolean bAccessPrivate) 
+  throws IOException, IllegalAccessException {
+    Object dst = variables;
+    Iterator<DataAccess.DatapathElement> iter = path.iterator();
+    DataAccess.DatapathElement variable;
+    while(iter.hasNext()) {
+      variable = iter.next();
+      Object dst2;
+      try{ dst2 = DataAccess.getData(variable.ident, dst, bAccessPrivate, false);}
+      catch(NoSuchFieldException exc){ dst2 = null; }
+      if(iter.hasNext()){
+        if(dst2 == null){
+          assert(dst instanceof Map<?, ?>);
+          dst2 = new IndexMultiTable<String, Object>(IndexMultiTable.providerString);
+          ((Map<String, Object>)dst).put(variable.ident, dst2);
+        }
+        dst = dst2;
+      } else {
+        //last item in path.
+        if(dst2 == null){
+          assert(dst instanceof Map<?, ?>);
+          ((Map<String, Object>)dst).put(variable.ident, value);
+        } else {
+          //the last element is found, try assign the value to it, it should be any container or Appendable.
+          dst = dst2;
+          if(dst instanceof StringSeq && value instanceof CharSequence){
+            ((StringSeq)dst).change((CharSequence)value);
+          } else if(dst instanceof Appendable){
+            final CharSequence cVal;
+            if(!(value instanceof CharSequence)){
+              cVal = value.toString();
+            } else {
+              cVal = (CharSequence)value;
+            }
+            ((Appendable)dst).append(cVal);
+          } else if(dst instanceof List){
+            ((List)dst).add(value);
+          } else {
+            throw new IllegalArgumentException("JbatchExecuter - can't add value to; " + path);
+          }
+        }
+      }
+    }
+  }
+  
+  
+  
+
   
   
   /**Returns the reference from a given datapath, calculates all arguments of methods before.
