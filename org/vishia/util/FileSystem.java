@@ -1426,7 +1426,7 @@ public class FileSystem
    * @param file Any file
    * @return true if this file exists.
    */
-  public boolean exists(File file){ return file.exists(); }
+  public static boolean exists(File file){ return file.exists(); }
   
   
   /**Returns true if this file describes a root directory.
@@ -1435,13 +1435,13 @@ public class FileSystem
    * @param file Any file
    * @return true if it is the root.
    */
-  public boolean isRoot(File file){ 
+  public static boolean isRoot(File file){ 
     CharSequence sName = absolutePath(file.getPath(), null);
     return isRoot(sName);
   }
   
   
-  public boolean isRoot(CharSequence sName){
+  public static boolean isRoot(CharSequence sName){
     return sName.equals("/") || sName.length() ==3 && sName.subSequence(1,3).equals(":/");
   }
   

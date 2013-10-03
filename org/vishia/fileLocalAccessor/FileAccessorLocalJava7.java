@@ -290,6 +290,8 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
   { ///
     callback.start();
     String sPath = dir.getAbsolutePath();
+    if(FileSystem.isRoot(sPath))
+      Assert.stop();
     Path pathdir = Paths.get(sPath);
     FileVisitor<Path> visitor = new WalkFileTreeVisitor(dir.itsCluster, true, callback);
     Set<FileVisitOption> options = new TreeSet<FileVisitOption>();

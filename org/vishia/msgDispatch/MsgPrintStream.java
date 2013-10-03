@@ -278,6 +278,7 @@ public class MsgPrintStream implements MsgPrintStream_ifc
   
   
   protected void convertToMsg(String pre, String identString, Object... args) {
+    if(identString == null) return;
     int posSemicolon = identString.indexOf(';');
     int posColon = identString.indexOf(':');
     int posSep = posColon < 0 || posSemicolon < posColon ? posSemicolon : posColon;  //more left char of ; :
