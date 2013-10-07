@@ -105,6 +105,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
   
 
   
+  /**This thread runs after creation. Only one thread for all events. */
   EventThread singleThreadForCommission = new EventThread("FileAccessor-local");
   
   /**Destination for all events which forces actions in the execution thread.
@@ -278,12 +279,8 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
     return list;
   }
 
-  /**Variant of getChildren for non-Java-7. Firstly all children without its properties are gotten
-   * from the operation system using {@link java.io.File#list()}. Therefore {@link #refreshFilePropertiesAndChildren(FileRemote, CallbackEvent)}
-   * will be called. Then this list is iterated and the file properties are gotten using 
-   * {@link #refreshFileProperties(FileRemote, CallbackEvent)}. In any iteration step the file
-   * is offered to the application calling {@link FileRemoteAccessor.CallbackFile#offerFile(FileRemote)}.
-   * 
+  /**Variant of getChildren for Java-7. 
+   * It calls {@link Files#walkFileTree(Path, Set, int, FileVisitor)}
    * @see org.vishia.fileRemote.FileRemoteAccessor#walkFileTree(org.vishia.fileRemote.FileRemote, java.io.FileFilter, int, org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)
    */
   public void walkFileTree(FileRemote dir, FileFilter filter, int depth, CallbackFile callback)

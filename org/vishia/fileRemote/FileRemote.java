@@ -634,11 +634,12 @@ public class FileRemote extends File implements MarkMask_ifc
     if(children == null){
       children = new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString);  //TreeMap<String, FileRemote>();
     }
-    children.put(child.sFile, child);
     if(child.parent != this){
-      assert(child.parent == null);
+      if(child.parent != null)
+        assert(false);
       child.parent = this;
     }
+    children.put(child.sFile, child);
   }
   
   
@@ -985,10 +986,18 @@ public class FileRemote extends File implements MarkMask_ifc
    * @return
    */
   public CharSequence getPathChars(){
-    if(sFile !=null && sFile.length() > 0){ 
-      StringBuilder ret = new StringBuilder(sDir);
-      int zDir = sDir.length();
-      if(zDir > 0 && sDir.charAt(zDir-1) != '/'){ ret.append('/'); }
+    int zFile = sFile == null ? 0 : sFile.length();
+    if(zFile > 0){ 
+      int zDir = sDir == null? 0: sDir.length();
+      StringBuilder ret = new StringBuilder(zDir + 1 + zFile);
+      if(zDir >0){
+        ret.append(sDir);
+        if(sDir.charAt(zDir-1) != '/' //does not end with "/"
+          && sFile.charAt(0) !='/'    //root path has "/" in sFile
+        ) { 
+          ret.append('/'); 
+        }
+      }
       ret.append(sFile);
       return ret.toString();
     } else {
