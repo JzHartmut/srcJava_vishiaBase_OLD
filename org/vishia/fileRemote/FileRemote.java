@@ -1517,7 +1517,7 @@ public class FileRemote extends File implements MarkMask_ifc
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    CmdEvent ev = device.prepareCmdEvent(evback);
+    CmdEvent ev = device.prepareCmdEvent(500, evback);
     
     ev.filesrc =this;
     ev.filedst = null;
@@ -1669,7 +1669,7 @@ public class FileRemote extends File implements MarkMask_ifc
       dst.device = getAccessorSelector().selectFileRemoteAccessor(dst.getAbsolutePath());
     }
     
-    CmdEvent ev = device.prepareCmdEvent(evback);
+    CmdEvent ev = device.prepareCmdEvent(500, evback);
     
     ev.filesrc =this;
     ev.filedst = dst;
@@ -1711,7 +1711,7 @@ public class FileRemote extends File implements MarkMask_ifc
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    CmdEvent ev = device.prepareCmdEvent(evback);
+    CmdEvent ev = device.prepareCmdEvent(500, evback);
     ev.filesrc = this;
     ev.namesSrc = sFiles;
     ev.filedst = dst;
@@ -1736,7 +1736,7 @@ public class FileRemote extends File implements MarkMask_ifc
    * @param backEvent The event for success.
    */
   public void chgProps(String newName, int maskFlags, int newFlags, long newDate, FileRemote.CallbackEvent evback){
-    CmdEvent ev = device.prepareCmdEvent(evback);
+    CmdEvent ev = device.prepareCmdEvent(500, evback);
     ev.filesrc = this;
     ev.filedst = null;
     ev.newName = newName;
@@ -1760,7 +1760,7 @@ public class FileRemote extends File implements MarkMask_ifc
    * @param backEvent The event for success.
    */
   public void chgPropsRecursive(int maskFlags, int newFlags, long newDate, FileRemote.CallbackEvent evback){
-    CmdEvent ev = device.prepareCmdEvent(evback);
+    CmdEvent ev = device.prepareCmdEvent(500, evback);
     ev.filesrc = this;
     ev.filedst = null;
     ev.newName = null;
@@ -1784,7 +1784,7 @@ public class FileRemote extends File implements MarkMask_ifc
    * @param backEvent The event for success.
    */
   public void countAllFileLength(FileRemote.CallbackEvent evback){
-    CmdEvent ev = device.prepareCmdEvent(evback);
+    CmdEvent ev = device.prepareCmdEvent(500, evback);
     ev.filesrc = this;
     ev.filedst = null;
     ev.sendEvent(Cmd.countLength);
@@ -1796,7 +1796,7 @@ public class FileRemote extends File implements MarkMask_ifc
    * 
    */
   public void abortAction(){
-    CmdEvent ev = device.prepareCmdEvent(null);
+    CmdEvent ev = device.prepareCmdEvent(500, null);
     ev.filesrc = this;
     ev.filedst = null;
     ev.sendEvent(Cmd.abortAll);
@@ -2150,7 +2150,7 @@ public class FileRemote extends File implements MarkMask_ifc
       FileRemote fileSrc;
       FileRemoteAccessor device;
       if( ev !=null && (fileSrc = ev.filesrc) !=null && (device = fileSrc.device) !=null){
-        if((ev = device.prepareCmdEvent(this)) !=null){
+        if((ev = device.prepareCmdEvent(500, this)) !=null){
           return ev.sendEvent(Cmd.abortAll);
         } 
         else {
@@ -2383,9 +2383,9 @@ public class FileRemote extends File implements MarkMask_ifc
         if(ok == 1){ //only if it was processed 
           cmd.sendEvent(Cmd.abortAll);
         }
-        }
+      }
       if(ok !=0){
-        cmd = device.prepareCmdEvent(this);  //TODO wait for occupy
+        cmd = device.prepareCmdEvent(500, this);  //NOTE: it may should wait for cmd.sendEvent(Cmd.abortAll) 
         orderNr +=1;
         srcFile = file;
         aborted = false;

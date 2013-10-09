@@ -153,7 +153,7 @@ public interface FileRemoteAccessor extends Closeable
   /**Creates or prepares a CmdEvent to send to the correct destination. The event is ready to use but not  occupied yet. 
    * If the evBack contains a CmdEvent as its opponent, it is used. In that way a non-dynamic event management
    * is possible. */
-  public abstract FileRemote.CmdEvent prepareCmdEvent(Event<?, FileRemote.Cmd> evBack);
+  public abstract FileRemote.CmdEvent prepareCmdEvent(int timeout, Event<?, FileRemote.Cmd> evBack);
 
   
   public abstract boolean isLocalFileSystem();

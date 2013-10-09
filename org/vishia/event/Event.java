@@ -528,6 +528,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   
   /**Version, history and license
    * <ul>
+   * <li>2013-10-06 Hartmut chg: {@link #occupy(int, EventSource, EventConsumer, EventThread)} with timeout
    * <li>2013-10-06 Hartmut chg: {@link #occupyRecall(EventSource, boolean)} return 0,1,2, not boolean.
    *   The state whether the recalled event is processed or it is only removed from the queued, may
    *   be important for usage. 
@@ -836,6 +837,36 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
       return false;
     }
   }
+  
+  
+  
+  /**Try to occupy the event. If it is in use yet, the thread waits the given timeout.
+   * This waiting is used for thread switch, process the event and release it.
+   * An event may be used only as a transport data from one thread to another.
+   * The event is relinquished usual in a less time after the other thread has processed it.
+   * The event can be re-used after them for another request. But it should wait a moment
+   * to force thread switching. 
+   *   
+   * @param timeout 
+   * @param evSrc
+   * @param dst
+   * @param thread
+   * @return true if occupied, false if the other thread which should process the event hangs.
+   */
+  public boolean occupy(int timeout, EventSource evSrc, EventConsumer dst, EventThread thread){
+    boolean bOk = occupy(evSrc, dst, thread, false);
+    if(!bOk){
+      synchronized(this){
+        bAwaitReserve = true;
+        try{ wait(timeout); } catch(InterruptedException exc){ }
+        bAwaitReserve = false;
+        bOk = occupy(source, dst, thread, false);
+      }
+    }
+    return bOk;
+  }
+  
+  
   
   
   public boolean occupy(EventSource source, boolean expect){ return occupy(source, null, null, expect); } 

@@ -328,7 +328,7 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
   }
 
   
-  @Override public FileRemote.CmdEvent prepareCmdEvent(Event<?, FileRemote.Cmd> evBack){
+  @Override public FileRemote.CmdEvent prepareCmdEvent(int timeout, Event<?, FileRemote.Cmd> evBack){
     return null; //TODO
   }
 
