@@ -27,7 +27,7 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
     final static int withoutEndlineComment = 8;
     final static int withoutComment = 16;
     
-
+    boolean aborted = false;
     
     FileRemoteCallbackCmp(FileRemote dir1, FileRemote dir2){
       this.dir1 = dir1; this.dir2 = dir2;
@@ -99,6 +99,11 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
     }
 
     
+    
+    @Override public boolean shouldAborted(){
+      return aborted;
+    }
+
     
     /**Compare two files.
      * @param file
@@ -220,6 +225,11 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
       @Override
       public void start()
       { }
+      
+      @Override public boolean shouldAborted(){
+        return false;
+      }
+
       
     };
   

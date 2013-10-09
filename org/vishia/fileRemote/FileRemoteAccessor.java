@@ -159,6 +159,8 @@ public interface FileRemoteAccessor extends Closeable
   public abstract boolean isLocalFileSystem();
 
   /**This interface is used as callback for {@link FileRemoteAccessor#getChildren(FileRemote, FileFilter)}
+   * It is similar like the concept of {@link java.nio.file.Files#walkFileTree(java.nio.file.Path, java.nio.file.FileVisitor)}
+   * with its visitor interface. But it is implemented for Java6-usage too.
    */
   public interface CallbackFile
   {
@@ -208,6 +210,14 @@ public interface FileRemoteAccessor extends Closeable
     /**Invoked after finishing a {@link java.nio.file.Files#walkFileTree(java.nio.file.Path, java.util.Set, int, java.nio.file.FileVisitor)}.
      */
     void finished();
+    
+    
+    /**Returns true if the file tree walking should be terminated respectively aborted.
+     * This routine should be called in any walk tree routine.
+     * The aborted state should be set from outside in the implementation classes.
+     * @return true if should terminated.
+     */
+    boolean shouldAborted();
   }
 
   
@@ -232,6 +242,10 @@ public interface FileRemoteAccessor extends Closeable
       return Result.cont;
     }
 
+    
+    @Override public boolean shouldAborted(){
+      return false;
+    }
     
   };
   

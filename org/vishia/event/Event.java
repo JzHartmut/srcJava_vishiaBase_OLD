@@ -528,6 +528,9 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   
   /**Version, history and license
    * <ul>
+   * <li>2013-10-06 Hartmut chg: {@link #occupyRecall(EventSource, boolean)} return 0,1,2, not boolean.
+   *   The state whether the recalled event is processed or it is only removed from the queued, may
+   *   be important for usage. 
    * <li>2013-05-11 Hartmut new: {@link #Event(Enum)} to create an event for direct usage.
    *   {@link #cmde} does not need to be an Atomic, because {@link #dateCreation} is Atomic
    *   to designate the occupy-state of the event. 
@@ -882,20 +885,27 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    * Therefore a maximum of waiting time is given. If the method returns false the the occupying is failed.
    * Then the application may repeat this method for example after query a human operator or after done any other proper operation.
    * <ul>
-   * <li>If the event is free, then it is occupied, the method returns immediately with true. 
+   * <li>If the event is free, then it is occupied, the method returns immediately with 1.
+   *   The last usage of the event is processed in this case. 
    * <li>If it is not free, but stored in any queue, it will be removed from the queue,
-   *   then occupied for this new usage. The method returns imediately with true.
-   * <li>If the event is occupied already and not found in any queue, then it is processed in this moment.
+   *   then occupied for this new usage. The method returns immediately with 2.
+   *   It means the last cmd is not processed.
+   * <li>If the event is occupied already and not found in any queue, then it seems to be processed in this moment.
    *   This method waits the given timeout till the event is free. If it will be free in the timeout period,
-   *   the method reserves it and returns true. 
-   * <li>If the timeout is expired, the method returns false. That may be an unexpected situation, because the 
+   *   the method occupies it and returns 1. 
+   * <li>If the timeout is expired, the method returns 0. That may be an unexpected situation, because the 
    *   processing of an event should be a short non-blocking algorithm. It may be a hint to an software error. 
+   *   one may try again occupy with an increased timeout. The processing may need more time.
+   *   It is possible that the processing of the event hangs (deadlock). 
    * </ul>
    * See {@link #occupyRecall(Object, EventConsumer, EventThread)}.   
-   * @return true if the event is occupied.
+   * @return 1 if the event was processed and it is occupied again. 2 if the event was not processed.
+   *   0 if the event is blocked because it is in process for the timeout time. 
    */
-  public boolean occupyRecall(int timeout, EventSource source, EventConsumer dst, EventThread thread, boolean expect){
+  public int occupyRecall(int timeout, EventSource source, EventConsumer dst, EventThread thread, boolean expect){
+    int ok = 0;
     boolean bOk = occupy(source, dst, thread, false);
+    if(bOk){ ok = 1; }
     if(!bOk){
       if(evDstThread !=null){
         bOk = evDstThread.removeFromQueue(this);
@@ -904,6 +914,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
           //therefore set it as consumed.
           relinquish();
           bOk = occupy(source, dst, thread, false);
+          if(bOk){ ok = 2; }
         }
       }
     }
@@ -913,16 +924,17 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
         try{ wait(timeout); } catch(InterruptedException exc){ }
         bAwaitReserve = false;
         bOk = occupy(source, dst, thread, false);
+        if(bOk){ ok = 1; }
       }
     }
     if(!bOk && expect){
       notifyShouldOccupyButInUse();
     }
-    return bOk;
+    return ok;
   }
   
   
-  public boolean occupyRecall(int timeout, EventSource source, boolean expect){ return occupyRecall(timeout, source, null, null, expect); } 
+  public int occupyRecall(int timeout, EventSource source, boolean expect){ return occupyRecall(timeout, source, null, null, expect); } 
   
   //public boolean occupyRecall(int timeout, EventSource source, boolean expect){ return occupyRecall(timeout, source, null, null, null, expect); } 
   

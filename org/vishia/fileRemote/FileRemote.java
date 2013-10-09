@@ -111,6 +111,7 @@ public class FileRemote extends File implements MarkMask_ifc
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-10-06 Hartmut new: {@link #getChildren(ChildrenEvent)} with aborting a last request.
    * <li>2013-09-15 Hartmut new: {@link #getChildren(ChildrenEvent)} should work proper with
    *   {@link java.nio.file.Files#walkFileTree(java.nio.file.Path, java.util.Set, int, java.nio.file.FileVisitor)}.
    *   The event should be called back on 300 ms with the gathered files. If the access needs more time,
@@ -1299,18 +1300,20 @@ public class FileRemote extends File implements MarkMask_ifc
    * @param evback This event will be used to send files after a less time (300 ms yet)
    * TODO
    * @param time The time for event.
+   * @return true if the cmd was send. false if anything hangs.
    */
-  public void getChildren(ChildrenEvent evback){
+  public boolean getChildren(ChildrenEvent evback){
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    CmdEvent ev = device.prepareCmdEvent(evback);
+    CmdEvent ev = evback.prepareCmd(1000, this, device);
     if(ev!=null){
       ev.filesrc = this;
       ev.filedst = null;
       ev.sendEvent(Cmd.getChildren);
+      return true;
     }
-    
+    else return false;
   }
   
   
@@ -2317,13 +2320,20 @@ public class FileRemote extends File implements MarkMask_ifc
 
     private long startTime;
 
+    public long orderNr;
+    
+    public FileRemote srcFile;
+    
     /**Source of the forward event, the oppenent of this. It is the instance which creates the event. */
     private final EventSource evSrcCmd;
     
     public FileFilter filter; 
     public int depth; 
   
-    public boolean finished;
+    protected boolean finished;
+    
+    /**The aborted flag is set from {@link #abortCmd()}*/
+    protected boolean aborted;
     
     /**Creates a non-occupied event. This event contains an EventSource which is used for the forward event.
      * @param dst The callback routine.
@@ -2335,9 +2345,62 @@ public class FileRemote extends File implements MarkMask_ifc
       this.evSrcCmd = evSrcCmd;
     }
     
+    
+    /**Abort the pending cmd. 
+     * The cmd receiver is informed about the abort request. It should not answer with this callback event
+     * but it should releases it.
+     * <br><br>
+     * The {@link #aborted} is set firstly. If the processing of the cmd event is pending yet, the flag will be seen
+     * in the execution thread in the same process space, and a long working process will be terminated.
+     * It is on local file system using {@link java.nio.file.Files#walkFileTree(java.nio.file.Path, java.nio.file.FileVisitor)}.
+     * <br><br>
+     * If the cmd works with an remote device, the cmd may be processed already, but any other thread 
+     * (for example a socket receiver thread) waits for an answer. For this reason a {@link Cmd#abortAll}
+     * cmd is send to the destination to end its activity.
+     * <br><br>
+     * The {@link #getOpponent()} cmd event is occupied again to send the new request. The aborted flag is set to false
+     * of course because it's a new request.
+     * <br><br>
+     * If any answer for the old request is received though the abort cmd was send, it is detected by the order number.
+     * <br><br>
+     * Be aware that the cmd receiver has received the abort cmd but it has transmitted an answer in the same time before.
+     * Be aware that the cmd receiver may be off line, in that case it can't answer.
+     * The cmd event should be released in a short time for thread switch.
+     * Wait for the free cmd event with {@link #occupyRecall(int, EventSource, boolean)} with a short timeout
+     * if it is need for further operations.
+     * 
+     * @return true if aborted, false if the cmd event hangs.  
+     */
+    public CmdEvent prepareCmd(int timeout, FileRemote file, FileRemoteAccessor device){
+      int ok = 2;
+      CmdEvent cmd;
+      if(srcFile !=null){
+        cmd = getOpponent();
+        //any other request is pending, abort it.
+        aborted = true;  //maybe recognized in the other thread already if the cmd is proceeding yet.
+        srcFile = null;
+        ok = cmd.occupyRecall(timeout, evSrcCmd, false); //should be proceeded in 1 second.
+        if(ok == 1){ //only if it was processed 
+          cmd.sendEvent(Cmd.abortAll);
+        }
+        }
+      if(ok !=0){
+        cmd = device.prepareCmdEvent(this);  //TODO wait for occupy
+        orderNr +=1;
+        srcFile = file;
+        aborted = false;
+        return cmd;
+      } else {
+        return null;  //not available, anything hangs
+      }
+    }
+    
     @Override public CmdEvent getOpponent(){ return (CmdEvent)super.getOpponent(); }
 
-    
+    /**Quest whether it is the last callback.
+     * @return
+     */
+    public boolean isFinished(){ return finished; }
 
     /**Polls one file from the queue. If the return value is null, the queue is empty yet
      * and this action should be terminate. The event will be send newly if more files are available.
@@ -2398,7 +2461,7 @@ public class FileRemote extends File implements MarkMask_ifc
        * But wait till the other thread has finished it.
        */
       @Override public void finished()
-      { if(occupyRecall(4000, evSrcCmd, false)){
+      { if(0 != occupyRecall(4000, evSrcCmd, false)){
           finished = true;
           sendEvent();
         } else { //receiver may hang.
@@ -2408,9 +2471,13 @@ public class FileRemote extends File implements MarkMask_ifc
       @Override public void start()
       {
         startTime = System.currentTimeMillis();
+        finished = false;
       }
       
-      
+      @Override public boolean shouldAborted(){
+        return aborted;
+      }
+
     };
     
     

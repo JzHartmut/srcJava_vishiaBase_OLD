@@ -752,7 +752,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
 
   
   /**This class is the general FileVisitor for the adaption layer to FileRemote.
-   * It will be created on the fly if any request is proceed with the given
+   * It will be created on the fly if any request is proceeded with the given
    * {@link FileRemoteAccessor.CallbackFile} callback interface of the FileRemote layer.
    * All callback are translated 1:1 between the both interfaces. But an instance of 
    * FileRemote is created or gotten from the {@link FileCluster} and delivered to the
@@ -766,7 +766,9 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
     
     
     /**Data chained from a first parent to deepness of dir tree for each level.
-     * This data are created while {@link FileAccessorLocalJava7#walkFileTree(FileRemote, FileFilter, int, CallbackFile)} runs. 
+     * This data are created while {@link FileAccessorLocalJava7#walkFileTree(FileRemote, FileFilter, int, CallbackFile)} runs.
+     * It holds the gathered children from the walker. The children are stored inside the {@link #dir}
+     * only on {@link WalkFileTreeVisitor#postVisitDirectory(Path, IOException)}
      */
     private class CurrDirChildren{
       /**The directory of the level. */
@@ -861,12 +863,17 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
         Assert.stop();
       FileRemote fileRemote = curr.dir.child(name);
       setAttributes(fileRemote, file, attrs);
-      if(refresh){
-        curr.children.put(name, fileRemote);
-        curr.dir.internalAccess().setRefreshed();
-
+      FileRemoteAccessor.CallbackFile.Result result;
+      if(callback.shouldAborted()){
+        result = Result.terminate;
+      } else {
+        if(refresh){
+          curr.children.put(name, fileRemote);
+          curr.dir.internalAccess().setRefreshed();
+  
+        }
+        result = callback.offerFile(fileRemote);
       }
-      FileRemoteAccessor.CallbackFile.Result result = callback.offerFile(fileRemote);
       return translateResult(result);
     }
 

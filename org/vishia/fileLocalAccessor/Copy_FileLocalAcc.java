@@ -359,7 +359,7 @@ public class Copy_FileLocalAcc
    */
   void sendEventAsk(File pathShow, FileRemote.CallbackCmd cmd){
     Assert.check(evBackInfo !=null);
-    if(evBackInfo.occupyRecall(1000, outer.evSrc, true)){
+    if(0 != evBackInfo.occupyRecall(1000, outer.evSrc, true)){
       String absPath = pathShow.getAbsolutePath();
       if(absPath.length() > evBackInfo.fileName.length-1){
         absPath = "..." + absPath.substring(evBackInfo.fileName.length -4);  //the trailing part.
@@ -1420,7 +1420,7 @@ public class Copy_FileLocalAcc
     private int transReady(Event<?,?> evP){ 
       if(actData == null){
         //send done Back
-        if(evBackInfo.occupyRecall(1000, outer.evSrc, false)){
+        if(0 != evBackInfo.occupyRecall(1000, outer.evSrc, false)){
           evBackInfo.sendEvent(FileRemote.CallbackCmd.done);
           Event<?,?> ev1;
           while( (ev1 = storedCopyEvents.poll() ) !=null) {
