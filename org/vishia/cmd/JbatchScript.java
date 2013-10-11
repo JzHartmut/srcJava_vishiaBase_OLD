@@ -1167,6 +1167,13 @@ public class JbatchScript {
     }
     
     
+    public void set_textReplf(String text){
+      set_text(text);
+    }
+    
+    
+
+    
     public void set_nonEmptyText(String text){
       if(!StringFunctions.isEmptyOrOnlyWhitespaces(text)){
         Statement contentElement = new Statement(this, 't', StringSeq.create(text));
@@ -1320,16 +1327,16 @@ public class JbatchScript {
     
     /**Defines a variable with initial value. <= <variableDef?textVariable> \<\.=\>
      */
-    //public Statement new_textVariable(){ return new Statement(null, 'V', null); }
+    public Statement new_textVariable(){ return new Statement(null, 'S', null); }
 
-    //public void add_textVariable(Statement val){ listScriptVariables.add(val); } 
+    public void add_textVariable(Statement val){ listScriptVariables.add(val); } 
     
     
     /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
      */
-    //public Statement new_objVariable(){ return new Statement(null, 'J', null); } ///
+    public Statement new_objVariable(){ return new Statement(null, 'J', null); } ///
 
-    //public void add_objVariable(Statement val){ listScriptVariables.add(val); } 
+    public void add_objVariable(Statement val){ listScriptVariables.add(val); } 
     
     
     

@@ -24,6 +24,7 @@ import java.util.TreeMap;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2013-10-09 Hartmut new: {@link #storeValue(List, Map, Object, boolean)} put in a map, replaces the value.
    * <li>2013-09-14 Hartmut new: support of null as Argument.
    * <li>2013-08-18 Hartmut new: This class now contains the List of {@link #datapath} as only one attribute.
    *   Now this class can be used instead a <code>List<DataAccess.DatapathElement></code> as bundled instance.
@@ -201,6 +202,7 @@ public class DataAccess {
    * <ul>
    * <li>If the variable referred by the path exists, it should be a {@link java.util.List} or
    * a {@link java.lang.Appendable}. Then the value is added or appended to it.
+   * <li>If the variable referred by the path exists, and the path before is a Map, the variable is replaced.
    * <li>If the variable referred by the path does not exists, it is tried to add. The adding is
    *   possible only if the parent variable is of type {@link java.util.Map} with a String as key.
    * <li>If the path consists of more as one element and any parent element does not exists too,
@@ -247,20 +249,22 @@ public class DataAccess {
           ((Map<String, Object>)dst).put(variable.ident, value);
         } else {
           //the last element is found, try assign the value to it, it should be any container or Appendable.
-          dst = dst2;
-          if(dst instanceof StringSeq && value instanceof CharSequence){
-            ((StringSeq)dst).change((CharSequence)value);
-          } else if(dst instanceof Appendable){
+          if(dst2 instanceof StringSeq && value instanceof CharSequence){
+            ((StringSeq)dst2).change((CharSequence)value);
+          } else if(dst2 instanceof Appendable){
             final CharSequence cVal;
             if(!(value instanceof CharSequence)){
               cVal = value.toString();
             } else {
               cVal = (CharSequence)value;
             }
-            ((Appendable)dst).append(cVal);
-          } else if(dst instanceof List){
-            ((List)dst).add(value);
-          } else {
+            ((Appendable)dst2).append(cVal);
+          } else if(dst2 instanceof List){
+            ((List)dst2).add(value);
+          } else if(dst instanceof Map){
+            //replace, don't use dst2
+            ((Map<String, Object>)dst).put(variable.ident, value);
+          } else {  
             throw new IllegalArgumentException("JbatchExecuter - can't add value to; " + path);
           }
         }

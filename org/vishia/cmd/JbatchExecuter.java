@@ -213,10 +213,35 @@ public class JbatchExecuter {
     scriptVariables.put("file", new FileSystem());
 
     for(JbatchScript.Statement scriptVariableScript: genScript.getListScriptVariables()){
+      ExecuteLevel genVariable = new ExecuteLevel(null, scriptVariables); //NOTE: use recent scriptVariables.
+      
+      
+      try{
+        Object value;
+        switch(scriptVariableScript.elementType){
+          case 'S':  value = genVariable.evalString(scriptVariableScript); break;
+          case 'J':  value = genVariable.evalObject(scriptVariableScript, true); break;
+          default: value = "???";
+        }
+        if(scriptVariableScript.assignObj !=null && scriptVariableScript.assignObj.size() >=1) {
+          List<DataAccess.DatapathElement> assignPath = scriptVariableScript.assignObj.get(0).datapath();
+          if(assignPath.size() == 1 && assignPath.get(0).ident.equals("$CD")){
+            //special handling of current directory:
+            //setCurrDir(text);  //normalize, set "currDir"
+          } else {
+            DataAccess.storeValue(assignPath, scriptVariables, value, true);
+            //putOrReplaceLocalVariable(statement.identArgJbat, text);
+          }
+        }
+      } catch(Exception exc){
+        System.out.println("JbatchExecuter - Scriptvariable faulty; " );
+      }
+      /*
       StringBuilder uVariable = new StringBuilder();
       ExecuteLevel genVariable = new ExecuteLevel(null, scriptVariables); //NOTE: use recent scriptVariables.
       genVariable.execute(scriptVariableScript.getSubContent(), uVariable, false);
       scriptVariables.put(scriptVariableScript.identArgJbat, uVariable); //Buffer.toString());
+      */
     }
     bScriptVariableGenerated = true;
     return scriptVariables;
@@ -685,9 +710,16 @@ public class JbatchExecuter {
     void setStringVariable(JbatchScript.Statement statement) 
     throws Exception 
     {
+      List<DataAccess.DatapathElement> assignPath1 = 
+        statement.assignObj ==null || statement.assignObj.size() ==0 ? null :
+          statement.assignObj.get(0).datapath();  
+      if(assignPath1 !=null && assignPath1.get(0).ident.equals("dummy"))
+        Assert.stop();
+      
       CharSequence text = evalString(statement);
-      if(statement.assignObj !=null && statement.assignObj.size() >=1) {
-        List<DataAccess.DatapathElement> assignPath = statement.assignObj.get(0).datapath();
+      
+      if(statement.assignObj !=null) for(DataAccess dataAccess: statement.assignObj) {
+        List<DataAccess.DatapathElement> assignPath = dataAccess.datapath();
         if(assignPath.size() == 1 && assignPath.get(0).ident.equals("$CD")){
           //special handling of current directory:
           setCurrDir(text);  //normalize, set "currDir"
