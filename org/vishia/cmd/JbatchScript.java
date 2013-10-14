@@ -909,12 +909,16 @@ public class JbatchScript {
       return subGenContent;
     }
    
+    
     public void add_addToList(Statement val)
     {
     }
 
     
-    
+    public void set_exitScript(int val){
+      if(subContent == null){ subContent = new StatementList(this); }
+      subContent.set_exitScript(val);
+    }
     
     
     /**Set from ZBNF:  (\?*<$?forElement>\?) */
@@ -951,6 +955,7 @@ public class JbatchScript {
       case 'm': return "move;";
       case 'x': return "thread";
       case 'y': return "copy";
+      case 'z': return "exit";
       default: return "(??" + elementType + " " + textArg + "?)";
       }
     }
@@ -984,6 +989,19 @@ public class JbatchScript {
     
     public void set_callName(Argument val){}
     
+  };
+  
+  
+  
+  public static class ExitStatement extends Statement
+  {
+    
+    int exitValue;
+    
+    ExitStatement(StatementList parentList, int exitValue){
+      super(parentList, 'z', null);
+      this.exitValue = exitValue;
+    }
   };
   
   
@@ -1161,7 +1179,18 @@ public class JbatchScript {
     }
     
     public void set_text(String text){
-      Statement contentElement = new Statement(this, 't', StringSeq.create(text));
+      CharSequence cText;
+      if(text.contains("\n=")){
+        StringBuilder u = new StringBuilder(text);
+        cText = u;
+        int pos = 0;
+        while( (pos = u.indexOf("\n=",pos))>=0){
+          u.replace(pos+1, pos+2, "");
+        }
+      } else {
+        cText = text;
+      }
+      Statement contentElement = new Statement(this, 't', StringSeq.create(cText));
       content.add(contentElement);
       onerrorAccu = null; withoutOnerror.add(contentElement);
     }
@@ -1176,9 +1205,7 @@ public class JbatchScript {
     
     public void set_nonEmptyText(String text){
       if(!StringFunctions.isEmptyOrOnlyWhitespaces(text)){
-        Statement contentElement = new Statement(this, 't', StringSeq.create(text));
-        content.add(contentElement);
-        onerrorAccu = null; withoutOnerror.add(contentElement);
+        set_text(text);
       }
     }
     
@@ -1263,6 +1290,13 @@ public class JbatchScript {
     public void set_name(String name){
       cmpnName = name;
     }
+    
+    
+    public void set_exitScript(int val){
+      Statement statement = new ExitStatement(this, val);
+      content.add(statement);
+    }  
+    
     
     public void XXXadd_datapath(String val)
     {

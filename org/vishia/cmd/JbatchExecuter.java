@@ -63,6 +63,8 @@ public class JbatchExecuter {
   
   /**Version and history
    * <ul>
+   * <li>2013-10-13 Hartmut chg: onerror: only the coherent statements in one block are checked for onerror. See description.
+   *   onerror exit treaded.
    * <li>2013-01-13 Hartmut chg: The method getContent is moved and adapted to {@link ZbatchGenScript.ZbatchExpressionSet#ascertainValue(Object, Map, boolean, boolean, boolean)}.
    * <li>2013-01-12 Hartmut chg: improvements while documentation. Some syntax details. Especially handling of visibility of variables.
    * <li>2013-01-02 Hartmut chg: The variables in each script part are processed
@@ -117,10 +119,6 @@ public class JbatchExecuter {
   @SuppressWarnings("hiding")
   static final public int version = 20121010;
 
-  protected Object XXXdata;
-  
-  protected String sError = null;
-  
   /**Variable for any exception while accessing any java ressources. It is the $error variable of the script. */
   protected String accessError = null;
   
@@ -253,7 +251,6 @@ public class JbatchExecuter {
   public void reset(){
     bScriptVariableGenerated = false;
     scriptVariables.clear();
-    sError = null;
   }
   
   
@@ -264,7 +261,7 @@ public class JbatchExecuter {
    * @return If null, it is okay. Elsewhere a readable error message.
    * @throws IOException only if out.append throws it.
    */
-  public void execute(JbatchScript genScript, boolean accessPrivate, boolean bWaitForThreads, Appendable out) 
+  public int execute(JbatchScript genScript, boolean accessPrivate, boolean bWaitForThreads, Appendable out) 
   throws IOException
   {
     this.bAccessPrivate = accessPrivate;
@@ -291,6 +288,7 @@ public class JbatchExecuter {
       }
 
     }
+    return 0;
   }
 
   
@@ -475,7 +473,7 @@ public class JbatchExecuter {
       //Generate direct requested output. It is especially on inner content-scripts.
       int ixStatement = -1;
       //Iterator<JbatchScript.Statement> iter = contentScript.content.iterator();
-      while(++ixStatement < contentScript.content.size()) { //iter.hasNext() && sError == null){
+      while(++ixStatement < contentScript.content.size() && sError == null) { //iter.hasNext() && sError == null){
         JbatchScript.Statement contentElement = contentScript.content.get(ixStatement); //iter.next();
         //for(TextGenScript.ScriptElement contentElement: contentScript.content){
         try{    
@@ -544,8 +542,9 @@ public class JbatchExecuter {
             executeIfContainerHasNext(contentElement, out, bContainerHasNext);
           } break;
           case '=': executeAssign(contentElement); break;
-          case 'b': { sError = "break"; } break;
+          case 'b': sError = "break"; break;
           case '?': break;  //don't execute a onerror, skip it.
+          case 'z': throw new JbatchExecuter.ExitException(((JbatchScript.ExitStatement)contentElement).exitValue);  
           default: 
             uBuffer.append("Jbat - execute-unknown type; '" + contentElement.elementType + "' :ERROR=== ");
           }//switch
@@ -555,16 +554,26 @@ public class JbatchExecuter {
           //check onerror with proper error type anywhere after this statement, it is stored in the statement.
           //continue there.
           boolean found = false;
-          char excType = '?';
-          while(!found && ++ixStatement < contentScript.content.size()) { //iter.hasNext() && sError == null){
-            contentElement = contentScript.content.get(ixStatement); //iter.next();
-            char onerrorType;
-            if(contentElement.elementType == '?' 
-              && ((onerrorType = ((JbatchScript.Onerror)contentElement).errorType) == excType
-                 || onerrorType == '?'  
-              )  ){
-              found = true;
-            }
+          char excType;   //NOTE: the errortype in an onerror statement is the first letter of error keyword in syntax; notfound, file, internal, exit
+          int errLevel = 0;
+          if(exc instanceof ExitException){ excType = 'e'; errLevel = ((ExitException)exc).exitLevel; }
+          else if(exc instanceof IOException){ excType = 'f'; }
+          else if(exc instanceof NoSuchFieldException || exc instanceof NoSuchMethodException){ excType = 'n'; }
+          else { excType = 'i'; }
+          //Search the block of onerror after this statement.
+          //Maybe use an index in any statement, to prevent search time.
+          while(++ixStatement < contentScript.content.size() && (contentElement = contentScript.content.get(ixStatement)).elementType != '?');
+          if(ixStatement < contentScript.content.size()){
+            //onerror-block found.
+            do { //search the appropriate error type:
+              char onerrorType;
+              JbatchScript.Onerror errorStatement = (JbatchScript.Onerror)contentElement;
+              if( ((onerrorType = errorStatement.errorType) == excType
+                || (onerrorType == '?' && excType != 'e')   //common onerror is valid for all excluding exit 
+                )  ){
+                found = excType != 'e' || errLevel >= errorStatement.errorLevel;  //if exit exception, then check errlevel
+              }
+            } while(!found && ++ixStatement < contentScript.content.size() && (contentElement = contentScript.content.get(ixStatement)).elementType == '?');
           }
           if(found){
             String sError1 = exc.getMessage();
@@ -960,7 +969,10 @@ public class JbatchExecuter {
       CurrDir currDir = (CurrDir)localVariables.get("currDir");
       //localVariables.
       cmdExecuter.setCurrentDir(currDir.currDir);
-      cmdExecuter.execute(args, null, outCmd, null);
+      int errorlevel = cmdExecuter.execute(args, null, outCmd, null);
+      if(errorlevel >0){
+        //TODO check whether an onerror statement follows:
+      }
     }
     
 
@@ -1281,6 +1293,18 @@ public class JbatchExecuter {
     }
     
   }
+  
+  
+  public static class ExitException extends Exception
+  {
+    public int exitLevel;
+    
+    public ExitException(int exitLevel){
+      this.exitLevel = exitLevel;
+    }
+  }
+  
+  
   
   
 }
