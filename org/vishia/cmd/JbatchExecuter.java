@@ -1178,33 +1178,6 @@ public class JbatchExecuter {
   
   
   
-  /**This class enhances {@link CalculatorExpr} to process also a string expression <:>...<.>
-   * as capability of Zbatch.
-   */
-  public static class ZbatchExpression extends CalculatorExpr
-  {
-    /**If need, a sub-content, maybe null.*/
-    public JbatchScript.StatementList genString;
-
-    
-    
-    /**Calculates a normal expression or a String expression of Zbatch style "<:>...<.>".
-     * see {@link CalculatorExpr#calcDataAccess(java.util.Map, java.lang.Object[])}
-     */
-    @Override public CalculatorExpr.Value calcDataAccess(Map<String, Object> javaVariables, Object... args) 
-    throws Exception{
-      if(genString !=null){
-        JbatchExecuter.ExecuteLevel executer = (JbatchExecuter.ExecuteLevel)javaVariables.get("jbatExecuteLevel");
-        StringBuilder u = new StringBuilder();
-        executer.executeNewlevel(genString, u, false);
-        return new CalculatorExpr.Value(u.toString());
-      } else {
-        return super.calcDataAccess(javaVariables, args);
-      }
-    }
-    
-  }
-  
   
   
 

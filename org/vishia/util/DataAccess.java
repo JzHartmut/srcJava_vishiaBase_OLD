@@ -1137,6 +1137,8 @@ public class DataAccess {
    */
   public static class DataAccessSet extends DataAccess{
 
+    public DataAccessSet(){}
+    
     public DatapathElementSet new_datapathElement(){ return new DatapathElementSet(); }
 
     public void add_datapathElement(DatapathElementSet val){ 
@@ -1213,6 +1215,13 @@ public class DataAccess {
    */
   public static class DatapathElementSet extends DatapathElement{
   
+    protected final Object dbgParent;
+    
+    public DatapathElementSet(Object dbgParent){ this.dbgParent = dbgParent; }
+    
+    public DatapathElementSet(){ this.dbgParent = null; }
+    
+    
     /**Creates a new instance of {@link CalculatorExpr}. 
      * This routine may be overridden if an derived class will use an enhanced expression.
      * @return any CalculatorExpr instance.

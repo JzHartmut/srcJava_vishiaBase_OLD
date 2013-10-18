@@ -151,144 +151,7 @@ public class JbatchScript {
 
 
 
-  public static class ZbatchDataPathElement extends DataAccess.DatapathElementSet  //CalculatorExpr.DataPathItem
-  {
-    final Argument parentStatement;
-    
-    //protected List<Argument> paramArgument;
 
-    //List<ZbnfDataPathElement> actualArguments;
-    
-    //List<Expression> XXXactualValue;
-    
-    
-    public ZbatchDataPathElement(Argument statement){
-      this.parentStatement = statement;
-    }
-    
-    /**Creates a new instance of {@link ZbatchExpression}. 
-     */
-    @Override public CalculatorExpr new_CaluclatorExpr(){ return new JbatchExecuter.ZbatchExpression(); }
-
-    
-    
-    /**An argument of a method in a {@link DataAccess.DatapathElement}.
-     * It can contain a String expression like <:>string<.>
-     * Note: The associated {@link #add_argument(Argument)} method is in the super class.
-     * @return
-     */
-    @Override public ZbatchExpressionSet new_argument(){
-      ZbatchExpressionSet argument = new ZbatchExpressionSet(parentStatement);
-      return argument;
-    }
-
-    
-    public void add_argument(ZbatchExpressionSet val){
-      super.add_argument(val);
-    }
-    
-    
-
-
-  }
-  
-  
-
-  /**This class enhances {@link CalculatorExpr.SetExpr} to accept a string expression <:>...<.>
-   * both as expression and as expression in a {@link DataAccess} method's argument
-   * to use the capabilities of Zbatch in Expression calculation. 
-   *
-   */
-  public static class ZbatchExpressionSet extends CalculatorExpr.SetExpr //ZbatchZbnfExpression
-  {
-  
-    final Argument parentStatement;
-    
-    public ZbatchExpressionSet(Argument statement){
-      super(new JbatchExecuter.ZbatchExpression());
-      this.parentStatement = statement;  
-    }
-    
-    
-    public ZbatchExpressionSet(Argument statement, CalculatorExpr.SetExpr parent){
-      super(parent);
-      this.parentStatement = statement;  
-    }
-    
-    
-    @Override public ZbatchExpressionSet new_SetExpr(CalculatorExpr.SetExpr parent){ 
-      return new ZbatchExpressionSet(parentStatement, parent); 
-    }
-
-    @Override public DataAccess.DatapathElementSet new_datapathElement(){ 
-      return new ZbatchDataPathElement(parentStatement); 
-    }
-
-    
-    //public ZbnfValue new_value(){ return new ZbnfValue(parentStatement); }
-    
-    //public void add_value(ZbnfValue val){ values.add(val); }
-  
-    
-    /**From Zbnf, a part <:>...<.> */
-    public StatementList new_textExpr(){ 
-      JbatchExecuter.ZbatchExpression expr = (JbatchExecuter.ZbatchExpression)super.expr;
-      return expr.genString = new StatementList(); }
-    
-    /**From Zbnf, a part <:>...<.> */
-    public void add_textExpr(StatementList val){}
-    
-    
-  }
-  
-  
-  
-  
-  
-  public static class XXXXZbnfOperation extends CalculatorExpr.Operation
-  {
-    final Argument parentStatement;
-    
-    XXXXZbnfOperation(String operator, Argument parentStatement){ 
-      //super(operator); 
-      this.parentStatement = parentStatement;
-    }
-
-  
-    /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
-    public void set_intValue(long val){ this.value = new CalculatorExpr.Value(val); }
-    
-    /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
-    public void set_floatValue(double val){ this.value = new CalculatorExpr.Value(val); }
-    
-    /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
-    @Override
-    public void set_textValue(String val){ this.value = new CalculatorExpr.Value(val); }
-    
-    /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
-    public void set_charValue(String val){ this.value = new CalculatorExpr.Value(val.charAt(0)); }
-    
-    
-    
-    public void set_envVariable(String ident){
-      DataAccess.DatapathElement element = new DataAccess.DatapathElement();
-      element.whatisit = 'e';
-      element.ident = ident;
-      add_datapathElement(element);
-    }
-    
-
-    public void set_startVariable(String ident){
-      DataAccess.DatapathElement element = new DataAccess.DatapathElement();
-      element.whatisit = 'v';
-      element.ident = ident;
-      add_datapathElement(element);
-    }
-    
-
-
-  
-  }
   
   
   
@@ -328,18 +191,18 @@ public class JbatchScript {
     
     public String getIdent(){ return identArgJbat; }
     
-    public ZbatchExpressionSet new_expression(){ return new ZbatchExpressionSet(this); }
+    public CalculatorExpr.SetExpr new_expression(){ return new CalculatorExpr.SetExpr(true, this); }
     
-    public void add_expression(ZbatchExpressionSet val){ 
+    public void add_expression(CalculatorExpr.SetExpr val){ 
       val.closeExprPreparation();
       expression = val.expr; 
     }
     
     /**From Zbnf: < condition>. A condition is an expression. It is the same like {@link #new_expression()}
      */
-    public ZbatchExpressionSet new_condition(){ return new_expression(); }
+    public CalculatorExpr.SetExpr new_condition(){ return new_expression(); }
     
-    public void add_condition(ZbatchExpressionSet val){ add_expression(val); }
+    public void add_condition(CalculatorExpr.SetExpr val){ add_expression(val); }
     
     public void set_text(String text){
       if(text.contains("testt"))

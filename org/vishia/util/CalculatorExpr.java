@@ -8,6 +8,9 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.TreeMap;
 
+import org.vishia.cmd.JbatchExecuter;
+import org.vishia.cmd.JbatchScript;
+
 
 /**This class provides a calculator for expressions. The expression are given 
  * in the reverse polish notation. It can be converted either from a simple string format
@@ -39,6 +42,10 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
+   * <li>2013-10-19 Hartmut new: The CalculatorExpr gets the capability to generate String expressions
+   *   using the {@link JbatchExecuter} class. This is because some arguments of methods may be a String.
+   *   If the {@link #genString} is set, the CalculatorExpr is a String expression.
+   *   Now this class, the {@link DataAccess} and the {@link JbatchExecuter} are one cluster of functionality.
    * <li>2013-09-02 Hartmut new: {@link CalculatorExpr.SetExpr} to set from a ZbnfParseResult using {@link org.vishia.zbnf.ZbnfJavaOutput}.
    *   This class can be invoked without ZbnfParser too, it is independent of it. But it isn't practicable. 
    * <li>2013-09-02 Hartmut new: CalculatorExpr: now supports unary ( expression in parenthesis ). 
@@ -984,8 +991,9 @@ public class CalculatorExpr
   }
   
   
-  /**This class provides a Zbnf interface to the CalculatorExpr. It contains only methods
-   * to store Zbnf parse results for the expression.
+  /**This class provides a set interface to the CalculatorExpr. It contains only methods
+   * to store set parse results for the expression, especially able to use for the ZBNF parser
+   * using {@link org.vishia.zbnf.ZbnfJavaOutput}.
    * @author Hartmut Schorrig
    *
    */
@@ -997,22 +1005,27 @@ public class CalculatorExpr
     
     public final CalculatorExpr expr;
     
-    protected final SetExpr parent;
+    protected final Object dbgParent;
+    
+    public SetExpr(boolean d, Object dbgParent){
+      this.expr = new CalculatorExpr();
+      this.dbgParent = dbgParent;
+    }
     
     public SetExpr(boolean d){
       this.expr = new CalculatorExpr();
-      this.parent = null;
+      this.dbgParent = null;
     }
     
     public SetExpr(CalculatorExpr expr){
       this.expr = expr;
-      this.parent = null;
+      this.dbgParent = null;
     }
     
     
     public SetExpr(SetExpr parent){
       this.expr = parent.expr;
-      this.parent = parent;
+      this.dbgParent = parent;
     }
     
     
@@ -1025,6 +1038,17 @@ public class CalculatorExpr
      */
     public SetExpr new_SetExpr(SetExpr parent){ return new SetExpr(parent); }
     
+    
+    
+    /**From Zbnf, a part <:>...<.> */
+    public JbatchScript.StatementList new_textExpr(){ 
+      //JbatchExecuter.ZbatchExpression expr = (JbatchExecuter.ZbatchExpression)super.expr;
+      return expr.genString = new JbatchScript.StatementList(); }
+    
+    /**From Zbnf, a part <:>...<.> */
+    public void add_textExpr(JbatchScript.StatementList val){}
+    
+
     
     
     public SetExpr new_boolOrOperation(){
@@ -1363,7 +1387,14 @@ public class CalculatorExpr
   
   protected String[] variables;
   
-    
+  
+  
+  
+  /**An expression can be a String concatenation build with constant strings and data.
+   * If this association is not null, the expression is calculated as String expression.*/
+  protected JbatchScript.StatementList genString;
+
+  
   
   /**Map of all available operators associated with its String expression.
    * It will be initialized with:
@@ -1728,76 +1759,83 @@ public class CalculatorExpr
    *   if the access via reflection is done.
    */
   public Value calcDataAccess(Map<String, Object> javaVariables, Object... args) throws Exception{
-    accu = new Value(); //empty
-    Value val3 = new Value();  //Instance to hold values for the right side operand.
-    Value val2; //Reference to the right side operand
-    ExpressionType type = startExpr;
-    for(Operation oper: listOperations){
-      if(accu.type == 'Z' && //special for boolean operation: don't evaluate an operand if it is not necessary.
-          ( !accu.boolVal && oper.operator == boolAndOperation  //false remain false on and operation
-          || accu.boolVal && oper.operator == boolOrOperation   //true remain true on or operation
-        ) ){
-        //don't get arguments, no side effect (like in Java, C etc.
-      } else {
-        //Get the operand either from args or from Operation
-        Object oval2;
-        if(oper.ixVariable >=0){ 
-          val2 = val3;
-          oval2 = args[oper.ixVariable];   //may throw ArrayOutOfBoundsException if less arguments
-        }  //an input value
-        else if(oper.ixVariable == Operation.kStackOperand){
-          val2 = accu;
-          accu = stack.pop();              //may throw Exception if the stack is emtpy.
-          oval2 = null;
-        }
-        else if(oper.datapath !=null){
-          val2 = val3;
-          oval2 = oper.datapath.getDataObj(javaVariables, true, false);
-          if(oval2 == null){
-            //get data does not throw an exception, but returns null:
-            val2.type = 'o'; val2.oVal = null;
+    if(genString !=null){
+      JbatchExecuter.ExecuteLevel executer = (JbatchExecuter.ExecuteLevel)javaVariables.get("jbatExecuteLevel");
+      StringBuilder u = new StringBuilder();
+      executer.executeNewlevel(genString, u, false);
+      return new CalculatorExpr.Value(u.toString());
+    } else {
+      accu = new Value(); //empty
+      Value val3 = new Value();  //Instance to hold values for the right side operand.
+      Value val2; //Reference to the right side operand
+      ExpressionType type = startExpr;
+      for(Operation oper: listOperations){
+        if(accu.type == 'Z' && //special for boolean operation: don't evaluate an operand if it is not necessary.
+            ( !accu.boolVal && oper.operator == boolAndOperation  //false remain false on and operation
+            || accu.boolVal && oper.operator == boolOrOperation   //true remain true on or operation
+          ) ){
+          //don't get arguments, no side effect (like in Java, C etc.
+        } else {
+          //Get the operand either from args or from Operation
+          Object oval2;
+          if(oper.ixVariable >=0){ 
+            val2 = val3;
+            oval2 = args[oper.ixVariable];   //may throw ArrayOutOfBoundsException if less arguments
+          }  //an input value
+          else if(oper.ixVariable == Operation.kStackOperand){
+            val2 = accu;
+            accu = stack.pop();              //may throw Exception if the stack is emtpy.
+            oval2 = null;
           }
-        }
-        else {
-          val2 = oper.value;              //immediate value.
-          oval2 = null;
-        }
-        //
-        //Convert a Object-wrapped value into its real representation.
-        if(oval2 !=null){
-          if(oval2 instanceof Long)             { val2.longVal =   ((Long)oval2).longValue(); val2.type = 'J'; }
-          else if(oval2 instanceof Integer)     { val2.intVal = ((Integer)oval2).intValue(); val2.type = 'I'; }
-          else if(oval2 instanceof Short)       { val2.intVal =   ((Short)oval2).intValue(); val2.type = 'I'; }
-          else if(oval2 instanceof Byte)        { val2.intVal =    ((Byte)oval2).intValue(); val2.type = 'I'; }
-          else if(oval2 instanceof Boolean)     { val2.boolVal = ((Boolean)oval2).booleanValue(); val2.type = 'Z'; }
-          else if(oval2 instanceof Double)      { val2.doubleVal = ((Double)oval2).doubleValue(); val2.type = 'D'; }
-          else if(oval2 instanceof Float)       { val2.floatVal = ((Float)oval2).floatValue(); val2.type = 'F'; }
-          else if(oval2 instanceof StringSeq)   { val2.stringVal = (StringSeq)oval2; val2.type = 't'; }
-          else                                  { val2.oVal = oval2; val2.type = 'o'; }
-          val2.oVal = oval2;;
-        }
-        if(oper.operator == setOperation && accu.type != '?'){
-          stack.push(accu);
-          accu = new Value();
-        }
-        //Convert the value adequate the given type of expression:
-        if(!oper.operator.isUnary()){  //if unary, don't change the type
-          type = type.checkArgument(accu, val2);    //may change the type.
-        }
-        //
-        //executes the operation:
-        if(oper.unaryOperator !=null){
-          oper.unaryOperator.operate(type, val2, null);   //change the right value
-        }
-        else if(oper.unaryOperators !=null){
-          for(Operator unary: oper.unaryOperators){
-            unary.operate(type, val2, null);   //change the right value
+          else if(oper.datapath !=null){
+            val2 = val3;
+            oval2 = oper.datapath.getDataObj(javaVariables, true, false);
+            if(oval2 == null){
+              //get data does not throw an exception, but returns null:
+              val2.type = 'o'; val2.oVal = null;
+            }
           }
+          else {
+            val2 = oper.value;              //immediate value.
+            oval2 = null;
+          }
+          //
+          //Convert a Object-wrapped value into its real representation.
+          if(oval2 !=null){
+            if(oval2 instanceof Long)             { val2.longVal =   ((Long)oval2).longValue(); val2.type = 'J'; }
+            else if(oval2 instanceof Integer)     { val2.intVal = ((Integer)oval2).intValue(); val2.type = 'I'; }
+            else if(oval2 instanceof Short)       { val2.intVal =   ((Short)oval2).intValue(); val2.type = 'I'; }
+            else if(oval2 instanceof Byte)        { val2.intVal =    ((Byte)oval2).intValue(); val2.type = 'I'; }
+            else if(oval2 instanceof Boolean)     { val2.boolVal = ((Boolean)oval2).booleanValue(); val2.type = 'Z'; }
+            else if(oval2 instanceof Double)      { val2.doubleVal = ((Double)oval2).doubleValue(); val2.type = 'D'; }
+            else if(oval2 instanceof Float)       { val2.floatVal = ((Float)oval2).floatValue(); val2.type = 'F'; }
+            else if(oval2 instanceof StringSeq)   { val2.stringVal = (StringSeq)oval2; val2.type = 't'; }
+            else                                  { val2.oVal = oval2; val2.type = 'o'; }
+            val2.oVal = oval2;;
+          }
+          if(oper.operator == setOperation && accu.type != '?'){
+            stack.push(accu);
+            accu = new Value();
+          }
+          //Convert the value adequate the given type of expression:
+          if(!oper.operator.isUnary()){  //if unary, don't change the type
+            type = type.checkArgument(accu, val2);    //may change the type.
+          }
+          //
+          //executes the operation:
+          if(oper.unaryOperator !=null){
+            oper.unaryOperator.operate(type, val2, null);   //change the right value
+          }
+          else if(oper.unaryOperators !=null){
+            for(Operator unary: oper.unaryOperators){
+              unary.operate(type, val2, null);   //change the right value
+            }
+          }
+          type = oper.operator.operate(type, accu, val2);  //operate, may change the type if the operator forces it.
         }
-        type = oper.operator.operate(type, accu, val2);  //operate, may change the type if the operator forces it.
       }
+      return accu;
     }
-    return accu;
   }
   
   
