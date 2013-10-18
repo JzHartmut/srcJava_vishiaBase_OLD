@@ -11,11 +11,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import org.vishia.cmd.JbatchScript.Statement;
+import org.vishia.cmd.ZGenScript.Statement;
 import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.StringPart;
 import org.vishia.xmlSimple.XmlException;
-import org.vishia.zbatch.Zbatch;
+import org.vishia.zgen.ZGen;
 
 
 /**This class stores some prepared commands. The input of the store is a file, 
@@ -87,13 +87,13 @@ public class CmdStore
     public final List<PrepareCmd> listBlockCmds = new LinkedList<PrepareCmd>();
 
     /**Any Jbat subroutine which should be invoked instead of the {@link #listBlockCmds}. */
-    protected final JbatchScript.Statement jbatSub;
+    protected final ZGenScript.Statement jbatSub;
     
     public CmdBlock(){
       jbatSub = null;
     }
     
-    public CmdBlock(JbatchScript.Statement jbatSub){
+    public CmdBlock(ZGenScript.Statement jbatSub){
       this.jbatSub = jbatSub;
       this.name = jbatSub.getIdent();
     }
@@ -102,7 +102,7 @@ public class CmdStore
       if(jbatSub !=null){
         getterFiles.prepareFileSelection();
         Map<String, Object> args = new TreeMap<String, Object>();
-        for(JbatchScript.Argument arg :jbatSub.arguments){
+        for(ZGenScript.Argument arg :jbatSub.arguments){
           String name1 = arg.identArgJbat;
           if(name1.equals("file1")){ args.put("file1", getterFiles.getFile1()); }
           else if(name1.equals("file2")){ args.put("file2", getterFiles.getFile2()); }
@@ -159,13 +159,13 @@ public class CmdStore
 
   
   
-  public JbatchScript readCmdCfgJbat(File cfgFile, MainCmdLogging_ifc log) 
+  public ZGenScript readCmdCfgJbat(File cfgFile, MainCmdLogging_ifc log) 
   throws FileNotFoundException, IllegalArgumentException, IllegalAccessException
   , InstantiationException, IOException, ParseException, XmlException
   {
     
-    Zbatch zbatch = new Zbatch(log);
-    JbatchScript script = zbatch.translateAndSetGenCtrl(cfgFile, new File(cfgFile.getParentFile(), cfgFile.getName() + ".check.xml"));
+    ZGen zbatch = new ZGen(log);
+    ZGenScript script = zbatch.translateAndSetGenCtrl(cfgFile, new File(cfgFile.getParentFile(), cfgFile.getName() + ".check.xml"));
     for(Map.Entry<String, Statement> e: script.subScripts.entrySet()){
       CmdBlock cmdBlock = new CmdBlock(e.getValue());
       add_CmdBlock(cmdBlock);
@@ -180,7 +180,7 @@ public class CmdStore
       File cmdCfgJbat = new File(cfgFile.getParentFile(), cfgFile.getName() + ".jbat");
       if(cmdCfgJbat.exists()){
         try{ 
-          JbatchScript script = readCmdCfgJbat(cmdCfgJbat, log);
+          ZGenScript script = readCmdCfgJbat(cmdCfgJbat, log);
           executerToInit.initExecuter(script);
           //main.cmdSelector.initExecuter(script);
         } catch(Exception exc){

@@ -67,7 +67,7 @@ public class CmdQueue implements Closeable
     //public final List<PrepareCmd> listCmds;
     public final PrepareCmd cmd;
     
-    public final JbatchScript.Statement jbat;
+    public final ZGenScript.Statement jbat;
     
     final File[] files;
     final Object args;
@@ -97,7 +97,7 @@ public class CmdQueue implements Closeable
      *   should be referenced.CmdGetFileArgs_ifc
      * @param currentDir
      */
-    public PendingCmd(JbatchScript.Statement cmd, Object args, File currentDir)
+    public PendingCmd(ZGenScript.Statement cmd, Object args, File currentDir)
     { this.cmd = null;
       this.jbat = cmd;
       this.files = null;
@@ -124,7 +124,7 @@ public class CmdQueue implements Closeable
   
   private final CmdExecuter executer = new CmdExecuter();
   
-  private final JbatchExecuter jbatchExecuter = new JbatchExecuter(null);
+  private final ZGenExecuter jbatchExecuter = new ZGenExecuter(null);
   
   //private final MainCmd_ifc mainCmd;
 
@@ -158,7 +158,7 @@ public class CmdQueue implements Closeable
   
   
   
-  public void initExecuter(JbatchScript script){
+  public void initExecuter(ZGenScript script){
     try{ 
       jbatchExecuter.initialize(script, false);
     }catch(IOException exc){

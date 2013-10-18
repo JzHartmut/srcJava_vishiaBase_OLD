@@ -8,8 +8,8 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.TreeMap;
 
-import org.vishia.cmd.JbatchExecuter;
-import org.vishia.cmd.JbatchScript;
+import org.vishia.cmd.ZGenExecuter;
+import org.vishia.cmd.ZGenScript;
 
 
 /**This class provides a calculator for expressions. The expression are given 
@@ -43,9 +43,9 @@ public class CalculatorExpr
   /**Version, history and license.
    * <ul>
    * <li>2013-10-19 Hartmut new: The CalculatorExpr gets the capability to generate String expressions
-   *   using the {@link JbatchExecuter} class. This is because some arguments of methods may be a String.
+   *   using the {@link ZGenExecuter} class. This is because some arguments of methods may be a String.
    *   If the {@link #genString} is set, the CalculatorExpr is a String expression.
-   *   Now this class, the {@link DataAccess} and the {@link JbatchExecuter} are one cluster of functionality.
+   *   Now this class, the {@link DataAccess} and the {@link ZGenExecuter} are one cluster of functionality.
    * <li>2013-09-02 Hartmut new: {@link CalculatorExpr.SetExpr} to set from a ZbnfParseResult using {@link org.vishia.zbnf.ZbnfJavaOutput}.
    *   This class can be invoked without ZbnfParser too, it is independent of it. But it isn't practicable. 
    * <li>2013-09-02 Hartmut new: CalculatorExpr: now supports unary ( expression in parenthesis ). 
@@ -1041,12 +1041,12 @@ public class CalculatorExpr
     
     
     /**From Zbnf, a part <:>...<.> */
-    public JbatchScript.StatementList new_textExpr(){ 
+    public ZGenScript.StatementList new_textExpr(){ 
       //JbatchExecuter.ZbatchExpression expr = (JbatchExecuter.ZbatchExpression)super.expr;
-      return expr.genString = new JbatchScript.StatementList(); }
+      return expr.genString = new ZGenScript.StatementList(); }
     
     /**From Zbnf, a part <:>...<.> */
-    public void add_textExpr(JbatchScript.StatementList val){}
+    public void add_textExpr(ZGenScript.StatementList val){}
     
 
     
@@ -1392,7 +1392,7 @@ public class CalculatorExpr
   
   /**An expression can be a String concatenation build with constant strings and data.
    * If this association is not null, the expression is calculated as String expression.*/
-  protected JbatchScript.StatementList genString;
+  protected ZGenScript.StatementList genString;
 
   
   
@@ -1760,7 +1760,7 @@ public class CalculatorExpr
    */
   public Value calcDataAccess(Map<String, Object> javaVariables, Object... args) throws Exception{
     if(genString !=null){
-      JbatchExecuter.ExecuteLevel executer = (JbatchExecuter.ExecuteLevel)javaVariables.get("jbatExecuteLevel");
+      ZGenExecuter.ExecuteLevel executer = (ZGenExecuter.ExecuteLevel)javaVariables.get("jbatExecuteLevel");
       StringBuilder u = new StringBuilder();
       executer.executeNewlevel(genString, u, false);
       return new CalculatorExpr.Value(u.toString());

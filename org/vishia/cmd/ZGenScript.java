@@ -21,7 +21,7 @@ import org.vishia.util.StringSeq;
  * @author Hartmut Schorrig
  *
  */
-public class JbatchScript {
+public class ZGenScript {
   /**Version, history and license.
    * <ul>
    * <li>2014-07-30 Hartmut chg {@link #translateAndSetGenCtrl(File)} returns void.
@@ -123,7 +123,7 @@ public class JbatchScript {
   
   //public String scriptclassMain;
 
-  public JbatchScript(Object executer, MainCmdLogging_ifc console)
+  public ZGenScript(Object executer, MainCmdLogging_ifc console)
   { this.console = console;
 
   }

@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 
 import org.vishia.cmd.CmdExecuter;
-import org.vishia.cmd.JbatchScript.Statement;
+import org.vishia.cmd.ZGenScript.Statement;
 import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.Assert;
 import org.vishia.util.CalculatorExpr;
@@ -58,7 +58,7 @@ import org.vishia.util.StringSeq;
  * @author Hartmut
  *
  */
-public class JbatchExecuter {
+public class ZGenExecuter {
   
   
   /**Version and history
@@ -133,7 +133,7 @@ public class JbatchExecuter {
   protected Appendable outFile;
   
   /**The java prepared generation script. */
-  JbatchScript genScript;
+  ZGenScript genScript;
   
   /**Instance for the main script part. */
   //Gen_Content genFile;
@@ -156,7 +156,7 @@ public class JbatchExecuter {
   String newline = "\r\n";
   
 
-  public JbatchExecuter(MainCmdLogging_ifc log){
+  public ZGenExecuter(MainCmdLogging_ifc log){
     this.log = log;
     bWriteErrorInOutput = false;
   }
@@ -177,17 +177,17 @@ public class JbatchExecuter {
   
   /**Generates script-global variables.
    * 
-   * @param genScript It should be the same how used on {@link #genContent(JbatchScript, Object, boolean, Appendable)}
+   * @param genScript It should be the same how used on {@link #genContent(ZGenScript, Object, boolean, Appendable)}
    *   but it may be another one for special cases.
    * @param userData Used userdata for content of scriptvariables. It should be the same how used on 
-   *   {@link #genContent(JbatchScript, Object, boolean, Appendable)} but it may be another one for special cases.
+   *   {@link #genContent(ZGenScript, Object, boolean, Appendable)} but it may be another one for special cases.
    * @param accessPrivate true than access to private data of userData
    * @return The built script variables. 
-   *   One can evaluate some script variables before running {@link #genContent(JbatchScript, Object, boolean, Appendable)}.
+   *   One can evaluate some script variables before running {@link #genContent(ZGenScript, Object, boolean, Appendable)}.
    *   Especially it is used for {@link org.vishia.zmake.Zmake to set the currDir.} 
    * @throws IOException
    */
-  public Map<String, Object> genScriptVariables(JbatchScript genScript, boolean accessPrivate) 
+  public Map<String, Object> genScriptVariables(ZGenScript genScript, boolean accessPrivate) 
   throws IOException
   {
     this.genScript = genScript;
@@ -210,7 +210,7 @@ public class JbatchExecuter {
     //scriptVariables.put("debug", new ZbatchDebugHelper());
     scriptVariables.put("file", new FileSystem());
 
-    for(JbatchScript.Statement scriptVariableScript: genScript.getListScriptVariables()){
+    for(ZGenScript.Statement scriptVariableScript: genScript.getListScriptVariables()){
       ExecuteLevel genVariable = new ExecuteLevel(null, scriptVariables); //NOTE: use recent scriptVariables.
       
       
@@ -261,7 +261,7 @@ public class JbatchExecuter {
    * @return If null, it is okay. Elsewhere a readable error message.
    * @throws IOException only if out.append throws it.
    */
-  public int execute(JbatchScript genScript, boolean accessPrivate, boolean bWaitForThreads, Appendable out) 
+  public int execute(ZGenScript genScript, boolean accessPrivate, boolean bWaitForThreads, Appendable out) 
   throws IOException
   {
     this.bAccessPrivate = accessPrivate;
@@ -272,7 +272,7 @@ public class JbatchExecuter {
       genScriptVariables(genScript, accessPrivate);
     }
     setScriptVariable("text", out);
-    JbatchScript.Statement contentScript = genScript.getFileScript();
+    ZGenScript.Statement contentScript = genScript.getFileScript();
     ExecuteLevel genFile = new ExecuteLevel(null, scriptVariables);
     String sError1 = genFile.execute(contentScript.subContent, out, false);
     if(bWaitForThreads){
@@ -299,7 +299,7 @@ public class JbatchExecuter {
    * @return If null, it is okay. Elsewhere a readable error message.
    * @throws IOException only if out.append throws it.
    */
-  public String initialize(JbatchScript genScript, boolean accessPrivate) 
+  public String initialize(ZGenScript genScript, boolean accessPrivate) 
   throws IOException
   {
     this.bAccessPrivate = accessPrivate;
@@ -320,7 +320,7 @@ public class JbatchExecuter {
    * @return
    * @throws IOException
    */
-  public String execSub(JbatchScript.Statement statement, Map<String, Object> args
+  public String execSub(ZGenScript.Statement statement, Map<String, Object> args
       , boolean accessPrivate, Appendable out) 
   throws IOException
   {
@@ -352,7 +352,7 @@ public class JbatchExecuter {
   }
   
   
-  public void runThread(ExecuteLevel executeLevel, JbatchScript.Statement statement){
+  public void runThread(ExecuteLevel executeLevel, ZGenScript.Statement statement){
     try{ 
       executeLevel.execute(statement.subContent, null, false);
     } 
@@ -434,7 +434,7 @@ public class JbatchExecuter {
     
     /**Executes an inner script part maybe with a new level of nested local variables.
      * If the contentScript does not contain any variable definition 
-     * (see @link {@link JbatchScript.StatementList#bContainsVariableDef}) then this level is used,
+     * (see @link {@link ZGenScript.StatementList#bContainsVariableDef}) then this level is used,
      * it prevents a non necessary instantiation of an {@link ExecuteLevel} and copying of local variables. 
      * If new variables are to build in the statements, a new instance of {@link ExecuteLevel} is created
      * and all variables of this.{@link #localVariables} are copied to it. It means the nested level
@@ -447,7 +447,7 @@ public class JbatchExecuter {
      * @return an error hint.
      * @throws IOException
      */
-    public String executeNewlevel(JbatchScript.StatementList contentScript, final Appendable out, boolean bContainerHasNext) 
+    public String executeNewlevel(ZGenScript.StatementList contentScript, final Appendable out, boolean bContainerHasNext) 
     throws IOException 
     { final ExecuteLevel level;
       if(contentScript.bContainsVariableDef){
@@ -465,7 +465,7 @@ public class JbatchExecuter {
      * @return
      * @throws IOException 
      */
-    public String execute(JbatchScript.StatementList contentScript, final Appendable out, boolean bContainerHasNext) 
+    public String execute(ZGenScript.StatementList contentScript, final Appendable out, boolean bContainerHasNext) 
     //throws IOException 
     {
       String sError = null;
@@ -474,7 +474,7 @@ public class JbatchExecuter {
       int ixStatement = -1;
       //Iterator<JbatchScript.Statement> iter = contentScript.content.iterator();
       while(++ixStatement < contentScript.content.size() && sError == null) { //iter.hasNext() && sError == null){
-        JbatchScript.Statement contentElement = contentScript.content.get(ixStatement); //iter.next();
+        ZGenScript.Statement contentElement = contentScript.content.get(ixStatement); //iter.next();
         //for(TextGenScript.ScriptElement contentElement: contentScript.content){
         try{    
           switch(contentElement.elementType){
@@ -544,7 +544,7 @@ public class JbatchExecuter {
           case '=': executeAssign(contentElement); break;
           case 'b': sError = "break"; break;
           case '?': break;  //don't execute a onerror, skip it.
-          case 'z': throw new JbatchExecuter.ExitException(((JbatchScript.ExitStatement)contentElement).exitValue);  
+          case 'z': throw new ZGenExecuter.ExitException(((ZGenScript.ExitStatement)contentElement).exitValue);  
           default: 
             uBuffer.append("Jbat - execute-unknown type; '" + contentElement.elementType + "' :ERROR=== ");
           }//switch
@@ -567,7 +567,7 @@ public class JbatchExecuter {
             //onerror-block found.
             do { //search the appropriate error type:
               char onerrorType;
-              JbatchScript.Onerror errorStatement = (JbatchScript.Onerror)contentElement;
+              ZGenScript.Onerror errorStatement = (ZGenScript.Onerror)contentElement;
               if( ((onerrorType = errorStatement.errorType) == excType
                 || (onerrorType == '?' && excType != 'e')   //common onerror is valid for all excluding exit 
                 )  ){
@@ -594,9 +594,9 @@ public class JbatchExecuter {
     
     
     
-    void executeForContainer(JbatchScript.Statement contentElement, Appendable out) throws Exception
+    void executeForContainer(ZGenScript.Statement contentElement, Appendable out) throws Exception
     {
-      JbatchScript.StatementList subContent = contentElement.getSubContent();  //The same sub content is used for all container elements.
+      ZGenScript.StatementList subContent = contentElement.getSubContent();  //The same sub content is used for all container elements.
       if(contentElement.identArgJbat.equals("include1"))
         stop();
       Object container = evalObject(contentElement, true);
@@ -638,7 +638,7 @@ public class JbatchExecuter {
     
     
     
-    void executeIfContainerHasNext(JbatchScript.Statement hasNextScript, Appendable out, boolean bContainerHasNext) throws IOException{
+    void executeIfContainerHasNext(ZGenScript.Statement hasNextScript, Appendable out, boolean bContainerHasNext) throws IOException{
       if(bContainerHasNext){
         //(new Gen_Content(this, false)).
         execute(hasNextScript.getSubContent(), out, false);
@@ -649,15 +649,15 @@ public class JbatchExecuter {
     
     /**it contains maybe more as one if block and else. 
      * @throws Exception */
-    void executeIfStatement(JbatchScript.Statement ifStatement, Appendable out) throws Exception{
-      Iterator<JbatchScript.Statement> iter = ifStatement.subContent.content.iterator();
+    void executeIfStatement(ZGenScript.Statement ifStatement, Appendable out) throws Exception{
+      Iterator<ZGenScript.Statement> iter = ifStatement.subContent.content.iterator();
       boolean found = false;  //if block found
       while(iter.hasNext() && !found ){
-        JbatchScript.Statement contentElement = iter.next();
+        ZGenScript.Statement contentElement = iter.next();
         switch(contentElement.elementType){
           case 'G': { //if-block
             
-            found = executeIfBlock((JbatchScript.IfCondition)contentElement, out, iter.hasNext());
+            found = executeIfBlock((ZGenScript.IfCondition)contentElement, out, iter.hasNext());
           } break;
           case 'E': { //elsef
             if(!found){
@@ -675,7 +675,7 @@ public class JbatchExecuter {
     
     /**Executes a while statement. 
      * @throws Exception */
-    void whileStatement(JbatchScript.Statement whileStatement, Appendable out) 
+    void whileStatement(ZGenScript.Statement whileStatement, Appendable out) 
     throws Exception 
     {
       boolean cond;
@@ -690,7 +690,7 @@ public class JbatchExecuter {
     
     
     
-    boolean executeIfBlock(JbatchScript.IfCondition ifBlock, Appendable out, boolean bIfHasNext) 
+    boolean executeIfBlock(ZGenScript.IfCondition ifBlock, Appendable out, boolean bIfHasNext) 
     throws Exception
     {
       //Object check = getContent(ifBlock, localVariables, false);
@@ -716,7 +716,7 @@ public class JbatchExecuter {
      * @param statement
      * @throws Exception
      */
-    void setStringVariable(JbatchScript.Statement statement) 
+    void setStringVariable(ZGenScript.Statement statement) 
     throws Exception 
     {
       List<DataAccess.DatapathElement> assignPath1 = 
@@ -745,7 +745,7 @@ public class JbatchExecuter {
      * @param contentElement
      * @throws IOException 
      */
-    void textAppendToVarOrOut(JbatchScript.Statement contentElement) throws IOException{
+    void textAppendToVarOrOut(ZGenScript.Statement contentElement) throws IOException{
       
       String name = contentElement.identArgJbat;
       Appendable out1;
@@ -784,10 +784,10 @@ public class JbatchExecuter {
     
     
     
-    void executeSubroutine(JbatchScript.Statement contentElement, Appendable out) 
+    void executeSubroutine(ZGenScript.Statement contentElement, Appendable out) 
     throws IllegalArgumentException, Exception
     {
-      JbatchScript.CallStatement callStatement = (JbatchScript.CallStatement)contentElement;
+      ZGenScript.CallStatement callStatement = (ZGenScript.CallStatement)contentElement;
       boolean ok = true;
       final CharSequence nameSubtext;
       /*
@@ -799,7 +799,7 @@ public class JbatchExecuter {
         nameSubtext = contentElement.name;
       }*/
       nameSubtext = evalString(callStatement.callName); 
-      JbatchScript.Statement subtextScript = genScript.getSubtextScript(nameSubtext);  //the subtext script to call
+      ZGenScript.Statement subtextScript = genScript.getSubtextScript(nameSubtext);  //the subtext script to call
       if(subtextScript == null){
         throw new NoSuchElementException("JbatExecuter - subroutine not found; " + nameSubtext);
       } else {
@@ -807,13 +807,13 @@ public class JbatchExecuter {
         if(subtextScript.arguments !=null){
           //build a Map temporary to check which arguments are used:
           TreeMap<String, CheckArgument> check = new TreeMap<String, CheckArgument>();
-          for(JbatchScript.Argument formalArg: subtextScript.arguments) {
+          for(ZGenScript.Argument formalArg: subtextScript.arguments) {
             check.put(formalArg.identArgJbat, new CheckArgument(formalArg));
           }
           //process all actual arguments:
-          List<JbatchScript.Argument> referenceSettings = contentElement.getReferenceDataSettings();
+          List<ZGenScript.Argument> referenceSettings = contentElement.getReferenceDataSettings();
           if(referenceSettings !=null){
-            for( JbatchScript.Argument referenceSetting: referenceSettings){  //process all actual arguments
+            for( ZGenScript.Argument referenceSetting: referenceSettings){  //process all actual arguments
               Object ref;
               ref = evalObject(referenceSetting, false);
               //ref = ascertainValue(referenceSetting.expression, data, localVariables, false);       //actual value
@@ -873,7 +873,7 @@ public class JbatchExecuter {
     /**executes statements in another thread.
      * @throws Exception 
      */
-    private void executeThread(JbatchScript.Statement statement) 
+    private void executeThread(ZGenScript.Statement statement) 
     throws Exception
     { JbatchThreadResult result = null;
       if(statement.assignObj !=null && statement.assignObj.size() >=1){
@@ -911,7 +911,7 @@ public class JbatchExecuter {
      * @return
      * @throws IOException
      */
-    public String executeSubLevel(JbatchScript.Statement script, Appendable out) 
+    public String executeSubLevel(ZGenScript.Statement script, Appendable out) 
     //throws IOException
     {
       ExecuteLevel genContent;
@@ -925,7 +925,7 @@ public class JbatchExecuter {
 
     
     
-    void executeCmdline(JbatchScript.Statement contentElement) 
+    void executeCmdline(ZGenScript.Statement contentElement) 
     throws IllegalArgumentException, Exception
     {
       boolean ok = true;
@@ -940,7 +940,7 @@ public class JbatchExecuter {
       if(contentElement.arguments !=null){
         args = new String[contentElement.arguments.size() +1];
         int iArg = 1;
-        for(JbatchScript.Argument arg: contentElement.arguments){
+        for(ZGenScript.Argument arg: contentElement.arguments){
           String sArg = evalString(arg).toString(); //XXXascertainText(arg.expression, localVariables);
           args[iArg++] = sArg;
         }
@@ -976,7 +976,7 @@ public class JbatchExecuter {
     }
     
 
-    void executeChangeCurrDir(JbatchScript.Statement statement)
+    void executeChangeCurrDir(ZGenScript.Statement statement)
     throws Exception
     {
       CharSequence arg = evalString(statement);
@@ -1004,7 +1004,7 @@ public class JbatchExecuter {
     
      
     
-    private void executeDatatext(JbatchScript.Statement statement, Appendable out)  //<*datatext>
+    private void executeDatatext(ZGenScript.Statement statement, Appendable out)  //<*datatext>
     throws IllegalArgumentException, Exception
     {
       Object obj = evalDatapathOrExpr(statement); //ascertainText(contentElement.expression, localVariables);
@@ -1020,7 +1020,7 @@ public class JbatchExecuter {
       out.append(text); 
     }
     
-    void executeMove(JbatchScript.Statement statement) 
+    void executeMove(ZGenScript.Statement statement) 
     throws IllegalArgumentException, Exception
     {
       CharSequence s1 = evalString(statement.arguments.get(0));
@@ -1031,7 +1031,7 @@ public class JbatchExecuter {
       if(!bOk) throw new IOException("JbatchExecuter - move not successfully; " + fileSrc.getAbsolutePath() + " to " + fileDst.getAbsolutePath());;
     }
     
-    void executeOpenfile(JbatchScript.Statement contentElement) 
+    void executeOpenfile(ZGenScript.Statement contentElement) 
     throws IllegalArgumentException, Exception
     {
       String sFilename = evalString(contentElement).toString();
@@ -1052,7 +1052,7 @@ public class JbatchExecuter {
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    void executeAssign(JbatchScript.Statement contentElement) 
+    void executeAssign(ZGenScript.Statement contentElement) 
     throws IllegalArgumentException, Exception
     {
       Object val = evalObject(contentElement, false);
@@ -1093,8 +1093,8 @@ public class JbatchExecuter {
     
     
     
-    /**Checks either the {@link JbatchScript.Argument#dataAccess} or, if it is null,
-     * the {@link JbatchScript.Argument#expression}. Returns either the Object which is gotten
+    /**Checks either the {@link ZGenScript.Argument#dataAccess} or, if it is null,
+     * the {@link ZGenScript.Argument#expression}. Returns either the Object which is gotten
      * by the {@link DataAccess#getDataObj(Map, boolean, boolean)} or which is calculated
      * by the expression. Returns an instance of {@link CalculatorExpr.Value} if it is 
      * a result by an expression.
@@ -1102,7 +1102,7 @@ public class JbatchExecuter {
      * @return
      * @throws Exception
      */
-    public Object evalDatapathOrExpr(JbatchScript.Argument arg) throws Exception{
+    public Object evalDatapathOrExpr(ZGenScript.Argument arg) throws Exception{
       if(arg.dataAccess !=null){
         Object o = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
         if(o==null){ return "null"; }
@@ -1116,7 +1116,7 @@ public class JbatchExecuter {
     
     
     
-    public CharSequence evalString(JbatchScript.Argument arg) throws Exception{
+    public CharSequence evalString(ZGenScript.Argument arg) throws Exception{
       if(arg.textArg !=null) return arg.textArg;
       else if(arg.dataAccess !=null){
         Object o = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
@@ -1136,16 +1136,16 @@ public class JbatchExecuter {
     
     /**Gets the value of the given Argument. Either it is a 
      * <ul>
-     * <li>String from {@link JbatchScript.Argument#textArg}
-     * <li>Object from {@link JbatchScript.Argument#datapath()}
-     * <li>Object from {@link JbatchScript.Argument#expression}
+     * <li>String from {@link ZGenScript.Argument#textArg}
+     * <li>Object from {@link ZGenScript.Argument#datapath()}
+     * <li>Object from {@link ZGenScript.Argument#expression}
      * <li>
      * </ul>
      * @param arg
      * @return
      * @throws Exception
      */
-    public Object evalObject(JbatchScript.Argument arg, boolean bContainer) throws Exception{
+    public Object evalObject(ZGenScript.Argument arg, boolean bContainer) throws Exception{
       Object obj;
       if(arg.textArg !=null) return arg.textArg;
       else if(arg.dataAccess !=null){
@@ -1186,12 +1186,12 @@ public class JbatchExecuter {
   private class CheckArgument
   {
     /**Reference to the formal argument. */
-    final JbatchScript.Argument formalArg;
+    final ZGenScript.Argument formalArg;
     
     /**Set to true if this argument is used. */
     boolean used;
     
-    CheckArgument(JbatchScript.Argument formalArg){ this.formalArg = formalArg; }
+    CheckArgument(ZGenScript.Argument formalArg){ this.formalArg = formalArg; }
   }
   
   /**It wrapps the File currDir because only this instance is referred in all localVariables.
@@ -1243,7 +1243,7 @@ public class JbatchExecuter {
   {
     final ExecuteLevel executeLevel;
 
-    final JbatchScript.Statement statement;
+    final ZGenScript.Statement statement;
 
     final JbatchThreadResult result;
     
