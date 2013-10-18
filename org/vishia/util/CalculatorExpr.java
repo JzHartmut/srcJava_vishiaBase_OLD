@@ -42,6 +42,8 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
+   * <li>2013-10-19 Hartmut new: {@link SetExpr} should know all possibilities of {@link DataAccess.DataAccessSet}
+   *   too because an expression may be an DataAccess only. Yet only {@link SetExpr#new_newJavaClass()} realized.
    * <li>2013-10-19 Hartmut new: The CalculatorExpr gets the capability to generate String expressions
    *   using the {@link ZGenExecuter} class. This is because some arguments of methods may be a String.
    *   If the {@link #genString} is set, the CalculatorExpr is a String expression.
@@ -1308,12 +1310,26 @@ public class CalculatorExpr
      * of a derived instance of this class.
      * @return
      */
-    public DataAccess.DatapathElementSet new_datapathElement(){ return new DataAccess.DatapathElementSet(); }
+    public DataAccess.DatapathElementSet new_datapathElement(){ 
+      return new DataAccess.DatapathElementSet(); 
+    }
     
     public void add_datapathElement(DataAccess.DatapathElementSet val){ 
       if(actOperation == null){ actOperation = new CalculatorExpr.Operation(); }
       actOperation.add_datapathElement(val); 
     }
+    
+    
+    public DataAccess.DatapathElementSet new_newJavaClass()
+    { DataAccess.DatapathElementSet value = new DataAccess.DatapathElementSet();
+      value.whatisit = 'n';
+      return value;
+    }
+    
+    public void add_newJavaClass(DataAccess.DatapathElementSet val) { add_datapathElement(val); }
+
+
+    
     
 
     /**This routine must be called at least. It adds a simple value to the operation list.

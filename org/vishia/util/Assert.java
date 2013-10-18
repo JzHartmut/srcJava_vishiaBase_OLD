@@ -130,7 +130,7 @@ public class Assert
   /**Prepares an exception information inclusively some levels of stack trace in a short (one line) form.
    * @param startText Any start text of the returned text
    * @param exc The exception, its getMessage() will be appended
-   * @param firstLevel First level of stack. 0 is this routine, 1 the caller etc.
+   * @param firstLevel First level of stack. 0 is the routine where the exception is thrown, 1 the caller etc.
    * @param nrofLevels maximum of numbers of levels to show in stack. Use for example 10 to prevent to long lines if it may be deeper.
    * @return A string in form of CharSequence. Use ...toString() to build a String if necessary.
    */

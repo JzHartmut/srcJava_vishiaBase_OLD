@@ -11,7 +11,7 @@ import org.vishia.bridgeC.OS_TimeStamp;
 import org.vishia.bridgeC.Va_list;
 
 /**This class adapts a given stream output channel to the LogMessage interface to output messages for example
- * from the System.out or System.err.
+ * to the System.out or System.err.
  * @author Hartmut Schorrig
  *
  */
@@ -109,9 +109,9 @@ public class LogMessageStream implements LogMessage
   { //do nothing.
   }
 
-  @Override
-  public void flush()
-  { //do nothing.
+  @Override public void flush()
+  { try{ out.flush();
+    } catch(IOException exc){}
   }
 
   @Override

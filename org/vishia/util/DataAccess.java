@@ -533,7 +533,7 @@ public class DataAccess {
       DatapathElement element
     ) throws NoSuchMethodException //throws ClassNotFoundException{
   { Object data1 = null;
-    if(element.ident.equals("checkNewless"))
+    if(element.ident.equals("java.io.FileOutputStream"))
       Assert.stop();
     try{ 
       //int posClass = element.ident.lastIndexOf('.');
