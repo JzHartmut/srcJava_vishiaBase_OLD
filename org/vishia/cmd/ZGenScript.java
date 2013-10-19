@@ -1194,10 +1194,10 @@ public class ZGenScript {
      * It is possible that it is from a included script.
      * It shall contain calling of <code><*subtext:name:...></code> 
      */
-    Statement scriptFileSub;
+    Statement mainScript;
     
     /**Returns the main routine which may be parsed in this maybe included script. */
-    public Statement getMainRoutine(){ return scriptFileSub; }
+    public Statement getMainRoutine(){ return mainScript; }
     
     public void set_include(String val){ 
       if(includes ==null){ includes = new ArrayList<String>(); }
@@ -1218,9 +1218,9 @@ public class ZGenScript {
       subScripts.put(val.identArgJbat, val); 
     }
     
-    public Statement new_genFile(){ return scriptFileSub = new Statement(null, 'Y', null); }
+    public Statement new_mainScript(){ return mainScript = new Statement(null, 'Y', null); }
     
-    public void add_genFile(Statement val){  }
+    public void add_mainScript(Statement val){  }
     
     /**Defines a variable with initial value. <= <variableDef?textVariable> \<\.=\>
      */

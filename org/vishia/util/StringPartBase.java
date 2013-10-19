@@ -284,6 +284,14 @@ abcdefghijklmnopqrstuvwxyz  The associated String
   }
   
 
+  /** Returns the actual part of the string.
+   * 
+   */
+  public CharSequence getCurrentPart()
+  { if(end > begin) return u.subSequence(begin, end);
+    else            return "";
+  }
+  
 
   
   /* (non-Javadoc)

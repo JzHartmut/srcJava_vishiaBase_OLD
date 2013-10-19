@@ -24,6 +24,9 @@ import java.util.TreeMap;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2013-10-20 Hartmut new/chg: The start-variables are all of type {@link Variable} up to now. This concept is changed
+   *   in {@link org.vishia.cmd.ZGenExecuter} originally. Any other application of this class have to wrapped its data
+   *   in such an instance {@link Variable}, it is a low-cost effort. 
    * <li>2013-10-09 Hartmut new: {@link #storeValue(List, Map, Object, boolean)} put in a map, replaces the value.
    * <li>2013-09-14 Hartmut new: support of null as Argument.
    * <li>2013-08-18 Hartmut new: This class now contains the List of {@link #datapath} as only one attribute.
@@ -34,11 +37,11 @@ public class DataAccess {
    * <li>2013-07-14 Hartmut chg: {@link #checkAndConvertArgTypes(List, Class[])} now checks super classes and interfaces,
    * <li>2013-07-14 Hartmut chg: Exception handling for invoked methods.
    * <li>2013-06-23 Hartmut new: {@link #invokeNew(DatapathElement)}.
-   * <li>2013-03-26 Hartnut improved: {@link #getData(String, Object, boolean, boolean)} Now accesses to all elements,
+   * <li>2013-03-26 Hartnut improved: {@link #getData(String, DataAccess.Variable, boolean, boolean)} Now accesses to all elements,
    *   also to enclosing and super classes.
-   * <li>2013-03-26 Hartmut new: {@link #getDataFromField(String, Object, boolean)}
+   * <li>2013-03-26 Hartmut new: {@link #getDataFromField(String, DataAccess.Variable, boolean)}
    * <li>2013-03-26 Hartmut new: {@link #getEnclosingInstance(Object)}
-   * <li>2013-03-26 Hartmut bugfix: {@link #getData(String, Object, boolean, boolean)} has thrown an Exception if a existing
+   * <li>2013-03-26 Hartmut bugfix: {@link #getData(String, DataAccess.Variable, boolean, boolean)} has thrown an Exception if a existing
    *   element has a null-value. Instead it should return null. Exception only if the field is not found. 
    * <li>2013-03-23 Hartmut chg: {@link #checkAndConvertArgTypes(List, Class[])}: Now supports a (String[]) arg which is
    *   typical for a main(String[]) routine. General: The last formal argument can be an array, then all further
@@ -51,7 +54,7 @@ public class DataAccess {
    * <li>2013-01-05 Hartmut new: reads $$ENV_VAR.
    * <li>2013-01-02 Hartmut new: Supports access to methods whith parameter with automatic cast from CharSequence to String and to File.
    *   Uses the {@link DatapathElement#fnArgs} and {@link #getData(List, Object, Map, boolean, boolean)}.
-   * <li>2012-12-26 Hartmut new: {@link #create(String, Object...)}, the {@link DatapathElement#whatisit} can contain 'n'
+   * <li>2012-12-26 Hartmut new: {@link #create(String, DataAccess.Variable...)}, the {@link DatapathElement#whatisit} can contain 'n'
    *   to force creation of a new instance.
    * <li>2012-12-23 Hartmut chg, new: {@link #getStringFromObject(Object, String)} now uses a format string.
    * <li>2012-12-22 Hartmut new: {@link DatapathElement#constValue} as general possibility, usual for the first element of a path.
@@ -191,7 +194,7 @@ public class DataAccess {
    * @return Maybe null only if the last reference refers null. 
    * @throws Exception on any not found or etc.
    */
-  public Object getDataObj( Map<String, Object> localVariables , boolean accessPrivate, boolean bContainer) 
+  public Object getDataObj( Map<String, DataAccess.Variable> localVariables , boolean accessPrivate, boolean bContainer) 
   throws Exception{
     return getDataCalcArgs(datapath, localVariables, accessPrivate, bContainer);
   }
@@ -238,15 +241,15 @@ public class DataAccess {
       if(iter.hasNext()){
         if(dst2 == null){
           assert(dst instanceof Map<?, ?>);
-          dst2 = new IndexMultiTable<String, Object>(IndexMultiTable.providerString);
-          ((Map<String, Object>)dst).put(variable.ident, dst2);
+          dst2 = new IndexMultiTable<String, DataAccess.Variable>(IndexMultiTable.providerString);
+          setVariable((Map<String, DataAccess.Variable>)dst, variable.ident, dst2);
         }
         dst = dst2;
       } else {
         //last item in path.
         if(dst2 == null){
           assert(dst instanceof Map<?, ?>);
-          ((Map<String, Object>)dst).put(variable.ident, value);
+          setVariable((Map<String, DataAccess.Variable>)dst, variable.ident, value);
         } else {
           //the last element is found, try assign the value to it, it should be any container or Appendable.
           if(dst2 instanceof StringSeq && value instanceof CharSequence){
@@ -263,7 +266,7 @@ public class DataAccess {
             ((List)dst2).add(value);
           } else if(dst instanceof Map){
             //replace, don't use dst2
-            ((Map<String, Object>)dst).put(variable.ident, value);
+            setVariable((Map<String, DataAccess.Variable>)dst,variable.ident, value);
           } else {  
             throw new IllegalArgumentException("JbatchExecuter - can't add value to; " + path);
           }
@@ -291,7 +294,7 @@ public class DataAccess {
    * @throws Exception 
    */
   public static Object getDataCalcArgs(List<DataAccess.DatapathElement> dataPath
-      , Map<String, Object> localVariables
+      , Map<String, DataAccess.Variable> localVariables
       , boolean accessPrivate, boolean bContainer)
   throws Exception
   {  
@@ -397,7 +400,7 @@ public class DataAccess {
    * <br><br>
    * <b>Access with an element with {@link DatapathElement#whatisit} == 'f'</b>:
    * The  {@link DatapathElement#ident} may determine a field of the current data reference or it may be a key for a indexed container.
-   * The {@link #getData(String, Object, boolean, boolean)} is invoked, see there for further explanation. 
+   * The {@link #getData(String, DataAccess.Variable, boolean, boolean)} is invoked, see there for further explanation. 
    * <br><br>
    * <b>Creating an instance or invocation of methods</b>:
    * <li>An element with {@link DatapathElement#whatisit} == 'n' is the creation of instance maybe with or without arguments 
@@ -428,7 +431,7 @@ public class DataAccess {
   public static Object getData(
       List<DatapathElement> datapath
       , Object dataPool
-      , Map<String, Object> namedDataPool
+      , Map<String, DataAccess.Variable> namedDataPool
       , boolean accessPrivate, boolean bContainer)
   throws Exception
   {
@@ -1120,6 +1123,27 @@ public class DataAccess {
   }
   
   
+  
+  public static void setVariable(Map<String, Variable> map, String name, Object content){
+    DataAccess.Variable var = map.get(name);
+    if(var == null){
+      map.put(name, new DataAccess.Variable('O', name, content));
+    } else {
+      var.val = content;
+    }
+  }
+  
+  
+  public static Object getVariable(Map<String, Variable> map, String name, boolean strict) 
+  throws NoSuchFieldException{
+    Variable var = map.get(name);
+    if(var !=null) return var.val; //maybe null
+    else {
+      if(strict) throw new NoSuchFieldException("DataAccess.getVariable - not found; " + name);
+      return null;
+    }
+  }
+  
   @Override public String toString(){ return datapath !=null ? datapath.toString() : "emtpy DataAccess"; }
   
   
@@ -1350,7 +1374,7 @@ public class DataAccess {
     } 
     
 
-    public void calculateArguments(Map<String, Object> localVariables) 
+    public void calculateArguments(Map<String, DataAccess.Variable> localVariables) 
     throws Exception{
       if(fnArgsExpr !=null){
         //it is a element with arguments, usual a method call. 
@@ -1374,5 +1398,32 @@ public class DataAccess {
   }
 
   
+  /**This class wraps any Object which is used for a variable.
+   * If an inner level changes the Object of the variable, all references to the variable's content
+   * should be changed in all outer levels too. This can be done by unchanged reference to the variable itself
+   * in all {@link ExecuteLevel#localVariables} maps but change of the reference of {@link LocalVariable#var}.
+   */
+  public static class Variable{
+    /**Type of the variable: S-String, U-StringAppend, P-Pipe, L-List-container, F-Openfile,
+     * O-Any object, $-Environment variable value.
+     */
+    public final char type;
+    
+    /**Property whether this variable should be non-changeable (true) or changeable (false). 
+     * It should be tested and realized on runtime. */
+    public boolean isConst;
+    
+    /**Same name of the variable like it is stored in the container. */
+    public final String name;
+    
+    /**Reference to the data. */
+    public Object val;
+    
+    public Variable(char type, String name, Object value){
+      this.type = type; this.name = name; this.val = value;
+    }
+    
+  }
   
+
 }

@@ -106,7 +106,7 @@ public class CalculatorExpr
    * <li>This class can describe a value, which is the result of access to the last element of the path.
    * </ul>
    */
-  public static class Datapath
+  public static class XXXDatapath
   {
     /**The description of the path to any data if the script-element refers data. It is null if the script element
      * does not refer data. If it is filled, the instances are of type {@link DataAccess.DatapathElementSet}.
@@ -1774,9 +1774,9 @@ public class CalculatorExpr
    * @throws Exception Any exception is possible. Especially {@link java.lang.NoSuchFieldException} or such
    *   if the access via reflection is done.
    */
-  public Value calcDataAccess(Map<String, Object> javaVariables, Object... args) throws Exception{
+  public Value calcDataAccess(Map<String, DataAccess.Variable> javaVariables, Object... args) throws Exception{
     if(genString !=null){
-      ZGenExecuter.ExecuteLevel executer = (ZGenExecuter.ExecuteLevel)javaVariables.get("jbatExecuteLevel");
+      ZGenExecuter.ExecuteLevel executer = (ZGenExecuter.ExecuteLevel)DataAccess.getVariable(javaVariables, "jbatExecuteLevel", true);
       StringBuilder u = new StringBuilder();
       executer.executeNewlevel(genString, u, false);
       return new CalculatorExpr.Value(u.toString());

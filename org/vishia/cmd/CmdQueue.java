@@ -12,6 +12,7 @@ import org.vishia.cmd.CmdStore.CmdBlock;
 //import org.vishia.mainCmd.MainCmd_ifc;
 //import org.vishia.mainCmd.Report;
 import org.vishia.util.Assert;
+import org.vishia.util.DataAccess;
 
 /**This class stores some prepared commands for execution and executes it one after another.
  * The commands can contain placeholder for files.
@@ -242,7 +243,7 @@ public class CmdQueue implements Closeable
           sCmdShow.append(cmd1.currentDir).append(">");
         }
         if(cmd1.jbat !=null){
-          jbatchExecuter.execSub(cmd1.jbat, (Map<String, Object>)cmd1.args, false, outStatus);
+          jbatchExecuter.execSub(cmd1.jbat, (Map<String, DataAccess.Variable>)cmd1.args, false, outStatus);
         } else {
           //a operation system command:
           String[] sCmd = cmd1.cmd.prepareCmd(cmd1);
