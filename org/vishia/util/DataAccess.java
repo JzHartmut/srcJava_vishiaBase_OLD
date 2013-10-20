@@ -463,11 +463,12 @@ public class DataAccess {
       if(namedDataPool ==null){
         throw new NoSuchFieldException("$?missing-datapool?");
       }
-      data1 = namedDataPool.get(element.ident);  //maybe null if the value of the key is null.
-      if(data1 == null && !namedDataPool.containsKey(element.ident)){
+      Variable var = namedDataPool.get(element.ident);  //maybe null if the value of the key is null.
+      if(var == null ){
         throw new NoSuchFieldException(element.ident + " ;in datapool, contains; " + namedDataPool.toString() );
+      } else {
+        data1 = var.val; //data1 maybe ==null if the key was found but the val is null. 
       }
-      //data1 maybe ==null if the key was found. 
       element = iter.hasNext() ? iter.next() : null;
     }
     else if(element.ident.startsWith("XXXXXXXXXX$")){

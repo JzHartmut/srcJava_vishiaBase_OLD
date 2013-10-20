@@ -345,7 +345,8 @@ public class ZGenExecuter {
   
   
   
-  public Object getScriptVariable(String name){ return scriptVariables.get(name); }
+  public Object getScriptVariable(String name) throws NoSuchFieldException
+  { return DataAccess.getVariable(scriptVariables, name, true); }
 
   
   
@@ -756,12 +757,13 @@ public class ZGenExecuter {
     /**Invocation for <+name>text<.+>
      * @param contentElement
      * @throws IOException 
+     * @throws NoSuchFieldException 
      */
-    void textAppendToVarOrOut(ZGenScript.Statement contentElement) throws IOException{
-      
-      String name = contentElement.identArgJbat;
+    void textAppendToVarOrOut(ZGenScript.Statement contentElement) 
+    throws IOException, NoSuchFieldException
+    { String name = contentElement.identArgJbat;
       Appendable out1;
-      Object variable = localVariables.get(name);
+      Object variable = DataAccess.getVariable(localVariables,name, false);
       boolean put;
       if(variable == null){
         throw new NoSuchElementException("JbatExecuter - textAppend, variable not found; "+ name);
