@@ -416,8 +416,9 @@ public class DataAccess {
    * See {@link #checkAndConvertArgTypes(List, Class[])}.
    * 
    * @param datapath The path, elements in any list element.
-   * @param dataPool the object where the path starts from. It can be null. Static methods or creation of instances is possible then.
-   * @param namedDataPool variables valid for the current block. It can be null, if not used in datapath.
+   * @param dataRoot maybe null. The object where the path starts from if an access to the dataPool is not given
+   *   or a static method should be accessed or a new instance should be created.
+   * @param dataPool some root instances which are contained in this container. It can be null, if not used in datapath.
    * @param accessPrivate if true then private data are accessed too. The accessing of private data may be helpfully
    *  for debugging. It is not recommended for general purpose! The access mechanism is given with 
    *  {@link java.lang.reflect.Field#setAccessible(boolean)}.
@@ -430,12 +431,12 @@ public class DataAccess {
    */
   public static Object getData(
       List<DatapathElement> datapath
-      , Object dataPool
-      , Map<String, DataAccess.Variable> namedDataPool
+      , Object dataRoot
+      , Map<String, DataAccess.Variable> dataPool
       , boolean accessPrivate, boolean bContainer)
   throws Exception
   {
-    Object data1 = dataPool;
+    Object data1;  //the currently instance of each element.
     Iterator<DatapathElement> iter = datapath.iterator();
     DatapathElement element = iter.next();
     //if(element.constValue !=null){
@@ -446,11 +447,8 @@ public class DataAccess {
     if(element.ident.startsWith("debug")){
       Assert.stop();
     }
-    if(element.ident.startsWith("XXXXXXXX$$")){
-      data1 = System.getenv(element.ident.substring(2));
-      element = null;  //no next elements expected.
-    }
-    else if(element.whatisit == 'e'){
+    //get the start instance:
+    if(element.whatisit == 'e'){
       data1 = System.getenv(element.ident);
       if(data1 == null) {
         data1 = System.getProperty(element.ident);  //read from Java system property
@@ -460,26 +458,18 @@ public class DataAccess {
       element = null;  //no next elements expected.
     }
     else if(element.whatisit == 'v'){
-      if(namedDataPool ==null){
+      if(dataPool ==null){
         throw new NoSuchFieldException("$?missing-datapool?");
       }
-      Variable var = namedDataPool.get(element.ident);  //maybe null if the value of the key is null.
+      Variable var = dataPool.get(element.ident);  //maybe null if the value of the key is null.
       if(var == null ){
-        throw new NoSuchFieldException(element.ident + " ;in datapool, contains; " + namedDataPool.toString() );
+        throw new NoSuchFieldException(element.ident + " ;in datapool, contains; " + dataPool.toString() );
       } else {
-        data1 = var.val; //data1 maybe ==null if the key was found but the val is null. 
+        data1 = var.value; //data1 maybe ==null if the key was found but the val is null. 
       }
       element = iter.hasNext() ? iter.next() : null;
-    }
-    else if(element.ident.startsWith("XXXXXXXXXX$")){
-      if(namedDataPool ==null){
-        throw new NoSuchFieldException("$?missing-datapool?");
-      }
-      if(!namedDataPool.containsKey(element.ident.substring(1))){
-        throw new NoSuchFieldException(element.ident + " ;in datapool, contains; " + namedDataPool.toString());
-      }
-      data1 = namedDataPool.get(element.ident.substring(1));  //maybe null if the value of the key is null.
-      element = iter.hasNext() ? iter.next() : null;
+    } else {
+      data1 = dataRoot;
     }
     while(element !=null){
       if(element.ident.equals("absfile"))
@@ -487,20 +477,6 @@ public class DataAccess {
       switch(element.whatisit) {
         case 'n': {  //create a new instance, call constructor
           data1 = invokeNew(element);
-          /*
-          Object[] oArgs;
-          if(element.fnArgs !=null){
-            oArgs =element.fnArgs.toArray();
-          } else {
-            oArgs = null;
-          }
-          try{
-            data1 = create(element.ident, oArgs);
-          } catch(Exception exc){
-            exc.printStackTrace();
-              
-          }
-          */
         } break;
         case 'r': {
           if(data1 !=null){
@@ -915,7 +891,7 @@ public class DataAccess {
    *    can be used as data input. The tag names of that result tree follow the semantic in the string given Syntax script.
    * <li>If the field is not found in this class, it is try to get from the super classes.   
    * </ul>
-   * @param name Name of the field or key for container
+   * @param name Name of the field or key in the container
    * @param dataPool The instance where the field or element is searched
    * @param accessPrivate true than accesses also private data. 
    * @param bContainer only used for a TreeNodeBase: If true then returns the List of children as container, If false returns the first child with that name. 
@@ -1125,12 +1101,19 @@ public class DataAccess {
   
   
   
+  /**Sets a value to a simple exisiting or non existing variable.
+   * If the variable does not exists, it is created of type 'O'.
+   * If the variable exists, only its value will be chaned.
+   * @param map
+   * @param name
+   * @param content
+   */
   public static void setVariable(Map<String, Variable> map, String name, Object content){
     DataAccess.Variable var = map.get(name);
     if(var == null){
       map.put(name, new DataAccess.Variable('O', name, content));
     } else {
-      var.val = content;
+      var.value = content;
     }
   }
   
@@ -1138,7 +1121,7 @@ public class DataAccess {
   public static Object getVariable(Map<String, Variable> map, String name, boolean strict) 
   throws NoSuchFieldException{
     Variable var = map.get(name);
-    if(var !=null) return var.val; //maybe null
+    if(var !=null) return var.value; //maybe null
     else {
       if(strict) throw new NoSuchFieldException("DataAccess.getVariable - not found; " + name);
       return null;
@@ -1399,29 +1382,39 @@ public class DataAccess {
   }
 
   
-  /**This class wraps any Object which is used for a variable.
-   * If an inner level changes the Object of the variable, all references to the variable's content
-   * should be changed in all outer levels too. This can be done by unchanged reference to the variable itself
-   * in all {@link ExecuteLevel#localVariables} maps but change of the reference of {@link LocalVariable#var}.
+  /**This class wraps any Object which is used for a variable. A variable is member of a 
+   * container <code>Map< String, DataAccess.Variabel></code> which is used to access in the {@link DataAccess}
+   * class and which is used especially for variables in the {@link org.vishia.cmd.ZGenExecuter#setScriptVariable(String, Object)}
+   * and {@link org.vishia.cmd.ZGenExecuter.ExecuteLevel#setLocalVariable(String, Object)}
+   * which are accessed with the {@link DataAccess} class while setting and evaluating.
+   * A user can build a datapool independently of the ZGen approach writing the code:
+   * <pre>
+   *   Map< String, DataAccess.Variable> datapool = new TreeMap< String, DataAccess.Variable>();
+   *   String name = "thename";
+   *   DataAccess.Variable variable = new DataAccess.Variable('O', name, anyInstance);
+   *   datapool.put(variable);
+   * </pre>
+   * This datapool can be used to access with {@link DataAccess#getData(List, Object, Map, boolean, boolean)}.
    */
-  public static class Variable{
+  public final static class Variable{
     /**Type of the variable: S-String, U-StringAppend, P-Pipe, L-List-container, F-Openfile,
      * O-Any object, $-Environment variable value.
      */
-    public final char type;
+    protected final char type;
     
     /**Property whether this variable should be non-changeable (true) or changeable (false). 
      * It should be tested and realized on runtime. */
-    public boolean isConst;
+    protected boolean isConst;
     
     /**Same name of the variable like it is stored in the container. */
-    public final String name;
+    protected final String name;
     
     /**Reference to the data. */
-    public Object val;
+    protected Object value
+    ;
     
     public Variable(char type, String name, Object value){
-      this.type = type; this.name = name; this.val = value;
+      this.type = type; this.name = name; this.value = value;
     }
     
   }

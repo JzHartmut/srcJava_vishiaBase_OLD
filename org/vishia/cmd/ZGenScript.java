@@ -664,7 +664,7 @@ public class ZGenScript {
     public void add_copy(Statement val){subContent.add_copy(val);}
 
     
-    public CallStatement new_callScript()
+    public CallStatement new_call()
     { if(subContent == null){ subContent = new StatementList(this); }
       CallStatement contentElement = new CallStatement(parentList);
       subContent.content.add(contentElement);
@@ -672,7 +672,7 @@ public class ZGenScript {
       return contentElement;
     }
     
-    public void add_callScript(CallStatement val){}
+    public void add_call(CallStatement val){}
 
     
 
