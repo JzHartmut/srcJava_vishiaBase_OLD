@@ -228,7 +228,7 @@ public class ZGenExecuter {
         }
         if(scriptVariableScript.assignObj !=null && scriptVariableScript.assignObj.size() >=1) {
           List<DataAccess.DatapathElement> assignPath = scriptVariableScript.assignObj.get(0).datapath();
-          if(assignPath.size() == 1 && assignPath.get(0).ident.equals("$CD")){
+          if(assignPath.size() == 1 && assignPath.get(0).ident().equals("$CD")){
             //special handling of current directory:
             //setCurrDir(text);  //normalize, set "currDir"
           } else {
@@ -725,14 +725,14 @@ public class ZGenExecuter {
       List<DataAccess.DatapathElement> assignPath1 = 
         statement.assignObj ==null || statement.assignObj.size() ==0 ? null :
           statement.assignObj.get(0).datapath();  
-      if(assignPath1 !=null && assignPath1.get(0).ident.equals("dummy"))
+      if(assignPath1 !=null && assignPath1.get(0).ident().equals("dummy"))
         Assert.stop();
       
       CharSequence text = evalString(statement);
       
       if(statement.assignObj !=null) for(DataAccess dataAccess: statement.assignObj) {
         List<DataAccess.DatapathElement> assignPath = dataAccess.datapath();
-        if(assignPath.size() == 1 && assignPath.get(0).ident.equals("$CD")){
+        if(assignPath.size() == 1 && assignPath.get(0).ident().equals("$CD")){
           //special handling of current directory:
           setCurrDir(text);  //normalize, set "currDir"
         } else {

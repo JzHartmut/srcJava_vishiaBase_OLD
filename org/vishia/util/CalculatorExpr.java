@@ -497,6 +497,11 @@ public class CalculatorExpr
   
   
   
+  /**An operator for the current value (accu), the given second value maybe the operand from the {@link Operation},
+   * or for some additional values in stack.
+   * The operation are such as a set operation (set the arg to accu), add, subtract, negate, boolean operators etc or standard maths routines.
+   * Instances of this class are defined in the {@link CalculatorExpr}.
+   */
   public abstract static class Operator{
     private final String name; 
     protected Operator(String name){ this.name = name; }
@@ -509,7 +514,14 @@ public class CalculatorExpr
   
                                                   
   
-  private static final Operator setOperation = new Operator("!"){
+  /**This class contains all Operators as static references.
+   * TODO Idea-typedOperator: this class may be an interface instead, which is implemented for the known 
+   * {@link ExpressionType}. Then the switch-case can be saved in calculation time.
+   */
+  protected static class Operators
+  {
+  
+  static final Operator setOperation = new Operator("!"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       accu.type = type.typeChar();
       switch(accu.type){
@@ -532,7 +544,7 @@ public class CalculatorExpr
 
   
   
-  private static final Operator boolOperation = new Operator("bool "){
+  static final Operator boolOperation = new Operator("bool "){
     @Override public ExpressionType operate(ExpressionType type, Value val, Value val2) {
       val.boolVal = val.booleanValue();
       val.type = 'Z';
@@ -542,7 +554,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator boolNotOperation = new Operator("b!"){
+  static final Operator boolNotOperation = new Operator("b!"){
     @Override public ExpressionType operate(ExpressionType type, Value val, Value value2) {
       val.boolVal = !val.booleanValue();
       return booleanExpr;
@@ -551,7 +563,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator bitNotOperation = new Operator("~u"){
+  static final Operator bitNotOperation = new Operator("~u"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value value2) {
       switch(type.typeChar()){
         case 'B': case 'S': 
@@ -569,7 +581,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator negOperation = new Operator("-u"){
+  static final Operator negOperation = new Operator("-u"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value val2) {
       switch(type.typeChar()){
         case 'B': case 'S': 
@@ -588,7 +600,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator addOperation = new Operator("+"){
+  static final Operator addOperation = new Operator("+"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
         case 'I': accu.intVal += arg.intVal; break;
@@ -604,7 +616,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator subOperation = new Operator("-"){
+  static final Operator subOperation = new Operator("-"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
         case 'I': accu.intVal -= arg.intVal; break;
@@ -620,7 +632,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator mulOperation = new Operator("*"){
+  static final Operator mulOperation = new Operator("*"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
         case 'I': accu.intVal *= arg.intVal; break;
@@ -636,7 +648,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator divOperation = new Operator("/"){
+  static final Operator divOperation = new Operator("/"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
         case 'I': accu.intVal /= arg.intVal; break;
@@ -652,7 +664,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator cmpEqOperation = new Operator(".cmp."){
+  static final Operator cmpEqOperation = new Operator(".cmp."){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
         case 'I': accu.boolVal = accu.intVal == arg.intVal; break;
@@ -671,7 +683,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator cmpNeOperation = new Operator("!="){
+  static final Operator cmpNeOperation = new Operator("!="){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
         case 'I': accu.boolVal = accu.intVal != arg.intVal; break;
@@ -690,7 +702,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator cmpLessThanOperation = new Operator("<"){
+  static final Operator cmpLessThanOperation = new Operator("<"){
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
@@ -710,7 +722,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator cmpGreaterEqualOperation = new Operator(">="){
+  static final Operator cmpGreaterEqualOperation = new Operator(">="){
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
@@ -730,7 +742,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator cmpGreaterThanOperation = new Operator(">"){
+  static final Operator cmpGreaterThanOperation = new Operator(">"){
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
@@ -750,7 +762,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator cmpLessEqualOperation = new Operator("<="){
+  static final Operator cmpLessEqualOperation = new Operator("<="){
     @SuppressWarnings("unchecked")
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       switch(type.typeChar()){
@@ -770,7 +782,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator boolOrOperation = new Operator("||"){
+  static final Operator boolOrOperation = new Operator("||"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       accu.boolVal = accu.booleanValue() || arg.booleanValue();
       accu.type = 'Z';
@@ -780,7 +792,7 @@ public class CalculatorExpr
   };
   
    
-  private static final Operator boolAndOperation = new Operator("&&"){
+  static final Operator boolAndOperation = new Operator("&&"){
     @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
       accu.boolVal = accu.booleanValue() && arg.booleanValue();
       accu.type = 'Z';
@@ -789,13 +801,14 @@ public class CalculatorExpr
     @Override public boolean isUnary(){ return false; }
   };
   
-   
+  }
 
   
   /**An Operation in the list of operations. It contains the operator and maybe a operand.
    * <ul>
-   * <li>The operator operates with the current stack context.
-   * <li>An unary operator will be applied to the value firstly. 
+   * <li>The {@link Operation#operator} operates with the {@link CalculatorExpr#accu}, the {@link Operation#value}
+   *   and maybe the {@link CalculatorExpr#stack}.
+   * <li>An unary operator will be applied to the accu firstly. 
    * <li>The operand may be given as constant value, then it is stored with its type in {@link #value}.
    * <li>The operand may be given as index to the given input variables for expression calculation.
    *   Then {@link #ixVariable} is set >=0
@@ -829,7 +842,10 @@ public class CalculatorExpr
      * */
     @Deprecated private char operatorChar;
     
-    /**The operator for this operation. */
+    /**The operator for this operation. 
+     * TODO Idea-typedOperator: The Operation should know the type if its given operand
+     * and it should know the type of the operations before. Then this operator can be selected
+     * for that given type. If the type is unknown, the operator should be a type-indifferent one (which checks the type).*/
     protected Operator operator;
     
     /**Either it is null or the operation has a single unary operator for the argument. */
@@ -1293,7 +1309,7 @@ public class CalculatorExpr
     public void set_startVariable(String ident){
       if(actOperation == null){ actOperation = new CalculatorExpr.Operation(); }
       DataAccess.DatapathElement element = new DataAccess.DatapathElement();
-      element.whatisit = 'v';
+      element.whatisit = '@';
       element.ident = ident;
       actOperation.add_datapathElement(element);
     }
@@ -1322,7 +1338,7 @@ public class CalculatorExpr
     
     public DataAccess.DatapathElementSet new_newJavaClass()
     { DataAccess.DatapathElementSet value = new DataAccess.DatapathElementSet();
-      value.whatisit = 'n';
+      value.whatisit = '+';
       return value;
     }
     
@@ -1444,30 +1460,30 @@ public class CalculatorExpr
   public CalculatorExpr(){
     if(operators == null){
       operators = new TreeMap<String, Operator>();
-      operators.put("!",  setOperation);   //set accu to operand
-      operators.put("+",  addOperation);
-      operators.put("-",  subOperation);
-      operators.put("*",  mulOperation);
-      operators.put("/",  divOperation);
-      operators.put(">=", cmpGreaterEqualOperation);
-      operators.put(">",  cmpGreaterThanOperation);
-      operators.put("<=", cmpLessEqualOperation);
-      operators.put("<",  cmpLessThanOperation);
-      operators.put("!=", cmpNeOperation);
-      operators.put("<>", cmpNeOperation);
-      operators.put("==", cmpEqOperation);
-      operators.put("lt", cmpLessThanOperation);
-      operators.put("le", cmpLessEqualOperation);
-      operators.put("gt", cmpGreaterThanOperation);
-      operators.put("ge", cmpGreaterEqualOperation);
-      operators.put("eq", cmpEqOperation);
-      operators.put("ne", cmpNeOperation);
-      operators.put("||", boolOrOperation);
-      operators.put("&&", boolAndOperation);
-      operators.put("ub",  boolOperation);   //not for boolean
-      operators.put("u!",  boolNotOperation);   //not for boolean
-      operators.put("u~",  bitNotOperation);   //not for boolean
-      operators.put("u-",  negOperation);   //not for boolean
+      operators.put("!",  Operators.setOperation);   //set accu to operand
+      operators.put("+",  Operators.addOperation);
+      operators.put("-",  Operators.subOperation);
+      operators.put("*",  Operators.mulOperation);
+      operators.put("/",  Operators.divOperation);
+      operators.put(">=", Operators.cmpGreaterEqualOperation);
+      operators.put(">",  Operators.cmpGreaterThanOperation);
+      operators.put("<=", Operators.cmpLessEqualOperation);
+      operators.put("<",  Operators.cmpLessThanOperation);
+      operators.put("!=", Operators.cmpNeOperation);
+      operators.put("<>", Operators.cmpNeOperation);
+      operators.put("==", Operators.cmpEqOperation);
+      operators.put("lt", Operators.cmpLessThanOperation);
+      operators.put("le", Operators.cmpLessEqualOperation);
+      operators.put("gt", Operators.cmpGreaterThanOperation);
+      operators.put("ge", Operators.cmpGreaterEqualOperation);
+      operators.put("eq", Operators.cmpEqOperation);
+      operators.put("ne", Operators.cmpNeOperation);
+      operators.put("||", Operators.boolOrOperation);
+      operators.put("&&", Operators.boolAndOperation);
+      operators.put("ub", Operators.boolOperation);   //not for boolean
+      operators.put("u!", Operators.boolNotOperation);   //not for boolean
+      operators.put("u~", Operators.bitNotOperation);   //not for boolean
+      operators.put("u-", Operators.negOperation);   //not for boolean
 
     }
   }
@@ -1787,8 +1803,8 @@ public class CalculatorExpr
       ExpressionType type = startExpr;
       for(Operation oper: listOperations){
         if(accu.type == 'Z' && //special for boolean operation: don't evaluate an operand if it is not necessary.
-            ( !accu.boolVal && oper.operator == boolAndOperation  //false remain false on and operation
-            || accu.boolVal && oper.operator == boolOrOperation   //true remain true on or operation
+            ( !accu.boolVal && oper.operator == Operators.boolAndOperation  //false remain false on and operation
+            || accu.boolVal && oper.operator == Operators.boolOrOperation   //true remain true on or operation
           ) ){
           //don't get arguments, no side effect (like in Java, C etc.
         } else {
@@ -1829,7 +1845,7 @@ public class CalculatorExpr
             else                                  { val2.oVal = oval2; val2.type = 'o'; }
             val2.oVal = oval2;;
           }
-          if(oper.operator == setOperation && accu.type != '?'){
+          if(oper.operator == Operators.setOperation && accu.type != '?'){
             stack.push(accu);
             accu = new Value();
           }

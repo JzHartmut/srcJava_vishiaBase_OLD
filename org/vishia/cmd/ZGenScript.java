@@ -1023,7 +1023,7 @@ public class ZGenScript {
      */
     public void add_setEnvVar(Statement val){ 
       //change the first identifier to $name
-      val.assignObj.get(0).datapath().get(0).ident = "$" + val.assignObj.get(0).datapath().get(0).ident;
+      val.assignObj.get(0).datapath().get(0).setIdent("$" + val.assignObj.get(0).datapath().get(0).ident());
       //val.identArgJbat = "$" + val.identArgJbat;
       content.add(val); 
       onerrorAccu = null; withoutOnerror.add(val);

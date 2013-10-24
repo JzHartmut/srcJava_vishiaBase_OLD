@@ -18,6 +18,37 @@ import java.util.TreeMap;
 
 
 /**This class contains methods to access data and invoke methods with symbolic access using reflection mechanism.
+ * The class is helpful to deal with reflection. Some methods are offered to make it simply.
+ * <ul>
+ * <li>Simple access to fields, also to super and enclosing instances
+ * <li>Access to referred instance in one method.
+ * <li>access to container with a name as key similar to fields.
+ * <li>Support a datapool using variables
+ * </ul>
+ * public static methods:
+ * <ul>
+ * <li>{@link #getDataFromField(String, Object, boolean)}: Data from one instance, also from super and enclosing
+ * <li>{@link #getData(String, Object, boolean, boolean)}: Data from one instance. If the instance is a {@link java.util.Map}
+ *   it accessed to an element of this container. Elsewhere it tries to get from a field. 
+ *   Invokes {@link #getDataFromField(String, Object, boolean)}. 
+ * <li>{@link #getData(List, Object, Map, boolean, boolean)} Data from a complex referenced instance
+ *   maybe with method invocations. It uses a <code>List< {@link DatapathElement}></code> to access,
+ *   it uses or calculates method arguments before access. The method arguments can use a DataAccess too,
+ *   or it can use a {@link CalculatorExpr} to calculate the arguments. Recursively invocations of methods of this class
+ *   can be occurred. Static methods and creation of instances can invoked too. See {@link DatapathElement}.
+ * <li>{@link #create(String, Object...)} creates an instance by symbolic name.
+ * <li>{@link #storeValue(List, Map, Object, boolean)} stores instead accesses
+ * <li>{@link #setVariable(Map, String, Object)}, {@link #getVariable(Map, String, boolean)}: Deal with variables.
+ * <li>{@link #getEnclosingInstance(Object)}: Gets the enclosing instance
+ * <li>{@link #getStringFromObject(Object, String)}, {@link #getInt(Object)}, {@link #getFloat(Object)}: access to simple data,
+ *  conversions.
+ * <li>{@link #setBit(int, int, boolean)} Helper to deal with bits
+ * <li>      
+ * </ul>
+ * This class can hold a datapath, see {@link #add_datapathElement(DatapathElement)} and can access with this path
+ * using the non-static method {@link #getDataObj(Map, boolean, boolean)}.
+ * <br><br> 
+ * This class is used inside {@link org.vishia.cmd.ZGenExecuter} but it is promising in other applications too. 
  * @author Hartmut Schorrig
  *
  */
@@ -196,7 +227,7 @@ public class DataAccess {
    */
   public Object getDataObj( Map<String, DataAccess.Variable> localVariables , boolean accessPrivate, boolean bContainer) 
   throws Exception{
-    return getDataCalcArgs(datapath, localVariables, accessPrivate, bContainer);
+    return getData(datapath, null, localVariables, accessPrivate, bContainer);
   }
 
   
@@ -280,57 +311,6 @@ public class DataAccess {
 
   
   
-  /**Returns the reference from a given datapath, calculates all arguments of methods before.
-   * In opposite to {@link #getData(List, Object, Map, boolean, boolean)} 
-   * or {@link #getData(List, Object, Map, boolean, boolean)} this routine calculates all method's arguments
-   * if their are such before the methods are called. The expression to calculate is stored in 
-   * {@link DatapathElement#fnArgsExpr} whereby the calculated results are stored in {@link DatapathElement#fnArgs}.
-   * Further explanation for the datapath see {@link #getData(List, Object, Map, boolean, boolean)}. 
-   * 
-   * @param dataPath List of elements of the datapath. 
-   * @param localVariables
-   * @param bContainer
-   * @return An object.
-   * @throws Exception 
-   */
-  public static Object getDataCalcArgs(List<DataAccess.DatapathElement> dataPath
-      , Map<String, DataAccess.Variable> localVariables
-      , boolean accessPrivate, boolean bContainer)
-  throws Exception
-  {  
-    Object dataValue = null;
-    
-    boolean bWriteErrorInOutput = false;
-    
-    if(dataPath.size() >=1 && dataPath.get(0).ident !=null && dataPath.get(0).ident.equals("$checkDeps"))
-      Assert.stop();
-    //calculate all actual arguments:
-    
-    //out, err, file for the given Appendable output channels.
-    if(dataPath.size()==1){
-      DataAccess.DatapathElement dataElement = dataPath.get(0);
-      if(dataElement.ident.equals("out")){
-        dataValue = System.out;
-      }
-      else if(dataElement.ident.equals("err")){
-        dataValue = System.err;
-      }
-      if(dataElement.ident.equals("xxxfile")){
-        dataValue = null; //outFile;
-      }
-    }
-    if(dataValue ==null){
-      for(DataAccess.DatapathElement dataElement : dataPath){  //loop over all elements of the path with or without arguments.
-        if(dataElement.fnArgsExpr !=null){
-          dataElement.calculateArguments(localVariables);
-        }
-      }
-      dataValue = DataAccess.getData(dataPath, null, localVariables, accessPrivate, bContainer);
-    }
-    return dataValue;
-  }
-  
-  
   
 
   
@@ -386,7 +366,7 @@ public class DataAccess {
   /**Accesses data. 
    * The argument path contains elements, which describes the access path.
    * <ul>
-   * <li>The datapath can start with an element designated with {@link DatapathElement#whatisit} == 'e'. 
+   * <li>The datapath can start with an element designated with {@link DatapathElement#whatisit} == '$'. 
    *   Then the result of the access is the String representation of the environment variable of the operation system
    *   or null if that environment variable is not found. Only this element of datapath is used, it should be the only one usual. 
    * <li>The datapath can start with an optional ,,startVariable,, as {@link DatapathElement#whatisit} == 'v'. 
@@ -398,18 +378,25 @@ public class DataAccess {
    * The elements of datapath describe the access to data. Any element before supplies a reference for the path 
    * of the next element.
    * <br><br>
-   * <b>Access with an element with {@link DatapathElement#whatisit} == 'f'</b>:
+   * <b>Access with an element with {@link DatapathElement#whatisit} == '.'</b>:
    * The  {@link DatapathElement#ident} may determine a field of the current data reference or it may be a key for a indexed container.
    * The {@link #getData(String, DataAccess.Variable, boolean, boolean)} is invoked, see there for further explanation. 
    * <br><br>
    * <b>Creating an instance or invocation of methods</b>:
-   * <li>An element with {@link DatapathElement#whatisit} == 'n' is the creation of instance maybe with or without arguments 
+   * <li>An element with {@link DatapathElement#whatisit} == '+' is the creation of instance maybe with or without arguments 
    *   in {@link DatapathElement#fnArgs}
-   * <li>An element with {@link DatapathElement#whatisit} == 's' is a call of a static routine maybe with or without arguments 
+   * <li>An element with {@link DatapathElement#whatisit} == '%' is a call of a static routine maybe with or without arguments 
    *   in {@link DatapathElement#fnArgs}
-   * <li>An element with {@link DatapathElement#whatisit} == 'r' is a method invocation maybe with or without arguments.
+   * <li>An element with {@link DatapathElement#whatisit} == '(' is a method invocation maybe with or without arguments.
    *   in {@link DatapathElement#fnArgs}
    * </ul>
+   * <br><br>
+   * <b>Calculation of arguments</b>:<br>
+   * This routine calculates all method's arguments it an expression is given in the datapathElement
+   * in {@link DatapathElement#addArgumentExpression(CalculatorExpr)}.
+   * before the method is called. The expression to calculate is stored in 
+   * {@link DatapathElement#fnArgsExpr} whereby the calculated results is stored in {@link DatapathElement#fnArgs}.
+   * <br><br>
    * <b>Assignment of arguments of methods or constructor</b>:<br>
    * If the method or class is found per name, all methods with this name respectively all constructors are tested 
    * whether they match to the {@link DatapathElement#fnArgs}. The number of args should match and the types should be compatibel.
@@ -436,6 +423,11 @@ public class DataAccess {
       , boolean accessPrivate, boolean bContainer)
   throws Exception
   {
+    for(DataAccess.DatapathElement dataElement : datapath){  //loop over all elements of the path with or without arguments.
+      if(dataElement.fnArgsExpr !=null){
+        dataElement.calculateArguments(dataPool);
+      }
+    }
     Object data1;  //the currently instance of each element.
     Iterator<DatapathElement> iter = datapath.iterator();
     DatapathElement element = iter.next();
@@ -448,7 +440,7 @@ public class DataAccess {
       Assert.stop();
     }
     //get the start instance:
-    if(element.whatisit == 'e'){
+    if(element.whatisit == '$'){
       data1 = System.getenv(element.ident);
       if(data1 == null) {
         data1 = System.getProperty(element.ident);  //read from Java system property
@@ -457,13 +449,13 @@ public class DataAccess {
       if(iter.hasNext()) throw new IllegalArgumentException("DataAccess - environment variable with sub elements is faulty");
       element = null;  //no next elements expected.
     }
-    else if(element.whatisit == 'v'){
+    else if(element.whatisit == '@'){
       if(dataPool ==null){
-        throw new NoSuchFieldException("$?missing-datapool?");
+        throw new NoSuchFieldException("DataAccess.getData - missing-datapool;");
       }
       Variable var = dataPool.get(element.ident);  //maybe null if the value of the key is null.
       if(var == null ){
-        throw new NoSuchFieldException(element.ident + " ;in datapool, contains; " + dataPool.toString() );
+        throw new NoSuchFieldException("DataAccess.getData - not found in  datapool; " + element.ident + "; datapool contains; " + dataPool.toString() );
       } else {
         data1 = var.value; //data1 maybe ==null if the key was found but the val is null. 
       }
@@ -475,16 +467,16 @@ public class DataAccess {
       if(element.ident.equals("absfile"))
         Assert.stop();
       switch(element.whatisit) {
-        case 'n': {  //create a new instance, call constructor
+        case '+': {  //create a new instance, call constructor
           data1 = invokeNew(element);
         } break;
-        case 'r': {
+        case '(': {
           if(data1 !=null){
             data1 = invokeMethod(element, data1); 
           }
           //else: let data1=null, return null
         } break;
-        case 's': data1 = invokeStaticMethod(element); break;
+        case ')': data1 = invokeStaticMethod(element); break;
         default:
           if(data1 !=null){
             data1 = getData(element.ident, data1, accessPrivate, bContainer);
@@ -504,7 +496,7 @@ public class DataAccess {
   
   
   /**Invokes the static method which is described with the element.
-   * @param element its {@link DatapathElement#whatisit} == 's'.
+   * @param element its {@link DatapathElement#whatisit} == ')'.
    *   The {@link DatapathElement#identArgJbat} should contain the full qualified "packagepath.Class.methodname" separated by dot.
    * @return the return value of the method
    * @throws NoSuchMethodException 
@@ -569,7 +561,7 @@ public class DataAccess {
   
   
   /**Invokes the method which is described with the element.
-   * @param element its {@link DatapathElement#whatisit} == 'r'.
+   * @param element its {@link DatapathElement#whatisit} == '('.
    *   The {@link DatapathElement#identArgJbat} should contain the "methodname" inside the class of datapool.
    * @param dataPool The instance which is the instance of the method.
    * @return the return value of the method
@@ -624,7 +616,7 @@ public class DataAccess {
   
   
   /**Invokes the static method which is described with the element.
-   * @param element its {@link DatapathElement#whatisit} == 's'.
+   * @param element its {@link DatapathElement#whatisit} == ')'.
    *   The {@link DatapathElement#identArgJbat} should contain the full qualified "packagepath.Class.methodname" separated by dot.
    * @return the return value of the method
    * @throws Throwable 
@@ -892,7 +884,7 @@ public class DataAccess {
    * <li>If the field is not found in this class, it is try to get from the super classes.   
    * </ul>
    * @param name Name of the field or key in the container
-   * @param dataPool The instance where the field or element is searched
+   * @param instance The instance where the field or element is searched
    * @param accessPrivate true than accesses also private data. 
    * @param bContainer only used for a TreeNodeBase: If true then returns the List of children as container, If false returns the first child with that name. 
    * @return The reference described by name.
@@ -900,7 +892,7 @@ public class DataAccess {
    */
   public static Object getData(
       String name
-      , Object dataPool
+      , Object instance
       , boolean accessPrivate
       , boolean bContainer) 
   throws NoSuchFieldException, IllegalAccessException
@@ -908,16 +900,16 @@ public class DataAccess {
     Object data1 = null;
     if(name.equals("compileOptions"))
       Assert.stop();
-    if(dataPool instanceof Map<?, ?>){
-      data1 = ((Map<?,?>)dataPool).get(name);
+    if(instance instanceof Map<?, ?>){
+      data1 = ((Map<?,?>)instance).get(name);
     } 
     else {
       try{
-        data1 = getDataFromField(name, dataPool, accessPrivate);
+        data1 = getDataFromField(name, instance, accessPrivate);
       }catch(NoSuchFieldException exc){
         //NOTE: if it is a TreeNodeBase, first search a field with the name, then search in data
-        if(dataPool instanceof TreeNodeBase<?,?,?>){
-          TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)dataPool;
+        if(instance instanceof TreeNodeBase<?,?,?>){
+          TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)instance;
           if(bContainer){ data1 = treeNode.listChildren(name); }
           else { data1 = treeNode.getChild(name); }  //if more as one element with that name, select the first one.
           if(data1 == null){
@@ -1159,7 +1151,7 @@ public class DataAccess {
         datapath = new ArrayList<DataAccess.DatapathElement>();
       }
       DataAccess.DatapathElement element = new DataAccess.DatapathElement();
-      element.whatisit = 'e';
+      element.whatisit = '$';
       element.ident = ident;
       datapath.add(element); 
     }
@@ -1170,7 +1162,7 @@ public class DataAccess {
         datapath = new ArrayList<DataAccess.DatapathElement>();
       }
       DataAccess.DatapathElement element = new DataAccess.DatapathElement();
-      element.whatisit = 'v';
+      element.whatisit = '@';
       element.ident = ident;
       datapath.add(element); 
     }
@@ -1178,7 +1170,7 @@ public class DataAccess {
     
     public DatapathElementSet new_newJavaClass()
     { DatapathElementSet value = new DatapathElementSet();
-      value.whatisit = 'n';
+      value.whatisit = '+';
       //ScriptElement contentElement = new ScriptElement('J', null); ///
       //subContent.content.add(contentElement);
       return value;
@@ -1189,7 +1181,7 @@ public class DataAccess {
 
     public DatapathElementSet new_staticJavaMethod()
     { DatapathElementSet value = new DatapathElementSet();
-      value.whatisit = 's';
+      value.whatisit = '%';
       return value;
       //ScriptElement contentElement = new ScriptElement('j', null); ///
       //subContent.content.add(contentElement);
@@ -1262,6 +1254,10 @@ public class DataAccess {
     } 
     
 
+    public void set_ident(String text){ this.ident = text; }
+    
+    public void set_whatisit(String text){ this.whatisit = text.charAt(0); }
+    
     public void set_javapath(String text){ this.ident = text; }
     
 
@@ -1294,23 +1290,73 @@ public class DataAccess {
     /**Name of the element or method in any instance.
      * From Zbnf <$?ident>
      */
-    public String ident;
+    protected String ident;
     
     /**Maybe a constant value, also a String. */
     //public Object constValue;
 
     /**Kind of element
      * <ul>
-     * <li>'e': An environment variable.
-     * <li>'v': A variable from the additional data pool.
-     * <li>'f': a field with ident as name.
-     * <li>'n': new ident, creation of instance maybe with or without arguments in {@link #fnArgs}
-     * <li>'s'; call of a static routine maybe with or without arguments in {@link #fnArgs}
-     * <li>'r': subroutine maybe with or without arguments in {@link #fnArgs}.
+     * <li>'$': An environment variable.
+     * <li>'@': A variable from the additional data pool.
+     * <li>'.': a field with ident as name.
+     * <li>'+': new ident, creation of instance maybe with or without arguments in {@link #fnArgs}
+     * <li>')'; call of a static routine maybe with or without arguments in {@link #fnArgs}
+     * <li>'(': subroutine maybe with or without arguments in {@link #fnArgs}.
      * </ul>
      */
-    public char whatisit;
+    protected char whatisit;
 
+    /**Creates an empty element.
+     * 
+     */
+    protected DatapathElement(){}
+
+    /**Creates a datapath element.
+     * @param name see {@link #set(String)}
+     */
+    public DatapathElement(String name){
+      set(name);
+    }
+    
+    
+    /**Creates a datapath element, for general purpose.
+     * If the name starts with the following special chars "$@%+", it is an element with that {@link #whatisit}.
+     * If the name contains a '(' it is a method call. Elsewhere it is the name of a field.
+     * If it is a method call, the following rules are taken for evaluating parameters:
+     * <ul>
+     * <li>Argument in "": a constant string
+     * <li>Argument able to convert to a numeric value: The numeric value
+     * <li>Argument starts with '*': A data path
+     * <li>Elsewhere use {@link CalculatorExpr#setExpr(String)}.
+     * </ul>
+     * @param name 
+     */
+    public void set(String name){
+      char cStart = name.charAt(0);
+      int posNameStart = 1;
+      if("$@+%".indexOf(cStart) >=0){
+        whatisit = cStart;
+      } else {
+        whatisit = '.';
+        posNameStart = 0;
+      }
+      int posNameEnd = name.indexOf('(');
+      if(posNameEnd != -1){
+        whatisit = whatisit == '%' ? ')' : '(';
+        //TODO
+      } else {
+        posNameEnd = name.length();
+      }
+      this.ident = name.substring(posNameStart, posNameEnd);
+    }
+
+    
+    
+    public String ident(){ return ident; }
+    
+    public void setIdent(String ident){ this.ident = ident; }
+    
     /**Expressions to calculate the {@link #fnArgs}.
      * The arguments of a subroutine can be given directly, then the expression is not necessary
      * and this reference is null.
@@ -1320,26 +1366,6 @@ public class DataAccess {
     /**List of arguments of a method. If null, it is not a method or the method has not arguments. */
     protected List<Object> fnArgs;
     
-    /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
-    //public void set_intValue(long val){ constValue = new Long(val); }
-    
-    /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
-    //public void set_floatValue(double val){ constValue = new Double(val); }
-    
-    /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
-    //public void set_textValue(String val){ constValue = val; }
-    
-    /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
-    //public void set_charValue(String val){ constValue = new Character(val.charAt(0)); }
-    
-    /**Set a textual argument of a access method. From Zbnf <""?textArg>. */
-    //public void set_textArg(String arg){ addToList(arg); }
-    
-    /**Set a integer (long) argument of a access method. From Zbnf <#?intArg>. */
-    //public void set_intArg(long arg){ addToList(arg); }
-    
-    /**Set a float (double) argument of a access method. From Zbnf <#f?floatArg>. */
-    //public void set_floatArg(double arg){ addToList(arg); }
     
     /**Adds any argument with its value.  */
     public void addActualArgument(Object arg){
@@ -1374,7 +1400,7 @@ public class DataAccess {
 
     /**For debugging.*/
     @Override public String toString(){
-      if(whatisit !='r'){ return ident;}
+      if(whatisit !='('){ return ident;}
       else{
         return ident + "(...)";
       }
