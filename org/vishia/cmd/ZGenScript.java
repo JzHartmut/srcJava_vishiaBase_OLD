@@ -12,7 +12,7 @@ import org.vishia.util.Assert;
 import org.vishia.util.CalculatorExpr;
 import org.vishia.util.DataAccess;
 import org.vishia.util.StringFunctions;
-import org.vishia.util.StringPart;
+import org.vishia.util.StringPartOld;
 import org.vishia.util.StringSeq;
 
 
@@ -45,7 +45,7 @@ public class ZGenScript {
    * <li>2012-12-23 Hartmut chg: A {@link Statement} and a {@link Argument} have the same usage aspects for arguments
    *   which represents values either as constants or dataPath. Use Argument as super class for ScriptElement.
    * <li>2012-12-23 Hartmut new: formatText in the {@link ZbatchExpressionSet#textArg} if a data path is given, use for formatting a numerical value.   
-   * <li>2012-12-22 Hartmut new: Syntax as constant string inside. Some enhancements to set control: {@link #translateAndSetGenCtrl(StringPart)} etc.
+   * <li>2012-12-22 Hartmut new: Syntax as constant string inside. Some enhancements to set control: {@link #translateAndSetGenCtrl(StringPartOld)} etc.
    * <li>2012-12-22 Hartmut chg: <:if:...> uses {@link CalculatorExpr} for expressions.
    * <li>2012-11-24 Hartmut chg: @{@link Statement#datapath} with {@link DataAccess.DatapathElement} 
    * <li>2012-11-25 Hartmut chg: Now Variables are designated starting with $.

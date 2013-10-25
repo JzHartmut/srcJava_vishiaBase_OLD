@@ -1,7 +1,7 @@
 package org.vishia.util.test;
 
 import org.vishia.util.Assert;
-import org.vishia.util.StringPart;
+import org.vishia.util.StringPartOld;
 
 public class TestStringPart
 {
@@ -12,7 +12,7 @@ public class TestStringPart
   
   private static void test_getCircumScriptionToAnyChar()
   {
-    StringPart sp = new StringPart("y\\<\\:arg\\><textExpr?argExpr>");
+    StringPartOld sp = new StringPartOld("y\\<\\:arg\\><textExpr?argExpr>");
     sp.seek(1);
     String res = sp.getCircumScriptionToAnyChar("<?");
     Assert.check(res.equals("\\<\\:arg\\>"));

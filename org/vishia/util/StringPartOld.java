@@ -67,7 +67,7 @@ import org.vishia.util.SpecialCharStrings;
 */
 
 
-public class StringPart
+public class StringPartOld
 {
 
   /**Version of this class.
@@ -231,7 +231,7 @@ abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
   //protected final Report report;
   
   /** Creates a new empty StringPart without an associated String. See method set() to assign a String.*/
-  public StringPart()
+  public StringPartOld()
   { this.content = null; startMin = start = startLast= 0; endLast = endMax = end = 0;
     //report = null;
   }
@@ -242,7 +242,7 @@ abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
       and determines the maximal part.
       @param content The content, that String is associated by this.
   */
-  public StringPart(String content)
+  public StringPartOld(String content)
   { assign(content);
     //report = null;
   }
@@ -264,7 +264,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
 
       @param src The given StringPart.
   */
-  public StringPart(StringPart src)
+  public StringPartOld(StringPartOld src)
   { assign(src);
     //report = null;
   }
@@ -276,7 +276,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
   @param content The content.
   @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
 */
-public StringPart assign(String content)
+public StringPartOld assign(String content)
 { this.content = content;
 startMin = startLast = start = 0;
 endMax = end = endLast = content.length();
@@ -301,7 +301,7 @@ return this;
   originally.
 @return <code>this</code> refers the content.
 */
-public StringPart assignReplaceEnv(StringBuilder input)
+public StringPartOld assignReplaceEnv(StringBuilder input)
 { int pos1 = 0;
   int zInput = input.length();
   while( (pos1 = input.indexOf("$", pos1))>=0){
@@ -351,7 +351,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
       @param src The given StringPart.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart assign(StringPart src)
+  public StringPartOld assign(StringPartOld src)
   { if(src == this)
     { //set from the own instance: the maxPart is the actual one.
       startMin = startLast = start; endMax = endLast = end;
@@ -389,7 +389,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
       @param src The source of the operation.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart assignFromEnd(StringPart src)
+  public StringPartOld assignFromEnd(StringPartOld src)
   { this.content = src.content;
     startLast = start;
     startMin = start = src.end;       //from actual end
@@ -497,7 +497,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
       @param src The given StringPart.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart setBeginMaxPart()
+  public StringPartOld setBeginMaxPart()
   { startMin = start;
     return this;
   }
@@ -517,7 +517,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
       @java2c=return-this.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart fromEnd()
+  public StringPartOld fromEnd()
   {
     startLast = start;
     endLast = end;
@@ -565,7 +565,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
       @return <code>this</code> to concat some operations.
       @throws IndexOutOfBoundsException if the len is negativ or greater than the position endMax.
   */
-  public StringPart lento(int len)
+  public StringPartOld lento(int len)
   throws IndexOutOfBoundsException
   { endLast = end;
     int endNew = start + len;
@@ -594,7 +594,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
       @param cc char to determine the exclusively end char.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart lento(char cc)
+  public StringPartOld lento(char cc)
   { endLast = end;
     int pos = content.substring(start,end).indexOf(cc);
     bFound = (pos >=0);
@@ -614,7 +614,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
       @param ss string to determine the exclusively end char.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart lento(String ss)
+  public StringPartOld lento(String ss)
   { return lento(ss, seekNormal);
   }
 
@@ -630,7 +630,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
       @param mode Mode of seeking the end, seekEnd or 0 is possible.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart lento(String ss, int mode)
+  public StringPartOld lento(String ss, int mode)
   { endLast = end;
     int pos = content.substring(start, end).indexOf(ss);
     bFound = (pos >=0);
@@ -655,7 +655,7 @@ abcd  this is a part uvwxyz The associated String
       @java2c=return-this.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart lentoIdentifier()
+  public StringPartOld lentoIdentifier()
   {
     return lentoIdentifier(null, null);
   }
@@ -667,7 +667,7 @@ abcd  this is a part uvwxyz The associated String
    *  @param additionalChars String of additinal chars there are also accept
    *         as identifier chars. 
    */
-  public StringPart lentoIdentifier(String additionalStartChars, String additionalChars)
+  public StringPartOld lentoIdentifier(String additionalStartChars, String additionalChars)
   { endLast = end;
     end = start;
     if(end >= endMax){ bFound = false; }
@@ -711,7 +711,7 @@ abcd  this is a part uvwxyz The associated String
    *  @java2c=return-this.
    *  @param sCharsEnd Assembling of chars determine the end of the part.  
    * */
-  public StringPart lentoAnyNonEscapedChar(String sCharsEnd, int maxToTest)
+  public StringPartOld lentoAnyNonEscapedChar(String sCharsEnd, int maxToTest)
   { if(bCurrentOk)
     { final char cEscape = '\\';
       endLast = end;
@@ -738,7 +738,7 @@ abcd  this is a part uvwxyz The associated String
    *  @java2c=return-this.
    *  @param sCharsEnd Assembling of chars determine the end of the part.  
    * */
-  public StringPart lentoNonEscapedString(String sEnd, int maxToTest)
+  public StringPartOld lentoNonEscapedString(String sEnd, int maxToTest)
   { if(bCurrentOk)
     { final char cEscape = '\\';
       endLast = end;
@@ -776,7 +776,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
       @param nr of positions to displace. Negative: Displace to left.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart seek(int nr)
+  public StringPartOld seek(int nr)
   { startLast = start;
     start += nr;
     if(start > end)
@@ -808,7 +808,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
    *  @java2c=return-this.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart seekNoWhitespace()
+  public StringPartOld seekNoWhitespace()
   { startLast = start;
     while( start < end && " \t\r\n\f".indexOf(content.charAt(start)) >=0 )
     { start +=1;
@@ -829,7 +829,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
    * 
    */ 
   @Deprecated
-  protected StringPart skipWhitespaceAndComment()
+  protected StringPartOld skipWhitespaceAndComment()
   { return seekNoWhitespaceOrComments();
   }
 
@@ -849,7 +849,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
       @java2c=return-this.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart seekNoWhitespaceOrComments()
+  public StringPartOld seekNoWhitespaceOrComments()
   { int start00 = start;
     int start0;
     do
@@ -903,7 +903,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
    *  @java2c=return-this.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  protected StringPart seekBegin()
+  protected StringPartOld seekBegin()
   { start = startLast = startMin;
     return this;
   }
@@ -943,7 +943,7 @@ that is a liststring and his part The associated String
       @param mode Mode of seeking, use ones of back, seekToLeft, seekNormal, added with seekEnd.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart seek(String sSeek, int mode)
+  public StringPartOld seek(String sSeek, int mode)
   { startLast = start;
     String sSeekArea;
     int posNotFound;  //position if not found in dependence of area of seek and direction
@@ -996,7 +996,7 @@ that is a liststring and his part The associated String
    *                        count from 0. This array reference may be null, then unused.
    * @return this.       
    */  
-  public StringPart seekAnyString(String[] strings, int[] nrofFoundString)
+  public StringPartOld seekAnyString(String[] strings, int[] nrofFoundString)
   //public StringPart seekAnyString(List<String> strings, int[] nrofFoundString)
   { startLast = start;
     int pos;
@@ -1034,7 +1034,7 @@ that is a liststring and his part The associated String
       @param mode Mode of seeking, use ones of back, seekToLeft, seekNormal, added with seekEnd.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart seek(char cSeek, int mode)
+  public StringPartOld seek(char cSeek, int mode)
   { startLast = start;
     String sSeekArea;
     int posNotFound;  //position if not found in dependence of area of seek and direction
@@ -1085,7 +1085,7 @@ that is a liststring and his part The associated String
       @param sSeek The string to search for.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart xxxseekEnd(String sSeek)
+  public StringPartOld xxxseekEnd(String sSeek)
   { startLast = start;
     int pos = content.indexOf(sSeek, start);
     if(pos >= 0) pos += sSeek.length();
@@ -1107,7 +1107,7 @@ that is a liststring and his part The associated String
       @param sChars String with the chars to overread.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart seekNoChar(String sChars)
+  public StringPartOld seekNoChar(String sChars)
   { startLast = start;
     while(start < end && sChars.indexOf(content.charAt(start)) >=0) start +=1;
     if(start < end) bFound = true;
@@ -1441,7 +1441,7 @@ that is a liststring and his part The associated String
    * @param mode Possible values are StringPart.seekBack or StringPart.seekNormal = 0.       
    * @return This itself.
    */
-  public StringPart lentoAnyChar(String sChars, int maxToTest)
+  public StringPartOld lentoAnyChar(String sChars, int maxToTest)
   { return lentoAnyChar(sChars, maxToTest, seekNormal);
   }
 
@@ -1459,7 +1459,7 @@ that is a liststring and his part The associated String
    * @param mode Possible values are StringPart.seekBack or StringPart.seekNormal = 0.       
    * @return This itself.
    */
-  public StringPart lentoAnyChar(String sChars, int maxToTest, int mode)
+  public StringPartOld lentoAnyChar(String sChars, int maxToTest, int mode)
   { endLast = end;
     int pos;
     if((mode & mSeekBackward_) != 0)
@@ -1486,7 +1486,7 @@ that is a liststring and his part The associated String
    *        the actual length is set to 0.
    * @return This itself.
    */
-  public StringPart lentoAnyString(String[] strings, int maxToTest)
+  public StringPartOld lentoAnyString(String[] strings, int maxToTest)
   //public StringPart lentoAnyString(List<String> strings, int maxToTest)
   { return lentoAnyString(strings, maxToTest, seekNormal);
   }
@@ -1507,7 +1507,7 @@ that is a liststring and his part The associated String
    *        </ul>       
    * @return This itself.
    */
-  public StringPart lentoAnyString(String[] strings, int maxToTest, int mode)
+  public StringPartOld lentoAnyString(String[] strings, int maxToTest, int mode)
   //public StringPart lentoAnyString(List<String> strings, int maxToTest, int mode)
   { endLast = end;
     /**@java2c=stackInstance. It is only used internally. */
@@ -1626,7 +1626,7 @@ that is a liststring and his part The associated String
    *        the actual length is set to 0.
    * @return This itself.
    */
-  public StringPart lentoAnyCharOutsideQuotion(String sChars, int maxToTest)
+  public StringPartOld lentoAnyCharOutsideQuotion(String sChars, int maxToTest)
   { endLast = end;
     int pos = indexOfAnyCharOutsideQuotion(sChars, 0, maxToTest);
     if(pos < 0){ end = start; bFound = false; }
@@ -1644,7 +1644,7 @@ that is a liststring and his part The associated String
    *        the actual length is set to 0.
    * @return This itself.
    */
-  public StringPart lentoQuotionEnd(char sEndQuotion, int maxToTest)
+  public StringPartOld lentoQuotionEnd(char sEndQuotion, int maxToTest)
   { endLast = end;
     int pos = indexEndOfQuotion(sEndQuotion, 0, maxToTest);
     if(pos < 0){ end = start; bFound = false; }
@@ -1662,7 +1662,7 @@ that is a liststring and his part The associated String
    * @param sChars Some chars searched as terminate char for the actual part.
    * @return This itself.
    */
-  public StringPart lentoAnyChar(String sChars)
+  public StringPartOld lentoAnyChar(String sChars)
   { lentoAnyChar(sChars, Integer.MAX_VALUE);
     return this;
   }
@@ -1674,7 +1674,7 @@ that is a liststring and his part The associated String
    * @java2c=return-this.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart len0end()
+  public StringPartOld len0end()
   { if(end <= start) end = endMax;
     return this;
   }
@@ -1684,7 +1684,7 @@ that is a liststring and his part The associated String
   /**Sets the length to the end of the maximal part.
    * @java2c=return-this.
   */
-  public StringPart setLengthMax()
+  public StringPartOld setLengthMax()
   { end = endMax;
     return this;
   }
@@ -1702,7 +1702,7 @@ that is a liststring and his part The associated String
       @param sChars String with the chars to overread.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPart lenBacktoNoChar(String sChars)
+  public StringPartOld lenBacktoNoChar(String sChars)
   { endLast = end;
     while( (--end) >= start && sChars.indexOf(content.charAt(end)) >=0);
     if(end < start)
@@ -1721,7 +1721,7 @@ that is a liststring and his part The associated String
    * @java2c=return-this.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  StringPart trim()
+  StringPartOld trim()
   { return seekNoChar(" \t\n\r").lenBacktoNoChar(" \t\n\r");
   }
 
@@ -1734,7 +1734,7 @@ that is a liststring and his part The associated String
    * @java2c=return-this.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  StringPart trimComment()
+  StringPartOld trimComment()
   { startLast = start;
     endLast = end;
     int posComment = indexOf("//");
@@ -1857,7 +1857,7 @@ that is a liststring and his part The associated String
    *  @param sTest String to test
       @return this
   */
-  public StringPart scan(final String sTestP)
+  public StringPartOld scan(final String sTestP)
   { if(bCurrentOk)   //NOTE: do not call scanEntry() because it returns false if end of text is reached,
     {                //      but the sTestP may contain only cEndOfText. end of text will be okay than.
       seekNoWhitespaceOrComments();
@@ -1912,7 +1912,7 @@ that is a liststring and his part The associated String
    * @param sResult
    * @return
    */
-  public StringPart scanQuotion(String sQuotionmarkStart, String sQuotionMarkEnd, String[] sResult)
+  public StringPartOld scanQuotion(String sQuotionmarkStart, String sQuotionMarkEnd, String[] sResult)
   { return scanQuotion(sQuotionmarkStart, sQuotionMarkEnd, sResult, Integer.MAX_VALUE);
   }
   
@@ -1925,7 +1925,7 @@ that is a liststring and his part The associated String
    * @param maxToTest
    * @return
    */
-  public StringPart scanQuotion(String sQuotionmarkStart, String sQuotionMarkEnd, String[] sResult, int maxToTest)
+  public StringPartOld scanQuotion(String sQuotionmarkStart, String sQuotionMarkEnd, String[] sResult, int maxToTest)
   { if(scanEntry())
     { scan(sQuotionmarkStart).lentoNonEscapedString(sQuotionMarkEnd, maxToTest);
       if(bCurrentOk)
@@ -1978,7 +1978,7 @@ that is a liststring and his part The associated String
    * @java2c=return-this.
    * @return
    */
-  public StringPart scanStart()
+  public StringPartOld scanStart()
   { bCurrentOk = true;
     scanOk();  //turn all indicees to ok
     return this;
@@ -2012,7 +2012,7 @@ that is a liststring and his part The associated String
    * @java2c=return-this.
    * @return
    */
-  public StringPart scanPositivInteger() throws ParseException  //::TODO:: scanLong(String sPicture)
+  public StringPartOld scanPositivInteger() throws ParseException  //::TODO:: scanLong(String sPicture)
   { if(scanEntry())
     { long value = scanDigits(false, Integer.MAX_VALUE);
       if(bCurrentOk)
@@ -2034,7 +2034,7 @@ that is a liststring and his part The associated String
    * @java2c=return-this.
    * @return this
    */
-  public StringPart scanInteger() throws ParseException  //::TODO:: scanLong(String sPicture)
+  public StringPartOld scanInteger() throws ParseException  //::TODO:: scanLong(String sPicture)
   { if(scanEntry())
     { boolean bNegativValue = false;
       if( content.charAt(start) == '-')
@@ -2065,7 +2065,7 @@ that is a liststring and his part The associated String
    * @return this
    * @throws ParseException if the buffer is not free to hold the float number.
    */
-  public StringPart scanFloatNumber(boolean cleanBuffer)  throws ParseException
+  public StringPartOld scanFloatNumber(boolean cleanBuffer)  throws ParseException
   {
     if(cleanBuffer){
       idxLastFloatNumber = -1; 
@@ -2084,7 +2084,7 @@ that is a liststring and his part The associated String
    * @return this
    * @throws ParseException if the buffer is not free to hold the float number.
    */
-  public StringPart scanFloatNumber() throws ParseException  //::TODO:: scanLong(String sPicture)
+  public StringPartOld scanFloatNumber() throws ParseException  //::TODO:: scanLong(String sPicture)
   { if(scanEntry())
     { long nInteger = 0, nFractional = 0;
       int nDivisorFract = 1, nExponent;
@@ -2187,7 +2187,7 @@ that is a liststring and his part The associated String
    * @throws ParseException if the buffer is not free to hold an integer number.
    * @java2c=return-this.
    */
-  public StringPart scanHex(int maxNrofChars) throws ParseException  //::TODO:: scanLong(String sPicture)
+  public StringPartOld scanHex(int maxNrofChars) throws ParseException  //::TODO:: scanLong(String sPicture)
   { if(scanEntry())
     { long value = scanDigits(true, maxNrofChars);
       if(bCurrentOk)
@@ -2212,7 +2212,7 @@ that is a liststring and his part The associated String
    * @param maxNrofChars The maximal number of chars to scan, if <=0 than no limit.
    * @return this to concatenate the call.
    */
-  public StringPart scanHexOrDecimal(int maxNrofChars) throws ParseException  //::TODO:: scanLong(String sPicture)
+  public StringPartOld scanHexOrDecimal(int maxNrofChars) throws ParseException  //::TODO:: scanLong(String sPicture)
   { if(scanEntry())
     { long value;
       if( content.substring(start).startsWith("0x"))
@@ -2236,7 +2236,7 @@ that is a liststring and his part The associated String
    * @java2c=return-this.
    * @return
    */
-  public StringPart scanIdentifier()
+  public StringPartOld scanIdentifier()
   { return scanIdentifier(null, null);
   }
   
@@ -2247,7 +2247,7 @@ that is a liststring and his part The associated String
    * @param additionalChars
    * @return
    */
-  public StringPart scanIdentifier(String additionalStartChars, String additionalChars)
+  public StringPartOld scanIdentifier(String additionalStartChars, String additionalChars)
   { if(scanEntry())
     { lentoIdentifier(additionalStartChars, additionalChars);
       if(bFound)
@@ -2385,7 +2385,7 @@ that is a liststring and his part The associated String
    * @return
    * @since 2013-09-07
    */
-  public StringPart scanTranscriptionToAnyChar(CharSequence[] dst, String sCharsEnd
+  public StringPartOld scanTranscriptionToAnyChar(CharSequence[] dst, String sCharsEnd
       , char transcriptChar, char quotationStartChar, char quotationEndChar)
   { if(scanEntry()){
       if(start == 4910)
@@ -2592,7 +2592,7 @@ that is a liststring and his part The associated String
     int nrofToken = placeholder.length;
     if(nrofToken != value.length) throw new IllegalArgumentException("token and value should have same size, lesser 20"); 
     if(dst == null){ dst = new StringBuilder(len + 100); }//calculate about 53 chars for identifier
-    StringPart spPattern = new StringPart(src);
+    StringPartOld spPattern = new StringPartOld(src);
     int posPatternStart = 0;
     int posPattern;
     do

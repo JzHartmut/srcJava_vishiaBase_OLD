@@ -39,7 +39,7 @@ import org.vishia.bridgeC.OS_TimeStamp;
 import org.vishia.bridgeC.VaArgBuffer;
 import org.vishia.bridgeC.Va_list;
 import org.vishia.util.FileWriter;
-import org.vishia.util.StringPart;
+import org.vishia.util.StringPartOld;
 
 
 
@@ -386,7 +386,7 @@ public static final int version = 0x20120302;
     { errorBuffer.setLength(0);
     }
     /** @java2c=stackInstance.*/
-    StringPart spCtrl = new StringPart(ctrl);
+    StringPartOld spCtrl = new StringPartOld(ctrl);
     spCtrl.setIgnoreWhitespaces(true);
     spCtrl.setIgnoreComment("/*", "*/");
     spCtrl.setIgnoreEndlineComment("//");

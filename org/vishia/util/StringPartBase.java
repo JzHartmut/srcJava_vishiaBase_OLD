@@ -1,6 +1,5 @@
 package org.vishia.util;
 
-import java.util.Arrays;
 
 /**This is an alternative to the {@link java.lang.String} which uses a shared reference to the char sequence.
  * This class is able to use if String processing is done in a closed thread. This class must not be used 
@@ -9,12 +8,117 @@ import java.util.Arrays;
  * @author Hartmut Schorrig
  *
  */
+/**The StringPart class represents a flexible valid part of a character string which's spread is changeable. 
+ * It may be seen as an alternative to the standard {@link java.lang.String} for the capability to build a {@link String#substring(int)}.
+ * <ul>
+ * <li>1. The substring or Part of the String can be build with some operations, {@link #seek(String, int)}, {@link #lento(String)} etc.
+ * <li>2. This class represents a Part of the String which is able to change.
+ * <li>3. The operation to build a Part does not build an independent String, but refers inside the given String.
+ * <li>4. The Part is able to build from any CharSequence, especially from a StringBuilder or from any char[]-Array.
+ * </ul>
+ * <b>Calculation time and memory effect</b>:<br>
+ * The 3. minute affects the calculation time for extensive using of parts of a String. The {@link String#substring(int)} method
+ * of standard Java till Version 6 builds a substring using and references the stored parent String. It was a cheap operation 
+ * in calculation time. 
+ * <br><br>
+ * In Java version 7 this behavior was changed. Up to version 7 a substring builds an new buffer for the substring
+ * in the heap. The advantage is: If a long String exists firstly, then some substrings are build, and the firstly long String
+ * is not used anymore, the memory of the long String can garbaged now. The application does not need yet memory for the originally long String,
+ * only the typical short substrings are stored in the heap. For applications, which builds some short substrings from a
+ * long parent String, it saves memory.
+ * <br><br>
+ * But if substrings are need extensively from one long String, to search somewhat etc, The creation of new memory for any substring
+ * may be an expensive operation. This class works with the given String, builds parts of the string with indices, 
+ * and does not need memory for any sub part.
+ * <br><br>
+ * 
+ * 
+ * <b>Multithreading, persistence of Strings</b>:<br>
+ * A StringPart depends of its parent CharSequence. That CharSequence maybe a String, which is persistent. But that CharSequence
+ * maybe a StringBuilder or any other volatile storage. Changing the CharSequence my disturb operations of the StringPart.
+ * Therefore the parent CharSequence should be notice. Is it changed? 
+ * <br><br>
+ * If a Part should be stored persistently, one can use a {@link #toString()} method of any returned CharSequence
+ * for example {@link #getCurrentPart()}.toString(). This builds a persistent String which can be stored and used independent of all others.
+ * <br><br>
+ * But if the Part of String is used in the same thread, not stored, and another thread does not disturb the content of the 
+ * StringPart's parent CharSequence (which may be usual), the waiver to build a persistent String may save a little bit of calculation time.
+ * A method which accepts a {@link java.lang.CharSequence} as parameter should not store that in suggestion of persistence. 
+ * For example {@link StringBuilder#append(CharSequence)} uses a non-persistent character sequence and adds it to its own buffer.
+ * <br><br>
+ * 
+ *  
+ * <b>Principles of operation</b>:<br>
+ * The StringPart class is associated to any CharSequence. Additionally 4 Parameters determine the actual part of the String
+ * and the limits of changing of the actual part. The followed image is used to explain the spread of a part:
+ * <pre>
+ * abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
+ * =====================     The === indicates the maximal part
+ *   -----------             The --- indicates the valid part before some operation
+ *         +++++             The +++ indicates the valid part after some operation
+ * </pre> 
+ * The actual part of the string is changeable, without building a new substring. 
+ * So some operations of seeking and scanning are offered. 
+ * <br><br>
+ * <b>Types of Methods</b>:<br>
+ * <ul>
+ * <li>assign: assigns a new parent string: {@link #assign(CharSequence)}, like constructor
+ * <li>seek: changes the start position of the actual (current) string part, do not change the end of the actual part,
+ *   from there, seek changes the length. Seek returns this, so concatenation of method calls is possible.
+ *   <ul>
+ *   <li>{@link #seek(int)}: Seek with given number of chars, for example seek(1) to skip over one character
+ *   <li>{@link #seek(char, int)}, {@link #seek(String, int)}: Searches any char or String
+ *   <li>{@link #seekAnyString(String[], int[])}: Searches any of some given String.
+ *   <li>{@link #seekNoWhitespace()}, {@link #seekNoWhitespaceOrComments()}: skip over all white spaces, maybe over comments
+ *   <li>{@link #seekBegin()} Expands the spread starting from the most left position
+ *   </ul>  
+ * <li>lento: changes the end of the actual string part.
+ *   <ul>
+ *   <li>{@link #lento(int)}: set a length of the valid part
+ *   <li>{@link #lento(char)}, {@link #lento(CharSequence, int)}: length till a end character or end string
+ *   <li>{@link #lentoAnyChar(String, int)}, {@link #lentoAnyString(String[], int)}: length till one of some given end characters or Strings
+ *   <li>{@link #lentoAnyCharOutsideQuotion(String, int): regards String in quotation as non-applying.
+ *   <li>#lentoAnyNonEscapedChar(String, int): regards characters after a special char as non-applying.
+ *   <li>#lentoAnyStringWithIndent(String[], String, int, StringBuilder): regards indentation typically for source files.
+ *   <li>#lentoIdentifier(), #lentoIdentifier(String, String): accepts identifier
+ *   </ul>
+ * <li>get: Gets an content without changing.
+ *   <ul>
+ *   <li>#getCurrentPart(): The valid part as CharSequence, use toString() to transform to a persistent String.
+ *   <li>#getCurrent(int): Requested number of chars from start of the current part, for tests and debugging.
+ *   <li>#getLastPart(): Last valid part before the last seek or scan.
+ *   </ul>
+ * <li>indexOf: search any one in the valid part.
+ *   <ul>
+ *   <li>#indexEndOfQuotion(char, int, int) etc.
+ *   </ul>
+ * </ul>            
+ */
+
 public class StringPartBase implements CharSequence, Comparable<CharSequence>
 {
   /**Version, history and license.
    * <ul>
-   * <li>2013-05-05 Hartmut created: Alternative implementation of StringPart using a CharSequence as buffer instead a String.
-   *   It supports more flexibility.
+   * <li>2013-10-26 Hartmut chg: Does not use substring yet, some gardening, renaming. 
+   * <li>2013-09-07 Hartmut new: {@link #scanTranscriptionToAnyChar(CharSequence[], String, char, char, char)}
+   *   the {@link #getCircumScriptionToAnyChar(String)} does not work correctly (it has a bug). Use the new one.
+   * <li>2013-01-20 Hartmut TODO: The {@link #content} should be a CharSequence. Then the instance of content may be a StringBuilder.
+   *   All content.substring should be replaced by content.subsequence(). The content.indexof-Method should be implemented here.
+   *   Advantage: A derived class can use the {@link #content} as StringBuilder and it can shift the string by operating with
+   *   large contents. Note that a origin position should be used then. This class can contain and regard a origin position,
+   *   which is =0 in this class. See {@link StringPartFromFileLines}. That class doesn't regard a less buffer yet, but it should do so. 
+   * <li>2013-01-19 Hartmut new: {@link #getPart(int, int)}
+   * <li>2012-02-19 Hartmut new: {@link #assignReplaceEnv(StringBuilder)}
+   * <li>2011-10-10 Hartmut new: {@link #scanFloatNumber(boolean)}. It should be possible to scan a float with clearing the buffer. Using in ZbnfParser.
+   * <li>1011-07-18 Hartmut bugfix: some checks of length in {@link #scanFloatNumber()}. If the String contains only the number digits,
+   *                an IndexOutOfBounds-exception was thrown because the end of the String was reached. 
+   * <li>2009-03-16 Hartmut new: scanStart() returns this, not void. Useable in concatenation.
+   * <li>2007-05-08 JcHartmut  change: seekAnyChar(String,int[]) renamed to {@link seekAnyString(String,int[])} because it was an erroneous identifier. 
+   * <li>2007-05-08 JcHartmut  new: {@link lastIndexOfAnyChar(String,int,int)}
+   * <li>2007-05-08 JcHartmut  new: {@link lentoAnyChar(String, int, int)}
+   *                           it should programmed consequently for all indexOf and lento methods.
+   * <li>2007-04-00 JcHartmut  some changes, not noted.
+   * <li>2004-01-00 JcHartmut  initial revision The idea of such functionality was created in th 1990th in C++ language.
    * </ul>
    * <br><br>
    * <b>Copyright/Copyleft</b>:

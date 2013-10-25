@@ -1538,7 +1538,7 @@ public class CalculatorExpr
   public String setExpr(String sExpr, String[] sIdentifier)
   {
     this.variables = sIdentifier;
-    StringPart sp = new StringPart(sExpr);
+    StringPartOld sp = new StringPartOld(sExpr);
     return multExpr(sp, "!", 1);  //TODO addExpr
   }
   
@@ -1550,19 +1550,19 @@ public class CalculatorExpr
   public String setExpr(String sExpr)
   {
     this.variables = new String[]{"X"};
-    StringPart sp = new StringPart(sExpr);
+    StringPartOld sp = new StringPartOld(sExpr);
     return addExpr(sp, "!", 1);
   }
   
 
   /**The outer expression is a add or subtract expression.
    * call recursively for any number of operands.
-   * call {@link #multExpr(StringPart, char)} to get the argument values.
+   * call {@link #multExpr(StringPartOld, char)} to get the argument values.
    * @param sp
    * @param operation The first operation.
    * @return this
    */
-  private String addExpr(StringPart sp, String operation, int recursion)
+  private String addExpr(StringPartOld sp, String operation, int recursion)
   { String sError = null;
     if(recursion > 1000) throw new RuntimeException("recursion");
     sError = multExpr(sp, operation, recursion +1);
@@ -1584,7 +1584,7 @@ public class CalculatorExpr
    * @param operation
    * @return
    */
-  private String multExpr(StringPart sp, String operation, int recursion)
+  private String multExpr(StringPartOld sp, String operation, int recursion)
   { if(recursion > 1000) throw new RuntimeException("recursion");
     try{
       if(sp.scanIdentifier().scanOk()){

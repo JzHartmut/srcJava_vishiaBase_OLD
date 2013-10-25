@@ -33,7 +33,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
 
-public class StringPartFromFileLines extends StringPart
+public class StringPartFromFileLines extends StringPartOld
 {
   
   /**Version, history and license.
@@ -163,10 +163,10 @@ public class StringPartFromFileLines extends StringPart
         posNewline = sFirstLine.indexOf('\n', posNewline +1); //from the second line. 
       }
       if(posNewline < 0) posNewline = nrofFirstChars;
-      StringPart spFirstLine = new StringPart(sFirstLine.substring(0, posNewline));
+      StringPartOld spFirstLine = new StringPartOld(sFirstLine.substring(0, posNewline));
       spFirstLine.setIgnoreWhitespaces(true);
       /**Check whether the encoding keyword is found: */
-      if(spFirstLine.seek(sEncodingDetect, StringPart.seekEnd).found()
+      if(spFirstLine.seek(sEncodingDetect, StringPartOld.seekEnd).found()
         && spFirstLine.scan("=").scanOk() 
         )
       { String sCharset;

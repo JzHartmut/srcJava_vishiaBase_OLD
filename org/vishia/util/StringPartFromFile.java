@@ -30,7 +30,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 
-public class StringPartFromFile extends StringPart
+public class StringPartFromFile extends StringPartOld
 {
   final StringBuffer buffer;
   char[] fileBuffer = new char[1024];
