@@ -109,7 +109,7 @@ public class FileCluster
         if(sPathRet.length() < sDir.length()){ //any super directory found.
           if(sDir.charAt(zPathRet) == '/'){    //is it that?
             //any directory of the file was found. Create the child directory.
-            StringPartBase pathchild = new StringPartBase(sDir, zPathRet+1);
+            StringPartBase pathchild = new StringPartBase(sDir, zPathRet+1, sDir.length());
             dirRet = dirRet.child(pathchild);
             putit = false;  //it is existed as child of any file in the cluster.
           } else { //other directory name, not found.

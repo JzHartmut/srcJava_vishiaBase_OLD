@@ -104,7 +104,7 @@ public class StringSeq implements CharSequence
    * @see java.lang.CharSequence#subSequence(int, int)
    */
   @Override public CharSequence subSequence(int start, int end){ 
-    return cs.subSequence(start, end).toString(); 
+    return cs.subSequence(start, end); 
   }
   
   

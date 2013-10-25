@@ -428,11 +428,16 @@ public class StringFunctions {
    * @return 0 if all characters are equal, 1 if s1 > s2,  -1 if s1 < s2
    */
   public static boolean equals(CharSequence s1, CharSequence s2){
-    int zz = s1.length();
+    return equals(s1, 0, s1.length(), s2);
+  }
+
+  
+  public static boolean equals(CharSequence s1, int from, int to, CharSequence s2){
+    int zz = to - from;
     if( zz != s2.length()) return false;
     else {
       for(int ii = 0; ii<zz; ++ii){
-        if(s1.charAt(ii) != s2.charAt(ii)) return false;
+        if(s1.charAt(from + ii) != s2.charAt(ii)) return false;
       }
       return true;
     }
@@ -481,13 +486,16 @@ public class StringFunctions {
   
   /**Searches the first occurrence of the given CharSequence in a CharSequence.
    * It is the adequate functionality like {@link java.lang.String#indexOf(String, int)}. 
-   * @param sq A CharSequence
-   * @param str CharSequence which is searched.
-   * @param fromIndex first checked position in sq
+   * @param sq search into
+   * @param fromIndex start search
+   * @param to end search, exclusive. If it is > sq.length(), seacht till end. 
+   *   Especially Integer.MAX_VALUE can be used. Alternatively use {@link #indexOf(CharSequence, char, int)}.
+   * @param ch The character which is searched.
    * @return -1 if not found, else first occurrence where sq.charAt(return) == ch. 
    */
-  public static int indexOf(CharSequence sq, char ch, int fromIndex){
-    int max = sq.length();
+  public static int indexOf(CharSequence sq, int fromIndex, int to, char ch){
+    int zsq = sq.length();
+    int max = to > zsq ? zsq : to;
     int ii = fromIndex-1;  //pre-increment
     if (fromIndex < 0) {
         ii = -1;
@@ -503,16 +511,41 @@ public class StringFunctions {
   }
   
 
-  /**Searches the first occurrence of the given CharSequence in a CharSequence.
+  
+  /**Searches the first occurrence of the given Character in a CharSequence.
    * It is the adequate functionality like {@link java.lang.String#indexOf(String, int)}. 
    * @param sq A CharSequence
    * @param str CharSequence which is searched.
    * @param fromIndex first checked position in sq
    * @return -1 if not found, else first occurrence where sq.charAt(return) == ch. 
    */
+  public static int indexOf(CharSequence sq, char ch, int fromIndex){
+    return indexOf(sq, fromIndex, Integer.MAX_VALUE, ch);
+  }
+  
+  
+  /**Searches the last occurrence of the given char in a CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#lastIndexOf(char)}. 
+   * @param sq A CharSequence
+   * @param str CharSequence which is searched.
+   * @return -1 if not found, else first occurrence where sq.charAt(return) == ch. 
+   */
   public static int lastIndexOf(CharSequence sq, char ch){
-    int ii = sq.length();
-    while(--ii >=0){
+    return lastIndexOf(sq, 0, Integer.MAX_VALUE, ch);
+  }
+
+  /**Searches the last occurrence of the given char in a CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#lastIndexOf(char, fromEnd)}. 
+   * @param sq Any sequence
+   * @param fromIndex range, it starts comparison on to - str.lengt()
+   * @param to if > sq.length() uses sq.length()
+   * @param ch to search
+   * @return -1 if not found, elsewhere the position inside sq, >=fromIndex and < to 
+   */
+  public static int lastIndexOf(CharSequence sq, int from, int to, char ch){
+    int zsq = sq.length();
+    int ii = to > zsq ? zsq : to;
+    while(--ii >= from){
       if(sq.charAt(ii) == ch) {
         return ii;
       }
@@ -528,8 +561,9 @@ public class StringFunctions {
    * @param fromIndex first checked position in sq
    * @return -1 if not found, else first occurrence of str in sq which is >= fromIndex. 
    */
-  public static int indexOf(CharSequence sq, CharSequence str, int fromIndex){
-    int max = sq.length() - str.length()+1;
+  public static int indexOf(CharSequence sq, int fromIndex, int to, CharSequence str){
+    int zsq = sq.length();
+    int max = (to >= zsq ? zsq : to) - str.length()+1 ;
     int ii = fromIndex-1;  //pre-increment
     if (fromIndex < 0) {
         ii = -1;
@@ -551,6 +585,49 @@ public class StringFunctions {
     }
     return -1;  //not found;
   }
+  
+  
+  /**Searches the first occurrence of the given CharSequence in a CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#indexOf(String, int)}. 
+   * @param sq A CharSequence
+   * @param str CharSequence which is searched.
+   * @param fromIndex first checked position in sq
+   * @return -1 if not found, else first occurrence where {@link #equals(CharSequence sq, int return , int MAX_VALUE, CharSequence str)} ==0. 
+   */
+  public static int indexOf(CharSequence sq, CharSequence str, int fromIndex){
+    return indexOf(sq, fromIndex, Integer.MAX_VALUE, str);
+  }
+  
+  /**Checks whether the given CharSequence contains the other given CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#lastIndexOf(String, int)}. 
+   * @param sq Any sequence where to search in
+   * @param fromIndex range, it starts comparison on to - str.lengt()
+   * @param to if > sq.length() uses sq.length()
+   * @param str comparison sequence, check whether contained fully.
+   * @return -1 if not found, elsewhere the position inside sq >=fromIndex and <= to - str.length()
+   */
+  public static int lastIndexOf(CharSequence sq, int fromIndex, int to, CharSequence str){
+    int zsq = sq.length();
+    int max = (to >= zsq ? zsq : to) - str.length()+1 ;
+    if (fromIndex >= max) {
+      return -1;
+    }
+    char ch = str.charAt(0);
+    while(--max >= fromIndex){
+      if(sq.charAt(max) == ch) {
+        int s1 = 0;
+        for(int jj = max+1; jj < max + str.length(); ++jj){
+          if(sq.charAt(jj) != str.charAt(++s1)){
+            s1 = -1; //designate: not found
+            break;
+          }
+        }
+        if(s1 >0) return max;  //found.
+      }
+    }
+    return -1;  //not found;
+  }
+  
   
   
   
@@ -583,7 +660,7 @@ public class StringFunctions {
    */
   public static CharSequence convertTranscription(CharSequence src, char transcriptChar)
   { CharSequence sResult;
-    int posSwitch = indexOf(src,transcriptChar, 0);
+    int posSwitch = indexOf(src,0, src.length(), transcriptChar);
     if(posSwitch < 0)
     { sResult = src;
     }
