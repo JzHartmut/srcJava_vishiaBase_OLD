@@ -147,6 +147,53 @@ public class StringPartBase implements CharSequence, Comparable<CharSequence>, C
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
   public final static int version = 20131027; 
+  /** The actual start position of the valid part.*/
+  protected int begin;
+  /** The actual exclusive end position of the valid part.*/
+  protected int end;
+
+  /**The most left possible start position. We speak about the 'maximal Part':
+    * The actual valid part can not exceed the borders startMin and endMax of the maximal part after any operation.
+    * The content of the associated string outside the maximal part is unconsidered. The atrributes startMin and endMax
+    * are not set by any operations except for the constructors and the set()-methods.
+      <br/>Set to 0 if constructed from a string,
+      determined by the actual start if constructed from a StringPart.
+      <hr/><u>In the explanation of the methods the following notation is used as samples:</u><pre>
+abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
+  =====================     The === indicates the maximal part
+    -----------             The --- indicates the valid part before operation
+               ++++++++     The +++ indicates the valid part after operation
+      </pre>
+  */
+  protected int begiMin;
+
+  /** The rightest possible exclusive end position. See explanation on startMin.
+      <br/>Set to content.length() if constructed from a string,
+      determined by the actual end if constructed from a StringPart*/
+  protected int endMax;
+
+  /** The referenced string*/
+  protected CharSequence content;
+
+  /**false if current scanning is not match*/
+  protected boolean bCurrentOk = true;
+  
+  /**If true, than all idxLastScanned... are set to 0, 
+   * it is after {@link #scanOk()} or after {@link #scanStart}
+   */ 
+  protected boolean bStartScan = true;
+
+  /** Borders of the last part before calling of scan__(), seek__(), lento__(). If there are different to the current part,
+   * the call of restoreLastPart use this values. scanOk() sets the startLast-variable to the actual start or rewinds
+   * the actual start ot startLast.
+   */
+  protected int beginLast, endLast;
+
+
+
+
+  /** True if the last operation of lento__(), seek etc. has found anything. See {@link #found()}. */
+  boolean bFound = true;
 
   
   /** Flag to force setting the start position after the seeking string. See description on seek(String, int).
@@ -177,6 +224,9 @@ public class StringPartBase implements CharSequence, Comparable<CharSequence>, C
    public static final int seekNormal = 0;
 
 
+  /** Some mode bits */
+  protected int bitMode = 0;
+  
    /** Bit in mode. If this bit ist set, all whitespace are overreaded
     * before calling any scan method.
     */
@@ -201,98 +251,22 @@ public class StringPartBase implements CharSequence, Comparable<CharSequence>, C
    /** The string defined the start of comment to end of line*/
    String sCommentToEol = "//";
    
-
-
-  
-  /**The characters in the view. This array can be large. For example to pares a file with 10 mBytes length,
-   * it may be 10 MBytes. 
-   * 
-   */
-  //protected char[] chars;
-  
-  /**Helper to access {@link #chars} with CharSequence reference. 
-   * Especially used in {@link StringFunctions}. */
-  protected CharSequence schars = new CharSequence(){
-    @Override public char charAt(int index){ return schars.charAt(index); }
-    @Override public int length(){ return schars.length(); }
-    @Override public CharSequence subSequence(int start, int end)
-    { return new Part(start + apos, end + apos);
-    }
-  };
-  
-  /**The absolute position which is located to the {@link #chars}[0].
-   * It is possible that {@link #chars} presents only a view of the whole characters.
-   */
-  protected int apos;
-  
-  /** The actual start position of the valid part.*/
-  protected int begin;
-  /** The actual exclusive end position of the valid part.*/
-  protected int end;
-
-  
-  /** True if the last operation of lento__(), seek etc. has found anything. See {@link #found()}. */
-  boolean bFound = true;
-  
-  
-  /**false if current scanning is not match*/
-  protected boolean bCurrentOk = true;
-  
-  /**If true, than all idxLastScanned... are set to 0, 
-   * it is after {@link #scanOk()} or after {@link #scanStart}
-   */ 
-  protected boolean bStartScan = true;
-
-  
-  
-  /**The most left possible start position. We speak about the 'maximal Part':
-    * The actual valid part can not exceed the borders startMin and endMax of the maximal part after any operation.
-    * The content of the associated string outside the maximal part is unconsidered. The atrributes startMin and endMax
-    * are not set by any operations except for the constructors and the set()-methods.
-      <br/>Set to 0 if constructed from a string,
-      determined by the actual start if constructed from a StringPart.
-      <hr/><u>In the explanation of the methods the following notation is used as samples:</u><pre>
-abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
-  =====================     The === indicates the maximal part
-    -----------             The --- indicates the valid part before operation
-               ++++++++     The +++ indicates the valid part after operation
-      </pre>
-  */
-  protected int begiMin;
-
-  /** Borders of the last part before calling of scan__(), seek__(), lento__(). If there are different to the current part,
-   * the call of restoreLastPart use this values. scanOk() sets the startLast-variable to the actual start or rewinds
-   * the actual start ot startLast.
-   */
-  protected int beginLast, endLast;
-
-
-
-  /** The rightest possible exclusive end position. See explanation on startMin.
-      <br/>Set to content.length() if constructed from a string,
-      determined by the actual end if constructed from a StringPart*/
-  protected int endMax;
-
-  
-  /** Some mode bits */
-  protected int bitMode = 0;
-  
-
-  
-  /**Implementor of the shifter capability in a derived class. May be null if shifting is not supported. */
-  protected StringPartShift shifter;
-
-  
   /** The char used to code start of text. */  
   public static final char cStartOfText = (char)(0x2);
   
   /** The char used to code end of text. */  
   public static final char cEndOfText = (char)(0x3);
 
+  /** Creates a new empty StringPart without an associated String. See method set() to assign a String.*/
+  protected StringPartBase()
+  { this.content = null; begiMin = begin = beginLast= 0; endLast = endMax = end = 0;
+  }
 
-  
-  
-  /**Constructs with a given CharSequence, especially with a given String.
+
+
+  /** Creates a new StringPart, with the given content from a String. Initialy the whole string is valid
+      and determines the maximal part.
+   * Constructs with a given CharSequence, especially with a given String.
    * @param src Any CharSequence or String
    */
   public StringPartBase(CharSequence src){
@@ -300,39 +274,156 @@ abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
   }
   
   
-  protected StringPartBase()
-  { 
-  }
-
-
   
   /**Builds a StringPart which uses the designated part of the given src.
+      Creates a new StringPart with the same String as the given StringPart. The maximal part of the new StringPart
+      are determined from the actual valid part of the src. The actual valid part is equal to the maximal one.
+      <hr/><u>example:</u><pre>
+abcdefghijklmnopqrstuvwxyz  The associated String
+    ----------------        The valid part of src
+    ================        The maximal part and initial the valid part of this
+    +++++   ++++            Possible valid parts of this after some operations
+       ++++      +++        Possible also
+  +++++           ++++ +++  Never valid parts of this after operations because they exceeds the borders of maximal part.
+      </pre>
    * @param src It will be referenced.
    * @param start The beginMin and begin value for the StringPart.
    * @param end The end and endMax value for the StringPart.
    */
   public StringPartBase(CharSequence src, int start, int end){
-    this.apos = 0;
     this.begiMin = this.begin = start;
     this.endMax = this.end = end;
-    schars = src;
+    content = src;
   }
   
   
+  
+
   
   /** Sets the content to the given string, forgets the old content. Initialy the whole string is valid.
   @java2c=return-this.
   @param content The content.
   @return <code>this</code> to concatenate some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPartBase assign(CharSequence content)
+  public StringPartBase assign(CharSequence ref)
   { 
     begiMin = beginLast = begin = 0;
-    endMax = end = endLast = content.length();
+    endMax = end = endLast = ref.length();
     bStartScan = bCurrentOk = true;
-    schars = content;
+    content = ref;
     return this;
   }
+
+/**Sets the content to the given string, forgets the old content. 
+ * All Place-holder for System environment variable are replaced firstly.
+ * A place holder for a environment variable is written like "$(name)" or "$name" like in a unix shell.
+ * The replacement is done in the content. 
+ * Initially the whole string is valid.
+ * TODO designate input as persistent.
+@java2c=return-this.
+@param input The content initially maybe with place holders for environment variable, they will be replaced.
+  For java2c-usage the content should not be changed after them, because the String is referred there
+  originally.
+@return <code>this</code> refers the content.
+ * @deprecated: This routine processes the input. It may better to do this outside before
+ * calling {@link #assign(CharSequence)} because it is not a functionality of this class.
+*/
+public StringPartBase assignReplaceEnv(StringBuilder input)
+{ int pos1 = 0;
+  int zInput = input.length();
+  while( (pos1 = input.indexOf("$", pos1))>=0){
+    int posident, posidentend, pos9;
+    if(input.charAt(pos1+1)=='('){
+      posident = pos1 + 2;
+      posidentend = input.indexOf(")", posident);
+      pos9 = posidentend +1;  //after )
+      
+    } else {
+      posident = pos1 +1 ;
+      posidentend = pos9 = StringFunctions.posAfterIdentifier(input, posident, zInput);
+    }
+    String sEnv = System.getenv(input.substring(posident, posidentend));
+    if(sEnv == null){ sEnv = ""; }
+    input.replace(pos1, pos9, sEnv);
+    zInput = input.length();
+  }
+  this.content =  input;
+  begiMin = beginLast = begin = 0;
+  endMax = end = endLast = content.length();
+  bStartScan = bCurrentOk = true;
+  return this;
+}
+
+
+
+
+
+  
+
+  /** Sets the StringPart with the same String object as the given StringPart, forgets the old content.
+      The borders of the new StringPart (the maximal part)
+      are determined from the actual valid part of the src. The actual valid part is equal to this limits.
+      If the src is the same instance as this (calling with 'this'), than the effect is the same.
+      The maximal Part is determined from the unchanged actual part.
+      <hr/><u>example:</u><pre>
+abcdefghijklmnopqrstuvwxyz  The associated String
+    ----------------        The valid part of src
+    ================        The maximal part and initial the valid part of this
+    +++++   ++++            Possible valid parts of this after some operations
+       ++++      +++        Possible also
+  +++++           ++++ +++  Never valid parts of this after operations because they exceeds the borders of maximal part.
+      </pre>
+      @java2c=return-this.
+      @param src The given StringPart.
+      @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
+  */
+  public StringPartBase assign(StringPartBase src)
+  { if(src == this)
+    { //set from the own instance: the maxPart is the actual one.
+      begiMin = beginLast = begin; endMax = endLast = end;
+    }
+    else
+    { //set from a other instance, inherit the content.
+      this.content = src.content; begiMin = beginLast = begin = src.begin; endMax = end = endLast = src.end;
+    }
+    return this;
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  /** Sets the content of the StringPart , forgets the old content. The same string like in src is associated.
+      Initialy the part from the end of the src-part to the maximal end of src is valid. The valid part and
+      the maximal part is set in this same way.
+      <hr/><u>example:</u><pre>
+abcdefghijklmnopqrstuvwxyz  The associated String
+  =====================     The maximal part of src
+    ------                  The valid part of src
+          =============     The maximal and initialy the valid part of this
+      </pre>
+      @java2c=return-this.
+      @param src The source of the operation.
+      @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
+  */
+  public StringPartBase assignFromEnd(StringPartOld src)
+  { this.content = src.content;
+    beginLast = begin;
+    begiMin = begin = src.end;       //from actual end
+    endLast = endMax = end = src.endMax;          //from maximal end
+    return this;
+  }
+
+
 
 
   /** Sets the start of the maximal part to the actual start of the valid part.
@@ -385,60 +476,31 @@ public int getLineCt(){ return 0; }
 
 
   
-  /** Compares the Part of string with the given string
-   */
-   public boolean equals(CharSequence sCmp)
-   { return StringFunctions.equals(schars, begin, end, sCmp); //content.substring(start, end).equals(sCmp);
-   }
+
+/* (non-Javadoc)
+ * @see java.lang.CharSequence#charAt(int)
+ */
+@Override
+public char charAt(int index){ 
+  return absCharAt(begin + index);
+}
 
 
+/**Returns a volatile CharSequence from the range inside the current part.
+ * If it is not possible an IllegalArgumentException is thrown.
+ * The difference to {@link #subString(int, int)} is: It is not persistant.
+ * This method should only used if the CharSequence is processed in the thread immediately
+ * for example by adding to another StringBuilder etc. The returned instance should not be saved
+ * for later usage.
+ *  
+ * @see java.lang.CharSequence#subSequence(int, int)
+ */
+@Override public Part subSequence(int from, int to)
+{ 
+  if(from < 0 || to > (end - begin)) throw new IllegalArgumentException("StringPartBase.subString - faulty;" + from);
+  return new Part(begin+from, begin+to); 
+} 
 
-
-   /**compares the Part of string with the given string.
-    * new since 2008-09: if sCmp contains a cEndOfText char (coded with \e), the end of text is tested.
-    * @param sCmp The text to compare.
-   */
-   public boolean startsWith(CharSequence sCmp)
-   { int pos_cEndOfText = StringFunctions.indexOf(sCmp, cEndOfText, 0); //sCmp.indexOf(cEndOfText);
-     
-     if(pos_cEndOfText >=0)
-     { if(pos_cEndOfText ==0)
-       { return begin == end;
-       }
-       else
-       { return StringFunctions.equals(schars, begin, end, sCmp); //content.substring(start, end).equals(sCmp);
-       }
-       
-     }
-     else
-     { return StringFunctions.startsWith(schars, begin, end, sCmp); //content.substring(start, end).startsWith(sCmp);
-     }
-   }
-
-   /** Gets the current position, useable for rewind. This method is overwritten
-    * if derived classes uses partial content.
-    */ 
-   public long getCurrentPosition()
-   { return begin;
-   }
-   
-   
-   /** Sets the current position at a fix position inside the maxPart.
-    * TODO what is with rewind etc? see old StringScan.
-    * Idea: the max Part is never enlargeable to left, only made smaller to rihht.
-    * Thats why the left border of maxPart is useable for shift left the content
-    * by reading the next content from file, if the buffer is limited, larger than necessarry for a
-    * whole file's content. But all pos values should be relativ. getCurrentPos must return
-    * a relativ value, if shiftness is used. this method shuld use a relativ value.
-    * old:, useable for rewind. This method may be overwritten
-    * if derived classes uses partial content.
-    
-    * @param pos the absolute position
-    */ 
-   public void setCurrentPosition(long pos)
-   { begin = (int)pos;
-   }
-   
 
 
   
@@ -501,7 +563,7 @@ public int getLineCt(){ return 0; }
   { endLast = end;
     end = begin-1;
     while(++end < endLast){
-      if(schars.charAt(end) == cc) { bFound = true; return this; }
+      if(content.charAt(end) == cc) { bFound = true; return this; }
     }
     end = begin;  //not found
     bFound = false;
@@ -537,7 +599,7 @@ public int getLineCt(){ return 0; }
   */
   public StringPartBase lento(CharSequence ss, int mode)
   { endLast = end;
-    int pos = StringFunctions.indexOf(schars, begin, end, ss);
+    int pos = StringFunctions.indexOf(content, begin, end, ss);
     bFound = (pos >=0);
     if(pos >= 0) { end = pos; 
                    if((mode & seekEnd) != 0){ end += ss.length();}
@@ -581,7 +643,7 @@ public int getLineCt(){ return 0; }
     else
       
     { //TODO use StringFunctions.lenIdentifier
-      char cc = schars.charAt(end);
+      char cc = content.charAt(end);
       if(   cc == '_' 
         || (cc >= 'A' && cc <='Z') 
         || (cc >= 'a' && cc <='z') 
@@ -589,7 +651,7 @@ public int getLineCt(){ return 0; }
         )
       { end +=1;
         while(  end < endMax 
-             && (  (cc = schars.charAt(end)) == '_' 
+             && (  (cc = content.charAt(end)) == '_' 
                 || (cc >= '0' && cc <='9') 
                 || (cc >= 'A' && cc <='Z') 
                 || (cc >= 'a' && cc <='z') 
@@ -618,7 +680,7 @@ public int getLineCt(){ return 0; }
     { final char cEscape = '\\';
       endLast = end;
       int pos = indexOfAnyChar(sCharsEnd,0,maxToTest);
-      while(pos > begin+1 && schars.charAt(pos-1)==cEscape)
+      while(pos > begin+1 && content.charAt(pos-1)==cEscape)
       { //the escape char is before immediately. It means, the end char is not matched.
         pos = indexOfAnyChar(sCharsEnd, pos+1-begin, maxToTest);
       }
@@ -646,7 +708,7 @@ public int getLineCt(){ return 0; }
     { final char cEscape = '\\';
       endLast = end;
       int pos = indexOf(sEnd,0,maxToTest);
-      while(pos > begin+1 && schars.charAt(pos-1)==cEscape)
+      while(pos > begin+1 && content.charAt(pos-1)==cEscape)
       { //the escape char is before immediately. It means, the end char is not matched.
         pos = indexOf(sEnd, pos+1-begin, maxToTest);
       }
@@ -658,28 +720,6 @@ public int getLineCt(){ return 0; }
 
   
   
-  
-  /**Sets the length to the end of the maximal part if the length is 0. This method could be called at example
-  if a end char is not detected and for that reason the part is valid to the end.
-   * @java2c=return-this.
-   @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
-   */
-  public StringPartBase len0end()
-  { if(end <= begin) end = endMax;
-    return this;
-  }
-  
-  /**Sets the length to the end of the maximal part.
-   * @java2c=return-this.
-  */
-  public StringPartBase setLengthMax()
-  { end = endMax;
-    return this;
-  }
-
-
-  
-
   
   /** Displaces the start of the part for some chars to left or to right.
   If the seek operation would exceeds the maximal part borders, a StringIndexOutOfBoundsException is thrown.
@@ -733,7 +773,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
 */
 public StringPartBase seekNoWhitespace()
 { beginLast = begin;
-while( begin < end && " \t\r\n\f".indexOf(schars.charAt(begin)) >=0 )
+while( begin < end && " \t\r\n\f".indexOf(content.charAt(begin)) >=0 )
 { begin +=1;
 }
 bFound = (begin > beginLast);
@@ -781,12 +821,12 @@ do
   { seekNoWhitespace();
   }
   if( (bitMode & mSkipOverCommentInsideText_mode) != 0)   
-  { if(StringFunctions.compare(schars, begin, sCommentStart, 0, sCommentStart.length())==0) 
+  { if(StringFunctions.compare(content, begin, sCommentStart, 0, sCommentStart.length())==0) 
     { seek(sCommentEnd, seekEnd);  
     }
   }
   if( (bitMode & mSkipOverCommentToEol_mode) != 0)   
-  { if(StringFunctions.compare(schars, begin, sCommentToEol, 0, sCommentToEol.length())==0)
+  { if(StringFunctions.compare(content, begin, sCommentToEol, 0, sCommentToEol.length())==0)
     { seek('\n', seekEnd);  
     }
   }
@@ -879,10 +919,10 @@ that is a liststring and his part The associated String
     
     int pos;
     if( (mode & mSeekBackward_) == mSeekBackward_) { 
-      pos = StringFunctions.lastIndexOf(schars, seekArea1, seekArea9, sSeek); //sSeekArea.lastIndexOf(sSeek);
+      pos = StringFunctions.lastIndexOf(content, seekArea1, seekArea9, sSeek); //sSeekArea.lastIndexOf(sSeek);
     }
     else { 
-      pos = StringFunctions.indexOf(schars, seekArea1, seekArea9, sSeek);
+      pos = StringFunctions.indexOf(content, seekArea1, seekArea9, sSeek);
     }
     
     if(pos < 0) { 
@@ -971,10 +1011,10 @@ return this;
     }
     int pos;
     if( (mode & mSeekBackward_) == mSeekBackward_){
-      pos = StringFunctions.lastIndexOf(schars, seekArea1, seekArea9, cSeek); 
+      pos = StringFunctions.lastIndexOf(content, seekArea1, seekArea9, cSeek); 
     }
     else {                                         
-      pos = StringFunctions.indexOf(schars, seekArea1, seekArea9, cSeek);
+      pos = StringFunctions.indexOf(content, seekArea1, seekArea9, cSeek);
     }
     
     if(pos < 0)
@@ -1008,81 +1048,12 @@ return this;
 */
 public StringPartBase seekNoChar(String sChars)
 { beginLast = begin;
-while(begin < end && sChars.indexOf(schars.charAt(begin)) >=0) begin +=1;
+while(begin < end && sChars.indexOf(content.charAt(begin)) >=0) begin +=1;
 if(begin < end) bFound = true;
 else bFound = false;
 return this;
 }
 
-
-
-
-  /** Returns the position of the char within the part,
-   * returns -1 if the char is not found in the part.
-     The methode is likely String.indexOf().
-    @param ch character to find.
-    @return position of the char within the part or -1 if not found within the part.
-    @exception The method throws no IndexOutOfBoundaryException.
-    It is the same behavior like String.indexOf(char, int fromEnd).
-  */
-  public int indexOf(char ch)
-  { int pos = StringFunctions.indexOf(schars, begin, end, ch);;
-    if(pos < 0) return -1;
-    else return pos - begin;
-  }
-
-  /** Returns the position of the char within the part, started inside the part with fromIndex,
-   * returns -1 if the char is not found in the part started from 'fromIndex'.
-     The method is likely String.indexOf().
-    @param ch character to find.
-    @param fromIndex start of search within the part.
-    @return position of the char within the part or -1 if not found within the part.
-    @exception The method throws no IndexOutOfBoundaryException. If the value of fromIndex
-    is negative or greater than the end position, -1 is returned (means: not found).
-    It is the same behavior like String.indexOf(char, int fromEnd).
-  */
-  public int indexOf(char ch, int fromIndex)
-  { if(fromIndex >= (end - begin) || fromIndex < 0) return -1;
-    else
-    { int pos = StringFunctions.indexOf(schars, begin + fromIndex, end, ch);;
-      if(pos < 0) return -1;
-      else return pos - begin + fromIndex;
-    }
-  }
-
-
-  /** Returns the position of the string within the part. Returns -1 if the string is not found in the part.
-      Example: indexOf("abc") returns 6, indexOf("fgh") returns -1 <pre>
-         abcdefgabcdefghijk
-  part:   =============  </pre>
-    @param sCmp string to find
-    @return position of the string within the part or -1 if not found within the part.
-  */
-  public int indexOf(CharSequence sCmp)
-  { int pos = StringFunctions.indexOf(schars, begin, end, sCmp);  //content.substring(begin, end).indexOf(sCmp);
-    if(pos < 0) return -1;
-    else return pos - begin;
-  }
-
-
-
-
-  /** Returns the position of the string within the part. Returns -1 if the string is not found in the part.
-      Example: indexOf("abc") returns 6, indexOf("fgh") returns -1 <pre>
-         abcdefgabcdefghijk
-  part:   =============  </pre>
-    @param sCmp string to find
-    @return position of the string within the part or -1 if not found within the part.
-  */
-  public int indexOf(CharSequence sCmp, int fromIndex, int maxToTest)
-  { int max = (end - begin) < maxToTest ? end : begin + maxToTest;
-    if(fromIndex >= (max - begin) || fromIndex < 0) return -1;
-    else
-    { int pos = StringFunctions.indexOf(schars, begin + fromIndex, max, sCmp); //content.substring(begin + fromIndex, max).indexOf(sCmp);
-      if(pos < 0) return -1;
-      else return pos - begin + fromIndex;
-    }
-  }
 
 
 
@@ -1093,7 +1064,7 @@ return this;
     int pos = begin + fromWhere;
     int max = (end - pos) < maxToTest ? end : pos + maxToTest;
     char cc;
-    while(pos < max && sChars.indexOf(cc = schars.charAt(pos)) < 0){  //end char not found:
+    while(pos < max && sChars.indexOf(cc = content.charAt(pos)) < 0){  //end char not found:
       pos += 1;
     }
     int nChars = pos - begin;
@@ -1126,7 +1097,7 @@ public int indexOfAnyChar(String sChars, final int fromWhere, final int maxToTes
  int max = (end - pos) < maxToTest ? end : begin + maxToTest;
  boolean bNotFound = true;
  while(pos < max && bNotFound){ 
-   char cc = schars.charAt(pos);
+   char cc = content.charAt(pos);
    if(cc == quotationStartChar && cc !=0)
    { int endQuotion = indexEndOfQuotation(quotationEndChar, transcriptChar, pos - begin, max - begin);
      if(endQuotion < 0){ pos = max; }
@@ -1166,7 +1137,7 @@ public int lastIndexOfAnyChar(String sChars, final int fromWhere, final int maxT
 { int pos = (end - begin) < maxToTest ? end-1 : begin + maxToTest-1;
  int min = begin + fromWhere;
  
- while(pos >= min && sChars.indexOf(schars.charAt(pos)) < 0)
+ while(pos >= min && sChars.indexOf(content.charAt(pos)) < 0)
  { pos -=1;
  }
  int index = pos >= min 
@@ -1222,7 +1193,7 @@ public int lastIndexOfAnyChar(String sChars, final int fromWhere, final int maxT
     { 
       int nrofFoundString1 = -1;
       /**increment over not matching chars, test all first chars: */
-      while(pos < max && (nrofFoundString1 = sFirstChars.indexOf(schars.charAt(pos))) < 0) pos +=1;
+      while(pos < max && (nrofFoundString1 = sFirstChars.indexOf(content.charAt(pos))) < 0) pos +=1;
       
       if(pos < max)
       { /**a fist matching char is found! test wether or not the whole string is matched.
@@ -1233,7 +1204,7 @@ public int lastIndexOfAnyChar(String sChars, final int fromWhere, final int maxT
           String sString = listStrings[ii];
           int testLen = sString.length();
           if((max - pos) >= testLen 
-              && StringFunctions.equals(schars, pos, pos+testLen, sString)
+              && StringFunctions.equals(content, pos, pos+testLen, sString)
           ) 
           { found = true;
           if(foundString != null)
@@ -1287,7 +1258,7 @@ public int indexOfAnyCharOutsideQuotion(String sChars, final int fromWhere, fina
  int max = (end - pos) < maxToTest ? end : begin + maxToTest;
  boolean bNotFound = true;
  while(pos < max && bNotFound)
- { char cc = schars.charAt(pos);
+ { char cc = content.charAt(pos);
    if(cc == '\"')
    { int endQuotion = indexEndOfQuotion('\"', pos - begin, max - begin);
      if(endQuotion < 0){ pos = max; }
@@ -1319,7 +1290,7 @@ public int indexEndOfQuotion(char cEndQuotion, final int fromWhere, final int ma
  int max = (end - pos) < maxToTest ? end : pos + maxToTest;
  boolean bNotFound = true;
  while(pos < max && bNotFound)
- { char cc = schars.charAt(pos++);
+ { char cc = content.charAt(pos++);
    if(cc == '\\' && (pos+1) < max)
    { pos += 1; //on \ overread the next char, test char after them!
    }
@@ -1348,7 +1319,7 @@ public int indexEndOfQuotation(char cEndQuotion, char transcriptChar, final int 
  int max = (end - pos) < maxToTest ? end : pos + maxToTest;
  boolean bNotFound = true;
  while(pos < max && bNotFound)
- { char cc = schars.charAt(pos++);
+ { char cc = content.charAt(pos++);
    if(cc == transcriptChar && cc !=0 && (pos+1) < max)
    { pos += 1; //on \ overread the next char, test char after them!
    }
@@ -1382,7 +1353,7 @@ public int indexOfAnyChar(String sChars)
 */
 public int indexOfNoChar(String sChars, final int fromWhere)
 { int pos = begin + fromWhere;
- while(pos < end && sChars.indexOf(schars.charAt(pos)) >= 0) pos +=1;
+ while(pos < end && sChars.indexOf(content.charAt(pos)) >= 0) pos +=1;
  return (pos >= end) ? -1 : (pos - begin);
 }
 
@@ -1546,7 +1517,7 @@ public void lentoAnyStringWithIndent(String[] strings, String sIndentChars, int 
    this.end = this.begin + pos; 
    boolean bFinish = false;
    while(!bFinish)  
-   { pos = StringFunctions.indexOf(schars, '\n', startLine);
+   { pos = StringFunctions.indexOf(content, '\n', startLine);
      if(pos < 0) pos = this.end;
      if(pos > this.end)
      { //next newline after terminated string, that is the last line.
@@ -1555,17 +1526,17 @@ public void lentoAnyStringWithIndent(String[] strings, String sIndentChars, int 
      }
      else { pos +=1; } // '\n' including
      //append the line to output string:
-     buffer.append(schars.subSequence(startLine, pos));
+     buffer.append(content.subSequence(startLine, pos));
      if(!bFinish)
      { //skip over indent.
        startLine = pos;
        int posIndent = startLine + indentColumn;
        if(posIndent > end) posIndent = end;
-       while(startLine < posIndent && sIndentChars.indexOf(schars.charAt(startLine)) >=0)
+       while(startLine < posIndent && sIndentChars.indexOf(content.charAt(startLine)) >=0)
        { startLine +=1;
        }
        if(bAlsoWhiteSpaces)
-       { while(" \t".indexOf(schars.charAt(startLine)) >=0)
+       { while(" \t".indexOf(content.charAt(startLine)) >=0)
          { startLine +=1;
          }
        }
@@ -1637,29 +1608,75 @@ public StringPartBase lentoAnyChar(String sChars)
 }
 
 
-  /**This routine provides the this-pointer as StringPartScan in a concatenation of StringPartBase-invocations. 
-   * @return this
-   * @throws ClassCastException if the instance is not a StringPartScan. That is an internal software error.
-   */
-  public StringPartScan scan()
-  { return (StringPartScan)this;
+
+
+  /**Sets the length to the end of the maximal part if the length is 0. This method could be called at example
+if a end char is not detected and for that reason the part is valid to the end.
+ * @java2c=return-this.
+ @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
+ */
+public StringPartBase len0end()
+{ if(end <= begin) end = endMax;
+  return this;
+}
+
+
+
+  /**Sets the length to the end of the maximal part.
+   * @java2c=return-this.
+  */
+  public StringPartBase setLengthMax()
+  { end = endMax;
+    return this;
+  }
+
+  /** Posits the end of the part before all of the chars given in the parameter string.
+      The start of the part is not affected.
+      <pre>sample: lentoBacktoNoChar("123") result is:
+                1231231231abcd12312efghij123123123klmnopq
+      before:       ==========================
+      after:        =====================
+                             </pre>
+   * @java2c=return-this.
+      @param sChars String with the chars to overread.
+      @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
+  */
+  public StringPartBase lenBacktoNoChar(String sChars)
+  { endLast = end;
+    while( (--end) >= begin && sChars.indexOf(content.charAt(end)) >=0);
+    if(end < begin)
+    { end = begin; bFound = false;
+    }
+    else bFound = true;
+    return this;
+  }
+
+  /** Trims all leading and trailing whitespaces within the part.
+      A Comment begins with "//".
+   * @java2c=return-this.
+      @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
+  */
+  StringPartBase trim()
+  { return seekNoChar(" \t\n\r").lenBacktoNoChar(" \t\n\r");
   }
 
 
 
-
-
-  /** Central mehtod to invoke excpetion, usefull to set a breakpoint in debug
-   * or to add some standard informations.
-   * @param sMsg
-   * @throws IndexOutOfBoundsException
-   */
-  private void throwIndexOutOfBoundsException(String sMsg)
-  throws IndexOutOfBoundsException
-  { throw new IndexOutOfBoundsException(sMsg);
+  /** Trims a java- or C-style line-comment from end of part and all leading and trailing whitespaces.
+      A Comment begins with "//".
+   * @java2c=return-this.
+      @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
+  */
+  StringPartBase trimComment()
+  { beginLast = begin;
+    endLast = end;
+    int posComment = indexOf("//");
+    if(posComment >=0) end = begin + posComment;
+    bFound = (begin > beginLast);
+    return trim();
   }
-  
-  
+
+
 
   /* (non-Javadoc)
    * @see java.lang.Comparable#compareTo(java.lang.Object)
@@ -1669,97 +1686,170 @@ public StringPartBase lentoAnyChar(String sChars)
   }
   
 
-  
-  
-  
-  /* (non-Javadoc)
-   * @see java.lang.CharSequence#charAt(int)
-   */
-  @Override
-  public char charAt(int index){ 
-    return absCharAt(begin + index);
-  }
-
-  
-  protected char absCharAt(int index){
-    int pos = index - apos;
-    if(pos < 0){
-      if(shifter !=null){ 
-        shifter.shiftLeft(-pos);
-        pos = begin + index - apos;  //it should be >=0
-      } else throw new IllegalArgumentException("StringPartBase.charAt - faulty; " + index);
-    } else if(pos > schars.length()){
-      if(shifter !=null){ 
-        shifter.shiftNext(pos - schars.length() +1);
-        pos = begin + index - apos;  //it should be < length
-      } else throw new IllegalArgumentException("StringPartBase.charAt - faulty; " + index);
-    }
-    if(pos >=0 && pos < schars.length()) return schars.charAt(pos);
-    else throw new IllegalArgumentException("StringPartBase.charAt - faulty; " + index);
-  }
-
-  /**Returns a volatile CharSequence from the range inside the current part.
-   * If it is not possible an IllegalArgumentException is thrown.
-   * The difference to {@link #subString(int, int)} is: It is not persistant.
-   * This method should only used if the CharSequence is processed in the thread immediately
-   * for example by adding to another StringBuilder etc. The returned instance should not be saved
-   * for later usage.
-   *  
-   * @see java.lang.CharSequence#subSequence(int, int)
-   */
-  @Override public Part subSequence(int from, int to)
-  { 
-    if(from < 0 || to > (end - begin)) throw new IllegalArgumentException("StringPartBase.subString - faulty;" + from);
-    return new Part(begin+from, begin+to); 
-  } 
-  
-  
-  
-  /**Returns a String from the range inside the current part.
-   * If it is not possible an IllegalArgumentException is thrown.
-   * @see java.lang.CharSequence#subSequence(int, int)
-   */
-  public String subString(int from, int to){ 
-    if(from < 0 || to > (end - begin)) throw new IllegalArgumentException("StringPartBase.subString - faulty;" + from);
-    return absSubString(begin + from, begin + to); 
-  }
-  
-  
  
   
   
   
   
-  /**Returns a String from absolute range.
-   * @param from The absolute position.
-   * @param to The absolute end.
-   * @return A valid String or an IllegalArgumentException is occurred
-   */
-  protected String absSubString(int from, int to)
-  { 
-    int pos = from - apos;
-    int len = to - from;
-    int end1 = pos + len;
-    if(pos < 0){
-      if(shifter !=null){ 
-        shifter.shiftLeft(-pos);
-        pos = begin + from - apos;  //it should be >=0
-      } else throw new IllegalArgumentException("StringPartBase.subString - faulty; " + from);
-    } else if(end1 > schars.length()){
-      if(shifter !=null){ 
-        shifter.shiftNext(end1 - schars.length() +1);
-        pos = begin + from - apos;  
-        end1 = pos + len; //it should be < schars.length()
-      } else throw new IllegalArgumentException("StringPartBase.subSequence - faulty; " + from);
-    }
-    if(pos >=0 && end1 <= schars.length()){
-      return schars.subSequence(pos, pos + len).toString(); 
-    }
-    else throw new IllegalArgumentException("StringPartBase.subSequence - faulty; " + from);
+  /** Returns the position of the char within the part,
+   * returns -1 if the char is not found in the part.
+     The methode is likely String.indexOf().
+    @param ch character to find.
+    @return position of the char within the part or -1 if not found within the part.
+    @exception The method throws no IndexOutOfBoundaryException.
+    It is the same behavior like String.indexOf(char, int fromEnd).
+  */
+  public int indexOf(char ch)
+  { int pos = StringFunctions.indexOf(content, begin, end, ch);;
+    if(pos < 0) return -1;
+    else return pos - begin;
   }
 
+  /** Returns the position of the char within the part, started inside the part with fromIndex,
+   * returns -1 if the char is not found in the part started from 'fromIndex'.
+     The method is likely String.indexOf().
+    @param ch character to find.
+    @param fromIndex start of search within the part.
+    @return position of the char within the part or -1 if not found within the part.
+    @exception The method throws no IndexOutOfBoundaryException. If the value of fromIndex
+    is negative or greater than the end position, -1 is returned (means: not found).
+    It is the same behavior like String.indexOf(char, int fromEnd).
+  */
+  public int indexOf(char ch, int fromIndex)
+  { if(fromIndex >= (end - begin) || fromIndex < 0) return -1;
+    else
+    { int pos = StringFunctions.indexOf(content, begin + fromIndex, end, ch);;
+      if(pos < 0) return -1;
+      else return pos - begin + fromIndex;
+    }
+  }
+
+
+  /** Returns the position of the string within the part. Returns -1 if the string is not found in the part.
+      Example: indexOf("abc") returns 6, indexOf("fgh") returns -1 <pre>
+         abcdefgabcdefghijk
+  part:   =============  </pre>
+    @param sCmp string to find
+    @return position of the string within the part or -1 if not found within the part.
+  */
+  public int indexOf(CharSequence sCmp)
+  { int pos = StringFunctions.indexOf(content, begin, end, sCmp);  //content.substring(begin, end).indexOf(sCmp);
+    if(pos < 0) return -1;
+    else return pos - begin;
+  }
+
+
+
+
+  /** Returns the position of the string within the part. Returns -1 if the string is not found in the part.
+      Example: indexOf("abc") returns 6, indexOf("fgh") returns -1 <pre>
+         abcdefgabcdefghijk
+  part:   =============  </pre>
+    @param sCmp string to find
+    @return position of the string within the part or -1 if not found within the part.
+  */
+  public int indexOf(CharSequence sCmp, int fromIndex, int maxToTest)
+  { int max = (end - begin) < maxToTest ? end : begin + maxToTest;
+    if(fromIndex >= (max - begin) || fromIndex < 0) return -1;
+    else
+    { int pos = StringFunctions.indexOf(content, begin + fromIndex, max, sCmp); //content.substring(begin + fromIndex, max).indexOf(sCmp);
+      if(pos < 0) return -1;
+      else return pos - begin + fromIndex;
+    }
+  }
+
+
+
+
   
+  /** Compares the Part of string with the given string
+   */
+   public boolean equals(CharSequence sCmp)
+   { return StringFunctions.equals(content, begin, end, sCmp); //content.substring(start, end).equals(sCmp);
+   }
+
+
+
+
+   /**compares the Part of string with the given string.
+    * new since 2008-09: if sCmp contains a cEndOfText char (coded with \e), the end of text is tested.
+    * @param sCmp The text to compare.
+   */
+   public boolean startsWith(CharSequence sCmp)
+   { int pos_cEndOfText = StringFunctions.indexOf(sCmp, cEndOfText, 0); //sCmp.indexOf(cEndOfText);
+     
+     if(pos_cEndOfText >=0)
+     { if(pos_cEndOfText ==0)
+       { return begin == end;
+       }
+       else
+       { return StringFunctions.equals(content, begin, end, sCmp); //content.substring(start, end).equals(sCmp);
+       }
+       
+     }
+     else
+     { return StringFunctions.startsWith(content, begin, end, sCmp); //content.substring(start, end).startsWith(sCmp);
+     }
+   }
+
+   /**This routine provides the this-pointer as StringPartScan in a concatenation of StringPartBase-invocations. 
+    * @return this
+    * @throws ClassCastException if the instance is not a StringPartScan. That is an internal software error.
+    */
+   public StringPartScan scan()
+   { return (StringPartScan)this;
+   }
+
+
+
+   /** Gets the current position, useable for rewind. This method is overwritten
+    * if derived classes uses partial content.
+    */ 
+   public long getCurrentPosition()
+   { return begin;
+   }
+   
+   
+   /** Sets the current position at a fix position inside the maxPart.
+    * TODO what is with rewind etc? see old StringScan.
+    * Idea: the max Part is never enlargeable to left, only made smaller to rihht.
+    * Thats why the left border of maxPart is useable for shift left the content
+    * by reading the next content from file, if the buffer is limited, larger than necessarry for a
+    * whole file's content. But all pos values should be relativ. getCurrentPos must return
+    * a relativ value, if shiftness is used. this method shuld use a relativ value.
+    * old:, useable for rewind. This method may be overwritten
+    * if derived classes uses partial content.
+    
+    * @param pos the absolute position
+    */ 
+   public void setCurrentPosition(long pos)
+   { begin = (int)pos;
+   }
+   
+
+   
+   
+   
+   
+   
+  /** Gets a substring inside the maximal part
+   * pos position of start relative to maxPart
+   * posend exclusive position of end. If 0 or negativ, it counts from end backward.
+   * */
+  public Part substring(int pos, int posendP)
+  { int posend;
+    if(posendP <=0)
+    { posend = endMax - posendP; //if posendP is fault, an exception is thrown.
+    }
+    else
+    { posend = posendP;
+    }
+    return new Part(pos+begiMin, posend); //content.substring(pos+begiMin, posend); 
+  }
   
+
+
+
   
   /** Gets the next chars from current Position.
    *  This method don't consider the spread of the actutal and maximal part.
@@ -1768,14 +1858,14 @@ public StringPartBase lentoAnyChar(String sChars)
   */
 
   public CharSequence getCurrent(int nChars)
-  { final int nChars1 =  (schars.length() - begin) < nChars ? schars.length() - begin : nChars;
-    return( new Part(begin + apos, begin + nChars1 + apos));
+  { final int nChars1 =  (content.length() - begin) < nChars ? content.length() - begin : nChars;
+    return( new Part(begin, begin + nChars1));
   }
 
   /** Gets the next char at current Position.
   */
   public char getCurrentChar()
-  { if(begin < schars.length()){ return schars.charAt(begin); }
+  { if(begin < content.length()){ return content.charAt(begin); }
     else return '\0'; ///**@java2c=StringBuilderInThreadCxt.*/ throw new IndexOutOfBoundsException("end of StringPartBase:" + begin); // return cEndOfText;
   }
  
@@ -1785,7 +1875,7 @@ public StringPartBase lentoAnyChar(String sChars)
    * @return Position of the actual char from begin of line, leftest position is 0.
    */
   public int getCurrentColumn()
-  { int pos = StringFunctions.lastIndexOf(schars, 0, begin, '\n');
+  { int pos = StringFunctions.lastIndexOf(content, 0, begin, '\n');
     if(pos < 0) return begin;  //first line, no \n before
     else return begin - pos -1;
   }
@@ -1794,8 +1884,8 @@ public StringPartBase lentoAnyChar(String sChars)
    * 
    */
   public Part getCurrentPart()
-  { if(end > begin) return new Part(begin + apos, end + apos);
-    else            return new Part(begin + apos, begin + apos);
+  { if(end > begin) return new Part(begin, end);
+    else            return new Part(begin, begin);
   }
   
 
@@ -1803,7 +1893,7 @@ public StringPartBase lentoAnyChar(String sChars)
    * 
    */
   public CharSequence getLastPart()
-  { if(begin > beginLast) return new Part(beginLast + apos, begin + apos);
+  { if(begin > beginLast) return new Part(beginLast, begin);
     else            return "";
   }
   
@@ -1813,7 +1903,7 @@ public StringPartBase lentoAnyChar(String sChars)
    */
   public CharSequence getCurrentPart(int maxLength)
   { int max = (end - begin) <  maxLength ? end : begin + maxLength;
-    if(end > begin) return new Part(begin + apos, max + apos);
+    if(end > begin) return new Part(begin, max);
     else            return ""; 
   }
   
@@ -1834,12 +1924,83 @@ public StringPartBase lentoAnyChar(String sChars)
    *   If it is necessary, invoke toString() with this returned value.
    */
   public StringPartBase.Part getPart(int fromPos, int nrofChars){
-    if((fromPos + nrofChars) > schars.length()){ nrofChars = schars.length() - fromPos; }
+    if((fromPos + nrofChars) > content.length()){ nrofChars = content.length() - fromPos; }
     return new Part(fromPos, fromPos +nrofChars);
+  }
+
+
+  
+  
+  protected char absCharAt(int index){
+    int pos = index;
+    if(pos >=0 && pos < content.length()) return content.charAt(pos);
+    else throw new IllegalArgumentException("StringPartBase.charAt - faulty; " + index);
+  }
+
+  /**Returns a String from absolute range.
+   * @param from The absolute position.
+   * @param to The absolute end.
+   * @return A valid String or an IllegalArgumentException is occurred
+   */
+  protected String absSubString(int from, int to)
+  { 
+    int pos = from;
+    int len = to - from;
+    int end1 = pos + len;
+    if(pos >=0 && end1 <= content.length()){
+      return content.subSequence(pos, pos + len).toString(); 
+    }
+    else throw new IllegalArgumentException("StringPartBase.subSequence - faulty; " + from);
   }
 
   
   
+
+  
+  /* (non-Javadoc)
+   * @see java.lang.Object#toString()
+   */
+  @Override public String toString(){ 
+    return getCurrentPart().toString();
+  }
+
+
+  /** Returns a debug information of the content of the StringPart. This information is structured in the followed way:
+  <pre>"CONTENT_FROM_BEGIN<<<34,45>>>CONTENT_PART<<<"</pre>
+  whereat
+  <ul>
+  <li>CONTENT_FROM_BEGIN are the first 20 chars of the whole content</li>
+  <li>34 in this sample is the start position</li>
+  <li>45 in this sample is the exclusively end position</li>
+  <li>CONTENT_PART are the first 20 chars from start position</li>
+  <ul>
+*/
+public String debugString()
+{ int len = content.length();
+  /**@java2c=StringBuilderInThreadCxt,toStringNonPersist.*/ 
+  String ret = content.subSequence(0, len > 20 ? 20 : len) + "<<<" + begin + "," + end + ">>>";
+  if(begin < len){
+    /**@java2c=toStringNonPersist.*/ 
+    ret += content.subSequence(begin, len > (begin + 20) ? begin+20: len); 
+  }
+  /**@java2c=toStringNonPersist.*/ 
+  ret += "<<<";
+  return ret;  //java2c: buffer in threadContext
+}
+
+
+  /** Central mehtod to invoke excpetion, usefull to set a breakpoint in debug
+   * or to add some standard informations.
+   * @param sMsg
+   * @throws IndexOutOfBoundsException
+   */
+  private void throwIndexOutOfBoundsException(String sMsg)
+  throws IndexOutOfBoundsException
+  { throw new IndexOutOfBoundsException(sMsg);
+  }
+
+
+
   /**Closes the work. This routine should be called if the StringPart is never used, 
    * but it may be kept because it is part of class data or part of a statement block which runs.
    * The associated String is released. It can be recycled by garbage collector.
@@ -1848,7 +2009,7 @@ public StringPartBase lentoAnyChar(String sChars)
    */
   public void close()
   {
-    schars = null;
+    content = null;
     begiMin = beginLast = begin = 0;
     endMax = end = endLast = 0;
     bCurrentOk = bFound = false;
@@ -1858,16 +2019,6 @@ public StringPartBase lentoAnyChar(String sChars)
 
 
 
-  
-  /* (non-Javadoc)
-   * @see java.lang.Object#toString()
-   */
-  @Override public String toString(){ 
-    return schars.subSequence(this.begin, this.end).toString();
-  }
-
-
-  
   
   /**This class presents a part of the parent CharSequence of this class.
    * The constructor is protected because instances of this class are only created in this class
@@ -1886,8 +2037,8 @@ public StringPartBase lentoAnyChar(String sChars)
      * @param to
      */
     protected Part(int from, int to){
-      assert(b1 >= 0 && b1 < schars.length());
-      assert(e1 >= 0 && e1 < schars.length());
+      assert(b1 >= 0 && b1 < content.length());
+      assert(e1 >= 0 && e1 < content.length());
       assert(b1 <= e1);
       b1 = from; e1 = to;
     }
@@ -1918,8 +2069,8 @@ public StringPartBase lentoAnyChar(String sChars)
      */
     public Part trim(){
       int b2 = b1; int e2 = e1;
-      while(b2 < e2 && " \r\n\t".indexOf(schars.charAt(b2)) >=0){ b2 +=1; }
-      while(e2 > b2 && " \r\n".indexOf(schars.charAt(e2-1)) >=0){ e2 -=1; }
+      while(b2 < e2 && " \r\n\t".indexOf(content.charAt(b2)) >=0){ b2 +=1; }
+      while(e2 > b2 && " \r\n".indexOf(content.charAt(e2-1)) >=0){ e2 -=1; }
       Part ret = new Part(b2, e2);
       return ret;
     }
@@ -1927,22 +2078,6 @@ public StringPartBase lentoAnyChar(String sChars)
     
   }
 
-  
-  /**This interface should be implemented by derived classes of {@link StringPartBase}
-   * which supports longer char sequences by using a shorter buffer for chars.
-   */
-  public interface StringPartShift
-  {
-    void shiftLeft(int nrofChars);
-    
-    /**Reads the next bytes for example from a file
-     * and shifts the chars in the buffer.
-     * @param nrofChars
-     * @return
-     */
-    void shiftNext(int nrofChars);
-    
-  }
 
   
 }

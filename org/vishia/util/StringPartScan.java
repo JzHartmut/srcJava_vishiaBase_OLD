@@ -282,7 +282,7 @@ public class StringPartScan extends StringPartBase
       if(bTestToEndOfText){ sTest = sTestP.subSequence(0, len); }
       else { len = sTestP.length(); sTest = sTestP; }
       if(  (begin + len) <= endMax //content.length()
-        && StringFunctions.equals(schars, begin, begin+len, sTest)
+        && StringFunctions.equals(content, begin, begin+len, sTest)
         && (  !bTestToEndOfText 
            || begin + len == end
            )
@@ -347,7 +347,7 @@ public class StringPartScan extends StringPartBase
       do
       {
         if(pos < max)
-        { char cc = schars.charAt(pos);
+        { char cc = content.charAt(pos);
           if(cc >= '0' &&  cc <='9') nn = nn * (bHex? 16:10) + (cc - '0');
           else if(bHex && cc >= 'a' &&  cc <='f') nn = nn * 16 + (cc - 'a' + 10);
           else if(bHex && cc >= 'A' &&  cc <='F') nn = nn * 16 + (cc - 'A' + 10);
@@ -403,7 +403,7 @@ public class StringPartScan extends StringPartBase
   public StringPartScan scanInteger() throws ParseException  //::TODO:: scanLong(String sPicture)
   { if(scanEntry())
     { boolean bNegativValue = false;
-      if( schars.charAt(begin) == '-')
+      if( content.charAt(begin) == '-')
       { bNegativValue = true;
         seek(1);
       }
@@ -459,10 +459,10 @@ public class StringPartScan extends StringPartBase
       boolean bNegativValue = false, bNegativExponent = false;
       boolean bFractionalFollowed = false;
       
-      if( (cc = schars.charAt(begin)) == '-')
+      if( (cc = content.charAt(begin)) == '-')
       { bNegativValue = true;
         seek(1);
-        cc = schars.charAt(begin);
+        cc = content.charAt(begin);
       }
       if(cc == '.')
       { nInteger = 0;
@@ -471,7 +471,7 @@ public class StringPartScan extends StringPartBase
       else
       { nInteger = scanDigits(false, Integer.MAX_VALUE);
         if(bCurrentOk)
-        { if(begin < endMax && schars.charAt(begin) == '.')
+        { if(begin < endMax && content.charAt(begin) == '.')
           { bFractionalFollowed = true;
           }
         }
@@ -496,12 +496,12 @@ public class StringPartScan extends StringPartBase
       
       if(bCurrentOk)
       { int nPosExponent = begin;
-        if( nPosExponent < endMax && (cc = schars.charAt(begin)) == 'e' || cc == 'E')
+        if( nPosExponent < endMax && (cc = content.charAt(begin)) == 'e' || cc == 'E')
         { seek(1);
-          if( (cc = schars.charAt(begin)) == '-')
+          if( (cc = content.charAt(begin)) == '-')
           { bNegativExponent = true;
             seek(1);
-            cc = schars.charAt(begin);
+            cc = content.charAt(begin);
           }
           if(cc >='0' && cc <= '9' )
           { nExponent = (int)scanDigits(false, Integer.MAX_VALUE);
@@ -581,7 +581,7 @@ public class StringPartScan extends StringPartBase
   public StringPartScan scanHexOrDecimal(int maxNrofChars) throws ParseException  //::TODO:: scanLong(String sPicture)
   { if(scanEntry())
     { long value;
-      if( StringFunctions.equals(schars, begin, begin+2, "0x"))
+      if( StringFunctions.equals(content, begin, begin+2, "0x"))
       { seek(2); value = scanDigits(true, maxNrofChars);
       }
       else
@@ -706,7 +706,7 @@ public class StringPartScan extends StringPartBase
     if(posEnd < 0) posEnd = end - begin;
     //int posEscape = indexOf(cEscape);
     //search the first escape char inside the string.
-    int posEscape = StringFunctions.indexOf(schars, begin, begin + posEnd, cEscape) - begin;  
+    int posEscape = StringFunctions.indexOf(content, begin, begin + posEnd, cEscape) - begin;  
     if(posEscape < 0)
     { //there is no escape char in the current part to sCharsEnd,
       //no extra conversion is necessary.
@@ -714,7 +714,7 @@ public class StringPartScan extends StringPartBase
     }
     else
     { //escape character is found before end
-      if(schars.charAt(begin + posEnd-1)== cEscape)
+      if(content.charAt(begin + posEnd-1)== cEscape)
       { //the escape char is the char immediately before the end char. 
         //It means, the end char isn't such one and posEnd is faulty. 
         //Search the really end char:
