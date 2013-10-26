@@ -34,13 +34,8 @@ import java.util.Arrays;
 //import java.util.Date;
 
 import org.vishia.bridgeC.ConcurrentLinkedQueue;
-import org.vishia.bridgeC.MemC;
 import org.vishia.bridgeC.OS_TimeStamp;
-import org.vishia.bridgeC.VaArgBuffer;
-import org.vishia.bridgeC.Va_list;
 import org.vishia.util.FileWriter;
-import org.vishia.util.StringPartBase;
-import org.vishia.util.StringPartOld;
 import org.vishia.util.StringPartScan;
 
 

@@ -12,7 +12,6 @@ import org.vishia.util.Assert;
 import org.vishia.util.CalculatorExpr;
 import org.vishia.util.DataAccess;
 import org.vishia.util.StringFunctions;
-import org.vishia.util.StringPartOld;
 import org.vishia.util.StringSeq;
 
 

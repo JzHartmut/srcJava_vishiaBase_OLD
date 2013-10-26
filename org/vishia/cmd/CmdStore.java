@@ -14,7 +14,6 @@ import java.util.TreeMap;
 import org.vishia.cmd.ZGenScript.Statement;
 import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.StringPartBase;
-import org.vishia.util.StringPartOld;
 import org.vishia.xmlSimple.XmlException;
 import org.vishia.zgen.ZGen;
 

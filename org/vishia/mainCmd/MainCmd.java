@@ -36,9 +36,7 @@ import java.util.*;  //List
 import java.text.*;  //ParseException
 
 import org.vishia.util.FileSystem;
-import org.vishia.util.StringPartOld;
 import org.vishia.bridgeC.OS_TimeStamp;
-import org.vishia.bridgeC.VaArgBuffer;
 import org.vishia.bridgeC.Va_list;
 import org.vishia.cmd.CmdExecuter;
 import org.vishia.msgDispatch.LogMessage;
