@@ -6,7 +6,7 @@ import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.StringFunctions;
-import org.vishia.util.StringPartBase;
+import org.vishia.util.StringPart;
 
 /**This class combines some {@link FileRemote} instances for common usage.
  * It ensures that the same FileRemote object is used for the same string given path.
@@ -109,7 +109,7 @@ public class FileCluster
         if(sPathRet.length() < sDir.length()){ //any super directory found.
           if(sDir.charAt(zPathRet) == '/'){    //is it that?
             //any directory of the file was found. Create the child directory.
-            StringPartBase pathchild = new StringPartBase(sDir, zPathRet+1, sDir.length());
+            StringPart pathchild = new StringPart(sDir, zPathRet+1, sDir.length());
             dirRet = dirRet.child(pathchild);
             putit = false;  //it is existed as child of any file in the cluster.
           } else { //other directory name, not found.

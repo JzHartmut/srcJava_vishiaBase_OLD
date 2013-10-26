@@ -3,7 +3,7 @@ package org.vishia.util;
 import java.text.ParseException;
 
 /**This class extends the capability of StringPartBase for scanning capability.
- * In opposite to the {@link StringPartBase#seek(int)} functionality with several conditions 
+ * In opposite to the {@link StringPart#seek(int)} functionality with several conditions 
  * the scan methods does not search till a requested char or string but test the string
  * starting from the begin of the valid part. If the test is ok, the begin of the valid part
  * is shifted to right behind the scanned string. The result of the scanning process
@@ -45,7 +45,7 @@ import java.text.ParseException;
  * @author Hartmut Schorrig
  *e
  */
-public class StringPartScan extends StringPartBase
+public class StringPartScan extends StringPart
 {
   /**Version, history and license.
    * <ul>

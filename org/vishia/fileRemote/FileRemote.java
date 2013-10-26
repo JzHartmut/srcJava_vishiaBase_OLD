@@ -22,7 +22,7 @@ import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.MarkMask_ifc;
 import org.vishia.util.StringFunctions;
-import org.vishia.util.StringPartBase;
+import org.vishia.util.StringPart;
 
 
 /**This class stores the name and some attributes of one File. 
@@ -512,11 +512,11 @@ public class FileRemote extends File implements MarkMask_ifc
       , long dateLastModified, long dateCreation, long dateLastAccess 
       ) {
     CharSequence pathchild1 = FileSystem.normalizePath(sPathChild);
-    StringPartBase pathchild;
+    StringPart pathchild;
     int posSep1;
     if(( posSep1 = StringFunctions.indexOf(pathchild1, '/', 0))>=0){
       //NOTE: pathchild1 maybe an instanceof StringPartBase too, but it acts as a CharSequence! 
-      pathchild = new StringPartBase(pathchild1, 0, pathchild1.length());
+      pathchild = new StringPart(pathchild1, 0, pathchild1.length());
       pathchild1 = pathchild.lento('/');  //Start with this part of pathchild.
     } else {
       pathchild = null; //only one child level.
