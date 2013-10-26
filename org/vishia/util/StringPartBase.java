@@ -369,6 +369,45 @@ abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
 
   
   
+  /** get the Line ct. Note: it returns null in this class, may be overridden.
+  @return Number of last read line.
+*/
+public int getLineCt(){ return 0; }
+
+
+  
+  /** Compares the Part of string with the given string
+   */
+   public boolean equals(CharSequence sCmp)
+   { return StringFunctions.equals(schars, begin, end, sCmp); //content.substring(start, end).equals(sCmp);
+   }
+
+
+
+
+   /**compares the Part of string with the given string.
+    * new since 2008-09: if sCmp contains a cEndOfText char (coded with \e), the end of text is tested.
+    * @param sCmp The text to compare.
+   */
+   public boolean startsWith(CharSequence sCmp)
+   { int pos_cEndOfText = StringFunctions.indexOf(sCmp, cEndOfText, 0); //sCmp.indexOf(cEndOfText);
+     
+     if(pos_cEndOfText >=0)
+     { if(pos_cEndOfText ==0)
+       { return begin == end;
+       }
+       else
+       { return StringFunctions.equals(schars, begin, end, sCmp); //content.substring(start, end).equals(sCmp);
+       }
+       
+     }
+     else
+     { return StringFunctions.startsWith(schars, begin, end, sCmp); //content.substring(start, end).startsWith(sCmp);
+     }
+   }
+
+
+
   
   /* (non-Javadoc)
    * @see java.lang.CharSequence#length()
@@ -467,7 +506,7 @@ abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
   { endLast = end;
     int pos = StringFunctions.indexOf(schars, begin, end, ss);
     bFound = (pos >=0);
-    if(pos >= 0) { end = begin + pos; 
+    if(pos >= 0) { end = pos; 
                    if((mode & seekEnd) != 0){ end += ss.length();}
                  }
     else         { end = begin; }
@@ -549,6 +588,34 @@ abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
       while(pos > begin+1 && schars.charAt(pos-1)==cEscape)
       { //the escape char is before immediately. It means, the end char is not matched.
         pos = indexOfAnyChar(sCharsEnd, pos+1-begin, maxToTest);
+      }
+      if(pos < 0){ end = begin; bFound = false; }
+      else       { end = begin + pos; bFound = true; }
+    }  
+    return this;
+  }
+
+  
+  
+  
+  /**Sets the length of the valid part to the first position of the given String, 
+   * but not if the String is escaped.
+   * 'Escaped' means, a \ is disposed before the char.
+   * Example: lentoNonEscapedString("<?") does not accept "\\<?".
+   * <br><br>
+   * This method doesn't any things, if the last scanning call isn't match. Invoking of 
+   * {@link scanOk()} before guarantees that the method works.
+   * @java2c=return-this.
+   * @param sCharsEnd Assembling of chars determine the end of the part.  
+   */
+  public StringPartBase lentoNonEscapedString(String sEnd, int maxToTest)
+  { if(bCurrentOk)
+    { final char cEscape = '\\';
+      endLast = end;
+      int pos = indexOf(sEnd,0,maxToTest);
+      while(pos > begin+1 && schars.charAt(pos-1)==cEscape)
+      { //the escape char is before immediately. It means, the end char is not matched.
+        pos = indexOf(sEnd, pos+1-begin, maxToTest);
       }
       if(pos < 0){ end = begin; bFound = false; }
       else       { end = begin + pos; bFound = true; }
@@ -673,12 +740,12 @@ do
   { seekNoWhitespace();
   }
   if( (bitMode & mSkipOverCommentInsideText_mode) != 0)   
-  { if(StringFunctions.compare(schars, begin, sCommentStart, 0, sCommentStart.length())!=0) 
+  { if(StringFunctions.compare(schars, begin, sCommentStart, 0, sCommentStart.length())==0) 
     { seek(sCommentEnd, seekEnd);  
     }
   }
   if( (bitMode & mSkipOverCommentToEol_mode) != 0)   
-  { if(StringFunctions.compare(schars, begin, sCommentToEol, 0, sCommentToEol.length())!=0)
+  { if(StringFunctions.compare(schars, begin, sCommentToEol, 0, sCommentToEol.length())==0)
     { seek('\n', seekEnd);  
     }
   }
@@ -782,8 +849,7 @@ that is a liststring and his part The associated String
       bFound = false;   
     } else { 
       bFound = true;
-      if( (mode & mSeekToLeft_) == mSeekToLeft_) begin = begiMin + pos;
-      else                                     begin = begin + pos;
+      begin = pos;
       if( (mode & seekEnd) == seekEnd ) { begin += sSeek.length();
       }
     }
@@ -876,8 +942,7 @@ return this;
     }
     else
     { bFound = true;
-      if( (mode & mSeekToLeft_) == mSeekToLeft_) begin = begiMin + pos;
-      else                                     begin = begin + pos;
+      begin = pos;
       if( (mode & seekEnd) == seekEnd )
       { begin += 1;
       }
@@ -888,7 +953,76 @@ return this;
   
 
 
-  
+  /** Returns the position of the char within the part,
+   * returns -1 if the char is not found in the part.
+     The methode is likely String.indexOf().
+    @param ch character to find.
+    @return position of the char within the part or -1 if not found within the part.
+    @exception The method throws no IndexOutOfBoundaryException.
+    It is the same behavior like String.indexOf(char, int fromEnd).
+  */
+  public int indexOf(char ch)
+  { int pos = StringFunctions.indexOf(schars, begin, end, ch);;
+    if(pos < 0) return -1;
+    else return pos - begin;
+  }
+
+  /** Returns the position of the char within the part, started inside the part with fromIndex,
+   * returns -1 if the char is not found in the part started from 'fromIndex'.
+     The method is likely String.indexOf().
+    @param ch character to find.
+    @param fromIndex start of search within the part.
+    @return position of the char within the part or -1 if not found within the part.
+    @exception The method throws no IndexOutOfBoundaryException. If the value of fromIndex
+    is negative or greater than the end position, -1 is returned (means: not found).
+    It is the same behavior like String.indexOf(char, int fromEnd).
+  */
+  public int indexOf(char ch, int fromIndex)
+  { if(fromIndex >= (end - begin) || fromIndex < 0) return -1;
+    else
+    { int pos = StringFunctions.indexOf(schars, begin + fromIndex, end, ch);;
+      if(pos < 0) return -1;
+      else return pos - begin + fromIndex;
+    }
+  }
+
+
+  /** Returns the position of the string within the part. Returns -1 if the string is not found in the part.
+      Example: indexOf("abc") returns 6, indexOf("fgh") returns -1 <pre>
+         abcdefgabcdefghijk
+  part:   =============  </pre>
+    @param sCmp string to find
+    @return position of the string within the part or -1 if not found within the part.
+  */
+  public int indexOf(CharSequence sCmp)
+  { int pos = StringFunctions.indexOf(schars, begin, end, sCmp);  //content.substring(begin, end).indexOf(sCmp);
+    if(pos < 0) return -1;
+    else return pos - begin;
+  }
+
+
+
+
+  /** Returns the position of the string within the part. Returns -1 if the string is not found in the part.
+      Example: indexOf("abc") returns 6, indexOf("fgh") returns -1 <pre>
+         abcdefgabcdefghijk
+  part:   =============  </pre>
+    @param sCmp string to find
+    @return position of the string within the part or -1 if not found within the part.
+  */
+  public int indexOf(CharSequence sCmp, int fromIndex, int maxToTest)
+  { int max = (end - begin) < maxToTest ? end : begin + maxToTest;
+    if(fromIndex >= (max - begin) || fromIndex < 0) return -1;
+    else
+    { int pos = StringFunctions.indexOf(schars, begin + fromIndex, max, sCmp); //content.substring(begin + fromIndex, max).indexOf(sCmp);
+      if(pos < 0) return -1;
+      else return pos - begin + fromIndex;
+    }
+  }
+
+
+
+ 
   
   public int indexOfAnyChar(String sChars, final int fromWhere, final int maxToTest)
   {
@@ -1439,6 +1573,14 @@ public StringPartBase lentoAnyChar(String sChars)
 }
 
 
+  /**This routine provides the this-pointer as StringPartScan in a concatenation of StringPartBase-invocations. 
+   * @return this
+   * @throws ClassCastException if the instance is not a StringPartScan. That is an internal software error.
+   */
+  public StringPartScan scan()
+  { return (StringPartScan)this;
+  }
+
 
 
 
@@ -1544,7 +1686,7 @@ public StringPartBase lentoAnyChar(String sChars)
       } else throw new IllegalArgumentException("StringPartBase.subSequence - faulty; " + from);
     }
     if(pos >=0 && end1 <= schars.length()){
-      return schars.subSequence(pos,len).toString(); 
+      return schars.subSequence(pos, pos + len).toString(); 
     }
     else throw new IllegalArgumentException("StringPartBase.subSequence - faulty; " + from);
   }
@@ -1560,7 +1702,7 @@ public StringPartBase lentoAnyChar(String sChars)
 
   public CharSequence getCurrent(int nChars)
   { final int nChars1 =  (schars.length() - begin) < nChars ? schars.length() - begin : nChars;
-    return( new Part(begin + apos, begin + nChars + apos));
+    return( new Part(begin + apos, begin + nChars1 + apos));
   }
 
   /** Gets the next char at current Position.

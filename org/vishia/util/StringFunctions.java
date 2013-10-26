@@ -454,6 +454,17 @@ public class StringFunctions {
   }
   
 
+  /**Checks whether the given CharSequence starts with a CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#startsWith(String)}
+   * but it works proper with {@link java.lang.CharSequence}. See example on {@link #equals(Object)}.
+   */
+  public static boolean startsWith(CharSequence sq, int from, int to, CharSequence start){
+    int zstart = start.length();
+    if((to - from) < zstart) return false;
+    return compare(sq, from, start, 0, zstart) == 0;
+  }
+  
+
   /**Checks whether the given CharSequence ends with a CharSequence.
    * It is the adequate functionality like {@link java.lang.String#startsWith(String)}
    * but it works proper with {@link java.lang.CharSequence}. See example on {@link #equals(Object)}.
@@ -570,9 +581,9 @@ public class StringFunctions {
     } else if (fromIndex >= max) {
         return -1;
     }
-    char ch = str.charAt(0);
+    char ch = str.charAt(0);   //search first char of str
     while(++ii < max){
-      if(sq.charAt(ii) == ch) {
+      if(sq.charAt(ii) == ch) { //search first char of str
         int s1 = 0;
         for(int jj = ii+1; jj < ii + str.length(); ++jj){
           if(sq.charAt(jj) != str.charAt(++s1)){
@@ -580,7 +591,7 @@ public class StringFunctions {
             break;
           }
         }
-        if(s1 >0) return ii;  //found.
+        if(s1 >=0) return ii;  //found.
       }
     }
     return -1;  //not found;

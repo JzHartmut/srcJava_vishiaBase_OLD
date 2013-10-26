@@ -70,10 +70,10 @@ public class SpecialCharStrings
    * @param src The input string
    * @return The output string with replaces backslash pairs.
    */
-  public static String resolveCircumScription(String src)
-  { String sResult;
+  public static CharSequence resolveCircumScription(CharSequence src)
+  { CharSequence sResult;
     final char cSwitch = '\\';
-    int posSwitch = src.indexOf(cSwitch);
+    int posSwitch = StringFunctions.indexOf(src, cSwitch, 0); //src.indexOf(cSwitch);
     if(posSwitch < 0)
     { sResult = src;
     }

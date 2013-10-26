@@ -603,8 +603,8 @@ public class WikistyleTextToSimpleXml
         /**Copy the part before before the founded control chars: */
         if(posCtrlChars > start)
         { String sBefore = sInput.substring(start, posCtrlChars);
-          String sAdd = SpecialCharStrings.resolveCircumScription(sBefore);
-          xmlRet.addContent(sAdd);
+          CharSequence sAdd = SpecialCharStrings.resolveCircumScription(sBefore);
+          xmlRet.addContent(sAdd.toString());
         }
       }      
       /**Executes the concern of control chars: */

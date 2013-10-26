@@ -2357,7 +2357,7 @@ that is a liststring and his part The associated String
       }
       lento(posEnd);
       
-      sResult = SpecialCharStrings.resolveCircumScription(getCurrentPart());
+      sResult = SpecialCharStrings.resolveCircumScription(getCurrentPart()).toString();
     }
     fromEnd();
     return sResult;
