@@ -13,6 +13,7 @@ import java.util.TreeMap;
 
 import org.vishia.cmd.ZGenScript.Statement;
 import org.vishia.mainCmd.MainCmdLogging_ifc;
+import org.vishia.util.StringPartBase;
 import org.vishia.util.StringPartOld;
 import org.vishia.xmlSimple.XmlException;
 import org.vishia.zgen.ZGen;
@@ -206,7 +207,7 @@ public class CmdStore
       CmdBlock actBlock = null;
       listCmds.clear();
       String sLine;
-      StringPartOld spLine = new StringPartOld();
+      StringPartBase spLine = new StringPartBase();
       StringBuilder uLine = new StringBuilder(1000);
       try{ 
         while( (sLine = reader.readLine()) !=null){

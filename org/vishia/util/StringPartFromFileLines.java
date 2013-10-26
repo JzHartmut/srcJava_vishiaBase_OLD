@@ -166,20 +166,20 @@ public class StringPartFromFileLines extends StringPartScan
         posNewline = sFirstLine.indexOf('\n', posNewline +1); //from the second line. 
       }
       if(posNewline < 0) posNewline = nrofFirstChars;
-      StringPartOld spFirstLine = new StringPartOld(sFirstLine.substring(0, posNewline));
+      StringPartScan spFirstLine = new StringPartScan(sFirstLine.substring(0, posNewline));
       spFirstLine.setIgnoreWhitespaces(true);
       /**Check whether the encoding keyword is found: */
-      if(spFirstLine.seek(sEncodingDetect, StringPartOld.seekEnd).found()
+      if(spFirstLine.seek(sEncodingDetect, StringPartScan.seekEnd).found()
         && spFirstLine.scan("=").scanOk() 
         )
       { String sCharset;
         spFirstLine.seekNoWhitespace();
         if(spFirstLine.getCurrentChar() == '\"')
-        { sCharset = spFirstLine.seek(1).lentoQuotionEnd('\"', 100).getCurrentPart();
+        { sCharset = spFirstLine.seek(1).lentoQuotionEnd('\"', 100).getCurrentPart().toString();
           if(sCharset.length()>0) sCharset = sCharset.substring(0, sCharset.length()-1);
         }
         else
-        { sCharset = spFirstLine.lentoIdentifier(null, "-").getCurrentPart();
+        { sCharset = spFirstLine.lentoIdentifier(null, "-").getCurrentPart().toString();
         }
         if(sCharset.length() > 0)
         { //the charset is defined in the first line:

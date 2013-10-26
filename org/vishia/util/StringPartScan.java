@@ -109,16 +109,8 @@ public class StringPartScan extends StringPartBase
   }
 
   
-  protected StringPartScan()
+  public StringPartScan()
   { super();
-  }
-
-  
-  /**Only yet for compatibility.
-   * @param src
-   */
-  public StringPartScan(StringPartOld src)  
-  { super(src.content);  //package private
   }
 
   

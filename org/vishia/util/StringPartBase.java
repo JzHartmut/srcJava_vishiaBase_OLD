@@ -258,7 +258,7 @@ abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
   public static final char cEndOfText = (char)(0x3);
 
   /** Creates a new empty StringPart without an associated String. See method set() to assign a String.*/
-  protected StringPartBase()
+  public StringPartBase()
   { this.content = null; begiMin = begin = beginLast= 0; endLast = endMax = end = 0;
   }
 
@@ -415,7 +415,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
       @param src The source of the operation.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  public StringPartBase assignFromEnd(StringPartOld src)
+  public StringPartBase assignFromEnd(StringPartBase src)
   { this.content = src.content;
     beginLast = begin;
     begiMin = begin = src.end;       //from actual end
@@ -1160,7 +1160,7 @@ public int lastIndexOfAnyChar(String sChars, final int fromWhere, final int maxT
    *                 if no chars is found until maxToTest, but -1 if the end is reached.
    */
   public int indexOfAnyString
-  ( String[] listStrings
+  ( CharSequence[] listStrings
   , final int fromWhere
   , final int maxToTest
   , int[] nrofFoundString
@@ -1180,7 +1180,7 @@ public int lastIndexOfAnyChar(String sChars, final int fromWhere, final int maxT
     { int ii = -1;
     while(++ii < listStrings.length)
     { //String sString = (String)(iter.next());
-      String sString = listStrings[ii];
+      CharSequence sString = listStrings[ii];
       if(sString.charAt(0) == cEndOfText)
       { acceptToEndOfText = true;}
       else 
@@ -1201,14 +1201,14 @@ public int lastIndexOfAnyChar(String sChars, final int fromWhere, final int maxT
         int ii = -1;
         while(!found && ++ii < listStrings.length)  //NOTE: don't use for(...) because found is a criterium of break.
         { //String sString = (String)(iter.next());
-          String sString = listStrings[ii];
+          CharSequence sString = listStrings[ii];
           int testLen = sString.length();
           if((max - pos) >= testLen 
               && StringFunctions.equals(content, pos, pos+testLen, sString)
           ) 
           { found = true;
           if(foundString != null)
-          { foundString[0] = sString;
+          { foundString[0] = sString.toString();
           }
           if(nrofFoundString != null)
           { nrofFoundString[0] = ii;
@@ -2014,6 +2014,41 @@ public String debugString()
     endMax = end = endLast = 0;
     bCurrentOk = bFound = false;
 
+  }
+  
+
+  /**Replaces up to 20 placeholder with a given content.
+   * The method creates a StringBuilder with buffer and a StringPart locally. 
+   * @param src The source String, it may be a line.
+   * @param placeholder An array of strings, any string of them may be found in the src. 
+   * @param value An array of strings appropriate to the placeholder. Any found placeholder 
+   *        will be substitute with that string. 
+   * @param dst A given StringBuilder-instance. If null, then a StringBuilder will be created here
+   * @return The changed string contained in dst or a created StringBuilder.
+   */
+  public static String replace(CharSequence src, CharSequence[] placeholder, String[] value, StringBuilder dst)
+  { final int len = src.length();
+    int ixPos = 0;
+    int nrofToken = placeholder.length;
+    if(nrofToken != value.length) throw new IllegalArgumentException("token and value should have same size, lesser 20"); 
+    if(dst == null){ dst = new StringBuilder(len + 100); }//calculate about 53 chars for identifier
+    StringPartBase spPattern = new StringPartBase(src);
+    int posPatternStart = 0;
+    int posPattern;
+    do
+    { int[] type = new int[1];
+      posPattern = spPattern.indexOfAnyString(placeholder, posPatternStart, spPattern.length(), type, null);
+      if(posPattern >=0){
+        dst.append(src.subSequence(posPatternStart, posPattern));
+        int ixValue = type[0];
+        dst.append(value[ixValue]);
+        posPatternStart = posPattern + placeholder[ixValue].length();
+      } else { //last pattern constant part:
+        dst.append(src.subSequence(posPatternStart, len));
+        posPatternStart = -1;  //mark end
+      }
+    }while(posPatternStart >=0);
+    return dst.toString();
   }
   
 

@@ -39,7 +39,9 @@ import org.vishia.bridgeC.OS_TimeStamp;
 import org.vishia.bridgeC.VaArgBuffer;
 import org.vishia.bridgeC.Va_list;
 import org.vishia.util.FileWriter;
+import org.vishia.util.StringPartBase;
 import org.vishia.util.StringPartOld;
+import org.vishia.util.StringPartScan;
 
 
 
@@ -386,7 +388,7 @@ public static final int version = 0x20120302;
     { errorBuffer.setLength(0);
     }
     /** @java2c=stackInstance.*/
-    StringPartOld spCtrl = new StringPartOld(ctrl);
+    StringPartScan spCtrl = new StringPartScan(ctrl);
     spCtrl.setIgnoreWhitespaces(true);
     spCtrl.setIgnoreComment("/*", "*/");
     spCtrl.setIgnoreEndlineComment("//");
@@ -434,7 +436,7 @@ public static final int version = 0x20120302;
                 }
                 if(continueEntry && sError == null)
                 { if(spCtrl.scanIdentifier().scanOk())
-                  { sOutput = spCtrl.getLastScannedString();
+                  { sOutput = spCtrl.getLastScannedString().toString();
                   }
                   else
                   { sError = "\"DST\" expected, DST should be an identifier.";

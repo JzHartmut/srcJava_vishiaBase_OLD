@@ -9,7 +9,7 @@ import java.io.LineNumberReader;
 //import java.text.ParseException;
 import java.util.TreeMap;
 
-import org.vishia.util.StringPartOld;
+import org.vishia.util.StringPartBase;
 
 import org.vishia.mainCmd.*;
 //import vishia.stringScan.StringPart;
@@ -183,7 +183,7 @@ public class Xsltpre
       {
         try
         { String sLineIn;
-          StringPartOld spLineIn = new StringPartOld();
+          StringPartBase spLineIn = new StringPartBase();
           int[] idxKey = new int[1];
           StringBuffer sLineOut = new StringBuffer(12000);
           do
@@ -238,26 +238,26 @@ public class Xsltpre
   }
   
   
-  private void setAlias(StringPartOld spLineIn)
+  private void setAlias(StringPartBase spLineIn)
   { //input: (?=key=value?)
     spLineIn.seek(3).lento('=');
-    String sKey = spLineIn.getCurrentPart();
+    String sKey = spLineIn.getCurrentPart().toString();
     spLineIn.fromEnd().seek(1).lento("?)");
-    aliases.put(sKey, spLineIn.getCurrentPart());
+    aliases.put(sKey, spLineIn.getCurrentPart().toString());
     spLineIn.fromEnd().seek(2);
   }
   
-  private void setValueOf(StringBuffer sLineOut, StringPartOld spLineIn)
+  private void setValueOf(StringBuffer sLineOut, StringPartBase spLineIn)
   { //input: (?!value?) or (?!=alias?) or (?$variable?) or (?@attribute?)
     char cType = spLineIn.seek(2).getCurrentChar();
     spLineIn.seek(1).lento("?)");
     String sValue;
     if(spLineIn.getCurrentChar() == '=')
-    { String sKey = spLineIn.seek(1).getCurrentPart();
+    { String sKey = spLineIn.seek(1).getCurrentPart().toString();
       sValue = (aliases.get(sKey));
     }
     else
-    { sValue = spLineIn.getCurrentPart();
+    { sValue = spLineIn.getCurrentPart().toString();
     }
     sLineOut.append("</xsl:text><xsl:value-of select=\"");
     if(cType != '!'){ sLineOut.append(cType); }
@@ -267,19 +267,19 @@ public class Xsltpre
   }
   
   
-  private void setCallTemplate(StringBuffer sLineOut, StringPartOld spLineIn)
+  private void setCallTemplate(StringBuffer sLineOut, StringPartBase spLineIn)
   { //input: (?call name[:"select"](pname=par, pname=par)?) 
     //par may be 'text' or @alias or $variable or *xpath concated bei " + "
     //example (?call callName:"element"(par=@alias + 'text' + *path, par2='text')?)
     spLineIn.seek(7).lentoAnyChar(":(?");
-    String sCall = spLineIn.getCurrentPart();
+    String sCall = spLineIn.getCurrentPart().toString();
     char cSep = spLineIn.fromEnd().getCurrentChar();
     String sSelect;
     
     sLineOut.append("</xsl:text>");
     if(cSep == ':')
     { spLineIn.seek(1).lentoQuotionEnd('\"', Integer.MAX_VALUE);
-      sSelect = spLineIn.getCurrentPart();
+      sSelect = spLineIn.getCurrentPart().toString();
       sLineOut.append("<xsl:for-each select=");
       sLineOut.append(sSelect);
       sLineOut.append(">");
@@ -301,9 +301,9 @@ public class Xsltpre
       while(spLineIn.getCurrentChar() != ')')
       {
         spLineIn.lentoAnyChar("=");
-        String sParamName = spLineIn.getCurrentPart();
+        String sParamName = spLineIn.getCurrentPart().toString();
         spLineIn.fromEnd().seek(1).lentoAnyChar(",)");
-        String sParamValue = spLineIn.getCurrentPart();
+        String sParamValue = spLineIn.getCurrentPart().toString();
 
         sLineOut.append("<xsl:with-param name=\"");
         sLineOut.append(sParamName);
@@ -327,7 +327,7 @@ public class Xsltpre
     { sLineOut.append("</xsl:for-each>");
     }
     sLineOut.append("<xsl:text>");
-    spLineIn.seek("?)", StringPartOld.seekEnd);
+    spLineIn.seek("?)", StringPartBase.seekEnd);
   }
   
   private void setParamValueSelect(StringBuffer sLineOut, String sParamValue)
@@ -350,7 +350,7 @@ public class Xsltpre
     sLineOut.append("\" />");
   }
   
-  private void setIf(StringBuffer sLineOut, StringPartOld spLineIn)
+  private void setIf(StringBuffer sLineOut, StringPartBase spLineIn)
   { //input: (?if "condition"?)
     spLineIn.seek(5);
     sLineOut.append("</xsl:text><xsl:choose><xsl:when test=");
@@ -360,21 +360,21 @@ public class Xsltpre
   }
   
   
-  private String ifcondition(StringPartOld spLineIn)
+  private String ifcondition(StringPartBase spLineIn)
   {
     String sTest;
     if(spLineIn.getCurrentChar()=='\"')
     { spLineIn.lentoQuotionEnd('\"', Integer.MAX_VALUE);
-      sTest = spLineIn.getCurrentPart();
+      sTest = spLineIn.getCurrentPart().toString();
     }
     else 
-    { spLineIn.lento("?)", StringPartOld.seekNormal);
+    { spLineIn.lento("?)", StringPartBase.seekNormal);
       sTest = "\"" + spLineIn.getCurrentPart() + "\""; 
     }
     return sTest;     
   }
   
-  private void setElif(StringBuffer sLineOut, StringPartOld spLineIn)
+  private void setElif(StringBuffer sLineOut, StringPartBase spLineIn)
   { //input: (?elif "condition"?)
     spLineIn.seek(7);
     sLineOut.append("</xsl:text></xsl:when><xsl:when test=");
@@ -384,28 +384,28 @@ public class Xsltpre
   }
   
   
-  private void setElse(StringBuffer sLineOut, StringPartOld spLineIn)
+  private void setElse(StringBuffer sLineOut, StringPartBase spLineIn)
   { //input: (?else?)
     spLineIn.seek(8);
     sLineOut.append("</xsl:text></xsl:when><xsl:otherwise><xsl:text>");
   }
   
   
-  private void setIfNext(StringBuffer sLineOut, StringPartOld spLineIn)
+  private void setIfNext(StringBuffer sLineOut, StringPartBase spLineIn)
   { //input: (?ifNext?)
     spLineIn.seek(10);
     sLineOut.append("</xsl:text><xsl:choose><xsl:when test=\"last() > position()\"><xsl:text>");
   }
   
   
-  private void setIfEnd(StringBuffer sLineOut, StringPartOld spLineIn)
+  private void setIfEnd(StringBuffer sLineOut, StringPartBase spLineIn)
   { //input: (?/if?)
     spLineIn.seek(7);
     sLineOut.append("</xsl:text></xsl:when></xsl:choose><xsl:text>");
   }
   
   
-  private void setElseEnd(StringBuffer sLineOut, StringPartOld spLineIn)
+  private void setElseEnd(StringBuffer sLineOut, StringPartBase spLineIn)
   { //input: (?/else?)
     spLineIn.seek(9);
     sLineOut.append("</xsl:text></xsl:otherwise></xsl:choose><xsl:text>");
@@ -413,25 +413,25 @@ public class Xsltpre
   
   
   
-  private void setAliasOld(StringPartOld spLineIn)
+  private void setAliasOld(StringPartBase spLineIn)
   { //input: <=key=value>
     spLineIn.seek(2).lento('=');
-    String sKey = spLineIn.getCurrentPart();
+    String sKey = spLineIn.getCurrentPart().toString();
     spLineIn.fromEnd().seek(1).lento('>');
-    aliases.put(sKey, spLineIn.getCurrentPart());
+    aliases.put(sKey, spLineIn.getCurrentPart().toString());
     spLineIn.fromEnd().seek(1);
   }
   
-  private void setValueOfOld(StringBuffer sLineOut, StringPartOld spLineIn)
+  private void setValueOfOld(StringBuffer sLineOut, StringPartBase spLineIn)
   { //input: <@value> or <@=alias>
     spLineIn.seek(2).lento('>');
     String sValue;
     if(spLineIn.getCurrentChar() == '=')
-    { String sKey = spLineIn.seek(1).getCurrentPart();
+    { String sKey = spLineIn.seek(1).getCurrentPart().toString();
       sValue = (aliases.get(sKey));
     }
     else
-    { sValue = spLineIn.getCurrentPart();
+    { sValue = spLineIn.getCurrentPart().toString();
     }
     sLineOut.append("</xsl:text><xsl:value-of select=\"");
     sLineOut.append(sValue);
@@ -440,18 +440,18 @@ public class Xsltpre
   }
   
   
-  private void setCallTemplateOld(StringBuffer sLineOut, StringPartOld spLineIn)
+  private void setCallTemplateOld(StringBuffer sLineOut, StringPartBase spLineIn)
   { //input: <:name[:"select"](pname=par, pname=par)> 
     //par may be 'text' or @alias or $variable or *xpath concated bei " + "
     //example <:element/*:callName(par=@alias + 'text' + *path, par2='text')>
     spLineIn.seek(2).lentoAnyChar(":(>");
-    String sCall = spLineIn.getCurrentPart();
+    String sCall = spLineIn.getCurrentPart().toString();
     char cSep = spLineIn.fromEnd().getCurrentChar();
     String sSelect;
     
     if(cSep == ':')
     { spLineIn.seek(1).lentoQuotionEnd('\"', Integer.MAX_VALUE);
-      sSelect = spLineIn.getCurrentPart();
+      sSelect = spLineIn.getCurrentPart().toString();
       sLineOut.append("</xsl:text><xsl:for-each select=");
       sLineOut.append(sSelect);
       sLineOut.append(">");
@@ -471,9 +471,9 @@ public class Xsltpre
       while(spLineIn.getCurrentChar() != ')')
       {
         spLineIn.lentoAnyChar("=");
-        String sParamName = spLineIn.getCurrentPart();
+        String sParamName = spLineIn.getCurrentPart().toString();
         spLineIn.fromEnd().seek(1).lentoAnyChar(",)");
-        String sParamValue = spLineIn.getCurrentPart();
+        String sParamValue = spLineIn.getCurrentPart().toString();
 
         sLineOut.append("<xsl:with-param name=\"");
         sLineOut.append(sParamName);
@@ -497,7 +497,7 @@ public class Xsltpre
     { sLineOut.append("</xsl:for-each>");
     }
     sLineOut.append("<xsl:text>");
-    spLineIn.seek(">", StringPartOld.seekNormal).seek(1);
+    spLineIn.seek(">", StringPartBase.seekNormal).seek(1);
   }
   /*
   private void setParamValueSelectOld(StringBuffer sLineOut, String sParamValue)
@@ -521,10 +521,10 @@ public class Xsltpre
   }
   */
   
-  private void setIfOld(StringBuffer sLineOut, StringPartOld spLineIn)
+  private void setIfOld(StringBuffer sLineOut, StringPartBase spLineIn)
   { //input: <?if "condition"?value>
     spLineIn.seek(5).lentoQuotionEnd('\"', Integer.MAX_VALUE);
-    String sTest = spLineIn.getCurrentPart();
+    String sTest = spLineIn.getCurrentPart().toString();
     sLineOut.append("</xsl:text><xsl:choose><xsl:when test=");
     sLineOut.append(sTest);
     sLineOut.append("><xsl:text>");
@@ -532,10 +532,10 @@ public class Xsltpre
   }
   
   
-  private void setElifOld(StringBuffer sLineOut, StringPartOld spLineIn)
+  private void setElifOld(StringBuffer sLineOut, StringPartBase spLineIn)
   { //input: <?else "condition"?value>
     spLineIn.seek(7).lentoQuotionEnd('\"', Integer.MAX_VALUE);
-    String sTest = spLineIn.getCurrentPart();
+    String sTest = spLineIn.getCurrentPart().toString();
     sLineOut.append("</xsl:text></xsl:choose><xsl:when test=");
     sLineOut.append(sTest);
     sLineOut.append("><xsl:text>");
@@ -543,21 +543,21 @@ public class Xsltpre
   }
   
   
-  private void setElseOld(StringBuffer sLineOut, StringPartOld spLineIn)
+  private void setElseOld(StringBuffer sLineOut, StringPartBase spLineIn)
   { //input: </?else>
     spLineIn.seek(8);
     sLineOut.append("</xsl:text></xsl:when><xsl:otherwise><xsl:text>");
   }
   
   
-  private void setIfEndOld(StringBuffer sLineOut, StringPartOld spLineIn)
+  private void setIfEndOld(StringBuffer sLineOut, StringPartBase spLineIn)
   { //input: </?if>
     spLineIn.seek(6);
     sLineOut.append("</xsl:text></xsl:when></xsl:choose><xsl:text>");
   }
   
   
-  private void setElseEndOld(StringBuffer sLineOut, StringPartOld spLineIn)
+  private void setElseEndOld(StringBuffer sLineOut, StringPartBase spLineIn)
   { //input: </?else>
     spLineIn.seek(8);
     sLineOut.append("</xsl:text></xsl:otherwise></xsl:choose><xsl:text>");

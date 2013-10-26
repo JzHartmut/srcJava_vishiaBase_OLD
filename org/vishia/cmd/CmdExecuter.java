@@ -9,7 +9,7 @@ import java.io.InputStreamReader;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.vishia.util.StringPartOld;
+import org.vishia.util.StringPartBase;
 
 /**This class organizes the execution of commands with thread-parallel getting of the process outputs.
  * @author Hartmut Schorrig
@@ -324,9 +324,9 @@ public class CmdExecuter implements Closeable
    */
   public static String[] splitArgs(String line)
   {
-    StringPartOld spLine = new StringPartOld(line);
-    spLine.setIgnoreWhitespaces(true);
-    spLine.setIgnoreEndlineComment("##");
+    StringPartBase spLine = new StringPartBase(line);
+    //spLine.setIgnoreWhitespaces(true);
+    //spLine.setIgnoreEndlineComment("##");
     int ixArg = -1;
     int[] posArgs = new int[1000];  //only local, enought size
     int posArg = 0;

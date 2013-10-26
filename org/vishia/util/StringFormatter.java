@@ -800,7 +800,7 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
     int nrofCharsForSignUnused = 0;
     /** setted if left zero-digits are suppressed, no '0' and no space should be shown. */
     boolean bLeftZeroSuppress =false;
-    StringPartOld spPict = new StringPartOld(pict);
+    StringPartBase spPict = new StringPartBase(pict);
     int posSignInPicture = spPict.indexOfAnyChar(sNeg);  //positChar(pict,pict.length(),sNeg,strlen(sNeg));
     if(posSignInPicture >= 0)  //im Picture ist ein neg. Vorzeichen vorgesehen
     { if(src < 0L)                //und die Zahl ist auch negativ:

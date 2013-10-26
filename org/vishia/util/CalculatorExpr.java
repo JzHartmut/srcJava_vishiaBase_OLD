@@ -1538,7 +1538,7 @@ public class CalculatorExpr
   public String setExpr(String sExpr, String[] sIdentifier)
   {
     this.variables = sIdentifier;
-    StringPartOld sp = new StringPartOld(sExpr);
+    StringPartScan sp = new StringPartScan(sExpr);
     return multExpr(sp, "!", 1);  //TODO addExpr
   }
   
@@ -1550,26 +1550,26 @@ public class CalculatorExpr
   public String setExpr(String sExpr)
   {
     this.variables = new String[]{"X"};
-    StringPartOld sp = new StringPartOld(sExpr);
+    StringPartScan sp = new StringPartScan(sExpr);
     return addExpr(sp, "!", 1);
   }
   
 
   /**The outer expression is a add or subtract expression.
    * call recursively for any number of operands.
-   * call {@link #multExpr(StringPartOld, char)} to get the argument values.
+   * call {@link #multExpr(StringPartScan, char)} to get the argument values.
    * @param sp
    * @param operation The first operation.
    * @return this
    */
-  private String addExpr(StringPartOld sp, String operation, int recursion)
+  private String addExpr(StringPartScan sp, String operation, int recursion)
   { String sError = null;
     if(recursion > 1000) throw new RuntimeException("recursion");
     sError = multExpr(sp, operation, recursion +1);
     if(sError == null && sp.length()>0){
       char cc = sp.getCurrentChar();
       if("+-".indexOf(cc)>=0){
-        sp.seek(1).scanOk();
+        sp.seek(1).scan().scanOk();
         return addExpr(sp, ""+cc, recursion+1);
       }
     }
@@ -1584,14 +1584,14 @@ public class CalculatorExpr
    * @param operation
    * @return
    */
-  private String multExpr(StringPartOld sp, String operation, int recursion)
+  private String multExpr(StringPartScan sp, String operation, int recursion)
   { if(recursion > 1000) throw new RuntimeException("recursion");
     try{
       if(sp.scanIdentifier().scanOk()){
-        String sIdent = sp.getLastScannedString();
+        CharSequence sIdent = sp.getLastScannedString();
         int ix;
         for(ix = 0; ix< variables.length; ++ix){
-          if(variables[ix].equals(sIdent)){
+          if(StringFunctions.equals(variables[ix],sIdent)){
             listOperations.add(new Operation(operation, ix));
             ix = Integer.MAX_VALUE-1; //break;
           }
@@ -1608,7 +1608,7 @@ public class CalculatorExpr
     if(sp.length()>0){
       char cc = sp.getCurrentChar();
       if("*/".indexOf(cc)>=0){
-        sp.seek(1).scanOk();
+        sp.seek(1).scan().scanOk();
         return multExpr(sp, ""+cc, recursion+1);
       }
     }
