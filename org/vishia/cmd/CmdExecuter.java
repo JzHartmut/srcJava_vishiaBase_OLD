@@ -325,8 +325,8 @@ public class CmdExecuter implements Closeable
   public static String[] splitArgs(String line)
   {
     StringPart spLine = new StringPart(line);
-    //spLine.setIgnoreWhitespaces(true);
-    //spLine.setIgnoreEndlineComment("##");
+    spLine.setIgnoreWhitespaces(true);
+    spLine.setIgnoreEndlineComment("##");
     int ixArg = -1;
     int[] posArgs = new int[1000];  //only local, enought size
     int posArg = 0;
