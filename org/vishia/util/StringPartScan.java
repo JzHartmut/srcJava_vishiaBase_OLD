@@ -2,18 +2,88 @@ package org.vishia.util;
 
 import java.text.ParseException;
 
-/**This class extends the capability of StringPartBase with the same properties.
+/**This class extends the capability of StringPartBase for scanning capability.
+ * In opposite to the {@link StringPartBase#seek(int)} functionality with several conditions 
+ * the scan methods does not search till a requested char or string but test the string
+ * starting from the begin of the valid part. If the test is ok, the begin of the valid part
+ * is shifted to right behind the scanned string. The result of the scanning process
+ * may be evaluated later. Therefore it is stored in this class, for example {@link #getLastScannedIntegerNumber()}
+ * can be gotten after scan.
+ * <pre>
+ * abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
+ *   --------------------    The valid part before scan
+ *         ++++++++++++++    The valid part after scan
+ *   ******                  The successfully scanned part.
+ *         xxxxx             Starting next scan      
+ * </pre> 
+ * A scan works with the current valid part always.
+ * <br><br>  
+ * <b>concatenated sequence of scans</b>:<br>
+ * It is possible to concatenate scans, for example
+ * <pre>
+ *   sp.scanStart();
+ *   if(sp.scan("keyword").scan('=').scanIdentifier().scanOk()){
+ *     String sIdent = sp.getLastScannedString().toString();
+ *   } else if(sp.scan("other-keyword").scan(.....
+ * </pre>
+ * The following rule is valid:
+ * <ul>
+ * <li>The operations are concatenated, because any operation returns this.
+ *   It is a nice-to-have writing style.
+ * <li>If a scan fails, the following scan operations are not executed.
+ * <li>{@link #scanOk()} returns false if any of the scan methods after {@link #scanStart()}
+ *   or the last {@link #scanOk()} fails.
+ * <li>If a {@link #scanOk()} was invoked and the scan before that fails, the begin of the valid part
+ *   is set to that position where the scan has started before this scan sequence. It is the position
+ *   where {@link #scanStart()} was called or the last {@link #scanOk()} with return true was called.
+ * </ul>
+ * With them a well readable sequential test of content can be programmed in the shown form above.
+ * In a sequence of scans white space and comments may be skipped over if the method
+ * {@link #setIgnoreWhitespaces(boolean)} etc. are invoked before. That setting is valid for all following
+ * scan invocations.
+ *     
  * @author Hartmut Schorrig
- *
+ *e
  */
 public class StringPartScan extends StringPartBase
 {
-  
+  /**Version, history and license.
+   * <ul>
+   * <li>2013-10-26 Hartmut creation from StringPart. Same routines, but does not use substring yet, some gardening, renaming. 
+   * <li>1997 Hartmut: The scan routines in approximately this form were part of the StringScan class in C++ language,
+   *   written of me.
+   * </ul>
+   * <br><br>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   */
+  public final static int version = 20131027; 
+
   
   /**Position of scanStart() or after scanOk() as begin of next scan operations. */
   protected int beginScan;
   
-  /**Last scanned integer number.*/
+  /**Buffer for last scanned integer numbers.*/
   protected final long[] nLastIntegerNumber = new long[5];
   
   /**current index of the last scanned integer number. -1=nothing scanned. 0..4=valid*/
@@ -36,6 +106,11 @@ public class StringPartScan extends StringPartBase
 
   public StringPartScan(CharSequence src)
   { super(src);
+  }
+
+  
+  protected StringPartScan()
+  { super();
   }
 
   
@@ -699,6 +774,22 @@ public class StringPartScan extends StringPartBase
     return this;
   }
 
+
+  /**Closes the work. This routine should be called if the StringPart is never used, 
+   * but it may be kept because it is part of class data or part of a statement block which runs.
+   * The associated String is released. It can be recycled by garbage collector.
+   * If this method is overridden, it should used to close a associated file which is opened 
+   * for this String processing. The overridden method should call super->close() too.
+   */
+  @Override
+  public void close()
+  {
+    super.close();
+    sLastString = null;
+    beginScan = 0;
+    bCurrentOk = bFound = false;
+
+  }
 
   
 

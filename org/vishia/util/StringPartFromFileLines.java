@@ -33,7 +33,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
 
-public class StringPartFromFileLines extends StringPartOld
+public class StringPartFromFileLines extends StringPartScan
 {
   
   /**Version, history and license.
@@ -80,6 +80,9 @@ public class StringPartFromFileLines extends StringPartOld
   String sLine = null;
   /** Nr of chars in line without trailing spaces.*/
   int nLine = 0;
+  
+  /**Current line. */
+  int nLineCt = 0;
   
   boolean bEof;
   
@@ -247,6 +250,7 @@ public class StringPartFromFileLines extends StringPartOld
       try{ readIn.close(); } catch(IOException exc){}
       //readIn = null;
     }
+    nLineCt = 0;
     super.close();
   }
   

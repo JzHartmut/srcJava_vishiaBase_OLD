@@ -1,5 +1,7 @@
 package org.vishia.util;
 
+import java.io.Closeable;
+
 
 /**This is an alternative to the {@link java.lang.String} which uses a shared reference to the char sequence.
  * This class is able to use if String processing is done in a closed thread. This class must not be used 
@@ -95,7 +97,7 @@ package org.vishia.util;
  * </ul>            
  */
 
-public class StringPartBase implements CharSequence, Comparable<CharSequence>
+public class StringPartBase implements CharSequence, Comparable<CharSequence>, Closeable
 {
   /**Version, history and license.
    * <ul>
@@ -144,7 +146,7 @@ public class StringPartBase implements CharSequence, Comparable<CharSequence>
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
-  public final static int version = 20130504; 
+  public final static int version = 20131027; 
 
   
   /** Flag to force setting the start position after the seeking string. See description on seek(String, int).
@@ -297,6 +299,13 @@ abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
     this(src, 0, src.length());
   }
   
+  
+  protected StringPartBase()
+  { 
+  }
+
+
+  
   /**Builds a StringPart which uses the designated part of the given src.
    * @param src It will be referenced.
    * @param start The beginMin and begin value for the StringPart.
@@ -406,6 +415,30 @@ public int getLineCt(){ return 0; }
      }
    }
 
+   /** Gets the current position, useable for rewind. This method is overwritten
+    * if derived classes uses partial content.
+    */ 
+   public long getCurrentPosition()
+   { return begin;
+   }
+   
+   
+   /** Sets the current position at a fix position inside the maxPart.
+    * TODO what is with rewind etc? see old StringScan.
+    * Idea: the max Part is never enlargeable to left, only made smaller to rihht.
+    * Thats why the left border of maxPart is useable for shift left the content
+    * by reading the next content from file, if the buffer is limited, larger than necessarry for a
+    * whole file's content. But all pos values should be relativ. getCurrentPos must return
+    * a relativ value, if shiftness is used. this method shuld use a relativ value.
+    * old:, useable for rewind. This method may be overwritten
+    * if derived classes uses partial content.
+    
+    * @param pos the absolute position
+    */ 
+   public void setCurrentPosition(long pos)
+   { begin = (int)pos;
+   }
+   
 
 
   
@@ -636,7 +669,15 @@ public int getLineCt(){ return 0; }
     return this;
   }
   
-  
+  /**Sets the length to the end of the maximal part.
+   * @java2c=return-this.
+  */
+  public StringPartBase setLengthMax()
+  { end = endMax;
+    return this;
+  }
+
+
   
 
   
@@ -951,6 +992,29 @@ return this;
     return this;
   }
   
+
+  
+  
+  /** Posits the start of the part after all of the chars given in the parameter string.
+  The end of the part is not affected.
+  <pre>sample: seekNoChar("123") result is:
+            12312312312abcd12312efghij123123
+  before:       ==========================
+  after:               ===================
+                         </pre>
+*  @java2c=return-this.
+  @param sChars String with the chars to overread.
+  @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
+*/
+public StringPartBase seekNoChar(String sChars)
+{ beginLast = begin;
+while(begin < end && sChars.indexOf(schars.charAt(begin)) >=0) begin +=1;
+if(begin < end) bFound = true;
+else bFound = false;
+return this;
+}
+
+
 
 
   /** Returns the position of the char within the part,
@@ -1482,7 +1546,7 @@ public void lentoAnyStringWithIndent(String[] strings, String sIndentChars, int 
    this.end = this.begin + pos; 
    boolean bFinish = false;
    while(!bFinish)  
-   { pos = StringFunctions.indexOf(schars, 0, startLine, '\n');
+   { pos = StringFunctions.indexOf(schars, '\n', startLine);
      if(pos < 0) pos = this.end;
      if(pos > this.end)
      { //next newline after terminated string, that is the last line.
@@ -1643,7 +1707,7 @@ public StringPartBase lentoAnyChar(String sChars)
    *  
    * @see java.lang.CharSequence#subSequence(int, int)
    */
-  @Override public CharSequence subSequence(int from, int to)
+  @Override public Part subSequence(int from, int to)
   { 
     if(from < 0 || to > (end - begin)) throw new IllegalArgumentException("StringPartBase.subString - faulty;" + from);
     return new Part(begin+from, begin+to); 
@@ -1659,6 +1723,9 @@ public StringPartBase lentoAnyChar(String sChars)
     if(from < 0 || to > (end - begin)) throw new IllegalArgumentException("StringPartBase.subString - faulty;" + from);
     return absSubString(begin + from, begin + to); 
   }
+  
+  
+ 
   
   
   
@@ -1726,9 +1793,9 @@ public StringPartBase lentoAnyChar(String sChars)
   /** Returns the actual part of the string.
    * 
    */
-  public CharSequence getCurrentPart()
+  public Part getCurrentPart()
   { if(end > begin) return new Part(begin + apos, end + apos);
-    else            return "";
+    else            return new Part(begin + apos, begin + apos);
   }
   
 
@@ -1752,6 +1819,42 @@ public StringPartBase lentoAnyChar(String sChars)
   
 
   
+  /**Retrurn the part from start to end independent of the current positions. 
+   * This method is proper to get an older part for example to log a text afterwards the text is processed.
+   * Store the {@link #getCurrentPosition()} and {@link #getLen()} and apply it here!
+   * Note that it is possible that an older part of string is not available furthermore if a less buffer is used
+   * and the string in the buffer was shifted out. Then this method may be overridden and returns an error hint.
+   * @param fromPos The start position for the returned content. It must be a valid position.
+   * @param nrofChars The number of characters. It must be >= 0. If the content is shorter,
+   *   that shorter part is returned without error.
+   *   For example getPart(myPos, Integer.MAXINT) returns all the content till its end.
+   * @return A CharSequence. Note that the returned value should be processed immediately in the same thread.
+   *   before other routines are invoked from this class.
+   *   It should not stored as a reference and used later. The CharSequence may be changed later.
+   *   If it is necessary, invoke toString() with this returned value.
+   */
+  public StringPartBase.Part getPart(int fromPos, int nrofChars){
+    if((fromPos + nrofChars) > schars.length()){ nrofChars = schars.length() - fromPos; }
+    return new Part(fromPos, fromPos +nrofChars);
+  }
+
+  
+  
+  /**Closes the work. This routine should be called if the StringPart is never used, 
+   * but it may be kept because it is part of class data or part of a statement block which runs.
+   * The associated String is released. It can be recycled by garbage collector.
+   * If this method is overridden, it should used to close a associated file which is opened 
+   * for this String processing. The overridden method should call super->close() too.
+   */
+  public void close()
+  {
+    schars = null;
+    begiMin = beginLast = begin = 0;
+    endMax = end = endLast = 0;
+    bCurrentOk = bFound = false;
+
+  }
+  
 
 
 
@@ -1766,7 +1869,11 @@ public StringPartBase lentoAnyChar(String sChars)
 
   
   
-  /**This class presents a part of the string.
+  /**This class presents a part of the parent CharSequence of this class.
+   * The constructor is protected because instances of this class are only created in this class
+   * or its derived, not by user.
+   * The CharSequence methods get the characters from the parent CharSequence of the environment class
+   * StringPartBase. 
    */
   public class Part implements CharSequence{ 
     
@@ -1779,6 +1886,9 @@ public StringPartBase lentoAnyChar(String sChars)
      * @param to
      */
     protected Part(int from, int to){
+      assert(b1 >= 0 && b1 < schars.length());
+      assert(e1 >= 0 && e1 < schars.length());
+      assert(b1 <= e1);
       b1 = from; e1 = to;
     }
     
@@ -1800,6 +1910,20 @@ public StringPartBase lentoAnyChar(String sChars)
     @Override public String toString(){
       return absSubString(b1, e1);
     }
+    
+    
+    /**Builds a new Part without leading and trailing white spaces.
+     * Without " \r\n\t"
+     * @return a new Part.
+     */
+    public Part trim(){
+      int b2 = b1; int e2 = e1;
+      while(b2 < e2 && " \r\n\t".indexOf(schars.charAt(b2)) >=0){ b2 +=1; }
+      while(e2 > b2 && " \r\n".indexOf(schars.charAt(e2-1)) >=0){ e2 -=1; }
+      Part ret = new Part(b2, e2);
+      return ret;
+    }
+    
     
   }
 

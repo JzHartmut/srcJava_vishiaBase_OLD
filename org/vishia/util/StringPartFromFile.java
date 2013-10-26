@@ -30,7 +30,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 
-public class StringPartFromFile extends StringPartOld
+public class StringPartFromFile extends StringPartScan
 {
   final StringBuffer buffer;
   char[] fileBuffer = new char[1024];
@@ -56,7 +56,7 @@ public class StringPartFromFile extends StringPartOld
     readIn = new FileReader(fromFile);
     readnextContentFromFile();
     readIn.close();
-    assign(buffer.toString());
+    assign(buffer);
   }
 
   void readnextContentFromFile()
@@ -79,5 +79,8 @@ public class StringPartFromFile extends StringPartOld
     }
   }
 
+  
+  
+  
 
 }
