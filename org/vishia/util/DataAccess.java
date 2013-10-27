@@ -476,7 +476,7 @@ public class DataAccess {
           }
           //else: let data1=null, return null
         } break;
-        case ')': data1 = invokeStaticMethod(element); break;
+        case '%': data1 = invokeStaticMethod(element); break;
         default:
           if(data1 !=null){
             data1 = getData(element.ident, data1, accessPrivate, bContainer);
@@ -496,7 +496,7 @@ public class DataAccess {
   
   
   /**Invokes the static method which is described with the element.
-   * @param element its {@link DatapathElement#whatisit} == ')'.
+   * @param element its {@link DatapathElement#whatisit} == '%'.
    *   The {@link DatapathElement#identArgJbat} should contain the full qualified "packagepath.Class.methodname" separated by dot.
    * @return the return value of the method
    * @throws NoSuchMethodException 
@@ -616,7 +616,7 @@ public class DataAccess {
   
   
   /**Invokes the static method which is described with the element.
-   * @param element its {@link DatapathElement#whatisit} == ')'.
+   * @param element its {@link DatapathElement#whatisit} == '%'.
    *   The {@link DatapathElement#identArgJbat} should contain the full qualified "packagepath.Class.methodname" separated by dot.
    * @return the return value of the method
    * @throws Throwable 
@@ -1301,7 +1301,7 @@ public class DataAccess {
      * <li>'@': A variable from the additional data pool.
      * <li>'.': a field with ident as name.
      * <li>'+': new ident, creation of instance maybe with or without arguments in {@link #fnArgs}
-     * <li>')'; call of a static routine maybe with or without arguments in {@link #fnArgs}
+     * <li>'%'; call of a static routine maybe with or without arguments in {@link #fnArgs}
      * <li>'(': subroutine maybe with or without arguments in {@link #fnArgs}.
      * </ul>
      */
@@ -1343,7 +1343,7 @@ public class DataAccess {
       }
       int posNameEnd = name.indexOf('(');
       if(posNameEnd != -1){
-        whatisit = whatisit == '%' ? ')' : '(';
+        whatisit = whatisit == '%' ? '%' : '(';
         //TODO
       } else {
         posNameEnd = name.length();
