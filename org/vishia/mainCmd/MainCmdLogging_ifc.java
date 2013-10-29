@@ -6,7 +6,14 @@ import org.vishia.msgDispatch.LogMessage;
 
 /**This interface is the access to output log messages while running an application
  * to check its work.
- * 
+ * <ul>
+ * <li>One implementor is the {@link MainCmd} for command line programming 
+ *   or {@link org.vishia.gral.area9.GralArea9MainCmd} for the gral GUI.
+ * <li>Another implementor independent of any other concept is {@link MainCmdLoggingStream}. That class
+ *   adapts the standard System.out to this interface.
+ * <li>Using {@link MainCmdLoggingStream} and {@link org.vishia.msgDispatch.MsgDispatchSystemOutErr}
+ *   one can create messages which can be dispatched to any destinations.   
+ * </ul>    
  *  <font color="0x00ffff">Dieses Interface dient zur Ausgabe von Logmeldungen for kommandozeilenartige Abarbeitung.
     </font>
     This interface is usefull for reporting something (logfiles). It should be used in every algorithm routine

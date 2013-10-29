@@ -140,7 +140,7 @@ public class ZGenScript {
 
   }
   
-  public final Statement getFileScript(){ return scriptFile; }
+  public final Statement getMain(){ return scriptFile; }
   
   
   public Statement getSubtextScript(CharSequence name){ return subScripts.get(name.toString()); }
@@ -514,6 +514,17 @@ public class ZGenScript {
     public DataAccess.DataAccessSet new_assign(){ return new DataAccess.DataAccessSet(); }
     
     public void add_assign(DataAccess.DataAccessSet val){ 
+      if(assignObj == null){ assignObj = new LinkedList<DataAccess>(); }
+      assignObj.add(val); 
+    }
+
+    
+    /**From Zbnf: [{ <datapath?-assign> = }] 
+     */
+    public DataAccess.DataAccessSet new_defString(){ return new DataAccess.DataAccessSet('S'); }
+    
+    public void add_defString(DataAccess.DataAccessSet val){ 
+      val.setTypeToLastElement();
       if(assignObj == null){ assignObj = new LinkedList<DataAccess>(); }
       assignObj.add(val); 
     }

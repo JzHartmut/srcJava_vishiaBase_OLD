@@ -1780,10 +1780,14 @@ public class CalculatorExpr
   
   
   /**Calculates the expression with possible access to any stored object data with access via reflection.
-   * An value can contain a {@link Datapath#datapath} which describe any class's field or method
-   * which were found via a reflection access. The datapath is build calling {@link #setExpr(String)}
-   * or {@link #setExpr(String, String[])} using the form "$var.reflectionpath"
-   * 
+   * <ul>
+   * <li>If the expression's reference {@link #genString} is set, the {@link ZGenExecuter.ExecuteLevel#executeNewlevel(org.vishia.cmd.ZGenScript.StatementList, Appendable, boolean)}
+   *   is used to generate that String variable. It is not a native capability of this class but a CalculatorExpr
+   *   should have the capablity of text generation too. It uses the {@link ZGenExecuter} for that.
+   * <li>An value can contain a {@link DataAccess#datapath} which describe any class's field or method
+   *   which were found via a reflection access. The datapath is build calling {@link #setExpr(String)}
+   *   or {@link #setExpr(String, String[])} using the form "$var.reflectionpath"
+   * </ul>
    * @param javaVariables Any data which are access-able with its name. It is the first part of a datapath.
    * @param args Some args given immediately. Often numerical args. Often not used.
    * @return The result wrapped with a Value instance. This Value contains also the type info. 
@@ -1792,7 +1796,7 @@ public class CalculatorExpr
    */
   public Value calcDataAccess(Map<String, DataAccess.Variable> javaVariables, Object... args) throws Exception{
     if(genString !=null){
-      ZGenExecuter.ExecuteLevel executer = (ZGenExecuter.ExecuteLevel)DataAccess.getVariable(javaVariables, "jbatExecuteLevel", true);
+      ZGenExecuter.ExecuteLevel executer = (ZGenExecuter.ExecuteLevel)DataAccess.getVariable(javaVariables, "zgenSub", true);
       StringBuilder u = new StringBuilder();
       executer.executeNewlevel(genString, u, false);
       return new CalculatorExpr.Value(u.toString());

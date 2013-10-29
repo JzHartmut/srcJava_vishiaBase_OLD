@@ -63,6 +63,8 @@ public class ZGenExecuter {
   
   /**Version and history
    * <ul>
+   * <li>2013-10-27 Hartmut chg: Definition of a String name [= value] is handled like assign. Stored with 
+   *   {@link DataAccess#storeValue(List, Map, Object, boolean)} with special designation in {@link DataAccess.DatapathElement#whatisit}
    * <li>2013-10-20 Hartmut chg: The {@link #scriptVariables} and the {@link ExecuteLevel#localVariables} are of type
    *   {@link DataAccess.Variable} and not only Object. Advantage: The variable references can be changed in the
    *   instance of {@link DataAccess.Variable#val}, this changing is valid for all references to that variable.
@@ -174,8 +176,8 @@ public class ZGenExecuter {
   
   public Appendable outFile(){ return outFile; }
   
-  public void setScriptVariable(String name, Object content){
-    DataAccess.setVariable(scriptVariables, name, content);
+  public void setScriptVariable(String name, char type, Object content){
+    DataAccess.setVariable(scriptVariables, name, type, content);
   }
   
   
@@ -276,8 +278,8 @@ public class ZGenExecuter {
     if(!bScriptVariableGenerated){
       genScriptVariables(genScript, accessPrivate);
     }
-    setScriptVariable("text", out);
-    ZGenScript.Statement contentScript = genScript.getFileScript();
+    setScriptVariable("text", 'A', out);
+    ZGenScript.Statement contentScript = genScript.getMain();
     ExecuteLevel genFile = new ExecuteLevel(null, scriptVariables);
     String sError1 = genFile.execute(contentScript.subContent, out, false);
     if(bWaitForThreads){
@@ -387,7 +389,8 @@ public class ZGenExecuter {
   }
   
   /**Wrapper to generate a script with specified localVariables.
-   * A new Wrapper is created on <:file>, <:subtext> or on abbreviated output, especially to generate into variables.
+   * A new Wrapper is created on any subroutine level. It is used in a {@link CalculatorExpr#calcDataAccess(Map, Object...)} 
+   * to generate an expression independent of an environment.
    *
    */
   public final class ExecuteLevel
@@ -395,13 +398,13 @@ public class ZGenExecuter {
     /**Not used yet. Only for debug?
      * 
      */
-    final ExecuteLevel parent;
+    public final ExecuteLevel parent;
     
     
     /**Generated content of local variables in this nested level including the {@link ZbatchExecuter#scriptVariables}.
      * The variables are type invariant on language level. The type is checked and therefore 
      * errors are detected on runtime only. */
-    final Map<String, DataAccess.Variable> localVariables;
+    public final Map<String, DataAccess.Variable> localVariables;
     
     
     
@@ -420,15 +423,17 @@ public class ZGenExecuter {
       } else {
         localVariables.putAll(parentVariables);  //use the same if it is not a subText, only a 
       }
-      localVariables.put("jbatSub", new DataAccess.Variable('O', "jbatSub", this));
-      localVariables.put("jbatSubVariables", new DataAccess.Variable('O', "jbatSubVariables", localVariables));
-      localVariables.put("jbatExecuteLevel", new DataAccess.Variable('O', "jbatExecuteLevel", this));
+      localVariables.put("jbatSub", new DataAccess.Variable('O', "zgenSub", this));
     }
 
     
     
-    public void setLocalVariable(String name, Object content){
-      DataAccess.setVariable(localVariables, name, content);
+    /**Returns the log interface from the environment class. */
+    public MainCmdLogging_ifc log(){ return log; }
+    
+    
+    public void setLocalVariable(String name, char type, Object content){
+      DataAccess.setVariable(localVariables, name, type, content);
     }
     
     
@@ -502,19 +507,19 @@ public class ZGenExecuter {
             uBuffer.append(newline);
           } break;
           case 'T': textAppendToVarOrOut(contentElement); break; 
-          case 'S': setStringVariable(contentElement); break; 
+          case 'S': executeAssign(contentElement); break; //setStringVariable(contentElement); break; 
           case 'P': { //create a new local variable as pipe
             StringBuilder uBufferVariable = new StringBuilder();
-            setLocalVariable(contentElement.identArgJbat, uBufferVariable);
+            setLocalVariable(contentElement.identArgJbat, 'P', uBufferVariable);
           } break;
           case 'U': { //create a new local variable as pipe
             StringBuilder uBufferVariable = new StringBuilder();
-            setLocalVariable(contentElement.identArgJbat, uBufferVariable);
+            setLocalVariable(contentElement.identArgJbat, 'A', uBufferVariable);
           } break;
           case 'L': {
             Object value = evalObject(contentElement, true); 
               //getContent(contentElement, localVariables, false);  //not a container
-            setLocalVariable(contentElement.identArgJbat, value);
+            setLocalVariable(contentElement.identArgJbat, 'L', value);
             if(!(value instanceof Iterable<?>)) 
                 throw new NoSuchFieldException("JbatExecuter - exec variable must be of type Iterable ;" + contentElement.identArgJbat);
           } break;
@@ -523,7 +528,7 @@ public class ZGenExecuter {
             if(contentElement.identArgJbat.equals("checkDeps"))
               stop();
             Object value = evalObject(contentElement, false);
-            setLocalVariable(contentElement.identArgJbat, value);
+            setLocalVariable(contentElement.identArgJbat, 'O', value);
           } break;
           case 'e': executeDatatext(contentElement, out); break; 
           case 's': {
@@ -580,7 +585,7 @@ public class ZGenExecuter {
           }
           if(found){
             String sError1 = exc.getMessage();
-            setLocalVariable("errorMsg", sError1);
+            setLocalVariable("errorMsg", 'S', sError1);
             executeSubLevel(contentElement, out);
           } else {
             sError = exc.getMessage();
@@ -615,7 +620,7 @@ public class ZGenExecuter {
           if(foreachData !=null){
             //Gen_Content genFor = new Gen_Content(this, false);
             //genFor.
-            forExecuter.setLocalVariable(contentElement.identArgJbat, foreachData);
+            forExecuter.setLocalVariable(contentElement.identArgJbat, 'O', foreachData);
             //genFor.
             forExecuter.execute(subContent, out, iter.hasNext());
           }
@@ -631,7 +636,7 @@ public class ZGenExecuter {
           if(foreachData !=null){
             //Gen_Content genFor = new Gen_Content(this, false);
             //genFor.
-            setLocalVariable(contentElement.identArgJbat, foreachData);
+            setLocalVariable(contentElement.identArgJbat, 'O', foreachData);
             //genFor.
             execute(subContent, out, iter.hasNext());
           }
@@ -659,8 +664,8 @@ public class ZGenExecuter {
         ZGenScript.Statement contentElement = iter.next();
         switch(contentElement.elementType){
           case 'G': { //if-block
-            
-            found = executeIfBlock((ZGenScript.IfCondition)contentElement, out, iter.hasNext());
+            boolean hasNext = iter.hasNext();
+            found = executeIfBlock((ZGenScript.IfCondition)contentElement, out, hasNext);
           } break;
           case 'E': { //elsef
             if(!found){
@@ -693,14 +698,32 @@ public class ZGenExecuter {
     
     
     
+    /**Checks the condition and executes the if-block if the condition is true.
+     * If the condition contains elements which are not found in the datapath (throwing {@link NoSuchElementException}),
+     * the condition is false, That exception is not thrown forward.
+     * @param ifBlock
+     * @param out
+     * @param bIfHasNext
+     * @return true if the condition is true. If it returns false, an elsif or else-Block should be executed.
+     * @throws Exception
+     */
     boolean executeIfBlock(ZGenScript.IfCondition ifBlock, Appendable out, boolean bIfHasNext) 
     throws Exception
     {
       //Object check = getContent(ifBlock, localVariables, false);
       
       CalculatorExpr.Value check;
-      check = ifBlock.expression.calcDataAccess(localVariables);
-      boolean bCheck = check.booleanValue();
+      boolean bCheck;
+      try{
+        check = ifBlock.expression.calcDataAccess(localVariables);
+        bCheck = check.booleanValue();
+      } catch(NoSuchElementException exc){
+        bCheck = false;
+      } catch(NoSuchFieldException exc){
+        bCheck = false;
+      } catch(NoSuchMethodException exc){
+        bCheck = false;
+      }
       if(bCheck){
         execute(ifBlock.subContent, out, bIfHasNext);
       }
@@ -777,7 +800,7 @@ public class ZGenExecuter {
       ExecuteLevel genContent = new ExecuteLevel(this, localVariables);
       genContent.execute(contentElement.subContent, out1, false);
       if(put){
-        setLocalVariable(name, out1);  //replace content.
+        setLocalVariable(name, 'A', out1);  //replace content.
       }
     }
     
@@ -827,7 +850,7 @@ public class ZGenExecuter {
                   ok = writeError("??: *subtext;" + nameSubtext + ": " + referenceSetting.identArgJbat + " faulty argument.?? ", out);
                 } else {
                   checkArg.used = true;    //requested and resolved.
-                  subtextGenerator.setLocalVariable(referenceSetting.identArgJbat, ref);
+                  subtextGenerator.setLocalVariable(referenceSetting.identArgJbat, 'O', ref);
                 }
               } else {
                 ok = writeError("??: *subtext;" + nameSubtext + ": " + referenceSetting.identArgJbat + " = ? not found.??", out);
@@ -841,7 +864,7 @@ public class ZGenExecuter {
                 if(arg.formalArg.expression !=null){
                   Object ref = evalObject(arg.formalArg, false);
                   if(ref !=null){
-                    subtextGenerator.setLocalVariable(arg.formalArg.identArgJbat, ref);
+                    subtextGenerator.setLocalVariable(arg.formalArg.identArgJbat, 'O', ref);
                   } else {
                     ok = writeError("??: *subtext;" + nameSubtext + ": " + arg.formalArg.identArgJbat + " not found.??", out);
                   }
@@ -1040,7 +1063,7 @@ public class ZGenExecuter {
     {
       String sFilename = evalString(contentElement).toString();
       Writer writer = new FileWriter(sFilename);
-      setLocalVariable(contentElement.identArgJbat, writer);
+      setLocalVariable(contentElement.identArgJbat, 'A', writer);
     }
     
     /**Executes a <code>assignment::= [{ < datapath?assign > = }] < expression > ;.</code>.
@@ -1161,7 +1184,7 @@ public class ZGenExecuter {
       } else if(arg.expression !=null){
         CalculatorExpr.Value value = arg.expression.calcDataAccess(localVariables);
         obj = value.objValue();
-      } else throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
+      } else obj = null;  //throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
       return obj;
     }
     

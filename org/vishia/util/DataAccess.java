@@ -263,43 +263,54 @@ public class DataAccess {
   throws IOException, IllegalAccessException {
     Object dst = variables;
     Iterator<DataAccess.DatapathElement> iter = path.iterator();
-    DataAccess.DatapathElement variable;
+    DataAccess.DatapathElement element;
     while(iter.hasNext()) {
-      variable = iter.next();
+      element = iter.next();
       Object dst2;
-      try{ dst2 = DataAccess.getData(variable.ident, dst, bAccessPrivate, false);}
-      catch(NoSuchFieldException exc){ dst2 = null; }
-      if(iter.hasNext()){
-        if(dst2 == null){
-          assert(dst instanceof Map<?, ?>);
-          dst2 = new IndexMultiTable<String, DataAccess.Variable>(IndexMultiTable.providerString);
-          setVariable((Map<String, DataAccess.Variable>)dst, variable.ident, dst2);
-        }
-        dst = dst2;
-      } else {
-        //last item in path.
-        if(dst2 == null){
-          assert(dst instanceof Map<?, ?>);
-          setVariable((Map<String, DataAccess.Variable>)dst, variable.ident, value);
+      if(element.whatisit >='A' && element.whatisit <='Z'){
+        //It is a new defined variable. 
+        if(dst instanceof Map<?,?>){
+          setVariable((Map<String, DataAccess.Variable>)dst, element.ident, element.whatisit, value);
+        } else if (dst instanceof DataAccess.Variable){
+          //necessary?
         } else {
-          //the last element is found, try assign the value to it, it should be any container or Appendable.
-          if(dst2 instanceof StringSeq && value instanceof CharSequence){
-            ((StringSeq)dst2).change((CharSequence)value);
-          } else if(dst2 instanceof Appendable){
-            final CharSequence cVal;
-            if(!(value instanceof CharSequence)){
-              cVal = value.toString();
-            } else {
-              cVal = (CharSequence)value;
+          throw new IllegalArgumentException("DataAccess.storeValue - destination should be Map<String, DataAccess.Variable>");
+        }
+      } else {
+        try{ dst2 = DataAccess.getData(element.ident, dst, bAccessPrivate, false);}
+        catch(NoSuchFieldException exc){ dst2 = null; }
+        if(iter.hasNext()){
+          if(dst2 == null){
+            assert(dst instanceof Map<?, ?>);
+            dst2 = new IndexMultiTable<String, DataAccess.Variable>(IndexMultiTable.providerString);
+            setVariable((Map<String, DataAccess.Variable>)dst, element.ident, 'V', dst2);
+          }
+          dst = dst2;
+        } else {
+          //last item in path.
+          if(dst2 == null){
+            assert(dst instanceof Map<?, ?>);
+            setVariable((Map<String, DataAccess.Variable>)dst, element.ident, 'O', value);
+          } else {
+            //the last element is found, try assign the value to it, it should be any container or Appendable.
+            if(dst2 instanceof StringSeq && value instanceof CharSequence){
+              ((StringSeq)dst2).change((CharSequence)value);
+            } else if(dst2 instanceof Appendable){
+              final CharSequence cVal;
+              if(!(value instanceof CharSequence)){
+                cVal = value.toString();
+              } else {
+                cVal = (CharSequence)value;
+              }
+              ((Appendable)dst2).append(cVal);
+            } else if(dst2 instanceof List){
+              ((List)dst2).add(value);
+            } else if(dst instanceof Map){
+              //replace, don't use dst2
+              setVariable((Map<String, DataAccess.Variable>)dst,element.ident, 'O', value);
+            } else {  
+              throw new IllegalArgumentException("JbatchExecuter - can't add value to; " + path);
             }
-            ((Appendable)dst2).append(cVal);
-          } else if(dst2 instanceof List){
-            ((List)dst2).add(value);
-          } else if(dst instanceof Map){
-            //replace, don't use dst2
-            setVariable((Map<String, DataAccess.Variable>)dst,variable.ident, value);
-          } else {  
-            throw new IllegalArgumentException("JbatchExecuter - can't add value to; " + path);
           }
         }
       }
@@ -1098,12 +1109,13 @@ public class DataAccess {
    * If the variable exists, only its value will be chaned.
    * @param map
    * @param name
+   * @param type one of A O S L V E = Appendable, Object, String, ListContainer, VariableTree, EnvironmentVariable
    * @param content
    */
-  public static void setVariable(Map<String, Variable> map, String name, Object content){
+  public static void setVariable(Map<String, Variable> map, String name, char type, Object content){
     DataAccess.Variable var = map.get(name);
     if(var == null){
-      map.put(name, new DataAccess.Variable('O', name, content));
+      map.put(name, new DataAccess.Variable(type, name, content));
     } else {
       var.value = content;
     }
@@ -1137,7 +1149,13 @@ public class DataAccess {
    */
   public static class DataAccessSet extends DataAccess{
 
-    public DataAccessSet(){}
+    /**The type of a new declared variable. */
+    private final char type;
+    
+    /**Invoked if an access to an existing variable is stored. */
+    public DataAccessSet(){ this.type = '\0'; }
+    
+    public DataAccessSet(char type){ this.type = type; }
     
     public DatapathElementSet new_datapathElement(){ return new DatapathElementSet(); }
 
@@ -1191,7 +1209,15 @@ public class DataAccess {
     public void add_staticJavaMethod(DatapathElementSet val) { add_datapathElement(val); }
 
 
-
+    /**This routine have to be invoked as last one to set the type. */
+    public void setTypeToLastElement(){
+      assert(type != '\0');   //it should not be invoked if the type is not set.
+      int ix = datapath.size() -1;
+      if(ix >=0){
+        DatapathElement last = datapath.get(ix);
+        last.whatisit = type;
+      }
+    }
     
   }
 
@@ -1303,7 +1329,14 @@ public class DataAccess {
      * <li>'+': new ident, creation of instance maybe with or without arguments in {@link #fnArgs}
      * <li>'%'; call of a static routine maybe with or without arguments in {@link #fnArgs}
      * <li>'(': subroutine maybe with or without arguments in {@link #fnArgs}.
+     * <li>'S': A new String variable
+     * <li>'O': A new Object variable
+     * <li>'A': A new Appendable variable
+     * <li>'E': A new environment variable
+     * <li>'P': A new pipe variable.
+     * <li>'L': A new list container.
      * </ul>
+     * A new Variable should be stored newly as {@link Variable} with that given type using {@link DataAccess#storeValue(List, Map, Object, boolean)}.
      */
     protected char whatisit;
 
@@ -1423,8 +1456,8 @@ public class DataAccess {
    * This datapool can be used to access with {@link DataAccess#getData(List, Object, Map, boolean, boolean)}.
    */
   public final static class Variable{
-    /**Type of the variable: S-String, U-StringAppend, P-Pipe, L-List-container, F-Openfile,
-     * O-Any object, $-Environment variable value.
+    /**Type of the variable: S-String, A-Appendable, P-Pipe, L-List-container, F-Openfile,
+     * O-Any object, E-Environment variable V - container for variables.
      */
     protected final char type;
     

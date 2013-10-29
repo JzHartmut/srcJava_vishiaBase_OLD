@@ -164,8 +164,8 @@ public class CmdStore
   , InstantiationException, IOException, ParseException, XmlException
   {
     
-    ZGen zbatch = new ZGen(log);
-    ZGenScript script = zbatch.translateAndSetGenCtrl(cfgFile, new File(cfgFile.getParentFile(), cfgFile.getName() + ".check.xml"));
+    //ZGen zbatch = new ZGen(log);
+    ZGenScript script = ZGen.translateAndSetGenCtrl(cfgFile, new File(cfgFile.getParentFile(), cfgFile.getName() + ".check.xml"), log);
     for(Map.Entry<String, Statement> e: script.subScripts.entrySet()){
       CmdBlock cmdBlock = new CmdBlock(e.getValue());
       add_CmdBlock(cmdBlock);
