@@ -75,6 +75,10 @@ public class FileSystem
   /**Version, history and license.
    * Changes:
    * <ul>
+   * <li>2013-10-27 Hartmut chg: {@link #normalizePath(CharSequence)} now uses a given StringBuilder to adjust the path
+   *   inside itself. normalizePath(myStringBuilder) does not need the return value. 
+   *   But normalizePath(myStringBuilder.toString()) normalizes in a new StringBuilder.
+   *   Rule: A CharSequence can't be seen as persistent. Only a String as CharSequence is persistent. 
    * <li>2013-08-29 Hartmut bugfix: {@link #normalizePath(CharSequence)}, {@link #isAbsolutePath(CharSequence)}
    * <li>2013-06-27 Hartmut new: {@link #close(Closeable)}
    * <li>2013-05-04 Hartmut chg: {@link #normalizePath(CharSequence)} uses and returns a CharSequence yet.
@@ -148,7 +152,7 @@ public class FileSystem
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public final static int version = 20130503;
+  public final static int version = 20131020;
 
   public interface AddFileToList
   {
@@ -759,7 +763,8 @@ public class FileSystem
   /**Cleans any /../ and /./ from a path, it makes it normalized or canonical.
    *
    * @param inp Any path which may contain /./ or /../, with backslash or slash-separator.
-   *   The input will not be changed.
+   *   If the inp is instanceof StringBuilder, it is used directly for correction and returned in any case.
+   *   Elsewhere a new StringBuilder will be created if necessary.
    * @return The originally inp if inp doesn't contain /./ or /../ or backslash, elsewhere a new StringBuilder
    *   which presents the normalized form of the path. It does not contain backslash but slash as separator.
    *   It does not contain any "/./" or "//" or "/../". 
@@ -767,10 +772,10 @@ public class FileSystem
    */
   public static CharSequence normalizePath(final CharSequence inp){
     CharSequence test = inp;
-    StringBuilder uPath = null;
+    StringBuilder uPath = inp instanceof StringBuilder ? (StringBuilder)inp : null;
     int posBackslash = StringFunctions.indexOf(inp, '\\', 0);
     if(posBackslash >=0){
-      test = uPath = new StringBuilder(inp);
+      if(uPath ==null){ test = uPath = new StringBuilder(inp); }
       do {
         uPath.setCharAt(posBackslash, '/');
         posBackslash = StringFunctions.indexOf(inp, '\\', posBackslash +1);

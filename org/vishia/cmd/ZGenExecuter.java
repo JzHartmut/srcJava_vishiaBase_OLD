@@ -124,7 +124,7 @@ public class ZGenExecuter {
    * 
    */
   @SuppressWarnings("hiding")
-  static final public int version = 20121010;
+  static final public int version = 20131029;
 
   /**Variable for any exception while accessing any java ressources. It is the $error variable of the script. */
   protected String accessError = null;
@@ -204,6 +204,19 @@ public class ZGenExecuter {
     currDirWrapper.currDir = new File(".").getAbsoluteFile().getParentFile();
     StringSeq cd = new StringSeq();
     cd.change(FileSystem.normalizePath(currDirWrapper.currDir.getAbsolutePath()));
+    DataAccess.setVariable(scriptVariables, "$CD", 'E', cd);
+    DataAccess.setVariable(scriptVariables, "currDir", 'O', currDirWrapper);
+    DataAccess.setVariable(scriptVariables, "error", 'A', accessError);
+    DataAccess.setVariable(scriptVariables, "mainCmdLogging", 'O', log);
+    DataAccess.setVariable(scriptVariables, "nextNr", 'O', nextNr);
+    DataAccess.setVariable(scriptVariables, "nrElementInContainer", 'O', null);
+    DataAccess.setVariable(scriptVariables, "out", 'A', System.out);
+    DataAccess.setVariable(scriptVariables, "err", 'A', System.err);
+    DataAccess.setVariable(scriptVariables, "null", 'O', null);
+    DataAccess.setVariable(scriptVariables, "jbat", 'O', this);
+    DataAccess.setVariable(scriptVariables, "zgen", 'O', this);
+    DataAccess.setVariable(scriptVariables, "file", 'O', new FileSystem());
+    /*
     scriptVariables.put("$CD", new DataAccess.Variable('$', "$CD", cd));
     scriptVariables.put("currDir", new DataAccess.Variable('O', "currDir", currDirWrapper));
     scriptVariables.put("error", new DataAccess.Variable('U', "error", accessError));
@@ -216,7 +229,8 @@ public class ZGenExecuter {
     scriptVariables.put("jbat", new DataAccess.Variable('O', "jbat", this));
     //scriptVariables.put("debug", new ZbatchDebugHelper());
     scriptVariables.put("file", new DataAccess.Variable('O', "file", new FileSystem()));
-
+    */
+    
     for(ZGenScript.Statement scriptVariableScript: genScript.getListScriptVariables()){
       ExecuteLevel genVariable = new ExecuteLevel(null, scriptVariables); //NOTE: use recent scriptVariables.
       
@@ -423,7 +437,7 @@ public class ZGenExecuter {
       } else {
         localVariables.putAll(parentVariables);  //use the same if it is not a subText, only a 
       }
-      localVariables.put("jbatSub", new DataAccess.Variable('O', "zgenSub", this));
+      DataAccess.setVariable(localVariables,  "zgenSub", 'O', this);
     }
 
     
@@ -1014,16 +1028,28 @@ public class ZGenExecuter {
     private void setCurrDir(CharSequence arg) throws NoSuchFieldException{
       String sCurrDir;
       final CharSequence arg1;
-      StringSeq cd1 = (StringSeq)DataAccess.getVariable(localVariables,"$CD", true);
-      if(FileSystem.isAbsolutePathOrDrive(arg)){
-        arg1 = arg;
-      } else {
-        StringBuilder u = cd1.changeIt(); //new StringBuilder(cd1.length() + arg.length()+1);
-        u.append('/').append(arg);   //concatenate a relativ path
-        arg1 = u;
+      Object cd1 = DataAccess.getVariable(localVariables,"$CD", true);
+      StringBuilder u;
+      boolean absPath = FileSystem.isAbsolutePathOrDrive(arg);
+      //Change the content of the $CD to the absolute directory.
+      if(cd1 instanceof StringBuilder){
+        u = (StringBuilder)cd1;   //Use the StringBuilder inside the variable
       }
-      cd1.change(FileSystem.normalizePath(arg1));   //resolve "xxx/../xxx"
-      sCurrDir = cd1.toString();
+      else if(cd1 instanceof StringSeq){
+        u = ((StringSeq)cd1).changeIt();
+      } else {
+        u = new StringBuilder();
+        DataAccess.setVariable(localVariables,"$CD", 'S', u);
+      }
+      //u is referred in the variable as value.
+      if(absPath){ 
+        u.setLength(0);
+        u.append(arg);
+      } else {
+        u.append('/').append(arg);
+      }
+      FileSystem.normalizePath(u);   //resolve "xxx/../xxx"
+      sCurrDir = u.toString();
       CurrDir currDirWrapper = (CurrDir)DataAccess.getVariable(localVariables,"currDir", true);
       currDirWrapper.currDir = new File(sCurrDir);
       

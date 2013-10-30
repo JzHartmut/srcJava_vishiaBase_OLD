@@ -13,6 +13,7 @@ import java.util.TreeMap;
 
 import org.vishia.cmd.ZGenScript.Statement;
 import org.vishia.mainCmd.MainCmdLogging_ifc;
+import org.vishia.util.DataAccess;
 import org.vishia.util.StringPart;
 import org.vishia.xmlSimple.XmlException;
 import org.vishia.zgen.ZGen;
@@ -98,18 +99,23 @@ public class CmdStore
       this.name = jbatSub.getIdent();
     }
     
-    public Map<String, Object> getArguments(CmdGetFileArgs_ifc getterFiles){
+    /**Assembles the arguments for ZGen subroutine call.
+     * The arguments are determined by the @{@link ZGenScript.Statement#arguments} {@link ZGenScript.Argument#identArgJbat}
+     * @param getterFiles Access to given files.
+     * @return Variable container with the requeste arguments.
+     */
+    public Map<String, DataAccess.Variable> getArguments(CmdGetFileArgs_ifc getterFiles){
       if(jbatSub !=null){
         getterFiles.prepareFileSelection();
-        Map<String, Object> args = new TreeMap<String, Object>();
+        Map<String, DataAccess.Variable> args = new TreeMap<String, DataAccess.Variable>();
         for(ZGenScript.Argument arg :jbatSub.arguments){
           String name1 = arg.identArgJbat;
-          if(name1.equals("file1")){ args.put("file1", getterFiles.getFile1()); }
-          else if(name1.equals("file2")){ args.put("file2", getterFiles.getFile2()); }
-          else if(name1.equals("file3")){ args.put("file3", getterFiles.getFile3()); }
-          else if(name1.equals("dir1")){ args.put("dir1", getterFiles.getFile1().getParentFile()); }
-          else if(name1.equals("dir2")){ args.put("dir2", getterFiles.getFile2().getParentFile()); }
-          else if(name1.equals("dir3")){ args.put("dir3", getterFiles.getFile3().getParentFile()); }
+          if(name1.equals("file1")){ DataAccess.setVariable(args, "file1", 'O', getterFiles.getFile1()); }
+          else if(name1.equals("file2")){ DataAccess.setVariable(args, "file2", 'O', getterFiles.getFile2()); }
+          else if(name1.equals("file3")){ DataAccess.setVariable(args, "file3", 'O', getterFiles.getFile3()); }
+          else if(name1.equals("dir1")){ DataAccess.setVariable(args, "dir1", 'O', getterFiles.getFile1().getParentFile()); }
+          else if(name1.equals("dir2")){ DataAccess.setVariable(args, "dir2", 'O', getterFiles.getFile2().getParentFile()); }
+          else if(name1.equals("dir3")){ DataAccess.setVariable(args, "dir3", 'O', getterFiles.getFile3().getParentFile()); }
         }
         return args;
       } else {

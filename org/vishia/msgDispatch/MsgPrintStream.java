@@ -385,6 +385,7 @@ public class MsgPrintStream implements MsgPrintStream_ifc
       } else {
         uLine.append(s);
         convertToMsg(pre, uLine.toString());
+        uLine.setLength(0);
       }
     }
 

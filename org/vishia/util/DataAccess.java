@@ -55,6 +55,9 @@ import java.util.TreeMap;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2013-10-27 Hartmut chg: Definition of a String name [= value] in ZGen is handled like assign. Stored with 
+   *   {@link DataAccess#storeValue(List, Map, Object, boolean)} with special designation in {@link DataAccess.DatapathElement#whatisit}
+   *   with 'new Variable' designation.
    * <li>2013-10-20 Hartmut new/chg: The start-variables are all of type {@link Variable} up to now. This concept is changed
    *   in {@link org.vishia.cmd.ZGenExecuter} originally. Any other application of this class have to wrapped its data
    *   in such an instance {@link Variable}, it is a low-cost effort. 
@@ -1118,6 +1121,7 @@ public class DataAccess {
       map.put(name, new DataAccess.Variable(type, name, content));
     } else {
       var.value = content;
+      var.type = type;
     }
   }
   
@@ -1403,7 +1407,7 @@ public class DataAccess {
     /**Adds any argument with its value.  */
     public void addActualArgument(Object arg){
       if(fnArgs == null){
-        fnArgs = new LinkedList<Object>();
+        fnArgs = new ArrayList<Object>();
       }
       fnArgs.add(arg);
     }
@@ -1459,7 +1463,7 @@ public class DataAccess {
     /**Type of the variable: S-String, A-Appendable, P-Pipe, L-List-container, F-Openfile,
      * O-Any object, E-Environment variable V - container for variables.
      */
-    protected final char type;
+    protected char type;
     
     /**Property whether this variable should be non-changeable (true) or changeable (false). 
      * It should be tested and realized on runtime. */
@@ -1476,6 +1480,13 @@ public class DataAccess {
       this.type = type; this.name = name; this.value = value;
     }
     
+    public String name(){ return name; }
+    
+    public Object value(){ return value; }
+    
+    public char type(){ return type; }
+    
+    public void setValue(Object value){ this.value = value; } 
   }
   
 

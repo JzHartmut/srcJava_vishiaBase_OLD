@@ -11,6 +11,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.vishia.cmd.CmdStore.CmdBlock;
 //import org.vishia.mainCmd.MainCmd_ifc;
 //import org.vishia.mainCmd.Report;
+import org.vishia.mainCmd.MainCmdLoggingStream;
+import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.Assert;
 import org.vishia.util.DataAccess;
 
@@ -71,7 +73,7 @@ public class CmdQueue implements Closeable
     public final ZGenScript.Statement jbat;
     
     final File[] files;
-    final Object args;
+    final Map<String, DataAccess.Variable> args;
     File currentDir;
     
     /**Constructs a cmd which is added to a queue to execute in another thread.
@@ -98,7 +100,7 @@ public class CmdQueue implements Closeable
      *   should be referenced.CmdGetFileArgs_ifc
      * @param currentDir
      */
-    public PendingCmd(ZGenScript.Statement cmd, Object args, File currentDir)
+    public PendingCmd(ZGenScript.Statement cmd, Map<String, DataAccess.Variable> args, File currentDir)
     { this.cmd = null;
       this.jbat = cmd;
       this.files = null;
@@ -125,7 +127,7 @@ public class CmdQueue implements Closeable
   
   private final CmdExecuter executer = new CmdExecuter();
   
-  private final ZGenExecuter jbatchExecuter = new ZGenExecuter(null);
+  private final ZGenExecuter jbatchExecuter;
   
   //private final MainCmd_ifc mainCmd;
 
@@ -142,6 +144,8 @@ public class CmdQueue implements Closeable
   public CmdQueue(PrintStream log)
   {
     this.log = log;
+    MainCmdLoggingStream logMainCmd = new MainCmdLoggingStream(log, MainCmdLogging_ifc.info);
+    jbatchExecuter = new ZGenExecuter(logMainCmd);
   }
   
 
@@ -191,14 +195,23 @@ public class CmdQueue implements Closeable
    * @param files Some files
    * @return Number of members in queue pending for execution.
    */
-  public int addCmd(CmdBlock cmdBlock, Object args, File currentDir)
+  public int addCmd(CmdBlock cmdBlock, Map<String, DataAccess.Variable> args, File currentDir)
   {
-    if(cmdBlock.jbatSub !=null){
-      pendingCmds.add(new PendingCmd(cmdBlock.jbatSub, args, currentDir));  //to execute.
-    } else {
-      for(PrepareCmd cmd: cmdBlock.getCmds()){
-        pendingCmds.add(new PendingCmd(cmd, (File[])args, currentDir));  //to execute.
-      }
+    pendingCmds.add(new PendingCmd(cmdBlock.jbatSub, args, currentDir));  //to execute.
+    return pendingCmds.size();
+  }
+
+  
+  /**Adds a command to execute later. The execution may be done in another thread.
+   * The adding is thread-safe and a cheap operation. It uses a ConcurrentListQueue. 
+   * @param cmdBlock The command block
+   * @param files Some files
+   * @return Number of members in queue pending for execution.
+   */
+  public int addCmd(CmdBlock cmdBlock, File[] args, File currentDir)
+  {
+    for(PrepareCmd cmd: cmdBlock.getCmds()){
+      pendingCmds.add(new PendingCmd(cmd, args, currentDir));  //to execute.
     }
     return pendingCmds.size();
   }
@@ -243,7 +256,7 @@ public class CmdQueue implements Closeable
           sCmdShow.append(cmd1.currentDir).append(">");
         }
         if(cmd1.jbat !=null){
-          jbatchExecuter.execSub(cmd1.jbat, (Map<String, DataAccess.Variable>)cmd1.args, false, outStatus);
+          jbatchExecuter.execSub(cmd1.jbat, cmd1.args, false, outStatus);
         } else {
           //a operation system command:
           String[] sCmd = cmd1.cmd.prepareCmd(cmd1);
