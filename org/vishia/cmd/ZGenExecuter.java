@@ -154,7 +154,7 @@ public class ZGenExecuter {
   //final Map<String, String> scriptEnvVariables = new TreeMap<String, String>();
   
   
-  protected final Queue<JbatchThread> threads = new ConcurrentLinkedQueue<JbatchThread>();
+  protected final Queue<ZGenThread> threads = new ConcurrentLinkedQueue<ZGenThread>();
   
   private boolean bScriptVariableGenerated;
   
@@ -281,6 +281,15 @@ public class ZGenExecuter {
    *   to write "<+text>...<.+>" to output to it.
    * @return If null, it is okay. Elsewhere a readable error message.
    * @throws IOException only if out.append throws it.
+   */
+  /**
+   * @param genScript The script
+   * @param accessPrivate
+   * @param bWaitForThreads should set to true if it is a command line invocation of Java,
+   *   the exit should wait for all threads. May set to false if calling inside a long running application.
+   * @param out Text output of <+text>....<.+>
+   * @return exit level? 0
+   * @throws IOException
    */
   public int execute(ZGenScript genScript, boolean accessPrivate, boolean bWaitForThreads, Appendable out) 
   throws IOException
@@ -916,29 +925,27 @@ public class ZGenExecuter {
      */
     private void executeThread(ZGenScript.Statement statement) 
     throws Exception
-    { JbatchThreadResult result = null;
-      if(statement.assignObj !=null && statement.assignObj.size() >=1){
-        DataAccess assignObj = statement.assignObj.get(0);  //only one is admissible in syntax.
-        ////
-        Object oResult;
-        try{ oResult = assignObj.getDataObj(localVariables, bAccessPrivate, false); } 
-        catch(NoSuchFieldException exc){ oResult = null; }
-        if(oResult != null){
-          if(!(oResult instanceof JbatchThreadResult)){
-            throw new IllegalArgumentException("JbatchExecuter - thread assign failure; found type of assignObj is " + oResult.getClass().getCanonicalName());
+    { final ZgenThreadResult result;
+      if(statement.dataAccess !=null){
+        try{
+          if(statement.identArgJbat != null){  //marker for a new ThreadVariable
+            result = new ZgenThreadResult();
+            DataAccess.storeValue(statement.dataAccess.datapath(), localVariables, result, bAccessPrivate);
+          } else { 
+            //use existing thread variable, Exception if not found.
+            result = (ZgenThreadResult)statement.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
           }
-          result = (JbatchThreadResult) oResult;
-          result.clear();
-        } else{
-          result = new JbatchThreadResult();
-          DataAccess.storeValue(assignObj.datapath(), localVariables, result, true);
+        } catch(Exception exc){
+          throw new IllegalArgumentException("JbatchExecuter - thread assign failure; path=" + statement.dataAccess.toString());
         }
+      } else {
+        result = null;
       }
-      JbatchThread thread = new JbatchThread(this, statement, result);
+      ZGenThread thread = new ZGenThread(this, statement, result);
       synchronized(threads){
         threads.add(thread);
       }
-      Thread threadmng = new Thread(thread, "jbat");
+      Thread threadmng = new Thread(thread, "ZGen");
       threadmng.start();  
       //it does not wait on finishing this thread.
     }
@@ -1264,7 +1271,10 @@ public class ZGenExecuter {
 
   
   
-  protected class JbatchThreadResult implements CharSequence
+  /**State variable of a running thread or finished thread.
+   * This instance will be notified if any waits (join operation)
+   */
+  protected class ZgenThreadResult implements CharSequence
   {
     StringBuilder uText = new StringBuilder();
     
@@ -1292,15 +1302,17 @@ public class ZGenExecuter {
   
   
   
-  protected class JbatchThread implements Runnable
+  /**A thread instance of ZGen.
+   */
+  protected class ZGenThread implements Runnable
   {
     final ExecuteLevel executeLevel;
 
     final ZGenScript.Statement statement;
 
-    final JbatchThreadResult result;
+    final ZgenThreadResult result;
     
-    public JbatchThread(ExecuteLevel executeLevel, Statement statement, JbatchThreadResult result)
+    public ZGenThread(ExecuteLevel executeLevel, Statement statement, ZgenThreadResult result)
     {
       this.executeLevel = executeLevel;
       this.statement = statement;

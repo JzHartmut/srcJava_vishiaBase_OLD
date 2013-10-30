@@ -9,6 +9,10 @@ import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
 import org.vishia.util.StringFunctions;
 
+/**This class supports comparison of files in a callback routine.
+ * @author Hartmut Schorrig
+ *
+ */
 public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
 {
     private final FileRemote dir1, dir2;
@@ -21,11 +25,11 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
     
     long minDiffTimestamp = 2000; 
     
-    final static int onlyTimestamp = 1;
-    final static int content = 2;
-    final static int withoutLineend = 4;
-    final static int withoutEndlineComment = 8;
-    final static int withoutComment = 16;
+    final static int cmp_onlyTimestamp = 1;
+    final static int cmp_content = 2;
+    final static int cmp_withoutLineend = 4;
+    final static int cmp_withoutEndlineComment = 8;
+    final static int cmp_withoutComment = 16;
     
     boolean aborted = false;
     
@@ -112,33 +116,47 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
     {
 
       boolean equal, lenEqual;
-      boolean equalDaylightSaved;
+      boolean equalDaylightSaved = false;
       boolean contentEqual;
       boolean contentEqualWithoutEndline;
       boolean readProblems;
 
+      mode = cmp_withoutLineend;
+  
       
       long date1 = file1.lastModified();
       long date2 = file2.lastModified();
       long len1 = file1.length();
       long len2 = file2.length();
-      if(Math.abs(date1 - date2) > minDiffTimestamp && mode == onlyTimestamp){
+      if(Math.abs(date1 - date2) > minDiffTimestamp && mode == cmp_onlyTimestamp){
         equal = equalDaylightSaved = contentEqual = contentEqualWithoutEndline = false;
         lenEqual = len1 == len2;
       } else if( ( Math.abs(date1 - date2 + 3600000) < minDiffTimestamp
                 || Math.abs(date1 - date2 - 3600000) < minDiffTimestamp
-                 ) && mode == onlyTimestamp){ 
+                 ) && mode == cmp_onlyTimestamp){ 
         equal = equalDaylightSaved = contentEqual = contentEqualWithoutEndline = false;
       } else if(Math.abs(date1 - date2) < minDiffTimestamp && len1 == len2){
         //Date is equal, len is equal, don't spend time for check content.
         equal = equalDaylightSaved = lenEqual = true;
       } else {
+        boolean doCmpr;
         //timestamp is not tested.
         if(len1 != len2){
           //different length
-          equal = contentEqual = contentEqualWithoutEndline = lenEqual = false;
+          if((mode & (cmp_withoutComment | cmp_withoutEndlineComment | cmp_withoutLineend)) !=0){
+            //comparison is necessary because it may be equal without that features:
+            doCmpr = true;
+            equal = false;  //compare it, set only because warning.
+          } else {
+            equal = contentEqual = contentEqualWithoutEndline = lenEqual = false;
+            doCmpr = false;
+          }
         } else {
+          doCmpr = true;
+          equal = false;  //compare it, set only because warning.
           //Files are different in timestamp or timestamp is insufficient for comparison:
+        }
+        if(doCmpr){
           try{ equal = compareFileContent(file1, file2);
           } catch( IOException exc){
             readProblems = true; equal = false;

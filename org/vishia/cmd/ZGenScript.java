@@ -649,6 +649,33 @@ public class ZGenScript {
     public void add_elseBlock(Statement val){}
 
     
+    
+    /**From Zbnf: [{ Thread <datapath?defThreadVar> = }] 
+     */
+    public DataAccess.DataAccessSet new_defThreadVar(){ 
+      return new DataAccess.DataAccessSet('T'); 
+    }
+    
+    public void add_defThreadVar(DataAccess.DataAccessSet val){ 
+      val.setTypeToLastElement();
+      dataAccess = val;
+      identArgJbat = "N";  //Marker for a new Variable.
+    }
+
+    
+    /**From Zbnf: [{ Thread <datapath?assignThreadVar> = }] 
+     */
+    public DataAccess.DataAccessSet new_assignThreadVar(){ 
+      return new DataAccess.DataAccessSet(); 
+    }
+    
+    public void add_assignThreadVar(DataAccess.DataAccessSet val){ 
+      dataAccess = val;
+    }
+
+    
+
+    
     ////
     public Statement new_threadBlock()
     { if(subContent == null){ subContent = new StatementList(this); }
