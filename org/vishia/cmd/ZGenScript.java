@@ -98,7 +98,7 @@ public class ZGenScript {
   
   //final Map<String, Statement> zmakeTargets = new TreeMap<String, Statement>();
   
-  final Map<String, Statement> subScripts = new TreeMap<String, Statement>();
+  final Map<String, Statement> subScriptsAll = new TreeMap<String, Statement>();
   
   
   
@@ -143,7 +143,7 @@ public class ZGenScript {
   public final Statement getMain(){ return scriptFile; }
   
   
-  public Statement getSubtextScript(CharSequence name){ return subScripts.get(name.toString()); }
+  public Statement getSubtextScript(CharSequence name){ return subScriptsAll.get(name.toString()); }
   
   
   public List<Statement> getListScriptVariables(){ return listScriptVariables; }
@@ -165,22 +165,32 @@ public class ZGenScript {
    */
   public static class Argument  { //CalculatorExpr.Datapath{
     
+    /**Hint to the source of this parsed argument or statement. */
+    int srcLine, srcColumn;
     
     final StatementList parentList;
     
     /**Name of the argument. It is the key to assign calling argument values. */
     public String identArgJbat;
    
+    /**Any calcualation of data. */
     public CalculatorExpr expression;
     
     
+    /**Any access to an Object, maybe content of a variable, maybe access to any Java data,
+     * maybe invocation of a Java routine. */
     public DataAccess dataAccess;
   
     /**From Zbnf <""?textInStatement>, constant text, null if not used. */
     public StringSeq textArg; 
     
+    
+    
     /**If need, a sub-content, maybe null.*/
     public StatementList subContent;
+    
+    
+    
     
     public Argument(StatementList parentList){
       this.parentList = parentList;
@@ -322,7 +332,11 @@ public class ZGenScript {
     /**Any variable given by name or java instance  which is used to assign to it.
      * A variable is given by the start element of the data path. An instance is given by any more complex datapath
      * null if not used. */
-    public List<DataAccess> assignObj;
+    public List<DataAccess> assignObjs;
+    
+    
+    /**The variable which should be created or to which a value is assigned to. */
+    public DataAccess variable;
     
     //public String value;
     
@@ -427,7 +441,7 @@ public class ZGenScript {
         
     /**Defines a variable which is able to use as container.
      */
-    public Statement new_List(){
+    public Statement new_List(){ ////
       if(subContent == null){ subContent = new StatementList(this); }
       subContent.bContainsVariableDef = true; 
       return new Statement(parentList, 'L', null); 
@@ -514,22 +528,29 @@ public class ZGenScript {
     public DataAccess.DataAccessSet new_assign(){ return new DataAccess.DataAccessSet(); }
     
     public void add_assign(DataAccess.DataAccessSet val){ 
-      if(assignObj == null){ assignObj = new LinkedList<DataAccess>(); }
-      assignObj.add(val); 
+      if(variable == null){ variable = val; }
+      else {
+        if(assignObjs == null){ assignObjs = new LinkedList<DataAccess>(); }
+        assignObjs.add(val); 
+      }
     }
 
     
-    /**From Zbnf: [{ <datapath?-assign> = }] 
+    /**From Zbnf: < variable?defVariable> 
      */
-    public DataAccess.DataAccessSet new_defString(){ return new DataAccess.DataAccessSet('S'); }
+    public DataAccess.DataAccessSet new_defVariable(){ return new DataAccess.DataAccessSet(); }
     
-    public void add_defString(DataAccess.DataAccessSet val){ 
-      val.setTypeToLastElement();
-      if(assignObj == null){ assignObj = new LinkedList<DataAccess>(); }
-      assignObj.add(val); 
+    public void add_defVariable(DataAccess.DataAccessSet val){  //// 
+      int whichStatement = "SPULJW".indexOf(elementType);
+      char whichVariableType = "SPULOA".charAt(whichStatement);
+      val.setTypeToLastElement(whichVariableType);
+      //don't use the dataPath, it may be the path to the initial data.
+      variable = val;
+      //if(assignObjs == null){ assignObjs = new LinkedList<DataAccess>(); }
+      //assignObjs.add(val); 
     }
 
-    
+     
     public Statement new_assignment(){ 
       return new Statement(parentList, '=', null); 
     } 
@@ -653,11 +674,11 @@ public class ZGenScript {
     /**From Zbnf: [{ Thread <datapath?defThreadVar> = }] 
      */
     public DataAccess.DataAccessSet new_defThreadVar(){ 
-      return new DataAccess.DataAccessSet('T'); 
+      return new DataAccess.DataAccessSet(); 
     }
     
     public void add_defThreadVar(DataAccess.DataAccessSet val){ 
-      val.setTypeToLastElement();
+      val.setTypeToLastElement('T');
       dataAccess = val;
       identArgJbat = "N";  //Marker for a new Variable.
     }
@@ -989,6 +1010,10 @@ public class ZGenScript {
    */
   public static class StatementList
   {
+    
+    /**Hint to the source of this parsed argument or statement. */
+    String srcFile = "srcFile-yet-unknown";
+    
     final Argument parentStatement;
     
     /**True if < genContent> is called for any input, (?:forInput?) */
@@ -1060,7 +1085,7 @@ public class ZGenScript {
      */
     public void add_setEnvVar(Statement val){ 
       //change the first identifier to $name
-      val.assignObj.get(0).datapath().get(0).setIdent("$" + val.assignObj.get(0).datapath().get(0).ident());
+      val.variable.datapath().get(0).setIdent("$" + val.variable.datapath().get(0).ident());
       //val.identArgJbat = "$" + val.identArgJbat;
       content.add(val); 
       onerrorAccu = null; withoutOnerror.add(val);
@@ -1209,18 +1234,71 @@ public class ZGenScript {
     }
   }
   
+
+  
+  
+  /**A class in the ZGen syntax.
+   * The class can contain statements, which are variable definitions of the class variable. 
+   * Therefore this class extends the StatementList.
+   */
+  public class ZGenClass extends StatementList
+  {
+    
+    List<ZGenClass> classes;
+    
+    final Map<String, Statement> subScripts = new TreeMap<String, Statement>();
+    
+    
+    public ZGenClass new_subClass(){ return new ZGenClass(); }
+    
+    public void add_subClass(ZGenClass val){ 
+      if(classes == null){ classes = new ArrayList<ZGenClass>(); }
+      classes.add(val); 
+    }
+    
+    public Statement new_subScript(){ return new Statement(null, 'X', null); }
+    
+    public void add_subScript(Statement val){ 
+      if(val.identArgJbat == null){
+        val.identArgJbat = "main";
+      }
+      
+      subScripts.put(val.identArgJbat, val); 
+      String nameGlobal = cmpnName == null ? val.identArgJbat : cmpnName + "." + val.identArgJbat;
+      subScriptsAll.put(nameGlobal, val); 
+    }
+    
+    /**Defines a variable with initial value. <= <variableDef?textVariable> \<\.=\>
+     */
+    public Statement new_textVariable(){ return new Statement(null, 'S', null); }
+
+    public void add_textVariable(Statement val){ listScriptVariables.add(val); } 
+    
+    
+    /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
+     */
+    public Statement new_objVariable(){ return new Statement(null, 'J', null); } ///
+
+    public void add_objVariable(Statement val){ listScriptVariables.add(val); } 
+    
+    
+    
+  }
+  
+  
+  
   
   
   
   /**Main class for ZBNF parse result.
-   * This class has the enclosing class to store {@link ZbatchGenScript#subScripts}, {@link ZbatchGenScript#listScriptVariables}
+   * This class has the enclosing class to store {@link ZbatchGenScript#subScriptsAll}, {@link ZbatchGenScript#listScriptVariables}
    * etc. while parsing the script. The <code><:file>...<.file></code>-script is stored here locally
    * and used as the main file script only if it is the first one of main or included script. The same behaviour is used  
    * <pre>
    * ZmakeGenctrl::= { <target> } \e.
    * </pre>
    */
-  public final class ZbnfMainGenCtrl extends StatementList
+  public final class ZbnfMainGenCtrl extends ZGenClass
   {
 
     //public String scriptclass;
@@ -1246,32 +1324,9 @@ public class ZGenScript {
     //public void add_ZmakeTarget(Statement val){ zmakeTargets.put(val.name, val); }
     
     
-    public Statement new_subScript(){ return new Statement(null, 'X', null); }
-    
-    public void add_subScript(Statement val){ 
-      if(val.identArgJbat == null){
-        val.identArgJbat = "main";
-      }
-      subScripts.put(val.identArgJbat, val); 
-    }
-    
     public Statement new_mainScript(){ return mainScript = new Statement(null, 'Y', null); }
     
     public void add_mainScript(Statement val){  }
-    
-    /**Defines a variable with initial value. <= <variableDef?textVariable> \<\.=\>
-     */
-    public Statement new_textVariable(){ return new Statement(null, 'S', null); }
-
-    public void add_textVariable(Statement val){ listScriptVariables.add(val); } 
-    
-    
-    /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
-     */
-    public Statement new_objVariable(){ return new Statement(null, 'J', null); } ///
-
-    public void add_objVariable(Statement val){ listScriptVariables.add(val); } 
-    
     
     
 

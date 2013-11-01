@@ -172,7 +172,7 @@ public class CmdStore
     
     //ZGen zbatch = new ZGen(log);
     ZGenScript script = ZGen.translateAndSetGenCtrl(cfgFile, new File(cfgFile.getParentFile(), cfgFile.getName() + ".check.xml"), log);
-    for(Map.Entry<String, Statement> e: script.subScripts.entrySet()){
+    for(Map.Entry<String, Statement> e: script.subScriptsAll.entrySet()){
       CmdBlock cmdBlock = new CmdBlock(e.getValue());
       add_CmdBlock(cmdBlock);
     }

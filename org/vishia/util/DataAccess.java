@@ -6,6 +6,8 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -235,8 +237,13 @@ public class DataAccess {
 
   
   
-  /**Stores the given value in the data path.
+  /**Stores the given value in the element determined by the data path, maybe create a new Variable therewith.
+   * 
    * <ul>
+   * <li>If the last or only one element of the path is designated with 'A'...'Z' in its 
+   *   {@link Variable#type()}, this variable is created newly. 
+   *   The destination before, that is either the param variables or the result of the path before,
+   *   have to be a <code>Map< String, DataAccess.Variables></code>.
    * <li>If the variable referred by the path exists, it should be a {@link java.util.List} or
    * a {@link java.lang.Appendable}. Then the value is added or appended to it.
    * <li>If the variable referred by the path exists, and the path before is a Map, the variable is replaced.
@@ -262,18 +269,26 @@ public class DataAccess {
    * @throws IllegalAccessException if a field exists but can't access. Note that private members can be accessed.
    */
   @SuppressWarnings("unchecked")
-  public static void storeValue(List<DatapathElement> path, Map<String, ?> variables, Object value, boolean bAccessPrivate) 
+  public static void storeValue(List<DatapathElement> path, Map<String, Variable> variables, Object value, boolean bAccessPrivate) 
   throws IOException, IllegalAccessException {
     Object dst = variables;
     Iterator<DataAccess.DatapathElement> iter = path.iterator();
     DataAccess.DatapathElement element;
     while(iter.hasNext()) {
       element = iter.next();
+      if(element.ident.equals("test2String"))
+        Assert.stop();
       Object dst2;
       if(element.whatisit >='A' && element.whatisit <='Z'){
         //It is a new defined variable. 
         if(dst instanceof Map<?,?>){
-          setVariable((Map<String, DataAccess.Variable>)dst, element.ident, element.whatisit, value);
+          //Class clazz = dst.getClass();
+          //Type[] gen2 = clazz.getGenericInterfaces();
+          //TypeVariable[] gen = clazz.getTypeParameters();
+          //TODO check generic type.
+          //Or: we will have a variable, it should be able to store there!
+          Map<String, DataAccess.Variable> varContainer = (Map<String, DataAccess.Variable>)dst;
+          varContainer.put(element.ident, new DataAccess.Variable(element.whatisit, element.ident, value));
         } else if (dst instanceof DataAccess.Variable){
           //necessary?
         } else {
@@ -322,7 +337,11 @@ public class DataAccess {
   
   
   
-
+  public void storeValue( Map<String, Variable> variables, Object value, boolean bAccessPrivate) 
+  throws IllegalAccessException, IOException
+  {
+    storeValue(datapath, variables, value, bAccessPrivate);
+  }
   
   
   
@@ -478,7 +497,7 @@ public class DataAccess {
       data1 = dataRoot;
     }
     while(element !=null){
-      if(element.ident.equals("absfile"))
+      if(element.ident.equals("test2String"))
         Assert.stop();
       switch(element.whatisit) {
         case '+': {  //create a new instance, call constructor
@@ -497,6 +516,9 @@ public class DataAccess {
           }
           //else: let data1=null, return null
       }//switch
+      if(data1 instanceof Variable){  //use the value of the variable.
+        data1 = ((Variable)data1).value;
+      }
       element = iter.hasNext() ? iter.next() : null;
     }
     if(data1 !=null && bContainer && !((data1 instanceof Iterable<?>)||data1 instanceof Map)){ //should return a container
@@ -887,18 +909,20 @@ public class DataAccess {
   /**Gets data from a field or from an indexed container.
    *    
    * <ul>
-   * <li>If the actual reference before is instanceof Map with String-key, then the next object
+   * <li>If the instance is typeof {@link DataAccess.Variable} then its value is used.
+   * <li>If the actual instance is instanceof Map with String-key, then the next object
    *    is gotten from the map with the name used as key.
    * <li>Elsewhere a field with ident as name is searched.
-   * <li>If the actual reference before is instanceof {@link TreeNodeBase} and the field identifier is not found in this instance,
+   * <li>If the instance is instanceof {@link TreeNodeBase} and the field identifier is not found in this instance,
    *    a child node with the given name is searched. 
    *    The TreeNodeBase is the super class of {@link org.vishia.xmlSimple.XmlNodeSimple}
    *    which is used to present a ZBNF parse result. Therewith the {@link org.vishia.zbnf.ZbnfParser#getResultTree()}
    *    can be used as data input. The tag names of that result tree follow the semantic in the string given Syntax script.
    * <li>If the field is not found in this class, it is try to get from the super classes.   
+   * <li>If the found instance is of type {@link Variable} and bContainer = false, then the value of the Variable is returned.
    * </ul>
    * @param name Name of the field or key in the container
-   * @param instance The instance where the field or element is searched
+   * @param instance The instance where the field or element is searched.  
    * @param accessPrivate true than accesses also private data. 
    * @param bContainer only used for a TreeNodeBase: If true then returns the List of children as container, If false returns the first child with that name. 
    * @return The reference described by name.
@@ -912,12 +936,14 @@ public class DataAccess {
   throws NoSuchFieldException, IllegalAccessException
   {
     Object data1 = null;
+    if(instance instanceof Variable){
+      instance = ((Variable)instance).value;  
+    }
     if(name.equals("compileOptions"))
       Assert.stop();
     if(instance instanceof Map<?, ?>){
       data1 = ((Map<?,?>)instance).get(name);
-    } 
-    else {
+    } else {
       try{
         data1 = getDataFromField(name, instance, accessPrivate);
       }catch(NoSuchFieldException exc){
@@ -931,6 +957,9 @@ public class DataAccess {
           }
         } else throw exc;
       }
+    }
+    if(data1 instanceof Variable && !bContainer){
+      data1 = ((Variable)data1).value;  
     }
     
     return data1;  //maybe null
@@ -1153,13 +1182,8 @@ public class DataAccess {
    */
   public static class DataAccessSet extends DataAccess{
 
-    /**The type of a new declared variable. */
-    private final char type;
-    
     /**Invoked if an access to an existing variable is stored. */
-    public DataAccessSet(){ this.type = '\0'; }
-    
-    public DataAccessSet(char type){ this.type = type; }
+    public DataAccessSet(){ }
     
     public DatapathElementSet new_datapathElement(){ return new DatapathElementSet(); }
 
@@ -1214,8 +1238,7 @@ public class DataAccess {
 
 
     /**This routine have to be invoked as last one to set the type. */
-    public void setTypeToLastElement(){
-      assert(type != '\0');   //it should not be invoked if the type is not set.
+    public void setTypeToLastElement(char type){
       int ix = datapath.size() -1;
       if(ix >=0){
         DatapathElement last = datapath.get(ix);
@@ -1437,7 +1460,7 @@ public class DataAccess {
 
     /**For debugging.*/
     @Override public String toString(){
-      if(whatisit !='('){ return ident;}
+      if(whatisit !='('){ return "" + whatisit + " " + ident;}
       else{
         return ident + "(...)";
       }

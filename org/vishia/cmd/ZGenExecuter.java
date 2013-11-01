@@ -131,7 +131,7 @@ public class ZGenExecuter {
   
   public final boolean bWriteErrorInOutput;
   
-  private boolean bAccessPrivate;
+  protected boolean bAccessPrivate;
   
   protected final MainCmdLogging_ifc log;
   
@@ -233,8 +233,6 @@ public class ZGenExecuter {
     
     for(ZGenScript.Statement scriptVariableScript: genScript.getListScriptVariables()){
       ExecuteLevel genVariable = new ExecuteLevel(null, scriptVariables); //NOTE: use recent scriptVariables.
-      
-      
       try{
         Object value;
         switch(scriptVariableScript.elementType){
@@ -242,15 +240,12 @@ public class ZGenExecuter {
           case 'J':  value = genVariable.evalObject(scriptVariableScript, true); break;
           default: value = "???";
         }
-        if(scriptVariableScript.assignObj !=null && scriptVariableScript.assignObj.size() >=1) {
-          List<DataAccess.DatapathElement> assignPath = scriptVariableScript.assignObj.get(0).datapath();
-          if(assignPath.size() == 1 && assignPath.get(0).ident().equals("$CD")){
-            //special handling of current directory:
-            //setCurrDir(text);  //normalize, set "currDir"
-          } else {
-            DataAccess.storeValue(assignPath, scriptVariables, value, true);
-            //putOrReplaceLocalVariable(statement.identArgJbat, text);
-          }
+        List<DataAccess.DatapathElement> assignPath = scriptVariableScript.variable.datapath();
+        if(assignPath.size() == 1 && assignPath.get(0).ident().equals("$CD")){
+          //special handling of current directory:
+          genVariable.setCurrDir((CharSequence)value);  //normalize, set "currDir"
+        } else {
+          scriptVariableScript.variable.storeValue(scriptVariables, value, true);
         }
       } catch(Exception exc){
         System.out.println("JbatchExecuter - Scriptvariable faulty; " );
@@ -765,18 +760,18 @@ public class ZGenExecuter {
      * @param statement
      * @throws Exception
      */
-    void setStringVariable(ZGenScript.Statement statement) 
+    void XXXsetStringVariable(ZGenScript.Statement statement) 
     throws Exception 
     {
       List<DataAccess.DatapathElement> assignPath1 = 
-        statement.assignObj ==null || statement.assignObj.size() ==0 ? null :
-          statement.assignObj.get(0).datapath();  
+        statement.assignObjs ==null || statement.assignObjs.size() ==0 ? null :
+          statement.assignObjs.get(0).datapath();  
       if(assignPath1 !=null && assignPath1.get(0).ident().equals("dummy"))
         Assert.stop();
       
       CharSequence text = evalString(statement);
       
-      if(statement.assignObj !=null) for(DataAccess dataAccess: statement.assignObj) {
+      if(statement.assignObjs !=null) for(DataAccess dataAccess: statement.assignObjs) {
         List<DataAccess.DatapathElement> assignPath = dataAccess.datapath();
         if(assignPath.size() == 1 && assignPath.get(0).ident().equals("$CD")){
           //special handling of current directory:
@@ -790,41 +785,20 @@ public class ZGenExecuter {
     
     
     
-    /**Invocation for <+name>text<.+>
-     * @param contentElement
-     * @throws IOException 
-     * @throws NoSuchFieldException 
+    /**Invocation for <+name>text<.+>.
+     * It gets the Appendable from the assign variable
+     * and executes {@link #execute(org.vishia.cmd.ZGenScript.StatementList, Appendable, boolean)}
+     * with it.
+     * @param statement the statement
+     * @throws Exception 
      */
-    void textAppendToVarOrOut(ZGenScript.Statement contentElement) 
-    throws IOException, NoSuchFieldException
-    { String name = contentElement.identArgJbat;
-      Appendable out1;
-      Object variable = DataAccess.getVariable(localVariables,name, false);
-      boolean put;
-      if(variable == null){
-        throw new NoSuchElementException("JbatExecuter - textAppend, variable not found; "+ name);
+    void textAppendToVarOrOut(ZGenScript.Statement statement) throws Exception
+    { Object variable = statement.variable.getDataObj(localVariables, bAccessPrivate, false); //getVariable(localVariables,name, false);
+      if(!(variable instanceof Appendable)) {
+        throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
       }
-      if(variable instanceof StringSeq){
-        out1 = ((StringSeq)variable).changeIt();
-        put = false;
-      }
-      else if(variable instanceof Appendable){
-        out1 = (Appendable)variable;  //append, it may be a StringBuilder.
-        put = false;
-      }
-      else if(variable instanceof CharSequence){  //especially a String
-        //don't change this charSequence, build a new one
-        out1 = new StringBuilder(((CharSequence)variable));
-        put = true;
-      }
-      else {
-        throw new NoSuchElementException("JbatExecuter - textAppend, variable faulty type; " + variable.getClass().getName());
-      }
-      ExecuteLevel genContent = new ExecuteLevel(this, localVariables);
-      genContent.execute(contentElement.subContent, out1, false);
-      if(put){
-        setLocalVariable(name, 'A', out1);  //replace content.
-      }
+      Appendable out1 = (Appendable)variable;  //append, it may be a StringBuilder.
+      execute(statement.subContent, out1, false);
     }
     
     
@@ -997,18 +971,21 @@ public class ZGenExecuter {
       }
       args[0] = sCmd.toString();
       List<Appendable> outCmd;
-      if(contentElement.assignObj !=null){
+      if(contentElement.variable !=null){
         outCmd = new LinkedList<Appendable>();
-        for(DataAccess assignObj1 : contentElement.assignObj){
-          Object oOutCmd = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
-          //Object oOutCmd = localVariables.get(contentElement.sVariableToAssign);
-          if(oOutCmd instanceof Appendable){
-            outCmd.add((Appendable)oOutCmd);
-          } else {
-            //TODO error
-            //outCmd = null;
-          }
+        Object oOutCmd = contentElement.variable.getDataObj(localVariables, bAccessPrivate, false);
+        if(oOutCmd instanceof Appendable){
+          outCmd.add((Appendable)oOutCmd);
+        } else { throwIllegalDstArgument("variable should be Appendable", contentElement.variable, contentElement);
         }
+        if(contentElement.assignObjs !=null){
+          for(DataAccess assignObj1 : contentElement.assignObjs){
+            oOutCmd = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
+            if(oOutCmd instanceof Appendable){
+              outCmd.add((Appendable)oOutCmd);
+            } else { throwIllegalDstArgument("variable should be Appendable", contentElement.variable, contentElement);
+            }
+        } }
       } else {
         outCmd = null;
       }
@@ -1032,7 +1009,7 @@ public class ZGenExecuter {
     }
 
     
-    private void setCurrDir(CharSequence arg) throws NoSuchFieldException{
+    protected void setCurrDir(CharSequence arg) throws NoSuchFieldException{
       String sCurrDir;
       final CharSequence arg1;
       Object cd1 = DataAccess.getVariable(localVariables,"$CD", true);
@@ -1096,8 +1073,12 @@ public class ZGenExecuter {
     {
       String sFilename = evalString(contentElement).toString();
       Writer writer = new FileWriter(sFilename);
-      setLocalVariable(contentElement.identArgJbat, 'A', writer);
+      DataAccess.storeValue(contentElement.variable.datapath(), localVariables, writer, bAccessPrivate);
+      //setLocalVariable(contentElement.identArgJbat, 'A', writer);
     }
+    
+    
+    
     
     /**Executes a <code>assignment::= [{ < datapath?assign > = }] < expression > ;.</code>.
      * If the datapath to assign is only a localVariable (one simple name), then the expression
@@ -1112,40 +1093,16 @@ public class ZGenExecuter {
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    void executeAssign(ZGenScript.Statement contentElement) 
+    void executeAssign(ZGenScript.Statement statement) 
     throws IllegalArgumentException, Exception
     {
-      Object val = evalObject(contentElement, false);
-      //Object val = ascertainValue(contentElement.expression, data, localVariables, false);
-      if(contentElement.assignObj !=null){ ////
-        for(DataAccess assignObj1 : contentElement.assignObj){
-          DataAccess.storeValue(assignObj1.datapath(), localVariables, val, true);
-          
-          /*
-          //It is a path to any object, get it:
-          Object oOut = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
-          //
-          if(oOut == null){
-            //not found.
-            if(assignObj1.datapath().size()==1){
-              //only a name of a localVariable is given: 
-              String name = assignObj1.datapath().get(0).ident;
-              localVariables.put(name, val);
-            } else {
-              throw new NoSuchFieldException("AssignObject not found: " + assignObj1.datapath().toString());
-            }
-          } else {
-            //
-            //check its type:
-            //
-            if(oOut instanceof Appendable){
-              ((Appendable)oOut).append(val.toString());
-            } else {
-              
-              throw new NoSuchFieldException("AssignObject type not supported: " + assignObj1.datapath().toString());
-            }
-          }
-          */
+      Object val = evalObject(statement, false);
+      if(statement.variable !=null){
+        statement.variable.storeValue(localVariables, val, bAccessPrivate);
+      }
+      if(statement.assignObjs !=null){ ////
+        for(DataAccess assignObj1 : statement.assignObjs){
+          DataAccess.storeValue(assignObj1.datapath(), localVariables, val, bAccessPrivate);
         }
       }
       
@@ -1189,7 +1146,8 @@ public class ZGenExecuter {
       } else if(arg.expression !=null){
         CalculatorExpr.Value value = arg.expression.calcDataAccess(localVariables);
         return value.stringValue();
-      } else throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
+      } else return null;  //it is admissible.
+      //} else throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
     }
     
     
@@ -1221,7 +1179,15 @@ public class ZGenExecuter {
       return obj;
     }
     
-    
+    void throwIllegalDstArgument(CharSequence text, DataAccess dst, ZGenScript.Statement statement)
+    throws IllegalArgumentException
+    {
+      StringBuilder u = new StringBuilder(100);
+      u.append("ZGen - ").append(text).append(";").append(dst);
+      u.append("; in file ").append(statement.parentList.srcFile);
+      u.append(", line ").append(statement.srcLine).append(" col ").append(statement.srcColumn);
+      throw new IllegalArgumentException();
+    }
     
   }    
   /**Small class instance to build a next number. 
