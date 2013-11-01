@@ -168,12 +168,13 @@ public class ZGenScript {
     /**Hint to the source of this parsed argument or statement. */
     int srcLine, srcColumn;
     
+    /**Necessary for throwing exceptions with the {@link StatementList#srcFile} in its text. */
     final StatementList parentList;
     
     /**Name of the argument. It is the key to assign calling argument values. */
     public String identArgJbat;
    
-    /**Any calcualation of data. */
+    /**Any calculation of data. */
     public CalculatorExpr expression;
     
     
@@ -186,7 +187,10 @@ public class ZGenScript {
     
     
     
-    /**If need, sub statements, maybe null.*/
+    /**If need, sub statements, maybe null. An argument may need a StatementList
+     * to calculate the value of the argument it is is more complex. Alternatively
+     * an Argument can be calculated with the {@link #expression} or with {@link #dataAccess}
+     * or it is a simple {@link #textArg}.*/
     public StatementList statementlist;
     
     
@@ -214,31 +218,39 @@ public class ZGenScript {
     public void add_condition(CalculatorExpr.SetExpr val){ add_expression(val); }
     
     public void set_text(String text){
-      if(text.contains("testt"))
-        Assert.stop();
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.set_text(text);
+      CharSequence cText;
+      if(text.contains("\n=")){   //= on start of line, remove it
+        StringBuilder u = new StringBuilder(text);
+        cText = u;
+        int pos = 0;
+        while( (pos = u.indexOf("\n=",pos))>=0){
+          u.replace(pos+1, pos+2, "");
+        }
+      } else {
+        cText = text;
+      }
+      textArg = StringSeq.create(cText, true);  //let the text inside the StringBuilder.
+      //if(statementlist == null){ statementlist = new StatementList(this); }
+      //statementlist.set_text(text);
     }
     
     
-    public void set_nonEmptyText(String text){
+    public void XXXset_nonEmptyText(String text){
       if(!StringFunctions.isEmptyOrOnlyWhitespaces(text)){
-        if(statementlist == null){ statementlist = new StatementList(this); }
-        statementlist.set_text(text);
+        set_text(text);
       }
     }
     
     
     
-    public void set_textReplf(String text){
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.set_text(text);
+    public void XXXset_textReplf(String text){
+      set_text(text);
     }
     
     
     
     /**From Zbnf, a part <:>...<.> */
-    public StatementList new_textExpr(){ return statementlist = new StatementList(); }
+    public StatementList new_textExpr(){ return this.statementlist = new StatementList(); }
     
     public void add_textExpr(StatementList val){}
     
@@ -1091,7 +1103,13 @@ public class ZGenScript {
       onerrorAccu = null; withoutOnerror.add(val);
     }
     
-    public void set_text(String text){
+    /**Sets the textReplLf From ZBNF. 
+     * Inside a <code>textExpr::=...<*|\<:|\<+|\<=|\<*|\<\.?textReplLf></code>.
+     * The text is written in the source file, but the line feed character sequence may be another
+     * int the generated text. Additional a left indent can be removed.
+     * @param text
+     */
+    public void set_textReplLf(String text){
       CharSequence cText;
       if(text.contains("\n=")){
         StringBuilder u = new StringBuilder(text);
@@ -1109,16 +1127,14 @@ public class ZGenScript {
     }
     
     
-    public void set_textReplf(String text){
-      set_text(text);
-    }
-    
-    
 
     
+    /**Sets the nonEmptyText From ZBNF. invokes {@link #set_textReplLf(String)} if the text contains
+     * other characters as white spaces. 
+     */
     public void set_nonEmptyText(String text){
       if(!StringFunctions.isEmptyOrOnlyWhitespaces(text)){
-        set_text(text);
+        set_textReplLf(text);
       }
     }
     

@@ -230,9 +230,8 @@ public class ZGenExecuter {
     //scriptVariables.put("debug", new ZbatchDebugHelper());
     scriptVariables.put("file", new DataAccess.Variable('O', "file", new FileSystem()));
     */
-    
+    ExecuteLevel genVariable = new ExecuteLevel(null, scriptVariables); //NOTE: use recent scriptVariables.
     for(ZGenScript.Statement scriptVariableScript: genScript.getListScriptVariables()){
-      ExecuteLevel genVariable = new ExecuteLevel(null, scriptVariables); //NOTE: use recent scriptVariables.
       try{
         Object value;
         switch(scriptVariableScript.elementType){
@@ -525,7 +524,7 @@ public class ZGenExecuter {
             uBuffer.append(newline);
           } break;
           case 'T': textAppendToVarOrOut(statement); break; 
-          case 'S': executeAssign(statement); break; //setStringVariable(statement); break; 
+          case 'S': assignExpr(statement); break; //setStringVariable(statement); break; 
           case 'P': { //create a new local variable as pipe
             StringBuilder uBufferVariable = new StringBuilder();
             setLocalVariable(statement.identArgJbat, 'P', uBufferVariable);
@@ -567,7 +566,7 @@ public class ZGenExecuter {
           case 'N': {
             executeIfContainerHasNext(statement, out, bContainerHasNext);
           } break;
-          case '=': executeAssign(statement); break;
+          case '=': assignExpr(statement); break;
           case 'b': sError = "break"; break;
           case '?': break;  //don't execute a onerror, skip it.
           case 'z': throw new ZGenExecuter.ExitException(((ZGenScript.ExitStatement)statement).exitValue);  
@@ -798,7 +797,16 @@ public class ZGenExecuter {
         throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
       }
       Appendable out1 = (Appendable)variable;  //append, it may be a StringBuilder.
-      execute(statement.statementlist, out1, false);
+      if(statement.statementlist !=null){
+        //executes the statement, use the Appendable to output immediately
+        execute(statement.statementlist, out1, false);
+      } else {
+        //Any other text expression
+        CharSequence text = evalString(statement);
+        if(text !=null){
+          out1.append(text);
+        }
+      }
     }
     
     
@@ -1094,7 +1102,7 @@ public class ZGenExecuter {
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    void executeAssign(ZGenScript.Statement statement) 
+    void assignExpr(ZGenScript.Statement statement) 
     throws IllegalArgumentException, Exception
     {
       Object val = evalObject(statement, false);
@@ -1143,7 +1151,7 @@ public class ZGenExecuter {
       } else if(arg.statementlist !=null){
         StringBuilder u = new StringBuilder();
         executeNewlevel(arg.statementlist, u, false);
-        return StringSeq.create(u);
+        return StringSeq.create(u, true);
       } else if(arg.expression !=null){
         CalculatorExpr.Value value = arg.expression.calcDataAccess(localVariables);
         return value.stringValue();
