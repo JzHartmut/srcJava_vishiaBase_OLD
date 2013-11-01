@@ -299,7 +299,7 @@ public class ZGenExecuter {
     setScriptVariable("text", 'A', out);
     ZGenScript.Statement contentScript = genScript.getMain();
     ExecuteLevel genFile = new ExecuteLevel(null, scriptVariables);
-    String sError1 = genFile.execute(contentScript.subContent, out, false);
+    String sError1 = genFile.execute(contentScript.statementlist, out, false);
     if(bWaitForThreads){
       boolean bWait = true;
       while(bWait){
@@ -353,7 +353,7 @@ public class ZGenExecuter {
     //The args should be added to the localVariables of the subroutines level:
     level.localVariables.putAll(args);
     //Executes the statements of the sub routine:
-    String sError1 = level.execute(statement.subContent, out, false);
+    String sError1 = level.execute(statement.statementlist, out, false);
     return sError1;
   }
   
@@ -380,7 +380,7 @@ public class ZGenExecuter {
   
   public void runThread(ExecuteLevel executeLevel, ZGenScript.Statement statement){
     try{ 
-      executeLevel.execute(statement.subContent, null, false);
+      executeLevel.execute(statement.statementlist, null, false);
     } 
     catch(Exception exc){
       //TODO anything with the environment onerror statement?
@@ -499,24 +499,24 @@ public class ZGenExecuter {
       //Generate direct requested output. It is especially on inner content-scripts.
       int ixStatement = -1;
       //Iterator<JbatchScript.Statement> iter = contentScript.content.iterator();
-      while(++ixStatement < contentScript.content.size() && sError == null) { //iter.hasNext() && sError == null){
-        ZGenScript.Statement contentElement = contentScript.content.get(ixStatement); //iter.next();
-        //for(TextGenScript.ScriptElement contentElement: contentScript.content){
+      while(++ixStatement < contentScript.statements.size() && sError == null) { //iter.hasNext() && sError == null){
+        ZGenScript.Statement statement = contentScript.statements.get(ixStatement); //iter.next();
+        //for(TextGenScript.ScriptElement statement: contentScript.content){
         try{    
-          switch(contentElement.elementType){
+          switch(statement.elementType){
           case 't': { 
             int posLine = 0;
             int posEnd;
-            if(contentElement.textArg.startsWith("'''trans ==> dst"))
+            if(statement.textArg.startsWith("'''trans ==> dst"))
               stop();
             do{
-              posEnd = contentElement.textArg.indexOf('\n', posLine);
+              posEnd = statement.textArg.indexOf('\n', posLine);
               if(posEnd >= 0){ 
-                uBuffer.append(contentElement.textArg.substring(posLine, posEnd));   
+                uBuffer.append(statement.textArg.substring(posLine, posEnd));   
                 uBuffer.append(newline);
                 posLine = posEnd +1;  //after \n 
               } else {
-                uBuffer.append(contentElement.textArg.substring(posLine));   
+                uBuffer.append(statement.textArg.substring(posLine));   
               }
               
             } while(posEnd >=0);  //output all lines.
@@ -524,55 +524,55 @@ public class ZGenExecuter {
           case 'n': {
             uBuffer.append(newline);
           } break;
-          case 'T': textAppendToVarOrOut(contentElement); break; 
-          case 'S': executeAssign(contentElement); break; //setStringVariable(contentElement); break; 
+          case 'T': textAppendToVarOrOut(statement); break; 
+          case 'S': executeAssign(statement); break; //setStringVariable(statement); break; 
           case 'P': { //create a new local variable as pipe
             StringBuilder uBufferVariable = new StringBuilder();
-            setLocalVariable(contentElement.identArgJbat, 'P', uBufferVariable);
+            setLocalVariable(statement.identArgJbat, 'P', uBufferVariable);
           } break;
           case 'U': { //create a new local variable as pipe
             StringBuilder uBufferVariable = new StringBuilder();
-            setLocalVariable(contentElement.identArgJbat, 'A', uBufferVariable);
+            setLocalVariable(statement.identArgJbat, 'A', uBufferVariable);
           } break;
           case 'L': {
-            Object value = evalObject(contentElement, true); 
-              //getContent(contentElement, localVariables, false);  //not a container
-            setLocalVariable(contentElement.identArgJbat, 'L', value);
+            Object value = evalObject(statement, true); 
+              //getContent(statement, localVariables, false);  //not a container
+            setLocalVariable(statement.identArgJbat, 'L', value);
             if(!(value instanceof Iterable<?>)) 
-                throw new NoSuchFieldException("JbatExecuter - exec variable must be of type Iterable ;" + contentElement.identArgJbat);
+                throw new NoSuchFieldException("JbatExecuter - exec variable must be of type Iterable ;" + statement.identArgJbat);
           } break;
-          case 'W': executeOpenfile(contentElement); break;
+          case 'W': executeOpenfile(statement); break;
           case 'J': {
-            if(contentElement.identArgJbat.equals("checkDeps"))
+            if(statement.identArgJbat.equals("checkDeps"))
               stop();
-            Object value = evalObject(contentElement, false);
-            setLocalVariable(contentElement.identArgJbat, 'O', value);
+            Object value = evalObject(statement, false);
+            setLocalVariable(statement.identArgJbat, 'O', value);
           } break;
-          case 'e': executeDatatext(contentElement, out); break; 
+          case 'e': executeDatatext(statement, out); break; 
           case 's': {
-            executeSubroutine(contentElement, out);
+            executeSubroutine(statement, out);
           } break;
-          case 'x': executeThread(contentElement); break;
-          case 'm': executeMove(contentElement); break;
-          case 'c': executeCmdline(contentElement); break;
-          case 'd': executeChangeCurrDir(contentElement); break;
+          case 'x': executeThread(statement); break;
+          case 'm': executeMove(statement); break;
+          case 'c': executeCmdline(statement); break;
+          case 'd': executeChangeCurrDir(statement); break;
           case 'C': { //generation <:for:name:path> <genContent> <.for>
-            executeForContainer(contentElement, out);
+            executeForContainer(statement, out);
           } break;
           case 'B': { //statementBlock
-            executeSubLevel(contentElement, out);  ///
+            executeSubLevel(statement, out);  ///
           } break;
-          case 'F': executeIfStatement(contentElement, out); break;
-          case 'w': whileStatement(contentElement, out); break;
+          case 'F': executeIfStatement(statement, out); break;
+          case 'w': whileStatement(statement, out); break;
           case 'N': {
-            executeIfContainerHasNext(contentElement, out, bContainerHasNext);
+            executeIfContainerHasNext(statement, out, bContainerHasNext);
           } break;
-          case '=': executeAssign(contentElement); break;
+          case '=': executeAssign(statement); break;
           case 'b': sError = "break"; break;
           case '?': break;  //don't execute a onerror, skip it.
-          case 'z': throw new ZGenExecuter.ExitException(((ZGenScript.ExitStatement)contentElement).exitValue);  
+          case 'z': throw new ZGenExecuter.ExitException(((ZGenScript.ExitStatement)statement).exitValue);  
           default: 
-            uBuffer.append("Jbat - execute-unknown type; '" + contentElement.elementType + "' :ERROR=== ");
+            uBuffer.append("Jbat - execute-unknown type; '" + statement.elementType + "' :ERROR=== ");
           }//switch
           
         } catch(Exception exc){
@@ -588,23 +588,23 @@ public class ZGenExecuter {
           else { excType = 'i'; }
           //Search the block of onerror after this statement.
           //Maybe use an index in any statement, to prevent search time.
-          while(++ixStatement < contentScript.content.size() && (contentElement = contentScript.content.get(ixStatement)).elementType != '?');
-          if(ixStatement < contentScript.content.size()){
+          while(++ixStatement < contentScript.statements.size() && (statement = contentScript.statements.get(ixStatement)).elementType != '?');
+          if(ixStatement < contentScript.statements.size()){
             //onerror-block found.
             do { //search the appropriate error type:
               char onerrorType;
-              ZGenScript.Onerror errorStatement = (ZGenScript.Onerror)contentElement;
+              ZGenScript.Onerror errorStatement = (ZGenScript.Onerror)statement;
               if( ((onerrorType = errorStatement.errorType) == excType
                 || (onerrorType == '?' && excType != 'e')   //common onerror is valid for all excluding exit 
                 )  ){
                 found = excType != 'e' || errLevel >= errorStatement.errorLevel;  //if exit exception, then check errlevel
               }
-            } while(!found && ++ixStatement < contentScript.content.size() && (contentElement = contentScript.content.get(ixStatement)).elementType == '?');
+            } while(!found && ++ixStatement < contentScript.statements.size() && (statement = contentScript.statements.get(ixStatement)).elementType == '?');
           }
           if(found){
             String sError1 = exc.getMessage();
             setLocalVariable("errorMsg", 'S', sError1);
-            executeSubLevel(contentElement, out);
+            executeSubLevel(statement, out);
           } else {
             sError = exc.getMessage();
             System.err.println("Jbat - execute-exception; " + exc.getMessage());
@@ -620,12 +620,12 @@ public class ZGenExecuter {
     
     
     
-    void executeForContainer(ZGenScript.Statement contentElement, Appendable out) throws Exception
+    void executeForContainer(ZGenScript.Statement statement, Appendable out) throws Exception
     {
-      ZGenScript.StatementList subContent = contentElement.getSubContent();  //The same sub content is used for all container elements.
-      if(contentElement.identArgJbat.equals("include1"))
+      ZGenScript.StatementList subContent = statement.getSubContent();  //The same sub content is used for all container elements.
+      if(statement.identArgJbat.equals("include1"))
         stop();
-      Object container = evalObject(contentElement, true);
+      Object container = evalObject(statement, true);
       if(container instanceof String && ((String)container).startsWith("<?")){
         writeError((String)container, out);
       }
@@ -638,7 +638,7 @@ public class ZGenExecuter {
           if(foreachData !=null){
             //Gen_Content genFor = new Gen_Content(this, false);
             //genFor.
-            forExecuter.setLocalVariable(contentElement.identArgJbat, 'O', foreachData);
+            forExecuter.setLocalVariable(statement.identArgJbat, 'O', foreachData);
             //genFor.
             forExecuter.execute(subContent, out, iter.hasNext());
           }
@@ -654,7 +654,7 @@ public class ZGenExecuter {
           if(foreachData !=null){
             //Gen_Content genFor = new Gen_Content(this, false);
             //genFor.
-            setLocalVariable(contentElement.identArgJbat, 'O', foreachData);
+            setLocalVariable(statement.identArgJbat, 'O', foreachData);
             //genFor.
             execute(subContent, out, iter.hasNext());
           }
@@ -676,22 +676,22 @@ public class ZGenExecuter {
     /**it contains maybe more as one if block and else. 
      * @throws Exception */
     void executeIfStatement(ZGenScript.Statement ifStatement, Appendable out) throws Exception{
-      Iterator<ZGenScript.Statement> iter = ifStatement.subContent.content.iterator();
+      Iterator<ZGenScript.Statement> iter = ifStatement.statementlist.statements.iterator();
       boolean found = false;  //if block found
       while(iter.hasNext() && !found ){
-        ZGenScript.Statement contentElement = iter.next();
-        switch(contentElement.elementType){
+        ZGenScript.Statement statement = iter.next();
+        switch(statement.elementType){
           case 'G': { //if-block
             boolean hasNext = iter.hasNext();
-            found = executeIfBlock((ZGenScript.IfCondition)contentElement, out, hasNext);
+            found = executeIfBlock((ZGenScript.IfCondition)statement, out, hasNext);
           } break;
           case 'E': { //elsef
             if(!found){
-              execute(contentElement.subContent, out, false);
+              execute(statement.statementlist, out, false);
             }
           } break;
           default:{
-            out.append(" ===ERROR: unknown type '" + contentElement.elementType + "' :ERROR=== ");
+            out.append(" ===ERROR: unknown type '" + statement.elementType + "' :ERROR=== ");
           }
         }//switch
       }//for
@@ -709,7 +709,7 @@ public class ZGenExecuter {
         CalculatorExpr.Value check = whileStatement.expression.calcDataAccess(localVariables);
         cond = check.booleanValue();
         if(cond){
-          execute(whileStatement.subContent, out, false);
+          execute(whileStatement.statementlist, out, false);
         }
       } while(cond);  //if executed, check cond again.  
     }
@@ -743,7 +743,7 @@ public class ZGenExecuter {
         bCheck = false;
       }
       if(bCheck){
-        execute(ifBlock.subContent, out, bIfHasNext);
+        execute(ifBlock.statementlist, out, bIfHasNext);
       }
       return bCheck;
     }
@@ -798,7 +798,7 @@ public class ZGenExecuter {
         throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
       }
       Appendable out1 = (Appendable)variable;  //append, it may be a StringBuilder.
-      execute(statement.subContent, out1, false);
+      execute(statement.statementlist, out1, false);
     }
     
     
@@ -808,19 +808,19 @@ public class ZGenExecuter {
     
     
     
-    void executeSubroutine(ZGenScript.Statement contentElement, Appendable out) 
+    void executeSubroutine(ZGenScript.Statement statement, Appendable out) 
     throws IllegalArgumentException, Exception
     {
-      ZGenScript.CallStatement callStatement = (ZGenScript.CallStatement)contentElement;
+      ZGenScript.CallStatement callStatement = (ZGenScript.CallStatement)statement;
       boolean ok = true;
       final CharSequence nameSubtext;
       /*
-      if(contentElement.name == null){
+      if(statement.name == null){
         //subtext name gotten from any data location, variable name
-        Object oName = ascertainText(contentElement.expression, localVariables); //getContent(contentElement, localVariables, false);
+        Object oName = ascertainText(statement.expression, localVariables); //getContent(statement, localVariables, false);
         nameSubtext = DataAccess.getStringFromObject(oName, null);
       } else {
-        nameSubtext = contentElement.name;
+        nameSubtext = statement.name;
       }*/
       nameSubtext = evalString(callStatement.callName); 
       ZGenScript.Statement subtextScript = genScript.getSubtextScript(nameSubtext);  //the subtext script to call
@@ -835,7 +835,7 @@ public class ZGenExecuter {
             check.put(formalArg.identArgJbat, new CheckArgument(formalArg));
           }
           //process all actual arguments:
-          List<ZGenScript.Argument> referenceSettings = contentElement.getReferenceDataSettings();
+          List<ZGenScript.Argument> referenceSettings = statement.getReferenceDataSettings();
           if(referenceSettings !=null){
             for( ZGenScript.Argument referenceSetting: referenceSettings){  //process all actual arguments
               Object ref;
@@ -882,11 +882,11 @@ public class ZGenExecuter {
               }
             }
           }
-        } else if(contentElement.getReferenceDataSettings() !=null){
+        } else if(statement.getReferenceDataSettings() !=null){
           ok = writeError("??: *subtext;" + nameSubtext + " called with arguments, it has not one.??", out);
         }
         if(ok){
-          subtextGenerator.execute(subtextScript.subContent, out, false);
+          subtextGenerator.execute(subtextScript.statementlist, out, false);
         }
       }
     }
@@ -937,32 +937,32 @@ public class ZGenExecuter {
     //throws IOException
     {
       ExecuteLevel genContent;
-      if(script.subContent.bContainsVariableDef){
+      if(script.statementlist.bContainsVariableDef){
         genContent = new ExecuteLevel(this, localVariables);
       } else {
         genContent = this;  //don't use an own instance, save memory and calculation time.
       }
-      return genContent.execute(script.subContent, out, false);
+      return genContent.execute(script.statementlist, out, false);
     }
 
     
     
-    void executeCmdline(ZGenScript.Statement contentElement) 
+    void executeCmdline(ZGenScript.Statement statement) 
     throws IllegalArgumentException, Exception
     {
       boolean ok = true;
       final CharSequence sCmd;
-      if(contentElement.identArgJbat == null){
+      if(statement.identArgJbat == null){
         //cmd gotten from any data location, variable name
-        sCmd = evalString(contentElement); 
+        sCmd = evalString(statement); 
       } else {
-        sCmd = contentElement.identArgJbat;
+        sCmd = statement.identArgJbat;
       }
       String[] args;
-      if(contentElement.arguments !=null){
-        args = new String[contentElement.arguments.size() +1];
+      if(statement.arguments !=null){
+        args = new String[statement.arguments.size() +1];
         int iArg = 1;
-        for(ZGenScript.Argument arg: contentElement.arguments){
+        for(ZGenScript.Argument arg: statement.arguments){
           String sArg = evalString(arg).toString(); //XXXascertainText(arg.expression, localVariables);
           args[iArg++] = sArg;
         }
@@ -971,19 +971,19 @@ public class ZGenExecuter {
       }
       args[0] = sCmd.toString();
       List<Appendable> outCmd;
-      if(contentElement.variable !=null){
+      if(statement.variable !=null){
         outCmd = new LinkedList<Appendable>();
-        Object oOutCmd = contentElement.variable.getDataObj(localVariables, bAccessPrivate, false);
+        Object oOutCmd = statement.variable.getDataObj(localVariables, bAccessPrivate, false);
         if(oOutCmd instanceof Appendable){
           outCmd.add((Appendable)oOutCmd);
-        } else { throwIllegalDstArgument("variable should be Appendable", contentElement.variable, contentElement);
+        } else { throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
         }
-        if(contentElement.assignObjs !=null){
-          for(DataAccess assignObj1 : contentElement.assignObjs){
+        if(statement.assignObjs !=null){
+          for(DataAccess assignObj1 : statement.assignObjs){
             oOutCmd = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
             if(oOutCmd instanceof Appendable){
               outCmd.add((Appendable)oOutCmd);
-            } else { throwIllegalDstArgument("variable should be Appendable", contentElement.variable, contentElement);
+            } else { throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
             }
         } }
       } else {
@@ -998,6 +998,7 @@ public class ZGenExecuter {
       if(errorlevel >0){
         //TODO check whether an onerror statement follows:
       }
+      cmdExecuter.close();
     }
     
 
@@ -1044,7 +1045,7 @@ public class ZGenExecuter {
     private void executeDatatext(ZGenScript.Statement statement, Appendable out)  //<*datatext>
     throws IllegalArgumentException, Exception
     {
-      Object obj = evalDatapathOrExpr(statement); //ascertainText(contentElement.expression, localVariables);
+      Object obj = evalDatapathOrExpr(statement); //ascertainText(statement.expression, localVariables);
       if(obj instanceof CalculatorExpr.Value){
         obj = ((CalculatorExpr.Value)obj).objValue();
       }
@@ -1068,13 +1069,13 @@ public class ZGenExecuter {
       if(!bOk) throw new IOException("JbatchExecuter - move not successfully; " + fileSrc.getAbsolutePath() + " to " + fileDst.getAbsolutePath());;
     }
     
-    void executeOpenfile(ZGenScript.Statement contentElement) 
+    void executeOpenfile(ZGenScript.Statement statement) 
     throws IllegalArgumentException, Exception
     {
-      String sFilename = evalString(contentElement).toString();
+      String sFilename = evalString(statement).toString();
       Writer writer = new FileWriter(sFilename);
-      DataAccess.storeValue(contentElement.variable.datapath(), localVariables, writer, bAccessPrivate);
-      //setLocalVariable(contentElement.identArgJbat, 'A', writer);
+      DataAccess.storeValue(statement.variable.datapath(), localVariables, writer, bAccessPrivate);
+      //setLocalVariable(statement.identArgJbat, 'A', writer);
     }
     
     
@@ -1089,7 +1090,7 @@ public class ZGenExecuter {
      * <li>Appendable: appends the gotten expression.toString(). An Appendable may be especially
      * <li>All others cause an error. 
      * </ul>
-     * @param contentElement
+     * @param statement
      * @throws IllegalArgumentException
      * @throws Exception
      */
@@ -1139,9 +1140,9 @@ public class ZGenExecuter {
         Object o = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
         if(o==null){ return "null"; }
         else {return o.toString(); }
-      } else if(arg.subContent !=null){
+      } else if(arg.statementlist !=null){
         StringBuilder u = new StringBuilder();
-        executeNewlevel(arg.subContent, u, false);
+        executeNewlevel(arg.statementlist, u, false);
         return StringSeq.create(u);
       } else if(arg.expression !=null){
         CalculatorExpr.Value value = arg.expression.calcDataAccess(localVariables);
@@ -1168,9 +1169,9 @@ public class ZGenExecuter {
       if(arg.textArg !=null) return arg.textArg;
       else if(arg.dataAccess !=null){
         obj = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
-      } else if(arg.subContent !=null){
+      } else if(arg.statementlist !=null){
         StringBuilder u = new StringBuilder();
-        executeNewlevel(arg.subContent, u, false);
+        executeNewlevel(arg.statementlist, u, false);
         obj = u.toString();
       } else if(arg.expression !=null){
         CalculatorExpr.Value value = arg.expression.calcDataAccess(localVariables);

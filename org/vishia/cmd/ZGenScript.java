@@ -51,8 +51,8 @@ public class ZGenScript {
    * <li>2012-10-19 Hartmut chg: <:if...> works.
    * <li>2012-10-19 Hartmut chg: Renaming: {@link Statement} instead Zbnf_ScriptElement (shorter). The Scriptelement
    *   is the component for the genContent-Elements now instead Zbnf_genContent. This class contains attributes of the
-   *   content elements. Only if a sub content is need, an instance of Zbnf_genContent is created as {@link Statement#subContent}.
-   *   Furthermore the {@link Statement#subContent} should be final because it is only created if need for the special 
+   *   content elements. Only if a sub content is need, an instance of Zbnf_genContent is created as {@link Statement#statementlist}.
+   *   Furthermore the {@link Statement#statementlist} should be final because it is only created if need for the special 
    *   {@link Statement#elementType}-types (TODO). This version works for {@link org.vishia.stateMGen.StateMGen}.
    * <li>2012-10-11 Hartmut chg Syntax changed of ZmakeGenCtrl.zbnf: datapath::={ <$?path>? \.}. 
    *   instead dataAccess::=<$?name>\.<$?elementPart>., it is more universal. adapted. 
@@ -105,7 +105,7 @@ public class ZGenScript {
   /**List of the script variables in order of creation in the jbat script file and all includes.
    * The script variables can contain inputs of other variables which are defined before.
    * Therefore the order is important.
-   * This list is stored firstly in the {@link StatementList#content} in an instance of 
+   * This list is stored firstly in the {@link StatementList#statements} in an instance of 
    * {@link ZbnfMainGenCtrl} and then transferred from all includes and from the main script 
    * to this container because the {@link ZbnfMainGenCtrl} is only temporary and a ensemble of all
    * Statements should be present from all included files. The statements do not contain
@@ -134,8 +134,8 @@ public class ZGenScript {
       //use the last found main, also from a included script but firstly from main.
       scriptFile = includedScript.getMainRoutine();   
     }
-    if(includedScript.content !=null){
-      listScriptVariables.addAll(includedScript.content);
+    if(includedScript.statements !=null){
+      listScriptVariables.addAll(includedScript.statements);
     }
 
   }
@@ -186,8 +186,8 @@ public class ZGenScript {
     
     
     
-    /**If need, a sub-content, maybe null.*/
-    public StatementList subContent;
+    /**If need, sub statements, maybe null.*/
+    public StatementList statementlist;
     
     
     
@@ -216,29 +216,29 @@ public class ZGenScript {
     public void set_text(String text){
       if(text.contains("testt"))
         Assert.stop();
-      if(subContent == null){ subContent = new StatementList(this); }
-      subContent.set_text(text);
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.set_text(text);
     }
     
     
     public void set_nonEmptyText(String text){
       if(!StringFunctions.isEmptyOrOnlyWhitespaces(text)){
-        if(subContent == null){ subContent = new StatementList(this); }
-        subContent.set_text(text);
+        if(statementlist == null){ statementlist = new StatementList(this); }
+        statementlist.set_text(text);
       }
     }
     
     
     
     public void set_textReplf(String text){
-      if(subContent == null){ subContent = new StatementList(this); }
-      subContent.set_text(text);
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.set_text(text);
     }
     
     
     
     /**From Zbnf, a part <:>...<.> */
-    public StatementList new_textExpr(){ return subContent = new StatementList(); }
+    public StatementList new_textExpr(){ return statementlist = new StatementList(); }
     
     public void add_textExpr(StatementList val){}
     
@@ -259,9 +259,9 @@ public class ZGenScript {
     /**Set from ZBNF:  (\?*<*dataText>\?) */
     //@Override
     public void add_dataText(Statement val){ 
-      if(subContent == null){ subContent = new StatementList(this); }
-      subContent.content.add(val); 
-      subContent.onerrorAccu = null; subContent.withoutOnerror.add(val);
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.statements.add(val); 
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);
     }
     
 
@@ -270,21 +270,18 @@ public class ZGenScript {
   
   
   
-  /**An element of the generate script, maybe a simple text, an condition etc.
-   * It may have a sub content with a list of sub scrip elements if need, see aggregation {@link #subContent}. 
+  /**An element of the script, maybe a simple text, an condition etc.
+   * It may have sub statements , see aggregation {@link #statementlist}. 
    * <br>
    * UML-Notation see {@link org.vishia.util.Docu_UML_simpleNotation}:
    * <pre>
-   *   ScriptElement             GenContent          ScriptElement
-   *        |                         |              !The Sub content
-   *        |-----subContent--------->|                  |
+   *   Statement                 Statements          Statement
+   *        |                         |              !The sub statements
+   *        |-----statementlist------>|                  |
    *        |                         |                  |
-   *                                  |----content-----*>|
+   *                                  |----statements--*>|
    * 
    * </pre> 
-   * A Statement which presents an variable contains the building algorithm for the content of the variable.
-   * Script variable's content were determined on startup of the script execution. There values are stored in specific
-   * Maps: TODO
    */
   public static class Statement extends Argument
   {
@@ -301,11 +298,11 @@ public class ZGenScript {
      *                   see {@link ZmakeGenerator#getPartsFromFilepath(org.vishia.zmake.ZmakeUserScript.UserFilepath, String)}</td></tr>
      * <tr><td>e</td><td>A datatext, from <*expression> or such.</td></tr>
      * <tr><td>XXXg</td><td>content of a data path starting with an internal variable (reference) or value of the variable.</td></tr>
-     * <tr><td>s</td><td>call of a subtext by name. {@link #textArg}==null, {@link #subContent} == null.</td></tr>
-     * <tr><td>j</td><td>call of a static java method. {@link #identArgJbat}==its name, {@link #subContent} == null.</td></tr>
+     * <tr><td>s</td><td>call of a subtext by name. {@link #textArg}==null, {@link #statementlist} == null.</td></tr>
+     * <tr><td>j</td><td>call of a static java method. {@link #identArgJbat}==its name, {@link #statementlist} == null.</td></tr>
      * <tr><td>c</td><td>cmd line invocation.</td></tr>
      * <tr><td>d</td><td>cd change current directory.</td></tr>
-     * <tr><td>J</td><td>Object variable {@link #identArgJbat}==its name, {@link #subContent} == null.</td></tr>
+     * <tr><td>J</td><td>Object variable {@link #identArgJbat}==its name, {@link #statementlist} == null.</td></tr>
      * <tr><td>P</td><td>Pipe variable, {@link #textArg} contains the name of the variable</td></tr>
      * <tr><td>U</td><td>Buffer variable, {@link #textArg} contains the name of the variable</td></tr>
      * <tr><td>S</td><td>String variable, {@link #textArg} contains the name of the variable</td></tr>
@@ -313,11 +310,11 @@ public class ZGenScript {
      * <tr><td>W</td><td>Opened file, a Writer in Java</td></tr>
      * <tr><td>=</td><td>assignment of an expression to a variable.</td></tr>
      * <tr><td>B</td><td>statement block</td></tr>
-     * <tr><td>C</td><td><:for:path> {@link #subContent} contains build.script for any list element,</td></tr>
-     * <tr><td>E</td><td><:else> {@link #subContent} contains build.script for any list element,</td></tr>
-     * <tr><td>F</td><td><:if:condition:path> {@link #subContent} contains build.script for any list element,</td></tr>
-     * <tr><td>G</td><td><:elsif:condition:path> {@link #subContent} contains build.script for any list element,</td></tr>
-     * <tr><td>w</td><td>while(cond) {@link #subContent} contains build.script for any list element,</td></tr>
+     * <tr><td>C</td><td><:for:path> {@link #statementlist} contains build.script for any list element,</td></tr>
+     * <tr><td>E</td><td><:else> {@link #statementlist} contains build.script for any list element,</td></tr>
+     * <tr><td>F</td><td><:if:condition:path> {@link #statementlist} contains build.script for any list element,</td></tr>
+     * <tr><td>G</td><td><:elsif:condition:path> {@link #statementlist} contains build.script for any list element,</td></tr>
+     * <tr><td>w</td><td>while(cond) {@link #statementlist} contains build.script for any list element,</td></tr>
      * <tr><td>b</td><td>break</td></tr>
      * <tr><td>?</td><td><:if:...?gt> compare-operation in if</td></tr>
      * 
@@ -365,10 +362,10 @@ public class ZGenScript {
       this.elementType = whatisit;
       this.textArg = text;
       if("BNXYZvl".indexOf(whatisit)>=0){
-        subContent = new StatementList();
+        statementlist = new StatementList();
       }
       else if("IVL".indexOf(whatisit)>=0){
-        subContent = new StatementList(this);
+        statementlist = new StatementList(this);
       }
     }
     
@@ -376,7 +373,7 @@ public class ZGenScript {
     
     public List<Argument> getReferenceDataSettings(){ return arguments; }
     
-    public StatementList getSubContent(){ return subContent; }
+    public StatementList getSubContent(){ return statementlist; }
     
     @Override
     public void set_name(String name){ this.identArgJbat = name; }
@@ -389,90 +386,90 @@ public class ZGenScript {
     public Statement new_textOut(){ return new Statement(parentList, 'T', null); }
 
     public void add_textOut(Statement val){ 
-      if(subContent == null){ subContent = new StatementList(this); }
-      subContent.content.add(val); 
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.statements.add(val); 
     } 
     
     
     public void set_newline(){
-      if(subContent == null){ subContent = new StatementList(this); }
-      subContent.content.add(new Statement(parentList, 'n', null));   /// 
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.statements.add(new Statement(parentList, 'n', null));   /// 
     }
     
     public Statement new_setEnvVar(){ 
-      if(subContent == null){ subContent = new StatementList(this); }
-      return subContent.new_setEnvVar(); 
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      return statementlist.new_setEnvVar(); 
     }
 
-    public void add_setEnvVar(Statement val){ subContent.add_setEnvVar(val); } 
+    public void add_setEnvVar(Statement val){ statementlist.add_setEnvVar(val); } 
     
     
     /**Defines a variable with initial value. <= <variableAssign?textVariable> \<\.=\>
      */
     public Statement new_textVariable(){
-      if(subContent == null){ subContent = new StatementList(this); }
-      subContent.bContainsVariableDef = true; 
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.bContainsVariableDef = true; 
       return new Statement(parentList, 'S', null); 
     } 
 
-    public void add_textVariable(Statement val){ subContent.content.add(val); subContent.onerrorAccu = null; subContent.withoutOnerror.add(val);} 
+    public void add_textVariable(Statement val){ statementlist.statements.add(val); statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);} 
     
     
     /**Defines a variable which is able to use as pipe.
      */
     public Statement new_Pipe(){
-      if(subContent == null){ subContent = new StatementList(this); }
-      subContent.bContainsVariableDef = true; 
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.bContainsVariableDef = true; 
       return new Statement(parentList, 'P', null); 
     } 
 
-    public void add_Pipe(Statement val){ subContent.content.add(val); subContent.onerrorAccu = null; subContent.withoutOnerror.add(val); }
+    public void add_Pipe(Statement val){ statementlist.statements.add(val); statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val); }
     
     /**Defines a variable which is able to use as String buffer.
      */
     public Statement new_StringAppend(){
-      if(subContent == null){ subContent = new StatementList(this); }
-      subContent.bContainsVariableDef = true; 
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.bContainsVariableDef = true; 
       return new Statement(parentList, 'U', null); 
     } 
 
-    public void add_StringAppend(Statement val){ subContent.content.add(val);  subContent.onerrorAccu = null; subContent.withoutOnerror.add(val);}
+    public void add_StringAppend(Statement val){ statementlist.statements.add(val);  statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
     
         
     /**Defines a variable which is able to use as container.
      */
     public Statement new_List(){ ////
-      if(subContent == null){ subContent = new StatementList(this); }
-      subContent.bContainsVariableDef = true; 
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.bContainsVariableDef = true; 
       return new Statement(parentList, 'L', null); 
     } 
 
-    public void add_List(Statement val){ subContent.content.add(val);  subContent.onerrorAccu = null; subContent.withoutOnerror.add(val);}
+    public void add_List(Statement val){ statementlist.statements.add(val);  statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
     
     /**Defines a variable which is able to use as pipe.
      */
     public Statement new_Openfile(){
-      if(subContent == null){ subContent = new StatementList(this); }
-      subContent.bContainsVariableDef = true; 
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.bContainsVariableDef = true; 
       return new Statement(parentList, 'W', null); 
     } 
 
     public void add_Openfile(Statement val){ 
-      if(subContent == null){ subContent = new StatementList(this); }
-      subContent.content.add(val);  
-      subContent.onerrorAccu = null; 
-      subContent.withoutOnerror.add(val);
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.statements.add(val);  
+      statementlist.onerrorAccu = null; 
+      statementlist.withoutOnerror.add(val);
     }
     
     /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
      */
     public Statement new_objVariable(){ 
-      if(subContent == null){ subContent = new StatementList(this); }
-      subContent.bContainsVariableDef = true; 
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.bContainsVariableDef = true; 
       return new Statement(parentList, 'J', null); 
     } 
 
-    public void add_objVariable(Statement val){ subContent.content.add(val); subContent.onerrorAccu = null; subContent.withoutOnerror.add(val);}
+    public void add_objVariable(Statement val){ statementlist.statements.add(val); statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
     
     
     
@@ -551,32 +548,26 @@ public class ZGenScript {
     }
 
      
-    public Statement new_assignment(){ 
+    public Statement new_assignExpr(){ 
       return new Statement(parentList, '=', null); 
     } 
 
-    public void add_assignment(Statement val){ 
-      if(subContent == null){ subContent = new StatementList(this); }
-      subContent.content.add(val);  
-      subContent.onerrorAccu = null; 
-      subContent.withoutOnerror.add(val);
+    public void add_assignExpr(Statement val){ 
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.statements.add(val);  
+      statementlist.onerrorAccu = null; 
+      statementlist.withoutOnerror.add(val);
     }
     
     
     
-    /**Set from ZBNF:  (\?*<$?dataText>\?) */
-    //public ScriptElement new_valueVariable(){ return new ScriptElement('g', null); }
-    
-    /**Set from ZBNF:  (\?*<$?forElement>\?) */
-    //public void add_valueVariable(ScriptElement val){ subContent.content.add(val);  subContent.onerrorAccu = null; subContent.withoutOnerror.add(val);}
-    
     
     public Statement new_statementBlock(){
-      if(subContent == null){ subContent = new StatementList(this); }
-      Statement contentElement = new Statement(parentList, 'B', null);
-      subContent.content.add(contentElement);
-      subContent.onerrorAccu = null; subContent.withoutOnerror.add(contentElement);
-      return contentElement;
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      Statement statement = new Statement(parentList, 'B', null);
+      statementlist.statements.add(statement);
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
+      return statement;
     }
     
     public void add_statementBlock(Statement val){}
@@ -588,83 +579,83 @@ public class ZGenScript {
     
 
     public void add_onerror(Onerror val){
-      if(subContent == null){ subContent = new StatementList(this); }
-      subContent.content.add(val);
-      if(subContent.onerrorAccu == null){ subContent.onerrorAccu = new LinkedList<Onerror>(); }
-      for( Statement previousStatement: subContent.withoutOnerror){
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.statements.add(val);
+      if(statementlist.onerrorAccu == null){ statementlist.onerrorAccu = new LinkedList<Onerror>(); }
+      for( Statement previousStatement: statementlist.withoutOnerror){
         previousStatement.onerror = onerror;  
         //use the same onerror list for all previous statements without error designation.
       }
-      subContent.withoutOnerror.clear();  //remove all entries, they are processed.
+      statementlist.withoutOnerror.clear();  //remove all entries, they are processed.
     }
 
     
     public void set_breakBlock(){ 
-      if(subContent == null){ subContent = new StatementList(this); }
-      Statement contentElement = new Statement(parentList, 'b', null);
-      subContent.content.add(contentElement);
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      Statement statement = new Statement(parentList, 'b', null);
+      statementlist.statements.add(statement);
     }
     
  
       
     public Statement new_forContainer()
-    { if(subContent == null) { subContent = new StatementList(this); }
-      return subContent.new_forContainer();
+    { if(statementlist == null) { statementlist = new StatementList(this); }
+      return statementlist.new_forContainer();
     }
     
-    public void add_forContainer(Statement val){subContent.add_forContainer(val);}
+    public void add_forContainer(Statement val){statementlist.add_forContainer(val);}
 
     
     public Statement new_whileBlock()
-    { if(subContent == null) { subContent = new StatementList(this); }
-      return subContent.new_whileBlock();
+    { if(statementlist == null) { statementlist = new StatementList(this); }
+      return statementlist.new_whileBlock();
     }
     
-    public void add_whileBlock(Statement val){subContent.add_whileBlock(val); }
+    public void add_whileBlock(Statement val){statementlist.add_whileBlock(val); }
 
     
     public Statement new_if()
     { StatementList subGenContent = new StatementList(this);
-      Statement contentElement = new Statement(parentList, 'F', null);
-      contentElement.subContent = subGenContent;  //The contentElement contains a genContent. 
-      return contentElement;
+      Statement statement = new Statement(parentList, 'F', null);
+      statement.statementlist = subGenContent;  //The statement contains a genContent. 
+      return statement;
     }
     
     public void add_if(Statement val){
-      if(subContent == null) { subContent = new StatementList(this); }
-      subContent.content.add(val);
-      subContent.onerrorAccu = null; subContent.withoutOnerror.add(val);
+      if(statementlist == null) { statementlist = new StatementList(this); }
+      statementlist.statements.add(val);
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);
       
     }
 
     
     public IfCondition new_ifBlock()
     { StatementList subGenContent = new StatementList(this);
-      IfCondition contentElement = new IfCondition(parentList, 'G');
-      contentElement.subContent = subGenContent;  //The contentElement contains a genContent. 
-      subContent.content.add(contentElement);
-      subContent.onerrorAccu = null; subContent.withoutOnerror.add(contentElement);
-      return contentElement;
+      IfCondition statement = new IfCondition(parentList, 'G');
+      statement.statementlist = subGenContent;  //The statement contains a genContent. 
+      statementlist.statements.add(statement);
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
+      return statement;
     }
     
     public void add_ifBlock(IfCondition val){}
 
     public Statement new_hasNext()
-    { Statement contentElement = new Statement(parentList, 'N', null);
-      subContent.content.add(contentElement);
-      subContent.onerrorAccu = null; subContent.withoutOnerror.add(contentElement);
-      return contentElement;
+    { Statement statement = new Statement(parentList, 'N', null);
+      statementlist.statements.add(statement);
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
+      return statement;
     }
     
     public void add_hasNext(Statement val){}
 
     public Statement new_elseBlock()
     { StatementList subGenContent = new StatementList(this);
-      Statement contentElement = new Statement(parentList, 'E', null);
-      contentElement.subContent = subGenContent;  //The contentElement contains a genContent. 
-      subContent.content.add(contentElement);
-      subContent.onerrorAccu = null; subContent.withoutOnerror.add(contentElement);
-      return contentElement;
+      Statement statement = new Statement(parentList, 'E', null);
+      statement.statementlist = subGenContent;  //The statement contains a genContent. 
+      statementlist.statements.add(statement);
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
+      return statement;
     }
     
     public void add_elseBlock(Statement val){}
@@ -699,35 +690,35 @@ public class ZGenScript {
     
     ////
     public Statement new_threadBlock()
-    { if(subContent == null){ subContent = new StatementList(this); }
-      return subContent.new_threadBlock();
+    { if(statementlist == null){ statementlist = new StatementList(this); }
+      return statementlist.new_threadBlock();
     }
     
-    public void add_threadBlock(Statement val){subContent.add_threadBlock(val);}
+    public void add_threadBlock(Statement val){statementlist.add_threadBlock(val);}
 
     
     public Statement new_move()
-    { if(subContent == null){ subContent = new StatementList(this); }
-      return subContent.new_move();
+    { if(statementlist == null){ statementlist = new StatementList(this); }
+      return statementlist.new_move();
     }
     
-    public void add_move(Statement val){subContent.add_move(val);}
+    public void add_move(Statement val){statementlist.add_move(val);}
 
     
     public Statement new_copy()
-    { if(subContent == null){ subContent = new StatementList(this); }
-      return subContent.new_copy();
+    { if(statementlist == null){ statementlist = new StatementList(this); }
+      return statementlist.new_copy();
     }
     
-    public void add_copy(Statement val){subContent.add_copy(val);}
+    public void add_copy(Statement val){statementlist.add_copy(val);}
 
     
     public CallStatement new_call()
-    { if(subContent == null){ subContent = new StatementList(this); }
-      CallStatement contentElement = new CallStatement(parentList);
-      subContent.content.add(contentElement);
-      subContent.onerrorAccu = null; subContent.withoutOnerror.add(contentElement);
-      return contentElement;
+    { if(statementlist == null){ statementlist = new StatementList(this); }
+      CallStatement statement = new CallStatement(parentList);
+      statementlist.statements.add(statement);
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
+      return statement;
     }
     
     public void add_call(CallStatement val){}
@@ -735,11 +726,11 @@ public class ZGenScript {
     
 
     public Statement new_cmdLine()
-    { if(subContent == null){ subContent = new StatementList(this); }
-      Statement contentElement = new Statement(parentList, 'c', null);
-      subContent.content.add(contentElement);
-      subContent.onerrorAccu = null; subContent.withoutOnerror.add(contentElement);
-      return contentElement;
+    { if(statementlist == null){ statementlist = new StatementList(this); }
+      Statement statement = new Statement(parentList, 'c', null);
+      statementlist.statements.add(statement);
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
+      return statement;
     }
     
     public void add_cmdLine(Statement val){}
@@ -747,20 +738,20 @@ public class ZGenScript {
     
 
     public void set_cd(String val)
-    { if(subContent == null){ subContent = new StatementList(this); }
-      subContent.set_cd(val);
+    { if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.set_cd(val);
     }
     
     
 
     public Statement new_cd()
-    { if(subContent == null){ subContent = new StatementList(this); }
-      return subContent.new_cd();
+    { if(statementlist == null){ statementlist = new StatementList(this); }
+      return statementlist.new_cd();
     }
     
     
     public void add_cd(Statement val)
-    { subContent.add_cd(val);
+    { statementlist.add_cd(val);
     }
     
     
@@ -769,56 +760,56 @@ public class ZGenScript {
     
     /**Set from ZBNF:  (\?*<$?forElement>\?) */
     public void set_fnEmpty(String val){ 
-      if(subContent == null){ subContent = new StatementList(this); }
-      Statement contentElement = new Statement(parentList, 'f', StringSeq.create(val));
-      subContent.content.add(contentElement);
-      subContent.onerrorAccu = null; subContent.withoutOnerror.add(contentElement);
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      Statement statement = new Statement(parentList, 'f', StringSeq.create(val));
+      statementlist.statements.add(statement);
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
     }
     
     public void set_outputValue(String text){ 
-      if(subContent == null){ subContent = new StatementList(this); }
-      Statement contentElement = new Statement(parentList, 'o', StringSeq.create(text));
-      subContent.content.add(contentElement); 
-      subContent.onerrorAccu = null; subContent.withoutOnerror.add(contentElement);
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      Statement statement = new Statement(parentList, 'o', StringSeq.create(text));
+      statementlist.statements.add(statement); 
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
     }
     
     public void set_inputValue(String text){ 
-      if(subContent == null){ subContent = new StatementList(this); }
-      Statement contentElement = new Statement(parentList, 'i', StringSeq.create(text));
-      subContent.content.add(contentElement); 
-      subContent.onerrorAccu = null; subContent.withoutOnerror.add(contentElement);
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      Statement statement = new Statement(parentList, 'i', StringSeq.create(text));
+      statementlist.statements.add(statement); 
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
     }
     
     //public void set_variableValue(String text){ subContent.content.add(new ScriptElement('v', text)); }
     
     public Statement new_forInputContent()
-    { if(subContent == null){ subContent = new StatementList(this); }
-      Statement contentElement = new Statement(parentList, 'I', null);
-      subContent.content.add(contentElement);
-      subContent.onerrorAccu = null; subContent.withoutOnerror.add(contentElement);
-      return contentElement;
+    { if(statementlist == null){ statementlist = new StatementList(this); }
+      Statement statement = new Statement(parentList, 'I', null);
+      statementlist.statements.add(statement);
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
+      return statement;
     }
     
     public void add_forInputContent(Statement val){}
 
     
     public Statement xxxnew_forVariable()
-    { if(subContent == null){ subContent = new StatementList(this); }
-      Statement contentElement = new Statement(parentList, 'V', null);
-      subContent.content.add(contentElement);
-      subContent.onerrorAccu = null; subContent.withoutOnerror.add(contentElement);
-      return contentElement;
+    { if(statementlist == null){ statementlist = new StatementList(this); }
+      Statement statement = new Statement(parentList, 'V', null);
+      statementlist.statements.add(statement);
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
+      return statement;
     }
     
     public void xxxadd_forVariable(Statement val){} //empty, it is added in new_forList()
 
     
     public Statement new_forList()
-    { if(subContent == null){ subContent = new StatementList(this); }
-      Statement contentElement = new Statement(parentList, 'L', null);
-      subContent.content.add(contentElement);
-      subContent.onerrorAccu = null; subContent.withoutOnerror.add(contentElement);
-      return contentElement;
+    { if(statementlist == null){ statementlist = new StatementList(this); }
+      Statement statement = new Statement(parentList, 'L', null);
+      statementlist.statements.add(statement);
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
+      return statement;
     }
     
     public void add_forList(Statement val){} //empty, it is added in new_forList()
@@ -826,7 +817,7 @@ public class ZGenScript {
     
     public Statement new_addToList(){ 
       Statement subGenContent = new Statement(parentList, 'l', null);
-      subContent.addToList.add(subGenContent.subContent);
+      statementlist.addToList.add(subGenContent.statementlist);
       return subGenContent;
     }
    
@@ -837,8 +828,8 @@ public class ZGenScript {
 
     
     public void set_exitScript(int val){
-      if(subContent == null){ subContent = new StatementList(this); }
-      subContent.set_exitScript(val);
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.set_exitScript(val);
     }
     
     
@@ -1019,12 +1010,9 @@ public class ZGenScript {
     /**True if < genContent> is called for any input, (?:forInput?) */
     //public final boolean XXXisContentForInput;
     
-    /**Set from ZBNF: */
-    public boolean XXXexpandFiles;
-
     public String cmpnName;
     
-    public final List<Statement> content = new ArrayList<Statement>();
+    public final List<Statement> statements = new ArrayList<Statement>();
     
 
     /**List of currently onerror statements.
@@ -1039,7 +1027,7 @@ public class ZGenScript {
     List<Statement> withoutOnerror = new LinkedList<Statement>();
     
     
-    /**True if the block {@link Argument#subContent} contains at least one variable definition.
+    /**True if the block {@link Argument#statementlist} contains at least one variable definition.
      * In this case the execution of the ScriptElement as a block should be done with an separated set
      * of variables because new variables should not merge between existing of the outer block.
      */
@@ -1087,7 +1075,7 @@ public class ZGenScript {
       //change the first identifier to $name
       val.variable.datapath().get(0).setIdent("$" + val.variable.datapath().get(0).ident());
       //val.identArgJbat = "$" + val.identArgJbat;
-      content.add(val); 
+      statements.add(val); 
       onerrorAccu = null; withoutOnerror.add(val);
     } 
     
@@ -1099,7 +1087,7 @@ public class ZGenScript {
     
     /**Set from ZBNF:  (\?*<*dataText>\?) */
     public void add_dataText(Statement val){ 
-      content.add(val);
+      statements.add(val);
       onerrorAccu = null; withoutOnerror.add(val);
     }
     
@@ -1115,9 +1103,9 @@ public class ZGenScript {
       } else {
         cText = text;
       }
-      Statement contentElement = new Statement(this, 't', StringSeq.create(cText));
-      content.add(contentElement);
-      onerrorAccu = null; withoutOnerror.add(contentElement);
+      Statement statement = new Statement(this, 't', StringSeq.create(cText));
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
     }
     
     
@@ -1136,75 +1124,75 @@ public class ZGenScript {
     
     
     public void set_newline(){
-      Statement contentElement = new Statement(this, 'n', null);
-      content.add(contentElement);
-      onerrorAccu = null; withoutOnerror.add(contentElement);
+      Statement statement = new Statement(this, 'n', null);
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
     }
     
 
     public Statement new_forContainer()
-    { Statement contentElement = new Statement(this, 'C', null);
-      content.add(contentElement);
-      onerrorAccu = null; withoutOnerror.add(contentElement);
-      return contentElement;
+    { Statement statement = new Statement(this, 'C', null);
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
     }
     
     public void add_forContainer(Statement val){}
 
 
     public Statement new_whileBlock()
-    { Statement contentElement = new Statement(this, 'w', null);
-      content.add(contentElement);
-      onerrorAccu = null; withoutOnerror.add(contentElement);
-      return contentElement;
+    { Statement statement = new Statement(this, 'w', null);
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
     }
     
     public void add_whileBlock(Statement val){}
 
 
     public Statement new_threadBlock()
-    { Statement contentElement = new Statement(this, 'x', null);
-      content.add(contentElement);
-      onerrorAccu = null; withoutOnerror.add(contentElement);
-      return contentElement;
+    { Statement statement = new Statement(this, 'x', null);
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
     }
     
     public void add_threadBlock(Statement val){}
 
 
     public Statement new_move()
-    { Statement contentElement = new Statement(this, 'm', null);
-      content.add(contentElement);
-      onerrorAccu = null; withoutOnerror.add(contentElement);
-      return contentElement;
+    { Statement statement = new Statement(this, 'm', null);
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
     }
     
     public void add_move(Statement val){}
 
 
     public Statement new_copy()
-    { Statement contentElement = new Statement(this, 'y', null);
-      content.add(contentElement);
-      onerrorAccu = null; withoutOnerror.add(contentElement);
-      return contentElement;
+    { Statement statement = new Statement(this, 'y', null);
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
     }
     
     public void add_copy(Statement val){}
 
 
     public void set_cd(String val)
-    { Statement contentElement = new Statement(this, 'd', null);
-      contentElement.textArg = StringSeq.create(val);
-      content.add(contentElement);
-      onerrorAccu = null; withoutOnerror.add(contentElement);
+    { Statement statement = new Statement(this, 'd', null);
+      statement.textArg = StringSeq.create(val);
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
     }
     
     
     public Statement new_cd(){
-      Statement contentElement = new Statement(this, 'd', null);
-      content.add(contentElement);
-      onerrorAccu = null; withoutOnerror.add(contentElement);
-      return contentElement;
+      Statement statement = new Statement(this, 'd', null);
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
     }
     
     
@@ -1219,7 +1207,7 @@ public class ZGenScript {
     
     public void set_exitScript(int val){
       Statement statement = new ExitStatement(this, val);
-      content.add(statement);
+      statements.add(statement);
     }  
     
     
@@ -1230,7 +1218,7 @@ public class ZGenScript {
 
     
     @Override public String toString()
-    { return "genContent name=" + cmpnName + ":" + content;
+    { return "genContent name=" + cmpnName + ":" + statements;
     }
   }
   
