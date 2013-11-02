@@ -1,5 +1,6 @@
 package org.vishia.util.test;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -71,15 +72,17 @@ public class TestDataAccess
   {
     Object ovalue;
     int ivalue;
+    DataAccess.Dst field = new DataAccess.Dst();
+
     //data from the direct instance. It wraps only 2 invocations of Reflection, more simple as that.
-    ovalue = DataAccess.getDataFromField("testint", dataRoot, true);
+    ovalue = DataAccess.getDataFromField("testint", dataRoot, true, field);
     //assumed that it is an integer or any other numeric field:
     ivalue = DataAccess.getInt(ovalue);
     assert(ovalue instanceof Integer && ivalue == 345);
     //
     //data from the super class. It needs more effort in programming by using reflection.
     //Here it is the same.
-    ovalue = DataAccess.getDataFromField("testint", dataRootDerived, true);
+    ovalue = DataAccess.getDataFromField("testint", dataRootDerived, true, field);
     ivalue = DataAccess.getInt(ovalue);
     assert(ovalue instanceof Integer && ivalue == 678);
     
@@ -103,14 +106,15 @@ public class TestDataAccess
     
     Object ovalue;
     int ivalue;
+    DataAccess.Dst field = new DataAccess.Dst();
     //data from an enclosing instance.
-    ovalue = DataAccess.getDataFromField("testint", dataInner, true);
+    ovalue = DataAccess.getDataFromField("testint", dataInner, true, field);
     //assumed that it is an integer or any other numeric field:
     ivalue = DataAccess.getInt(ovalue);
     assert(ovalue instanceof Integer && ivalue == 345);
     //
     //data from the super class of the enclosing instance.
-    ovalue = DataAccess.getDataFromField("testint", dataInnerDerived, true);
+    ovalue = DataAccess.getDataFromField("testint", dataInnerDerived, true, field);
     ivalue = DataAccess.getInt(ovalue);
     assert(ovalue instanceof Integer && ivalue == 678);
     
@@ -133,7 +137,8 @@ public class TestDataAccess
     path.add(new DataAccess.DatapathElement("refer"));
     path.add(new DataAccess.DatapathElement("testint"));
     //
-    ovalue = DataAccess.getData(path, dataRoot, null, true, false, false);
+    DataAccess.Dst field = new DataAccess.Dst();
+    ovalue = DataAccess.access(path, dataRoot, null, true, false, false, field);
     ivalue = DataAccess.getInt(ovalue);
     assert(ivalue == 7890);
   }
@@ -153,7 +158,8 @@ public class TestDataAccess
     path.add(new DataAccess.DatapathElement("refer"));
     path.add(new DataAccess.DatapathElement("testint"));
     //
-    ovalue = DataAccess.getData(path, null, datapool, true, false, false);
+    DataAccess.Dst field = new DataAccess.Dst();
+    ovalue = DataAccess.access(path, null, datapool, true, false, false, field);
     ivalue = DataAccess.getInt(ovalue);
     assert(ivalue == 7890);
   }

@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.lang.reflect.Field;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -1108,34 +1109,40 @@ public class ZGenExecuter {
       Iterator<DataAccess> iter1 = statement.assignObjs == null ? null : statement.assignObjs.iterator();
       while(assignObj1 !=null) {
         //Object dst = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
-        DataAccess.Variable var = assignObj1.accessVariable(localVariables, bAccessPrivate);
-        char type = var.type();
-        Object dst = var.value();
-        switch(var.type()){
-          case 'A': {
-            throwIllegalDstArgument("assign to appendable faulty", assignObj1, statement); 
-          } break;
-          case 'U': {
-            assert(dst instanceof StringBuilder);            
-            StringBuilder u = (StringBuilder) dst;
-            u.setLength(0);
-            if(!(val instanceof CharSequence)){
-              val = val.toString();
+        DataAccess.Dst dstField = new DataAccess.Dst();
+        Object dst = DataAccess.access(assignObj1.datapath(), null, localVariables, bAccessPrivate, false, true, dstField);
+        if(dst instanceof DataAccess.Variable){
+          DataAccess.Variable var = (DataAccess.Variable) dst; //assignObj1.accessVariable(localVariables, bAccessPrivate);
+          dst = var.value();
+          switch(var.type()){
+            case 'A': {
+              throwIllegalDstArgument("assign to appendable faulty", assignObj1, statement); 
+            } break;
+            case 'U': {
+              assert(dst instanceof StringBuilder);            
+              StringBuilder u = (StringBuilder) dst;
+              u.setLength(0);
+              if(!(val instanceof CharSequence)){
+                val = val.toString();
+              }
+              u.append((CharSequence)val);
+            } break;
+            case 'S':{
+              if(val instanceof String || val instanceof StringSeq && ((StringSeq)val).isUnmated()){
+                var.setValue(val);
+              } else {
+                var.setValue(val.toString());
+              }
+            } break;
+            default:{
+              var.setValue(val);   //sets the value to the variable.
             }
-            u.append((CharSequence)val);
-          } break;
-          case 'S':{
-            if(val instanceof String || val instanceof StringSeq && ((StringSeq)val).isUnmated()){
-              var.setValue(val);
-            } else {
-              var.setValue(val.toString());
-            }
-          } break;
-          default:{
-            var.setValue(val);   //sets the value to the variable.
-          }
-        }//switch
-          
+          }//switch
+        } else {
+          //check whether the field is compatible with val
+          dstField.set(val);
+          //DataAccess.storeValue(assignObj1.datapath(), localVariables, val, bAccessPrivate);
+        }
         if(iter1 !=null && iter1.hasNext()){
           assignObj1 = iter1.next();
         } else {

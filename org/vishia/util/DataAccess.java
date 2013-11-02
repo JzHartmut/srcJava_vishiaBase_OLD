@@ -57,6 +57,8 @@ import java.util.TreeMap;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2013-11-03 Hartmut chg: rename getData(...) to {@link #access(List, Object, Map, boolean, boolean, boolean, Dst)},
+   *   return value Dst for setting. The {@link #storeValue(List, Map, Object, boolean)} may be obsolte now.
    * <li>2013-11-03 Hartmut chg: Handling of variable in {@link #getData(List, Object, Map, boolean, boolean, boolean)}
    * <li>2013-10-27 Hartmut chg: Definition of a String name [= value] in ZGen is handled like assign. Stored with 
    *   {@link DataAccess#storeValue(List, Map, Object, boolean)} with special designation in {@link DataAccess.DatapathElement#whatisit}
@@ -154,6 +156,7 @@ public class DataAccess {
       long val = ((Long)src).longValue();
       return  val <= 0x7fffffffL && val >= 0xFFFFFFFF80000000L;
     }
+    @Override public String toString(){ return "long:int"; }
   };
   
   protected static Conversion number2bool = new Conversion(){
@@ -163,6 +166,7 @@ public class DataAccess {
     @Override public boolean canConvert(Object src){
       return true;
     }
+    @Override public String toString(){ return "number:bool"; }
   };
   
   
@@ -173,6 +177,7 @@ public class DataAccess {
     @Override public boolean canConvert(Object src){
       return true;
     }
+    @Override public String toString(){ return "obj:bool"; }
   };
   
   
@@ -183,6 +188,7 @@ public class DataAccess {
     @Override public boolean canConvert(Object src){
       return true;
     }
+    @Override public String toString(){ return "obj:String"; }
   };
   
   protected static Conversion charSeq2File = new Conversion(){
@@ -192,6 +198,7 @@ public class DataAccess {
     @Override public boolean canConvert(Object src){
       return true;
     }
+    @Override public String toString(){ return "CharSequence:File"; }
   };
   
   protected static Conversion obj2obj = new Conversion(){
@@ -201,9 +208,10 @@ public class DataAccess {
     @Override public boolean canConvert(Object src){
       return true;
     }
+    @Override public String toString(){ return "obj:obj"; }
   };
   
-  static Map<String, Conversion> conversion = initConversion();
+  private static Map<String, Conversion> idxConversions = initConversion();
   
   
   
@@ -233,14 +241,14 @@ public class DataAccess {
    */
   public Object getDataObj( Map<String, DataAccess.Variable> localVariables , boolean accessPrivate, boolean bContainer) 
   throws Exception{
-    return getData(datapath, null, localVariables, accessPrivate, bContainer, false);
+    return access(datapath, null, localVariables, accessPrivate, bContainer, false, null);
   }
 
   
   public Variable accessVariable(Map<String, DataAccess.Variable> localVariables , boolean accessPrivate) 
   throws Exception
   {
-    return (Variable)getData(datapath, null, localVariables, accessPrivate, false, true);
+    return (Variable)access(datapath, null, localVariables, accessPrivate, false, true, null);
   }
   
   
@@ -302,7 +310,7 @@ public class DataAccess {
           throw new IllegalArgumentException("DataAccess.storeValue - destination should be Map<String, DataAccess.Variable>");
         }
       } else {
-        try{ dst2 = DataAccess.getData(element.ident, dst, bAccessPrivate, false);}
+        try{ dst2 = DataAccess.getData(element.ident, dst, bAccessPrivate, false, null);}
         catch(NoSuchFieldException exc){ dst2 = null; }
         if(iter.hasNext()){
           if(dst2 == null){
@@ -413,7 +421,7 @@ public class DataAccess {
    *   Then the param namedDataPool should provide additional data references, which are addressed by the  {@link DatapathElement#ident}
    *   of the first element.
    * <li>If the datapath does not start with a ,,startVariable,, or it is not an environment variable access, the access starts 
-   *   on ghe given datapool. 
+   *   on the given datapool. 
    * </ul>
    * The elements of datapath describe the access to data. Any element before supplies a reference for the path 
    * of the next element.
@@ -449,10 +457,14 @@ public class DataAccess {
    * @param accessPrivate if true then private data are accessed too. The accessing of private data may be helpfully
    *  for debugging. It is not recommended for general purpose! The access mechanism is given with 
    *  {@link java.lang.reflect.Field#setAccessible(boolean)}.
+   * @param bVariable if true then return the {@link Variable} and not its content. If false the return
+   *   the {@link Variable#value()} if a variable is the last element.
    * @param bContainer If the element is a container, returns it. Elsewhere build a List
    *    to return a container for iteration. A container is any object implementing java.util.Map or java.util.Iterable
    *    If a Container with more as one element per key is addressed and bContainer = false, the first found element
-   *    is returned. If bContainer = true then a sub container with all elements with this key are returned. 
+   *    is returned. If bContainer = true then a sub container with all elements with this key are returned.
+   * @param dst If not null then fill the last {@link Field} and the associated Object in the dst.
+   *   It can be used to set the field with a new value.    
    * @return Any data object addressed by the path. Returns null if the last datapath element refers null.
    * <ul>
    * <li>null: returns null
@@ -469,13 +481,14 @@ public class DataAccess {
    * @throws IllegalArgumentException if the datapath does not address an element. The exception message contains a String
    *  as hint which part does not match.
    */
-  public static Object getData(
+  public static Object access(
       List<DatapathElement> datapath
       , Object dataRoot
       , Map<String, DataAccess.Variable> dataPool
       , boolean accessPrivate
       , boolean bContainer
       , boolean bVariable
+      , Dst dst
   )
   throws Exception
   {
@@ -537,7 +550,7 @@ public class DataAccess {
         case '%': data1 = invokeStaticMethod(element); break;
         default:
           if(data1 !=null){
-            data1 = getData(element.ident, data1, accessPrivate, bContainer);
+            data1 = getData(element.ident, data1, accessPrivate, bContainer, dst);
           }
           //else: let data1=null, return null
       }//switch
@@ -883,6 +896,18 @@ public class DataAccess {
   
 
   
+  /**Checks the given type and all its super and interface types.
+   * If actType is an interface, all super interfaces are checked after them.
+   * If actType is a class, all interfaces are checked but not the superclass.
+   * This routine will be called recursively for the interfaces.
+   * To get the interfaces of a class and all super interfaces of an interface,
+   * the routine {@link java.lang.Class#getInterfaces()} is called.
+   * 
+   * @param argType Requested type of the argument
+   * @param ifcType Maybe derived type of the arg
+   * @param arg The argument itself to check value ranges for conversion using {@link Conversion#canConvert(Object)}.
+   * @return null if it does not match, elsewhere a conversion routine for arg.
+   */
   protected static Conversion checkArgTypes(Class<?> argType, Class<?> actType, Object arg){
     Conversion conv = null;
     Class<?> supertype = actType;
@@ -898,19 +923,7 @@ public class DataAccess {
   
 
     
-  /**Checks the given type and all its interface types.
-   * If actType is an interface, all super interfaces are checked after them.
-   * If actType is a class, all interfaces are checked but not the superclass.
-   * This routine will be called recursively for the interfaces.
-   * To get the interfaces of a class and all super interfaces of an interface,
-   * the routine {@link java.lang.Class#getInterfaces()} is called.
-   * 
-   * @param argType Requested type of the argument
-   * @param ifcType Maybe derived type of the arg
-   * @param arg The argument itself to check value ranges for conversion using {@link Conversion#canConvert(Object)}.
-   * @return null if it does not match, elsewhere a conversion routine for arg.
-   */
-  protected static Conversion checkIfcTypes(Class<?> argType, Class<?> ifcType, Object arg){
+  private static Conversion checkIfcTypes(Class<?> argType, Class<?> ifcType, Object arg){
     Conversion conv = checkTypes(argType, ifcType, arg);
     if(conv == null){
       Class<?>[] superIfcs = ifcType.getInterfaces();
@@ -927,11 +940,11 @@ public class DataAccess {
   
   
 
-  protected static Conversion checkTypes(Class<?> argType, Class<?> actType, Object arg){
+  private static Conversion checkTypes(Class<?> argType, Class<?> actType, Object arg){
     if(argType == actType){ return obj2obj; }
     else {
       String conversion2 = actType.getName() + ":" + argType.getName(); //forex "Long:int"
-      Conversion conv = conversion.get(conversion2); //search the conversion
+      Conversion conv = idxConversions.get(conversion2); //search the conversion
       if(conv !=null && !conv.canConvert(arg)){
         conv = null;    //arg does not match.
       }
@@ -968,7 +981,8 @@ public class DataAccess {
       String name
       , Object instance
       , boolean accessPrivate
-      , boolean bContainer) 
+      , boolean bContainer
+      , Dst dst) 
   throws NoSuchFieldException, IllegalAccessException
   {
     Object data1 = null;
@@ -981,7 +995,7 @@ public class DataAccess {
       data1 = ((Map<?,?>)instance).get(name);
     } else {
       try{
-        data1 = getDataFromField(name, instance, accessPrivate);
+        data1 = getDataFromField(name, instance, accessPrivate, dst);
       }catch(NoSuchFieldException exc){
         //NOTE: if it is a TreeNodeBase, first search a field with the name, then search in data
         if(instance instanceof TreeNodeBase<?,?,?>){
@@ -1017,13 +1031,14 @@ public class DataAccess {
    * @throws NoSuchFieldException If the field does not exist in the obj
    * @throws IllegalAccessException if the field exists but is not accessible.
    */
-  public static Object getDataFromField(String name, Object obj, boolean accessPrivate)
+  public static Object getDataFromField(String name, Object obj, boolean accessPrivate, Dst dst)
   throws NoSuchFieldException, IllegalAccessException {
-    return getDataFromField(name, obj, accessPrivate, obj.getClass(), 0);
+    return getDataFromField(name, obj, accessPrivate, obj.getClass(), dst, 0);
   }
   
   
-  private static Object getDataFromField(String name, Object obj, boolean accessPrivate, Class<?> clazz, int recursiveCt)
+  private static Object getDataFromField(String name, Object obj, boolean accessPrivate
+      , Class<?> clazz, Dst dst, int recursiveCt)
   throws NoSuchFieldException, IllegalAccessException {
     if(recursiveCt > 100) throw new IllegalArgumentException("recursion error");
     Object ret = null;
@@ -1032,6 +1047,10 @@ public class DataAccess {
     try{ 
       Field field = clazz.getDeclaredField(name); 
       field.setAccessible(accessPrivate);
+      if(dst !=null){ 
+        dst.field = field;
+        dst.obj = obj;
+      }
       ret = field.get(obj);
       
     }
@@ -1040,7 +1059,7 @@ public class DataAccess {
       Class<?> superClazz = clazz2 = clazz.getSuperclass();
       if(superClazz !=null){
         try{
-          ret = getDataFromField(name, obj, accessPrivate, superClazz, recursiveCt+1);  //searchs in thats enclosing and super classes.  
+          ret = getDataFromField(name, obj, accessPrivate, superClazz, dst, recursiveCt+1);  //searchs in thats enclosing and super classes.  
           bSearchSuperOuter = false;
         }catch(NoSuchFieldException exc){
           //not found in the super hierarchie:
@@ -1053,7 +1072,7 @@ public class DataAccess {
       if(outerClazz !=null){
         Object outer = getEnclosingInstance(obj);
         try{
-          ret = getDataFromField(name, outer, accessPrivate, outerClazz, recursiveCt+1);  //searchs in thats enclosing and super classes.  
+          ret = getDataFromField(name, outer, accessPrivate, outerClazz, dst, recursiveCt+1);  //searchs in thats enclosing and super classes.  
           bSearchSuperOuter = false;
         }catch(NoSuchFieldException exc){
           //not found in the super hierarchie:
@@ -1503,6 +1522,29 @@ public class DataAccess {
     }
   }
 
+  
+  
+  
+  public static class Dst
+  {
+    protected Field field;
+    
+    protected Object obj;
+    
+    public void set(Object val) throws IllegalArgumentException, IllegalAccessException
+    {
+      Conversion conversion = checkArgTypes(field.getType(), val.getClass(), val);
+      if(conversion !=null){ 
+        Object val2 = conversion.convert(val);
+        field.set(obj, val2);
+      }
+      else throw new IllegalArgumentException("DataAccess - cannot assign; " + field + " = " + val);
+      
+    }
+    
+  }
+  
+  
   
   /**This class wraps any Object which is used for a variable. A variable is member of a 
    * container <code>Map< String, DataAccess.Variabel></code> which is used to access in the {@link DataAccess}
