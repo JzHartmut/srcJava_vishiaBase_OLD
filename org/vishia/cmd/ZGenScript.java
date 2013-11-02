@@ -118,7 +118,8 @@ public class ZGenScript {
    */
   Statement scriptFile;
   
-  
+  /**The class which presents the script level. */
+  ZGenClass scriptClass;
   
   //public String scriptclassMain;
 
@@ -127,6 +128,7 @@ public class ZGenScript {
 
   }
 
+  public ZGenClass scriptClass(){ return scriptClass; }
   
   
   public void setFromIncludedScript(ZbnfMainGenCtrl includedScript){
@@ -134,8 +136,8 @@ public class ZGenScript {
       //use the last found main, also from a included script but firstly from main.
       scriptFile = includedScript.getMainRoutine();   
     }
-    if(includedScript.statements !=null){
-      listScriptVariables.addAll(includedScript.statements);
+    if(includedScript.outer.scriptClass.statements !=null){
+      listScriptVariables.addAll(includedScript.outer.scriptClass.statements);
     }
 
   }
@@ -1262,6 +1264,12 @@ public class ZGenScript {
     
     final Map<String, Statement> subScripts = new TreeMap<String, Statement>();
     
+    protected ZGenClass(){}
+    
+    
+    public final List<ZGenClass> classes(){ return classes; }
+    
+    public final Map<String, Statement> subScripts(){ return subScripts; }
     
     public ZGenClass new_subClass(){ return new ZGenClass(); }
     
@@ -1312,9 +1320,11 @@ public class ZGenScript {
    * ZmakeGenctrl::= { <target> } \e.
    * </pre>
    */
-  public final class ZbnfMainGenCtrl extends ZGenClass
+  public final static class ZbnfMainGenCtrl extends ZGenClass
   {
 
+    protected final ZGenScript outer;
+    
     //public String scriptclass;
     
     public List<String> includes;
@@ -1324,6 +1334,14 @@ public class ZGenScript {
      * It shall contain calling of <code><*subtext:name:...></code> 
      */
     Statement mainScript;
+    
+    
+    
+    public ZbnfMainGenCtrl(ZGenScript outer){
+      outer.super();   //ZGenClass is non-static, enclosing is outer.
+      this.outer = outer;
+      outer.scriptClass = outer.new ZGenClass();
+    }
     
     /**Returns the main routine which may be parsed in this maybe included script. */
     public Statement getMainRoutine(){ return mainScript; }
@@ -1338,7 +1356,7 @@ public class ZGenScript {
     //public void add_ZmakeTarget(Statement val){ zmakeTargets.put(val.name, val); }
     
     
-    public Statement new_mainScript(){ return mainScript = new Statement(this, 'Y', null); }
+    public Statement new_mainScript(){ return mainScript = new Statement(outer.scriptClass, 'Y', null); }
     
     public void add_mainScript(Statement val){  }
     

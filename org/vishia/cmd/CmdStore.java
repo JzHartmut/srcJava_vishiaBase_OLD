@@ -84,6 +84,8 @@ public class CmdStore
      * */
     public String title;
     
+    public final int level;
+    
     /**Some commands of this block. */
     public final List<PrepareCmd> listBlockCmds = new LinkedList<PrepareCmd>();
 
@@ -92,10 +94,12 @@ public class CmdStore
     
     public CmdBlock(){
       jbatSub = null;
+      this.level = 1;
     }
     
-    public CmdBlock(ZGenScript.Statement jbatSub){
+    public CmdBlock(ZGenScript.Statement jbatSub, int level){
       this.jbatSub = jbatSub;
+      this.level = level;
       this.name = jbatSub.getIdent();
     }
     
@@ -172,8 +176,9 @@ public class CmdStore
     
     //ZGen zbatch = new ZGen(log);
     ZGenScript script = ZGen.translateAndSetGenCtrl(cfgFile, new File(cfgFile.getParentFile(), cfgFile.getName() + ".check.xml"), log);
+    /////script.
     for(Map.Entry<String, Statement> e: script.subScriptsAll.entrySet()){
-      CmdBlock cmdBlock = new CmdBlock(e.getValue());
+      CmdBlock cmdBlock = new CmdBlock(e.getValue(), 1);
       add_CmdBlock(cmdBlock);
     }
     return script;
