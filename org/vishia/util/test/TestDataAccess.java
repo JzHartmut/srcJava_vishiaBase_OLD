@@ -133,7 +133,7 @@ public class TestDataAccess
     path.add(new DataAccess.DatapathElement("refer"));
     path.add(new DataAccess.DatapathElement("testint"));
     //
-    ovalue = DataAccess.getData(path, dataRoot, null, true, false);
+    ovalue = DataAccess.getData(path, dataRoot, null, true, false, false);
     ivalue = DataAccess.getInt(ovalue);
     assert(ivalue == 7890);
   }
@@ -153,7 +153,7 @@ public class TestDataAccess
     path.add(new DataAccess.DatapathElement("refer"));
     path.add(new DataAccess.DatapathElement("testint"));
     //
-    ovalue = DataAccess.getData(path, null, datapool, true, false);
+    ovalue = DataAccess.getData(path, null, datapool, true, false, false);
     ivalue = DataAccess.getInt(ovalue);
     assert(ivalue == 7890);
   }

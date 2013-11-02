@@ -171,7 +171,7 @@ public class ZGenExecuter {
   
   public void setOutfile(Appendable outfile){ 
     this.outFile = outfile; 
-    scriptVariables.put("text", new DataAccess.Variable('U', "text", outfile));
+    scriptVariables.put("text", new DataAccess.Variable('A', "text", outfile));
   }
   
   public Appendable outFile(){ return outFile; }
@@ -234,7 +234,7 @@ public class ZGenExecuter {
     for(ZGenScript.Statement scriptVariableScript: genScript.getListScriptVariables()){
       try{
         Object value;
-        switch(scriptVariableScript.elementType){
+        switch(scriptVariableScript.elementType()){
           case 'S':  value = genVariable.evalString(scriptVariableScript); break;
           case 'J':  value = genVariable.evalObject(scriptVariableScript, true); break;
           default: value = "???";
@@ -502,7 +502,7 @@ public class ZGenExecuter {
         ZGenScript.Statement statement = contentScript.statements.get(ixStatement); //iter.next();
         //for(TextGenScript.ScriptElement statement: contentScript.content){
         try{    
-          switch(statement.elementType){
+          switch(statement.elementType()){
           case 't': { 
             int posLine = 0;
             int posEnd;
@@ -524,14 +524,11 @@ public class ZGenExecuter {
             uBuffer.append(newline);
           } break;
           case 'T': textAppendToVarOrOut(statement); break; 
-          case 'S': assignExpr(statement); break; //setStringVariable(statement); break; 
+          case 'U': defineExpr(statement); break; //setStringVariable(statement); break; 
+          case 'S': defineExpr(statement); break; //setStringVariable(statement); break; 
           case 'P': { //create a new local variable as pipe
             StringBuilder uBufferVariable = new StringBuilder();
             setLocalVariable(statement.identArgJbat, 'P', uBufferVariable);
-          } break;
-          case 'U': { //create a new local variable as pipe
-            StringBuilder uBufferVariable = new StringBuilder();
-            setLocalVariable(statement.identArgJbat, 'A', uBufferVariable);
           } break;
           case 'L': {
             Object value = evalObject(statement, true); 
@@ -567,11 +564,12 @@ public class ZGenExecuter {
             executeIfContainerHasNext(statement, out, bContainerHasNext);
           } break;
           case '=': assignExpr(statement); break;
+          case '+': appendExpr(statement); break;
           case 'b': sError = "break"; break;
           case '?': break;  //don't execute a onerror, skip it.
           case 'z': throw new ZGenExecuter.ExitException(((ZGenScript.ExitStatement)statement).exitValue);  
           default: 
-            uBuffer.append("Jbat - execute-unknown type; '" + statement.elementType + "' :ERROR=== ");
+            uBuffer.append("Jbat - execute-unknown type; '" + statement.elementType() + "' :ERROR=== ");
           }//switch
           
         } catch(Exception exc){
@@ -587,7 +585,7 @@ public class ZGenExecuter {
           else { excType = 'i'; }
           //Search the block of onerror after this statement.
           //Maybe use an index in any statement, to prevent search time.
-          while(++ixStatement < contentScript.statements.size() && (statement = contentScript.statements.get(ixStatement)).elementType != '?');
+          while(++ixStatement < contentScript.statements.size() && (statement = contentScript.statements.get(ixStatement)).elementType() != '?');
           if(ixStatement < contentScript.statements.size()){
             //onerror-block found.
             do { //search the appropriate error type:
@@ -598,7 +596,7 @@ public class ZGenExecuter {
                 )  ){
                 found = excType != 'e' || errLevel >= errorStatement.errorLevel;  //if exit exception, then check errlevel
               }
-            } while(!found && ++ixStatement < contentScript.statements.size() && (statement = contentScript.statements.get(ixStatement)).elementType == '?');
+            } while(!found && ++ixStatement < contentScript.statements.size() && (statement = contentScript.statements.get(ixStatement)).elementType() == '?');
           }
           if(found){
             String sError1 = exc.getMessage();
@@ -679,7 +677,7 @@ public class ZGenExecuter {
       boolean found = false;  //if block found
       while(iter.hasNext() && !found ){
         ZGenScript.Statement statement = iter.next();
-        switch(statement.elementType){
+        switch(statement.elementType()){
           case 'G': { //if-block
             boolean hasNext = iter.hasNext();
             found = executeIfBlock((ZGenScript.IfCondition)statement, out, hasNext);
@@ -690,7 +688,7 @@ public class ZGenExecuter {
             }
           } break;
           default:{
-            out.append(" ===ERROR: unknown type '" + statement.elementType + "' :ERROR=== ");
+            out.append(" ===ERROR: unknown type '" + statement.elementType() + "' :ERROR=== ");
           }
         }//switch
       }//for
@@ -1106,15 +1104,120 @@ public class ZGenExecuter {
     throws IllegalArgumentException, Exception
     {
       Object val = evalObject(statement, false);
-      if(statement.variable !=null){
-        statement.variable.storeValue(localVariables, val, bAccessPrivate);
-      }
-      if(statement.assignObjs !=null){ ////
-        for(DataAccess assignObj1 : statement.assignObjs){
-          DataAccess.storeValue(assignObj1.datapath(), localVariables, val, bAccessPrivate);
+      DataAccess assignObj1 = statement.variable;
+      Iterator<DataAccess> iter1 = statement.assignObjs == null ? null : statement.assignObjs.iterator();
+      while(assignObj1 !=null) {
+        //Object dst = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
+        DataAccess.Variable var = assignObj1.accessVariable(localVariables, bAccessPrivate);
+        char type = var.type();
+        Object dst = var.value();
+        switch(var.type()){
+          case 'A': {
+            throwIllegalDstArgument("assign to appendable faulty", assignObj1, statement); 
+          } break;
+          case 'U': {
+            assert(dst instanceof StringBuilder);            
+            StringBuilder u = (StringBuilder) dst;
+            u.setLength(0);
+            if(!(val instanceof CharSequence)){
+              val = val.toString();
+            }
+            u.append((CharSequence)val);
+          } break;
+          case 'S':{
+            if(val instanceof String || val instanceof StringSeq && ((StringSeq)val).isUnmated()){
+              var.setValue(val);
+            } else {
+              var.setValue(val.toString());
+            }
+          } break;
+          default:{
+            var.setValue(val);   //sets the value to the variable.
+          }
+        }//switch
+          
+        if(iter1 !=null && iter1.hasNext()){
+          assignObj1 = iter1.next();
+        } else {
+          assignObj1 = null;
         }
       }
+    }
+    
+    
+    
+    
+    
+    
+    /**Executes a <code>DefObjVar::= < variable?defVariable>  [ = < objExpr?>]</code>.
+     * If the datapath to assign is only a localVariable (one simple name), then the expression
+     * is assigned to this local variable, a new variable will be created.
+     * If the datapath to assign is more complex, the object which is described with it
+     * will be gotten. Then an assignment will be done depending on its type:
+     * <ul>
+     * <li>Appendable: appends the gotten expression.toString(). An Appendable may be especially
+     * <li>All others cause an error. 
+     * </ul>
+     * @param statement
+     * @throws IllegalArgumentException
+     * @throws Exception
+     */
+    void defineExpr(ZGenScript.Statement statement) 
+    throws IllegalArgumentException, Exception
+    {
+      Object init = evalObject(statement, false);  //maybe null
+      Object val;
+      switch(statement.elementType()){
+        case 'U': {
+          if(init == null){
+            val = new StringBuilder(256);
+          } else {
+            CharSequence init1 = init instanceof CharSequence ? (CharSequence)init : init.toString();
+            val = new StringBuilder(init1);
+          }
+        } break;
+        case 'S':{
+          if(init == null || init instanceof String || init instanceof StringSeq && ((StringSeq)init).isUnmated()){
+            val = init;
+          } else {
+            val = init.toString();
+          }
+        } break;
+        default: val = init;
+      }
+      statement.variable.storeValue(localVariables, val, bAccessPrivate);
       
+    }
+    
+    
+    
+    /**Executes a <code>appendExpr::= [{ < datapath?assign > += }] < expression > ;.</code>.
+     * @param statement
+     * @throws IllegalArgumentException
+     * @throws Exception
+     */
+    void appendExpr(ZGenScript.Statement statement) 
+    throws IllegalArgumentException, Exception
+    {
+      Object val = evalObject(statement, false);
+      DataAccess assignObj1 = statement.variable;
+      Iterator<DataAccess> iter1 = statement.assignObjs == null ? null : statement.assignObjs.iterator();
+      while(assignObj1 !=null) {
+        Object dst = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
+        if(dst instanceof Appendable){
+          if(!(val instanceof CharSequence)){
+            val = val.toString();
+          }
+          ((Appendable) dst).append((CharSequence)val);
+        } else {
+          throwIllegalDstArgument("dst should be Appendable", assignObj1, statement);
+        }
+        if(iter1 !=null && iter1.hasNext()){
+          assignObj1 = iter1.next();
+        } else {
+          assignObj1 = null;
+        }
+      }
     }
     
     
@@ -1195,7 +1298,7 @@ public class ZGenExecuter {
       u.append("ZGen - ").append(text).append(";").append(dst);
       u.append("; in file ").append(statement.parentList.srcFile);
       u.append(", line ").append(statement.srcLine).append(" col ").append(statement.srcColumn);
-      throw new IllegalArgumentException();
+      throw new IllegalArgumentException(u.toString());
     }
     
   }    

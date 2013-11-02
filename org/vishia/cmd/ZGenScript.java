@@ -197,6 +197,8 @@ public class ZGenScript {
     
     
     public Argument(StatementList parentList){
+      if(parentList == null)
+        Assert.stop();
       this.parentList = parentList;
     }
     
@@ -335,7 +337,7 @@ public class ZGenScript {
      * <tr><td>xxxX</td><td>a subtext definition</td></tr>
      * </table> 
      */
-    final public char elementType;    
+    private char elementType;    
     
     
     /**Any variable given by name or java instance  which is used to assign to it.
@@ -381,7 +383,7 @@ public class ZGenScript {
       }
     }
     
-    
+    /*package private*/ char elementType(){ return elementType; }
     
     public List<Argument> getReferenceDataSettings(){ return arguments; }
     
@@ -439,13 +441,13 @@ public class ZGenScript {
     
     /**Defines a variable which is able to use as String buffer.
      */
-    public Statement new_StringAppend(){
+    public Statement new_StringBuffer(){
       if(statementlist == null){ statementlist = new StatementList(this); }
       statementlist.bContainsVariableDef = true; 
       return new Statement(parentList, 'U', null); 
     } 
 
-    public void add_StringAppend(Statement val){ statementlist.statements.add(val);  statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
+    public void add_StringBuffer(Statement val){ statementlist.statements.add(val);  statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
     
         
     /**Defines a variable which is able to use as container.
@@ -584,6 +586,12 @@ public class ZGenScript {
     
     public void add_statementBlock(Statement val){}
 
+    
+    public void set_append(){
+      if(elementType == '='){ elementType = '+'; }
+      else throw new IllegalArgumentException("ZGenScript - unexpected set_append");
+    }
+    
     
     public Onerror new_onerror(){
       return new Onerror(parentList);
@@ -880,6 +888,8 @@ public class ZGenScript {
       case 'x': return "thread";
       case 'y': return "copy";
       case 'z': return "exit";
+      case '=': return "assignExpr";
+      case '+': return "appendExpr";
       default: return "(??" + elementType + " " + textArg + "?)";
       }
     }
@@ -1077,7 +1087,7 @@ public class ZGenScript {
      * Handle in the same kind like a String variable
      */
     public Statement new_setEnvVar(){ 
-      return new Statement(null, 'S', null); 
+      return new Statement(this, 'S', null); 
     } 
 
     /**Defines or changes an environment variable with value. set NAME = TEXT;
@@ -1260,7 +1270,7 @@ public class ZGenScript {
       classes.add(val); 
     }
     
-    public Statement new_subScript(){ return new Statement(null, 'X', null); }
+    public Statement new_subScript(){ return new Statement(this, 'X', null); }
     
     public void add_subScript(Statement val){ 
       if(val.identArgJbat == null){
@@ -1274,14 +1284,14 @@ public class ZGenScript {
     
     /**Defines a variable with initial value. <= <variableDef?textVariable> \<\.=\>
      */
-    public Statement new_textVariable(){ return new Statement(null, 'S', null); }
+    public Statement new_textVariable(){ return new Statement(this, 'S', null); }
 
     public void add_textVariable(Statement val){ listScriptVariables.add(val); } 
     
     
     /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
      */
-    public Statement new_objVariable(){ return new Statement(null, 'J', null); } ///
+    public Statement new_objVariable(){ return new Statement(this, 'J', null); } ///
 
     public void add_objVariable(Statement val){ listScriptVariables.add(val); } 
     
@@ -1328,7 +1338,7 @@ public class ZGenScript {
     //public void add_ZmakeTarget(Statement val){ zmakeTargets.put(val.name, val); }
     
     
-    public Statement new_mainScript(){ return mainScript = new Statement(null, 'Y', null); }
+    public Statement new_mainScript(){ return mainScript = new Statement(this, 'Y', null); }
     
     public void add_mainScript(Statement val){  }
     

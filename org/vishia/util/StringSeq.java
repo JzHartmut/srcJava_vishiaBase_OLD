@@ -79,7 +79,7 @@ public class StringSeq implements CharSequence
   
   /**An instance of this class can only build by this create method. The property whether it is unmated or not
    * should be given by the application. 
-   * @param src any CharSequence, usual a {@link java.lang.StringBuilder}.
+   * @param src any CharSequence, usual a {@link java.lang.StringBuilder}. It should be referenced never other.
    * @param isUnmated it should be set to true if the src is not referred anywhere else.
    * @return a new instance of StringSeq 
    */
@@ -90,6 +90,8 @@ public class StringSeq implements CharSequence
     return ret;
   }
   
+  
+  public boolean isUnmated(){ return isUnmated; }
   
   public void change(CharSequence src){
     cs = src;

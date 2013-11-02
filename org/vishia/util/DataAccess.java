@@ -57,6 +57,7 @@ import java.util.TreeMap;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2013-11-03 Hartmut chg: Handling of variable in {@link #getData(List, Object, Map, boolean, boolean, boolean)}
    * <li>2013-10-27 Hartmut chg: Definition of a String name [= value] in ZGen is handled like assign. Stored with 
    *   {@link DataAccess#storeValue(List, Map, Object, boolean)} with special designation in {@link DataAccess.DatapathElement#whatisit}
    *   with 'new Variable' designation.
@@ -232,9 +233,15 @@ public class DataAccess {
    */
   public Object getDataObj( Map<String, DataAccess.Variable> localVariables , boolean accessPrivate, boolean bContainer) 
   throws Exception{
-    return getData(datapath, null, localVariables, accessPrivate, bContainer);
+    return getData(datapath, null, localVariables, accessPrivate, bContainer, false);
   }
 
+  
+  public Variable accessVariable(Map<String, DataAccess.Variable> localVariables , boolean accessPrivate) 
+  throws Exception
+  {
+    return (Variable)getData(datapath, null, localVariables, accessPrivate, false, true);
+  }
   
   
   /**Stores the given value in the element determined by the data path, maybe create a new Variable therewith.
@@ -444,7 +451,20 @@ public class DataAccess {
    *  {@link java.lang.reflect.Field#setAccessible(boolean)}.
    * @param bContainer If the element is a container, returns it. Elsewhere build a List
    *    to return a container for iteration. A container is any object implementing java.util.Map or java.util.Iterable
+   *    If a Container with more as one element per key is addressed and bContainer = false, the first found element
+   *    is returned. If bContainer = true then a sub container with all elements with this key are returned. 
    * @return Any data object addressed by the path. Returns null if the last datapath element refers null.
+   * <ul>
+   * <li>null: returns null
+   * <li>Variable: bVariable = true: returns it
+   * <li>Variable: bVariable = false: access to its {@link Variable#value()}, then the other rules.
+   * <li>Iterable: returns it
+   * <li>Map: returns it
+   * <li>any Object: bContainer = true: returns a {@link List} with this Object as member.
+   * <li>any Object: bContainer = false: returns it 
+   * <li>Not found: throws an {@link NoSuchFieldException} or {@link NoSuchMethodException}
+   * <li>Any Exception while invocation of methods: throws it. 
+   * </ul>
    * @throws Throwable 
    * @throws IllegalArgumentException if the datapath does not address an element. The exception message contains a String
    *  as hint which part does not match.
@@ -453,7 +473,10 @@ public class DataAccess {
       List<DatapathElement> datapath
       , Object dataRoot
       , Map<String, DataAccess.Variable> dataPool
-      , boolean accessPrivate, boolean bContainer)
+      , boolean accessPrivate
+      , boolean bContainer
+      , boolean bVariable
+  )
   throws Exception
   {
     for(DataAccess.DatapathElement dataElement : datapath){  //loop over all elements of the path with or without arguments.
@@ -486,17 +509,19 @@ public class DataAccess {
       if(dataPool ==null){
         throw new NoSuchFieldException("DataAccess.getData - missing-datapool;");
       }
-      Variable var = dataPool.get(element.ident);  //maybe null if the value of the key is null.
-      if(var == null ){
+      data1 = dataPool.get(element.ident);  //maybe null if the value of the key is null.
+      if(data1 == null ){
         throw new NoSuchFieldException("DataAccess.getData - not found in  datapool; " + element.ident + "; datapool contains; " + dataPool.toString() );
-      } else {
-        data1 = var.value; //data1 maybe ==null if the key was found but the val is null. 
       }
       element = iter.hasNext() ? iter.next() : null;
     } else {
       data1 = dataRoot;
     }
     while(element !=null){
+      //has a next element
+      if(data1 instanceof Variable){
+        data1 = ((Variable)data1).value;  //take the content of a variable!
+      }
       if(element.ident.equals("test2String"))
         Assert.stop();
       switch(element.whatisit) {
@@ -516,18 +541,29 @@ public class DataAccess {
           }
           //else: let data1=null, return null
       }//switch
-      if(data1 instanceof Variable){  //use the value of the variable.
-        data1 = ((Variable)data1).value;
-      }
       element = iter.hasNext() ? iter.next() : null;
     }
-    if(data1 !=null && bContainer && !((data1 instanceof Iterable<?>)||data1 instanceof Map)){ //should return a container
-      List<Object> list1 = new LinkedList<Object>();
-      list1.add(data1);
-      data1 = list1;
+    //return
+    if(data1 instanceof Variable){  //use the value of the variable.
+      if(bVariable) return data1;
+      else data1 = ((Variable)data1).value;
     }
-    return data1;
+    if(data1 == null) return null;
+    else if(bContainer){
+      //should return a container
+      if(data1 instanceof Iterable<?> || data1 instanceof Map<?,?>) return data1;
+      else {
+        //Build a container if only one element is addressed.
+        List<Object> list1 = new LinkedList<Object>();
+        list1.add(data1);
+        return list1;
+      }
+    }
+    else return data1;
   }
+
+  
+  
   
   
   
@@ -1136,12 +1172,12 @@ public class DataAccess {
   
   
   
-  /**Sets a value to a simple exisiting or non existing variable.
+  /**Sets a value to a simple existing or non existing variable.
    * If the variable does not exists, it is created of type 'O'.
-   * If the variable exists, only its value will be chaned.
+   * If the variable exists, only its value will be changed.
    * @param map
    * @param name
-   * @param type one of A O S L V E = Appendable, Object, String, ListContainer, VariableTree, EnvironmentVariable
+   * @param type one of A O S U L V E = Appendable, Object, String, StringBuilder, ListContainer, VariableTree, EnvironmentVariable
    * @param content
    */
   public static void setVariable(Map<String, Variable> map, String name, char type, Object content){
@@ -1509,7 +1545,9 @@ public class DataAccess {
     
     public char type(){ return type; }
     
-    public void setValue(Object value){ this.value = value; } 
+    public void setValue(Object value){ this.value = value; }
+    
+    @Override public String toString(){ return "Variable " + type + " " + name + " = " + value; }
   }
   
 
