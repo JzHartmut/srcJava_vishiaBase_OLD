@@ -1340,7 +1340,7 @@ public class ZGenScript {
     public ZbnfMainGenCtrl(ZGenScript outer){
       outer.super();   //ZGenClass is non-static, enclosing is outer.
       this.outer = outer;
-      outer.scriptClass = outer.new ZGenClass();
+      outer.scriptClass = this; //outer.new ZGenClass();
     }
     
     /**Returns the main routine which may be parsed in this maybe included script. */

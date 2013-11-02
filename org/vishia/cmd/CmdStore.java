@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -92,6 +93,11 @@ public class CmdStore
     /**Any Jbat subroutine which should be invoked instead of the {@link #listBlockCmds}. */
     protected final ZGenScript.Statement jbatSub;
     
+    
+    /**Contains all commands read from the configuration file in the read order. */
+    protected List<CmdBlock> listSubCmds;
+
+    
     public CmdBlock(){
       jbatSub = null;
       this.level = 1;
@@ -176,14 +182,39 @@ public class CmdStore
     
     //ZGen zbatch = new ZGen(log);
     ZGenScript script = ZGen.translateAndSetGenCtrl(cfgFile, new File(cfgFile.getParentFile(), cfgFile.getName() + ".check.xml"), log);
-    /////script.
+    addSubOfZgenclass(listCmds, script.scriptClass(), 1);
+    /*
     for(Map.Entry<String, Statement> e: script.subScriptsAll.entrySet()){
       CmdBlock cmdBlock = new CmdBlock(e.getValue(), 1);
       add_CmdBlock(cmdBlock);
     }
+    */
     return script;
   }
 
+  
+  
+  private void addSubOfZgenclass(List<CmdBlock> list, ZGenScript.ZGenClass zgenClass, int level){
+    if(zgenClass.classes !=null) for(ZGenScript.ZGenClass zgenClassSub : zgenClass.classes){
+      CmdBlock cmdBlock = new CmdBlock();
+      list.add(cmdBlock); 
+      cmdBlock.name = zgenClassSub.cmpnName;
+      //cmdBlock.listSubCmds = new ArrayList<CmdBlock>();
+      //addSubOfZgenclass(cmdBlock.listSubCmds, zgenClassSub, level+1);
+      addSubOfZgenclass(list, zgenClassSub, level+1);
+    }
+    if(zgenClass.subScripts !=null) for(Map.Entry<String, Statement> e: zgenClass.subScripts.entrySet()){
+      Statement subRoutine = e.getValue();
+      CmdBlock cmdBlock = new CmdBlock(subRoutine, level);
+      list.add(cmdBlock); 
+      idxCmd.put(cmdBlock.name, cmdBlock);
+      //add_CmdBlock(cmdBlock);
+    }
+  }
+  
+  
+  
+  
   
   public String readCmdCfg(File cfgFile, MainCmdLogging_ifc log, CmdQueue executerToInit)
   { String error = readCmdCfgOld(cfgFile);
