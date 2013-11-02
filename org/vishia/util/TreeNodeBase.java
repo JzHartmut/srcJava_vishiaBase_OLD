@@ -133,6 +133,7 @@ implements SortedTree<IfcType>
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-11-03 Hartmut new: {@link #addNode(TreeNodeBase, int)} not on end.
    * <li>2013-11-03 Hartmut new: {@link #next}, {@link #prev} and {@link #lastChild} for sibling navigation. 
    * <li>2013-03-02 Hartmut chg: Usage of ArrayList instead LinkedList for children- better ability to debug.
    * <li>2012-11-03 Hartmut new: Generic type DerivedNode and IfcType to support derived types of this. The returned
@@ -183,7 +184,7 @@ implements SortedTree<IfcType>
   protected final String key;
   
   /**The parent, the siblings, the last child. */
-  public TreeNodeBase<DerivedNode,Data, ?> parent, prev, next, lastChild;
+  public TreeNodeBase<DerivedNode,Data, ?> parent, prev, next; //, lastChild;
   
   /**The List of child nodes in order of adding. All nodes in this list are type of the DerivedNode. 
    */
@@ -265,7 +266,7 @@ implements SortedTree<IfcType>
   }
   
   
-  
+
   /**Adds a given child node.
    * 
    * @param itsKey The key may be free defined outside, independent of the content of the child. 
@@ -273,9 +274,24 @@ implements SortedTree<IfcType>
    * @param leaf The data of the node.
    */
   public void addNode(DerivedNode childNode)
+  {
+    addNode(childNode, -1);
+  }
+  
+  
+  
+  /**Adds a given child node.
+   * 
+   * @param itsKey The key may be free defined outside, independent of the content of the child. 
+   *        This key is used to find out children.
+   * @param leaf The data of the node.
+   */
+  public void addNode(DerivedNode childNode, int ix)
   { if(childNode.parent !=null){
       throw new IllegalArgumentException("Node has a parent, it is contained anywhere other, invoke detach!");
     }
+    int zLine = childNodes == null ? 0 : childNodes.size();
+    int ix1 =  ix > zLine || ix < 0 ? zLine : ix;  //append on end on ix=-1 or ix > size
     if(childNode.key == null){
       childNode.parent = this;  //without key, the parent is this. See metaNode
     } 
@@ -310,12 +326,24 @@ implements SortedTree<IfcType>
     if(childNodes == null){ 
       childNodes = new ArrayList<DerivedNode>();
     }
-    childNodes.add(childNode);  //parent refers this or metaNode.
+    if(ix1 > 0){
+      TreeNodeBase<DerivedNode,Data, ?> prevChild = childNodes.get(ix1-1);
+      childNode.prev = prevChild;
+      prevChild.next = childNode;
+    }
+    if(ix1 < zLine){
+      TreeNodeBase<DerivedNode,Data, ?> nextChild = childNodes.get(ix1);
+      childNode.next = nextChild;
+      nextChild.prev = childNode;
+    }
+    childNodes.add(ix1, childNode);  //parent refers this or metaNode.
+    /*
     childNode.prev = lastChild;
     if(lastChild !=null){
       lastChild.next = childNode;
     }
     lastChild = childNode;
+    */
   }
   
 
@@ -345,9 +373,11 @@ implements SortedTree<IfcType>
       }
       parent = null;
     }
+    /*
     if(parent.lastChild == this){
       parent.lastChild = prev;
     }
+    */
     if(prev !=null){
       prev.next = this.next;
       prev = null;

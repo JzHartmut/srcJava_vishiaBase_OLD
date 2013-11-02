@@ -1171,9 +1171,11 @@ public class FileSystem
       }
       if(posBehind <0 || bAllTree){
         File[] files = fDir.listFiles(filterName);
-        for(File file: files)
-        { //if(file.isFile())
-          { listFiles.add(file);
+        if(files !=null){
+          for(File file: files)
+          { //if(file.isFile())
+            { listFiles.add(file);
+            }
           }
         }
       }
