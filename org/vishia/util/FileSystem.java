@@ -1151,18 +1151,20 @@ public class FileSystem
           bFound = addFileToList(listFiles, fDir, sPathSub, posWildcardSub, filterName,filterAlldir, recursivect +1);
         } else {
           String[] sFiles = fDir.list();
-          for(String sFile: sFiles){
-            File dirSub;
-            if( (  bAllTree
-                || filterDir !=null    && filterDir.accept(fDir, sFile)
-                || filterAlldir !=null && filterAlldir.accept(fDir, sFile)
-                )
-                && (dirSub = new File(fDir, sFile)).isDirectory()
-                ){
-              if(sFile.equals("ZBNF"))
-                Assert.stop();
-              //dirSub is matching to the filterAlldir:
-              bFound = addFileToList(listFiles, dirSub, sPathSub, posWildcardSub, filterName,filterAlldir, recursivect +1);
+          if(sFiles !=null){  //null on error
+            for(String sFile: sFiles){
+              File dirSub;
+              if( (  bAllTree
+                  || filterDir !=null    && filterDir.accept(fDir, sFile)
+                  || filterAlldir !=null && filterAlldir.accept(fDir, sFile)
+                  )
+                  && (dirSub = new File(fDir, sFile)).isDirectory()
+                  ){
+                if(sFile.equals("ZBNF"))
+                  Assert.stop();
+                //dirSub is matching to the filterAlldir:
+                bFound = addFileToList(listFiles, dirSub, sPathSub, posWildcardSub, filterName,filterAlldir, recursivect +1);
+              }
             }
           }
         }

@@ -133,6 +133,7 @@ implements SortedTree<IfcType>
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-11-03 Hartmut new: {@link #next}, {@link #prev} and {@link #lastChild} for sibling navigation. 
    * <li>2013-03-02 Hartmut chg: Usage of ArrayList instead LinkedList for children- better ability to debug.
    * <li>2012-11-03 Hartmut new: Generic type DerivedNode and IfcType to support derived types of this. The returned
    *   container types have elements of this DerivedNode type or the IfcType. The IfcType is used on methods
@@ -177,9 +178,12 @@ implements SortedTree<IfcType>
    */
   private static String metaNodeKey = "--metanode-key--";
   
+  /**The key which is used in the {@link #idxChildren} of the parent. 
+   * Note that a key need not be unique. A parent can have children with the same key. */
   protected final String key;
   
-  public TreeNodeBase<DerivedNode,Data, ?> parent;
+  /**The parent, the siblings, the last child. */
+  public TreeNodeBase<DerivedNode,Data, ?> parent, prev, next, lastChild;
   
   /**The List of child nodes in order of adding. All nodes in this list are type of the DerivedNode. 
    */
@@ -273,7 +277,7 @@ implements SortedTree<IfcType>
       throw new IllegalArgumentException("Node has a parent, it is contained anywhere other, invoke detach!");
     }
     if(childNode.key == null){
-      childNode.parent = this;
+      childNode.parent = this;  //without key, the parent is this. See metaNode
     } 
     else {
       if(idxChildren == null)
@@ -307,6 +311,11 @@ implements SortedTree<IfcType>
       childNodes = new ArrayList<DerivedNode>();
     }
     childNodes.add(childNode);  //parent refers this or metaNode.
+    childNode.prev = lastChild;
+    if(lastChild !=null){
+      lastChild.next = childNode;
+    }
+    lastChild = childNode;
   }
   
 
@@ -335,6 +344,17 @@ implements SortedTree<IfcType>
         }
       }
       parent = null;
+    }
+    if(parent.lastChild == this){
+      parent.lastChild = prev;
+    }
+    if(prev !=null){
+      prev.next = this.next;
+      prev = null;
+    }
+    if(next !=null){
+      next.prev = prev;
+      next = null;
     }
   }
   
@@ -437,7 +457,17 @@ implements SortedTree<IfcType>
     return ret;
   }
 
+  public IfcType nextSibling(){ 
+    @SuppressWarnings("unchecked")
+    IfcType ret = (IfcType)next;
+    return ret;
+  }
   
+  public IfcType prevSibling(){ 
+    @SuppressWarnings("unchecked")
+    IfcType ret = (IfcType)prev;
+    return ret;
+  }
   
   /**Returns the node with the given key. If there are more as one node with the same key,
    * the first node is returned. 
