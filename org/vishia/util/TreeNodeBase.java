@@ -133,6 +133,10 @@ implements SortedTree<IfcType>
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-11-03 Hartmut new: {@link #firstChild()}, {@link #lastChild()}. Some methods returns
+   *   the DerivedNode yet instead a reference of Type TreeNodeBase or IfcType. Only methods which are declared
+   *   in {@link SortedTree} returns the IfcType. It is better for usage. A node is always type of DerivedNode
+   *   because it is declared and known as forward reference.
    * <li>2013-11-03 Hartmut new: {@link #addNode(TreeNodeBase, int)} not on end.
    * <li>2013-11-03 Hartmut new: {@link #next}, {@link #prev} and {@link #lastChild} for sibling navigation. 
    * <li>2013-03-02 Hartmut chg: Usage of ArrayList instead LinkedList for children- better ability to debug.
@@ -184,7 +188,8 @@ implements SortedTree<IfcType>
   protected final String key;
   
   /**The parent, the siblings, the last child. */
-  public TreeNodeBase<DerivedNode,Data, ?> parent, prev, next; //, lastChild;
+  private DerivedNode parent, prev, next; //, lastChild;
+  //public TreeNodeBase<DerivedNode,Data, ?> parent, prev, next; //, lastChild;
   
   /**The List of child nodes in order of adding. All nodes in this list are type of the DerivedNode. 
    */
@@ -194,7 +199,8 @@ implements SortedTree<IfcType>
    * This index can contain a so named 'meta node' which holds more as one child with the same key.
    * Note that the meta node is not registered in the {@link #childNodes}.
    */
-  protected Map<String, TreeNodeBase<DerivedNode,Data,IfcType>> idxChildren;
+  protected Map<String, DerivedNode> idxChildren;
+  //protected Map<String, TreeNodeBase<DerivedNode,Data,IfcType>> idxChildren;
 
   
   /**Instances which are a leaf of this node. That leafs should not need a node to wrap it. 
@@ -229,7 +235,7 @@ implements SortedTree<IfcType>
    * @param data see {@link #TreeNodeBase(String, Object)}
    * @return Instance of the DerivedNode class
    */
-  protected DerivedNode newNode(String key, Data data){
+  protected DerivedNode newNode(String keyP, Data dataP){
     throw new IllegalArgumentException("This method has to be overridden.");
   }
   
@@ -290,49 +296,58 @@ implements SortedTree<IfcType>
   { if(childNode.parent !=null){
       throw new IllegalArgumentException("Node has a parent, it is contained anywhere other, invoke detach!");
     }
+    @SuppressWarnings("unchecked")
+    DerivedNode dthis = (DerivedNode)this; 
     int zLine = childNodes == null ? 0 : childNodes.size();
     int ix1 =  ix > zLine || ix < 0 ? zLine : ix;  //append on end on ix=-1 or ix > size
     if(childNode.key == null){
-      childNode.parent = this;  //without key, the parent is this. See metaNode
+      childNode.parent = dthis;  //without key, the parent is this. See metaNode
     } 
     else {
       if(idxChildren == null)
-      { idxChildren = new TreeMap<String, TreeNodeBase<DerivedNode,Data,IfcType>>();
+      { //idxChildren = new TreeMap<String, TreeNodeBase<DerivedNode,Data,IfcType>>();
+        idxChildren = new TreeMap<String, DerivedNode>();
       }
-      TreeNodeBase<DerivedNode,Data,IfcType> childNodeFound = idxChildren.get(childNode.key);
+      DerivedNode childNodeFound = idxChildren.get(childNode.key);
+      //TreeNodeBase<DerivedNode,Data,IfcType> childNodeFound = idxChildren.get(childNode.key);
       if(childNodeFound == null){
         //only one entry for this key, 
         //because it may be the first one, it is in uncertain 
         //whether it may be more as one leaf with the same key in the future.
-        childNode.parent = this;
+        childNode.parent = dthis;
         idxChildren.put(childNode.key, childNode);
       } else {
         //a node with the same leaf was found.
-        TreeNodeBase<DerivedNode,Data,IfcType> metaNode;  //a meta node is needed.
+        DerivedNode metaNode;  //a meta node is needed.
+        //TreeNodeBase<DerivedNode,Data,IfcType> metaNode;  //a meta node is needed.
         if(childNodeFound.key == metaNodeKey){
           //it is a meta node already.
           metaNode = childNodeFound;
         } else {
           //it is the only one child with this key. Build a meta node yet:
-          metaNode =  new TreeNodeBase<DerivedNode,Data,IfcType>(metaNodeKey, null);
-          metaNode.parent = this;
+          //TRICKY: The metaNode is of this super type TreeNodeBase, it is used only internally.
+          //to respect the type of parent, cast it.
+          @SuppressWarnings("unchecked")
+          DerivedNode newMetaNode = (DerivedNode)new TreeNodeBase<DerivedNode,Data,IfcType>(metaNodeKey, null);
+          metaNode = newMetaNode;
+          metaNode.parent = dthis;  
           idxChildren.put(childNode.key, metaNode);  //replaces the exitsting node.
           metaNode.childNodes = new ArrayList<DerivedNode>();
         }
         metaNode.childNodes.add(childNode);
-        childNode.parent = metaNode;
+        childNode.parent = metaNode;   //the instance is of this super type only.
       }
     }
     if(childNodes == null){ 
       childNodes = new ArrayList<DerivedNode>();
     }
     if(ix1 > 0){
-      TreeNodeBase<DerivedNode,Data, ?> prevChild = childNodes.get(ix1-1);
+      DerivedNode prevChild = childNodes.get(ix1-1);
       childNode.prev = prevChild;
       prevChild.next = childNode;
     }
     if(ix1 < zLine){
-      TreeNodeBase<DerivedNode,Data, ?> nextChild = childNodes.get(ix1);
+      DerivedNode nextChild = childNodes.get(ix1);
       childNode.next = nextChild;
       nextChild.prev = childNode;
     }
@@ -455,7 +470,8 @@ implements SortedTree<IfcType>
     TreeNodeBase<DerivedNode,Data,IfcType> child = this;
     for(String name: elements){
       if(child.idxChildren == null){
-        idxChildren = new TreeMap<String, TreeNodeBase<DerivedNode,Data,IfcType>>();
+        idxChildren = new TreeMap<String, DerivedNode>();
+        //idxChildren = new TreeMap<String, TreeNodeBase<DerivedNode,Data,IfcType>>();
         DerivedNode child1 = newNode(name, null);
         child.addNode(child1);
         child = child1;
@@ -483,20 +499,55 @@ implements SortedTree<IfcType>
    */
   @Override public IfcType getParent(){
     @SuppressWarnings("unchecked")
-    IfcType ret = (IfcType)parent;
+    IfcType ret = (IfcType)parent();
     return ret;
   }
 
-  public IfcType nextSibling(){ 
-    @SuppressWarnings("unchecked")
-    IfcType ret = (IfcType)next;
+  
+  public DerivedNode parent(){ 
+    DerivedNode parent1 = parent;
+    if(parent1 !=null && parent1.key == metaNodeKey){
+      parent1 = parent1.parent;
+    }
+    return parent1; 
+  }
+  
+  
+  
+  public DerivedNode nextSibling(){ return next; } 
+  
+  public DerivedNode prevSibling(){ 
+    DerivedNode ret = prev;
     return ret;
   }
   
-  public IfcType prevSibling(){ 
-    @SuppressWarnings("unchecked")
-    IfcType ret = (IfcType)prev;
-    return ret;
+  
+  /**The List of child nodes in order of adding. All nodes in this list are type of the DerivedNode. 
+   */
+  public List<DerivedNode> childNodes(){ return childNodes; }
+  
+  
+  /**Returns the number of children.
+   * @return 0 if the node has not children.
+   */
+  public int nrofChildren(){ return childNodes == null ? 0 : childNodes.size(); }
+  
+  /**Returns the first of all children.
+   * @return null if the node has not children.
+   */
+  public DerivedNode firstChild(){ 
+    return childNodes == null || childNodes.size() ==0 ? null : childNodes.get(0); 
+  }
+  
+  /**Returns the last of all children.
+   * @return null if the node has not children.
+   */
+  public DerivedNode lastChild(){ 
+    if(childNodes == null || childNodes.size() ==0 ) return null;
+    else {
+      int zChildren = childNodes.size();
+      return childNodes.get(zChildren-1); 
+    }
   }
   
   /**Returns the node with the given key. If there are more as one node with the same key,
@@ -510,7 +561,8 @@ implements SortedTree<IfcType>
     if(idxChildren == null){
       return null;
     }
-    TreeNodeBase<DerivedNode,Data,IfcType> nodeChild = idxChildren.get(sKey);
+    DerivedNode nodeChild = idxChildren.get(sKey);
+    //TreeNodeBase<DerivedNode,Data,IfcType> nodeChild = idxChildren.get(sKey);
     if(nodeChild !=null && nodeChild.key == metaNodeKey){
       if(nodeChild.childNodes.size()>=1){
         nodeChild = nodeChild.childNodes.get(0);
@@ -518,6 +570,7 @@ implements SortedTree<IfcType>
         nodeChild = null;  //meta node exists but it has not childs because all of them are detached.
       }
     }
+    //return (IfcType)nodeChild;
     @SuppressWarnings("unchecked")
     IfcType ret = (IfcType)nodeChild;
     return ret;
@@ -582,10 +635,9 @@ implements SortedTree<IfcType>
         List<IfcType> ret;
         if(childMetaNode.key != metaNodeKey){
           //only one child, but a List is expected
-          ArrayList<IfcType> childNodes = new ArrayList<IfcType>();
+          ret = new ArrayList<IfcType>();
           //IfcType childNode = (IfcType)newNode(sKey, childMetaNode.data);
-          childNodes.add((IfcType)childMetaNode);
-          ret = childNodes;
+          ret.add((IfcType)childMetaNode);
         } else {
           ret = (List<IfcType>) childMetaNode.childNodes;
         }
@@ -633,8 +685,8 @@ implements SortedTree<IfcType>
       super(key, data);
     }
     
-    @Override protected TreeNode<Data> newNode(String key, Data data){
-      return new TreeNode<Data>(key, data);
+    @Override protected TreeNode<Data> newNode(String keyP, Data dataP){
+      return new TreeNode<Data>(keyP, dataP);
     }
   }
 }

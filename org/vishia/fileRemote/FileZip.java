@@ -154,19 +154,19 @@ public class FileZip extends FileRemote {
 
   @Override
   public FileRemote getParentFile() {
-    FileRemote parent;
-    if (children != null && children.parent != null) {
-      parent = children.parent.data;
+    FileRemote parent1;
+    if (children != null && children.parent() != null) {
+      parent1 = children.parent().data;
     } else {
-      parent = theFile;
+      parent1 = theFile;
     }
-    return parent;
+    return parent1;
   }
 
   @Override
   public String getParent() {
-    File parent = getParentFile();
-    return parent.getAbsolutePath();
+    File parent1 = getParentFile();
+    return parent1.getAbsolutePath();
   }
 
   @Override
