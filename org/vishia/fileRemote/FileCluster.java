@@ -129,6 +129,12 @@ public class FileCluster
         Iterator<FileRemote> iter = idxPaths.iterator(sDir.toString()); //iterator starts with sDir1
         iter.next(); //start with next entry, not with its own.
         int zDir = sDir.length();
+        //zDir should be the position of the '/' in the child's paths.
+        //if sDir is a root directory, it contains the '/' on end.
+        //therefore reduce zDir, if sDir ens with '/':
+        if(sDir.charAt(zDir-1) == '/'){
+          zDir -=1;  
+        }
         while(iter.hasNext()){
           FileRemote childNext = iter.next();
           String pathNext = childNext.getAbsolutePath();

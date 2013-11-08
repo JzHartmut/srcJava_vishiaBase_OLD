@@ -113,14 +113,13 @@ public class FileZip extends FileRemote {
 
   @Override
   public FileZip[] listFiles() {
-    int zChildren = children == null ? 0 : (children.childNodes == null ? 0
-        : children.childNodes.size())
+    int zChildren = children == null ? 0 : children.nrofChildren()
         + (children.leafData == null ? 0 : children.leafData.size());
     if (zChildren > 0) {
       int ii = -1;
       FileZip[] ret = new FileZip[zChildren];
-      if (children.childNodes != null)
-        for (TreeNodeBase.TreeNode<FileZip> node1 : children.childNodes) {
+      if (children.hasChildren())
+        for (TreeNodeBase.TreeNode<FileZip> node1 : children.iterator()) {
           ret[++ii] = node1.data;
         }
       if (children.leafData != null)
@@ -135,7 +134,7 @@ public class FileZip extends FileRemote {
 
   @Override
   public boolean isDirectory() {
-    return children != null && children.childNodes != null;
+    return children != null && children.hasChildren();
   }
 
   @Override

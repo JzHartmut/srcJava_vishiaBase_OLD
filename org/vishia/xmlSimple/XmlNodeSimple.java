@@ -195,7 +195,7 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
    * @see org.vishia.xmlSimple.XmlNode#addContent(java.lang.String)
    */
   public XmlNode addContent(String text)
-  { if(childNodes == null){ 
+  { if(!hasChildren()){ 
       if(this.text == null){ //the first text
         this.text = text;
       } else {
@@ -231,7 +231,7 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   @SuppressWarnings("unchecked")
   public XmlNode addContent(XmlNode child) 
   throws XmlException 
-  { if(childNodes == null && text !=null){
+  { if(!hasChildren() && text !=null){
       //add a text as child because the node has more as one child.
       XmlNodeSimple<UserData> textchild = new XmlNodeSimple<UserData>("$", this.text, true);
       addNode(textchild);

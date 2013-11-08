@@ -68,26 +68,6 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
   
   private static FileAccessZip instance;
   
-  //@Override 
-  public FileRemote[] XXXlistFiles(FileRemote parent){
-    FileZipData data = (FileZipData)parent.oFile;
-    int zChildren = data == null ? 0 : data.childrenZip == null ? 0 : (data.childrenZip.childNodes == null ? 0
-        : data.childrenZip.childNodes.size())
-        + (data.childrenZip.leafData == null ? 0 : data.childrenZip.leafData.size());
-    FileRemote[] retFiles = new FileRemote[zChildren]; //may be [0]
-    if (zChildren > 0) {
-      int ii = -1;
-      if (data.childrenZip.childNodes != null){
-        for (TreeNodeBase.TreeNode<FileRemote> node1 : data.childrenZip.childNodes) {
-          retFiles[++ii] = node1.data;
-      } }
-      if (data.childrenZip.leafData != null){
-        for (FileRemote node1 : data.childrenZip.leafData) {
-          retFiles[++ii] = node1;
-      } }
-    }
-    return retFiles;
-  }
   
   /**Returns the singleton instance of this class.
    * Note: The instance will be created and the thread will be started if this routine was called firstly.
@@ -220,14 +200,14 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
 
   @Override public void refreshFilePropertiesAndChildren(FileRemote file, FileRemote.CallbackEvent callback) {
     FileZipData data = (FileZipData)file.oFile;
-    int zChildren = data == null ? 0 : data.childrenZip == null ? 0 : (data.childrenZip.childNodes == null ? 0
-        : data.childrenZip.childNodes.size())
+    int zChildren = data == null ? 0 : data.childrenZip == null ? 0 : (data.childrenZip.hasChildren() ? 0
+        : data.childrenZip.nrofChildren())
         + (data.childrenZip.leafData == null ? 0 : data.childrenZip.leafData.size());
     //file.children = new TreeMap<String, FileRemote>(); //[zChildren]; //may be [0]
     if (zChildren > 0) {
       int ii = -1;
-      if (data.childrenZip.childNodes != null){
-        for (TreeNodeBase.TreeNode<FileRemote> node1 : data.childrenZip.childNodes) {
+      if (data.childrenZip.hasChildren()){
+        for (TreeNodeBase.TreeNode<FileRemote> node1 : data.childrenZip.iterator()) {
           file.putNewChild( node1.data);
       } }
       if (data.childrenZip.leafData != null){
@@ -246,13 +226,13 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
   @Override public List<File> getChildren(FileRemote file, FileFilter filter){
     FileZipData data = (FileZipData)file.oFile;
     List<File> list = new ArrayList<File>();
-    int zChildren = data == null ? 0 : data.childrenZip == null ? 0 : (data.childrenZip.childNodes == null ? 0
-        : data.childrenZip.childNodes.size())
+    int zChildren = data == null ? 0 : data.childrenZip == null ? 0 : (data.childrenZip.hasChildren() ? 0
+        : data.childrenZip.nrofChildren())
         + (data.childrenZip.leafData == null ? 0 : data.childrenZip.leafData.size());
     if (zChildren > 0) {
       int ii = -1;
-      if (data.childrenZip.childNodes != null){
-        for (TreeNodeBase.TreeNode<FileRemote> node1 : data.childrenZip.childNodes) {
+      if (data.childrenZip.hasChildren()){
+        for (TreeNodeBase.TreeNode<FileRemote> node1 : data.childrenZip.iterator()) {
           if ((filter == null) || filter.accept(node1.data)){
             list.add(node1.data);
           }
