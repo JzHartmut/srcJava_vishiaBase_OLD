@@ -130,7 +130,7 @@ public class TreeNodeBase
 , Data
 , IfcType extends SortedTree<IfcType> 
 > 
-implements SortedTree<IfcType>, Iterable<DerivedNode> //, Deque<DerivedNode> //, Deque<DerivedData>
+implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<DerivedNode> 
 {
 
   /**Version, history and license.
@@ -180,7 +180,7 @@ implements SortedTree<IfcType>, Iterable<DerivedNode> //, Deque<DerivedNode> //,
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de, www.vishia.org
    * 
    */
-  public static final int version = 20120728;
+  public static final int version = 20131111;
 
   /**This instance is used if the node is a meta node to refer more as one child with the same key. 
    * 
@@ -344,7 +344,9 @@ implements SortedTree<IfcType>, Iterable<DerivedNode> //, Deque<DerivedNode> //,
     parent1.nrofChildren +=1;
     childNode.prev = dthis;
     childNode.next = this.next;
-    this.next.prev = childNode;
+    if(this.next !=null){
+      this.next.prev = childNode;
+    }
     this.next = childNode;
     if(parent.lastChild == this){
       parent.lastChild = childNode;
@@ -904,8 +906,6 @@ implements SortedTree<IfcType>, Iterable<DerivedNode> //, Deque<DerivedNode> //,
   }
   
   
-  
-  protected interface IterableIterator<DerivedNode> extends Iterator<DerivedNode>, Iterable<DerivedNode>{}
   
   
   
