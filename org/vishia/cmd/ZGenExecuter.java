@@ -1128,7 +1128,7 @@ public class ZGenExecuter {
               u.append((CharSequence)val);
             } break;
             case 'S':{
-              if(val instanceof String || val instanceof StringSeq && ((StringSeq)val).isUnmated()){
+              if(val == null || val instanceof String || val instanceof StringSeq && ((StringSeq)val).isUnmated()){
                 var.setValue(val);
               } else {
                 var.setValue(val.toString());

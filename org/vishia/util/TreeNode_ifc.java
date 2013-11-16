@@ -86,7 +86,15 @@ public interface TreeNode_ifc
   
   DerivedNode parent();
   
-  
+  /**Checks whether the parent is a known node. This test can be done for example to check whether the parent
+   * is the root node. 
+   * Note that especially the root node may be from another type. Therefore parent() fails because a
+   * ClassCastException to the DerivedNode.
+   * 
+   * @param cmpr The node to compare with
+   * @return true if the parent node is the same instance as the given node.
+   */
+  boolean parentEquals(TreeNode_ifc<DerivedNode, Data> cmpr);
   
   DerivedNode nextSibling();
   

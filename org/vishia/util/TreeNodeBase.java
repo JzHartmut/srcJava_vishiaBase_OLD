@@ -191,7 +191,10 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
    * Note that a key need not be unique. A parent can have children with the same key. */
   protected final String key;
   
-  protected TreeNodeBase<DerivedNode, Data, IfcType> parent;
+  /**The parent is a metaNodeKey if there is more as one child with the same key.
+   * To get the real parent, use {@link #parent()}.
+   */
+  private TreeNodeBase<DerivedNode, Data, IfcType> parent;
   
   /**The parent, the siblings, the last child. */
   protected DerivedNode prev, next; //, lastChild;
@@ -235,6 +238,20 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
   public TreeNodeBase(String key, Data data){
     this.key = key;
     this.parent = null;
+    this.data = data;
+  }
+
+  
+  /**Creates a new unbounded node. 
+   * @param key The key will be used if the tree is sorted. It can be null,
+   *   then the tree is not sorted. The key is used to search this nodes by its key
+   *   in the parent node or from any grandparent node with the path.
+   *   
+   * @param data User data of this node.
+   */
+  protected TreeNodeBase(String key, Data data, TreeNodeBase<DerivedNode, Data, IfcType> parent){
+    this.key = key;
+    this.parent = parent;
     this.data = data;
   }
 
@@ -336,7 +353,7 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
     }
     @SuppressWarnings("unchecked")
     DerivedNode dthis = (DerivedNode)this; 
-    DerivedNode parent1 = parent();
+    TreeNodeBase<DerivedNode, Data, IfcType> parent1 = parent();
     if(parent1 == null){
       throw new IllegalArgumentException("TreeNodeBase.addBehind - this Node has not a parent;" + parent);
     }
@@ -410,7 +427,7 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
    * If a node is detached, it can be added in another tree of the same type.
    */
   public void detach(){
-    DerivedNode parent1 = parent();
+    TreeNodeBase<DerivedNode, Data, IfcType> parent1 = parent();
     if(parent1 !=null){
       if(parent1.firstChild == this){
         parent1.firstChild = next;  //maybe null;
@@ -470,7 +487,7 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
   public String getKey(){ return key; }
   
   public Data getParentData(){
-    DerivedNode parent1 = parent(); 
+    TreeNodeBase<DerivedNode, Data, IfcType> parent1 = parent(); 
     if(parent1 ==null){ return null;}
     else {
       return parent1.data;
@@ -566,7 +583,22 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
   
   
   
-  public DerivedNode nextSibling(){ return next; } 
+  /* (non-Javadoc)
+   * @see org.vishia.util.TreeNode_ifc#parentEquals(org.vishia.util.TreeNode_ifc)
+   */
+  @Override public boolean parentEquals(TreeNode_ifc<DerivedNode, Data> cmp){
+    if(this.parent !=null && this.parent.key == metaNodeKey){
+      return this.parent.parent == cmp;
+    } else {
+      return this.parent == cmp;
+    }
+  }
+  
+  
+  /* (non-Javadoc)
+   * @see org.vishia.util.TreeNode_ifc#nextSibling()
+   */
+  @Override public DerivedNode nextSibling(){ return next; } 
   
   public DerivedNode prevSibling(){ 
     DerivedNode ret = prev;
@@ -820,8 +852,7 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
     protected List<DerivedNode> children = new ArrayList<DerivedNode>();
     
     public MetaNode(TreeNodeBase<DerivedNode,Data, IfcType> parent)
-    { super(metaNodeKey, null);
-      this.parent = parent;
+    { super(metaNodeKey, null, parent);
     }
     
   }
@@ -856,7 +887,7 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
       iter.remove();
       currentNode.detach();
       if(metaNode.children.size() == 0){
-        metaNode.parent.idxChildren.remove(currentNode.key);
+        metaNode.parent().idxChildren.remove(currentNode.key);
       }
       currentNode = null;
     }

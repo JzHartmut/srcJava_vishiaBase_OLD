@@ -161,7 +161,7 @@ public class IndexMultiTableInteger<Type> implements Map<Integer,Type>, Iterable
     /**Only for test. */
     private int lastkey; 
     
-    private IteratorImpl(IndexMultiTableInteger<Type> firstTable)
+    IteratorImpl(IndexMultiTableInteger<Type> firstTable)
     { helper = new IteratorHelper(null);
       helper.table = firstTable;
       helper.idx = -1;
@@ -174,7 +174,7 @@ public class IndexMultiTableInteger<Type> implements Map<Integer,Type>, Iterable
      * @param startKey
      * @param endKey
      */
-    private IteratorImpl(IndexMultiTableInteger<Type> firstTable, int startKey)
+    IteratorImpl(IndexMultiTableInteger<Type> firstTable, int startKey)
     { helper = new IteratorHelper(null);
       helper.table = firstTable;
       helper.idx = -1;
@@ -234,7 +234,7 @@ public class IndexMultiTableInteger<Type> implements Map<Integer,Type>, Iterable
       }
       if(bHasNext)
       { bHasNextProcessed = false;  //call it at next access!
-        IndexMultiTableInteger<?> table = (IndexMultiTableInteger<?>)helper.table;
+        IndexMultiTableInteger<?> table = helper.table;
         assert(table.key[helper.idx] >= lastkey);  //test
         if(table.key[helper.idx] < lastkey) throw new RuntimeException("assert");
         if(table.key[helper.idx] < lastkey)
