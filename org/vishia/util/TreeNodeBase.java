@@ -355,18 +355,45 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
     DerivedNode dthis = (DerivedNode)this; 
     TreeNodeBase<DerivedNode, Data, IfcType> parent1 = parent();
     if(parent1 == null){
-      throw new IllegalArgumentException("TreeNodeBase.addBehind - this Node has not a parent;" + parent);
+      throw new IllegalArgumentException("TreeNodeBase.addSiblingNext - this Node has not a parent;" + parent);
     }
     parent1.addNodeKeyed(childNode);
     parent1.nrofChildren +=1;
     childNode.prev = dthis;
-    childNode.next = this.next;
+    childNode.next = this.next;   //may be null if this is the last one
     if(this.next !=null){
       this.next.prev = childNode;
     }
     this.next = childNode;
     if(parent.lastChild == this){
       parent.lastChild = childNode;
+    }
+  }
+
+
+  /**Adds a new node behind the given node as sibling of this respectively child of this parent.
+   * @param childNode
+   */
+  public void addSiblingPrev(DerivedNode childNode){
+    if(childNode.parent !=null){
+      throw new IllegalArgumentException("TreeNodeBase.add - new Node has a parent; It is contained anywhere other, invoke detach;" + childNode);
+    }
+    @SuppressWarnings("unchecked")
+    DerivedNode dthis = (DerivedNode)this; 
+    TreeNodeBase<DerivedNode, Data, IfcType> parent1 = parent();
+    if(parent1 == null){
+      throw new IllegalArgumentException("TreeNodeBase.addSiblingNext - this Node has not a parent;" + parent);
+    }
+    parent1.addNodeKeyed(childNode);
+    parent1.nrofChildren +=1;
+    childNode.next = dthis;
+    childNode.prev = this.prev;  //may be null if this is the first one
+    if(this.prev !=null){
+      this.prev.next = childNode;
+    }
+    this.prev = childNode;
+    if(parent.firstChild == this){
+      parent.firstChild = childNode;
     }
   }
 
