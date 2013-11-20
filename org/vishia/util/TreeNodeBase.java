@@ -694,8 +694,10 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
   @Override public String toString(){ return key; }
 
   
-  /* (non-Javadoc)
-   * @see java.lang.Iterable#iterator()
+  /**It returns an instance which can used as both as {@link Iterator}
+   * and as {@link Iterable}. It means the routines {@link Iterator#hasNext()} etc. are able to call
+   * and {@link Iterable#iterator()} is able to call, which returns this.
+   * In this kind the method can be used in a for-container-loop.
    */
   @Override public IterableIterator<DerivedNode> iterator(){
     return new IteratorDerivedNode();
