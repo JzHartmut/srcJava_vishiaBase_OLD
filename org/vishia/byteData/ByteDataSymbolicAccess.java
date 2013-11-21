@@ -41,6 +41,10 @@ import org.vishia.mainCmd.Report;
  * 
  * The variable may be given with Java-written instantiation too.
  * 
+ * The data are given calling {@link #assignData(byte[])}, {@link #assignData(byte[], int, int)}
+ * from any source. The data can be updated outside, for example by a communication via network receive.
+ * The data gets a timestamp of updating calling 
+ * 
  * @author Hartmut Schorrig
  *
  */
@@ -336,6 +340,7 @@ public class ByteDataSymbolicAccess {
     assignData(dataP, dataP.length, 0);
   }
   
+  
   public void assignData(byte[] dataP, int length, int from)
   { this.data = dataP;
     this.ixStartData = from;
@@ -345,6 +350,10 @@ public class ByteDataSymbolicAccess {
     } catch (IllegalArgumentException exc) { }
     dataAccess.setBigEndian(true);
     timeRequestNewValue = 0;
+  }
+  
+  public void updateData(int from, int to, long timestamp){
+    
   }
   
 

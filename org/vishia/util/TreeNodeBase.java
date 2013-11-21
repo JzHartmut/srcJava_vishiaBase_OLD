@@ -194,7 +194,7 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
   /**The parent is a metaNodeKey if there is more as one child with the same key.
    * To get the real parent, use {@link #parent()}.
    */
-  private TreeNodeBase<DerivedNode, Data, IfcType> parent;
+  protected TreeNodeBase<DerivedNode, Data, IfcType> parent;
   
   /**The parent, the siblings, the last child. */
   protected DerivedNode prev, next; //, lastChild;
