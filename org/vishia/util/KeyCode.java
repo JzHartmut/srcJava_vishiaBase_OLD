@@ -35,6 +35,7 @@ public class KeyCode
   
   /**The version
    * <ul>
+   * <li>2013-11-23 Hartmut chg: {@link #userSelect} and {@link #defaultSelect} instead tableLineSelect 
    * <li>2012-07-15 Hartmut new: {@link #isAsciiTextKey(int)}
    * <li>2012-06-17 new {@link #isControlFunctionMouseUpOrMenu(int)} etc. cluster of keys and actions.
    * <li>2011-11-18 new {@link #mouse1UpMoved}
@@ -169,8 +170,11 @@ public class KeyCode
   /**Determines that a menu item is entered. */
   public final static int Entered =  0x000b0000 + 'M'; 
 
-  /**Determines that a line of a table is selected. */
-  public final static int tableLineSelect =  0x000b0000 + 'L'; 
+  /**Determines that a line of a table is selected by user actions. */
+  public final static int userSelect =  0x000b0000 + 'S'; 
+  
+  /**Determines that a line of a table is selected per default. */
+  public final static int defaultSelect =  0x000b0000 + 's'; 
   
   /**Determines that a field has got a focus. */
   public final static int focusGained =  0x000b0000 + 'F'; 
