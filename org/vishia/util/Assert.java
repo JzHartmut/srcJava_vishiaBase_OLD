@@ -33,6 +33,8 @@ public class Assert
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-07-14 Hartmut chg: {@link #stackInfo(String, int, int)} produces a text which supports hyperlinking
+   *   in Eclipse output output console window, like {@link Exception#printStackTrace()}.
    * <li>2013-07-14 Hartmut new: {@link #throwCompleteExceptionMessage(String, Exception)}
    * <li>2013-01-26 Hartmut new: {@link #consoleErr(String, Object...)}, {@link #consoleOut(String, Object...)}:
    *   Possibility to use the original System.out channel even System.setErr() etc. may be invoked.
@@ -143,8 +145,10 @@ public class Assert
     if(firstLevel >= zStack){ firstLevel = zStack-1; }
     if(zStack> firstLevel + nrofLevels){ zStack = firstLevel + nrofLevels; }
     for(int ix = firstLevel; ix < zStack; ++ix){
-      u.append(stack[ix].getMethodName())
-      .append("(").append(stack[ix].getFileName())
+      u.append(stack[ix].getClassName())
+      .append(".").append(stack[ix].getMethodName())
+      .append("(")
+      .append(stack[ix].getFileName())
       .append(":").append(stack[ix].getLineNumber())
       .append("); ");
     }
@@ -204,6 +208,7 @@ public class Assert
     final CharSequence s;
     try{ throw new RuntimeException("stackInfo");
     } catch(RuntimeException exc){
+      //exc.printStackTrace(System.out);
       s = exceptionInfo(startText, exc, firstLevel, nrofLevel);
     }
     return s;

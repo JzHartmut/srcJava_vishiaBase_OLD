@@ -46,7 +46,7 @@ package org.vishia.util;
  *          |<---------- FromAnother
  *          |
  *  ------->|
- *          |&<------------------------&InnerNonstaticClass
+ *          |<&----------------------<&>InnerNonstaticClass
  *          |                                  |
  *          |&--&InnerStaticClass
  *    
@@ -64,8 +64,9 @@ package org.vishia.util;
  *   It may be used too to refer interfaces.
  * <li><code><>--------></code> An aggregation in UML. In Java it is a final reference which is set
  *   by a parameter given in the constructor.
- * <li><code><>-------o></code> Aggregation to its outer class. An outer class is a known construct in Java (non-static
- *   inner class has the environment class as outer one). In UML it is a Aggregation.
+ * <li><code><&>------&></code> Aggregation to its environment class. 
+ *   An environment class is a known construct in Java (non-static inner class has the environment class). 
+ *   In UML it is a Composition.
  * <li><code><*>-------></code> An composition in UML (filled diamond). In Java it is a final reference
  *   which is set by a new in the constructor or class body.
  * <li><code>---------*></code> An association (or aggregation or composition) to any number of referenced
