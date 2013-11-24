@@ -52,6 +52,8 @@ public class ByteDataSymbolicAccess {
 
   /**Version, history and license. The version number is a date written as yyyymmdd as decimal number.
    * <ul>
+   * <li>2013-11-26 Hartmut chg {@link #assignData(byte[], long)} with timestamp required. Usages should updated.
+   *   A timestamp is a substantial propertiy of dynamic data. Use {@link System#currentTimeMillis()}.
    * <li>2012-09-24 Hartmut new {@link Variable#getLong(int...)} and {@link Variable#setLong(long, int...)} 
    * <li>2012-04-22 Hartmut minor change: {@link Variable#nrofBytes} is necessary for ZBNF parse result.
    *   But it isn't used yet.
@@ -335,13 +337,13 @@ public class ByteDataSymbolicAccess {
   }
   
   
-  public void assignData(byte[] dataP)
+  public void assignData(byte[] dataP, long time)
   {
-    assignData(dataP, dataP.length, 0);
+    assignData(dataP, dataP.length, 0, time);
   }
   
   
-  public void assignData(byte[] dataP, int length, int from)
+  public void assignData(byte[] dataP, int length, int from, long time)
   { this.data = dataP;
     this.ixStartData = from;
     this.nrofData = length;
@@ -349,15 +351,9 @@ public class ByteDataSymbolicAccess {
     try{  dataAccess.assignData(data, length, from);
     } catch (IllegalArgumentException exc) { }
     dataAccess.setBigEndian(true);
-    timeRequestNewValue = 0;
+    timeSetNewValue = time; 
+    timeRequestNewValue = 0; 
   }
-  
-  public void updateData(int from, int to, long timestamp){
-    
-  }
-  
-
-  public void setRefreshTime(long time){ timeSetNewValue = time; timeRequestNewValue = 0; }
   
   
   
