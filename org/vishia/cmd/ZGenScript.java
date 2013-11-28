@@ -1123,11 +1123,11 @@ public class ZGenScript {
      */
     public void set_textReplLf(String text){
       CharSequence cText;
-      if(text.contains("\n=")){
+      if(text.contains("\nXXXX=")){
         StringBuilder u = new StringBuilder(text);
         cText = u;
         int pos = 0;
-        while( (pos = u.indexOf("\n=",pos))>=0){
+        while( (pos = u.indexOf("\nXXXX=",pos))>=0){
           u.replace(pos+1, pos+2, "");
         }
       } else {
