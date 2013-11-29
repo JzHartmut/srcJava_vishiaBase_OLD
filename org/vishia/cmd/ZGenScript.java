@@ -1260,8 +1260,10 @@ public class ZGenScript {
   public class ZGenClass extends StatementList
   {
     
+    /**Sub classes of this class. */
     List<ZGenClass> classes;
     
+    /**All subScripts of this class. */
     final Map<String, Statement> subScripts = new TreeMap<String, Statement>();
     
     protected ZGenClass(){}

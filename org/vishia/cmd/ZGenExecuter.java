@@ -124,10 +124,10 @@ public class ZGenExecuter {
    * 
    * 
    */
-  @SuppressWarnings("hiding")
+  //@SuppressWarnings("hiding")
   static final public int version = 20131029;
 
-  /**Variable for any exception while accessing any java ressources. It is the $error variable of the script. */
+  /**Variable for any exception while accessing any java resources. It is the $error variable of the script. */
   protected String accessError = null;
   
   public final boolean bWriteErrorInOutput;
