@@ -899,6 +899,7 @@ public class ZGenScript {
       case 'z': return "exit";
       case '=': return "assignExpr";
       case '+': return "appendExpr";
+      case 'X': return "call " + identArgJbat ;
       default: return "(??" + elementType + " " + textArg + "?)";
       }
     }

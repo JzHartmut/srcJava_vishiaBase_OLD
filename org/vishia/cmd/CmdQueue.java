@@ -256,7 +256,8 @@ public class CmdQueue implements Closeable
           sCmdShow.append(cmd1.currentDir).append(">");
         }
         if(cmd1.jbat !=null){
-          jbatchExecuter.execSub(cmd1.jbat, cmd1.args, false, outStatus);
+          if(outStatus !=null){ outStatus.append(cmd1.jbat.toString()); }
+          jbatchExecuter.execSub(cmd1.jbat, cmd1.args, false, log);
         } else {
           //a operation system command:
           String[] sCmd = cmd1.cmd.prepareCmd(cmd1);
