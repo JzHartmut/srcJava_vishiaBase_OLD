@@ -595,6 +595,13 @@ public class ZGenScript {
     }
     
     
+    public Statement new_debug()
+    { if(statementlist == null) { statementlist = new StatementList(this); }
+      return statementlist.new_debug();
+    }
+    
+    public void add_debug(Statement val){statementlist.add_debug(val); }
+
     public Onerror new_onerror(){
       return new Onerror(parentList);
     }
@@ -1085,6 +1092,22 @@ public class ZGenScript {
     }
     */
         
+    /**Defines or changes an environment variable with value. set NAME = TEXT;
+     * Handle in the same kind like a String variable
+     */
+    public Statement new_debug(){
+      return new Statement(this, 'D', null); 
+    } 
+
+    /**Defines or changes an environment variable with value. set NAME = TEXT;
+     * Handle in the same kind like a String variable but appends a '$' to the first name.
+     */
+    public void add_debug(Statement val){ 
+      statements.add(val); 
+      onerrorAccu = null; withoutOnerror.add(val);
+    } 
+    
+
     /**Defines or changes an environment variable with value. set NAME = TEXT;
      * Handle in the same kind like a String variable
      */

@@ -477,6 +477,7 @@ public class DataAccess {
    * <li>Not found: throws an {@link NoSuchFieldException} or {@link NoSuchMethodException}
    * <li>Any Exception while invocation of methods: throws it. 
    * </ul>
+   * @throws ReflectiveOperationException 
    * @throws Throwable 
    * @throws IllegalArgumentException if the datapath does not address an element. The exception message contains a String
    *  as hint which part does not match.
@@ -489,7 +490,8 @@ public class DataAccess {
       , boolean bContainer
       , boolean bVariable
       , Dst dst
-  )
+  ) 
+  //throws ReflectiveOperationException  //only Java7
   throws Exception
   {
     for(DataAccess.DatapathElement dataElement : datapath){  //loop over all elements of the path with or without arguments.

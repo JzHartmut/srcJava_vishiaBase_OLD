@@ -2,6 +2,7 @@ package org.vishia.cmd;
 
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
@@ -217,6 +218,7 @@ public class ZGenExecuter {
     DataAccess.setVariable(scriptVariables, "jbat", 'O', this);
     DataAccess.setVariable(scriptVariables, "zgen", 'O', this);
     DataAccess.setVariable(scriptVariables, "file", 'O', new FileSystem());
+    DataAccess.setVariable(scriptVariables, "test", 'O', new ZGenTester());
     /*
     scriptVariables.put("$CD", new DataAccess.Variable('$', "$CD", cd));
     scriptVariables.put("currDir", new DataAccess.Variable('O', "currDir", currDirWrapper));
@@ -551,6 +553,7 @@ public class ZGenExecuter {
           } break;
           case 'x': executeThread(statement); break;
           case 'm': executeMove(statement); break;
+          case 'y': executeCopy(statement); break;
           case 'c': executeCmdline(statement); break;
           case 'd': executeChangeCurrDir(statement); break;
           case 'C': { //generation <:for:name:path> <genContent> <.for>
@@ -569,6 +572,7 @@ public class ZGenExecuter {
           case 'b': sError = "break"; break;
           case '?': break;  //don't execute a onerror, skip it.
           case 'z': throw new ZGenExecuter.ExitException(((ZGenScript.ExitStatement)statement).exitValue);  
+          case 'D': debug(statement); break;
           default: 
             uBuffer.append("Jbat - execute-unknown type; '" + statement.elementType() + "' :ERROR=== ");
           }//switch
@@ -1076,10 +1080,37 @@ public class ZGenExecuter {
       if(!bOk) throw new IOException("JbatchExecuter - move not successfully; " + fileSrc.getAbsolutePath() + " to " + fileDst.getAbsolutePath());;
     }
     
+    void executeCopy(ZGenScript.Statement statement) 
+    throws Exception
+    {
+      CharSequence s1 = evalString(statement.arguments.get(0));
+      CharSequence s2 = evalString(statement.arguments.get(1));
+      File fileSrc = new File(s1.toString());
+      File fileDst = new File(s2.toString());
+      int nrofBytes = FileSystem.copyFile(fileSrc, fileDst);
+      if(nrofBytes <0) throw new FileNotFoundException("JbatchExecuter - copy src not found; " + fileSrc.getAbsolutePath() + " to " + fileDst.getAbsolutePath());;
+    }
+    
+    /**Creates a new FileWriter with the given name {@link #evalString(org.vishia.cmd.ZGenScript.Argument)}
+     * of the statement. If the file name is local, the actual value of $CD is set as pre-path.
+     * The current directory of the file system is not proper to use because the current directory of this 
+     * execution level should be taken therefore. If the path is faulty or another exception is thrown,
+     * the exception is forwarded to the execution level (onerror-statement).
+     * @param statement
+     * @throws IllegalArgumentException
+     * @throws Exception
+     */
     void executeOpenfile(ZGenScript.Statement statement) 
     throws IllegalArgumentException, Exception
     {
       String sFilename = evalString(statement).toString();
+      if(!FileSystem.isAbsolutePath(sFilename)){
+        //build an absolute filename with $CD, the current directory of the file system is not proper to use.
+        
+        @SuppressWarnings("unused")
+        CharSequence cd = (CharSequence)localVariables.get("$CD").value();
+        sFilename = cd + "/" + sFilename;
+      }
       Writer writer = new FileWriter(sFilename);
       DataAccess.storeValue(statement.variable.datapath(), localVariables, writer, bAccessPrivate);
       //setLocalVariable(statement.identArgJbat, 'A', writer);
@@ -1252,7 +1283,9 @@ public class ZGenExecuter {
     
     
     
-    public CharSequence evalString(ZGenScript.Argument arg) throws Exception{
+    public CharSequence evalString(ZGenScript.Argument arg) 
+    throws Exception 
+    {
       if(arg.textArg !=null) return arg.textArg;
       else if(arg.dataAccess !=null){
         Object o = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
@@ -1297,6 +1330,13 @@ public class ZGenExecuter {
       } else obj = null;  //throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
       return obj;
     }
+    
+    
+    void debug(Statement statement) throws Exception{
+      CharSequence text = evalString(statement);
+      Assert.stop();
+    }
+    
     
     void throwIllegalDstArgument(CharSequence text, DataAccess dst, ZGenScript.Statement statement)
     throws IllegalArgumentException
