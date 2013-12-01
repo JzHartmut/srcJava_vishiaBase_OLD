@@ -1200,11 +1200,37 @@ public class DataAccess {
    * @param name
    * @param type one of A O S U L V E = Appendable, Object, String, StringBuilder, ListContainer, VariableTree, EnvironmentVariable
    * @param content
+   * @throws IllegalAccessException  if a const variable is attempt to modify.
    */
-  public static void setVariable(Map<String, Variable> map, String name, char type, Object content){
+  public static void setVariable(Map<String, Variable> map, String name, char type, Object content, boolean isConst) throws IllegalAccessException{
+    DataAccess.Variable var = map.get(name);
+    if(var == null){
+      map.put(name, new DataAccess.Variable(type, name, content, isConst));
+    } else if(var.isConst){
+      throw new IllegalAccessException("DataAccess.setVariable - modification of const; " + var.name);
+    } else {
+      var.value = content;
+      var.type = type;
+      var.isConst = isConst;
+    }
+  }
+  
+  
+  /**Sets a value to a simple existing or non existing variable.
+   * If the variable does not exists, it is created of type 'O'.
+   * If the variable exists, only its value will be changed.
+   * @param map
+   * @param name
+   * @param type one of A O S U L V E = Appendable, Object, String, StringBuilder, ListContainer, VariableTree, EnvironmentVariable
+   * @param content
+   * @throws IllegalAccessException  if the variable is const.
+   */
+  public static void setVariable(Map<String, Variable> map, String name, char type, Object content) throws IllegalAccessException{
     DataAccess.Variable var = map.get(name);
     if(var == null){
       map.put(name, new DataAccess.Variable(type, name, content));
+    } else if(var.isConst){
+      throw new IllegalAccessException("DataAccess.setVariable - modification of const; " + var.name);
     } else {
       var.value = content;
       var.type = type;
@@ -1563,6 +1589,7 @@ public class DataAccess {
    * This datapool can be used to access with {@link DataAccess#getData(List, Object, Map, boolean, boolean)}.
    */
   public final static class Variable{
+    
     /**Type of the variable: S-String, A-Appendable, P-Pipe, L-List-container, F-Openfile,
      * O-Any object, E-Environment variable V - container for variables.
      */
@@ -1583,11 +1610,33 @@ public class DataAccess {
       this.type = type; this.name = name; this.value = value;
     }
     
+    /**Creates a variable which's value is const or not.
+     * @param type One of 
+     * @param name
+     * @param value
+     * @param isConst true then the value is const.
+     */
+    public Variable(char type, String name, Object value, boolean isConst){
+      this.type = type; this.name = name; this.value = value;
+      this.isConst = isConst;
+    }
+    
+    /**Builds a copy of this. 
+     * @param src any variable
+     */
+    public Variable(Variable src){
+      this.type = src.type; this.name = src.name; this.isConst = src.isConst;
+      if(src.value instanceof Appendable && src.value instanceof CharSequence){ this.value = new StringBuilder((CharSequence)src.value); }
+      else{ this.value = src.value; }
+    }
+    
     public String name(){ return name; }
     
     public Object value(){ return value; }
     
     public char type(){ return type; }
+    
+    public boolean isConst(){ return isConst; }
     
     public void setValue(Object value){ this.value = value; }
     

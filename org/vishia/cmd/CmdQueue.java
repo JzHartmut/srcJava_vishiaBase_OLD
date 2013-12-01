@@ -163,7 +163,7 @@ public class CmdQueue implements Closeable
   
   
   
-  public void initExecuter(ZGenScript script){
+  public void initExecuter(ZGenScript script) throws IllegalAccessException{
     try{ 
       jbatchExecuter.initialize(script, false);
     }catch(IOException exc){
