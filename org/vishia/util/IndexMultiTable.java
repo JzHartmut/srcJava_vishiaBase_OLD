@@ -3,10 +3,7 @@ package org.vishia.util;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
-import java.util.NavigableMap;
 import java.util.Set;
 
 import org.vishia.bridgeC.AllocInBlock;
@@ -84,6 +81,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   /**Version, history and license.
    * <ul>
+   * <li>2013-12-02 Hartmut new: Implementation of {@link #remove(Object)} was missing, {@link #searchInTables(Comparable, boolean, IndexBox)}
+   *   restructured. It returns the table and index, able to use for internal searching. 
    * <li>2013-09-15 Hartmut new: Implementation of {@link #delete(int)} and {@link EntrySetIterator#remove()}.
    * <li>2013-09-15 Hartmut chg: rename and public {@link #search(Comparable, boolean, boolean[])}.  
    * <li>2013-09-07 Hartmut chg: {@link #put(Comparable, Object)} should not create more as one object
@@ -798,12 +797,16 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   }
 
 
-  //public Type get(Object arg0)
   @SuppressWarnings({ "unchecked" })
-  @Override public Type get(Object key1){
-    assert(key1 instanceof Comparable<?>);
-    return search((Key)key1, true, null);
+  @Override public Type get(Object keyArg){
+    assert(keyArg instanceof Comparable<?>);
+    IndexBox ixRet = new IndexBox();
+    IndexMultiTable<Key, Type> table = searchInTables((Key)keyArg, true, ixRet);
+    if(table !=null){
+      return (Type)table.aValues[ixRet.ix];
+    } else return null;
   }
+
 
 
   /**Searches the object with exact this key or the object which's key is the nearest lesser one.
@@ -814,8 +817,6 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * @param key
    * @return
    */
-  //@SuppressWarnings("cast")
-  @SuppressWarnings("unchecked")
   public Type search(Key key){ 
     return search(key, false, null);
   }
@@ -840,21 +841,49 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     return cmp;
   }
 
+
   /**Searches the key in the tables.
-   * @param key1 The key
+   * @param keyArg The key
    * @param exact if true then returns null and retFound[0] = false if the key was not found
    *   if false then returns the first value at or after the key, see {@link #search(Comparable)}.
    * @param retFound If null then not used. If not null then it must initialized with new boolean[1].
-   *   If the key was found, the retFound[0] is set to true. If the key is not found, the retFound is not
-   *   touched. If the key is found and the value for this key is null, retFound[0] is set to true.
+   *   retFound[0] is set to true or false if the key was found or not.
+   *   Note: If the key is found and the value for this key is null, retFound[0] is set to true.
    *   Only with this the {@link #containsKey(Object)} works probably. 
    * @return The exact found value or the non exact found value with key before. 
    *   null if the key is lesser than all other keys (it should the first position).
    *   null if the value for this key is null.
    *   null if exact = true and the key is not found.
    */
-  @SuppressWarnings("unchecked")
-  public Type search(Key key1, boolean exact, boolean[] retFound)
+  public Type search(Key keyArg, boolean exact, boolean[] retFound)
+  { 
+    IndexBox ixRet = new IndexBox();
+    IndexMultiTable<Key, Type> table = searchInTables(keyArg, exact, ixRet);
+    if(table !=null){
+      if(retFound !=null){ retFound[0] = ixRet.found; }
+      @SuppressWarnings("unchecked")
+      Type ret = (Type)table.aValues[ixRet.ix];
+      return ret;
+    } else return null;
+  }
+  
+  
+  /**Searches the key in the tables.
+   * @param key1 The key
+   * @param exact if true then returns null and retFound[0] = false if the key was not found
+   *   if false then returns the first value at or after the key, see {@link #search(Comparable)}.
+   * @param ixFound should be create newly or initialize. 
+   *   If the key was found, the found is set to true. If the key is not found, the found is not
+   *   touched. It should be false initially. If the key is found and the value for this key is null, found true.
+   *   Only with this the {@link #containsKey(Object)} works probably.
+   *   ix is set in any case if this method does not return null. 
+   * @return The table where the element is found. 
+   *   null if the key is lesser than all other keys (it should the first position).
+   *   null if the value for this key is null.
+   *   null if exact = true and the key is not found.
+   */
+  @SuppressWarnings( "unchecked")
+  private  IndexMultiTable<Key, Type> searchInTables(Key key1, boolean exact, IndexBox ixFound)
   { IndexMultiTable<Key, Type> table = this;
     //place object with same key after the last object with the same key.
     while(table.isHyperBlock)
@@ -875,14 +904,15 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     { if(idx < 0){
         if(exact) return null;
         else {
+          //ixFound.found remain false
           idx = -idx -2;   //NOTE: access to the lesser element before the insertion point.
         }
       } else {
-        if(retFound !=null){ retFound[0] = true; } //idx >=0; }
+        ixFound.found = true; 
       }
       if(idx >=0)
-      { 
-        return (Type)table.aValues[idx];
+      { ixFound.ix = idx;
+        return table;
       }
       else  
       { //not found, before first.
@@ -976,15 +1006,18 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
 
 
-
-
-  public Type remove(Object arg0)
-  {
-    // TODO Auto-generated method stub
-    return null;
+  @SuppressWarnings({ "unchecked" })
+  @Override public Type remove(Object keyArg){
+    assert(keyArg instanceof Comparable<?>);
+    IndexBox ixRet = new IndexBox();
+    IndexMultiTable<Key, Type> table = searchInTables((Key)keyArg, true, ixRet);
+    if(table !=null){
+      Type ret = (Type)table.aValues[ixRet.ix];
+      table.delete(ixRet.ix);
+      return ret;    
+    } else return null;
   }
-  
-  
+
   
   void stop()
   { //debug
@@ -1254,6 +1287,13 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     }
     
     @Override public String toString(){ return "[ " + key + ", " + value + " ]"; }
+  }
+  
+  
+  
+  class IndexBox{
+    int ix;
+    boolean found;
   }
   
   

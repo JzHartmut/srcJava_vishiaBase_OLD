@@ -2030,6 +2030,7 @@ public StringPart len0end()
     int pos = from;
     int len = to - from;
     int end1 = pos + len;
+    if(content == null) return " ??null?? ";
     if(pos >=0 && end1 <= content.length()){
       return content.subSequence(pos, pos + len).toString(); 
     }

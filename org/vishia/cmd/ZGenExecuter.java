@@ -374,6 +374,12 @@ public class ZGenExecuter {
   { return DataAccess.getVariable(scriptVariables, name, true); }
 
   
+  public DataAccess.Variable removeScriptVariable(String name)
+  { return scriptVariables.remove(name);
+    
+  }
+
+  
   
   
 

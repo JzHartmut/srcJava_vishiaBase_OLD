@@ -397,6 +397,17 @@ public class ZGenScript {
     
     public void set_formatText(String text){ this.textArg = StringSeq.create(text); }
     
+    
+    /**Sets the nonEmptyText From ZBNF. invokes {@link #set_textReplLf(String)} if the text contains
+     * other characters as white spaces. 
+     */
+    public void set_nonEmptyText(String text){
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.set_nonEmptyText(text);      
+    }
+
+    
+    
     /**Gathers a text which is assigned to any variable or output. <+ name>text<.+>
      */
     public Statement new_textOut(){ return new Statement(parentList, 'T', null); }
@@ -1180,6 +1191,24 @@ public class ZGenScript {
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
     }
+    
+    
+    
+    public Statement new_if(){
+      StatementList subGenContent = new StatementList(parentStatement);
+      Statement statement = new Statement(this, 'F', null);
+      statement.statementlist = subGenContent;  //The statement contains a genContent. 
+      return statement;
+
+    }
+
+    
+    public void add_if(Statement val){
+      statements.add(val);
+      onerrorAccu = null; withoutOnerror.add(val);
+      
+    }
+
     
 
     public Statement new_forContainer()
