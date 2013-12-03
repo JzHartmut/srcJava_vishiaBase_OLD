@@ -4,6 +4,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.vishia.util.Assert;
+
 /**This class organizes the execution of events in a own thread. The class contains the event queue.
  * @author Hartmut Schorrig
  *
@@ -163,7 +165,7 @@ public class EventThread implements Runnable, Closeable
           }
         }
       } catch(Exception exc){
-        System.err.println("Unexpected exception " + exc.getMessage());
+        System.out.println(Assert.exceptionInfo("EventThread - unexpected Exception; ", exc, 0, 7));
         exc.printStackTrace(System.err);
       }
 
