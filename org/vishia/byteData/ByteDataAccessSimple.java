@@ -64,7 +64,7 @@ public class ByteDataAccessSimple extends ByteDataAccess
   { super();
     super.bBigEndian = bigEndian; 
     super.data = data;
-    reset(-1);
+    reset(0, -1);
   }
 
   
@@ -75,7 +75,7 @@ public class ByteDataAccessSimple extends ByteDataAccess
     this.data = data;
     super.bBigEndian = bigEndian; 
     assert(lengthData >=0 && lengthData <= data.length);
-    reset(lengthData);
+    reset(0, lengthData);
   }
   
   
@@ -86,19 +86,22 @@ public class ByteDataAccessSimple extends ByteDataAccess
     this.idxBegin = index;
     super.bBigEndian = bigEndian; 
     assert(lengthData >=0 && lengthData + index <= data.length);
-    reset(lengthData);
+    reset(0, lengthData);
   }
   
+  @Override
   protected void specifyEmptyDefaultData() 
   {
   }
 
 
+  @Override
   protected int specifyLengthElement() 
   { return -1;
   }
   
   
+  @Override
   public int specifyLengthElementHead() 
   { return 0;
   } 

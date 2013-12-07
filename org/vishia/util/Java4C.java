@@ -92,4 +92,8 @@ public interface Java4C {
   /**The method is translated building a simple macro. */
   public @interface define{}
   
+  /**The class contains only methods. The super class should be enhanced with that methods whithout build
+   * a special class. */
+  public @interface extendsOnlyMethods{}
+  
 }

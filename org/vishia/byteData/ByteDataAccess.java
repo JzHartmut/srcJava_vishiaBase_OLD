@@ -25,17 +25,21 @@ import java.io.UnsupportedEncodingException;
 
 /**This class is a base class to control the access to binary data.
  * The binary data may typically used or produced from a part of software written in C or C++.
- * There the binary data are struct-constructs.
+ * There the binary data are struct-constructs. Another example - build of datagram structures.
  * <br>
- * It is able to support several kinds of struct constructs:<ul>
- * <li>Simple <code>struct</code> are adequate mapped with a derivated class of this class, 
- *     using the protected commonly access methods like {@link _getInt(int, int)} with predefined indexes 
+ * This class is a base class which should be derived for user's necessities. 
+ * The methods {@link #getInt16(int)} etc. are protected. That should prevent erratic free accesses to data 
+ * at application level. A derived class of this class structures the software for byte data access.
+ * <br><br> 
+ * It is able to support several kinds of structured data access:<ul>
+ * <li>Simple C-like <code>struct</code> are adequate mapped with a simple derived class of this class, 
+ *     using the protected commonly access methods like {@link #_getLong(int, int)} with predefined indexes 
  *     in special methods like getValueXyz().</li>
  * <li>Complex <code>struct</code> with nested <code>struct</code> inside are mapped 
- *     with one derivated class per <code>struct</code>, define one reference per nested struct 
- *     and overwriting the method {@link assignDataToFixChilds()}</li>
- * <li>Base <code>struct</code> inside a <code>struct</code> (inherition in C) can be mapped with 
- *     extra derivated classes for the base struct and usind the
+ *     with one derived class per <code>struct</code>, define one reference per nested struct 
+ *     and overwriting the method {@link #assignDataToFixChilds()}</li>
+ * <li>Base <code>struct</code> inside a <code>struct</code> (inheritance in C) can be mapped with 
+ *     extra derived classes for the base struct and usind the
  *     {@link assignCasted_i(ByteDataAccess, int)}-method.</li>
  * <li>A pack of data with several struct may be mapped using the {@addChild(ByteDataAccess)}-method.
  *     Thereby a parent should be defined, and the structs of the pack are children of this parent. 
@@ -114,6 +118,15 @@ public abstract class ByteDataAccess
 {
   /**The version. 
    * <ul>
+   * <li>2013-12-08 Hartmut new: {@link #ByteDataAccess(int, int)} as super constructor with given head and data size.
+   *   {@link #addChild(ByteDataAccess)} accepts an initialized not used child. Uses {@link #kInitializedWithLength}.
+   *   That is the possibility to work without dynamic linked methods {@link #specifyLengthElement()} etc. for proper work
+   *   especially for C usage. The overridden methods {@link #specifyEmptyDefaultData()}, {@link #notifyAddChild()} etc.
+   *   are proper to use in C too with the concept of the dynamic linked methods, but there does not be necessary.
+   *   It is an optimizing for C. Maybe in future the {@link #specifyLengthElement()} and {@link #specifyLengthElementHead()}
+   *   may be depreciated because the new variant of initialized children is better to use, more simple for usage. 
+   *   But it should be compatible with older versions. 
+   * <li>2013-12-08 Hartmut chg: {@link #reset(int, int)} is protected now and has a second parameter. necessary public? 
    * <li>2012-12-15 Hartmut chg: Some changes are done which cleans up this class. If any problem occurs, the {@link ByteDataAccessOld}
    *   can be used. It is compatible with the last version before this changes.
    *   <ul>
@@ -191,6 +204,12 @@ public abstract class ByteDataAccess
   /** coding: the value is undefined*/
   public static final byte kUndefined  = -0x3f;
 
+  
+  /**Designation whether a instance is initialized with a local length.
+   * See {@link #ByteDataAccess(int, int)}.
+   */
+  protected static final int kInitializedWithLength = -3;
+  
   /** Index in the data, position of element code*/
   protected static final int kIdxElementCode = 0;
 
@@ -295,6 +314,7 @@ public abstract class ByteDataAccess
     bExpand = false;
     idxBegin = 0;
     idxEnd = 0;
+    idxFirstChild = 0;
     idxCurrentChild = -1;  //to mark start.
     idxCurrentChildEnd = 0;
     parent = null;
@@ -303,7 +323,40 @@ public abstract class ByteDataAccess
     charset = "ISO-8859-1";
   }
 
+
   
+  
+  /** Constructs a new empty instance. Use assign() to work with it. 
+   * @param sizeHead number of bytes for the head. See {@link #assignData(byte[], int, int, int)}.
+   *   <ul>
+   *   <li>If negative, especially -1, the overridden method {@link #specifyLengthElementHead()} is called
+   *     to get the length of the head. It depends on the definition of the derived class.
+   *   <li>If 0 or >0, it is the length. Then the overridden method is not called, especially for usage in C.
+   *   </ul>               
+   * @param sizeData number of significant bytes in data for this child.
+   *   <ul>
+   *   <li>If sizeChild is to large in respect to data.length, an exception may be thrown on access.
+   *   <li>If the sizeChild is < 0 (especially -1), it means, it is not known outside.
+   *     Than the element is initialized with its known head length calling {@link #specifyLengthElement()}.
+   *   <li>If the length is >0, it defines the size of this access. Between the head and this length
+   *     some children can be added to access that data.
+   *   </ul>  
+   * */
+  protected ByteDataAccess(int sizeHead, int sizeData){
+    this.data = null;
+    this.bBigEndian = false;
+    bExpand = false;
+    idxBegin = 0;
+    idxEnd = sizeData;
+    idxFirstChild = sizeHead;
+    idxCurrentChild = -1;  //to mark start.
+    idxCurrentChildEnd = kInitializedWithLength;
+    parent = null;
+    //currentChild = null;
+    //charset = Charset.forName("ISO-8859-1");  //NOTE: String(..., Charset) is only support from Java 6
+    charset = "ISO-8859-1";
+  }
+
   
   /**Assigns new data to this element. <br>
 
@@ -330,7 +383,9 @@ public abstract class ByteDataAccess
   
   
   
-  /**Assigns new data to this element at given index in data. <br>
+  /**Assigns new data to this element at given index in data. 
+   * This method is called on {@link #addChild(ByteDataAccess)}.
+   * <br>
    * The user may overwrite this method and call super.assignData(data, length) inside
    * if some additional actions should be done.
    * <br/>
@@ -340,16 +395,26 @@ public abstract class ByteDataAccess
    * <br>
    * @param data The data. The length of data may be greater as
    *             the number of the significant bytes.
+   * @param lengthHead number of bytes for the head.
+   *   <ul>
+   *   <li>If negative, especially -1, the overridden method {@link #specifyLengthElementHead()} is called
+   *     to get the length of the head. It depends on the definition of the derived class.
+   *   <li>If 0 or >0, it is the length. Then the overridden method is not called, especially for usage in C.
+   *   </ul>               
    * @param lengthData absolute Number of significant bytes in data from idx=0.
-   *               If length is > data.length, an exception is thrown.
-   *               If the length is <0 (especially -1), it means, it is not known outside.
-   *               Than the element is initialized with its known head length.
-   *               The length mustn't not ==0, it is tested. Use -1 also if the head length is 0.
+   *   <ul>
+   *   <li>If length is > data.length, an exception is thrown.
+   *   <li>If the length is <0 (especially -1), it means, it is not known outside.
+   *     Than the element is initialized with its known head length.
+   *     The length mustn't not ==0, it is tested. Use -1 also if the head length is 0.
+   *   <li>If the length is >0, it defines the size of this access. Between the head and this length
+   *     some children can be added to access that data.
+   *   </ul>  
    * @param index Start position in data 
    * @throws IllegalArgumentException 
    */
 
-  public void assignData(byte[] data, int lengthData, int index) 
+  public void assignData(byte[] data, int lengthHead, int lengthData, int index) 
   throws IllegalArgumentException
   { this.data = data;
     if(index < 0)
@@ -362,9 +427,25 @@ public abstract class ByteDataAccess
     }
     */
     parent = null;
-    reset(lengthData);
+    reset(lengthHead, lengthData);
     assignDataToFixChilds();
   }
+  
+  
+  
+  /**Assigns data without a given length of head. The length of the head is gotten
+   * with call of the overridden method {@link #specifyLengthElementHead()} of the users class.
+   * It calls {@link #assignData(byte[], int, int, int)} with lengthHead = -1.
+   * @param data
+   * @param lengthData
+   * @param index
+   * @throws IllegalArgumentException
+   */
+  public void assignData(byte[] data, int lengthData, int index) 
+  throws IllegalArgumentException
+  { assignData(data, -1, lengthData, index);
+  }
+  
   
   
   /**Resets the view to the buffer. The data in the buffer may be set newly. Either they are declared
@@ -388,8 +469,8 @@ public abstract class ByteDataAccess
    * @param lengthData Number of valid designated content in the associated buffer.
    *   
    */
-  public final void reset(int lengthData){
-    int lengthHeadSpecified = specifyLengthElementHead();
+  protected final void reset(int lengthHead, int lengthData){
+    int lengthHeadSpecified = lengthHead < 0 ? specifyLengthElementHead() : lengthHead;
     if(lengthData <= 0){
       specifyEmptyDefaultData();
       bExpand = true;
@@ -404,7 +485,7 @@ public abstract class ByteDataAccess
     */
     idxCurrentChild = -1;
     idxFirstChild = idxCurrentChildEnd = idxBegin + lengthHeadSpecified; 
-    idxEnd = bExpand ? idxFirstChild : lengthData;
+    idxEnd = bExpand ? idxFirstChild : idxBegin + lengthData;
     if(idxEnd > data.length)
     { throw new IllegalArgumentException("not enough data bytes, requested=" + idxEnd + ", buffer-length=" + data.length);
     }
@@ -609,7 +690,13 @@ public abstract class ByteDataAccess
   throws IllegalArgumentException
   { @SuppressWarnings("unused")
     int lengthHead = getLengthHead();
-    assignData(parent.data, parent.idxEnd, parent.idxBegin + idxChildInParent);
+    int lengthData;
+    if(idxCurrentChildEnd ==kInitializedWithLength){
+      lengthData = idxEnd;
+    } else {
+      lengthData = -1;  //unknown
+    }
+    assignData(parent.data, lengthHead, lengthData, parent.idxBegin + idxChildInParent);
     setBigEndian(parent.bBigEndian);
   }
 
@@ -635,8 +722,8 @@ public abstract class ByteDataAccess
   /**adds an child Element after the current child or as first child after head.
    * With the aid of the child Element the data can be read or write structured.
    * <br><br>
-   * The child instance will be initialized newly. Any old usage of the child instance will be unnoted.
-   * The child is only a helper to manage indices in the parent, to get data and to manage is own indices
+   * The child instance will be initialized newly. Any old usage of the child instance will be ignored.
+   * The child is only a helper to manage indices in the parent, to get data and to manage its own indices
    * while further children were added to itself.
    * <br><br>
    * 
@@ -659,19 +746,37 @@ public abstract class ByteDataAccess
   final public boolean addChild(ByteDataAccess child) 
   throws IllegalArgumentException
   { notifyAddChild();
+    int sizeChildHead, sizeChild;
+    if(child.idxCurrentChildEnd == kInitializedWithLength){
+      //initialized child with its local length:
+      sizeChildHead = child.idxFirstChild;
+      sizeChild = child.idxEnd;
+    } else {
+      //uninitialized child with length, or reused child:
+      sizeChildHead = sizeChild = -1;
+    }
     child.bBigEndian = bBigEndian;
     child.bExpand = bExpand;
     setIdxtoNextCurrentChild();
     /**@java2c=dynamic-call.  */
     ByteDataAccess childMtb = child;
-    childMtb.assignData(data, bExpand ? -1 : idxEnd, idxCurrentChild);
+    final int sizeChild1;
+    if(sizeChild <= sizeChildHead){  //especially -1, the size is unknown.
+      if(bExpand){ sizeChild1 = -1; }  //initialize with specifyLength()
+      else { sizeChild1 = idxEnd; }    //the child fills the parent.
+    } else {
+      sizeChild1 = sizeChild;   //given size is valid.
+    }
+    childMtb.assignData(data, sizeChildHead, sizeChild1, idxCurrentChild);
     childMtb.setBigEndian(bBigEndian);
     child.parent = this;
     //this.currentChild = child;
-    expand(child.idxCurrentChildEnd);  //NOTE: Problem the child.idxEnd is not set yet.
+    int idxEndNew = child.idxEnd > child.idxCurrentChildEnd ? child.idxEnd : child.idxCurrentChild;
+    expand(idxEndNew);  
     return bExpand;
   }
 
+  
   
   /**remove the current child to assign another current child instead of the first one.
    * This method is usefull if data are tested with several structures.
