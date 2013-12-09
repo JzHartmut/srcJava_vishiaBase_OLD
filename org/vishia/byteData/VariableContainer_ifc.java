@@ -80,7 +80,15 @@ public interface VariableContainer_ifc
 	
 	
 	
-	VariableAccessWithIdx getVariable(String dataPath);
+	/**Searches the variable in the container and returns the access to it.
+	 * @param dataPath Path. It can have array access designations "[index]". Than usual an instance of
+	 *   {@link VariableAccessWithIdx} is returned, which contains the index and the reference to the variable
+	 *   in the container. If the variable is an array variable and the dataPath does not contains an "[index]",
+	 *   the array variable is returned which implements the {@link VariableAccessArray_ifc} usual. 
+	 * @return Instance of access control to the variable. The instance may instanceof {@link VariableAccessArray_ifc}.
+	 *   Then a cast should be recommended to access the array elements. That is a special case.
+	 */
+	VariableAccess_ifc getVariable(String dataPath);
 	
 	
 	

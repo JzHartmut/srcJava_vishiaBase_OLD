@@ -30,16 +30,24 @@ package org.vishia.byteData;
  * <br><br>
  * It is possible to have one list or index with variables which are found in several data storage types,
  * for example in Java-data using {@link org.vishia.reflect.FieldVariableAccess} or in data from files.
- * use Container <code>List<VariableAccess_ifc></code> or <code>Map<String,VariableAccess_ifc></code> 
+ * use Container <code>List<VariableAccess_ifc></code> or <code>Map<String,VariableAccess_ifc></code>.
+ * To work as integral whole, this interface supports all of them.
+ * <br><br> 
+ * Variables may assembled in an array structure. The implementation knows about the array property of any variable.
+ * To support an indexed access all methods can have additional index parameter. If they are not need, let it empty.
+ * If indices are given but they are not expected, an {@link IndexOutOfBoundsException} or an {@link IllegalArgumentException}
+ * may be thrown. 
  * 
  * @author Hartmut Schorrig
  *
  */
 public interface VariableAccess_ifc
 {
-  
   /**Version, history and license.
    * <ul>
+   * <li>2013-12-10 Hartmut new Separate {@link VariableAccessArray_ifc} and this interface.
+   *   All simple accesses and especially {@link VariableAccessWithIdx} need this interface.
+   *   All implementations need the {@link VariableAccessArray_ifc} if they support arrays.
    * <li>2012-09-24 Hartmut new {@link #getLong(int...)} and {@link #setLong(long, int...)} 
    * <li>2012-04-25 Hartmut new {@link #requestValue(long)}, {@link #getLastRefreshTime()}:
    *   A variable should be refreshed by determined call of {@link #requestValue(long)} if it holds
@@ -83,7 +91,7 @@ public interface VariableAccess_ifc
    * @param ixArray unused if it isn't an indexed variable.
    * @return the value.
    */
-  int getInt(int ...ixArray);
+  int getInt();
   
   /**Sets the value into the variable. If the variable is of byte or short type and the value is not able
    * to present, an IllegalArgumentException may be thrown or not, it depends on the implementation.
@@ -91,7 +99,7 @@ public interface VariableAccess_ifc
    * @param ixArray unused if it isn't an indexed variable.
    * @return The value really set (maybe more imprecise).
    */
-  int setInt(int value, int ...ixArray);
+  int setInt(int value);
   
   /**Gets a long value from this variable. The variable contains the information, 
    * whether it is long, short etc. 
@@ -101,7 +109,7 @@ public interface VariableAccess_ifc
    * @param ixArray unused if it isn't an indexed variable.
    * @return the value.
    */
-  long getLong(int ...ixArray);
+  long getLong();
   
   /**Sets the value into the variable. If the variable is of byte, short or int type and the value is not able
    * to present, an IllegalArgumentException may be thrown or not, it depends on the implementation.
@@ -109,20 +117,20 @@ public interface VariableAccess_ifc
    * @param ixArray unused if it isn't an indexed variable.
    * @return The value really set (maybe more imprecise).
    */
-  long setLong(long value, int ...ixArray);
+  long setLong(long value);
   
   /**Gets the value from this variable. If the variable is in another format than float, 
    * a conversion to be will be done.
    * @param ixArray unused if it isn't an indexed variable.
    * @return the value.
    */
-  float getFloat(int ...ixArray);
+  float getFloat();
   
   /**Sets the value from this variable. 
    * @param ixArray unused if it isn't an indexed variable.
    * @return the value.
    */
-  float setFloat(float value, int ...ixArray);
+  float setFloat(float value);
   
   
   /**Gets the value from this variable. If the variable is in another format than double, 
@@ -130,29 +138,28 @@ public interface VariableAccess_ifc
    * @param ixArray unused if it isn't an indexed variable.
    * @return the value.
    */
-  double getDouble(int ...ixArray);
+  double getDouble();
   
   /**Sets the value from this variable. If the variable is from float type, and the range (exponent)
    * is able to present in float, the value will be stored in float with truncation of digits.
    * @param ixArray unused if it isn't an indexed variable.
    * @return the value.
    */
-  double setDouble(double value, int ...ixArray);
+  double setDouble(double value);
   
   
   /**Gets the value from this variable. If the variable is numerical, it is converted to a proper representation.
    * @param ixArray unused if it isn't an indexed variable.
    * @return the value.
    */
-  String getString(int ...ixArray);
+  String getString();
   
   /**Sets the value into the variable
    * @param value The value given as String.
    * @param ixArray unused if it isn't an indexed variable.
    * @return The value really set (maybe shortened).
    */
-  String setString(String value, int ...ixArray);
-  
+  String setString(String value);
   
   /**Requests a new value from the target device.
    */
@@ -169,10 +176,5 @@ public interface VariableAccess_ifc
    */
   char getType();
   
-  /**Returns the number of dimension if it is an array or its number of elements.
-   * @param dimension 0 to get number of dimension, 1... to get the length of the dimension.
-   * @return 0 if it hasn't such an dimension.
-   */
-  int getDimension(int dimension);
-  
+
 }

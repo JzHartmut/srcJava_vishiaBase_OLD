@@ -11,7 +11,7 @@ package org.vishia.byteData;
  * @author Hartmut Schorrig
  *
  */
-public class VariableAccessWithIdx
+public class VariableAccessWithIdx implements VariableAccess_ifc
 {
   
   
@@ -58,7 +58,7 @@ public class VariableAccessWithIdx
   public static final int version = 20120331;
 
   /**The entity of a variable. */
-  protected final VariableAccess_ifc variable;
+  protected final VariableAccessArray_ifc variable;
   
   /**Array of indices to access if the variable has more as one dimension.
    */
@@ -75,7 +75,7 @@ public class VariableAccessWithIdx
    */
   protected final int bit;
 
-  public VariableAccessWithIdx(VariableAccess_ifc variable, int[] idx, int bit, int mask){
+  public VariableAccessWithIdx(VariableAccessArray_ifc variable, int[] idx, int bit, int mask){
     if(variable ==null){
       throw new IllegalArgumentException("Variable is not given");
     }
@@ -85,15 +85,15 @@ public class VariableAccessWithIdx
     this.mask = mask;
   }
   
-  public VariableAccessWithIdx(VariableAccess_ifc variable, int[] idx){
+  public VariableAccessWithIdx(VariableAccessArray_ifc variable, int[] idx){
     this(variable, idx, 0, -1);
   }
   
-  public VariableAccessWithIdx(VariableAccess_ifc variable){
+  public VariableAccessWithIdx(VariableAccessArray_ifc variable){
     this(variable, null, 0, -1);
   }
   
-  public VariableAccessWithIdx(VariableAccess_ifc variable, int bit, int mask){
+  public VariableAccessWithIdx(VariableAccessArray_ifc variable, int bit, int mask){
     this(variable, null, bit, mask);
   }
   
@@ -149,7 +149,7 @@ public class VariableAccessWithIdx
    * See {@link #setFloat(float, int...)}. The index may be stored here.
    * @param value
    */
-  public void setFloat(float value){ variable.setFloat(value, ixArray); }
+  public float setFloat(float value){ return variable.setFloat(value, ixArray); }
 
   
   /**Sets a value to the variable which is an array variable.
@@ -159,6 +159,30 @@ public class VariableAccessWithIdx
   public void setFloat(float value, int ...ix){ variable.setFloat(value, ix); }
 
   
-  public void setString(String src){ variable.setString(src, ixArray); }
+  public String setString(String src){ return variable.setString(src, ixArray); }
+
+  @Override
+  public void requestValue(long timeRequested){ variable.requestValue(timeRequested); }
+
+  @Override
+  public double setDouble(double value)
+  {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
+  @Override
+  public int setInt(int value)
+  {
+    // TODO Auto-generated method stub
+    return 0;
+  }
+
+  @Override
+  public long setLong(long value)
+  {
+    // TODO Auto-generated method stub
+    return 0;
+  }
   
 }

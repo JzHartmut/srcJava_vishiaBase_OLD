@@ -103,7 +103,7 @@ public class ByteDataSymbolicAccess {
   
   /**An instance is created and filled from ZBNF-parser using reflection.
    */
-  public class Variable implements VariableAccess_ifc
+  public class Variable implements VariableAccessArray_ifc
   {
     public final ByteDataSymbolicAccess bytes;
     
@@ -307,7 +307,28 @@ public class ByteDataSymbolicAccess {
     }
 
     @Override public long getLastRefreshTime(){ return ByteDataSymbolicAccess.this.timeSetNewValue; }
-    
+
+    @Override public double getDouble() { return getDouble(0); }
+
+    @Override public float getFloat() { return getFloat(0); }
+
+    @Override public int getInt() { return getInt(0); }
+
+    @Override public long getLong() { return getLong(0); }
+
+    @Override public String getString() { return getString(0); }
+
+
+    @Override public double setDouble(double value) { return setDouble(value, 0); }
+
+    @Override public float setFloat(float value) { return setFloat(value, 0); }
+
+    @Override public int setInt(int value) { return setInt(value, 0); }
+
+    @Override public long setLong(long value) { return setLong(value, 0); }
+
+    @Override public String setString(String value) { return setString(value, 0); }
+
   }
   
   
