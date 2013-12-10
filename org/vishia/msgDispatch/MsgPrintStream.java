@@ -51,6 +51,8 @@ public class MsgPrintStream implements MsgPrintStream_ifc
 {
   /**Version, history and license.
    * <ul>
+   * <li>2013-09-14 Hartmut chg: override println(Object) without them the superclass calls print(Object.toString) + "\n".
+   *   The newline buffer mechanism had not worked without them.
    * <li>2013-09-14 Hartmut chg: The {@link PrintStreamAdapter#print(String)} does not dispatch the text directly
    *   but does append it to an internal line buffer till an newline "\n" is detected. It is because the
    *   super method append(CharSequence) calls this method. A PrintStream can be referred as {@link java.lang.Appendable}
@@ -374,6 +376,22 @@ public class MsgPrintStream implements MsgPrintStream_ifc
         uLine.append(s);
       }
     }
+    
+    /**The println method is used usually. 
+     * 
+     * @see java.io.PrintStream#println(java.lang.String)
+     */
+    @Override public void println(Object o) { 
+      String s = o.toString();
+      if(uLine.length() == 0){
+        convertToMsg(pre, s);
+      } else {
+        uLine.append(s);
+        convertToMsg(pre, uLine.toString());
+        uLine.setLength(0);
+      }
+    }
+
     
     /**The println method is used usually. 
      * 

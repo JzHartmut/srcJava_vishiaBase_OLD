@@ -771,7 +771,7 @@ public abstract class ByteDataAccess
     childMtb.setBigEndian(bBigEndian);
     child.parent = this;
     //this.currentChild = child;
-    int idxEndNew = child.idxEnd > child.idxCurrentChildEnd ? child.idxEnd : child.idxCurrentChild;
+    int idxEndNew = child.idxEnd > child.idxCurrentChildEnd ? child.idxEnd : child.idxCurrentChildEnd;
     expand(idxEndNew);  
     return bExpand;
   }
