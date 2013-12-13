@@ -169,9 +169,26 @@ public class ZGenExecuter {
   String newline = "\r\n";
   
 
+  /**Creates a ZGenExecuter with possible writing exceptions in the output text.
+   * 
+   * @param log maybe null
+   */
   public ZGenExecuter(MainCmdLogging_ifc log){
     this.log = log;
     bWriteErrorInOutput = false;
+    scriptLevel = new ExecuteLevel();
+  }
+  
+  
+  /**Creates a ZGenExecuter with possible writing exceptions in the output text.
+   * The advantage of that is: The script runs to its end. It does not break on first exception.
+   * The cause is able to read.
+   * @param log maybe null
+   * @param bWriteErrorInOutput If true then does not throw but writes the exception in the current output.
+   */
+  public ZGenExecuter(MainCmdLogging_ifc log, boolean bWriteErrorInOutput){
+    this.log = log;
+    this.bWriteErrorInOutput = bWriteErrorInOutput;
     scriptLevel = new ExecuteLevel();
   }
   
@@ -420,6 +437,25 @@ public class ZGenExecuter {
     return false;
 
   }
+  
+  
+  
+  CharSequence textError(Exception exc){
+    CharSequence text = null;
+    if(bWriteErrorInOutput){
+      Throwable excCause = exc, excText = exc;
+      int catastrophicalcount = 10;
+      while( --catastrophicalcount >=0 && (excCause = excCause.getCause()) !=null){
+        excText = excCause;  //if !=null
+      }
+      text = excText.getMessage();
+    } else {
+      throw new IllegalArgumentException(exc);  //forwarding
+    }
+    return text;
+  }
+  
+  
   
   /**Wrapper to generate a script with specified localVariables.
    * A new Wrapper is created on any subroutine level. It is used in a {@link CalculatorExpr#calcDataAccess(Map, Object...)} 
@@ -1079,15 +1115,19 @@ public class ZGenExecuter {
     private void executeDatatext(ZGenScript.Statement statement, Appendable out)  //<*datatext>
     throws IllegalArgumentException, Exception
     {
-      Object obj = evalDatapathOrExpr(statement); //ascertainText(statement.expression, localVariables);
-      if(obj instanceof CalculatorExpr.Value){
-        obj = ((CalculatorExpr.Value)obj).objValue();
-      }
-      final CharSequence text;
-      if(statement.textArg !=null){ //it is a format string:
-         text = String.format(statement.textArg.toString(), obj);
-      } else {
-        text = obj.toString();
+      CharSequence text = "??";
+      try{
+        Object obj = evalDatapathOrExpr(statement); //ascertainText(statement.expression, localVariables);
+        if(obj instanceof CalculatorExpr.Value){
+          obj = ((CalculatorExpr.Value)obj).objValue();
+        }
+        if(statement.textArg !=null){ //it is a format string:
+           text = String.format(statement.textArg.toString(), obj);
+        } else {
+          text = obj.toString();
+        }
+      } catch(Exception exc){
+        text = textError(exc);  //throws
       }
       out.append(text); 
     }

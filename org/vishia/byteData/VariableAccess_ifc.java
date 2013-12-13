@@ -165,6 +165,9 @@ public interface VariableAccess_ifc
    */
   void requestValue(long timeRequested);
   
+  boolean isRequestedValue(boolean retryFaultyVariables);
+  //boolean requestValueFromTarget(long timeRequested, boolean retryDisabledVariable);  
+
   
   /**Gets the time stamp when this variable was refreshed lastly.
    * @return -1 if this function is not supported, 0 if this variable was never set.

@@ -305,6 +305,13 @@ public class ByteDataSymbolicAccess {
     {
       ByteDataSymbolicAccess.this.timeRequestNewValue = timeRequested;
     }
+    
+    @Override public boolean isRequestedValue(boolean retryFaultyVariables){
+      if(ByteDataSymbolicAccess.this.timeRequestNewValue == 0) return false;  //never requested
+      long timeNew = ByteDataSymbolicAccess.this.timeRequestNewValue - ByteDataSymbolicAccess.this.timeSetNewValue;
+      return timeNew >0;
+    }
+    
 
     @Override public long getLastRefreshTime(){ return ByteDataSymbolicAccess.this.timeSetNewValue; }
 

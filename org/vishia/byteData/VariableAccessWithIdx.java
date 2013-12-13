@@ -97,9 +97,9 @@ public class VariableAccessWithIdx implements VariableAccess_ifc
     this(variable, null, bit, mask);
   }
   
-  public double getDouble(){ return variable.getDouble(ixArray); }
+  public double getDouble(){ return ixArray == null ? variable.getDouble() : variable.getDouble(ixArray); }
 
-  public float getFloat(){ return variable.getFloat(ixArray); }
+  public float getFloat(){ return ixArray == null ? variable.getFloat() : variable.getFloat(ixArray); }
 
   public String getString(){ return variable.getString(ixArray); }
   
@@ -126,7 +126,7 @@ public class VariableAccessWithIdx implements VariableAccess_ifc
    * @return The value
    */
   public int getInt(){ 
-    int value = variable.getInt(ixArray);
+    int value = ixArray == null ? variable.getInt() : variable.getInt(ixArray);
     int bValue = (value >> bit) & mask;
     return bValue;
   }
@@ -138,7 +138,7 @@ public class VariableAccessWithIdx implements VariableAccess_ifc
    * @return The value
    */
   public long getLong(){ 
-    long value = variable.getLong(ixArray);
+    long value = ixArray == null ? variable.getLong() : variable.getLong(ixArray);
     long bValue = (value >> bit) & mask;
     return bValue;
   }
@@ -149,7 +149,7 @@ public class VariableAccessWithIdx implements VariableAccess_ifc
    * See {@link #setFloat(float, int...)}. The index may be stored here.
    * @param value
    */
-  public float setFloat(float value){ return variable.setFloat(value, ixArray); }
+  public float setFloat(float value){ return ixArray == null ? variable.setFloat(value) : variable.setFloat(value, ixArray); }
 
   
   /**Sets a value to the variable which is an array variable.
@@ -159,11 +159,17 @@ public class VariableAccessWithIdx implements VariableAccess_ifc
   public void setFloat(float value, int ...ix){ variable.setFloat(value, ix); }
 
   
-  public String setString(String src){ return variable.setString(src, ixArray); }
+  public String setString(String src){ return ixArray == null ? variable.setString(src) : variable.setString(src, ixArray); }
 
   @Override
   public void requestValue(long timeRequested){ variable.requestValue(timeRequested); }
 
+  @Override public boolean isRequestedValue(boolean retryFaultyVariables){
+    return variable.isRequestedValue(retryFaultyVariables);
+  }
+  
+
+  
   @Override
   public double setDouble(double value)
   {

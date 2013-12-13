@@ -157,7 +157,7 @@ public class ThreadRun implements Closeable
       if(runThread){
         try{
           bWork = step.step(cycletime);
-        }catch(Exception exc){
+        }catch(Throwable exc){
           System.err.println(Assert.exceptionInfo("InspcMng - unexpected Exception; ", exc, 0, 7));
           exc.printStackTrace(System.err);
         }
