@@ -143,11 +143,16 @@ public class ThreadRun implements Closeable
           } else if(waitMillisec <= 0) {
             waitMillisec = (cycletime / 16)+1;  //wait at least 1 ms. 
             ctTimeoverflow +=1;
+            waitMillisec = cycletime;   //synchronize with a faulty cycletime, maybe on time error.
+            nextCycle =  shortTime;
           } else {
             stepTimeMeasure = cycletime - waitMillisec;
             stepTimeMeasureMid += 0.01f * (stepTimeMeasure - stepTimeMeasureMid);
           }
           bThreadWaits = true;
+          if(waitMillisec < 200){
+            System.out.println("ThreadRun - less 200 ms;");
+          }
           try{ wait(waitMillisec); } catch(InterruptedException exc){}
           bThreadWaits = false;
         } else {

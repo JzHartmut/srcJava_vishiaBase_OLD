@@ -763,7 +763,7 @@ public abstract class ByteDataAccess
     final int sizeChild1;
     if(sizeChild <= sizeChildHead){  //especially -1, the size is unknown.
       if(bExpand){ sizeChild1 = -1; }  //initialize with specifyLength()
-      else { sizeChild1 = idxEnd; }    //the child fills the parent.
+      else { sizeChild1 = idxEnd - idxCurrentChild; }    //the child fills the parent.
     } else {
       sizeChild1 = sizeChild;   //given size is valid.
     }

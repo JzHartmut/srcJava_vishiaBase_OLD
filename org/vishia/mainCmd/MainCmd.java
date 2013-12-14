@@ -40,6 +40,8 @@ import org.vishia.bridgeC.OS_TimeStamp;
 import org.vishia.bridgeC.Va_list;
 import org.vishia.cmd.CmdExecuter;
 import org.vishia.msgDispatch.LogMessage;
+import org.vishia.msgDispatch.MsgDispatcher;
+import org.vishia.msgDispatch.MsgRedirectConsole;
 
 
 /**This is an abstract superclass to support cmd line applications. The class contains the following features:
@@ -215,6 +217,9 @@ public abstract class MainCmd implements MainCmd_ifc
   /**Version, able to read as hex yyyymmdd.
    * Changes:
    * <ul>
+   * <li>2013-12-15 Hartmut new: Argument --msgcfg adds the {@link MsgRedirectConsole} to the main instance.
+   *   Therewith the Conversion of System.out.println(...) and System.err... can be used in all applications.
+   *   The first advantage: All messages have a time stamp. 
    * <li>2013-07-14 Hartmut chg rule for the {@link #addArgument(Argument[])}, see description of {@link Argument}
    * <li>2013-03-10 Hartmut chg Some adjustments in {@link #addArgument(Argument[])},especially old: setArguments(..)
    *   is renamed to addArgument(). It is prepared that an inherited class's main(...) can add some more arguments
@@ -238,7 +243,7 @@ public abstract class MainCmd implements MainCmd_ifc
    * <li>2004-06-00 JcHartmut  initial revision
    * </ul>
    */
-  public static int version = 0x20130310;
+  public static int version = 0x20131215;
   
   /**Interface for implementation of setting arguments.
    * The implementation can be written with an anonymous implementation with the simple form:
@@ -346,6 +351,11 @@ public abstract class MainCmd implements MainCmd_ifc
   /**Channels for output and error output of the main program. */
   private Appendable outConsole,errConsole;
   
+  
+  /**A standard variant of the {@link MsgDispatcher} for all application,
+   * which redirects System.out and System.err. */
+  protected MsgRedirectConsole msgDisp;
+
 
   protected SimpleDateFormat dateFormatMsg = new SimpleDateFormat("MMM-dd HH:mm:ss.SSS: ");
 
@@ -616,6 +626,8 @@ public abstract class MainCmd implements MainCmd_ifc
         else if(cmdLineArgs[iArgs].startsWith("--report=")) { sFileReport = getArgument(9); }
         else if(cmdLineArgs[iArgs].startsWith("--about")) { writeAboutInfo(); }
         else if(cmdLineArgs[iArgs].startsWith("--help")) { writeHelpInfo(); }
+        else if(cmdLineArgs[iArgs].startsWith("--msgcfg:")) { addMsgConfig(cmdLineArgs[iArgs].substring(9)); }
+        else if(cmdLineArgs[iArgs].startsWith("--msgcfg=")) { addMsgConfig(cmdLineArgs[iArgs].substring(9)); }
         else if(cmdLineArgs[iArgs].startsWith("---")) { /*ignore it*/ }
         else
         { if(!main.testArgument(cmdLineArgs[iArgs], iArgs))
@@ -1397,6 +1409,21 @@ public abstract class MainCmd implements MainCmd_ifc
   }
   
 
+  
+  protected void addMsgConfig(String sFileName){
+    msgDisp = new MsgRedirectConsole(this, 0, null);
+    if(sFileName.length() >0){
+      File fileCfg = new File(sFileName);
+      if(fileCfg.exists()){
+        msgDisp.readConfig(fileCfg);
+      } else {
+        System.err.println("MainCmd - msgCfg file does not exits; " + fileCfg.getAbsolutePath());
+      }
+    }
+    System.out.println("MainCmd - msgConfig installed;");
+  }
+  
+  
 
   /**Sends a message. The timestamp of the message is build with the system time. 
    * All other parameter are identically see {@link #sendMsg(int, OS_TimeStamp, String, Object...)}.
