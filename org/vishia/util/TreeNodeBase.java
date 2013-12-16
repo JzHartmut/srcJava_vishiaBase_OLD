@@ -135,6 +135,11 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-11-03 Hartmut bugfix: {@link #iterChildren()} have to be return null, see its interface-definition.
+   *   It had returned an Iterator, which first {@link Iterator#hasNext()} returns false. But with them
+   *   it is not determined simply whether a node has children or not. The {@link org.vishia.xmlSimple.SimpleXmlOutputter}
+   *   has not worked correctly. There the decision whether the text() of a node should be output depends
+   *   on the existence of children. If it has children, the children contains the text() already.
    * <li>2013-11-03 Hartmut chg: Restructuring: Don't use the ListNodes with index etc, Use a double queue. 
    *   New {@link IteratorDerivedNode} etc.  
    * <li>2013-11-03 Hartmut new: {@link #firstChild()}, {@link #lastChild()}. Some methods returns
@@ -726,8 +731,7 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
   public Iterator<IfcType> iterChildren()
   { 
     //@SuppressWarnings("unchecked")
-    //Iterator<IfcType> ret = childNodes == null ? null : (Iterator<IfcType>)childNodes.iterator();
-    Iterator<IfcType> ret = new IteratorImpl();
+    Iterator<IfcType> ret = firstChild == null ? null :  new IteratorImpl();
     return ret;
   }
 
@@ -754,10 +758,15 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
   @Override
   public List<IfcType> listChildren()
   {
-    List<IfcType> list = new ArrayList<IfcType>(nrofChildren);
+    final List<IfcType> list;
     Iterator<IfcType> iter = iterChildren();
-    while(iter.hasNext()){
-      list.add(iter.next());
+    if(iter !=null){
+      list = new ArrayList<IfcType>(nrofChildren);
+      while(iter.hasNext()){
+        list.add(iter.next());
+      }
+    } else {
+      list = null;
     }
     return list; 
   }

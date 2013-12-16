@@ -150,8 +150,9 @@ public class ThreadRun implements Closeable
             stepTimeMeasureMid += 0.01f * (stepTimeMeasure - stepTimeMeasureMid);
           }
           bThreadWaits = true;
-          if(waitMillisec < 200){
-            System.out.println("ThreadRun - less 200 ms;");
+          if(waitMillisec < 50){
+            //System.out.println("ThreadRun - less 50 ms;");
+            waitMillisec = 50;
           }
           try{ wait(waitMillisec); } catch(InterruptedException exc){}
           bThreadWaits = false;

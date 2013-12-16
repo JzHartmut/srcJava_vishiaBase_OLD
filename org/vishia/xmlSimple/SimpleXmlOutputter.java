@@ -1,11 +1,14 @@
 package org.vishia.xmlSimple;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.util.Iterator;
 import java.util.Map;
+
+import org.vishia.util.Assert;
 
 
 
@@ -20,6 +23,11 @@ public class SimpleXmlOutputter
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-07-28: Hartmut chg: Uses a {@link BufferedWriter} internally. The {@link BufferedWriter#newLine()}
+   *   is not invoked therefore the platform depending line separator is not used. The line separator is still 
+   *   a simple '\n'. But the output may be faster, or not because the Writer outside may have a buffer too.
+   *   That BufferedWriter is included as debug helper primary. The output String should be seen. 
+   *   Some comments and test features added.
    * <li>2013-07-28: Hartmut new The {@link #convertString(String)} is now public.
    * <li>2009-05-24: Hartmut The out arg for write is a OutputSteamWriter, not a basic Writer. 
    *             Because: The charset of the writer is got and written in the head line.
@@ -77,9 +85,11 @@ public class SimpleXmlOutputter
   { String sEncodingCanonicalName = out.getEncoding();
     Charset charset = Charset.forName(sEncodingCanonicalName);
     String sEncoding = charset.displayName();
+    BufferedWriter bout = new BufferedWriter(out);
     out.write("<?xml version=\"1.0\" encoding=\"" + sEncoding + "\"?>" + newline);
     out.write("<!-- written with org.vishia.xmlSimple.SimpleXmlOutputter -->");
-    writeNode(out, xmlNode, 0);
+    writeNode(bout, xmlNode, 0);
+    bout.close();
   }
   
   protected void writeNode(Writer out, XmlNode xmlNode, int nIndent) 
@@ -87,16 +97,21 @@ public class SimpleXmlOutputter
   { if(nIndent >=0 && nIndent < sIdent.length()/2)
     { out.write(sIdent.substring(0, 2+nIndent*2));
     }
-    String sTagName;
+    final String sElementName = xmlNode.getName();
+    if(sElementName.equals("em")){
+      Assert.stop();
+    }
+    final String sTagName;
+    
     if(xmlNode.getNamespaceKey() != null)
-    { sTagName = xmlNode.getNamespaceKey() + ":" + xmlNode.getName();
+    { sTagName = xmlNode.getNamespaceKey() + ":" + sElementName;
     }
     else
-    { sTagName = xmlNode.getName();
+    { sTagName = sElementName;
     }
     assert(!sTagName.startsWith("@"));
-    out.write(elementStart(sTagName));
-    if(xmlNode.getAttributes() != null)
+    out.write(elementStart(sTagName));      //out: <ns:tag
+    if(xmlNode.getAttributes() != null)    //out:          attr="val"
     { Iterator<Map.Entry<String, String>> iterAttrib = xmlNode.getAttributes().entrySet().iterator();
       while(iterAttrib.hasNext())
       { Map.Entry<String, String> entry = iterAttrib.next();
@@ -128,7 +143,7 @@ public class SimpleXmlOutputter
     }  
     Iterator<XmlNode> iterContent = xmlNode.iterChildren();
     boolean bContent= false;  //set to true if </endTag> is necessary
-    if(iterContent != null) 
+    if(iterContent != null)    //at least one child node is present: 
     { while(iterContent.hasNext())
       { XmlNode content = iterContent.next();
         //String sName = content.getName();
@@ -149,6 +164,7 @@ public class SimpleXmlOutputter
         }
       }
     } else {
+      //NOTE: get the text() only if there is no children. Otherwise the summary of text nodes are gotten, that were wrong.
       String text = xmlNode.text(); //the node has not children, but may have text
       if(text !=null){
         out.write(elementTagEnd());
