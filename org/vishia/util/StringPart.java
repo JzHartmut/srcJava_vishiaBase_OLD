@@ -1942,7 +1942,8 @@ public StringPart len0end()
 
   public CharSequence getCurrent(int nChars)
   { final int nChars1 =  (content.length() - begin) < nChars ? content.length() - begin : nChars;
-    return( new Part(begin, begin + nChars1));
+    if(nChars1 ==0) return "";
+    else return( new Part(begin, begin + nChars1));
   }
 
   /** Gets the next char at current Position.
@@ -2158,9 +2159,9 @@ public String debugString()
      * @param to
      */
     protected Part(int from, int to){
-      assert(b1 >= 0 && b1 < content.length());
-      assert(e1 >= 0 && e1 < content.length());
-      assert(b1 <= e1);
+      assert(from >= 0 && from <= content.length());
+      assert(to >= 0 && to <= content.length());
+      assert(from <= to);
       b1 = from; e1 = to;
     }
     
