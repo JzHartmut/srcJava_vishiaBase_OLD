@@ -1,4 +1,4 @@
-echo off
+::echo off
 REM Task: Compilation javac and call jar
 if "%INPUT_JAVAC%" =="" (
   echo == javacjar.sh ==
