@@ -485,7 +485,7 @@ public abstract class ByteDataAccess
     */
     idxCurrentChild = -1;
     idxFirstChild = idxCurrentChildEnd = idxBegin + lengthHeadSpecified; 
-    idxEnd = bExpand ? idxFirstChild : idxBegin + lengthData;
+    idxEnd = bExpand ? idxFirstChild : lengthData;
     if(idxEnd > data.length)
     { throw new IllegalArgumentException("not enough data bytes, requested=" + idxEnd + ", buffer-length=" + data.length);
     }
