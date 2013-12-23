@@ -316,7 +316,8 @@ public class KeyCode
       || key == KeyCode.mouse1Up 
       || type == function 
       || type == nonAlphanum 
-      || (type == alphanum && (key & mCtrlAlt) !=0);
+      //|| (type == alphanum && (key & mCtrlAlt) !=0);
+      || ((key & mCtrlAlt) !=0);
     
   }
 

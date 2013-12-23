@@ -22,18 +22,23 @@
  *******************************************************************************/ 
 package org.vishia.byteData;
 
+
+import org.vishia.util.Java4C;
 import org.vishia.util.StringFormatter;
 
 public abstract class ByteDataAccessDbg extends ByteDataAccess
 {
 	/**Use especially for test, only used in toString(). 
    * @java2c=instanceType:"StringFormatter". It is never a derived class.*/
+  @Java4C.exclude
   StringFormatter toStringformatter = null;
 
 
-  /**This method is escpecially usefull to debug in eclipse. 
+  /**This method is especially usefull to debug in eclipse. 
    * It shows the first bytes of head, the position of child and the first bytes of the child.
    */
+  @Override
+  @Java4C.exclude
   public String toString()
   { //NOTE: do not create a new object in every call, it is uneffective.
     if(data==null){ return "no data"; }

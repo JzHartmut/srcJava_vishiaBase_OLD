@@ -83,7 +83,8 @@ public interface Java4C {
   /**The String is designated as non-persistent, especially located in ThreadContext. */
   public @interface toStringNonPersist{}
   
-  /**The method is not translated to C. It means the method with given name is programmed in C direct. */
+  /**The method or field is not translated to C. It means the method with given name is programmed in C direct
+   * or it is not necessary there. */
   public @interface exclude{}
   
   /**Declare the String as const char* in C-language. */

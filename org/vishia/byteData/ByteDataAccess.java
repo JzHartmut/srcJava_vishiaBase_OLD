@@ -22,6 +22,10 @@
 package org.vishia.byteData;
 
 import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
+
+import org.vishia.util.StringFormatter;
+import org.vishia.util.Java4C;
 
 /**This class is a base class to control the access to binary data.
  * The binary data may typically used or produced from a part of software written in C or C++.
@@ -191,6 +195,13 @@ public abstract class ByteDataAccess
   /**The charset.*/
   String charset;   //NOTE: String(..., Charset) is only support from Java 6
   //Charset charset;
+  
+  /**Use especially for test, only used in toString(). 
+   * @java2c=instanceType:"StringFormatter". It is never a derived class.*/
+  @Java4C.exclude
+  StringFormatter toStringformatter = null;
+
+
   
   /** Definition of the code of end of information, return from next()*/
   public static final byte kEndOfElements = 0;
@@ -485,7 +496,7 @@ public abstract class ByteDataAccess
     */
     idxCurrentChild = -1;
     idxFirstChild = idxCurrentChildEnd = idxBegin + lengthHeadSpecified; 
-    idxEnd = bExpand ? idxFirstChild : lengthData;
+    idxEnd = bExpand ? idxFirstChild : idxFirstChild + lengthData;
     if(idxEnd > data.length)
     { throw new IllegalArgumentException("not enough data bytes, requested=" + idxEnd + ", buffer-length=" + data.length);
     }
@@ -1624,7 +1635,24 @@ public abstract class ByteDataAccess
     }
   }
   
+  /**Sets all data of this element to 0.
+   * Note: The idxEnd should be set to the end of the element.
+   * This method is proper to use for a simple element only.
+   */
+  public final void clearData(){
+    Arrays.fill(data, idxBegin, idxEnd, (byte)0);
+  }
   
+  
+  /**Sets all data of the head of this element to 0.
+   * Note: If the element has not a head, this method does nothing.
+   * It sets from idxBegin to exclusively idxFirstChild.
+   */
+  public final void clearHead(){
+    if(idxFirstChild > idxBegin){
+      Arrays.fill(data, idxBegin, idxFirstChild, (byte)0);
+    }
+  }
   
   
   /** Gets a float value from the content of 4 byte. The float value is red
@@ -2011,6 +2039,37 @@ public abstract class ByteDataAccess
   }
   */
 
+  /**This method is especially usefull to debug in eclipse. 
+   * It shows the first bytes of head, the position of child and the first bytes of the child.
+   */
+  @Override
+  @Java4C.exclude
+  public String toString()
+  { //NOTE: do not create a new object in every call, it is uneffective.
+    if(data==null){ return "no data"; }
+    else
+    { if(toStringformatter == null){ toStringformatter = new StringFormatter(); }
+      else { toStringformatter.reset(); }
+      toStringformatter.addint(idxBegin, "33331").add("..").addint(idxFirstChild,"333331").add(":");
+      int nrofBytes = idxFirstChild - idxBegin;
+      if(nrofBytes > 16){ nrofBytes = 16; }
+      if(nrofBytes <0){ nrofBytes = 4; }
+      if(idxBegin + nrofBytes > data.length){ nrofBytes = data.length - idxBegin; }  
+      toStringformatter.addHexLine(data, idxBegin, nrofBytes, bBigEndian? StringFormatter.k4left: StringFormatter.k4right);
+      toStringformatter.add(" child ").addint(idxCurrentChild,"-3331").add("..").addint(idxCurrentChildEnd,"-33331").add(":");
+      if(idxCurrentChild >= idxBegin)
+      { 
+        nrofBytes = idxCurrentChildEnd - idxCurrentChild;
+        if(nrofBytes > 16){ nrofBytes = 16; }
+        if(nrofBytes <0){ nrofBytes = 4; }
+        if(idxCurrentChild + nrofBytes > data.length){ nrofBytes = data.length - idxBegin; }  
+        toStringformatter.addHexLine(data, idxCurrentChild, nrofBytes, bBigEndian? StringFormatter.k4left: StringFormatter.k4right);
+      }
+      final String ret = toStringformatter.toString();
+      return ret;
+    }  
+  }
   
+
   
 }
