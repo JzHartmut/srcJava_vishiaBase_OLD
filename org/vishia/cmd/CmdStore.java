@@ -91,7 +91,7 @@ public class CmdStore
     public final List<PrepareCmd> listBlockCmds = new LinkedList<PrepareCmd>();
 
     /**Any Jbat subroutine which should be invoked instead of the {@link #listBlockCmds}. */
-    protected final ZGenScript.Statement jbatSub;
+    protected final ZGenScript.Subroutine jbatSub;
     
     
     /**Contains all commands read from the configuration file in the read order. */
@@ -103,10 +103,10 @@ public class CmdStore
       this.level = 1;
     }
     
-    public CmdBlock(ZGenScript.Statement jbatSub, int level){
+    public CmdBlock(ZGenScript.Subroutine jbatSub, int level){
       this.jbatSub = jbatSub;
       this.level = level;
-      this.name = jbatSub.getIdent();
+      this.name = jbatSub.name;
     }
     
     /**Assembles the arguments for ZGen subroutine call.
@@ -120,8 +120,8 @@ public class CmdStore
         getterFiles.prepareFileSelection();
         Map<String, DataAccess.Variable> args = new TreeMap<String, DataAccess.Variable>();
         try{
-          for(ZGenScript.Argument arg :jbatSub.arguments){
-            String name1 = arg.identArgJbat;
+          for(ZGenScript.DefVariable arg :jbatSub.formalArgs){
+            String name1 = arg.getVariableIdent();
             if(name1.equals("file1")){ DataAccess.setVariable(args, "file1", 'O', getterFiles.getFile1()); }
             else if(name1.equals("file2")){ DataAccess.setVariable(args, "file2", 'O', getterFiles.getFile2()); }
             else if(name1.equals("file3")){ DataAccess.setVariable(args, "file3", 'O', getterFiles.getFile3()); }
@@ -209,8 +209,8 @@ public class CmdStore
       //addSubOfZgenclass(cmdBlock.listSubCmds, zgenClassSub, level+1);
       addSubOfZgenclass(list, zgenClassSub, level+1);
     }
-    if(zgenClass.subScripts !=null) for(Map.Entry<String, Statement> e: zgenClass.subScripts.entrySet()){
-      Statement subRoutine = e.getValue();
+    if(zgenClass.subroutines !=null) for(Map.Entry<String, ZGenScript.Subroutine> e: zgenClass.subroutines.entrySet()){
+      ZGenScript.Subroutine subRoutine = e.getValue();
       CmdBlock cmdBlock = new CmdBlock(subRoutine, level);
       list.add(cmdBlock); 
       idxCmd.put(cmdBlock.name, cmdBlock);

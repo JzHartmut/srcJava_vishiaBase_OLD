@@ -20,7 +20,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 
 import org.vishia.cmd.CmdExecuter;
-import org.vishia.cmd.ZGenScript.Statement;
 import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.Assert;
 import org.vishia.util.CalculatorExpr;
@@ -30,42 +29,24 @@ import org.vishia.util.IndexMultiTable;
 import org.vishia.util.StringSeq;
 
 
-/**This class helps to generate texts from any Java-stored data controlled with a script. 
- * An instance of this class is used while {@link #generate(Object, File, File, boolean, Appendable)} is running.
+/**This class is the executer of ZGen. With it both statements can be executed and texts from any Java-stored data 
+ * can be generated controlled with the content of {@link ZGenScript}. 
+ * An instance of this class is used while {@link #execute(ZGenScript, boolean, boolean, Appendable))} is running.
  * You should not use the instance concurrently in more as one thread. But you can use this instance
- * for one after another call of {@link #generate(Object, File, File, boolean, Appendable)}.
+ * for one after another call of {@link #execute(ZGenScript, boolean, boolean, Appendable)}.
  * <br><br>
- * The script is a simple text file which contains place holder for data and some control statements
- * for repeatedly generated data from any container.
- * <br><br>
- * The placeholder and control tags have the following form:
- * <ul>
- * <li> 
- *   <*path>: Access to any data element in the given data pool. The path starts from that object, which is given as input.
- *   Access to deeper nested elements are possible to write a dot. The return value is converted to a String.
- *   <br>
- *   The elements in the path can be public references, fields or method invocations. Methods can be given with constant parameters
- *   or with parameters stored in a script variable.
- *   <br>
- *   Example: <*data1.getData2().data2> 
- * <li>
- *   <:for:element:path>...<.for>: The text between the tags is generated for any member of the container, 
- *   which is designated with the path. The access to the elements is able to use the <*element.path>, where 'element'
- *   is any String identifier used in this for control. Controls can be nested.
- * <li>
- *   <:if:conditionpath>...<:elif>...<:else>...<.if>: The text between the tags is generated only if the condition is met. 
- * <li>
- *   <:switch:path><:case:value>...<:case:value>...<:else>...<.switch>: One variable is tested. The variable can be numerical or a String.
- *   Several values are tested.   
- * </ul> 
- * @author Hartmut
+ * @author Hartmut Schorrig
  *
  */
 public class ZGenExecuter {
   
   
-  /**Version and history
+  /**Version, history and license.
    * <ul>
+   * <li>2013-12-26 Hartmut re-engineering: Now the Statement class is obsolete. Instead all statements have the base class
+   *   {@link ZGenitem}. That class contains only elements which are necessary for all statements. Some special statements
+   *   have its own class with some more elements, especially for the ZBNF parse result. Compare it with the syntax
+   *   in {@link org.vishia.zgen.ZGenSyntax}.    
    * <li>2013-10-27 Hartmut chg: Definition of a String name [= value] is handled like assign. Stored with 
    *   {@link DataAccess#storeValue(List, Map, Object, boolean)} with special designation in {@link DataAccess.DatapathElement#whatisit}
    * <li>2013-10-20 Hartmut chg: The {@link #scriptVariables} and the {@link ExecuteLevel#localVariables} are of type
@@ -256,7 +237,7 @@ public class ZGenExecuter {
     if(scriptVariables.get("test") == null){DataAccess.setVariable(scriptVariables, "test", 'O', new ZGenTester(), true); }
     //
     //generate all variables in this script:
-    for(ZGenScript.Statement scriptVariableScript: genScript.getListScriptVariables()){
+    for(ZGenScript.DefVariable scriptVariableScript: genScript.getListScriptVariables()){
       try{
         Object value;
         switch(scriptVariableScript.elementType()){
@@ -264,12 +245,12 @@ public class ZGenExecuter {
           case 'J':  value = scriptLevel.evalObject(scriptVariableScript, true); break;
           default: value = "???";
         }
-        List<DataAccess.DatapathElement> assignPath = scriptVariableScript.variable.datapath();
+        List<DataAccess.DatapathElement> assignPath = scriptVariableScript.defVariable.datapath();
         if(assignPath.size() == 1 && assignPath.get(0).ident().equals("$CD")){
           //special handling of current directory:
           scriptLevel.setCurrDir((CharSequence)value);  //normalize, set "currDir"
         } else {
-          scriptVariableScript.variable.storeValue(scriptVariables, value, true);
+          scriptVariableScript.defVariable.storeValue(scriptVariables, value, true);
         }
       } catch(Exception exc){
         System.out.println("JbatchExecuter - Scriptvariable faulty; " );
@@ -322,7 +303,7 @@ public class ZGenExecuter {
       genScriptVariables(genScript, accessPrivate, null);
     }
     setScriptVariable("text", 'A', out, true);
-    ZGenScript.Statement contentScript = genScript.getMain();
+    ZGenScript.Subroutine contentScript = genScript.getMain();
     ExecuteLevel genFile = new ExecuteLevel(null, scriptVariables);
     String sError1 = genFile.execute(contentScript.statementlist, out, false);
     if(bWaitForThreads){
@@ -371,7 +352,7 @@ public class ZGenExecuter {
    * @return
    * @throws IOException
    */
-  public String execSub(ZGenScript.Statement statement, Map<String, DataAccess.Variable> args
+  public String execSub(ZGenScript.Subroutine statement, Map<String, DataAccess.Variable> args
       , boolean accessPrivate, Appendable out) 
   throws IOException
   {
@@ -410,7 +391,7 @@ public class ZGenExecuter {
   }
   
   
-  public void runThread(ExecuteLevel executeLevel, ZGenScript.Statement statement){
+  public void runThread(ExecuteLevel executeLevel, ZGenScript.ThreadBlock statement){
     try{ 
       executeLevel.execute(statement.statementlist, null, false);
     } 
@@ -571,75 +552,57 @@ public class ZGenExecuter {
       Appendable uBuffer = out;
       //Generate direct requested output. It is especially on inner content-scripts.
       int ixStatement = -1;
-      //Iterator<JbatchScript.Statement> iter = contentScript.content.iterator();
+      //Note: don't use an Iterator, use ixStatement because it will be incremented onError.
       while(++ixStatement < contentScript.statements.size() && sError == null) { //iter.hasNext() && sError == null){
-        ZGenScript.Statement statement = contentScript.statements.get(ixStatement); //iter.next();
+        ZGenScript.ZGenitem statement = contentScript.statements.get(ixStatement); //iter.next();
         //for(TextGenScript.ScriptElement statement: contentScript.content){
         try{    
           switch(statement.elementType()){
-          case 't': { 
-            int posLine = 0;
-            int posEnd;
-            if(statement.textArg.startsWith("'''trans ==> dst"))
-              stop();
-            do{
-              posEnd = statement.textArg.indexOf('\n', posLine);
-              if(posEnd >= 0){ 
-                uBuffer.append(statement.textArg.substring(posLine, posEnd));   
-                uBuffer.append(newline);
-                posLine = posEnd +1;  //after \n 
-              } else {
-                uBuffer.append(statement.textArg.substring(posLine));   
-              }
-              
-            } while(posEnd >=0);  //output all lines.
-          } break;
+          case 't': executeText(statement, out);break;
           case 'n': {
             uBuffer.append(newline);
           } break;
-          case 'T': textAppendToVarOrOut(statement); break; 
-          case 'U': defineExpr(statement); break; //setStringVariable(statement); break; 
-          case 'S': defineExpr(statement); break; //setStringVariable(statement); break; 
+          case 'T': textAppendToVarOrOut((ZGenScript.TextOut)statement); break; 
+          case 'U': defineExpr((ZGenScript.DefVariable)statement); break; //setStringVariable(statement); break; 
+          case 'S': defineExpr((ZGenScript.DefVariable)statement); break; //setStringVariable(statement); break; 
           case 'P': { //create a new local variable as pipe
             StringBuilder uBufferVariable = new StringBuilder();
-            setLocalVariable(statement.identArgJbat, 'P', uBufferVariable, true);
+            executeDefVariable((ZGenScript.DefVariable)statement, 'P', uBufferVariable, true);
           } break;
           case 'L': {
             Object value = evalObject(statement, true); 
               //getContent(statement, localVariables, false);  //not a container
-            setLocalVariable(statement.identArgJbat, 'L', value, true);
             if(!(value instanceof Iterable<?>)) 
-                throw new NoSuchFieldException("JbatExecuter - exec variable must be of type Iterable ;" + statement.identArgJbat);
+              throw new NoSuchFieldException("JbatExecuter - exec variable must be of type Iterable ;" + ((ZGenScript.DefVariable)statement).defVariable);
+            executeDefVariable((ZGenScript.DefVariable)statement, 'L', value, true);
           } break;
-          case 'W': executeOpenfile(statement); break;
+          case 'W': executeOpenfile((ZGenScript.DefVariable)statement); break;
           case 'J': {
-            if(statement.identArgJbat.equals("checkDeps"))
-              stop();
             Object value = evalObject(statement, false);
-            setLocalVariable(statement.identArgJbat, 'O', value, false);
+            executeDefVariable((ZGenScript.DefVariable)statement, 'O', value, false);
           } break;
-          case 'e': executeDatatext(statement, out); break; 
+          case 'e': executeDatatext((ZGenScript.DataText)statement, out); break; 
           case 's': {
-            executeSubroutine(statement, out);
+            executeSubroutine((ZGenScript.CallStatement)statement, out);
           } break;
-          case 'x': executeThread(statement); break;
-          case 'm': executeMove(statement); break;
-          case 'y': executeCopy(statement); break;
-          case 'c': executeCmdline(statement); break;
+          case 'x': executeThread((ZGenScript.ThreadBlock)statement); break;
+          case 'm': executeMove((ZGenScript.CallStatement)statement); break;
+          case 'y': executeCopy((ZGenScript.CallStatement)statement); break;
+          case 'c': executeCmdline((ZGenScript.CmdInvoke)statement); break;
           case 'd': executeChangeCurrDir(statement); break;
           case 'C': { //generation <:for:name:path> <genContent> <.for>
-            executeForContainer(statement, out);
+            executeForContainer((ZGenScript.DefVariable)statement, out);
           } break;
           case 'B': { //statementBlock
             executeSubLevel(statement, out);  ///
           } break;
-          case 'F': executeIfStatement(statement, out); break;
-          case 'w': whileStatement(statement, out); break;
+          case 'F': executeIfStatement((ZGenScript.IfStatement)statement, out); break;
+          case 'w': whileStatement((ZGenScript.CondStatement)statement, out); break;
           case 'N': {
             executeIfContainerHasNext(statement, out, bContainerHasNext);
           } break;
-          case '=': assignExpr(statement); break;
-          case '+': appendExpr(statement); break;
+          case '=': assignExpr((ZGenScript.AssignExpr)statement); break;
+          case '+': appendExpr((ZGenScript.AssignExpr)statement); break;
           case 'b': sError = "break"; break;
           case '?': break;  //don't execute a onerror, skip it.
           case 'z': throw new ZGenExecuter.ExitException(((ZGenScript.ExitStatement)statement).exitValue);  
@@ -694,12 +657,40 @@ public class ZGenExecuter {
     
     
     
-    void executeForContainer(ZGenScript.Statement statement, Appendable out) throws Exception
-    {
-      ZGenScript.StatementList subContent = statement.getSubContent();  //The same sub content is used for all container elements.
-      if(statement.identArgJbat.equals("include1"))
+    void executeText(ZGenScript.ZGenitem statement, Appendable out) throws IOException{
+      int posLine = 0;
+      int posEnd;
+      if(statement.textArg.startsWith("'''trans ==> dst"))
         stop();
+      do{
+        posEnd = statement.textArg.indexOf('\n', posLine);
+        if(posEnd >= 0){ 
+          out.append(statement.textArg.substring(posLine, posEnd));   
+          out.append(newline);
+          posLine = posEnd +1;  //after \n 
+        } else {
+          out.append(statement.textArg.substring(posLine));   
+        }
+        
+      } while(posEnd >=0);  //output all lines.
+    }
+    
+    
+
+    void executeDefVariable(ZGenScript.DefVariable statement, char type, Object value, boolean isConst) 
+    throws IllegalAccessException, IOException {
+      DataAccess.storeValue(statement.defVariable.datapath(), localVariables, value, bAccessPrivate);
+      //setLocalVariable(statement.name, type, value, isConst);
+       
+    }
+
+      
+    void executeForContainer(ZGenScript.DefVariable statement, Appendable out) throws Exception
+    {
+      ZGenScript.StatementList subContent = statement.statementlist();  //The same sub content is used for all container elements.
       Object container = evalObject(statement, true);
+      DataAccess.Dst dst = new DataAccess.Dst();
+      DataAccess.access(statement.defVariable.datapath(), null, localVariables, bAccessPrivate,false, true, dst);
       if(container instanceof String && ((String)container).startsWith("<?")){
         writeError((String)container, out);
       }
@@ -712,7 +703,8 @@ public class ZGenExecuter {
           if(foreachData !=null){
             //Gen_Content genFor = new Gen_Content(this, false);
             //genFor.
-            forExecuter.setLocalVariable(statement.identArgJbat, 'O', foreachData, false);
+            dst.set(foreachData);
+            //forExecuter.setLocalVariable(statement.name, 'O', foreachData, false);
             //genFor.
             forExecuter.execute(subContent, out, iter.hasNext());
           }
@@ -728,7 +720,8 @@ public class ZGenExecuter {
           if(foreachData !=null){
             //Gen_Content genFor = new Gen_Content(this, false);
             //genFor.
-            setLocalVariable(statement.identArgJbat, 'O', foreachData, false);
+            dst.set(foreachData);
+            //setLocalVariable(statement.name, 'O', foreachData, false);
             //genFor.
             execute(subContent, out, iter.hasNext());
           }
@@ -738,10 +731,10 @@ public class ZGenExecuter {
     
     
     
-    void executeIfContainerHasNext(ZGenScript.Statement hasNextScript, Appendable out, boolean bContainerHasNext) throws IOException{
+    void executeIfContainerHasNext(ZGenScript.ZGenitem hasNextScript, Appendable out, boolean bContainerHasNext) throws IOException{
       if(bContainerHasNext){
         //(new Gen_Content(this, false)).
-        execute(hasNextScript.getSubContent(), out, false);
+        execute(hasNextScript.statementlist(), out, false);
       }
     }
     
@@ -749,11 +742,11 @@ public class ZGenExecuter {
     
     /**it contains maybe more as one if block and else. 
      * @throws Exception */
-    void executeIfStatement(ZGenScript.Statement ifStatement, Appendable out) throws Exception{
-      Iterator<ZGenScript.Statement> iter = ifStatement.statementlist.statements.iterator();
+    void executeIfStatement(ZGenScript.IfStatement ifStatement, Appendable out) throws Exception{
+      Iterator<ZGenScript.ZGenitem> iter = ifStatement.statementlist.statements.iterator();
       boolean found = false;  //if block found
       while(iter.hasNext() && !found ){
-        ZGenScript.Statement statement = iter.next();
+        ZGenScript.ZGenitem statement = iter.next();
         switch(statement.elementType()){
           case 'G': { //if-block
             boolean hasNext = iter.hasNext();
@@ -775,12 +768,12 @@ public class ZGenExecuter {
     
     /**Executes a while statement. 
      * @throws Exception */
-    void whileStatement(ZGenScript.Statement whileStatement, Appendable out) 
+    void whileStatement(ZGenScript.CondStatement whileStatement, Appendable out) 
     throws Exception 
     {
       boolean cond;
       do{
-        CalculatorExpr.Value check = whileStatement.expression.calcDataAccess(localVariables);
+        CalculatorExpr.Value check = whileStatement.condition.calcDataAccess(localVariables);
         cond = check.booleanValue();
         if(cond){
           execute(whileStatement.statementlist, out, false);
@@ -807,7 +800,7 @@ public class ZGenExecuter {
       CalculatorExpr.Value check;
       boolean bCheck;
       try{
-        check = ifBlock.expression.calcDataAccess(localVariables);
+        check = ifBlock.condition.calcDataAccess(localVariables);
         bCheck = check.booleanValue();
       } catch(NoSuchElementException exc){
         bCheck = false;
@@ -825,38 +818,6 @@ public class ZGenExecuter {
     
     
     
-    /**Creates or sets a string variable, maybe an environment variable.
-     * It calls {@link DataAccess#storeValue(List, Map, Object, boolean)}.
-     * It means the text value will be append to a {@link java.lang.Appendable}
-     * or it replaces the CharSequence on a {@link org.vishia.util.StringSeq}.
-     * If the variable is a script variable as StringSeq, its content is changed.
-     * 
-     * @param statement
-     * @throws Exception
-     */
-    void XXXsetStringVariable(ZGenScript.Statement statement) 
-    throws Exception 
-    {
-      List<DataAccess.DatapathElement> assignPath1 = 
-        statement.assignObjs ==null || statement.assignObjs.size() ==0 ? null :
-          statement.assignObjs.get(0).datapath();  
-      if(assignPath1 !=null && assignPath1.get(0).ident().equals("dummy"))
-        Assert.stop();
-      
-      CharSequence text = evalString(statement);
-      
-      if(statement.assignObjs !=null) for(DataAccess dataAccess: statement.assignObjs) {
-        List<DataAccess.DatapathElement> assignPath = dataAccess.datapath();
-        if(assignPath.size() == 1 && assignPath.get(0).ident().equals("$CD")){
-          //special handling of current directory:
-          setCurrDir(text);  //normalize, set "currDir"
-        } else {
-          DataAccess.storeValue(assignPath, localVariables, text, true);
-          //putOrReplaceLocalVariable(statement.identArgJbat, text);
-        }
-      }
-    } 
-    
     
     
     /**Invocation for <+name>text<.+>.
@@ -866,7 +827,7 @@ public class ZGenExecuter {
      * @param statement the statement
      * @throws Exception 
      */
-    void textAppendToVarOrOut(ZGenScript.Statement statement) throws Exception
+    void textAppendToVarOrOut(ZGenScript.TextOut statement) throws Exception
     { Object variable = statement.variable.getDataObj(localVariables, bAccessPrivate, false); //getVariable(localVariables,name, false);
       if(!(variable instanceof Appendable)) {
         throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
@@ -891,10 +852,9 @@ public class ZGenExecuter {
     
     
     
-    void executeSubroutine(ZGenScript.Statement statement, Appendable out) 
+    void executeSubroutine(ZGenScript.CallStatement callStatement, Appendable out) 
     throws IllegalArgumentException, Exception
     {
-      ZGenScript.CallStatement callStatement = (ZGenScript.CallStatement)statement;
       boolean ok = true;
       final CharSequence nameSubtext;
       /*
@@ -906,34 +866,38 @@ public class ZGenExecuter {
         nameSubtext = statement.name;
       }*/
       nameSubtext = evalString(callStatement.callName); 
-      ZGenScript.Statement subtextScript = genScript.getSubtextScript(nameSubtext);  //the subtext script to call
+      ZGenScript.Subroutine subtextScript = genScript.getSubtextScript(nameSubtext);  //the subtext script to call
       if(subtextScript == null){
         throw new NoSuchElementException("JbatExecuter - subroutine not found; " + nameSubtext);
       } else {
         ExecuteLevel subtextGenerator = new ExecuteLevel(this, null);
-        if(subtextScript.arguments !=null){
+        if(subtextScript.formalArgs !=null){
+          //
           //build a Map temporary to check which arguments are used:
+          //
           TreeMap<String, CheckArgument> check = new TreeMap<String, CheckArgument>();
-          for(ZGenScript.Argument formalArg: subtextScript.arguments) {
-            check.put(formalArg.identArgJbat, new CheckArgument(formalArg));
+          for(ZGenScript.DefVariable formalArg: subtextScript.formalArgs) {
+            check.put(formalArg.getVariableIdent(), new CheckArgument(formalArg));
           }
+          //
           //process all actual arguments:
-          List<ZGenScript.Argument> referenceSettings = statement.getReferenceDataSettings();
-          if(referenceSettings !=null){
-            for( ZGenScript.Argument referenceSetting: referenceSettings){  //process all actual arguments
+          //
+          List<ZGenScript.Argument> actualArgs = callStatement.actualArgs;
+          if(actualArgs !=null){
+            for( ZGenScript.Argument actualArg: actualArgs){  //process all actual arguments
               Object ref;
-              ref = evalObject(referenceSetting, false);
+              ref = evalObject(actualArg, false);
               //ref = ascertainValue(referenceSetting.expression, data, localVariables, false);       //actual value
               if(ref !=null){
-                CheckArgument checkArg = check.get(referenceSetting.identArgJbat);      //is it a requested argument (per name)?
+                CheckArgument checkArg = check.get(actualArg.getIdent());      //is it a requested argument (per name)?
                 if(checkArg == null){
-                  ok = writeError("??: *subtext;" + nameSubtext + ": " + referenceSetting.identArgJbat + " faulty argument.?? ", out);
+                  ok = writeError("??: *subtext;" + nameSubtext + ": " + actualArg.identArgJbat + " faulty argument.?? ", out);
                 } else {
                   checkArg.used = true;    //requested and resolved.
-                  subtextGenerator.setLocalVariable(referenceSetting.identArgJbat, 'O', ref, false);
+                  subtextGenerator.setLocalVariable(actualArg.identArgJbat, 'O', ref, false);
                 }
               } else {
-                ok = writeError("??: *subtext;" + nameSubtext + ": " + referenceSetting.identArgJbat + " = ? not found.??", out);
+                ok = writeError("??: *subtext;" + nameSubtext + ": " + actualArg.identArgJbat + " = ? not found.??", out);
               }
             }
           }
@@ -944,15 +908,16 @@ public class ZGenExecuter {
             if(!arg.used){
               //Generate on scriptLevel (classLevel) because the formal parameter list should not know things of the calling environment.
               Object ref = scriptLevel.evalObject(arg.formalArg, false);
+              String name = arg.formalArg.getVariableIdent();
               if(ref !=null){
-                subtextGenerator.setLocalVariable(arg.formalArg.identArgJbat, 'O', ref, false);
+                subtextGenerator.setLocalVariable(name, 'O', ref, false);
               } else {
-                ok = writeError("??: *subtext;" + nameSubtext + ": " + arg.formalArg.identArgJbat + " not found.??", out);
+                ok = writeError("??: *subtext;" + nameSubtext + ": " + name + " not found.??", out);
               }
             }
           }
-        } else if(statement.getReferenceDataSettings() !=null){
-          ok = writeError("??: *subtext;" + nameSubtext + " called with arguments, it has not one.??", out);
+        } else if(callStatement.actualArgs !=null){
+          ok = writeError("??: call" + nameSubtext + " called with arguments, it has not one.??", out);
         }
         if(ok){
           subtextGenerator.execute(subtextScript.statementlist, out, false);
@@ -966,12 +931,12 @@ public class ZGenExecuter {
     /**executes statements in another thread.
      * @throws Exception 
      */
-    private void executeThread(ZGenScript.Statement statement) 
+    private void executeThread(ZGenScript.ThreadBlock statement) 
     throws Exception
     { final ZgenThreadResult result;
       if(statement.dataAccess !=null){
         try{
-          if(statement.identArgJbat != null){  //marker for a new ThreadVariable
+          if(statement.name != null){  //marker for a new ThreadVariable
             result = new ZgenThreadResult();
             DataAccess.storeValue(statement.dataAccess.datapath(), localVariables, result, bAccessPrivate);
           } else { 
@@ -1002,7 +967,7 @@ public class ZGenExecuter {
      * @return
      * @throws IOException
      */
-    public String executeSubLevel(ZGenScript.Statement script, Appendable out) 
+    public String executeSubLevel(ZGenScript.ZGenitem script, Appendable out) 
     //throws IOException
     {
       ExecuteLevel genContent;
@@ -1016,22 +981,22 @@ public class ZGenExecuter {
 
     
     
-    void executeCmdline(ZGenScript.Statement statement) 
+    void executeCmdline(ZGenScript.CmdInvoke statement) 
     throws IllegalArgumentException, Exception
     {
       boolean ok = true;
       final CharSequence sCmd;
-      if(statement.identArgJbat == null){
+      if(statement.textArg == null){
         //cmd gotten from any data location, variable name
         sCmd = evalString(statement); 
       } else {
-        sCmd = statement.identArgJbat;
+        sCmd = statement.textArg;
       }
       String[] args;
-      if(statement.arguments !=null){
-        args = new String[statement.arguments.size() +1];
+      if(statement.cmdArgs !=null){
+        args = new String[statement.cmdArgs.size() +1];
         int iArg = 1;
-        for(ZGenScript.Argument arg: statement.arguments){
+        for(ZGenScript.ZGenitem arg: statement.cmdArgs){
           String sArg = evalString(arg).toString(); //XXXascertainText(arg.expression, localVariables);
           args[iArg++] = sArg;
         }
@@ -1071,7 +1036,7 @@ public class ZGenExecuter {
     }
     
 
-    void executeChangeCurrDir(ZGenScript.Statement statement)
+    void executeChangeCurrDir(ZGenScript.ZGenitem statement)
     throws Exception
     {
       CharSequence arg = evalString(statement);
@@ -1112,19 +1077,22 @@ public class ZGenExecuter {
     
      
     
-    private void executeDatatext(ZGenScript.Statement statement, Appendable out)  //<*datatext>
+    private void executeDatatext(ZGenScript.DataText statement, Appendable out)  //<*datatext>
     throws IllegalArgumentException, Exception
     {
       CharSequence text = "??";
       try{
-        Object obj = evalDatapathOrExpr(statement); //ascertainText(statement.expression, localVariables);
-        if(obj instanceof CalculatorExpr.Value){
-          obj = ((CalculatorExpr.Value)obj).objValue();
-        }
-        if(statement.textArg !=null){ //it is a format string:
-           text = String.format(statement.textArg.toString(), obj);
+        Object obj = statement.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
+        if(obj==null){ text = "null"; 
         } else {
-          text = obj.toString();
+          //else if(obj instanceof CalculatorExpr.Value){
+          //  obj = ((CalculatorExpr.Value)obj).objValue();
+          //}
+          if(statement.format !=null){ //it is a format string:
+             text = String.format(statement.format, obj);
+          } else {
+            text = obj.toString();
+          }
         }
       } catch(Exception exc){
         text = textError(exc);  //throws
@@ -1132,22 +1100,22 @@ public class ZGenExecuter {
       out.append(text); 
     }
     
-    void executeMove(ZGenScript.Statement statement) 
+    void executeMove(ZGenScript.CallStatement statement) 
     throws IllegalArgumentException, Exception
     {
-      CharSequence s1 = evalString(statement.arguments.get(0));
-      CharSequence s2 = evalString(statement.arguments.get(1));
+      CharSequence s1 = evalString(statement.actualArgs.get(0));
+      CharSequence s2 = evalString(statement.actualArgs.get(1));
       File fileSrc = new File(s1.toString());
       File fileDst = new File(s2.toString());
       boolean bOk = fileSrc.renameTo(fileDst);
       if(!bOk) throw new IOException("JbatchExecuter - move not successfully; " + fileSrc.getAbsolutePath() + " to " + fileDst.getAbsolutePath());;
     }
     
-    void executeCopy(ZGenScript.Statement statement) 
+    void executeCopy(ZGenScript.CallStatement statement) 
     throws Exception
     {
-      CharSequence s1 = evalString(statement.arguments.get(0));
-      CharSequence s2 = evalString(statement.arguments.get(1));
+      CharSequence s1 = evalString(statement.actualArgs.get(0));
+      CharSequence s2 = evalString(statement.actualArgs.get(1));
       File fileSrc = new File(s1.toString());
       File fileDst = new File(s2.toString());
       int nrofBytes = FileSystem.copyFile(fileSrc, fileDst);
@@ -1163,7 +1131,7 @@ public class ZGenExecuter {
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    void executeOpenfile(ZGenScript.Statement statement) 
+    void executeOpenfile(ZGenScript.DefVariable statement) 
     throws IllegalArgumentException, Exception
     {
       String sFilename = evalString(statement).toString();
@@ -1175,7 +1143,7 @@ public class ZGenExecuter {
         sFilename = cd + "/" + sFilename;
       }
       Writer writer = new FileWriter(sFilename);
-      DataAccess.storeValue(statement.variable.datapath(), localVariables, writer, bAccessPrivate);
+      DataAccess.storeValue(statement.defVariable.datapath(), localVariables, writer, bAccessPrivate);
       //setLocalVariable(statement.identArgJbat, 'A', writer);
     }
     
@@ -1195,7 +1163,7 @@ public class ZGenExecuter {
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    void assignExpr(ZGenScript.Statement statement) 
+    void assignExpr(ZGenScript.AssignExpr statement) 
     throws IllegalArgumentException, Exception
     {
       Object val = evalObject(statement, false);
@@ -1263,7 +1231,7 @@ public class ZGenExecuter {
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    void defineExpr(ZGenScript.Statement statement) 
+    void defineExpr(ZGenScript.DefVariable statement) 
     throws IllegalArgumentException, Exception
     {
       Object init = evalObject(statement, false);  //maybe null
@@ -1286,7 +1254,7 @@ public class ZGenExecuter {
         } break;
         default: val = init;
       }
-      statement.variable.storeValue(localVariables, val, bAccessPrivate);
+      statement.defVariable.storeValue(localVariables, val, bAccessPrivate);
       
     }
     
@@ -1297,7 +1265,7 @@ public class ZGenExecuter {
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    void appendExpr(ZGenScript.Statement statement) 
+    void appendExpr(ZGenScript.AssignExpr statement) 
     throws IllegalArgumentException, Exception
     {
       Object val = evalObject(statement, false);
@@ -1346,6 +1314,24 @@ public class ZGenExecuter {
     
     
     
+    public CharSequence evalString(ZGenScript.ZGenitem arg) 
+    throws Exception 
+    {
+      if(arg.textArg !=null) return arg.textArg;
+      else if(arg.dataAccess !=null){
+        Object o = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
+        if(o==null){ return "null"; }
+        else {return o.toString(); }
+      } else if(arg.statementlist !=null){
+        StringBuilder u = new StringBuilder();
+        executeNewlevel(arg.statementlist, u, false);
+        return StringSeq.create(u, true);
+      } else return null;  //it is admissible.
+      //} else throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
+    }
+    
+    
+    
     public CharSequence evalString(ZGenScript.Argument arg) 
     throws Exception 
     {
@@ -1363,6 +1349,20 @@ public class ZGenExecuter {
         return value.stringValue();
       } else return null;  //it is admissible.
       //} else throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
+    }
+    
+    
+    public Object evalObject(ZGenScript.ZGenitem arg, boolean bContainer) throws Exception{
+      Object obj;
+      if(arg.textArg !=null) return arg.textArg;
+      else if(arg.dataAccess !=null){
+        obj = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
+      } else if(arg.statementlist !=null){
+        StringBuilder u = new StringBuilder();
+        executeNewlevel(arg.statementlist, u, false);
+        obj = u.toString();
+      } else obj = null;  //throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
+      return obj;
     }
     
     
@@ -1395,13 +1395,13 @@ public class ZGenExecuter {
     }
     
     
-    void debug(Statement statement) throws Exception{
+    void debug(ZGenScript.ZGenitem statement) throws Exception{
       CharSequence text = evalString(statement);
       Assert.stop();
     }
     
     
-    void throwIllegalDstArgument(CharSequence text, DataAccess dst, ZGenScript.Statement statement)
+    void throwIllegalDstArgument(CharSequence text, DataAccess dst, ZGenScript.ZGenitem statement)
     throws IllegalArgumentException
     {
       StringBuilder u = new StringBuilder(100);
@@ -1434,12 +1434,12 @@ public class ZGenExecuter {
   private class CheckArgument
   {
     /**Reference to the formal argument. */
-    final ZGenScript.Argument formalArg;
+    final ZGenScript.DefVariable formalArg;
     
     /**Set to true if this argument is used. */
     boolean used;
     
-    CheckArgument(ZGenScript.Argument formalArg){ this.formalArg = formalArg; }
+    CheckArgument(ZGenScript.DefVariable formalArg){ this.formalArg = formalArg; }
   }
   
   /**It wrapps the File currDir because only this instance is referred in all localVariables.
@@ -1496,11 +1496,11 @@ public class ZGenExecuter {
   {
     final ExecuteLevel executeLevel;
 
-    final ZGenScript.Statement statement;
+    final ZGenScript.ThreadBlock statement;
 
     final ZgenThreadResult result;
     
-    public ZGenThread(ExecuteLevel executeLevel, Statement statement, ZgenThreadResult result)
+    public ZGenThread(ExecuteLevel executeLevel, ZGenScript.ThreadBlock statement, ZgenThreadResult result)
     {
       this.executeLevel = executeLevel;
       this.statement = statement;

@@ -57,6 +57,8 @@ import java.util.TreeMap;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2013-12-26 Hartmut chg: {@link #getData(String, Object, boolean, boolean, boolean, Dst)} returns the variable
+   *   if the argument bVariable is set.
    * <li>2013-11-03 Hartmut chg: rename getData(...) to {@link #access(List, Object, Map, boolean, boolean, boolean, Dst)},
    *   return value Dst for setting. The {@link #storeValue(List, Map, Object, boolean)} may be obsolte now.
    * <li>2013-11-03 Hartmut chg: Handling of variable in {@link #getData(List, Object, Map, boolean, boolean, boolean)}
@@ -310,7 +312,7 @@ public class DataAccess {
           throw new IllegalArgumentException("DataAccess.storeValue - destination should be Map<String, DataAccess.Variable>");
         }
       } else {
-        try{ dst2 = DataAccess.getData(element.ident, dst, bAccessPrivate, false, null);}
+        try{ dst2 = DataAccess.getData(element.ident, dst, bAccessPrivate, false, false, null);}
         catch(NoSuchFieldException exc){ dst2 = null; }
         if(iter.hasNext()){
           if(dst2 == null){
@@ -552,7 +554,7 @@ public class DataAccess {
         case '%': data1 = invokeStaticMethod(element); break;
         default:
           if(data1 !=null){
-            data1 = getData(element.ident, data1, accessPrivate, bContainer, dst);
+            data1 = getData(element.ident, data1, accessPrivate, bContainer, bVariable, dst);
           }
           //else: let data1=null, return null
       }//switch
@@ -976,6 +978,7 @@ public class DataAccess {
    * @param instance The instance where the field or element is searched.  
    * @param accessPrivate true than accesses also private data. 
    * @param bContainer only used for a TreeNodeBase: If true then returns the List of children as container, If false returns the first child with that name. 
+   * @param bVariable returns the variable if it is found. if false then returns the value inside a variable. 
    * @return The reference described by name.
    * @throws NoSuchFieldException If not found.
    */
@@ -984,6 +987,7 @@ public class DataAccess {
       , Object instance
       , boolean accessPrivate
       , boolean bContainer
+      , boolean bVariable
       , Dst dst) 
   throws NoSuchFieldException, IllegalAccessException
   {
@@ -1010,7 +1014,7 @@ public class DataAccess {
         } else throw exc;
       }
     }
-    if(data1 instanceof Variable && !bContainer){
+    if(data1 instanceof Variable && !bVariable){
       data1 = ((Variable)data1).value;  
     }
     

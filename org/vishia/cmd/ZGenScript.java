@@ -12,10 +12,15 @@ import org.vishia.util.Assert;
 import org.vishia.util.CalculatorExpr;
 import org.vishia.util.DataAccess;
 import org.vishia.util.StringFunctions;
-import org.vishia.util.StringSeq;
 
 
-/**This class contains control data and sub-routines to generate output texts from internal data.
+/**This class contains the internal representation of a ZGen script. 
+ * The translator is contained in {@link org.vishia.zgen.ZGen} in the srcJava_Zbnf source package. 
+ * This class is independent of ZBNF. It is used for working in srcJava_vishiaBase environment.
+ * It means, without the srcJava_Zbnf source package all sources of that are able to compile, but
+ * this class have not data, respectively it is not instantiated. It may be possible to instantiate
+ * and fill by direct invocation of the new_semantic(...) and add_semantic(...) operations, for example
+ * for simple scripts.
  * 
  * @author Hartmut Schorrig
  *
@@ -23,8 +28,12 @@ import org.vishia.util.StringSeq;
 public class ZGenScript {
   /**Version, history and license.
    * <ul>
-   * <li>2014-07-30 Hartmut chg {@link #translateAndSetGenCtrl(File)} returns void.
-   * <li>2014-07-20 Hartmut chg Some syntactical changes.
+   * <li>2013-12-26 Hartmut re-engineering: Now the Statement class is obsolete. Instead all statements have the base class
+   *   {@link ZGenitem}. That class contains only elements which are necessary for all statements. Some special statements
+   *   have its own class with some more elements, especially for the ZBNF parse result. Compare it with the syntax
+   *   in {@link org.vishia.zgen.ZGenSyntax}.    
+   * <li>2013-07-30 Hartmut chg {@link #translateAndSetGenCtrl(File)} returns void.
+   * <li>2013-07-20 Hartmut chg Some syntactical changes.
    * <li>2013-07-14 Hartmut tree traverse enable because {@link Argument#parentList} and {@link StatementList#parentStatement}
    * <li>2013-06-20 Hartmut new: Syntax with extArg for textual Arguments in extra block
    * <li>2013-03-10 Hartmut new: <code><:include:path></code> of a sub script is supported up to now.
@@ -90,15 +99,8 @@ public class ZGenScript {
 
   final MainCmdLogging_ifc console;
 
-  /**Helper to transfer parse result into the java classes {@link ZbnfMainGenCtrl} etc. */
-  //final ZbnfJavaOutput parserGenCtrl2Java;
-
-  /**Mirror of the content of the zmake-genctrl-file. Filled from ZBNF-ParseResult*/
-  //ZbnfMainGenCtrl zTextGenCtrl;
   
-  //final Map<String, Statement> zmakeTargets = new TreeMap<String, Statement>();
-  
-  final Map<String, Statement> subScriptsAll = new TreeMap<String, Statement>();
+  final Map<String, Subroutine> subroutinesAll = new TreeMap<String, Subroutine>();
   
   
   
@@ -112,11 +114,11 @@ public class ZGenScript {
    * any other type of statement than script variables because only ScriptVariables are admissible
    * in the syntax. Outside of subroutines and main there should only exist variable definitions. 
    */
-  private final List<Statement> listScriptVariables = new ArrayList<Statement>();
+  private final List<DefVariable> listScriptVariables = new ArrayList<DefVariable>();
 
   /**The script element for the whole file. It shall contain calling of <code><*subtext:name:...></code> 
    */
-  Statement scriptFile;
+  Subroutine scriptFile;
   
   /**The class which presents the script level. */
   ZGenClass scriptClass;
@@ -137,169 +139,32 @@ public class ZGenScript {
       scriptFile = includedScript.getMainRoutine();   
     }
     if(includedScript.outer.scriptClass.statements !=null){
-      listScriptVariables.addAll(includedScript.outer.scriptClass.statements);
+      for(ZGenitem item: includedScript.outer.scriptClass.statements){
+        if(item instanceof DefVariable){
+          listScriptVariables.add((DefVariable)item);
+        }
+      }
     }
 
   }
   
-  public final Statement getMain(){ return scriptFile; }
+  public final Subroutine getMain(){ return scriptFile; }
   
   
-  public Statement getSubtextScript(CharSequence name){ return subScriptsAll.get(name.toString()); }
+  public Subroutine getSubtextScript(CharSequence name){ return subroutinesAll.get(name.toString()); }
   
   
-  public List<Statement> getListScriptVariables(){ return listScriptVariables; }
+  public List<DefVariable> getListScriptVariables(){ return listScriptVariables; }
 
 
 
 
   
-  
-  
-  
-  
-  
-  
-  
-  /**Superclass for ScriptElement, but used independent for arguments.
+  /**Common class of all ZGen items.
    * @author hartmut
    *
    */
-  public static class Argument  { //CalculatorExpr.Datapath{
-    
-    /**Hint to the source of this parsed argument or statement. */
-    int srcLine, srcColumn;
-    
-    /**Necessary for throwing exceptions with the {@link StatementList#srcFile} in its text. */
-    final StatementList parentList;
-    
-    /**Name of the argument. It is the key to assign calling argument values. */
-    public String identArgJbat;
-   
-    /**Any calculation of data. */
-    public CalculatorExpr expression;
-    
-    
-    /**Any access to an Object, maybe content of a variable, maybe access to any Java data,
-     * maybe invocation of a Java routine. */
-    public DataAccess dataAccess;
-  
-    /**From Zbnf <""?textInStatement>, constant text, null if not used. */
-    public StringSeq textArg; 
-    
-    
-    
-    /**If need, sub statements, maybe null. An argument may need a StatementList
-     * to calculate the value of the argument it is is more complex. Alternatively
-     * an Argument can be calculated with the {@link #expression} or with {@link #dataAccess}
-     * or it is a simple {@link #textArg}.*/
-    public StatementList statementlist;
-    
-    
-    
-    
-    public Argument(StatementList parentList){
-      if(parentList == null)
-        Assert.stop();
-      this.parentList = parentList;
-    }
-    
-    public void set_name(String name){ this.identArgJbat = name; }
-    
-    public String getIdent(){ return identArgJbat; }
-    
-    public CalculatorExpr.SetExpr new_expression(){ return new CalculatorExpr.SetExpr(true, this); }
-    
-    public void add_expression(CalculatorExpr.SetExpr val){ 
-      val.closeExprPreparation();
-      expression = val.expr; 
-    }
-    
-    /**From Zbnf: < condition>. A condition is an expression. It is the same like {@link #new_expression()}
-     */
-    public CalculatorExpr.SetExpr new_condition(){ return new_expression(); }
-    
-    public void add_condition(CalculatorExpr.SetExpr val){ add_expression(val); }
-    
-    public void set_text(String text){
-      CharSequence cText;
-      if(text.contains("\n=")){   //= on start of line, remove it
-        StringBuilder u = new StringBuilder(text);
-        cText = u;
-        int pos = 0;
-        while( (pos = u.indexOf("\n=",pos))>=0){
-          u.replace(pos+1, pos+2, "");
-        }
-      } else {
-        cText = text;
-      }
-      textArg = StringSeq.create(cText, true);  //let the text inside the StringBuilder.
-      //if(statementlist == null){ statementlist = new StatementList(this); }
-      //statementlist.set_text(text);
-    }
-    
-    
-    public void XXXset_nonEmptyText(String text){
-      if(!StringFunctions.isEmptyOrOnlyWhitespaces(text)){
-        set_text(text);
-      }
-    }
-    
-    
-    
-    public void XXXset_textReplf(String text){
-      set_text(text);
-    }
-    
-    
-    
-    /**From Zbnf, a part <:>...<.> */
-    public StatementList new_textExpr(){ return this.statementlist = new StatementList(); }
-    
-    public void add_textExpr(StatementList val){}
-    
-    
-    
-    public DataAccess.DataAccessSet new_datapath(){ return new DataAccess.DataAccessSet(); }
-    
-    public void add_datapath(DataAccess.DataAccessSet val){ 
-      dataAccess = val;
-    }
-    
-
-
-    /**Set from ZBNF:  (\?*<$?dataText>\?) */
-    //@Override
-    public Statement new_dataText(){ return new Statement(parentList, 'e', null); }
-    
-    /**Set from ZBNF:  (\?*<*dataText>\?) */
-    //@Override
-    public void add_dataText(Statement val){ 
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.statements.add(val); 
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);
-    }
-    
-
-    
-  }
-  
-  
-  
-  /**An element of the script, maybe a simple text, an condition etc.
-   * It may have sub statements , see aggregation {@link #statementlist}. 
-   * <br>
-   * UML-Notation see {@link org.vishia.util.Docu_UML_simpleNotation}:
-   * <pre>
-   *   Statement                 Statements          Statement
-   *        |                         |              !The sub statements
-   *        |-----statementlist------>|                  |
-   *        |                         |                  |
-   *                                  |----statements--*>|
-   * 
-   * </pre> 
-   */
-  public static class Statement extends Argument
+  public static class ZGenitem
   {
     /**Designation what presents the element.
      * 
@@ -339,8 +204,162 @@ public class ZGenScript {
      * <tr><td>xxxX</td><td>a subtext definition</td></tr>
      * </table> 
      */
-    private char elementType;    
+    protected char elementType;    
     
+    /**Hint to the source of this parsed argument or statement. */
+    int srcLine, srcColumn;
+    
+    /**Necessary for throwing exceptions with the {@link StatementList#srcFile} in its text. */
+    final StatementList parentList;
+    
+    /**If need, sub statements, maybe null. An argument may need a StatementList
+     * to calculate the value of the argument if is is more complex. Alternatively
+     * an Argument can be calculated with the {@link #expression} or with {@link #dataAccess}
+     * or it is a simple {@link #textArg}.*/
+    public StatementList statementlist;
+    
+    /**Any access to an Object, maybe content of a variable, maybe access to any Java data,
+     * maybe invocation of a Java routine. */
+    public DataAccess dataAccess;
+  
+    /**From Zbnf <""?textInStatement>, constant text, null if not used. */
+    public String textArg; 
+    
+    
+    ZGenitem(StatementList parentList, char whatisit){
+      if(parentList == null)
+        Assert.stop();
+      this.parentList = parentList;
+      this.elementType = whatisit;
+    }
+    
+    /*package private*/ char elementType(){ return elementType; }
+    
+    public StatementList statementlist(){ return statementlist; }
+
+    
+    public DataAccess.DataAccessSet new_datapath(){ return new DataAccess.DataAccessSet(); }
+    
+    public void add_datapath(DataAccess.DataAccessSet val){ 
+      dataAccess = val;
+    }
+    
+
+
+
+    public void set_text(String text){
+      CharSequence cText;
+      if(text.contains("\n=")){   //= on start of line, remove it
+        StringBuilder u = new StringBuilder(text);
+        cText = u;
+        int pos = 0;
+        while( (pos = u.indexOf("\n=",pos))>=0){
+          u.replace(pos+1, pos+2, "");
+        }
+      } else {
+        cText = text;
+      }
+      textArg = cText.toString(); //StringSeq.create(cText, true);  //let the text inside the StringBuilder.
+      //if(statementlist == null){ statementlist = new StatementList(this); }
+      //statementlist.set_text(text);
+    }
+    
+
+    /**From Zbnf, a part <:>...<.> */
+    public StatementList new_textExpr(){ return this.statementlist = new StatementList(); }
+    
+    public void add_textExpr(StatementList val){}
+    
+    
+
+
+  }
+  
+  
+  
+  
+  
+  
+  /**Superclass for ScriptElement, but used independent for arguments.
+   * @author hartmut
+   *
+   */
+  public static class Argument extends ZGenitem  { //CalculatorExpr.Datapath{
+    
+    /**Name of the argument. It is the key to assign calling argument values. */
+    public String identArgJbat;
+   
+    /**Any calculation of data. */
+    public CalculatorExpr expression;
+    
+    
+    
+    
+    
+    
+    public Argument(StatementList parentList){
+      super(parentList, '.');
+    }
+    
+    public void set_name(String name){ this.identArgJbat = name; }
+    
+    public String getIdent(){ return identArgJbat; }
+    
+    public CalculatorExpr.SetExpr new_expression(){ return new CalculatorExpr.SetExpr(true, this); }
+    
+    public void add_expression(CalculatorExpr.SetExpr val){ 
+      val.closeExprPreparation();
+      expression = val.expr; 
+    }
+    
+    public void XXXset_nonEmptyText(String text){
+      if(!StringFunctions.isEmptyOrOnlyWhitespaces(text)){
+        set_text(text);
+      }
+    }
+    
+    
+    
+    public void XXXset_textReplf(String text){
+      set_text(text);
+    }
+    
+    
+    
+    
+    /**Set from ZBNF:  (\?*<$?dataText>\?) */
+    //@Override
+    public DataText new_XXXdataText(){ return new DataText(parentList); }
+    
+    /**Set from ZBNF:  (\?*<*dataText>\?) */
+    //@Override
+    public void add_XXXdataText(DataText val){ 
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.statements.add(val); 
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);
+    }
+    
+
+    
+  }
+  
+  
+  
+  /**An element of the script, maybe a simple text, an condition etc.
+   * It may have sub statements , see aggregation {@link #statementlist}. 
+   * <br>
+   * UML-Notation see {@link org.vishia.util.Docu_UML_simpleNotation}:
+   * <pre>
+   *   Statement                 Statements          Statement
+   *        |                         |              !The sub statements
+   *        |-----statementlist------>|                  |
+   *        |                         |                  |
+   *                                  |----statements--*>|
+   * 
+   * </pre> 
+   */
+  public static class Statement extends ZGenitem //Argument
+  {
     
     /**Any variable given by name or java instance  which is used to assign to it.
      * A variable is given by the start element of the data path. An instance is given by any more complex datapath
@@ -373,29 +392,23 @@ public class ZGenScript {
     
 
     
-    public Statement(StatementList parentList, char whatisit, StringSeq text)
-    { super(parentList);
-      this.elementType = whatisit;
-      this.textArg = text;
+    public Statement(StatementList parentList, char whatisit) //, StringSeq text)
+    { super(parentList, whatisit);
+      //this.textArg = text;
       if("BNXYZvl".indexOf(whatisit)>=0){
-        statementlist = new StatementList();
+        statementlist = new StatementList(this);
       }
       else if("IVL".indexOf(whatisit)>=0){
         statementlist = new StatementList(this);
       }
     }
     
-    /*package private*/ char elementType(){ return elementType; }
-    
     public List<Argument> getReferenceDataSettings(){ return arguments; }
     
     public StatementList getSubContent(){ return statementlist; }
     
-    @Override
-    public void set_name(String name){ this.identArgJbat = name; }
+    //public void set_name(String name){ this.identArgJbat = name; }
     
-    
-    public void set_formatText(String text){ this.textArg = StringSeq.create(text); }
     
     
     /**Sets the nonEmptyText From ZBNF. invokes {@link #set_textReplLf(String)} if the text contains
@@ -410,7 +423,7 @@ public class ZGenScript {
     
     /**Gathers a text which is assigned to any variable or output. <+ name>text<.+>
      */
-    public Statement new_textOut(){ return new Statement(parentList, 'T', null); }
+    public Statement new_textOut(){ return new Statement(parentList, 'T'); }
 
     public void add_textOut(Statement val){ 
       if(statementlist == null){ statementlist = new StatementList(this); }
@@ -420,68 +433,70 @@ public class ZGenScript {
     
     public void set_newline(){
       if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.statements.add(new Statement(parentList, 'n', null));   /// 
+      statementlist.statements.add(new Statement(parentList, 'n'));   /// 
     }
     
-    public Statement new_setEnvVar(){ 
+    
+    
+    public DefVariable new_setEnvVar(){ 
       if(statementlist == null){ statementlist = new StatementList(this); }
       return statementlist.new_setEnvVar(); 
     }
 
-    public void add_setEnvVar(Statement val){ statementlist.add_setEnvVar(val); } 
+    public void add_setEnvVar(DefVariable val){ statementlist.add_setEnvVar(val); } 
     
     
     /**Defines a variable with initial value. <= <variableAssign?textVariable> \<\.=\>
      */
-    public Statement new_textVariable(){
+    public DefVariable new_textVariable(){
       if(statementlist == null){ statementlist = new StatementList(this); }
       statementlist.bContainsVariableDef = true; 
-      return new Statement(parentList, 'S', null); 
+      return new DefVariable(parentList, 'S'); 
     } 
 
-    public void add_textVariable(Statement val){ statementlist.statements.add(val); statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);} 
+    public void add_textVariable(DefVariable val){ statementlist.statements.add(val); statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);} 
     
     
     /**Defines a variable which is able to use as pipe.
      */
-    public Statement new_Pipe(){
+    public DefVariable new_Pipe(){
       if(statementlist == null){ statementlist = new StatementList(this); }
       statementlist.bContainsVariableDef = true; 
-      return new Statement(parentList, 'P', null); 
+      return new DefVariable(parentList, 'P'); 
     } 
 
-    public void add_Pipe(Statement val){ statementlist.statements.add(val); statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val); }
+    public void add_Pipe(DefVariable val){ statementlist.statements.add(val); statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val); }
     
     /**Defines a variable which is able to use as String buffer.
      */
-    public Statement new_StringBuffer(){
+    public DefVariable new_StringBuffer(){
       if(statementlist == null){ statementlist = new StatementList(this); }
       statementlist.bContainsVariableDef = true; 
-      return new Statement(parentList, 'U', null); 
+      return new DefVariable(parentList, 'U'); 
     } 
 
-    public void add_StringBuffer(Statement val){ statementlist.statements.add(val);  statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
+    public void add_StringBuffer(DefVariable val){ statementlist.statements.add(val);  statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
     
         
     /**Defines a variable which is able to use as container.
      */
-    public Statement new_List(){ ////
+    public DefVariable new_List(){ 
       if(statementlist == null){ statementlist = new StatementList(this); }
       statementlist.bContainsVariableDef = true; 
-      return new Statement(parentList, 'L', null); 
+      return new DefVariable(parentList, 'L'); 
     } 
 
-    public void add_List(Statement val){ statementlist.statements.add(val);  statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
+    public void add_List(DefVariable val){ statementlist.statements.add(val);  statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
     
-    /**Defines a variable which is able to use as pipe.
+    /**Defines a variable which is able to use as Appendable, it is a Writer.
      */
-    public Statement new_Openfile(){
+    public DefVariable new_Openfile(){
       if(statementlist == null){ statementlist = new StatementList(this); }
       statementlist.bContainsVariableDef = true; 
-      return new Statement(parentList, 'W', null); 
+      return new DefVariable(parentList, 'W'); 
     } 
 
-    public void add_Openfile(Statement val){ 
+    public void add_Openfile(DefVariable val){ 
       if(statementlist == null){ statementlist = new StatementList(this); }
       statementlist.statements.add(val);  
       statementlist.onerrorAccu = null; 
@@ -490,25 +505,16 @@ public class ZGenScript {
     
     /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
      */
-    public Statement new_objVariable(){ 
+    public DefVariable new_objVariable(){ 
       if(statementlist == null){ statementlist = new StatementList(this); }
       statementlist.bContainsVariableDef = true; 
-      return new Statement(parentList, 'J', null); 
+      return new DefVariable(parentList, 'J'); 
     } 
 
-    public void add_objVariable(Statement val){ statementlist.statements.add(val); statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
+    public void add_objVariable(DefVariable val){ statementlist.statements.add(val); statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
     
     
-    
-    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
-    public Argument new_formalArgument(){ return new Argument(parentList); }
-    
-    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
-    public void add_formalArgument(Argument val){ 
-      if(arguments == null){ arguments = new ArrayList<Argument>(); }
-      arguments.add(val); }
-    
-    
+        
     /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
     public Argument new_p1(){ return new Argument(parentList); }
     
@@ -564,7 +570,7 @@ public class ZGenScript {
      */
     public DataAccess.DataAccessSet new_defVariable(){ return new DataAccess.DataAccessSet(); }
     
-    public void add_defVariable(DataAccess.DataAccessSet val){  //// 
+    public void add_defVariable(DataAccess.DataAccessSet val){   
       int whichStatement = "SPULJW".indexOf(elementType);
       char whichVariableType = "SPULOA".charAt(whichStatement);
       val.setTypeToLastElement(whichVariableType);
@@ -576,7 +582,7 @@ public class ZGenScript {
 
      
     public Statement new_assignExpr(){ 
-      return new Statement(parentList, '=', null); 
+      return new Statement(parentList, '='); 
     } 
 
     public void add_assignExpr(Statement val){ 
@@ -589,30 +595,21 @@ public class ZGenScript {
     
     
     
-    public Statement new_statementBlock(){
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      Statement statement = new Statement(parentList, 'B', null);
-      statementlist.statements.add(statement);
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
-      return statement;
-    }
-    
-    public void add_statementBlock(Statement val){}
-
-    
     public void set_append(){
       if(elementType == '='){ elementType = '+'; }
       else throw new IllegalArgumentException("ZGenScript - unexpected set_append");
     }
     
     
-    public Statement new_debug()
+    public ZGenitem new_debug()
     { if(statementlist == null) { statementlist = new StatementList(this); }
       return statementlist.new_debug();
     }
     
-    public void add_debug(Statement val){statementlist.add_debug(val); }
+    public void add_debug(ZGenitem val){statementlist.add_debug(val); }
 
+    
+    
     public Onerror new_onerror(){
       return new Onerror(parentList);
     }
@@ -621,47 +618,50 @@ public class ZGenScript {
     public void add_onerror(Onerror val){
       if(statementlist == null){ statementlist = new StatementList(this); }
       statementlist.statements.add(val);
+      /*
       if(statementlist.onerrorAccu == null){ statementlist.onerrorAccu = new LinkedList<Onerror>(); }
-      for( Statement previousStatement: statementlist.withoutOnerror){
+      for( ZGenitem previousStatement: statementlist.withoutOnerror){
         previousStatement.onerror = onerror;  
         //use the same onerror list for all previous statements without error designation.
       }
+      */
       statementlist.withoutOnerror.clear();  //remove all entries, they are processed.
     }
 
     
     public void set_breakBlock(){ 
       if(statementlist == null){ statementlist = new StatementList(this); }
-      Statement statement = new Statement(parentList, 'b', null);
+      Statement statement = new Statement(parentList, 'b');
       statementlist.statements.add(statement);
     }
     
  
       
-    public Statement new_forContainer()
+    public DefVariable new_forContainer()
     { if(statementlist == null) { statementlist = new StatementList(this); }
       return statementlist.new_forContainer();
     }
     
-    public void add_forContainer(Statement val){statementlist.add_forContainer(val);}
+    public void add_forContainer(DefVariable val){statementlist.add_forContainer(val);}
 
     
-    public Statement new_whileBlock()
+    public CondStatement new_whileBlock()
     { if(statementlist == null) { statementlist = new StatementList(this); }
       return statementlist.new_whileBlock();
     }
     
-    public void add_whileBlock(Statement val){statementlist.add_whileBlock(val); }
+    public void add_whileBlock(CondStatement val){statementlist.add_whileBlock(val); }
+
 
     
-    public Statement new_if()
+    public CondStatement new_if()
     { StatementList subGenContent = new StatementList(this);
-      Statement statement = new Statement(parentList, 'F', null);
+      CondStatement statement = new CondStatement(parentList, 'F');
       statement.statementlist = subGenContent;  //The statement contains a genContent. 
       return statement;
     }
     
-    public void add_if(Statement val){
+    public void add_if(CondStatement val){
       if(statementlist == null) { statementlist = new StatementList(this); }
       statementlist.statements.add(val);
       statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);
@@ -681,7 +681,7 @@ public class ZGenScript {
     public void add_ifBlock(IfCondition val){}
 
     public Statement new_hasNext()
-    { Statement statement = new Statement(parentList, 'N', null);
+    { Statement statement = new Statement(parentList, 'N');
       statementlist.statements.add(statement);
       statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
       return statement;
@@ -691,7 +691,7 @@ public class ZGenScript {
 
     public Statement new_elseBlock()
     { StatementList subGenContent = new StatementList(this);
-      Statement statement = new Statement(parentList, 'E', null);
+      Statement statement = new Statement(parentList, 'E');
       statement.statementlist = subGenContent;  //The statement contains a genContent. 
       statementlist.statements.add(statement);
       statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
@@ -702,72 +702,20 @@ public class ZGenScript {
 
     
     
-    /**From Zbnf: [{ Thread <datapath?defThreadVar> = }] 
-     */
-    public DataAccess.DataAccessSet new_defThreadVar(){ 
-      return new DataAccess.DataAccessSet(); 
-    }
     
-    public void add_defThreadVar(DataAccess.DataAccessSet val){ 
-      val.setTypeToLastElement('T');
-      dataAccess = val;
-      identArgJbat = "N";  //Marker for a new Variable.
-    }
-
-    
-    /**From Zbnf: [{ Thread <datapath?assignThreadVar> = }] 
-     */
-    public DataAccess.DataAccessSet new_assignThreadVar(){ 
-      return new DataAccess.DataAccessSet(); 
-    }
-    
-    public void add_assignThreadVar(DataAccess.DataAccessSet val){ 
-      dataAccess = val;
-    }
-
-    
-
-    
-    ////
-    public Statement new_threadBlock()
+    public ThreadBlock new_threadBlock()
     { if(statementlist == null){ statementlist = new StatementList(this); }
       return statementlist.new_threadBlock();
     }
     
-    public void add_threadBlock(Statement val){statementlist.add_threadBlock(val);}
+    public void add_threadBlock(ThreadBlock val){statementlist.add_threadBlock(val);}
 
     
-    public Statement new_move()
-    { if(statementlist == null){ statementlist = new StatementList(this); }
-      return statementlist.new_move();
-    }
-    
-    public void add_move(Statement val){statementlist.add_move(val);}
-
-    
-    public Statement new_copy()
-    { if(statementlist == null){ statementlist = new StatementList(this); }
-      return statementlist.new_copy();
-    }
-    
-    public void add_copy(Statement val){statementlist.add_copy(val);}
-
-    
-    public CallStatement new_call()
-    { if(statementlist == null){ statementlist = new StatementList(this); }
-      CallStatement statement = new CallStatement(parentList);
-      statementlist.statements.add(statement);
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
-      return statement;
-    }
-    
-    public void add_call(CallStatement val){}
-
     
 
     public Statement new_cmdLine()
     { if(statementlist == null){ statementlist = new StatementList(this); }
-      Statement statement = new Statement(parentList, 'c', null);
+      Statement statement = new Statement(parentList, 'c');
       statementlist.statements.add(statement);
       statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
       return statement;
@@ -776,21 +724,21 @@ public class ZGenScript {
     public void add_cmdLine(Statement val){}
 
     
-
+    /*
     public void set_cd(String val)
     { if(statementlist == null){ statementlist = new StatementList(this); }
       statementlist.set_cd(val);
     }
-    
+    */
     
 
-    public Statement new_cd()
+    public ZGenitem new_cd()
     { if(statementlist == null){ statementlist = new StatementList(this); }
       return statementlist.new_cd();
     }
     
     
-    public void add_cd(Statement val)
+    public void add_cd(ZGenitem val)
     { statementlist.add_cd(val);
     }
     
@@ -798,7 +746,7 @@ public class ZGenScript {
 
     
     
-    /**Set from ZBNF:  (\?*<$?forElement>\?) */
+    /**Set from ZBNF:  (\?*<$?forElement>\?)
     public void set_fnEmpty(String val){ 
       if(statementlist == null){ statementlist = new StatementList(this); }
       Statement statement = new Statement(parentList, 'f', StringSeq.create(val));
@@ -824,7 +772,7 @@ public class ZGenScript {
     
     public Statement new_forInputContent()
     { if(statementlist == null){ statementlist = new StatementList(this); }
-      Statement statement = new Statement(parentList, 'I', null);
+      Statement statement = new Statement(parentList, 'I');
       statementlist.statements.add(statement);
       statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
       return statement;
@@ -835,18 +783,20 @@ public class ZGenScript {
     
     public Statement xxxnew_forVariable()
     { if(statementlist == null){ statementlist = new StatementList(this); }
-      Statement statement = new Statement(parentList, 'V', null);
+      Statement statement = new Statement(parentList, 'V');
       statementlist.statements.add(statement);
       statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
       return statement;
     }
     
     public void xxxadd_forVariable(Statement val){} //empty, it is added in new_forList()
+*/
 
+    
     
     public Statement new_forList()
     { if(statementlist == null){ statementlist = new StatementList(this); }
-      Statement statement = new Statement(parentList, 'L', null);
+      Statement statement = new Statement(parentList, 'L');
       statementlist.statements.add(statement);
       statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
       return statement;
@@ -856,7 +806,7 @@ public class ZGenScript {
 
     
     public Statement new_addToList(){ 
-      Statement subGenContent = new Statement(parentList, 'l', null);
+      Statement subGenContent = new Statement(parentList, 'l');
       statementlist.addToList.add(subGenContent.statementlist);
       return subGenContent;
     }
@@ -881,26 +831,27 @@ public class ZGenScript {
     @Override public String toString()
     {
       switch(elementType){
-      case 't': return textArg.toString();
+      case 't': return "text"; //textArg.toString();
+      /*
       case 'S': return "String " + identArgJbat;
       case 'J': return "Obj " + identArgJbat;
       case 'P': return "Pipe " + identArgJbat;
       case 'U': return "Buffer " + identArgJbat;
       case 'o': return "(?outp." + textArg + "?)";
       case 'i': return "(?inp." + textArg + "?)";
+      */
       case 'e': return "<*" +   ">";  //expressions.get(0).datapath
       //case 'g': return "<$" + path + ">";
-      case 's': return "call " + identArgJbat;
+      //case 's': return "call " + identArgJbat;
       case 'B': return "{ statementblock }";
       case '?': return "onerror";
       case 'I': return "(?forInput?)...(/?)";
-      case 'L': return "(?forList " + textArg + "?)";
-      case 'C': return "<:for:Container " + textArg + "?)";
+      case 'L': return "(?forList "  + "?)";
+      case 'C': return "<:for:Container "  + "?)";
       case 'F': return "if";
       case 'G': return "elsif";
       case 'N': return "<:hasNext> content <.hasNext>";
       case 'E': return "else";
-      case 'Z': return "<:target:" + identArgJbat + ">";
       case 'Y': return "<:file>";
       case 'b': return "break;";
       case 'c': return "cmd;";
@@ -910,8 +861,8 @@ public class ZGenScript {
       case 'z': return "exit";
       case '=': return "assignExpr";
       case '+': return "appendExpr";
-      case 'X': return "call " + identArgJbat ;
-      default: return "(??" + elementType + " " + textArg + "?)";
+      //case 'X': return "call " + identArgJbat ;
+      default: return "(??" + elementType + " " + "?)";
       }
     }
     
@@ -919,80 +870,411 @@ public class ZGenScript {
   }
 
   
-  
-  public static class CmdLine extends Statement
+  public static class ZGenitemWithStatementBlock extends ZGenitem
   {
     
-    CmdLine(StatementList parentList){
-      super(parentList, 'c', null);
+    ZGenitemWithStatementBlock(StatementList parentList, char elementType)
+    { super(parentList, elementType);
+      statementlist = new StatementList(this);
     }
+
+    public StatementList new_statementBlock(){
+      return statementlist;
+    }
+    
+    public void add_statementBlock(StatementList val){ }
+    
+    
+  }
+  
+  /**In ZBNF: <*datapath:formatString>
+   */
+  public static class DataText extends ZGenitem
+  {
+    public DataText(StatementList parentList)
+    { super(parentList, 'e');
+    }
+
+    public String format;
+    
+    public void set_formatText(String text){ this.format = text; }
+    
+
+  }
+  
+  
+  
+  public static class DefVariable extends ZGenitem
+  {
+    
+    /**The variable which should be created. 
+     * The variable maybe build with name.subname.subname. 
+     * It is possible to add an element to an internal container in Java data. 
+     */
+    public DataAccess defVariable;
+    
+    DefVariable(StatementList parentList, char type){
+      super(parentList, type);
+    }
+    
+    
+    /**From Zbnf: < variable?defVariable> inside a DefVariable::=...
+     */
+    public DataAccess.DataAccessSet new_defVariable(){ return new DataAccess.DataAccessSet(); }
+    
+    public void add_defVariable(DataAccess.DataAccessSet val){   
+      int whichStatement = "SPULJW".indexOf(elementType);
+      char whichVariableType = "SPULOA".charAt(whichStatement);
+      val.setTypeToLastElement(whichVariableType);
+      //don't use the dataPath, it may be the path to the initial data.
+      defVariable = val;
+      //if(assignObjs == null){ assignObjs = new LinkedList<DataAccess>(); }
+      //assignObjs.add(val); 
+    }
+
+    
+    /**Returns the simple variable name if the variable is on one level only.
+     * Returns name.name for more levels.
+     * @return
+     */
+    String getVariableIdent(){
+      final String name; 
+      List<DataAccess.DatapathElement> path = defVariable.datapath();
+      int zpath = path.size();
+      if(path == null || zpath ==0){
+        name = null;
+      }
+      else if(path.size() == 1){
+        name = defVariable.datapath().get(0).ident();
+      } else {
+        name = null;  //TODO name.name
+      }
+      return name;
+    }
+    
+    
+    //public void set_name(String name){ this.name = name; }
+
+  };
+  
+  
+  
+  
+  public static class AssignExpr extends ZGenitem
+  {
+
+    /**Any variable given by name or java instance  which is used to assign to it.
+     * A variable is given by the start element of the data path. An instance is given by any more complex datapath
+     * null if not used. */
+    public List<DataAccess> assignObjs;
+    
+    
+    /**The variable which should be created or to which a value is assigned to. */
+    public DataAccess variable;
+    
+    AssignExpr(StatementList parentList, char elementType)
+    { super(parentList, elementType);
+    }
+    
+    /**From Zbnf: [{ <datapath?-assign> = }] 
+     */
+    public DataAccess.DataAccessSet new_assign(){ return new DataAccess.DataAccessSet(); }
+    
+    public void add_assign(DataAccess.DataAccessSet val){ 
+      if(variable == null){ variable = val; }
+      else {
+        if(assignObjs == null){ assignObjs = new LinkedList<DataAccess>(); }
+        assignObjs.add(val); 
+      }
+    }
+
+    
+    public void set_append(){
+      if(elementType == '='){ elementType = '+'; }
+      else throw new IllegalArgumentException("ZGenScript - unexpected set_append");
+    }
+  }
+  
+  
+  public static class TextOut extends ZGenitem
+  {
+
+    /**The variable which should be created or to which a value is assigned to. */
+    public DataAccess variable;
+    
+    TextOut(StatementList parentList, char elementType)
+    { super(parentList, elementType);
+    }
+    
+    /**From Zbnf: [{ <datapath?-assign> = }] 
+     */
+    public DataAccess.DataAccessSet new_assign(){ return new DataAccess.DataAccessSet(); }
+    
+    public void add_assign(DataAccess.DataAccessSet val){ 
+      variable = val; 
+    }
+
+    public void set_newline(){
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.statements.add(new ZGenitem(parentList, 'n'));  
+    }
+  }
+  
+  
+  
+  
+  public static class IfStatement extends ZGenitem
+  {
+
+    IfStatement(StatementList parentList, char whatisit)
+    {super(parentList, whatisit);
+    }
+    
+    public IfCondition new_ifBlock()
+    { StatementList subGenContent = new StatementList(this);
+      IfCondition statement = new IfCondition(parentList, 'G');
+      statement.statementlist = subGenContent;  //The statement contains a genContent. 
+      statementlist.statements.add(statement);
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
+      return statement;
+    }
+    
+    public void add_ifBlock(IfCondition val){}
+
+
+
+    public StatementList new_elseBlock()
+    { ZGenitem statement = new ZGenitem(parentList, 'E');
+      statement.statementlist = new StatementList(this);  //The statement contains a genContent. 
+      statementlist.statements.add(statement);
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
+      return statement.statementlist;  //The else sub statementlist.
+    }
+    
+    public void add_elseBlock(StatementList val){}
+
+    
+  }
+  
+  
+  
+  
+  
+  
+  public static class CondStatement extends ZGenitemWithStatementBlock
+  {
+    
+    public CalculatorExpr condition;
+    
+    
+    CondStatement(StatementList parentList, char type){
+      super(parentList, type);
+    }
+
+    /**From Zbnf: < condition>. A condition is an expression. It is the same like {@link #new_expression()}
+     */
+    public CalculatorExpr.SetExpr new_condition(){  return new CalculatorExpr.SetExpr(true, this);  }
+    
+    public void add_condition(CalculatorExpr.SetExpr val){ 
+      val.closeExprPreparation();
+      condition = val.expr; 
+    }
+    
+
     
   };
   
   
   
-  public static class CallStatement extends Statement
+  public static class Subroutine extends ZGenitemWithStatementBlock
   {
+    public String name;
     
-    public Argument callName;
     
-    CallStatement(StatementList parentList){
-      super(parentList, 's', null);
+    public List<DefVariable> formalArgs;
+    
+    Subroutine(StatementList parentList){
+      super(parentList, 'X');
     }
     
-    public Argument new_callName(){ return callName = new Argument(parentList); }
+    public void set_name(String name){ this.name = name; }
+
     
-    public void set_callName(Argument val){}
+    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
+    public Subroutine new_formalArgument(){ return this; } //new Argument(parentList); }
+    
+    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
+    public void add_formalArgument(Subroutine val){}
+    
+    public DefVariable new_objVariable(){
+      return new DefVariable(parentList, 'J'); 
+    }
+    
+    public void add_objVariable(DefVariable val) {
+      if(formalArgs == null){ formalArgs = new ArrayList<DefVariable>(); }
+      formalArgs.add(val);
+    }
+
+    
+    public DefVariable new_textVariable(){
+      return new DefVariable(parentList, 'S'); 
+    }
+    
+    public void add_textVariable(DefVariable val) {
+      if(formalArgs == null){ formalArgs = new ArrayList<DefVariable>(); }
+      formalArgs.add(val);
+    }
+
+    
+    /**Defines or changes an environment variable with value. set NAME = TEXT;
+     * Handle in the same kind like a String variable
+     */
+    public DefVariable new_setEnvVar(){ 
+      return new DefVariable(parentList, 'S'); 
+    } 
+
+    /**Defines or changes an environment variable with value. set NAME = TEXT;
+     * Handle in the same kind like a String variable but appends a '$' to the first name.
+     */
+    public void add_setEnvVar(DefVariable val){ 
+      if(formalArgs == null){ formalArgs = new ArrayList<DefVariable>(); }
+      //change the first identifier to $name
+      val.defVariable.datapath().get(0).setIdent("$" + val.defVariable.datapath().get(0).ident());
+      //val.identArgJbat = "$" + val.identArgJbat;
+      formalArgs.add(val); 
+    } 
+    
+
     
   };
   
   
   
-  public static class ExitStatement extends Statement
+  public static class CallStatement extends ZGenitem
+  {
+    
+    public ZGenitem callName;
+    
+    /**Argument list either actual or formal if this is a subtext call or subtext definition. 
+     * Maybe null if the subtext has not argument. It is null if it is not a subtext call or definition. */
+    public List<Argument> actualArgs;
+    
+
+    
+    CallStatement(StatementList parentList, char elementType){
+      super(parentList, elementType);
+    }
+    
+    public ZGenitem new_callName(){ return callName = new Argument(parentList); }
+    
+    public void set_callName(ZGenitem val){}
+    
+    
+    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
+    public Argument new_actualArgument(){ return new Argument(parentList); }
+    
+    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
+    public void add_actualArgument(Argument val){ 
+      if(actualArgs == null){ actualArgs = new ArrayList<Argument>(); }
+      actualArgs.add(val); }
+    
+  };
+  
+  
+  
+  
+  public static class CmdInvoke extends AssignExpr
+  {
+
+    /**Argument list either actual or formal if this is a subtext call or subtext definition. 
+     * Maybe null if the subtext has not argument. It is null if it is not a subtext call or definition. */
+    public List<ZGenitem> cmdArgs;
+    
+
+    CmdInvoke(StatementList parentList, char elementType)
+    { super(parentList, elementType);
+    }
+    
+     /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
+    public ZGenitem new_actualArgument(){ return new ZGenitem(parentList, '.'); }
+     
+    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
+    public void add_actualArgument(ZGenitem val){ 
+      if(cmdArgs == null){ cmdArgs = new ArrayList<ZGenitem>(); }
+      cmdArgs.add(val); 
+    }
+     
+
+  }
+  
+  
+  
+  public static class ExitStatement extends ZGenitem
   {
     
     int exitValue;
     
     ExitStatement(StatementList parentList, int exitValue){
-      super(parentList, 'z', null);
+      super(parentList, 'z');
       this.exitValue = exitValue;
     }
   };
   
   
   
-  public static class IfCondition extends Statement
+  public static class ThreadBlock extends ZGenitemWithStatementBlock
   {
     
-    public Statement XXXcondition;
+    String name;    
+    
+    ThreadBlock(StatementList parentList){
+      super(parentList, 'x');
+    }
+
+    
+    public void set_name(String name){ this.name = name; }
+
+    /**From Zbnf: [{ Thread <datapath?defThreadVar> = }] 
+     */
+    public DataAccess.DataAccessSet new_defThreadVar(){ 
+      return new DataAccess.DataAccessSet(); 
+    }
+    
+    public void add_defThreadVar(DataAccess.DataAccessSet val){ 
+      val.setTypeToLastElement('T');
+      dataAccess = val;
+      //identArgJbat = "N";  //Marker for a new Variable.
+    }
+
+    
+    /**From Zbnf: [{ Thread <datapath?assignThreadVar> = }] 
+     */
+    public DataAccess.DataAccessSet new_assignThreadVar(){ 
+      return new DataAccess.DataAccessSet(); 
+    }
+    
+    public void add_assignThreadVar(DataAccess.DataAccessSet val){ 
+      dataAccess = val;
+    }
+
+    
+
+
+  
+  
+  }
+  
+  
+  
+  public static class IfCondition extends CondStatement
+  {
     
     public boolean bElse;
     
-    public CalculatorExpr XXXexpr;
-    
     IfCondition(StatementList parentList, char whatis){
-      super(parentList, whatis, null);
+      super(parentList, whatis);
     }
     
-    public Statement XXXnew_cmpOperation()
-    { XXXcondition = new Statement(parentList, '?', null);
-      return XXXcondition;
-    }
-    
-    public void add_cmpOperation(Statement val){
-      Assert.stop();
-      /*
-      String text;
-      if(val.expression !=null && val.expression.values !=null && val.expression.values.size()==1
-        && (text = val.expression.values.get(0).stringValue()) !=null && text.equals("else") ){
-        bElse = true;
-      }
-      */        
-    }
-
-
-    
-
   }
   
   
@@ -1010,7 +1292,7 @@ public class ZGenScript {
    * the iferror-Block can contain an iferror too.
    * 
  */
-  public final static class Onerror extends Statement
+  public final static class Onerror extends ZGenitemWithStatementBlock
   {
     /**From ZBNF */
     public int errorLevel;
@@ -1031,7 +1313,7 @@ public class ZGenScript {
     }
  
     Onerror(StatementList parentList){
-      super(parentList, '?', null);
+      super(parentList, '?');
     }
  }
   
@@ -1048,14 +1330,14 @@ public class ZGenScript {
     /**Hint to the source of this parsed argument or statement. */
     String srcFile = "srcFile-yet-unknown";
     
-    final Argument parentStatement;
+    final ZGenitem parentStatement;
     
     /**True if < genContent> is called for any input, (?:forInput?) */
     //public final boolean XXXisContentForInput;
     
     public String cmpnName;
     
-    public final List<Statement> statements = new ArrayList<Statement>();
+    public final List<ZGenitem> statements = new ArrayList<ZGenitem>();
     
 
     /**List of currently onerror statements.
@@ -1067,7 +1349,7 @@ public class ZGenScript {
     List<Onerror> onerrorAccu;
 
     
-    List<Statement> withoutOnerror = new LinkedList<Statement>();
+    List<ZGenitem> withoutOnerror = new LinkedList<ZGenitem>();
     
     
     /**True if the block {@link Argument#statementlist} contains at least one variable definition.
@@ -1092,7 +1374,7 @@ public class ZGenScript {
       //this.isContentForInput = false;
     }
         
-    public StatementList(Argument parentStatement)
+    public StatementList(ZGenitem parentStatement)
     { this.parentStatement = parentStatement;
       //this.isContentForInput = false;
     }
@@ -1104,35 +1386,121 @@ public class ZGenScript {
     }
     */
         
+    
+    
+    
+    public StatementList new_statementBlock(){
+      ZGenitem statement = new ZGenitem(this, 'B');
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement.statementlist;
+    }
+    
+    public void add_statementBlock(ZGenitem val){}
+
+    
+
+    
+    
     /**Defines or changes an environment variable with value. set NAME = TEXT;
      * Handle in the same kind like a String variable
      */
-    public Statement new_debug(){
-      return new Statement(this, 'D', null); 
+    public ZGenitem new_debug(){
+      return new ZGenitem(this, 'D'); 
     } 
 
     /**Defines or changes an environment variable with value. set NAME = TEXT;
      * Handle in the same kind like a String variable but appends a '$' to the first name.
      */
-    public void add_debug(Statement val){ 
+    public void add_debug(ZGenitem val){ 
       statements.add(val); 
       onerrorAccu = null; withoutOnerror.add(val);
     } 
+    
+    /**Gathers a text which is assigned to any variable or output. <+ name>text<.+>
+     */
+    public TextOut new_textOut(){ return new TextOut(this, 'T'); }
+
+    public void add_textOut(TextOut val){ 
+      statements.add(val); 
+    } 
+    
+    
+    /**Defines a variable with initial value. <= <variableAssign?textVariable> \<\.=\>
+     */
+    public DefVariable new_textVariable(){
+      bContainsVariableDef = true; 
+      return new DefVariable(this, 'S'); 
+    } 
+
+    public void add_textVariable(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);} 
+    
+    
+    /**Defines a variable which is able to use as pipe.
+     */
+    public DefVariable new_Pipe(){
+      bContainsVariableDef = true; 
+      return new DefVariable(this, 'P'); 
+    } 
+
+    public void add_Pipe(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val); }
+    
+    /**Defines a variable which is able to use as String buffer.
+     */
+    public DefVariable new_StringBuffer(){
+      bContainsVariableDef = true; 
+      return new DefVariable(this, 'U'); 
+    } 
+
+    public void add_StringBuffer(DefVariable val){ statements.add(val);  onerrorAccu = null; withoutOnerror.add(val);}
+    
+        
+    /**Defines a variable which is able to use as container.
+     */
+    public DefVariable new_List(){ ////
+      bContainsVariableDef = true; 
+      return new DefVariable(this, 'L'); 
+    } 
+
+    public void add_List(DefVariable val){ statements.add(val);  onerrorAccu = null; withoutOnerror.add(val);}
+    
+    /**Defines a variable which is able to use as Appendable, it is a Writer.
+     */
+    public DefVariable new_Openfile(){
+      bContainsVariableDef = true; 
+      return new DefVariable(this, 'W'); 
+    } 
+
+    public void add_Openfile(DefVariable val){ 
+      statements.add(val);  
+      onerrorAccu = null; 
+      withoutOnerror.add(val);
+    }
+    
+    /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
+     */
+    public DefVariable new_objVariable(){ 
+      bContainsVariableDef = true; 
+      return new DefVariable(this, 'J'); 
+    } 
+
+    public void add_objVariable(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);}
+    
     
 
     /**Defines or changes an environment variable with value. set NAME = TEXT;
      * Handle in the same kind like a String variable
      */
-    public Statement new_setEnvVar(){ 
-      return new Statement(this, 'S', null); 
+    public DefVariable new_setEnvVar(){ 
+      return new DefVariable(this, 'S'); 
     } 
 
     /**Defines or changes an environment variable with value. set NAME = TEXT;
      * Handle in the same kind like a String variable but appends a '$' to the first name.
      */
-    public void add_setEnvVar(Statement val){ 
+    public void add_setEnvVar(DefVariable val){ 
       //change the first identifier to $name
-      val.variable.datapath().get(0).setIdent("$" + val.variable.datapath().get(0).ident());
+      val.defVariable.datapath().get(0).setIdent("$" + val.defVariable.datapath().get(0).ident());
       //val.identArgJbat = "$" + val.identArgJbat;
       statements.add(val); 
       onerrorAccu = null; withoutOnerror.add(val);
@@ -1142,10 +1510,10 @@ public class ZGenScript {
     //public List<ScriptElement> getLocalVariables(){ return localVariableScripts; }
     
     /**Set from ZBNF:  (\?*<$?dataText>\?) */
-    public Statement new_dataText(){ return new Statement(this, 'e', null); }
+    public DataText new_dataText(){ return new DataText(this); }
     
     /**Set from ZBNF:  (\?*<*dataText>\?) */
-    public void add_dataText(Statement val){ 
+    public void add_dataText(DataText val){ 
       statements.add(val);
       onerrorAccu = null; withoutOnerror.add(val);
     }
@@ -1168,7 +1536,8 @@ public class ZGenScript {
       } else {
         cText = text;
       }
-      Statement statement = new Statement(this, 't', StringSeq.create(cText));
+      ZGenitem statement = new ZGenitem(this, 't');
+      statement.textArg = text;
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
     }
@@ -1187,97 +1556,180 @@ public class ZGenScript {
     
     
     public void set_newline(){
-      Statement statement = new Statement(this, 'n', null);
+      ZGenitem statement = new ZGenitem(this, 'n');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
     }
     
     
+    public AssignExpr new_assignExpr(){ 
+      return new AssignExpr(this, '='); 
+    } 
+
+    public void add_assignExpr(AssignExpr val){ 
+      statements.add(val);  
+      onerrorAccu = null; 
+      withoutOnerror.add(val);
+    }
     
-    public Statement new_if(){
+    
+    
+    public Onerror new_onerror(){
+      return new Onerror(this);
+    }
+    
+
+    public void add_onerror(Onerror val){
+      statements.add(val);
+      /*
+      if(statementlist.onerrorAccu == null){ statementlist.onerrorAccu = new LinkedList<Onerror>(); }
+      for( ZGenitem previousStatement: statementlist.withoutOnerror){
+        previousStatement.onerror = onerror;  
+        //use the same onerror list for all previous statements without error designation.
+      }
+      */
+      withoutOnerror.clear();  //remove all entries, they are processed.
+    }
+
+    
+
+    public void set_breakBlock(){ 
+      Statement statement = new Statement(this, 'b');
+      statements.add(statement);
+    }
+    
+ 
+
+    
+    
+    public IfStatement new_if(){
       StatementList subGenContent = new StatementList(parentStatement);
-      Statement statement = new Statement(this, 'F', null);
+      IfStatement statement = new IfStatement(this, 'F');
       statement.statementlist = subGenContent;  //The statement contains a genContent. 
       return statement;
 
     }
 
     
-    public void add_if(Statement val){
+    public void add_if(IfStatement val){
       statements.add(val);
       onerrorAccu = null; withoutOnerror.add(val);
       
     }
 
     
-
-    public Statement new_forContainer()
-    { Statement statement = new Statement(this, 'C', null);
+    
+    public ZGenitem new_hasNext()
+    { ZGenitem statement = new ZGenitem(this, 'N');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;
     }
     
-    public void add_forContainer(Statement val){}
+    public void add_hasNext(ZGenitem val){}
+    
+    
 
+    
+    
 
-    public Statement new_whileBlock()
-    { Statement statement = new Statement(this, 'w', null);
+    /**for(name: iterable).
+     * It builds a DefVariable, because it is similar. Variable is the for-variable.
+     * @return 
+     */
+    public DefVariable new_forContainer()
+    { DefVariable statement = new DefVariable(this, 'C');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;
     }
     
-    public void add_whileBlock(Statement val){}
+    public void add_forContainer(DefVariable val){}
 
 
-    public Statement new_threadBlock()
-    { Statement statement = new Statement(this, 'x', null);
+    public CondStatement new_whileBlock()
+    { CondStatement statement = new CondStatement(this, 'w');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;
     }
     
-    public void add_threadBlock(Statement val){}
+    public void add_whileBlock(CondStatement val){}
 
 
-    public Statement new_move()
-    { Statement statement = new Statement(this, 'm', null);
+    public ThreadBlock new_threadBlock()
+    { ThreadBlock statement = new ThreadBlock(this);
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;
     }
     
-    public void add_move(Statement val){}
+    public void add_threadBlock(ThreadBlock val){}
 
-
-    public Statement new_copy()
-    { Statement statement = new Statement(this, 'y', null);
+    
+    
+    
+    public CallStatement new_call()
+    { CallStatement statement = new CallStatement(this, 's');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;
     }
     
-    public void add_copy(Statement val){}
+    public void add_call(CallStatement val){}
+
+    
+
+    public CmdInvoke new_cmdLine()
+    { CmdInvoke statement = new CmdInvoke(this, 'c');
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
+    }
+    
+    public void add_cmdLine(CmdInvoke val){}
+
+    
 
 
+    public CallStatement new_move()
+    { CallStatement statement = new CallStatement(this, 'm');
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
+    }
+    
+    public void add_move(CallStatement val){}
+
+
+    public CallStatement new_copy()
+    { CallStatement statement = new CallStatement(this, 'y');
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
+    }
+    
+    public void add_copy(CallStatement val){}
+
+
+    /*
     public void set_cd(String val)
-    { Statement statement = new Statement(this, 'd', null);
+    { ZGenitem statement = new ZGenitem(this, 'd');
       statement.textArg = StringSeq.create(val);
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
     }
+    */
     
-    
-    public Statement new_cd(){
-      Statement statement = new Statement(this, 'd', null);
+    public ZGenitem new_cd(){
+      ZGenitem statement = new ZGenitem(this, 'd');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;
     }
     
     
-    public void add_cd(Statement val){}
+    public void add_cd(ZGenitem val){}
     
     
     
@@ -1287,7 +1739,7 @@ public class ZGenScript {
     
     
     public void set_exitScript(int val){
-      Statement statement = new ExitStatement(this, val);
+      ExitStatement statement = new ExitStatement(this, val);
       statements.add(statement);
     }  
     
@@ -1316,15 +1768,15 @@ public class ZGenScript {
     /**Sub classes of this class. */
     List<ZGenClass> classes;
     
-    /**All subScripts of this class. */
-    final Map<String, Statement> subScripts = new TreeMap<String, Statement>();
+    /**All subroutines of this class. */
+    final Map<String, ZGenScript.Subroutine> subroutines = new TreeMap<String, ZGenScript.Subroutine>();
     
     protected ZGenClass(){}
     
     
     public final List<ZGenClass> classes(){ return classes; }
     
-    public final Map<String, Statement> subScripts(){ return subScripts; }
+    public final Map<String, ZGenScript.Subroutine> subroutines(){ return subroutines; }
     
     public ZGenClass new_subClass(){ return new ZGenClass(); }
     
@@ -1333,30 +1785,34 @@ public class ZGenScript {
       classes.add(val); 
     }
     
-    public Statement new_subScript(){ return new Statement(this, 'X', null); }
+    public Subroutine new_subroutine(){ return new Subroutine(this); }
     
-    public void add_subScript(Statement val){ 
-      if(val.identArgJbat == null){
-        val.identArgJbat = "main";
+    public void add_subroutine(Subroutine val){ 
+      if(val.name == null){
+        val.name = "main";
       }
-      
-      subScripts.put(val.identArgJbat, val); 
-      String nameGlobal = cmpnName == null ? val.identArgJbat : cmpnName + "." + val.identArgJbat;
-      subScriptsAll.put(nameGlobal, val); 
+      String sName = val.name.toString();
+      subroutines.put(sName, val); 
+      String nameGlobal = cmpnName == null ? sName : cmpnName + "." + sName;
+      subroutinesAll.put(nameGlobal, val); 
     }
     
     /**Defines a variable with initial value. <= <variableDef?textVariable> \<\.=\>
      */
-    public Statement new_textVariable(){ return new Statement(this, 'S', null); }
+    @Override
+    public DefVariable new_textVariable(){ return new DefVariable(this, 'S'); }
 
-    public void add_textVariable(Statement val){ listScriptVariables.add(val); } 
+    @Override
+    public void add_textVariable(DefVariable val){ listScriptVariables.add(val); } 
     
     
     /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
      */
-    public Statement new_objVariable(){ return new Statement(this, 'J', null); } ///
+    @Override
+    public DefVariable new_objVariable(){ return new DefVariable(this, 'J'); } ///
 
-    public void add_objVariable(Statement val){ listScriptVariables.add(val); } 
+    @Override
+    public void add_objVariable(DefVariable val){ listScriptVariables.add(val); } 
     
     
     
@@ -1368,7 +1824,7 @@ public class ZGenScript {
   
   
   /**Main class for ZBNF parse result.
-   * This class has the enclosing class to store {@link ZbatchGenScript#subScriptsAll}, {@link ZbatchGenScript#listScriptVariables}
+   * This class has the enclosing class to store {@link ZbatchGenScript#subroutinesAll}, {@link ZbatchGenScript#listScriptVariables}
    * etc. while parsing the script. The <code><:file>...<.file></code>-script is stored here locally
    * and used as the main file script only if it is the first one of main or included script. The same behaviour is used  
    * <pre>
@@ -1388,7 +1844,7 @@ public class ZGenScript {
      * It is possible that it is from a included script.
      * It shall contain calling of <code><*subtext:name:...></code> 
      */
-    Statement mainScript;
+    Subroutine mainScript;
     
     
     
@@ -1399,21 +1855,19 @@ public class ZGenScript {
     }
     
     /**Returns the main routine which may be parsed in this maybe included script. */
-    public Statement getMainRoutine(){ return mainScript; }
+    public Subroutine getMainRoutine(){ return mainScript; }
     
     public void set_include(String val){ 
       if(includes ==null){ includes = new ArrayList<String>(); }
       includes.add(val); 
     }
     
-    //public Statement new_ZmakeTarget(){ return new Statement(null, 'Z', null); }
+    public StatementList new_mainScript(){ 
+      mainScript = new Subroutine(outer.scriptClass); 
+      return mainScript.statementlist;
+    }
     
-    //public void add_ZmakeTarget(Statement val){ zmakeTargets.put(val.name, val); }
-    
-    
-    public Statement new_mainScript(){ return mainScript = new Statement(outer.scriptClass, 'Y', null); }
-    
-    public void add_mainScript(Statement val){  }
+    public void add_mainScript(StatementList val){  }
     
     
 

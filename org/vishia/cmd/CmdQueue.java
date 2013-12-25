@@ -70,7 +70,7 @@ public class CmdQueue implements Closeable
     //public final List<PrepareCmd> listCmds;
     public final PrepareCmd cmd;
     
-    public final ZGenScript.Statement jbat;
+    public final ZGenScript.Subroutine jbat;
     
     final File[] files;
     final Map<String, DataAccess.Variable> args;
@@ -100,7 +100,7 @@ public class CmdQueue implements Closeable
      *   should be referenced.CmdGetFileArgs_ifc
      * @param currentDir
      */
-    public PendingCmd(ZGenScript.Statement cmd, Map<String, DataAccess.Variable> args, File currentDir)
+    public PendingCmd(ZGenScript.Subroutine cmd, Map<String, DataAccess.Variable> args, File currentDir)
     { this.cmd = null;
       this.jbat = cmd;
       this.files = null;
