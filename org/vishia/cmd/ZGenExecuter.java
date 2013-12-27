@@ -293,7 +293,7 @@ public class ZGenExecuter {
    * @throws IllegalAccessException if a const scriptVariable are attempt to modify.
    */
   public int execute(ZGenScript genScript, boolean accessPrivate, boolean bWaitForThreads, Appendable out) 
-  throws IOException, IllegalAccessException
+  throws Exception, IllegalAccessException
   {
     this.bAccessPrivate = accessPrivate;
     //this.data = userData;
@@ -305,7 +305,7 @@ public class ZGenExecuter {
     setScriptVariable("text", 'A', out, true);
     ZGenScript.Subroutine contentScript = genScript.getMain();
     ExecuteLevel genFile = new ExecuteLevel(null, scriptVariables);
-    String sError1 = genFile.execute(contentScript.statementlist, out, false);
+    genFile.execute(contentScript.statementlist, out, false);
     if(bWaitForThreads){
       boolean bWait = true;
       while(bWait){
@@ -352,16 +352,17 @@ public class ZGenExecuter {
    * @return
    * @throws IOException
    */
-  public String execSub(ZGenScript.Subroutine statement, Map<String, DataAccess.Variable> args
+  public void execSub(ZGenScript.Subroutine statement, Map<String, DataAccess.Variable> args
       , boolean accessPrivate, Appendable out) 
-  throws IOException
+  throws Exception
   {
     ExecuteLevel level = new ExecuteLevel(null, scriptVariables);
     //The args should be added to the localVariables of the subroutines level:
     level.localVariables.putAll(args);
     //Executes the statements of the sub routine:
-    String sError1 = level.execute(statement.statementlist, out, false);
-    return sError1;
+    //String sError1 = 
+    level.execute(statement.statementlist, out, false);
+    //return sError1;
   }
   
   
@@ -527,8 +528,8 @@ public class ZGenExecuter {
      * @return an error hint.
      * @throws IOException
      */
-    public String executeNewlevel(ZGenScript.StatementList contentScript, final Appendable out, boolean bContainerHasNext) 
-    throws IOException 
+    public Object executeNewlevel(ZGenScript.StatementList contentScript, final Appendable out, boolean bContainerHasNext) 
+    throws Exception 
     { final ExecuteLevel level;
       if(contentScript.bContainsVariableDef){
         level = new ExecuteLevel(this, localVariables);
@@ -545,8 +546,8 @@ public class ZGenExecuter {
      * @return
      * @throws IOException 
      */
-    public String execute(ZGenScript.StatementList contentScript, final Appendable out, boolean bContainerHasNext) 
-    //throws IOException 
+    public Object execute(ZGenScript.StatementList contentScript, final Appendable out, boolean bContainerHasNext) 
+    throws Exception 
     {
       String sError = null;
       Appendable uBuffer = out;
@@ -576,6 +577,7 @@ public class ZGenExecuter {
               throw new NoSuchFieldException("JbatExecuter - exec variable must be of type Iterable ;" + ((ZGenScript.DefVariable)statement).defVariable);
             executeDefVariable((ZGenScript.DefVariable)statement, 'L', value, true);
           } break;
+          case 'M': executeDefVariable((ZGenScript.DefVariable)statement, 'M', new TreeMap<String, Object>(), true); break; 
           case 'W': executeOpenfile((ZGenScript.DefVariable)statement); break;
           case 'J': {
             Object value = evalObject(statement, false);
@@ -643,11 +645,12 @@ public class ZGenExecuter {
             } catch(IllegalAccessException exc1){ throw new IllegalArgumentException(exc1); }
             executeSubLevel(statement, out);
           } else {
-            sError = exc.getMessage();
-            System.err.println("Jbat - execute-exception; " + exc.getMessage());
-            exc.printStackTrace();
+            throw exc;
+            //sError = exc.getMessage();
+            //System.err.println("ZGen - execute-exception; " + exc.getMessage());
+            //exc.printStackTrace();
             //throw exc;
-            throw new IllegalArgumentException (exc.getMessage());
+            //throw new IllegalArgumentException (exc.getMessage());
           }
         }
       }//while
@@ -731,7 +734,8 @@ public class ZGenExecuter {
     
     
     
-    void executeIfContainerHasNext(ZGenScript.ZGenitem hasNextScript, Appendable out, boolean bContainerHasNext) throws IOException{
+    void executeIfContainerHasNext(ZGenScript.ZGenitem hasNextScript, Appendable out, boolean bContainerHasNext) 
+    throws Exception{
       if(bContainerHasNext){
         //(new Gen_Content(this, false)).
         execute(hasNextScript.statementlist(), out, false);
@@ -967,8 +971,8 @@ public class ZGenExecuter {
      * @return
      * @throws IOException
      */
-    public String executeSubLevel(ZGenScript.ZGenitem script, Appendable out) 
-    //throws IOException
+    public Object executeSubLevel(ZGenScript.ZGenitem script, Appendable out) 
+    throws Exception
     {
       ExecuteLevel genContent;
       if(script.statementlist.bContainsVariableDef){
@@ -1028,7 +1032,7 @@ public class ZGenExecuter {
       CurrDir currDir = (CurrDir)DataAccess.getVariable(localVariables,"currDir", true);
       //localVariables.
       cmdExecuter.setCurrentDir(currDir.currDir);
-      int errorlevel = cmdExecuter.execute(args, null, outCmd, null);
+      int errorlevel = cmdExecuter.execute(args, statement.bShouldNotWait, null, outCmd, null);
       if(errorlevel >0){
         //TODO check whether an onerror statement follows:
       }

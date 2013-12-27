@@ -19,6 +19,7 @@ public class CmdExecuter implements Closeable
 {
   /**Version and History:
    * <ul>
+   * <li>2013-07-12 Hartmut new: {@link #execute(String[], boolean, String, List, List)} now with donotwait
    * <li>2013-07-12 Hartmut new: {@link #execute(String[], String, List, List)} for more as one output or error.
    *   It is nice to write a process output similar to the System.out and to a internal buffer while the process runs.
    *   Catching in a buffer and write to System.out after the process is finished is not fine if the process needs some time or hangs.
@@ -129,7 +130,7 @@ public class CmdExecuter implements Closeable
   , Appendable error
   )
   { String[] cmdArgs = splitArgs(cmdLine);
-    return execute(cmdArgs, input, output, error, false);
+    return execute(cmdArgs, input, output, error);
   }
   
   
@@ -148,7 +149,7 @@ public class CmdExecuter implements Closeable
   , boolean useShell
   )
   { String[] cmdArgs = splitArgs(cmdLine);
-    return execute(cmdArgs, input, output, error, useShell);
+    return execute(cmdArgs, input, output, error);
   }
   
 
@@ -168,67 +169,91 @@ public class CmdExecuter implements Closeable
   , String input
   , Appendable output
   , Appendable error
-  , boolean useShell
   )
-  {
+  { boolean donotwait = true;
     List<Appendable> outputs, errors;
     if(output !=null){
+      donotwait = false;
       outputs = new LinkedList<Appendable>();
       outputs.add(output);
     } else {
       outputs = null;
     }
     if(error !=null){
+      donotwait = false;
       errors = new LinkedList<Appendable>();
       errors.add(error);
     } else {
       errors = null;
     }
-    return execute(cmdArgs, input, outputs, errors);
+    return execute(cmdArgs, donotwait, input, outputs, errors);
   }
   
   
-  
+  /**Same as {@link #execute(String[], String, Appendable, Appendable, boolean)}
+   * but do not wait for finish if both outputs and errors are null.
+   * @param cmdArgs
+   * @param input
+   * @param outputs
+   * @param errors
+   * @return
+   */
+  public int execute(String[] cmdArgs
+      , String input
+      , List<Appendable> outputs
+      , List<Appendable> errors
+      )
+  { return execute(cmdArgs, outputs == null && errors == null, input, outputs, errors);
+  }
   
   /**Executes a command with arguments and maybe waits for its finishing.
    * @param cmdArgs The command and its arguments. The command is cmdArgs[0]. 
    *        Any argument have to be given with one element of this String array.
+   * @param donotwait true and all outputs, errors and input == null, then starts the process without wait.
+   *   If one of input, outputs and errors is not null, the execution should wait in this thread because
+   *   the threads for input, output and error should be running to capture that data. Then this flag is not used.       
    * @param input The input stream of the command. TODO not used yet.
    * @param output Will be filled with the output of the command.
    *        If output ==null then no output is expected and the end of command execution is not awaited.
    *        But in this case error should not be ==null because errors of command invocation are written there.
    * @param error Will be filled with the error output of the command. 
-   *        Maybe null, then the error output will be written to output 
-   * @return exit code if output !=null. If output==null the end of command execution is not awaited.       
+   *        Maybe null, then the error output will be written to output
+   * @return exit code if it is waiting for execution, elsewhere 0.       
    */
   public int execute(String[] cmdArgs
+  , boolean donotwait
   , String input
   , List<Appendable> outputs
   , List<Appendable> errors
   )
   { int exitCode;
     processBuilder.command(cmdArgs);
-    if(errors == null){ errors = outputs; }
-    //userError = error;
-    //userOutput = output;
+    if(errors == null){ //merge errors in the output stream. It is a feature of ProcessBuilder.
+      processBuilder.redirectErrorStream(true); 
+    }
     try
     {
-      process = processBuilder.start();
-      if(errors !=null){
-        //bRunExec = true;
-        errThread.bProcessIsRunning = true;
+      process = processBuilder.start();       //starts another process on operation system.
+      //
+      if(errors !=null){                     //it follows immediately: capture the error output from the process
+        errThread.bProcessIsRunning = true;  //in the error thread.
         errThread.processOut = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-        errThread.outs = errors;
+        errThread.outs = errors;             
         synchronized(errThread){ errThread.notify(); }  //wake up to work!
         //processIn = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
       }
-      if(outputs !=null){
-        //bRunExec = true;
-        outThread.bProcessIsRunning = true;
+      if(outputs !=null){                    //it follows immediately: capture the output from the process
+        outThread.bProcessIsRunning = true;  //in the output thread.
         outThread.processOut = new BufferedReader(new InputStreamReader(process.getInputStream()));
         outThread.outs = outputs;
         synchronized(outThread){ outThread.notify(); }  //wake up to work!
+      }
+      if(input !=null){
         //processIn = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
+      }
+      //
+      //wait for
+      if(input !=null || outputs !=null || errors !=null){
         exitCode = process.waitFor();  //wait for finishing the process
         //If the outThread or errThread will be attempt to wait, it realizes that the process has been finished. 
         outThread.bProcessIsRunning =false;
@@ -245,8 +270,10 @@ public class CmdExecuter implements Closeable
             errThread.wait();   //wait for finishing getting error output. It will be notified if end of file is detected 
           }
         }
-      } else {
+      } else if(donotwait){
         exitCode = 0; //don't wait
+      } else {
+        exitCode = process.waitFor(); //wait without input, outputs, errors
       }
       synchronized(this){
         process = null;  //no more used
@@ -275,7 +302,7 @@ public class CmdExecuter implements Closeable
   /**Aborts the running cmd. 
    * @return true if any cmd is aborted.
    */
-   public boolean abortCmd()
+  public boolean abortCmd()
   { boolean destroyed = false;
     synchronized(this){
       if(process !=null){

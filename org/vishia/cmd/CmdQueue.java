@@ -278,7 +278,7 @@ public class CmdQueue implements Closeable
             log.println(sCmdShow);
             //mainCmd.writeInfoln(sCmdShow.toString());
             
-            int exitCode = executer.execute(sCmd, null, cmdOutput, cmdError, false);
+            int exitCode = executer.execute(sCmd, null, cmdOutput, cmdError);
             if(exitCode == 0){ cmdOutput.append("\nJavaCmd: cmd execution successfull\n"); }
             else {cmdOutput.append("\nJavaCmd: cmd execution errorlevel = " + exitCode + "\n"); }
           } else if(kindOfExecution == '&'){
@@ -286,7 +286,7 @@ public class CmdQueue implements Closeable
             //mainCmd.writeInfoln(sCmdShow.toString());
             if(outStatus !=null){ outStatus.append("&" + sCmd[0]); }
             try{
-              executer.execute(sCmd, null, null, null, false);
+              executer.execute(sCmd, true, null, null, null);  //don't wait for execution.
             } catch(Exception exc){
               log.println("\nCmdQueue - execution exception; " + exc.getMessage());
             }

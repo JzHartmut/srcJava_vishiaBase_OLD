@@ -637,12 +637,12 @@ public class ZGenScript {
     
  
       
-    public DefVariable new_forContainer()
+    public ForStatement new_forContainer()
     { if(statementlist == null) { statementlist = new StatementList(this); }
       return statementlist.new_forContainer();
     }
     
-    public void add_forContainer(DefVariable val){statementlist.add_forContainer(val);}
+    public void add_forContainer(ForStatement val){statementlist.add_forContainer(val);}
 
     
     public CondStatement new_whileBlock()
@@ -713,7 +713,7 @@ public class ZGenScript {
     
     
 
-    public Statement new_cmdLine()
+    public Statement new_cmdWait()
     { if(statementlist == null){ statementlist = new StatementList(this); }
       Statement statement = new Statement(parentList, 'c');
       statementlist.statements.add(statement);
@@ -722,6 +722,17 @@ public class ZGenScript {
     }
     
     public void add_cmdLine(Statement val){}
+
+    
+    public Statement new_cmdStart()
+    { if(statementlist == null){ statementlist = new StatementList(this); }
+      Statement statement = new Statement(parentList, 'c');
+      statementlist.statements.add(statement);
+      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
+      return statement;
+    }
+    
+    public void add_cmdStart(Statement val){}
 
     
     /*
@@ -923,15 +934,15 @@ public class ZGenScript {
     public DataAccess.DataAccessSet new_defVariable(){ return new DataAccess.DataAccessSet(); }
     
     public void add_defVariable(DataAccess.DataAccessSet val){   
-      int whichStatement = "SPULJW".indexOf(elementType);
-      char whichVariableType = "SPULOA".charAt(whichStatement);
+      int whichStatement = "SPULJWMC".indexOf(elementType);
+      char whichVariableType = "SPULOAMO".charAt(whichStatement);  //from elementType to variable type.
       val.setTypeToLastElement(whichVariableType);
-      //don't use the dataPath, it may be the path to the initial data.
       defVariable = val;
-      //if(assignObjs == null){ assignObjs = new LinkedList<DataAccess>(); }
-      //assignObjs.add(val); 
     }
 
+    //public void new_statementBlock(){}
+    
+    //public void set_name(String val){}
     
     /**Returns the simple variable name if the variable is on one level only.
      * Returns name.name for more levels.
@@ -1086,6 +1097,41 @@ public class ZGenScript {
   
   
   
+  public static class ForStatement extends ZGenitemWithStatementBlock
+  {
+    
+    String name;
+    
+    /**The variable which should be created. 
+     * The variable maybe build with name.subname.subname. 
+     * It is possible to add an element to an internal container in Java data. 
+     */
+    public DataAccess defVariable;
+    
+    ForStatement(StatementList parentList, char type){
+      super(parentList, type);
+    }
+    
+    
+    /**From Zbnf: < variable?defVariable> inside a DefVariable::=...
+     */
+    public DataAccess.DataAccessSet new_defVariable(){ return new DataAccess.DataAccessSet(); }
+    
+    public void add_defVariable(DataAccess.DataAccessSet val){   
+      int whichStatement = "SPULJWMC".indexOf(elementType);
+      char whichVariableType = "SPULOAMO".charAt(whichStatement);  //from elementType to variable type.
+      val.setTypeToLastElement(whichVariableType);
+      defVariable = val;
+    }
+
+    
+    public void set_name(String name){ this.name = name; }
+
+  };
+  
+  
+  
+  
   public static class Subroutine extends ZGenitemWithStatementBlock
   {
     public String name;
@@ -1093,12 +1139,21 @@ public class ZGenScript {
     
     public List<DefVariable> formalArgs;
     
+    char type;
+    
     Subroutine(StatementList parentList){
       super(parentList, 'X');
     }
     
     public void set_name(String name){ this.name = name; }
 
+    
+    public void XXXset_type(String val){
+      type = val.charAt(0);
+      if(type == 'S' && val.length() > 6){ type = 'U'; } //StringBuffer
+      else if(type == 'O' && val.length()!=3){ type = 'A'; }  //Openfile
+    }
+    
     
     /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
     public Subroutine new_formalArgument(){ return this; } //new Argument(parentList); }
@@ -1183,6 +1238,11 @@ public class ZGenScript {
   
   
   
+  /**class for a cmd execution (operation system cmd process invocation).
+   * The assignExpr is used for stdout capturing.
+   * @author hartmut
+   *
+   */
   public static class CmdInvoke extends AssignExpr
   {
 
@@ -1190,6 +1250,21 @@ public class ZGenScript {
      * Maybe null if the subtext has not argument. It is null if it is not a subtext call or definition. */
     public List<ZGenitem> cmdArgs;
     
+    /**Any variable given by name or java instance  which is used to assign to it.
+     * A variable is given by the start element of the data path. An instance is given by any more complex datapath
+     * null if not used. */
+    public List<DataAccess> errorPipes;
+    
+    
+    /**The variable which should be created or to which a value is assigned to. */
+    public DataAccess errorPipe;
+    
+
+    /**The variable which should be created or to which a value is assigned to. */
+    public DataAccess inputPipe;
+    
+
+    public boolean bShouldNotWait;
 
     CmdInvoke(StatementList parentList, char elementType)
     { super(parentList, elementType);
@@ -1464,6 +1539,17 @@ public class ZGenScript {
 
     public void add_List(DefVariable val){ statements.add(val);  onerrorAccu = null; withoutOnerror.add(val);}
     
+    /**Defines a variable which is able to use as container.
+     */
+    public DefVariable new_DefMapVar(){ ////
+      bContainsVariableDef = true; 
+      DefVariable statement = new DefVariable(this, 'M'); 
+      statements.add(statement);  onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
+    } 
+
+    public void add_DefMapVar(DefVariable val){ }
+    
     /**Defines a variable which is able to use as Appendable, it is a Writer.
      */
     public DefVariable new_Openfile(){
@@ -1637,14 +1723,14 @@ public class ZGenScript {
      * It builds a DefVariable, because it is similar. Variable is the for-variable.
      * @return 
      */
-    public DefVariable new_forContainer()
-    { DefVariable statement = new DefVariable(this, 'C');
+    public ForStatement new_forContainer()
+    { ForStatement statement = new ForStatement(this, 'C');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;
     }
     
-    public void add_forContainer(DefVariable val){}
+    public void add_forContainer(ForStatement val){}
 
 
     public CondStatement new_whileBlock()
@@ -1680,14 +1766,25 @@ public class ZGenScript {
 
     
 
-    public CmdInvoke new_cmdLine()
+    public CmdInvoke new_cmdWait()
     { CmdInvoke statement = new CmdInvoke(this, 'c');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;
     }
     
-    public void add_cmdLine(CmdInvoke val){}
+    public void add_cmdWait(CmdInvoke val){}
+
+    
+    public CmdInvoke new_cmdStart()
+    { CmdInvoke statement = new CmdInvoke(this, 'c');
+      statement.bShouldNotWait = true;
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
+    }
+    
+    public void add_cmdStart(CmdInvoke val){}
 
     
 

@@ -217,6 +217,7 @@ public abstract class MainCmd implements MainCmd_ifc
   /**Version, able to read as hex yyyymmdd.
    * Changes:
    * <ul>
+   * <li>2013-12-30 Hartmut chg: {@link #testArgument(String, int)} emptyArg supported, was commented.
    * <li>2013-12-15 Hartmut new: Argument --msgcfg adds the {@link MsgRedirectConsole} to the main instance.
    *   Therewith the Conversion of System.out.println(...) and System.err... can be used in all applications.
    *   The first advantage: All messages have a time stamp. 
@@ -735,15 +736,15 @@ public abstract class MainCmd implements MainCmd_ifc
 
 
   /** Tests one argument, called from parseArguments() on every argument excluding standard arguments -r and -rlevel.
-      The user can overwrite this method to test the application-specific paramters.
+      The user can overwrite this method to test the application-specific parameters.
       This non-overridden method uses the {@link #setArgumentList(Argument[])}
       @param argc The argument to test
       @param nArg number of argument, the first argument is numbered with 1.
       @return false, if the argument doesn't match, true if ok.
               if the method returns false, an exception in parseArgument is thrown to abort the argument test
-              or to abort the programm. @see <a href="#parseArguments()">parseArgument()</a>.<br/>
+              or to abort the program. @see <a href="#parseArguments()">parseArgument()</a>.<br/>
 
-      @exception ParseException The Methode may thrown this excpetion if a conversion error or such other is thrown.
+      @exception ParseException The method may thrown this exception if a conversion error or such other is thrown.
   */
   protected boolean testArgument(String argc, int nArg)
   {
@@ -754,10 +755,12 @@ public abstract class MainCmd implements MainCmd_ifc
       int argclen = argc.length();
       int ixArglist = 0;
       int lastIxArglist = argList.size()-1;
-      for(Argument argTest : argList){
+      Iterator<Argument> iter = argList.iterator();
+      while(argFound == null && iter.hasNext()){  //break while if found.
+        Argument argTest = iter.next();
         int argLen = argTest.arg.length();
-        if(false && argLen == 0){
-          emptyArg = argTest;
+        if(argLen == 0){
+          emptyArg = argTest;  //possible argument if nothing met.
         } else {
           boolean bSeparator = false;
           if((argc.startsWith(argTest.arg)                //correct prefix 
@@ -782,12 +785,12 @@ public abstract class MainCmd implements MainCmd_ifc
         boolean bOk = argFound.set.setArgument(argval);   //call the user method for this argument.
         //if(!bOk) throw new ParseException("Argument value error: " + argc, nArg);
         return bOk;
-      }
-      //argument start string not found:
-      if(emptyArg !=null){
+      } 
+      else if(emptyArg !=null){ //argument start string not found but an empty choice possible:
         //set the empty arg.
         return emptyArg.set.setArgument(argc);
-      } else {
+      } 
+      else {
         //argument not found (not returned in for-loop):
         return false;
       }

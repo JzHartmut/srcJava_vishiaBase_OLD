@@ -998,7 +998,16 @@ public class DataAccess {
     if(name.equals("compileOptions"))
       Assert.stop();
     if(instance instanceof Map<?, ?>){
-      data1 = ((Map<?,?>)instance).get(name);
+      @SuppressWarnings("unchecked")
+      //Note: on runtime the generic type of map can be set in any case because it is unknown.
+      //Try to store that type, 
+      Map<String, Object> map = (Map<String,Object>)instance;
+      data1 = map.get(name);
+      if(data1 == null && bVariable){
+        //not found, but a variable is expected: create one.
+        data1 = new Variable('?', name, null);
+        map.put(name, data1);
+      }
     } else {
       try{
         data1 = getDataFromField(name, instance, accessPrivate, dst);
