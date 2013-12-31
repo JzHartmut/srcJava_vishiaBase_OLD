@@ -197,7 +197,7 @@ public class CmdQueue implements Closeable
    */
   public int addCmd(CmdBlock cmdBlock, Map<String, DataAccess.Variable> args, File currentDir)
   {
-    pendingCmds.add(new PendingCmd(cmdBlock.jbatSub, args, currentDir));  //to execute.
+    pendingCmds.add(new PendingCmd(cmdBlock.zgenSub, args, currentDir));  //to execute.
     return pendingCmds.size();
   }
 

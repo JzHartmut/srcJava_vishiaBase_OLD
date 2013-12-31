@@ -550,12 +550,12 @@ public class ZGenExecuter {
     public Object execute(ZGenScript.StatementList contentScript, final Appendable out, boolean bContainerHasNext) 
     throws Exception 
     {
-      String sError = null;
+      Object ret = null;
       Appendable uBuffer = out;
       //Generate direct requested output. It is especially on inner content-scripts.
       int ixStatement = -1;
       //Note: don't use an Iterator, use ixStatement because it will be incremented onError.
-      while(++ixStatement < contentScript.statements.size() && sError == null) { //iter.hasNext() && sError == null){
+      while(++ixStatement < contentScript.statements.size() && ret == null) { //iter.hasNext() && sError == null){
         ZGenScript.ZGenitem statement = contentScript.statements.get(ixStatement); //iter.next();
         //for(TextGenScript.ScriptElement statement: contentScript.content){
         try{    
@@ -606,7 +606,8 @@ public class ZGenExecuter {
           } break;
           case '=': assignExpr((ZGenScript.AssignExpr)statement); break;
           case '+': appendExpr((ZGenScript.AssignExpr)statement); break;
-          case 'b': sError = "break"; break;
+          case 'b': ret = "break"; break;
+          case 'r': ret = evalObject(statement, false); break;  //NOTE: returns from this executer level because ret !=null.
           case '?': break;  //don't execute a onerror, skip it.
           case 'z': throw new ZGenExecuter.ExitException(((ZGenScript.ExitStatement)statement).exitValue);  
           case 'D': debug(statement); break;
@@ -657,7 +658,7 @@ public class ZGenExecuter {
         }
       }//while
       
-      return sError;
+      return ret;
     }
     
     
@@ -695,9 +696,9 @@ public class ZGenExecuter {
       ZGenScript.StatementList subContent = statement.statementlist();  //The same sub content is used for all container elements.
       ExecuteLevel forExecuter = new ExecuteLevel(this, localVariables);
       //creates the for-variable in the executer level.
-      DataAccess.Variable forVariable = DataAccess.createOrReplaceVariable(forExecuter.localVariables, statement.name, 'O', null, false);
+      DataAccess.Variable forVariable = DataAccess.createOrReplaceVariable(forExecuter.localVariables, statement.forVariable, 'O', null, false);
       //a new level for the for... statements. It contains the foreachData and maybe some more variables.
-      Object container = evalObject(statement, true);
+      Object container = statement.forContainer.getDataObj(localVariables, bAccessPrivate, true);
       //DataAccess.Dst dst = new DataAccess.Dst();
       //DataAccess.access(statement.defVariable.datapath(), null, localVariables, bAccessPrivate,false, true, dst);
       if(container instanceof String && ((String)container).startsWith("<?")){
@@ -926,14 +927,14 @@ public class ZGenExecuter {
     private void executeThread(ZGenScript.ThreadBlock statement) 
     throws Exception
     { final ZgenThreadResult result;
-      if(statement.dataAccess !=null){
+      if(statement.threadVariable !=null){
         try{
-          if(statement.name != null){  //marker for a new ThreadVariable
+          if(statement.threadName != null){  //marker for a new ThreadVariable
             result = new ZgenThreadResult();
-            DataAccess.storeValue(statement.dataAccess.datapath(), localVariables, result, bAccessPrivate);
+            DataAccess.storeValue(statement.threadVariable.datapath(), localVariables, result, bAccessPrivate);
           } else { 
             //use existing thread variable, Exception if not found.
-            result = (ZgenThreadResult)statement.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
+            result = (ZgenThreadResult)statement.threadVariable.getDataObj(localVariables, bAccessPrivate, false);
           }
         } catch(Exception exc){
           throw new IllegalArgumentException("JbatchExecuter - thread assign failure; path=" + statement.dataAccess.toString());
@@ -1306,25 +1307,9 @@ public class ZGenExecuter {
     
     
     
+
+    
     public CharSequence evalString(ZGenScript.ZGenitem arg) 
-    throws Exception 
-    {
-      if(arg.textArg !=null) return arg.textArg;
-      else if(arg.dataAccess !=null){
-        Object o = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
-        if(o==null){ return "null"; }
-        else {return o.toString(); }
-      } else if(arg.statementlist !=null){
-        StringBuilder u = new StringBuilder();
-        executeNewlevel(arg.statementlist, u, false);
-        return StringSeq.create(u, true);
-      } else return null;  //it is admissible.
-      //} else throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
-    }
-    
-    
-    
-    public CharSequence evalString(ZGenScript.Argument arg) 
     throws Exception 
     {
       if(arg.textArg !=null) return arg.textArg;
@@ -1344,33 +1329,21 @@ public class ZGenExecuter {
     }
     
     
-    public Object evalObject(ZGenScript.ZGenitem arg, boolean bContainer) throws Exception{
-      Object obj;
-      if(arg.textArg !=null) return arg.textArg;
-      else if(arg.dataAccess !=null){
-        obj = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
-      } else if(arg.statementlist !=null){
-        StringBuilder u = new StringBuilder();
-        executeNewlevel(arg.statementlist, u, false);
-        obj = u.toString();
-      } else obj = null;  //throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
-      return obj;
-    }
-    
     
     
     /**Gets the value of the given Argument. Either it is a 
      * <ul>
-     * <li>String from {@link ZGenScript.Argument#textArg}
-     * <li>Object from {@link ZGenScript.Argument#datapath()}
-     * <li>Object from {@link ZGenScript.Argument#expression}
+     * <li>String from {@link ZGenScript.ZGenitem#textArg}
+     * <li>Object from {@link ZGenScript.ZGenitem#dataAccess}
+     * <li>Object from {@link ZGenScript.ZGenitem#statementlist}
+     * <li>Object from {@link ZGenScript.ZGenitem#expression}
      * <li>
      * </ul>
      * @param arg
      * @return
      * @throws Exception
      */
-    public Object evalObject(ZGenScript.Argument arg, boolean bContainer) throws Exception{
+    public Object evalObject(ZGenScript.ZGenitem arg, boolean bContainer) throws Exception{
       Object obj;
       if(arg.textArg !=null) return arg.textArg;
       else if(arg.dataAccess !=null){
@@ -1385,6 +1358,7 @@ public class ZGenExecuter {
       } else obj = null;  //throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
       return obj;
     }
+    
     
     
     void debug(ZGenScript.ZGenitem statement) throws Exception{

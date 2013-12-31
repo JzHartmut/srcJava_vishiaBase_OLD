@@ -6,13 +6,11 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.text.ParseException;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import org.vishia.cmd.ZGenScript.Statement;
 import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.DataAccess;
 import org.vishia.util.StringPart;
@@ -38,7 +36,7 @@ public class CmdStore
 
   /**Version, history and license.
    * <ul>
-   * <li>2013-09-08 Hartmut new: {@link CmdBlock#jbatSub} may replace the {@link CmdBlock#listBlockCmds}
+   * <li>2013-09-08 Hartmut new: {@link CmdBlock#zgenSub} may replace the {@link CmdBlock#listBlockCmds}
    *   and may replace the {@link PrepareCmd} in future, first test. 
    * <li>2012-02-19 Hartmut chg: {@link #readCmdCfg(File)} accepts $ENV, commentlines with // and #
    *   and start of command not with spaces on line start.
@@ -90,8 +88,8 @@ public class CmdStore
     /**Some commands of this block. */
     public final List<PrepareCmd> listBlockCmds = new LinkedList<PrepareCmd>();
 
-    /**Any Jbat subroutine which should be invoked instead of the {@link #listBlockCmds}. */
-    protected final ZGenScript.Subroutine jbatSub;
+    /**Any ZGen subroutine which should be invoked instead of the {@link #listBlockCmds}. */
+    protected final ZGenScript.Subroutine zgenSub;
     
     
     /**Contains all commands read from the configuration file in the read order. */
@@ -99,28 +97,28 @@ public class CmdStore
 
     
     public CmdBlock(){
-      jbatSub = null;
+      zgenSub = null;
       this.level = 1;
     }
     
     public CmdBlock(ZGenScript.Subroutine jbatSub, int level){
-      this.jbatSub = jbatSub;
+      this.zgenSub = jbatSub;
       this.level = level;
       this.name = jbatSub.name;
     }
     
     /**Assembles the arguments for ZGen subroutine call.
-     * The arguments are determined by the @{@link ZGenScript.Statement#arguments} {@link ZGenScript.Argument#identArgJbat}
+     * The arguments are determined by the {@link ZGenScript.Argument#identArgJbat}
      * @param getterFiles Access to given files.
      * @return Variable container with the requeste arguments.
      * @throws IllegalAccessException 
      */
     public Map<String, DataAccess.Variable> getArguments(CmdGetFileArgs_ifc getterFiles) {
-      if(jbatSub !=null){
+      if(zgenSub !=null){
         getterFiles.prepareFileSelection();
         Map<String, DataAccess.Variable> args = new TreeMap<String, DataAccess.Variable>();
         try{
-          for(ZGenScript.DefVariable arg :jbatSub.formalArgs){
+          for(ZGenScript.DefVariable arg :zgenSub.formalArgs){
             String name1 = arg.getVariableIdent();
             if(name1.equals("file1")){ DataAccess.createOrReplaceVariable(args, "file1", 'O', getterFiles.getFile1(), true); }
             else if(name1.equals("file2")){ DataAccess.createOrReplaceVariable(args, "file2", 'O', getterFiles.getFile2(), true); }
