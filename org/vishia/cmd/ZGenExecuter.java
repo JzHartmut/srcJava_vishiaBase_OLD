@@ -185,7 +185,7 @@ public class ZGenExecuter {
   
   public void setScriptVariable(String name, char type, Object content, boolean bConst) 
   throws IllegalAccessException{
-    DataAccess.setVariable(scriptVariables, name, type, content, bConst);
+    DataAccess.createOrReplaceVariable(scriptVariables, name, type, content, bConst);
   }
   
   
@@ -213,7 +213,7 @@ public class ZGenExecuter {
     if(srcVariables !=null){
       for(Map.Entry<String, DataAccess.Variable> entry: srcVariables.entrySet()){
         DataAccess.Variable var = entry.getValue();
-        DataAccess.setVariable(scriptVariables, var.name(), var.type(), var.value(), var.isConst());
+        DataAccess.createOrReplaceVariable(scriptVariables, var.name(), var.type(), var.value(), var.isConst());
       }
     }
     if(scriptVariables.get("$CD") == null){
@@ -221,20 +221,20 @@ public class ZGenExecuter {
       currDirWrapper.currDir = new File(".").getAbsoluteFile().getParentFile();
       StringBuilder cd = new StringBuilder();
       cd.append(FileSystem.normalizePath(currDirWrapper.currDir.getAbsolutePath()));
-      DataAccess.setVariable(scriptVariables, "$CD", 'E', cd, false);
-      DataAccess.setVariable(scriptVariables, "currDir", 'O', currDirWrapper);
+      DataAccess.createOrReplaceVariable(scriptVariables, "$CD", 'E', cd, false);
+      DataAccess.createOrReplaceVariable(scriptVariables, "currDir", 'O', currDirWrapper, false);
     }
-    if(scriptVariables.get("error") == null){ DataAccess.setVariable(scriptVariables, "error", 'A', accessError, true); }
-    if(scriptVariables.get("mainCmdLogging") == null){ DataAccess.setVariable(scriptVariables, "mainCmdLogging", 'O', log, true); }
-    if(scriptVariables.get("nextNr") == null){DataAccess.setVariable(scriptVariables, "nextNr", 'O', nextNr, true); }
-    //DataAccess.setVariable(scriptVariables, "nrElementInContainer", 'O', null);
-    if(scriptVariables.get("out") == null){DataAccess.setVariable(scriptVariables, "out", 'A', System.out, true); }
-    if(scriptVariables.get("err") == null){DataAccess.setVariable(scriptVariables, "err", 'A', System.err, true); }
-    if(scriptVariables.get("null") == null){DataAccess.setVariable(scriptVariables, "null", 'O', null, true); }
-    if(scriptVariables.get("jbat") == null){DataAccess.setVariable(scriptVariables, "jbat", 'O', this, true); }
-    if(scriptVariables.get("zgen") == null){DataAccess.setVariable(scriptVariables, "zgen", 'O', this, true); }
-    if(scriptVariables.get("file") == null){DataAccess.setVariable(scriptVariables, "file", 'O', new FileSystem(), true); }
-    if(scriptVariables.get("test") == null){DataAccess.setVariable(scriptVariables, "test", 'O', new ZGenTester(), true); }
+    if(scriptVariables.get("error") == null){ DataAccess.createOrReplaceVariable(scriptVariables, "error", 'A', accessError, true); }
+    if(scriptVariables.get("mainCmdLogging") == null){ DataAccess.createOrReplaceVariable(scriptVariables, "mainCmdLogging", 'O', log, true); }
+    if(scriptVariables.get("nextNr") == null){DataAccess.createOrReplaceVariable(scriptVariables, "nextNr", 'O', nextNr, true); }
+    //DataAccess.createOrReplaceVariable(scriptVariables, "nrElementInContainer", 'O', null);
+    if(scriptVariables.get("out") == null){DataAccess.createOrReplaceVariable(scriptVariables, "out", 'A', System.out, true); }
+    if(scriptVariables.get("err") == null){DataAccess.createOrReplaceVariable(scriptVariables, "err", 'A', System.err, true); }
+    if(scriptVariables.get("null") == null){DataAccess.createOrReplaceVariable(scriptVariables, "null", 'O', null, true); }
+    if(scriptVariables.get("jbat") == null){DataAccess.createOrReplaceVariable(scriptVariables, "jbat", 'O', this, true); }
+    if(scriptVariables.get("zgen") == null){DataAccess.createOrReplaceVariable(scriptVariables, "zgen", 'O', this, true); }
+    if(scriptVariables.get("file") == null){DataAccess.createOrReplaceVariable(scriptVariables, "file", 'O', new FileSystem(), true); }
+    if(scriptVariables.get("test") == null){DataAccess.createOrReplaceVariable(scriptVariables, "test", 'O', new ZGenTester(), true); }
     //
     //generate all variables in this script:
     for(ZGenScript.DefVariable scriptVariableScript: genScript.getListScriptVariables()){
@@ -484,7 +484,7 @@ public class ZGenExecuter {
       } else {
         localVariables.putAll(parentVariables);  //use the same if it is not a subText, only a 
       }
-      try{ DataAccess.setVariable(localVariables,  "zgenSub", 'O', this);
+      try{ DataAccess.createOrReplaceVariable(localVariables,  "zgenSub", 'O', this, false);
       
       } catch(IllegalAccessException exc){ throw new IllegalArgumentException(exc); }
     }
@@ -506,7 +506,7 @@ public class ZGenExecuter {
     
     public void setLocalVariable(String name, char type, Object content, boolean isConst) 
     throws IllegalAccessException {
-      DataAccess.setVariable(localVariables, name, type, content, isConst);
+      DataAccess.createOrReplaceVariable(localVariables, name, type, content, isConst);
     }
     
     
@@ -593,7 +593,7 @@ public class ZGenExecuter {
           case 'c': executeCmdline((ZGenScript.CmdInvoke)statement); break;
           case 'd': executeChangeCurrDir(statement); break;
           case 'C': { //generation <:for:name:path> <genContent> <.for>
-            executeForContainer((ZGenScript.DefVariable)statement, out);
+            executeForContainer((ZGenScript.ForStatement)statement, out);
           } break;
           case 'B': { //statementBlock
             executeSubLevel(statement, out);  ///
@@ -645,7 +645,8 @@ public class ZGenExecuter {
             } catch(IllegalAccessException exc1){ throw new IllegalArgumentException(exc1); }
             executeSubLevel(statement, out);
           } else {
-            throw exc;
+            CharSequence sExc = Assert.exceptionInfo("ZGen - execute-exception;", exc, 0, 20);
+            throw new RuntimeException(sExc.toString());
             //sError = exc.getMessage();
             //System.err.println("ZGen - execute-exception; " + exc.getMessage());
             //exc.printStackTrace();
@@ -688,30 +689,26 @@ public class ZGenExecuter {
     }
 
       
-    void executeForContainer(ZGenScript.DefVariable statement, Appendable out) throws Exception
+    void executeForContainer(ZGenScript.ForStatement statement, Appendable out) throws Exception
     {
       ZGenScript.StatementList subContent = statement.statementlist();  //The same sub content is used for all container elements.
+      ExecuteLevel forExecuter = new ExecuteLevel(this, localVariables);
+      //creates the for-variable in the executer level.
+      DataAccess.Variable forVariable = DataAccess.createOrReplaceVariable(forExecuter.localVariables, statement.name, 'O', null, false);
+      //a new level for the for... statements. It contains the foreachData and maybe some more variables.
       Object container = evalObject(statement, true);
-      DataAccess.Dst dst = new DataAccess.Dst();
-      DataAccess.access(statement.defVariable.datapath(), null, localVariables, bAccessPrivate,false, true, dst);
+      //DataAccess.Dst dst = new DataAccess.Dst();
+      //DataAccess.access(statement.defVariable.datapath(), null, localVariables, bAccessPrivate,false, true, dst);
       if(container instanceof String && ((String)container).startsWith("<?")){
         writeError((String)container, out);
       }
       else if(container !=null && container instanceof Iterable<?>){
         Iterator<?> iter = ((Iterable<?>)container).iterator();
-        ExecuteLevel forExecuter = new ExecuteLevel(this, localVariables);
-        //a new level for the for... statements. It contains the foreachData and maybe some more variables.
         while(iter.hasNext()){
           Object foreachData = iter.next();
-          if(foreachData !=null){
-            //Gen_Content genFor = new Gen_Content(this, false);
-            //genFor.
-            dst.set(foreachData);
-            //forExecuter.setLocalVariable(statement.name, 'O', foreachData, false);
-            //genFor.
-            forExecuter.execute(subContent, out, iter.hasNext());
-          }
-        }
+          forVariable.setValue(foreachData);
+          forExecuter.execute(subContent, out, iter.hasNext());
+        }//while of for-loop
       }
       else if(container !=null && container instanceof Map<?,?>){
         Map<?,?> map = (Map<?,?>)container;
@@ -720,17 +717,12 @@ public class ZGenExecuter {
         while(iter.hasNext()){
           Map.Entry<?, ?> foreachDataEntry = (Map.Entry<?, ?>)iter.next();
           Object foreachData = foreachDataEntry.getValue();
-          if(foreachData !=null){
-            //Gen_Content genFor = new Gen_Content(this, false);
-            //genFor.
-            dst.set(foreachData);
-            //setLocalVariable(statement.name, 'O', foreachData, false);
-            //genFor.
-            execute(subContent, out, iter.hasNext());
-          }
+          forVariable.setValue(foreachData);
+          forExecuter.execute(subContent, out, iter.hasNext());
         }
       }
     }
+    
     
     
     
@@ -891,17 +883,14 @@ public class ZGenExecuter {
             for( ZGenScript.Argument actualArg: actualArgs){  //process all actual arguments
               Object ref;
               ref = evalObject(actualArg, false);
-              //ref = ascertainValue(referenceSetting.expression, data, localVariables, false);       //actual value
-              if(ref !=null){
-                CheckArgument checkArg = check.get(actualArg.getIdent());      //is it a requested argument (per name)?
-                if(checkArg == null){
-                  ok = writeError("??: *subtext;" + nameSubtext + ": " + actualArg.identArgJbat + " faulty argument.?? ", out);
-                } else {
-                  checkArg.used = true;    //requested and resolved.
-                  subtextGenerator.setLocalVariable(actualArg.identArgJbat, 'O', ref, false);
-                }
+              CheckArgument checkArg = check.get(actualArg.getIdent());      //is it a requested argument (per name)?
+              if(checkArg == null){
+                ok = writeError("??: *subtext;" + nameSubtext + ": " + actualArg.identArgJbat + " faulty argument.?? ", out);
               } else {
-                ok = writeError("??: *subtext;" + nameSubtext + ": " + actualArg.identArgJbat + " = ? not found.??", out);
+                checkArg.used = true;    //requested and resolved.
+                char cType = checkArg.formalArg.elementType();
+                //creates the argument variable with given actual value and the requested type in the sub level.
+                DataAccess.createOrReplaceVariable(subtextGenerator.localVariables, actualArg.identArgJbat, cType, ref, false);
               }
             }
           }
@@ -913,11 +902,9 @@ public class ZGenExecuter {
               //Generate on scriptLevel (classLevel) because the formal parameter list should not know things of the calling environment.
               Object ref = scriptLevel.evalObject(arg.formalArg, false);
               String name = arg.formalArg.getVariableIdent();
-              if(ref !=null){
-                subtextGenerator.setLocalVariable(name, 'O', ref, false);
-              } else {
-                ok = writeError("??: *subtext;" + nameSubtext + ": " + name + " not found.??", out);
-              }
+              char cType = arg.formalArg.elementType();
+              //creates the argument variable with given default value and the requested type.
+              DataAccess.createOrReplaceVariable(localVariables, name, cType, ref, false);
             }
           }
         } else if(callStatement.actualArgs !=null){
@@ -1063,7 +1050,7 @@ public class ZGenExecuter {
         u = ((StringSeq)cd1).changeIt();
       } else {
         u = new StringBuilder();
-        DataAccess.setVariable(localVariables,"$CD", 'S', u, false);
+        DataAccess.createOrReplaceVariable(localVariables,"$CD", 'S', u, false);
       }
       //u is referred in the variable as value.
       if(absPath){ 

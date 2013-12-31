@@ -57,6 +57,8 @@ import java.util.TreeMap;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2013-12-26 Hartmut chg: {@link #createOrReplaceVariable(Map, String, char, Object, boolean)} instead setVariable(...)
+   *   with type argument.
    * <li>2013-12-26 Hartmut chg: {@link #getData(String, Object, boolean, boolean, boolean, Dst)} returns the variable
    *   if the argument bVariable is set.
    * <li>2013-11-03 Hartmut chg: rename getData(...) to {@link #access(List, Object, Map, boolean, boolean, boolean, Dst)},
@@ -120,7 +122,7 @@ public class DataAccess {
    * <li> You can redistribute copies of this source to everybody.
    * <li> Every user of this source, also the user of redistribute copies
    *    with or without payment, must accept this license for further using.
-   * <li> But the LPGL ist not appropriate for a whole software product,
+   * <li> But the LPGL is not appropriate for a whole software product,
    *    if this source is only a part of them. It means, the user
    *    must publish this part of source,
    *    but don't need to publish the whole source of the own product.
@@ -136,7 +138,7 @@ public class DataAccess {
    * 
    * 
    */
-  static final public int version = 20130310;
+  static final public int version = 0x20140101;
 
 
   static final Class<?> ifcMainCmdLogging_ifc = getClass("org.vishia.mainCmd.MainCmdLogging_ifc");
@@ -318,14 +320,14 @@ public class DataAccess {
           if(dst2 == null){
             assert(dst instanceof Map<?, ?>);
             dst2 = new IndexMultiTable<String, DataAccess.Variable>(IndexMultiTable.providerString);
-            setVariable((Map<String, DataAccess.Variable>)dst, element.ident, 'V', dst2);
+            createOrReplaceVariable((Map<String, DataAccess.Variable>)dst, element.ident, 'V', dst2, false);
           }
           dst = dst2;
         } else {
           //last item in path.
           if(dst2 == null){
             assert(dst instanceof Map<?, ?>);
-            setVariable((Map<String, DataAccess.Variable>)dst, element.ident, 'O', value);
+            createOrReplaceVariable((Map<String, DataAccess.Variable>)dst, element.ident, 'O', value, false);
           } else {
             //the last element is found, try assign the value to it, it should be any container or Appendable.
             if(dst2 instanceof StringSeq && value instanceof CharSequence){
@@ -342,7 +344,7 @@ public class DataAccess {
               ((List)dst2).add(value);
             } else if(dst instanceof Map){
               //replace, don't use dst2
-              setVariable((Map<String, DataAccess.Variable>)dst,element.ident, 'O', value);
+              createOrReplaceVariable((Map<String, DataAccess.Variable>)dst,element.ident, 'O', value, false);
             } else {  
               throw new IllegalArgumentException("JbatchExecuter - can't add value to; " + path);
             }
@@ -1142,17 +1144,23 @@ public class DataAccess {
    */
   public static String getStringFromObject(Object content, String format){
     String sContent;
-    if(content == null){
+    Object val1;
+    if(content instanceof Variable){
+      val1 = ((Variable)content).value;
+    } else {
+      val1 = content;
+    }
+    if(val1 == null){
       sContent = "";
     }
-    else if(content instanceof String){ 
-      sContent = (String) content; 
-    } else if(content instanceof Integer){ 
+    else if(val1 instanceof String){ 
+      sContent = (String) val1; 
+    } else if(val1 instanceof Integer){ 
       if(format !=null){
-        try{ sContent = String.format(format, content); 
+        try{ sContent = String.format(format, val1); 
         } catch(Exception exc){ sContent = "<??format:"+ format + " exception:" + exc.getMessage() + "??>"; }
       } else {
-        int value = ((Integer)content).intValue();
+        int value = ((Integer)val1).intValue();
         sContent = Integer.toString(value);
       }
     } else {
@@ -1206,19 +1214,20 @@ public class DataAccess {
   
   
   
-  /**Sets a value to a simple existing or non existing variable.
-   * If the variable does not exists, it is created of type 'O'.
-   * If the variable exists, only its value will be changed.
-   * @param map
-   * @param name
-   * @param type one of A O S U L V E = Appendable, Object, String, StringBuilder, ListContainer, VariableTree, EnvironmentVariable
-   * @param content
+  /**Creates or replaces a variable with a simple name. 
+   * If the variable exists, it will be replaced by the new definition.
+   * @param map The container for variables.
+   * @param name The name of the variable in the container.
+   * @param type one of A O J S U L M V E = Appendable, Object, Object, String, StringBuilder, ListContainer, Map, VariableTree, EnvironmentVariable
+   * @param content The new value
    * @throws IllegalAccessException  if a const variable is attempt to modify.
    */
-  public static void setVariable(Map<String, Variable> map, String name, char type, Object content, boolean isConst) throws IllegalAccessException{
+  public static Variable createOrReplaceVariable(Map<String, Variable> map, String name, char type, Object content, boolean isConst) throws IllegalAccessException{
     DataAccess.Variable var = map.get(name);
     if(var == null){
-      map.put(name, new DataAccess.Variable(type, name, content, isConst));
+      var = new DataAccess.Variable(type, name, content);
+      var.isConst = isConst;
+      map.put(name, var);
     } else if(var.isConst){
       throw new IllegalAccessException("DataAccess.setVariable - modification of const; " + var.name);
     } else {
@@ -1226,28 +1235,7 @@ public class DataAccess {
       var.type = type;
       var.isConst = isConst;
     }
-  }
-  
-  
-  /**Sets a value to a simple existing or non existing variable.
-   * If the variable does not exists, it is created of type 'O'.
-   * If the variable exists, only its value will be changed.
-   * @param map
-   * @param name
-   * @param type one of A O S U L V E = Appendable, Object, String, StringBuilder, ListContainer, VariableTree, EnvironmentVariable
-   * @param content
-   * @throws IllegalAccessException  if the variable is const.
-   */
-  public static void setVariable(Map<String, Variable> map, String name, char type, Object content) throws IllegalAccessException{
-    DataAccess.Variable var = map.get(name);
-    if(var == null){
-      map.put(name, new DataAccess.Variable(type, name, content));
-    } else if(var.isConst){
-      throw new IllegalAccessException("DataAccess.setVariable - modification of const; " + var.name);
-    } else {
-      var.value = content;
-      var.type = type;
-    }
+    return var;
   }
   
   

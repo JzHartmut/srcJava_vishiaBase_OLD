@@ -30,7 +30,8 @@ import org.vishia.msgDispatch.LogMessage;
  * is a concept of C embedded programming. The class is a counterpart to the Block-Heap-Concept 
  * of the CRuntimeJavalike.
  * <br>
- * All methods are called with a parent. The parent is any Object, to which the array may associated.
+ * All methods to allocate arrays {@link #allocByteArray(Object, int)} etc.
+ * are called with a parent. The parent is any Object, to which the array may associated.
  * The concept in C with blockHeap is: The Object uses a part of a block, the array should use 
  * the free spaces in the same block. In Java it is not regarded. 
  * <br>
@@ -54,7 +55,18 @@ import org.vishia.msgDispatch.LogMessage;
 public class AllocInBlock
 {
 
-  static int defaultSize = 400;
+  /**The used size for Java. In C it depends on the size of a block.
+   * This size parameter is the number of bytes in a block.
+   * In C a block may be 1 kByte, that is 1024 Byte or 0x400 Byte. Because some bytes are need
+   * for the block organization, the user gets some less bytes.  
+   */
+  private static int defaultBlockUserSize = 0x3d0;
+  
+  /**In C all methods to allocate arrays may called with an object which should use the same block.
+   * This Object has a dedicated size in C. For Java usage
+   * 
+   */
+  private static int exampleObjectSize = 0x50;
   
   public static final int checkGcBlockUsed = 0;
   public static final int checkGcBlockFreed = 1;
@@ -83,63 +95,63 @@ public class AllocInBlock
   
   public static byte[] allocByteArray(Object parent, int size)
   { if(size == -1)
-    { size = defaultSize;
+    { size = defaultBlockUserSize;
     }
     return new byte[size];
   }
   
   public static char[] allocCharArray(Object parent, int size)
   { if(size == -1)
-    { size = defaultSize;
+    { size = defaultBlockUserSize;
     }
     return new char[size];
   }
   
   public static StringBuffer allocStringBuffer(Object parent, int size)
   { if(size == -1)
-    { size = defaultSize;
+    { size = defaultBlockUserSize;
     }
     return new StringBuffer(size);
   }
   
   public static int[] allocIntArray(Object parent, int size)
   { if(size == -1)
-    { size = defaultSize/4;
+    { size = defaultBlockUserSize/4;
     }
     return new int[size];
   }
   
   public static short[] allocShortArray(Object parent, int size)
   { if(size == -1)
-    { size = defaultSize/2;
+    { size = defaultBlockUserSize/2;
     }
     return new short[size];
   }
   
   public static long[] allocLongArray(Object parent, int size)
   { if(size == -1)
-    { size = defaultSize/8;
+    { size = defaultBlockUserSize/8;
     }
     return new long[size];
   }
   
   public static float[] allocFloatArray(Object parent, int size)
   { if(size == -1)
-    { size = defaultSize/4;
+    { size = defaultBlockUserSize/4;
     }
     return new float[size];
   }
   
   public static double[] allocDoubleArray(Object parent, int size)
   { if(size == -1)
-    { size = defaultSize/8;
+    { size = defaultBlockUserSize/8;
     }
     return new double[size];
   }
   
   public static Object[] allocObjectArray(Object parent, int size)
   { if(size == -1)
-    { size = defaultSize/4;
+    { size = defaultBlockUserSize/4;
     }
     return new Object[size];
   }

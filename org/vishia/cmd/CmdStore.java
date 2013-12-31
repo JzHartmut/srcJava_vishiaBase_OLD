@@ -122,12 +122,12 @@ public class CmdStore
         try{
           for(ZGenScript.DefVariable arg :jbatSub.formalArgs){
             String name1 = arg.getVariableIdent();
-            if(name1.equals("file1")){ DataAccess.setVariable(args, "file1", 'O', getterFiles.getFile1()); }
-            else if(name1.equals("file2")){ DataAccess.setVariable(args, "file2", 'O', getterFiles.getFile2()); }
-            else if(name1.equals("file3")){ DataAccess.setVariable(args, "file3", 'O', getterFiles.getFile3()); }
-            else if(name1.equals("dir1")){ DataAccess.setVariable(args, "dir1", 'O', getterFiles.getFile1().getParentFile()); }
-            else if(name1.equals("dir2")){ DataAccess.setVariable(args, "dir2", 'O', getterFiles.getFile2().getParentFile()); }
-            else if(name1.equals("dir3")){ DataAccess.setVariable(args, "dir3", 'O', getterFiles.getFile3().getParentFile()); }
+            if(name1.equals("file1")){ DataAccess.createOrReplaceVariable(args, "file1", 'O', getterFiles.getFile1(), true); }
+            else if(name1.equals("file2")){ DataAccess.createOrReplaceVariable(args, "file2", 'O', getterFiles.getFile2(), true); }
+            else if(name1.equals("file3")){ DataAccess.createOrReplaceVariable(args, "file3", 'O', getterFiles.getFile3(), true); }
+            else if(name1.equals("dir1")){ DataAccess.createOrReplaceVariable(args, "dir1", 'O', getterFiles.getFile1().getParentFile(), true); }
+            else if(name1.equals("dir2")){ DataAccess.createOrReplaceVariable(args, "dir2", 'O', getterFiles.getFile2().getParentFile(), true); }
+            else if(name1.equals("dir3")){ DataAccess.createOrReplaceVariable(args, "dir3", 'O', getterFiles.getFile3().getParentFile(), true); }
           }
         } catch(IllegalAccessException exc){
           //It is not able to expect that file1 etc. are not accessible.

@@ -72,12 +72,13 @@ public class StringPartFromFileLines extends StringPartScan
    */
   public static final int version = 20121222;
   
-  final StringBuffer buffer;
+  final StringBuilder buffer;
   //char[] fileBuffer = new char[1024];
   //int nCharsFileBuffer = 0;
   
   /** A readed line from file.*/
   String sLine = null;
+  
   /** Nr of chars in line without trailing spaces.*/
   int nLine = 0;
   
@@ -91,7 +92,9 @@ public class StringPartFromFileLines extends StringPartScan
    */
   final BufferedReader readIn;
 
+  IntegerBlockArray linePositions = new IntegerBlockArray(1000);
   
+  int maxIxLinePosition;
   
   
   /**fills a StringPart from a File. If the file is less than the maxBuffer size,
@@ -148,9 +151,9 @@ public class StringPartFromFileLines extends StringPartScan
     bEof = false;
     long nMaxBytes = fromFile.length();
     if(maxBuffer <= 0 || nMaxBytes < (maxBuffer -10))
-    { buffer = new StringBuffer((int)(nMaxBytes));  //buffer size appropriate to the file size.
+    { buffer = new StringBuilder((int)(nMaxBytes));  //buffer size appropriate to the file size.
     }
-    else buffer = new StringBuffer(maxBuffer);  //to large file
+    else buffer = new StringBuilder(maxBuffer);  //to large file
     
     
     if(sEncodingDetect != null)
@@ -200,14 +203,19 @@ public class StringPartFromFileLines extends StringPartScan
       assign(buffer.substring(1));
     }
     else
-    { assign(buffer.substring(0));
+    { assign(buffer);
     }
     if(!notAllContent){
       readIn.close();
     }
   }
 
-  
+  @Override public int getLineCt(){ 
+    int line = linePositions.binarySearch(this.begin, maxIxLinePosition); 
+    if(line <0){ line = -line; }
+    return line;
+  }
+
   
   
   boolean readnextContentFromFile()
@@ -217,8 +225,9 @@ public class StringPartFromFileLines extends StringPartScan
       while(!bEof && !bBufferFull)
       { int nRestBytes = buffer.capacity() - buffer.length();
         if(nRestBytes >= nLine)
-        { if(sLine != null)
-          { //only null on start
+        { if(sLine != null) //only null on start
+          { //stores position in Buffer to the line number. Pre-increment, maxIxLinePosition is the line number
+            linePositions.set(++maxIxLinePosition, buffer.length());  
             if(nLine > 0){ buffer.append(sLine.substring(0, nLine)); }
             buffer.append('\n');
           }
