@@ -422,17 +422,18 @@ public class ZGenExecuter {
   
   
   
-  CharSequence textError(Exception exc){
-    CharSequence text = null;
+  CharSequence textError(Exception exc, ZGenScript.ZGenitem zgenitem){
+    StringBuilder text = new StringBuilder(100); 
+    text.append(exc.getMessage()).append( " @FILE:").append(zgenitem.srcLine).append(",").append(zgenitem.srcColumn);
     if(bWriteErrorInOutput){
       Throwable excCause = exc, excText = exc;
       int catastrophicalcount = 10;
       while( --catastrophicalcount >=0 && (excCause = excCause.getCause()) !=null){
         excText = excCause;  //if !=null
       }
-      text = excText.getMessage();
+      text.append(excText.getMessage());
     } else {
-      throw new IllegalArgumentException(exc);  //forwarding
+      throw new IllegalArgumentException(text.toString());  //forwarding
     }
     return text;
   }
@@ -1086,7 +1087,7 @@ public class ZGenExecuter {
           }
         }
       } catch(Exception exc){
-        text = textError(exc);  //throws
+        text = textError(exc, statement);  //throws
       }
       out.append(text); 
     }

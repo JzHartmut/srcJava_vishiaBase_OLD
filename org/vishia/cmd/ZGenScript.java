@@ -238,6 +238,14 @@ public class ZGenScript {
     public StatementList statementlist(){ return statementlist; }
 
     
+    /**From ZBNF. If this method was found, the line will be stored.
+     * See {@link org.vishia.zbnf.ZbnfJavaOutput}
+     * @param line
+     */
+    public void set_inputLine_(int line){ srcLine = line; }
+    
+    
+    
     public DataAccess.DataAccessSet new_datapath(){ return new DataAccess.DataAccessSet(); }
     
     public void add_datapath(DataAccess.DataAccessSet val){ 

@@ -373,6 +373,9 @@ public class DataAccess {
   private static Map<String, Conversion> initConversion(){
     Map<String, Conversion> conversion1 = new TreeMap<String, Conversion>();
     conversion1.put("java.lang.Long:int", long2int);
+    conversion1.put("java.lang.Integer:int", obj2obj);
+    conversion1.put("java.lang.Float:float", obj2obj);
+    conversion1.put("java.lang.Double:double", obj2obj);
     conversion1.put("java.lang.Number:boolean", number2bool);
     conversion1.put("java.lang.Object:boolean", obj2bool);
     conversion1.put("java.lang.CharSequence:java.io.File", charSeq2File);
@@ -659,7 +662,7 @@ public class DataAccess {
    * @throws InvocationTargetException 
    * @throws NoSuchMethodException 
    */
-  static Object invokeMethod(      
+  public static Object invokeMethod(      
     DatapathElement element
   , Object dataPool
   ) throws InvocationTargetException, NoSuchMethodException{
@@ -805,8 +808,8 @@ public class DataAccess {
       Conversion[] conversions = new Conversion[providedArgs.size()];
       int ix = -1;    //iterator-index in actTypes
       Iterator<Object> iter = providedArgs.iterator();
-      while(bOk && iter.hasNext()) {
-        Object actValue = iter.next();
+      while(bOk && iter.hasNext()) {                        
+        Object actValue = iter.next();              //iterate through provided arguments
         bOk = false;   //check for this arg
         ix +=1;
         if(actValue == null){
