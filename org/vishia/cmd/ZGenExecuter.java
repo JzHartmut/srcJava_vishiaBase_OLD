@@ -424,7 +424,7 @@ public class ZGenExecuter {
   
   CharSequence textError(Exception exc, ZGenScript.ZGenitem zgenitem){
     StringBuilder text = new StringBuilder(100); 
-    text.append(exc.getMessage()).append( " @FILE:").append(zgenitem.srcLine).append(",").append(zgenitem.srcColumn);
+    text.append(exc).append( " @FILE:").append(zgenitem.srcLine).append(",").append(zgenitem.srcColumn);
     if(bWriteErrorInOutput){
       Throwable excCause = exc, excText = exc;
       int catastrophicalcount = 10;

@@ -311,7 +311,7 @@ public class DataAccess {
         } else if (dst instanceof DataAccess.Variable){
           //necessary?
         } else {
-          throw new IllegalArgumentException("DataAccess.storeValue - destination should be Map<String, DataAccess.Variable>");
+          throw new IllegalArgumentException("DataAccess.storeValue - destination should be Map<String, DataAccess.Variable>; " + dst);
         }
       } else {
         try{ dst2 = DataAccess.getData(element.ident, dst, bAccessPrivate, false, false, null);}
