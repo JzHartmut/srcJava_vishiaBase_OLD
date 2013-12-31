@@ -28,6 +28,7 @@ import org.vishia.util.StringFunctions;
 public class ZGenScript {
   /**Version, history and license.
    * <ul>
+   * <li>2014-01-01 Hartmut re-engineering: {@link ZGenitem} has one of 4 active associations for its content.
    * <li>2013-12-26 Hartmut re-engineering: Now the Statement class is obsolete. Instead all statements have the base class
    *   {@link ZGenitem}. That class contains only elements which are necessary for all statements. Some special statements
    *   have its own class with some more elements, especially for the ZBNF parse result. Compare it with the syntax
@@ -1202,6 +1203,16 @@ public class ZGenScript {
     }
 
     
+    public DefVariable new_DefMapVar(){
+      return new DefVariable(parentList, 'M'); 
+    }
+    
+    public void add_DefMapVar(DefVariable val) {
+      if(formalArgs == null){ formalArgs = new ArrayList<DefVariable>(); }
+      formalArgs.add(val);
+    }
+
+    
     /**Defines or changes an environment variable with value. set NAME = TEXT;
      * Handle in the same kind like a String variable
      */
@@ -1226,7 +1237,7 @@ public class ZGenScript {
   
   
   
-  public static class CallStatement extends ZGenitem
+  public static class CallStatement extends AssignExpr
   {
     
     public ZGenitem callName;

@@ -42,7 +42,7 @@ public class ZGenExecuter {
   
   
   /**Version, history and license.
-   * <ul>
+   * <ul>2013-12-26 Hartmut new: subroutine returns a value and assigns to any variable.
    * <li>2013-12-26 Hartmut re-engineering: Now the Statement class is obsolete. Instead all statements have the base class
    *   {@link ZGenitem}. That class contains only elements which are necessary for all statements. Some special statements
    *   have its own class with some more elements, especially for the ZBNF parse result. Compare it with the syntax
@@ -604,7 +604,10 @@ public class ZGenExecuter {
           case 'N': {
             executeIfContainerHasNext(statement, out, bContainerHasNext);
           } break;
-          case '=': assignExpr((ZGenScript.AssignExpr)statement); break;
+          case '=': { 
+            Object val = evalObject(statement, false);
+            executeAssign((ZGenScript.AssignExpr)statement, val); 
+          } break;
           case '+': appendExpr((ZGenScript.AssignExpr)statement); break;
           case 'b': ret = "break"; break;
           case 'r': ret = evalObject(statement, false); break;  //NOTE: returns from this executer level because ret !=null.
@@ -913,7 +916,8 @@ public class ZGenExecuter {
           ok = writeError("??: call" + nameSubtext + " called with arguments, it has not one.??", out);
         }
         if(ok){
-          subtextGenerator.execute(subtextScript.statementlist, out, false);
+          Object val = subtextGenerator.execute(subtextScript.statementlist, out, false);
+          executeAssign(callStatement, val);
         }
       }
     }
@@ -1156,10 +1160,9 @@ public class ZGenExecuter {
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    void assignExpr(ZGenScript.AssignExpr statement) 
+    void executeAssign(ZGenScript.AssignExpr statement, Object val) 
     throws IllegalArgumentException, Exception
     {
-      Object val = evalObject(statement, false);
       DataAccess assignObj1 = statement.variable;
       Iterator<DataAccess> iter1 = statement.assignObjs == null ? null : statement.assignObjs.iterator();
       while(assignObj1 !=null) {
