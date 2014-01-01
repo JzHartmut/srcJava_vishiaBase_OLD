@@ -3,10 +3,10 @@ REM Task: Compilation javac and call jar
 if "%INPUT_JAVAC%" =="" (
   echo == javacjar.sh ==
   echo script to organize javac compilation and build the jar.
-  echo The environment variables should be export as Input for this script:
+  echo The environment variables should be exported as Input for this script:
   echo ---------------------------------------------------------------------------------------------
   echo JAVA_JDK: Directory where bin/javac is found. This java version will taken for compilation
-  echo   if not set, it searches the JDK in some directories and set it so proper as well.
+  echo   if not set, setJAVA_JDK.bat is called. It should be found in the system's PATH.
   echo TMP_JAVAC: Directory for all class files and logs: The directory will be cleaned and created
   echo INPUT_JAVAC: All primary input java files to compile separated with space
   echo CLASSPATH_JAVAC: PATH where compiled classes are found, relativ from current dir or absolute
@@ -63,7 +63,7 @@ del /F/Q %OUTDIR_JAVAC%\%JAR_JAVAC%
 del /F/Q %OUTDIR_JAVAC%\%JAR_JAVAC%.compile.log
 del /F/Q %OUTDIR_JAVAC%\%JAR_JAVAC%.compile_error.log
 
-echo === javac -sourcepath %SRCPATH_JAVAC -classpath %CLASSPATH_JAVAC %INPUT_JAVAC
+echo === javac -sourcepath %SRCPATH_JAVAC% -classpath %CLASSPATH_JAVAC% %INPUT_JAVAC%
 
 %JAVA_JDK%\bin\javac -deprecation -d %TMP_JAVAC%\bin -sourcepath %SRCPATH_JAVAC% -classpath %CLASSPATH_JAVAC% %INPUT_JAVAC% 1>>%TMP_JAVAC%\javac_ok.txt 2>%TMP_JAVAC%\javac_error.txt
 if ERRORLEVEL 1 (

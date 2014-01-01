@@ -477,7 +477,8 @@ public abstract class ByteDataAccess
    * is not changed and a {@link #parent} is not changed. It means, a reset can be invoked for any child
    * of data without changing the context.
    * 
-   * @param lengthData Number of valid designated content in the associated buffer.
+   * @param lengthHead Number of bytes for the head of this element. It may equal lengthData.
+   * @param lengthData Number of bytes for this element.
    *   
    */
   protected final void reset(int lengthHead, int lengthData){
@@ -495,8 +496,10 @@ public abstract class ByteDataAccess
     }
     */
     idxCurrentChild = -1;
-    idxFirstChild = idxCurrentChildEnd = idxBegin + lengthHeadSpecified; 
-    idxEnd = bExpand ? idxFirstChild : idxFirstChild + lengthData;
+    idxFirstChild = idxCurrentChildEnd = idxBegin + lengthHeadSpecified;
+    //NOTE: problem in last version? The idxBegin ... idxEnd should be the number of given data.
+    //lengthData is inclusively head. Other variants are calling problems.
+    idxEnd = bExpand ? idxFirstChild : /*idxFirstChild + */ idxBegin + lengthData;
     if(idxEnd > data.length)
     { throw new IllegalArgumentException("not enough data bytes, requested=" + idxEnd + ", buffer-length=" + data.length);
     }
