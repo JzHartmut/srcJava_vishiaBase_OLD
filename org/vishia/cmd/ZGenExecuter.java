@@ -131,7 +131,7 @@ public class ZGenExecuter {
 
   /**Generated content of all script variables. The script variables are present in all routines 
    * in their local variables pool. The value is either a String, CharSequence or any Object pointer.  */
-  final Map<String, DataAccess.Variable> scriptVariables = new_Variables();
+  //private final IndexMultiTable<String, DataAccess.Variable> scriptVariables = new_Variables();
   
   
   final ExecuteLevel scriptLevel;
@@ -174,9 +174,11 @@ public class ZGenExecuter {
   }
   
   
+  public Map<String, DataAccess.Variable> scriptVariables(){ return scriptLevel.localVariables; }
+  
   public void setOutfile(Appendable outfile){ 
     this.outFile = outfile; 
-    scriptVariables.put("text", new DataAccess.Variable('A', "text", outfile));
+    scriptLevel.localVariables.put("text", new DataAccess.Variable('A', "text", outfile));
   }
   
   public Appendable outFile(){ return outFile; }
@@ -185,7 +187,7 @@ public class ZGenExecuter {
   
   public void setScriptVariable(String name, char type, Object content, boolean bConst) 
   throws IllegalAccessException{
-    DataAccess.createOrReplaceVariable(scriptVariables, name, type, content, bConst);
+    DataAccess.createOrReplaceVariable(scriptLevel.localVariables, name, type, content, bConst);
   }
   
   
@@ -213,57 +215,63 @@ public class ZGenExecuter {
     if(srcVariables !=null){
       for(Map.Entry<String, DataAccess.Variable> entry: srcVariables.entrySet()){
         DataAccess.Variable var = entry.getValue();
-        DataAccess.createOrReplaceVariable(scriptVariables, var.name(), var.type(), var.value(), var.isConst());
+        DataAccess.createOrReplaceVariable(scriptLevel.localVariables, var.name(), var.type(), var.value(), var.isConst());
       }
     }
-    if(scriptVariables.get("$CD") == null){
-      CurrDir currDirWrapper = new CurrDir();
-      currDirWrapper.currDir = new File(".").getAbsoluteFile().getParentFile();
-      StringBuilder cd = new StringBuilder();
-      cd.append(FileSystem.normalizePath(currDirWrapper.currDir.getAbsolutePath()));
-      DataAccess.createOrReplaceVariable(scriptVariables, "$CD", 'E', cd, false);
-      DataAccess.createOrReplaceVariable(scriptVariables, "currDir", 'O', currDirWrapper, false);
+    if(scriptLevel.localVariables.get("currdir") == null){
+      //CurrDir currDirWrapper = new CurrDir();
+      //currDirWrapper.currDir 
+      File currdir = new File(".").getAbsoluteFile().getParentFile();
+      //StringBuilder cd = new StringBuilder();
+      //cd.append(FileSystem.normalizePath(currDirWrapper.currDir.getAbsolutePath()));
+      //DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "$CD", 'E', currdir.toString(), false);
+      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "currdir", 'O', currdir, false);
     }
-    if(scriptVariables.get("error") == null){ DataAccess.createOrReplaceVariable(scriptVariables, "error", 'A', accessError, true); }
-    if(scriptVariables.get("mainCmdLogging") == null){ DataAccess.createOrReplaceVariable(scriptVariables, "mainCmdLogging", 'O', log, true); }
-    if(scriptVariables.get("nextNr") == null){DataAccess.createOrReplaceVariable(scriptVariables, "nextNr", 'O', nextNr, true); }
-    //DataAccess.createOrReplaceVariable(scriptVariables, "nrElementInContainer", 'O', null);
-    if(scriptVariables.get("out") == null){DataAccess.createOrReplaceVariable(scriptVariables, "out", 'A', System.out, true); }
-    if(scriptVariables.get("err") == null){DataAccess.createOrReplaceVariable(scriptVariables, "err", 'A', System.err, true); }
-    if(scriptVariables.get("null") == null){DataAccess.createOrReplaceVariable(scriptVariables, "null", 'O', null, true); }
-    if(scriptVariables.get("jbat") == null){DataAccess.createOrReplaceVariable(scriptVariables, "jbat", 'O', this, true); }
-    if(scriptVariables.get("zgen") == null){DataAccess.createOrReplaceVariable(scriptVariables, "zgen", 'O', this, true); }
-    if(scriptVariables.get("file") == null){DataAccess.createOrReplaceVariable(scriptVariables, "file", 'O', new FileSystem(), true); }
-    if(scriptVariables.get("test") == null){DataAccess.createOrReplaceVariable(scriptVariables, "test", 'O', new ZGenTester(), true); }
+    if(scriptLevel.localVariables.get("error") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "error", 'A', accessError, true); }
+    if(scriptLevel.localVariables.get("mainCmdLogging") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "mainCmdLogging", 'O', log, true); }
+    if(scriptLevel.localVariables.get("nextNr") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextNr", 'O', nextNr, true); }
+    //DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nrElementInContainer", 'O', null);
+    if(scriptLevel.localVariables.get("out") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "out", 'A', System.out, true); }
+    if(scriptLevel.localVariables.get("err") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "err", 'A', System.err, true); }
+    if(scriptLevel.localVariables.get("null") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
+    if(scriptLevel.localVariables.get("jbat") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jbat", 'O', this, true); }
+    if(scriptLevel.localVariables.get("zgen") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "zgen", 'O', this, true); }
+    if(scriptLevel.localVariables.get("file") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "file", 'O', new FileSystem(), true); }
+    if(scriptLevel.localVariables.get("test") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new ZGenTester(), true); }
     //
     //generate all variables in this script:
-    for(ZGenScript.DefVariable scriptVariableScript: genScript.getListScriptVariables()){
-      try{
+    try{
+      scriptLevel.execute(genScript.scriptClass, outFile, false);
+      /*
+      for(ZGenScript.DefVariable scriptVariableScript: genScript.getListScriptVariables()){
         Object value;
         switch(scriptVariableScript.elementType()){
           case 'S':  value = scriptLevel.evalString(scriptVariableScript); break;
           case 'J':  value = scriptLevel.evalObject(scriptVariableScript, true); break;
           default: value = "???";
         }
+        /*
         List<DataAccess.DatapathElement> assignPath = scriptVariableScript.defVariable.datapath();
         if(assignPath.size() == 1 && assignPath.get(0).ident().equals("$CD")){
           //special handling of current directory:
-          scriptLevel.setCurrDir((CharSequence)value);  //normalize, set "currDir"
+          scriptLevel.changeCurrDir((CharSequence)value);  //normalize, set "currDir"
         } else {
-          scriptVariableScript.defVariable.storeValue(scriptVariables, value, true);
+          scriptVariableScript.defVariable.storeValue(scriptLevel.localVariables, value, true);
         }
-      } catch(Exception exc){
-        System.out.println("JbatchExecuter - Scriptvariable faulty; " );
+        */
+        /*
+        StringBuilder uVariable = new StringBuilder();
+        ExecuteLevel genVariable = new ExecuteLevel(null, scriptLevel.localVariables); //NOTE: use recent scriptLevel.localVariables.
+        genVariable.execute(scriptVariableScript.getSubContent(), uVariable, false);
+        scriptLevel.localVariables.put(scriptVariableScript.identArgJbat, uVariable); //Buffer.toString());
+        * /
       }
-      /*
-      StringBuilder uVariable = new StringBuilder();
-      ExecuteLevel genVariable = new ExecuteLevel(null, scriptVariables); //NOTE: use recent scriptVariables.
-      genVariable.execute(scriptVariableScript.getSubContent(), uVariable, false);
-      scriptVariables.put(scriptVariableScript.identArgJbat, uVariable); //Buffer.toString());
       */
+    } catch(Exception exc){
+      System.out.println("JbatchExecuter - Scriptvariable faulty; " );
     }
     bScriptVariableGenerated = true;
-    return scriptVariables;
+    return scriptLevel.localVariables;
   }
   
 
@@ -271,7 +279,7 @@ public class ZGenExecuter {
   
   public void reset(){
     bScriptVariableGenerated = false;
-    scriptVariables.clear();
+    scriptLevel.localVariables.clear();
   }
   
   
@@ -304,7 +312,7 @@ public class ZGenExecuter {
     }
     setScriptVariable("text", 'A', out, true);
     ZGenScript.Subroutine contentScript = genScript.getMain();
-    ExecuteLevel genFile = new ExecuteLevel(null, scriptVariables);
+    ExecuteLevel genFile = new ExecuteLevel(null, scriptLevel.localVariables);
     genFile.execute(contentScript.statementlist, out, false);
     if(bWaitForThreads){
       boolean bWait = true;
@@ -356,7 +364,7 @@ public class ZGenExecuter {
       , boolean accessPrivate, Appendable out) 
   throws Exception
   {
-    ExecuteLevel level = new ExecuteLevel(null, scriptVariables);
+    ExecuteLevel level = new ExecuteLevel(null, scriptLevel.localVariables);
     //The args should be added to the localVariables of the subroutines level:
     level.localVariables.putAll(args);
     //Executes the statements of the sub routine:
@@ -369,11 +377,11 @@ public class ZGenExecuter {
   
   
   public Object getScriptVariable(String name) throws NoSuchFieldException
-  { return DataAccess.getVariable(scriptVariables, name, true); }
+  { return DataAccess.getVariable(scriptLevel.localVariables, name, true); }
 
   
   public DataAccess.Variable removeScriptVariable(String name)
-  { return scriptVariables.remove(name);
+  { return scriptLevel.localVariables.remove(name);
     
   }
 
@@ -387,7 +395,7 @@ public class ZGenExecuter {
   }
   
 
-  protected Map<String, DataAccess.Variable> new_Variables(){
+  protected IndexMultiTable<String, DataAccess.Variable> new_Variables(){
     return new IndexMultiTable<String, DataAccess.Variable>(IndexMultiTable.providerString);
   }
   
@@ -453,11 +461,10 @@ public class ZGenExecuter {
     public final ExecuteLevel parent;
     
     
-    /**Generated content of local variables in this nested level including the {@link ZbatchExecuter#scriptVariables}.
+    /**Generated content of local variables in this nested level including the {@link ZbatchExecuter#scriptLevel.localVariables}.
      * The variables are type invariant on language level. The type is checked and therefore 
      * errors are detected on runtime only. */
-    public final Map<String, DataAccess.Variable> localVariables;
-    
+    public final IndexMultiTable<String, DataAccess.Variable> localVariables;
     
     
     /**Constructs data for a local execution level.
@@ -471,10 +478,13 @@ public class ZGenExecuter {
     { this.parent = parent;
       localVariables = new_Variables();
       if(parentVariables == null){
-        for(Map.Entry<String, DataAccess.Variable> e: scriptVariables.entrySet()){
+        for(Map.Entry<String, DataAccess.Variable> e: scriptLevel.localVariables.entrySet()){
           DataAccess.Variable var = e.getValue();
           String key = e.getKey();
-          if(var.isConst()){
+          if(key.equals("zgensub")){
+            
+          }
+          else if(var.isConst()){
             localVariables.put(key, var);
           } else {
             //build a new independent variable, which can be changed.
@@ -485,7 +495,7 @@ public class ZGenExecuter {
       } else {
         localVariables.putAll(parentVariables);  //use the same if it is not a subText, only a 
       }
-      try{ DataAccess.createOrReplaceVariable(localVariables,  "zgenSub", 'O', this, false);
+      try{ DataAccess.createOrReplaceVariable(localVariables,  "zgensub", 'O', this, true);
       
       } catch(IllegalAccessException exc){ throw new IllegalArgumentException(exc); }
     }
@@ -496,7 +506,7 @@ public class ZGenExecuter {
      */
     protected ExecuteLevel()
     { this.parent = null;
-      localVariables = scriptVariables;
+      localVariables = new_Variables();
     }
 
     
@@ -560,11 +570,9 @@ public class ZGenExecuter {
         //for(TextGenScript.ScriptElement statement: contentScript.content){
         try{    
           switch(statement.elementType()){
-          case 't': executeText(statement, out);break;
-          case 'n': {
-            uBuffer.append(newline);
-          } break;
-          case 'T': textAppendToVarOrOut((ZGenScript.TextOut)statement); break; 
+          case 't': executeText(statement, out);break; //
+          case 'n': uBuffer.append(newline);  break;   //<<.n+>
+          case 'T': textAppendToVarOrOut((ZGenScript.TextOut)statement); break; //<+text>...<.+> 
           case 'U': defineExpr((ZGenScript.DefVariable)statement); break; //setStringVariable(statement); break; 
           case 'S': defineExpr((ZGenScript.DefVariable)statement); break; //setStringVariable(statement); break; 
           case 'P': { //create a new local variable as pipe
@@ -585,35 +593,29 @@ public class ZGenExecuter {
             executeDefVariable((ZGenScript.DefVariable)statement, 'O', value, false);
           } break;
           case 'e': executeDatatext((ZGenScript.DataText)statement, out); break; 
-          case 's': {
-            executeSubroutine((ZGenScript.CallStatement)statement, out);
-          } break;
-          case 'x': executeThread((ZGenScript.ThreadBlock)statement); break;
-          case 'm': executeMove((ZGenScript.CallStatement)statement); break;
-          case 'y': executeCopy((ZGenScript.CallStatement)statement); break;
-          case 'c': executeCmdline((ZGenScript.CmdInvoke)statement); break;
-          case 'd': executeChangeCurrDir(statement); break;
-          case 'C': { //generation <:for:name:path> <genContent> <.for>
+          case 's': executeSubroutine((ZGenScript.CallStatement)statement, out); break;  //sub
+          case 'x': executeThread((ZGenScript.ThreadBlock)statement); break;             //thread
+          case 'm': executeMove((ZGenScript.CallStatement)statement); break;             //move
+          case 'y': executeCopy((ZGenScript.CallStatement)statement); break;             //copy
+          case 'c': executeCmdline((ZGenScript.CmdInvoke)statement); break;              //cmd
+          case 'd': executeChangeCurrDir(statement); break;                              //cd
+          case 'C': { //generation <:for:name:path> <genContent> <.for>                   //for
             executeForContainer((ZGenScript.ForStatement)statement, out);
           } break;
-          case 'B': { //statementBlock
-            executeSubLevel(statement, out);  ///
-          } break;
+          case 'B': executeSubLevel(statement, out); break;                     //statementBlock
           case 'F': executeIfStatement((ZGenScript.IfStatement)statement, out); break;
           case 'w': whileStatement((ZGenScript.CondStatement)statement, out); break;
-          case 'N': {
-            executeIfContainerHasNext(statement, out, bContainerHasNext);
-          } break;
+          case 'N': executeIfContainerHasNext(statement, out, bContainerHasNext); break;
           case '=': { 
             Object val = evalObject(statement, false);
             executeAssign((ZGenScript.AssignExpr)statement, val); 
           } break;
-          case '+': appendExpr((ZGenScript.AssignExpr)statement); break;
+          case '+': appendExpr((ZGenScript.AssignExpr)statement); break;        //+=
           case 'b': ret = "break"; break;
-          case 'r': ret = evalObject(statement, false); break;  //NOTE: returns from this executer level because ret !=null.
-          case '?': break;  //don't execute a onerror, skip it.
+          case 'r': ret = evalObject(statement, false); break;  // return NOTE: returns from this executer level because ret !=null.
+          case '?': break;  //don't execute a onerror, skip it.  //onerror
           case 'z': throw new ZGenExecuter.ExitException(((ZGenScript.ExitStatement)statement).exitValue);  
-          case 'D': debug(statement); break;
+          case 'D': debug(statement); break;  //debug
           default: 
             uBuffer.append("Jbat - execute-unknown type; '" + statement.elementType() + "' :ERROR=== ");
           }//switch
@@ -687,7 +689,7 @@ public class ZGenExecuter {
     
 
     void executeDefVariable(ZGenScript.DefVariable statement, char type, Object value, boolean isConst) 
-    throws IllegalAccessException, IOException {
+    throws Exception {
       DataAccess.storeValue(statement.defVariable.datapath(), localVariables, value, bAccessPrivate);
       //setLocalVariable(statement.name, type, value, isConst);
        
@@ -1021,10 +1023,23 @@ public class ZGenExecuter {
         outCmd = null;
       }
       CmdExecuter cmdExecuter = new CmdExecuter();
+      //CurrDir currDir = (CurrDir)DataAccess.getVariable(localVariables,"currDir", true);
       
-      CurrDir currDir = (CurrDir)DataAccess.getVariable(localVariables,"currDir", true);
-      //localVariables.
-      cmdExecuter.setCurrentDir(currDir.currDir);
+      Map<String,String> env = cmdExecuter.environment();
+      Iterator<DataAccess.Variable> iter = localVariables.iterator("$");
+      boolean cont = true;
+      while(cont && iter.hasNext()){
+        DataAccess.Variable variable = iter.next();
+        String name = variable.name();
+        String value = variable.value().toString();
+        if(name.startsWith("$")){
+          env.put(name.substring(1), value);
+        } else {
+          cont = false;
+        }
+      }
+      File currdir = (File)localVariables.get("currdir").value();
+      cmdExecuter.setCurrentDir(currdir);
       int errorlevel = cmdExecuter.execute(args, statement.bShouldNotWait, null, outCmd, null);
       if(errorlevel >0){
         //TODO check whether an onerror statement follows:
@@ -1037,38 +1052,39 @@ public class ZGenExecuter {
     throws Exception
     {
       CharSequence arg = evalString(statement);
-      setCurrDir(arg); 
+      changeCurrDir(arg, localVariables); 
     }
 
     
-    protected void setCurrDir(CharSequence arg) 
+    /**Executes the cd command: changes the directory in this execution level.
+     * @param arg maybe a relative path.
+     * @throws NoSuchFieldException if "currdir" is not found, unexpected.
+     * @throws IllegalAccessException
+     */
+    protected void changeCurrDir(CharSequence arg, Map<String, DataAccess.Variable> variables) 
     throws NoSuchFieldException, IllegalAccessException{
-      String sCurrDir;
+      //String sCurrDir;
       final CharSequence arg1;
-      Object cd1 = DataAccess.getVariable(localVariables,"$CD", true);
-      StringBuilder u;
       boolean absPath = FileSystem.isAbsolutePathOrDrive(arg);
-      //Change the content of the $CD to the absolute directory.
-      if(cd1 instanceof StringBuilder){
-        u = (StringBuilder)cd1;   //Use the StringBuilder inside the variable
-      }
-      else if(cd1 instanceof StringSeq){
-        u = ((StringSeq)cd1).changeIt();
+      File cdnew;
+      if(absPath){
+        //Change the content of the currdir to the absolute directory.
+        cdnew = new File(arg.toString());
+        if(!cdnew.exists() || !cdnew.isDirectory()){
+          throw new IllegalArgumentException("ZGenExecuter - cd, dir not exists; " + arg);
+        }
       } else {
-        u = new StringBuilder();
-        DataAccess.createOrReplaceVariable(localVariables,"$CD", 'S', u, false);
+        File cdcurr = (File)DataAccess.getVariable(variables,"currdir", true).value();
+        cdnew = new File(cdcurr, arg.toString());
+        if(!cdnew.exists() || !cdnew.isDirectory()){
+          throw new IllegalArgumentException("ZGenExecuter - cd, dir not exists; " + arg + "; abs=" + cdnew.getAbsolutePath());
+        }
+        String sPath = FileSystem.getCanonicalPath(cdnew);
+        cdnew = new File(sPath);
       }
-      //u is referred in the variable as value.
-      if(absPath){ 
-        u.setLength(0);
-        u.append(arg);
-      } else {
-        u.append('/').append(arg);
-      }
-      FileSystem.normalizePath(u);   //resolve "xxx/../xxx"
-      sCurrDir = u.toString();
-      CurrDir currDirWrapper = (CurrDir)DataAccess.getVariable(localVariables,"currDir", true);
-      currDirWrapper.currDir = new File(sCurrDir);
+      DataAccess.createOrReplaceVariable(variables,"currdir", 'L', cdnew, true);
+      //FileSystem.normalizePath(u);   //resolve "xxx/../xxx"
+      //sCurrDir = u.toString();
       
     }
     
@@ -1132,14 +1148,18 @@ public class ZGenExecuter {
     throws IllegalArgumentException, Exception
     {
       String sFilename = evalString(statement).toString();
+      Writer writer;
       if(!FileSystem.isAbsolutePath(sFilename)){
         //build an absolute filename with $CD, the current directory of the file system is not proper to use.
         
         @SuppressWarnings("unused")
-        CharSequence cd = (CharSequence)localVariables.get("$CD").value();
-        sFilename = cd + "/" + sFilename;
+        File cd = (File)localVariables.get("currdir").value();
+        //sFilename = cd + "/" + sFilename;
+        File fWriter = new File(cd, sFilename);
+        writer = new FileWriter(fWriter);
+      } else {
+        writer = new FileWriter(sFilename);  //given absolute path
       }
-      Writer writer = new FileWriter(sFilename);
       DataAccess.storeValue(statement.defVariable.datapath(), localVariables, writer, bAccessPrivate);
       //setLocalVariable(statement.identArgJbat, 'A', writer);
     }
@@ -1250,6 +1270,8 @@ public class ZGenExecuter {
         } break;
         default: val = init;
       }
+      //DataAccess.Variable var = (DataAccess.Variable)DataAccess.access(statement.defVariable.datapath(), null, localVariables, bAccessPrivate, false, true, null);
+      //var.setValue(val);
       statement.defVariable.storeValue(localVariables, val, bAccessPrivate);
       
     }
@@ -1416,7 +1438,7 @@ public class ZGenExecuter {
    * but the reference of {@link CurrDir#currDir} instead. In this case all localvariables
    * and the scriptVariable gets the changed current directory.
    */
-  protected static class CurrDir{
+  protected static class XXXCurrDir{
     File currDir;
     @Override public String toString(){ return currDir.getAbsolutePath(); }
   }

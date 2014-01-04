@@ -289,7 +289,27 @@ public class DataAccess {
    */
   @SuppressWarnings("unchecked")
   public static void storeValue(List<DatapathElement> path, Map<String, Variable> variables, Object value, boolean bAccessPrivate) 
+  throws Exception {
+    Dst dst = new Dst();
+    //accesses the data object with given path. 
+    //If it is a Variable, return the Variable, not its content.
+    //If it is not a Variable, the dst contains the Field.
+    Object o = DataAccess.access(path, null, variables, bAccessPrivate, false, true, dst);
+    if(o instanceof Variable){
+      Variable var = (Variable)(o); 
+      var.setValue(value);
+    } else {
+      dst.set(value);  //try to set the value to the field. If the type is not proper, throws an exception.
+    }
+  }
+
+  
+  
+  
+  public static void XXXstoreValue(List<DatapathElement> path, Map<String, Variable> variables, Object value, boolean bAccessPrivate) 
   throws IOException, IllegalAccessException {
+    
+    
     Object dst = variables;
     Iterator<DataAccess.DatapathElement> iter = path.iterator();
     DataAccess.DatapathElement element;
@@ -357,7 +377,7 @@ public class DataAccess {
   
   
   public void storeValue( Map<String, Variable> variables, Object value, boolean bAccessPrivate) 
-  throws IllegalAccessException, IOException
+  throws Exception
   {
     storeValue(datapath, variables, value, bAccessPrivate);
   }
@@ -418,14 +438,14 @@ public class DataAccess {
   
   
   
-  /**Accesses data. 
+  /**Universal method to accesses data. 
    * The argument path contains elements, which describes the access path.
    * <ul>
    * <li>The datapath can start with an element designated with {@link DatapathElement#whatisit} == '$'. 
    *   Then the result of the access is the String representation of the environment variable of the operation system
    *   or null if that environment variable is not found. Only this element of datapath is used, it should be the only one usual. 
-   * <li>The datapath can start with an optional ,,startVariable,, as {@link DatapathElement#whatisit} == 'v'. 
-   *   Then the param namedDataPool should provide additional data references, which are addressed by the  {@link DatapathElement#ident}
+   * <li>The datapath can start with an optional ,,startVariable,, as {@link DatapathElement#whatisit} == '@'. 
+   *   Then the param dataPool should provide additional data references, which are addressed by the  {@link DatapathElement#ident}
    *   of the first element.
    * <li>If the datapath does not start with a ,,startVariable,, or it is not an environment variable access, the access starts 
    *   on the given datapool. 
@@ -433,7 +453,15 @@ public class DataAccess {
    * The elements of datapath describe the access to data. Any element before supplies a reference for the path 
    * of the next element.
    * <br><br>
-   * <b>Access with an element with {@link DatapathElement#whatisit} == '.'</b>:
+   * <b>Variable</b>:<br>
+   * {@link Variable} are designated especially for referencing from one or more Map<String, Variable>. 
+   * If the value should be changed, the value is changed inside the {@link Variable#value()}. Therewith all references
+   * sees the new value. This method can deal especially with Variable in Map-container additionally to any other accesses.
+   * <br><br>
+   * If an element of the 'datapath' argument is designated with {@link DatapathElement#whatisit} = 'A' .. 'Z', then 
+   * a new variable is created in the context. The context should be a Map<String, Variable>. 
+   * <br><br>
+   * <b>Access with an element with {@link DatapathElement#whatisit} == '.'</b>:<br>
    * The  {@link DatapathElement#ident} may determine a field of the current data reference or it may be a key for a indexed container.
    * The {@link #getData(String, DataAccess.Variable, boolean, boolean)} is invoked, see there for further explanation. 
    * <br><br>
@@ -536,33 +564,51 @@ public class DataAccess {
         throw new NoSuchFieldException("DataAccess.getData - not found in  datapool; " + element.ident + "; datapool contains; " + dataPool.toString() );
       }
       element = iter.hasNext() ? iter.next() : null;
+    } else if(element.whatisit >='A' && element.whatisit <='Z'){
+      data1 = dataPool;  //add to the data pool
     } else {
       data1 = dataRoot;
     }
     while(element !=null){
       //has a next element
-      if(data1 instanceof Variable){
-        data1 = ((Variable)data1).value;  //take the content of a variable!
+      if(element.whatisit >='A' && element.whatisit <='Z'){
+        //It is a new defined variable. 
+        if(data1 instanceof Map<?,?>){ //unable to check generic type.
+          //it should be a variable container!
+          @SuppressWarnings("unchecked")
+          Map<String, DataAccess.Variable> varContainer = (Map<String, DataAccess.Variable>)data1;
+          Variable newVariable = new DataAccess.Variable(element.whatisit, element.ident, null);
+          varContainer.put(element.ident, newVariable);
+          data1 = newVariable;
+        } else if (data1 instanceof DataAccess.Variable){
+          //necessary?
+        } else {
+          throw new IllegalArgumentException("DataAccess.storeValue - destination should be Map<String, DataAccess.Variable>; " + dst);
+        }
+     } else {
+        if(data1 instanceof Variable){
+          data1 = ((Variable)data1).value;  //take the content of a variable!
+        }
+        if(element.ident.equals("test2String"))
+          Assert.stop();
+        switch(element.whatisit) {
+          case '+': {  //create a new instance, call constructor
+            data1 = invokeNew(element);
+          } break;
+          case '(': {
+            if(data1 !=null){
+              data1 = invokeMethod(element, data1); 
+            }
+            //else: let data1=null, return null
+          } break;
+          case '%': data1 = invokeStaticMethod(element); break;
+          default:
+            if(data1 !=null){
+              data1 = getData(element.ident, data1, accessPrivate, bContainer, bVariable, dst);
+            }
+            //else: let data1=null, return null
+        }//switch
       }
-      if(element.ident.equals("test2String"))
-        Assert.stop();
-      switch(element.whatisit) {
-        case '+': {  //create a new instance, call constructor
-          data1 = invokeNew(element);
-        } break;
-        case '(': {
-          if(data1 !=null){
-            data1 = invokeMethod(element, data1); 
-          }
-          //else: let data1=null, return null
-        } break;
-        case '%': data1 = invokeStaticMethod(element); break;
-        default:
-          if(data1 !=null){
-            data1 = getData(element.ident, data1, accessPrivate, bContainer, bVariable, dst);
-          }
-          //else: let data1=null, return null
-      }//switch
       element = iter.hasNext() ? iter.next() : null;
     }
     //return
@@ -1217,12 +1263,13 @@ public class DataAccess {
   
   
   
-  /**Creates or replaces a variable with a simple name. 
+  /**Creates or replaces a variable with a simple name in the given container. 
    * If the variable exists, it will be replaced by the new definition.
    * @param map The container for variables.
    * @param name The name of the variable in the container.
    * @param type one of A O J S U L M V E = Appendable, Object, Object, String, StringBuilder, ListContainer, Map, VariableTree, EnvironmentVariable
    * @param content The new value
+   * @param isConst true then create a const variable, or change content of a constant variable.
    * @throws IllegalAccessException  if a const variable is attempt to modify.
    */
   public static Variable createOrReplaceVariable(Map<String, Variable> map, String name, char type, Object content, boolean isConst) throws IllegalAccessException{
@@ -1231,7 +1278,7 @@ public class DataAccess {
       var = new DataAccess.Variable(type, name, content);
       var.isConst = isConst;
       map.put(name, var);
-    } else if(var.isConst){
+    } else if(var.isConst &&!isConst){
       throw new IllegalAccessException("DataAccess.setVariable - modification of const; " + var.name);
     } else {
       var.value = content;
@@ -1242,16 +1289,26 @@ public class DataAccess {
   }
   
   
-  public static Object getVariable(Map<String, Variable> map, String name, boolean strict) 
+  /**Searches the variale in the container and returns it.
+   * @param map The container
+   * @param name name of the variable in the container
+   * @param strict true then throws an {@link NoSuchFieldException} if not found.
+   * @return null if strict = false and the variable was not found.  
+   * @throws NoSuchFieldException
+   */
+  public static Variable getVariable(Map<String, Variable> map, String name, boolean strict) 
   throws NoSuchFieldException{
     Variable var = map.get(name);
-    if(var !=null) return var.value; //maybe null
+    if(var !=null) return var; //maybe null
     else {
       if(strict) throw new NoSuchFieldException("DataAccess.getVariable - not found; " + name);
       return null;
     }
   }
   
+  /**Should be used only for debug to view what is it.
+   * @see java.lang.Object#toString()
+   */
   @Override public String toString(){ return datapath !=null ? datapath.toString() : "emtpy DataAccess"; }
   
   
@@ -1547,7 +1604,8 @@ public class DataAccess {
 
     /**For debugging.*/
     @Override public String toString(){
-      if(whatisit !='('){ return "" + whatisit + " " + ident;}
+      if(whatisit == 0){ return "?" + ident; }
+      else if(whatisit !='('){ return "" + whatisit + " " + ident;}
       else{
         return ident + "(...)";
       }

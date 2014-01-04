@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.vishia.util.StringPart;
 
@@ -108,6 +109,11 @@ public class CmdExecuter implements Closeable
   public void setCurrentDir(File dir)
   {
     processBuilder.directory(dir);
+  }
+  
+  
+  public Map<String,String> environment(){
+    return processBuilder.environment();
   }
   
   

@@ -1796,7 +1796,7 @@ public class CalculatorExpr
    */
   public Value calcDataAccess(Map<String, DataAccess.Variable> javaVariables, Object... args) throws Exception{
     if(genString !=null){
-      ZGenExecuter.ExecuteLevel executer = (ZGenExecuter.ExecuteLevel)DataAccess.getVariable(javaVariables, "zgenSub", true);
+      ZGenExecuter.ExecuteLevel executer = (ZGenExecuter.ExecuteLevel)DataAccess.getVariable(javaVariables, "zgensub", true).value();
       StringBuilder u = new StringBuilder();
       executer.executeNewlevel(genString, u, false);
       return new CalculatorExpr.Value(u.toString());

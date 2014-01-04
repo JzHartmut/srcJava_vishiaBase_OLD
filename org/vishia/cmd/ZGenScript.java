@@ -115,7 +115,7 @@ public class ZGenScript {
    * any other type of statement than script variables because only ScriptVariables are admissible
    * in the syntax. Outside of subroutines and main there should only exist variable definitions. 
    */
-  private final List<DefVariable> listScriptVariables = new ArrayList<DefVariable>();
+  private final List<DefVariable> XXXlistScriptVariables = new ArrayList<DefVariable>();
 
   /**The script element for the whole file. It shall contain calling of <code><*subtext:name:...></code> 
    */
@@ -131,6 +131,11 @@ public class ZGenScript {
 
   }
 
+  
+  public void setMainRoutine(Subroutine scriptFile){
+    this.scriptFile = scriptFile;
+  }
+  
   public ZGenClass scriptClass(){ return scriptClass; }
   
   
@@ -141,8 +146,9 @@ public class ZGenScript {
     }
     if(includedScript.outer.scriptClass.statements !=null){
       for(ZGenitem item: includedScript.outer.scriptClass.statements){
+        scriptClass.statements.add(item);
         if(item instanceof DefVariable){
-          listScriptVariables.add((DefVariable)item);
+          //listScriptVariables.add((DefVariable)item);
         }
       }
     }
@@ -155,7 +161,7 @@ public class ZGenScript {
   public Subroutine getSubtextScript(CharSequence name){ return subroutinesAll.get(name.toString()); }
   
   
-  public List<DefVariable> getListScriptVariables(){ return listScriptVariables; }
+  public List<DefVariable> XXXgetListScriptVariables(){ return XXXlistScriptVariables; }
 
 
 
@@ -973,6 +979,8 @@ public class ZGenScript {
     
     //public void set_name(String name){ this.name = name; }
 
+    @Override public String toString(){ return "ZGen-DefVariable " + defVariable; }
+    
   };
   
   
@@ -1011,6 +1019,8 @@ public class ZGenScript {
       if(elementType == '='){ elementType = '+'; }
       else throw new IllegalArgumentException("ZGenScript - unexpected set_append");
     }
+    
+    @Override public String toString(){ return "DefVariable " + variable; }
   }
   
   
@@ -1619,9 +1629,11 @@ public class ZGenScript {
      * Handle in the same kind like a String variable but appends a '$' to the first name.
      */
     public void add_setEnvVar(DefVariable val){ 
-      //change the first identifier to $name
-      val.defVariable.datapath().get(0).setIdent("$" + val.defVariable.datapath().get(0).ident());
-      //val.identArgJbat = "$" + val.identArgJbat;
+      //change the last identifier to $name
+      List<DataAccess.DatapathElement> datapath = val.defVariable.datapath();
+      int ix = datapath.size()-1;  //usual 0 if 1 element for simple set
+      DataAccess.DatapathElement lastElement = datapath.get(ix);
+      lastElement.setIdent("$" + lastElement.ident());
       statements.add(val); 
       onerrorAccu = null; withoutOnerror.add(val);
     } 
@@ -1942,20 +1954,20 @@ public class ZGenScript {
     
     /**Defines a variable with initial value. <= <variableDef?textVariable> \<\.=\>
      */
-    @Override
-    public DefVariable new_textVariable(){ return new DefVariable(this, 'S'); }
+    //@Override
+    public DefVariable XXXnew_textVariable(){ return new DefVariable(this, 'S'); }
 
-    @Override
-    public void add_textVariable(DefVariable val){ listScriptVariables.add(val); } 
+    //@Override
+    public void XXXadd_textVariable(DefVariable val){ XXXlistScriptVariables.add(val); } 
     
     
     /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
      */
-    @Override
-    public DefVariable new_objVariable(){ return new DefVariable(this, 'J'); } ///
+    //@Override
+    public DefVariable XXXnew_objVariable(){ return new DefVariable(this, 'J'); } ///
 
-    @Override
-    public void add_objVariable(DefVariable val){ listScriptVariables.add(val); } 
+    //@Override
+    public void XXXadd_objVariable(DefVariable val){ XXXlistScriptVariables.add(val); } 
     
     
     
