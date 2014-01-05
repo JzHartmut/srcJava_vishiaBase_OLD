@@ -571,6 +571,11 @@ public class DataAccess {
     }
     while(element !=null){
       //has a next element
+      //
+      if(data1 instanceof Variable){
+        data1 = ((Variable)data1).value;  //take the content of a variable!
+      }
+      //
       if(element.whatisit >='A' && element.whatisit <='Z'){
         //It is a new defined variable. 
         if(data1 instanceof Map<?,?>){ //unable to check generic type.
@@ -586,9 +591,6 @@ public class DataAccess {
           throw new IllegalArgumentException("DataAccess.storeValue - destination should be Map<String, DataAccess.Variable>; " + dst);
         }
      } else {
-        if(data1 instanceof Variable){
-          data1 = ((Variable)data1).value;  //take the content of a variable!
-        }
         if(element.ident.equals("test2String"))
           Assert.stop();
         switch(element.whatisit) {
@@ -612,9 +614,8 @@ public class DataAccess {
       element = iter.hasNext() ? iter.next() : null;
     }
     //return
-    if(data1 instanceof Variable){  //use the value of the variable.
-      if(bVariable) return data1;
-      else data1 = ((Variable)data1).value;
+    if(data1 instanceof Variable && !bVariable){  //use the value of the variable.
+      data1 = ((Variable)data1).value;
     }
     if(data1 == null) return null;
     else if(bContainer){

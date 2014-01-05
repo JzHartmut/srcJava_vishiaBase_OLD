@@ -312,7 +312,7 @@ public class ZGenExecuter {
     }
     setScriptVariable("text", 'A', out, true);
     ZGenScript.Subroutine contentScript = genScript.getMain();
-    ExecuteLevel genFile = new ExecuteLevel(null, scriptLevel.localVariables);
+    ExecuteLevel genFile = new ExecuteLevel(null, null);
     genFile.execute(contentScript.statementlist, out, false);
     if(bWaitForThreads){
       boolean bWait = true;
@@ -364,7 +364,7 @@ public class ZGenExecuter {
       , boolean accessPrivate, Appendable out) 
   throws Exception
   {
-    ExecuteLevel level = new ExecuteLevel(null, scriptLevel.localVariables);
+    ExecuteLevel level = new ExecuteLevel(null, null);
     //The args should be added to the localVariables of the subroutines level:
     level.localVariables.putAll(args);
     //Executes the statements of the sub routine:
@@ -465,6 +465,10 @@ public class ZGenExecuter {
      * The variables are type invariant on language level. The type is checked and therefore 
      * errors are detected on runtime only. */
     public final IndexMultiTable<String, DataAccess.Variable> localVariables;
+    
+    
+    /**content of return variables in this nested */
+    public IndexMultiTable<String, DataAccess.Variable> returnVariables;
     
     
     /**Constructs data for a local execution level.
@@ -662,8 +666,13 @@ public class ZGenExecuter {
           }
         }
       }//while
-      
-      return ret;
+      if(ret == null){
+        DataAccess.Variable retVar = localVariables.get("return");
+        if(retVar !=null){ return retVar.value(); }
+        else { return null; }
+      } else {
+        return ret;
+      }
     }
     
     
@@ -1188,7 +1197,8 @@ public class ZGenExecuter {
       while(assignObj1 !=null) {
         //Object dst = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
         DataAccess.Dst dstField = new DataAccess.Dst();
-        Object dst = DataAccess.access(assignObj1.datapath(), null, localVariables, bAccessPrivate, false, true, dstField);
+        List<DataAccess.DatapathElement> datapath = assignObj1.datapath(); 
+        Object dst = DataAccess.access(datapath, null, localVariables, bAccessPrivate, false, true, dstField);
         if(dst instanceof DataAccess.Variable){
           DataAccess.Variable var = (DataAccess.Variable) dst; //assignObj1.accessVariable(localVariables, bAccessPrivate);
           dst = var.value();
@@ -1272,6 +1282,12 @@ public class ZGenExecuter {
       }
       //DataAccess.Variable var = (DataAccess.Variable)DataAccess.access(statement.defVariable.datapath(), null, localVariables, bAccessPrivate, false, true, null);
       //var.setValue(val);
+      List<DataAccess.DatapathElement> datapath = statement.defVariable.datapath();
+      if(datapath.get(0).ident().equals("return") && !localVariables.containsKey("return")) {
+        //
+        //creates the local variable return on demand:
+        localVariables.add("return", new DataAccess.Variable('M', "return", new_Variables()));
+      }
       statement.defVariable.storeValue(localVariables, val, bAccessPrivate);
       
     }

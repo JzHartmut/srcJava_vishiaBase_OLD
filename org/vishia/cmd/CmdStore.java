@@ -5,17 +5,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.text.ParseException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.DataAccess;
 import org.vishia.util.StringPart;
-import org.vishia.xmlSimple.XmlException;
-import org.vishia.zgen.ZGen;
 
 
 /**This class stores some prepared commands. The input of the store is a file, 
@@ -36,9 +32,13 @@ public class CmdStore
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-09-08 Hartmut chg: {@link #addSubOfZgenclass(org.vishia.cmd.ZGenScript.ZGenClass, int)} now public
+   *   because readCmdCfg(...) removed to {@link org.vishia.commander.FcmdExecuter}. It has dependencies
+   *   to the Zbnf package {@link org.vishia.zgen.ZGen} which is not visible in this component by standalone compilation.
+   *   The problem is: The {@link ZGenScript} is visible here, but the used translator for the ZGenScript needs ZBNF 
    * <li>2013-09-08 Hartmut new: {@link CmdBlock#zgenSub} may replace the {@link CmdBlock#listBlockCmds}
    *   and may replace the {@link PrepareCmd} in future, first test. 
-   * <li>2012-02-19 Hartmut chg: {@link #readCmdCfg(File)} accepts $ENV, commentlines with // and #
+   * <li>2012-02-19 Hartmut chg: {@link #readCmdCfg(File)} accepts $ENV, comment lines with // and #
    *   and start of command not with spaces on line start.
    * <li>2011-12-31 Hartmut chg {@link CmdBlock#title} is new, the syntax of configfile is changed.
    *   This class is used to capture all executables for a specified extension for The.file.Commander 
@@ -179,38 +179,20 @@ public class CmdStore
 
   
   
-  public ZGenScript readCmdCfgJbat(File cfgFile, MainCmdLogging_ifc log) 
-  throws FileNotFoundException, IllegalArgumentException, IllegalAccessException
-  , InstantiationException, IOException, ParseException, XmlException
-  {
-    
-    //ZGen zbatch = new ZGen(log);
-    ZGenScript script = ZGen.translateAndSetGenCtrl(cfgFile, new File(cfgFile.getParentFile(), cfgFile.getName() + ".check.xml"), log);
-    addSubOfZgenclass(listCmds, script.scriptClass(), 1);
-    /*
-    for(Map.Entry<String, Statement> e: script.subScriptsAll.entrySet()){
-      CmdBlock cmdBlock = new CmdBlock(e.getValue(), 1);
-      add_CmdBlock(cmdBlock);
-    }
-    */
-    return script;
-  }
-
   
-  
-  private void addSubOfZgenclass(List<CmdBlock> list, ZGenScript.ZGenClass zgenClass, int level){
+  public void addSubOfZgenclass(ZGenScript.ZGenClass zgenClass, int level){
     if(zgenClass.classes !=null) for(ZGenScript.ZGenClass zgenClassSub : zgenClass.classes){
       CmdBlock cmdBlock = new CmdBlock();
-      list.add(cmdBlock); 
+      listCmds.add(cmdBlock); 
       cmdBlock.name = zgenClassSub.cmpnName;
       //cmdBlock.listSubCmds = new ArrayList<CmdBlock>();
       //addSubOfZgenclass(cmdBlock.listSubCmds, zgenClassSub, level+1);
-      addSubOfZgenclass(list, zgenClassSub, level+1);
+      addSubOfZgenclass(zgenClassSub, level+1);
     }
     if(zgenClass.subroutines !=null) for(Map.Entry<String, ZGenScript.Subroutine> e: zgenClass.subroutines.entrySet()){
       ZGenScript.Subroutine subRoutine = e.getValue();
       CmdBlock cmdBlock = new CmdBlock(subRoutine, level);
-      list.add(cmdBlock); 
+      listCmds.add(cmdBlock); 
       idxCmd.put(cmdBlock.name, cmdBlock);
       //add_CmdBlock(cmdBlock);
     }
@@ -219,24 +201,6 @@ public class CmdStore
   
   
   
-  
-  public String readCmdCfg(File cfgFile, MainCmdLogging_ifc log, CmdQueue executerToInit)
-  { String error = readCmdCfgOld(cfgFile);
-    if(error ==null){
-      File cmdCfgJbat = new File(cfgFile.getParentFile(), cfgFile.getName() + ".jbat");
-      if(cmdCfgJbat.exists()){
-        try{ 
-          ZGenScript script = readCmdCfgJbat(cmdCfgJbat, log);
-          executerToInit.initExecuter(script);
-          //main.cmdSelector.initExecuter(script);
-        } catch(Exception exc){
-          log.writeError("CmdStore - JbatScript;", exc);
-        }
-      }
-
-    }
-    return error;
-  }  
   
   public String readCmdCfgOld(File cfgFile)
   { 
