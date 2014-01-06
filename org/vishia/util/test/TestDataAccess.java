@@ -29,7 +29,7 @@ public class TestDataAccess
     TestDataAccess dataRoot = new TestDataAccess("dataroot", 345);
     dataRoot.refer = new TestDataAccess("refer", 7890);
     TestDerived dataRootDerived = new TestDerived("derived", 678);  //another instance
-    Map<String, DataAccess.Variable> dataPool = test_createDatapool(dataRoot, dataRootDerived);
+    Map<String, DataAccess.Variable<Object>> dataPool = test_createDatapool(dataRoot, dataRootDerived);
     try{
       test_getDataFromField(dataRoot, dataRootDerived);
       test_accessEnclosing(dataRoot, dataRootDerived);  
@@ -52,10 +52,10 @@ public class TestDataAccess
    * @param elements members of pool
    * @return the pool
    */
-  static Map<String, DataAccess.Variable> test_createDatapool(TestDataAccess ... elements){
-    Map<String, DataAccess.Variable> pool = new TreeMap<String, DataAccess.Variable>();
+  static Map<String, DataAccess.Variable<Object>> test_createDatapool(TestDataAccess ... elements){
+    Map<String, DataAccess.Variable<Object>> pool = new TreeMap<String, DataAccess.Variable<Object>>();
     for(TestDataAccess element: elements){
-      DataAccess.Variable var = new DataAccess.Variable('O', element.name, element);
+      DataAccess.Variable<Object> var = new DataAccess.Variable<Object>('O', element.name, element);
       pool.put(element.name, var);
     }
     return pool;
@@ -149,7 +149,7 @@ public class TestDataAccess
    * @param datapool
    * @throws Exception
    */
-  static void test_datapool(Map<String, DataAccess.Variable> datapool) throws Exception{
+  static void test_datapool(Map<String, DataAccess.Variable<Object>> datapool) throws Exception{
     Object ovalue;
     int ivalue;
     //Build an access path: first field refer from the dataRoot, than in the refer instance field testint

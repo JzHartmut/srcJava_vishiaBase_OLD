@@ -26,7 +26,7 @@ public class CmdQueue implements Closeable
   
   /**Version, history and license.
    * <ul>
-   * <li>2013-09-08 Hartmut new: {@link #jbatchExecuter} now included. TODO: it should use the {@link #executer}
+   * <li>2013-09-08 Hartmut new: {@link #zgenExecuter} now included. TODO: it should use the {@link #executer}
    *   instead create a new one per call.
    * <li>2013-02-09 Hartmut chg: {@link #abortCmd()} now clears the queue too. The clearing of the command queue is a good idea, because while a program execution hangs, some unnecessary requests
    * may be initiated. 
@@ -73,7 +73,7 @@ public class CmdQueue implements Closeable
     public final ZGenScript.Subroutine jbat;
     
     final File[] files;
-    final Map<String, DataAccess.Variable> args;
+    final Map<String, DataAccess.Variable<Object>> args;
     File currentDir;
     
     /**Constructs a cmd which is added to a queue to execute in another thread.
@@ -100,7 +100,7 @@ public class CmdQueue implements Closeable
      *   should be referenced.CmdGetFileArgs_ifc
      * @param currentDir
      */
-    public PendingCmd(ZGenScript.Subroutine cmd, Map<String, DataAccess.Variable> args, File currentDir)
+    public PendingCmd(ZGenScript.Subroutine cmd, Map<String, DataAccess.Variable<Object>> args, File currentDir)
     { this.cmd = null;
       this.jbat = cmd;
       this.files = null;
@@ -127,7 +127,7 @@ public class CmdQueue implements Closeable
   
   private final CmdExecuter executer = new CmdExecuter();
   
-  private final ZGenExecuter jbatchExecuter;
+  private final ZGenExecuter zgenExecuter;
   
   //private final MainCmd_ifc mainCmd;
 
@@ -145,7 +145,7 @@ public class CmdQueue implements Closeable
   {
     this.log = log;
     MainCmdLoggingStream logMainCmd = new MainCmdLoggingStream(log, MainCmdLogging_ifc.info);
-    jbatchExecuter = new ZGenExecuter(logMainCmd);
+    zgenExecuter = new ZGenExecuter(logMainCmd);
   }
   
 
@@ -165,7 +165,7 @@ public class CmdQueue implements Closeable
   
   public void initExecuter(ZGenScript script) throws IllegalAccessException{
     try{ 
-      jbatchExecuter.initialize(script, false);
+      zgenExecuter.initialize(script, false);
     }catch(IOException exc){
       Assert.stop();
       //System.err
@@ -195,7 +195,7 @@ public class CmdQueue implements Closeable
    * @param files Some files
    * @return Number of members in queue pending for execution.
    */
-  public int addCmd(CmdBlock cmdBlock, Map<String, DataAccess.Variable> args, File currentDir)
+  public int addCmd(CmdBlock cmdBlock, Map<String, DataAccess.Variable<Object>> args, File currentDir)
   {
     pendingCmds.add(new PendingCmd(cmdBlock.zgenSub, args, currentDir));  //to execute.
     return pendingCmds.size();
@@ -257,7 +257,7 @@ public class CmdQueue implements Closeable
         }
         if(cmd1.jbat !=null){
           if(outStatus !=null){ outStatus.append(cmd1.jbat.toString()); }
-          jbatchExecuter.execSub(cmd1.jbat, cmd1.args, false, log);
+          zgenExecuter.execSub(cmd1.jbat, cmd1.args, false, log);
         } else {
           //a operation system command:
           String[] sCmd = cmd1.cmd.prepareCmd(cmd1);

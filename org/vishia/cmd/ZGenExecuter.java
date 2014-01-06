@@ -119,10 +119,6 @@ public class ZGenExecuter {
   
   protected final MainCmdLogging_ifc log;
   
-  /**The output which is given by invocation of {@link #generate(Object, File, Appendable, boolean, Appendable)}
-   */
-  protected Appendable outFile;
-  
   /**The java prepared generation script. */
   ZGenScript genScript;
   
@@ -135,6 +131,8 @@ public class ZGenExecuter {
   
   
   final ExecuteLevel scriptLevel;
+  
+  final ZGenThreadResult scriptThread;
   
   /**Generated content of all script environment variables. The script variables are present in all routines 
    * in their local variables pool. The value is either a String, CharSequence or any Object pointer.  */
@@ -157,7 +155,8 @@ public class ZGenExecuter {
   public ZGenExecuter(MainCmdLogging_ifc log){
     this.log = log;
     bWriteErrorInOutput = false;
-    scriptLevel = new ExecuteLevel();
+    scriptThread = new ZGenThreadResult();
+    scriptLevel = new ExecuteLevel(scriptThread);
   }
   
   
@@ -170,18 +169,16 @@ public class ZGenExecuter {
   public ZGenExecuter(MainCmdLogging_ifc log, boolean bWriteErrorInOutput){
     this.log = log;
     this.bWriteErrorInOutput = bWriteErrorInOutput;
-    scriptLevel = new ExecuteLevel();
+    scriptThread = new ZGenThreadResult();
+    scriptLevel = new ExecuteLevel(scriptThread);
   }
   
   
-  public Map<String, DataAccess.Variable> scriptVariables(){ return scriptLevel.localVariables; }
-  
-  public void setOutfile(Appendable outfile){ 
-    this.outFile = outfile; 
-    scriptLevel.localVariables.put("text", new DataAccess.Variable('A', "text", outfile));
-  }
-  
-  public Appendable outFile(){ return outFile; }
+  /**Returns the association to all script variables. The script variables can be changed
+   * via this association. Note that change of script variables is a global action, which should not
+   * be done for special requests in any subroutine.
+   */
+  public Map<String, DataAccess.Variable<Object>> scriptVariables(){ return scriptLevel.localVariables; }
   
   public ExecuteLevel scriptLevel(){ return scriptLevel; }
   
@@ -205,16 +202,16 @@ public class ZGenExecuter {
    * @throws IOException
    * @throws IllegalAccessException 
    */
-  public Map<String, DataAccess.Variable> genScriptVariables(ZGenScript genScriptPar
-      , boolean accessPrivate, Map<String, DataAccess.Variable> srcVariables) 
+  public Map<String, DataAccess.Variable<Object>> genScriptVariables(ZGenScript genScriptPar
+      , boolean accessPrivate, Map<String, DataAccess.Variable<Object>> srcVariables) 
   throws IOException, IllegalAccessException
   {
     this.genScript = genScriptPar;
     //this.data = userData;
     this.bAccessPrivate = accessPrivate;
     if(srcVariables !=null){
-      for(Map.Entry<String, DataAccess.Variable> entry: srcVariables.entrySet()){
-        DataAccess.Variable var = entry.getValue();
+      for(Map.Entry<String, DataAccess.Variable<Object>> entry: srcVariables.entrySet()){
+        DataAccess.Variable<Object> var = entry.getValue();
         DataAccess.createOrReplaceVariable(scriptLevel.localVariables, var.name(), var.type(), var.value(), var.isConst());
       }
     }
@@ -227,7 +224,7 @@ public class ZGenExecuter {
       //DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "$CD", 'E', currdir.toString(), false);
       DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "currdir", 'O', currdir, false);
     }
-    if(scriptLevel.localVariables.get("error") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "error", 'A', accessError, true); }
+    //if(scriptLevel.localVariables.get("error") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "error", 'A', accessError, true); }
     if(scriptLevel.localVariables.get("mainCmdLogging") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "mainCmdLogging", 'O', log, true); }
     if(scriptLevel.localVariables.get("nextNr") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextNr", 'O', nextNr, true); }
     //DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nrElementInContainer", 'O', null);
@@ -241,7 +238,7 @@ public class ZGenExecuter {
     //
     //generate all variables in this script:
     try{
-      scriptLevel.execute(genScript.scriptClass, outFile, false);
+      scriptLevel.execute(genScript.scriptClass, null, false);
       /*
       for(ZGenScript.DefVariable scriptVariableScript: genScript.getListScriptVariables()){
         Object value;
@@ -277,14 +274,43 @@ public class ZGenExecuter {
 
 
   
+  /**Initializes without any script variables, clears the instance.
+   * 
+   */
   public void reset(){
     bScriptVariableGenerated = false;
     scriptLevel.localVariables.clear();
+    this.genScript = null;
   }
   
   
+  /**Initializes, especially generate all script variables. All content before is removed.
+   * Especially script variables from a previous usage of the instance are removed.
+   * If you want to use a ZGenExecuter more as one time with different scripts
+   * but with the same script variables, one should call this routine one time on start,
+   * and then {@link #execute(ZGenScript, boolean, boolean, Appendable)} with maybe several scripts,
+   * which should not contain script variables, or one should call 
+   * {@link #execSub(org.vishia.cmd.ZGenScript.Subroutine, Map, boolean, Appendable)}
+   * with one of the subroutines in the given script.
+   * 
+   * @param genScript Generation script in java-prepared form. It contains the building prescript
+   *   for the script variables.
+   * @param accessPrivate decision whether private and protected members from Java instances can be accessed.   
+   * @throws IOException only if out.append throws it.
+   * @throws IllegalAccessException if a const scriptVariable are attempt to modify.
+   */
+  public void initialize(@SuppressWarnings("hiding") ZGenScript genScript, boolean accessPrivate) 
+  throws IOException, IllegalAccessException
+  {
+    this.scriptLevel.localVariables.clear();
+    this.bAccessPrivate = accessPrivate;
+    this.genScript = genScript;
+    genScriptVariables(genScript, accessPrivate, null);
+  }
+
+  
   /**Generates an output with the given script.
-   * @param genScript Generation script in java-prepared form. Parse it with {@link #parseGenScript(File, Appendable)}.
+   * @param genScript Generation script in java-prepared form. 
    * @param out Any output. It is used for direct text output and it is stored as variable "text"
    *   to write "<+text>...<.+>" to output to it.
    * @return If null, it is okay. Elsewhere a readable error message.
@@ -312,7 +338,7 @@ public class ZGenExecuter {
     }
     setScriptVariable("text", 'A', out, true);
     ZGenScript.Subroutine contentScript = genScript.getMain();
-    ExecuteLevel genFile = new ExecuteLevel(null, null);
+    ExecuteLevel genFile = new ExecuteLevel(scriptThread, null, null);
     genFile.execute(contentScript.statementlist, out, false);
     if(bWaitForThreads){
       boolean bWait = true;
@@ -331,44 +357,26 @@ public class ZGenExecuter {
   }
 
   
-  /**Initializes, especially all script variables.
-   * @param genScript Generation script in java-prepared form. Parse it with {@link #parseGenScript(File, Appendable)}.
-   * @param out Any output. It is used for direct text output and it is stored as variable "text"
-   *   to write "<+text>...<.+>" to output to it.
-   * @return If null, it is okay. Elsewhere a readable error message.
-   * @throws IOException only if out.append throws it.
-   * @throws IllegalAccessException if a const scriptVariable are attempt to modify.
-   */
-  public String initialize(ZGenScript genScript, boolean accessPrivate) 
-  throws IOException, IllegalAccessException
-  {
-    this.bAccessPrivate = accessPrivate;
-    //this.data = userData;
-    this.genScript = genScript;
-
-    if(!bScriptVariableGenerated){
-      genScriptVariables(genScript, accessPrivate, null);
-    }
-    return null;
-  }
-
-  
-  /**Executes any sub routine.
-   * @param statement
+  /**Executes the given sub routine. The script variables are used from a {@link #initialize(ZGenScript, boolean)}
+   * or one of the last {@link #execute(ZGenScript, boolean, boolean, Appendable)}.
+   * The {@link ExecuteLevel}, the subroutine's context, is created below the script level. 
+   * All of the script variables are known in the subroutine. Additional the args are given.
+   * 
+   * @param statement The subroutine in the script.
    * @param accessPrivate
-   * @param out
+   * @param out The text output.
    * @return
    * @throws IOException
    */
-  public void execSub(ZGenScript.Subroutine statement, Map<String, DataAccess.Variable> args
+  public void execSub(ZGenScript.Subroutine statement, Map<String, DataAccess.Variable<Object>> args
       , boolean accessPrivate, Appendable out) 
   throws Exception
   {
-    ExecuteLevel level = new ExecuteLevel(null, null);
+    ExecuteLevel level = new ExecuteLevel(scriptThread, scriptLevel, null);
     //The args should be added to the localVariables of the subroutines level:
     level.localVariables.putAll(args);
+    setScriptVariable("text", 'A', out, true);
     //Executes the statements of the sub routine:
-    //String sError1 = 
     level.execute(statement.statementlist, out, false);
     //return sError1;
   }
@@ -395,8 +403,8 @@ public class ZGenExecuter {
   }
   
 
-  protected IndexMultiTable<String, DataAccess.Variable> new_Variables(){
-    return new IndexMultiTable<String, DataAccess.Variable>(IndexMultiTable.providerString);
+  protected IndexMultiTable<String, DataAccess.Variable<Object>> new_Variables(){
+    return new IndexMultiTable<String, DataAccess.Variable<Object>>(IndexMultiTable.providerString);
   }
   
   
@@ -455,21 +463,19 @@ public class ZGenExecuter {
    */
   public final class ExecuteLevel
   {
-    /**Not used yet. Only for debug?
-     * 
-     */
+    /**Not used yet. Only for debug! */
     public final ExecuteLevel parent;
     
+    
+    final ZGenThreadResult threadData;
     
     /**Generated content of local variables in this nested level including the {@link ZbatchExecuter#scriptLevel.localVariables}.
      * The variables are type invariant on language level. The type is checked and therefore 
      * errors are detected on runtime only. */
-    public final IndexMultiTable<String, DataAccess.Variable> localVariables;
+    public final IndexMultiTable<String, DataAccess.Variable<Object>> localVariables;
     
-    
-    /**content of return variables in this nested */
-    public IndexMultiTable<String, DataAccess.Variable> returnVariables;
-    
+    /**Set on break statement. Used only in a for-container execution to break the loop over the elements. */
+    private boolean isBreak;
     
     /**Constructs data for a local execution level.
      * @param parentVariables if given this variable are copied to the local ones.
@@ -478,12 +484,13 @@ public class ZGenExecuter {
      *   local variables of its calling routine! This argument is only set if nested statement blocks
      *   are to execute. 
      */
-    protected ExecuteLevel(ExecuteLevel parent, Map<String, DataAccess.Variable> parentVariables)
+    protected ExecuteLevel(ZGenThreadResult threadData, ExecuteLevel parent, Map<String, DataAccess.Variable<Object>> parentVariables)
     { this.parent = parent;
+      this.threadData = threadData;
       localVariables = new_Variables();
       if(parentVariables == null){
-        for(Map.Entry<String, DataAccess.Variable> e: scriptLevel.localVariables.entrySet()){
-          DataAccess.Variable var = e.getValue();
+        for(Map.Entry<String, DataAccess.Variable<Object>> e: scriptLevel.localVariables.entrySet()){
+          DataAccess.Variable<Object> var = e.getValue();
           String key = e.getKey();
           if(key.equals("zgensub")){
             
@@ -492,15 +499,16 @@ public class ZGenExecuter {
             localVariables.put(key, var);
           } else {
             //build a new independent variable, which can be changed.
-            DataAccess.Variable var2 = new DataAccess.Variable(var);
+            DataAccess.Variable<Object> var2 = new DataAccess.Variable<Object>(var);
             localVariables.put(key, var2);
           }
         }
       } else {
         localVariables.putAll(parentVariables);  //use the same if it is not a subText, only a 
       }
-      try{ DataAccess.createOrReplaceVariable(localVariables,  "zgensub", 'O', this, true);
-      
+      try{ 
+        DataAccess.createOrReplaceVariable(localVariables,  "zgensub", 'O', this, true);
+        localVariables.add("error", threadData.error);
       } catch(IllegalAccessException exc){ throw new IllegalArgumentException(exc); }
     }
 
@@ -508,8 +516,9 @@ public class ZGenExecuter {
     
     /**Constructs data for the script execution level.
      */
-    protected ExecuteLevel()
+    protected ExecuteLevel(ZGenThreadResult threadData)
     { this.parent = null;
+      this.threadData = threadData;
       localVariables = new_Variables();
     }
 
@@ -547,7 +556,7 @@ public class ZGenExecuter {
     throws Exception 
     { final ExecuteLevel level;
       if(contentScript.bContainsVariableDef){
-        level = new ExecuteLevel(this, localVariables);
+        level = new ExecuteLevel(threadData, this, localVariables);
       } else {
         level = this;
       }
@@ -561,20 +570,19 @@ public class ZGenExecuter {
      * @return
      * @throws IOException 
      */
-    public Object execute(ZGenScript.StatementList contentScript, final Appendable out, boolean bContainerHasNext) 
+    public Map<String, DataAccess.Variable> execute(ZGenScript.StatementList contentScript, final Appendable out, boolean bContainerHasNext) 
     throws Exception 
     {
-      Object ret = null;
       Appendable uBuffer = out;
       //Generate direct requested output. It is especially on inner content-scripts.
       int ixStatement = -1;
       //Note: don't use an Iterator, use ixStatement because it will be incremented onError.
-      while(++ixStatement < contentScript.statements.size() && ret == null) { //iter.hasNext() && sError == null){
+      while(++ixStatement < contentScript.statements.size()) { //iter.hasNext() && sError == null){
         ZGenScript.ZGenitem statement = contentScript.statements.get(ixStatement); //iter.next();
         //for(TextGenScript.ScriptElement statement: contentScript.content){
         try{    
           switch(statement.elementType()){
-          case 't': executeText(statement, out);break; //
+          case 't': executeText(statement, out);break; //<:>...textexpression <.>
           case 'n': uBuffer.append(newline);  break;   //<<.n+>
           case 'T': textAppendToVarOrOut((ZGenScript.TextOut)statement); break; //<+text>...<.+> 
           case 'U': defineExpr((ZGenScript.DefVariable)statement); break; //setStringVariable(statement); break; 
@@ -615,11 +623,10 @@ public class ZGenExecuter {
             executeAssign((ZGenScript.AssignExpr)statement, val); 
           } break;
           case '+': appendExpr((ZGenScript.AssignExpr)statement); break;        //+=
-          case 'b': ret = "break"; break;
-          case 'r': ret = evalObject(statement, false); break;  // return NOTE: returns from this executer level because ret !=null.
           case '?': break;  //don't execute a onerror, skip it.  //onerror
           case 'z': throw new ZGenExecuter.ExitException(((ZGenScript.ExitStatement)statement).exitValue);  
           case 'D': debug(statement); break;  //debug
+          case 'b': isBreak = true;
           default: 
             uBuffer.append("Jbat - execute-unknown type; '" + statement.elementType() + "' :ERROR=== ");
           }//switch
@@ -666,13 +673,13 @@ public class ZGenExecuter {
           }
         }
       }//while
-      if(ret == null){
-        DataAccess.Variable retVar = localVariables.get("return");
-        if(retVar !=null){ return retVar.value(); }
-        else { return null; }
-      } else {
+      DataAccess.Variable retVar = localVariables.get("return");
+      if(retVar !=null){
+        @SuppressWarnings("unchecked")
+        Map<String, DataAccess.Variable> ret =  (Map<String, DataAccess.Variable>)retVar.value(); 
         return ret;
       }
+      else { return null; }
     }
     
     
@@ -708,7 +715,7 @@ public class ZGenExecuter {
     void executeForContainer(ZGenScript.ForStatement statement, Appendable out) throws Exception
     {
       ZGenScript.StatementList subContent = statement.statementlist();  //The same sub content is used for all container elements.
-      ExecuteLevel forExecuter = new ExecuteLevel(this, localVariables);
+      ExecuteLevel forExecuter = new ExecuteLevel(threadData, this, localVariables);
       //creates the for-variable in the executer level.
       DataAccess.Variable forVariable = DataAccess.createOrReplaceVariable(forExecuter.localVariables, statement.forVariable, 'O', null, false);
       //a new level for the for... statements. It contains the foreachData and maybe some more variables.
@@ -720,7 +727,7 @@ public class ZGenExecuter {
       }
       else if(container !=null && container instanceof Iterable<?>){
         Iterator<?> iter = ((Iterable<?>)container).iterator();
-        while(iter.hasNext()){
+        while(!forExecuter.isBreak() && iter.hasNext()){
           Object foreachData = iter.next();
           forVariable.setValue(foreachData);
           forExecuter.execute(subContent, out, iter.hasNext());
@@ -730,7 +737,7 @@ public class ZGenExecuter {
         Map<?,?> map = (Map<?,?>)container;
         Set<?> entries = map.entrySet();
         Iterator<?> iter = entries.iterator();
-        while(iter.hasNext()){
+        while(!forExecuter.isBreak() && iter.hasNext()){
           Map.Entry<?, ?> foreachDataEntry = (Map.Entry<?, ?>)iter.next();
           Object foreachData = foreachDataEntry.getValue();
           forVariable.setValue(foreachData);
@@ -882,7 +889,7 @@ public class ZGenExecuter {
       if(subtextScript == null){
         throw new NoSuchElementException("JbatExecuter - subroutine not found; " + nameSubtext);
       } else {
-        ExecuteLevel subtextGenerator = new ExecuteLevel(this, null);
+        ExecuteLevel subtextGenerator = new ExecuteLevel(threadData, this, null);
         if(subtextScript.formalArgs !=null){
           //
           //build a Map temporary to check which arguments are used:
@@ -941,23 +948,24 @@ public class ZGenExecuter {
      */
     private void executeThread(ZGenScript.ThreadBlock statement) 
     throws Exception
-    { final ZgenThreadResult result;
+    { final ZGenThreadResult result;
       if(statement.threadVariable !=null){
         try{
-          if(statement.threadName != null){  //marker for a new ThreadVariable
-            result = new ZgenThreadResult();
+          //if(statement.threadName != null){  //marker for a new ThreadVariable
+            result = new ZGenThreadResult();
             DataAccess.storeValue(statement.threadVariable.datapath(), localVariables, result, bAccessPrivate);
-          } else { 
+          //} else { 
             //use existing thread variable, Exception if not found.
-            result = (ZgenThreadResult)statement.threadVariable.getDataObj(localVariables, bAccessPrivate, false);
-          }
+          //  result = (ZGenThreadResult)statement.threadVariable.getDataObj(localVariables, bAccessPrivate, false);
+          //}
         } catch(Exception exc){
           throw new IllegalArgumentException("JbatchExecuter - thread assign failure; path=" + statement.dataAccess.toString());
         }
       } else {
-        result = null;
+        result = new ZGenThreadResult();  //without assignment to a variable.
       }
-      ZGenThread thread = new ZGenThread(this, statement, result);
+      ExecuteLevel threadLevel = new ExecuteLevel(result, this, localVariables);
+      ZGenThread thread = new ZGenThread(threadLevel, statement, result);
       synchronized(threads){
         threads.add(thread);
       }
@@ -980,7 +988,7 @@ public class ZGenExecuter {
     {
       ExecuteLevel genContent;
       if(script.statementlist.bContainsVariableDef){
-        genContent = new ExecuteLevel(this, localVariables);
+        genContent = new ExecuteLevel(threadData, this, localVariables);
       } else {
         genContent = this;  //don't use an own instance, save memory and calculation time.
       }
@@ -1035,7 +1043,7 @@ public class ZGenExecuter {
       //CurrDir currDir = (CurrDir)DataAccess.getVariable(localVariables,"currDir", true);
       
       Map<String,String> env = cmdExecuter.environment();
-      Iterator<DataAccess.Variable> iter = localVariables.iterator("$");
+      Iterator<DataAccess.Variable<Object>> iter = localVariables.iterator("$");
       boolean cont = true;
       while(cont && iter.hasNext()){
         DataAccess.Variable variable = iter.next();
@@ -1070,7 +1078,7 @@ public class ZGenExecuter {
      * @throws NoSuchFieldException if "currdir" is not found, unexpected.
      * @throws IllegalAccessException
      */
-    protected void changeCurrDir(CharSequence arg, Map<String, DataAccess.Variable> variables) 
+    protected void changeCurrDir(CharSequence arg, Map<String, DataAccess.Variable<Object>> variables) 
     throws NoSuchFieldException, IllegalAccessException{
       //String sCurrDir;
       final CharSequence arg1;
@@ -1099,6 +1107,12 @@ public class ZGenExecuter {
     
      
     
+    /**Inserts <*a_datapath> in the out.
+     * @param statement
+     * @param out
+     * @throws IllegalArgumentException
+     * @throws Exception
+     */
     private void executeDatatext(ZGenScript.DataText statement, Appendable out)  //<*datatext>
     throws IllegalArgumentException, Exception
     {
@@ -1286,7 +1300,8 @@ public class ZGenExecuter {
       if(datapath.get(0).ident().equals("return") && !localVariables.containsKey("return")) {
         //
         //creates the local variable return on demand:
-        localVariables.add("return", new DataAccess.Variable('M', "return", new_Variables()));
+        DataAccess.Variable<Object> ret = new DataAccess.Variable<Object>('M', "return", new_Variables());
+        localVariables.add("return", ret);
       }
       statement.defVariable.storeValue(localVariables, val, bAccessPrivate);
       
@@ -1400,7 +1415,7 @@ public class ZGenExecuter {
       return obj;
     }
     
-    
+    boolean isBreak(){ return isBreak; }
     
     void debug(ZGenScript.ZGenitem statement) throws Exception{
       CharSequence text = evalString(statement);
@@ -1449,15 +1464,6 @@ public class ZGenExecuter {
     CheckArgument(ZGenScript.DefVariable formalArg){ this.formalArg = formalArg; }
   }
   
-  /**It wrapps the File currDir because only this instance is referred in all localVariables.
-   * Changing the currDir should not change the content of a localVariables association
-   * but the reference of {@link CurrDir#currDir} instead. In this case all localvariables
-   * and the scriptVariable gets the changed current directory.
-   */
-  protected static class XXXCurrDir{
-    File currDir;
-    @Override public String toString(){ return currDir.getAbsolutePath(); }
-  }
   
   void stop(){
     
@@ -1469,9 +1475,14 @@ public class ZGenExecuter {
   /**State variable of a running thread or finished thread.
    * This instance will be notified if any waits (join operation)
    */
-  protected class ZgenThreadResult implements CharSequence
+  protected static class ZGenThreadResult implements CharSequence
   {
     StringBuilder uText = new StringBuilder();
+    
+    /**Exception text. If not null then an exception is thrown and maybe thrown for the next level.
+     * This text can be gotten by the "error" variable.
+     */
+    DataAccess.Variable<Object> error = new DataAccess.Variable<Object>('S', "error", null);
     
     /**State of thread execution. 
      * <ul>
@@ -1482,6 +1493,8 @@ public class ZGenExecuter {
      */
     char state = 'i';
 
+    
+    ZGenThreadResult(){}
     
     protected void clear(){
       state = 'i';
@@ -1505,9 +1518,9 @@ public class ZGenExecuter {
 
     final ZGenScript.ThreadBlock statement;
 
-    final ZgenThreadResult result;
+    final ZGenThreadResult result;
     
-    public ZGenThread(ExecuteLevel executeLevel, ZGenScript.ThreadBlock statement, ZgenThreadResult result)
+    public ZGenThread(ExecuteLevel executeLevel, ZGenScript.ThreadBlock statement, ZGenThreadResult result)
     {
       this.executeLevel = executeLevel;
       this.statement = statement;

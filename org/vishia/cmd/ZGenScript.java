@@ -1342,7 +1342,7 @@ public class ZGenScript {
   public static class ThreadBlock extends ZGenitem
   {
     
-    String threadName;    
+    String XXXthreadName;    
     
     DataAccess threadVariable;
     
@@ -1351,7 +1351,7 @@ public class ZGenScript {
     }
 
     
-    public void set_name(String name){ this.threadName = name; }
+    public void XXXset_name(String name){ this.XXXthreadName = name; }
 
     /**From Zbnf: [{ Thread <datapath?defThreadVar> = }] 
      */

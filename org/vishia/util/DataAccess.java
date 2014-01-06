@@ -7,7 +7,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -243,13 +242,13 @@ public class DataAccess {
    * @return Maybe null only if the last reference refers null. 
    * @throws Exception on any not found or etc.
    */
-  public Object getDataObj( Map<String, DataAccess.Variable> localVariables , boolean accessPrivate, boolean bContainer) 
+  public Object getDataObj( Map<String, DataAccess.Variable<Object>> localVariables , boolean accessPrivate, boolean bContainer) 
   throws Exception{
     return access(datapath, null, localVariables, accessPrivate, bContainer, false, null);
   }
 
   
-  public Variable accessVariable(Map<String, DataAccess.Variable> localVariables , boolean accessPrivate) 
+  public Variable accessVariable(Map<String, DataAccess.Variable<Object>> localVariables , boolean accessPrivate) 
   throws Exception
   {
     return (Variable)access(datapath, null, localVariables, accessPrivate, false, true, null);
@@ -288,7 +287,7 @@ public class DataAccess {
    * @throws IllegalAccessException if a field exists but can't access. Note that private members can be accessed.
    */
   @SuppressWarnings("unchecked")
-  public static void storeValue(List<DatapathElement> path, Map<String, Variable> variables, Object value, boolean bAccessPrivate) 
+  public static void storeValue(List<DatapathElement> path, Map<String, Variable<Object>> variables, Object value, boolean bAccessPrivate) 
   throws Exception {
     Dst dst = new Dst();
     //accesses the data object with given path. 
@@ -340,14 +339,14 @@ public class DataAccess {
           if(dst2 == null){
             assert(dst instanceof Map<?, ?>);
             dst2 = new IndexMultiTable<String, DataAccess.Variable>(IndexMultiTable.providerString);
-            createOrReplaceVariable((Map<String, DataAccess.Variable>)dst, element.ident, 'V', dst2, false);
+            createOrReplaceVariable((Map<String, DataAccess.Variable<Object>>)dst, element.ident, 'V', dst2, false);
           }
           dst = dst2;
         } else {
           //last item in path.
           if(dst2 == null){
             assert(dst instanceof Map<?, ?>);
-            createOrReplaceVariable((Map<String, DataAccess.Variable>)dst, element.ident, 'O', value, false);
+            createOrReplaceVariable((Map<String, DataAccess.Variable<Object>>)dst, element.ident, 'O', value, false);
           } else {
             //the last element is found, try assign the value to it, it should be any container or Appendable.
             if(dst2 instanceof StringSeq && value instanceof CharSequence){
@@ -364,7 +363,7 @@ public class DataAccess {
               ((List)dst2).add(value);
             } else if(dst instanceof Map){
               //replace, don't use dst2
-              createOrReplaceVariable((Map<String, DataAccess.Variable>)dst,element.ident, 'O', value, false);
+              createOrReplaceVariable((Map<String, DataAccess.Variable<Object>>)dst,element.ident, 'O', value, false);
             } else {  
               throw new IllegalArgumentException("JbatchExecuter - can't add value to; " + path);
             }
@@ -376,7 +375,7 @@ public class DataAccess {
   
   
   
-  public void storeValue( Map<String, Variable> variables, Object value, boolean bAccessPrivate) 
+  public void storeValue( Map<String, Variable<Object>> variables, Object value, boolean bAccessPrivate) 
   throws Exception
   {
     storeValue(datapath, variables, value, bAccessPrivate);
@@ -520,7 +519,7 @@ public class DataAccess {
   public static Object access(
       List<DatapathElement> datapath
       , Object dataRoot
-      , Map<String, DataAccess.Variable> dataPool
+      , Map<String, DataAccess.Variable<Object>> dataPool
       , boolean accessPrivate
       , boolean bContainer
       , boolean bVariable
@@ -1273,10 +1272,10 @@ public class DataAccess {
    * @param isConst true then create a const variable, or change content of a constant variable.
    * @throws IllegalAccessException  if a const variable is attempt to modify.
    */
-  public static Variable createOrReplaceVariable(Map<String, Variable> map, String name, char type, Object content, boolean isConst) throws IllegalAccessException{
-    DataAccess.Variable var = map.get(name);
+  public static Variable<Object> createOrReplaceVariable(Map<String, Variable<Object>> map, String name, char type, Object content, boolean isConst) throws IllegalAccessException{
+    DataAccess.Variable<Object> var = map.get(name);
     if(var == null){
-      var = new DataAccess.Variable(type, name, content);
+      var = new DataAccess.Variable<Object>(type, name, content);
       var.isConst = isConst;
       map.put(name, var);
     } else if(var.isConst &&!isConst){
@@ -1297,7 +1296,7 @@ public class DataAccess {
    * @return null if strict = false and the variable was not found.  
    * @throws NoSuchFieldException
    */
-  public static Variable getVariable(Map<String, Variable> map, String name, boolean strict) 
+  public static Variable<Object> getVariable(Map<String, Variable<Object>> map, String name, boolean strict) 
   throws NoSuchFieldException{
     Variable var = map.get(name);
     if(var !=null) return var; //maybe null
@@ -1589,7 +1588,7 @@ public class DataAccess {
     } 
     
 
-    public void calculateArguments(Map<String, DataAccess.Variable> localVariables) 
+    public void calculateArguments(Map<String, DataAccess.Variable<Object>> localVariables) 
     throws Exception{
       if(fnArgsExpr !=null){
         //it is a element with arguments, usual a method call. 
@@ -1651,7 +1650,7 @@ public class DataAccess {
    * </pre>
    * This datapool can be used to access with {@link DataAccess#getData(List, Object, Map, boolean, boolean)}.
    */
-  public final static class Variable{
+  public final static class Variable<T>{
     
     /**Type of the variable: S-String, A-Appendable, P-Pipe, L-List-container, F-Openfile,
      * O-Any object, E-Environment variable V - container for variables.
@@ -1666,10 +1665,10 @@ public class DataAccess {
     protected final String name;
     
     /**Reference to the data. */
-    protected Object value
+    protected T value
     ;
     
-    public Variable(char type, String name, Object value){
+    public Variable(char type, String name, T value){
       this.type = type; this.name = name; this.value = value;
     }
     
@@ -1679,7 +1678,7 @@ public class DataAccess {
      * @param value
      * @param isConst true then the value is const.
      */
-    public Variable(char type, String name, Object value, boolean isConst){
+    public Variable(char type, String name, T value, boolean isConst){
       this.type = type; this.name = name; this.value = value;
       this.isConst = isConst;
     }
@@ -1687,21 +1686,21 @@ public class DataAccess {
     /**Builds a copy of this. 
      * @param src any variable
      */
-    public Variable(Variable src){
+    public Variable(Variable<T> src){
       this.type = src.type; this.name = src.name; this.isConst = src.isConst;
-      if(src.value instanceof Appendable && src.value instanceof CharSequence){ this.value = new StringBuilder((CharSequence)src.value); }
+      if(src.value instanceof Appendable && src.value instanceof CharSequence){ this.value = /*new StringBuilder((CharSequence)*/src.value; }
       else{ this.value = src.value; }
     }
     
     public String name(){ return name; }
     
-    public Object value(){ return value; }
+    public T value(){ return value; }
     
     public char type(){ return type; }
     
     public boolean isConst(){ return isConst; }
     
-    public void setValue(Object value){ this.value = value; }
+    public void setValue(T value){ this.value = value; }
     
     @Override public String toString(){ return "Variable " + type + " " + name + " = " + value; }
   }

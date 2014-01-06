@@ -113,10 +113,10 @@ public class CmdStore
      * @return Variable container with the requeste arguments.
      * @throws IllegalAccessException 
      */
-    public Map<String, DataAccess.Variable> getArguments(CmdGetFileArgs_ifc getterFiles) {
+    public Map<String, DataAccess.Variable<Object>> getArguments(CmdGetFileArgs_ifc getterFiles) {
       if(zgenSub !=null){
         getterFiles.prepareFileSelection();
-        Map<String, DataAccess.Variable> args = new TreeMap<String, DataAccess.Variable>();
+        Map<String, DataAccess.Variable<Object>> args = new TreeMap<String, DataAccess.Variable<Object>>();
         try{
           for(ZGenScript.DefVariable arg :zgenSub.formalArgs){
             String name1 = arg.getVariableIdent();

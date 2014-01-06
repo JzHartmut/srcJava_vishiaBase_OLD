@@ -1794,7 +1794,7 @@ public class CalculatorExpr
    * @throws Exception Any exception is possible. Especially {@link java.lang.NoSuchFieldException} or such
    *   if the access via reflection is done.
    */
-  public Value calcDataAccess(Map<String, DataAccess.Variable> javaVariables, Object... args) throws Exception{
+  public Value calcDataAccess(Map<String, DataAccess.Variable<Object>> javaVariables, Object... args) throws Exception{
     if(genString !=null){
       ZGenExecuter.ExecuteLevel executer = (ZGenExecuter.ExecuteLevel)DataAccess.getVariable(javaVariables, "zgensub", true).value();
       StringBuilder u = new StringBuilder();
