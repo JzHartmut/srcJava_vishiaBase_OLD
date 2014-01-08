@@ -44,6 +44,8 @@ public class MsgDispatcherCore implements LogMessage
 
   /**version, history and license:
    * <ul>
+   * <li>2014-01-08 Hartmut new: {@link #setIdThreadForMsgDispatching(long)}
+   * <li>2014-01-08 Hartmut chg: The {@link #tickAndFlushOrClose()} should be part of the core.  
    * <li>2013-03-02 Hartmut chg: The LogMessage is implemented here now, instead in the derived {@link MsgDispatcher}.
    * <li>2013-02-25 Hartmut new: The {@link Output#bUseText} stores whether the output channel uses the text. 
    *   The {@link #dispatchMsg(int, boolean, int, OS_TimeStamp, String, Va_list)} gets a text from configuration
@@ -205,6 +207,8 @@ public class MsgDispatcherCore implements LogMessage
     boolean bUseText;
   }
   
+  long idThreadForDispatching;
+  
   final TestCnt testCnt = new TestCnt();
   
   /**List of messages to process in the dispatcher thread.
@@ -217,6 +221,8 @@ public class MsgDispatcherCore implements LogMessage
    * @java2c=noGC.
    */
   final ConcurrentLinkedQueue<Entry> freeOrders;
+  
+  protected final MsgDispatcherCore.Entry entryMsgBufferOverflow = new MsgDispatcherCore.Entry();
   
 
   
@@ -273,6 +279,21 @@ public class MsgDispatcherCore implements LogMessage
     this.listOrders = new ConcurrentLinkedQueue<Entry>(this.freeOrders);
   }
   
+  
+  /**Sets the capability that messages which are create in the dispatcher thread are output immediately
+   * though the output channel should be used in the dispatcher thread. The advantage of that capability
+   * is given 
+   * <ul>
+   * <li>Especially on startup for messages of startup. Often the {@link #tickAndFlushOrClose()} is started
+   *   after continue the startup routine but in the same main thread. 
+   *   The startup messages should be seen without delay, especially on problems on startup.
+   * <li>If some algorithm are done in a main thread, which dispatches the messages too. Then no ressources
+   *   to store message entries are necessary, and the messages comes out immediately, helpfull on debugging.
+   *   It may be typically that algorithm of calculation are executed in the same thread like dispatching.
+   * </ul>     
+   * @param idThread It should be that thread id of the Thread which runs {@link #tickAndFlushOrClose()}.
+   */
+  public void setIdThreadForMsgDispatching(long idThread){ this.idThreadForDispatching = idThread; }
   
   public final void setMsgTextConverter(MsgText_ifc converter){
     msgText = converter;
@@ -345,9 +366,10 @@ public class MsgDispatcherCore implements LogMessage
     int dstBits = searchDispatchBits(identNumber);
     if(dstBits != 0)
     { final int dstBitsForDispatcherThread;
-      if((dstBits & mDispatchInCallingThread) != 0)
+      boolean bDispatchAlways = idThreadForDispatching !=0 && Thread.currentThread().getId() == idThreadForDispatching;
+      if((dstBits & mDispatchInCallingThread) != 0 || bDispatchAlways)
       { /**dispatch in this calling thread: */
-        dstBitsForDispatcherThread = dispatchMsg(dstBits, false, identNumber, creationTime, text, args);
+        dstBitsForDispatcherThread = dispatchMsg(dstBits, false, bDispatchAlways, identNumber, creationTime, text, args);
       }
       else
       { /**No destinations are to use in calling thread. */
@@ -405,7 +427,77 @@ public class MsgDispatcherCore implements LogMessage
    */
   @Override public void flush() {  }
   
+  /**Dispatches the queues messages, after them calls {@link LogMessage#flush()} for all queued outputs.
+   * This method can be called in any user thread cyclically. 
+   * As opposite the {@link DispatcherThread} can be instantiate and {@link DispatcherThread#start()}. 
+   * That thread calls only this routine in its cycle. 
+   */
+  public final void tickAndFlushOrClose()
+  { dispatchQueuedMsg();
+    for(int ix = 0; ix < outputs.length; ix++){
+      MsgDispatcherCore.Output output = outputs[ix];
+      if(output.dstInDispatcherThread){
+        output.outputIfc.flush();
+      }
+    }
+  }
   
+  
+  /**Dispatches all messages, which are stored in the queue. 
+   * This routine should be called in a user thread or maybe in the background loop respectively the main thread. 
+   * This routine is called in {@link #tickAndFlushOrClose()} and in @ {@link #flush()} and link #close()}.
+   * @return number of messages which are found to dispatch, for statistic use.
+   */
+  public final int dispatchQueuedMsg()
+  { int nrofFoundMsg = 0;
+    /**Limit the number of while-loops to prevent thread hanging. */
+    int cntDispatchedMsg = 100;
+    boolean bCont;
+    MsgDispatcherCore.Entry firstNotSentMsg = null;
+    do
+    { MsgDispatcherCore.Entry entry = listOrders.poll();
+      bCont = (entry != null && entry != firstNotSentMsg);
+      if(bCont)
+      { nrofFoundMsg +=1;
+        dispatchMsg(entry.dst, true, false, entry.ident, entry.timestamp, entry.text, entry.values.get_va_list());
+        entry.values.clean();
+        entry.ident = 0;  
+        freeOrders.offer(entry);
+      }
+      
+    }while(bCont && (--cntDispatchedMsg) >=0);
+    //The buffer is empty yet.
+    if(ctLostMessages >0){                              //dispatch the message about overflow of queued message.
+      entryMsgBufferOverflow.values.setArg(0, ctLostMessages);
+      //Note: In this time after readout the queue till set ctLostMessage to 0 an newly overflow may be occurred.
+      //That is possible if a higher priority task or interrupt fills the queue. But it is able to expect
+      //that this overflow continues after set ctLostMessages = 0, so it is detected. A thread safe operation
+      //does not necessary.
+      ctLostMessages = 0;
+      int dstBits = searchDispatchBits(entryMsgBufferOverflow.ident);
+      entryMsgBufferOverflow.timestamp.set(OS_TimeStamp.os_getDateTime());
+      ///
+      dispatchMsg(dstBits, true, false, entryMsgBufferOverflow.ident, entryMsgBufferOverflow.timestamp
+          , entryMsgBufferOverflow.text, entryMsgBufferOverflow.values.get_va_list());
+    }
+    if(cntDispatchedMsg == 0)
+    { /**max nrof msg are processed:
+       * The while-queue is left because a thread hanging isn't able to accept.
+       * The rest of messages, if there are any, will stay in the queue.
+       * This routine is repeated, if any other message is added to the queue
+       * or after a well-long delay. The situation of thread hanging because any error
+       * is the fatal version of software error. Prevent it. 
+       */
+      //printf("MsgDisp: WARNING to much messages in queue\n");
+      /**Count this situation to enable to inspect it. */  
+      testCnt.tomuchMsgPerThread +=1;
+    }
+    return nrofFoundMsg;
+  }
+  
+  
+  
+
   
   /**Dispatches a message. This routine is called either in the calling thread of the message
    * or in the dispatcher thread. 
@@ -416,14 +508,17 @@ public class MsgDispatcherCore implements LogMessage
    *        if the destination is valid for the calling thread.
    * @param bDispatchInDispatcherThread true if this method is called in dispatcher thread,
    *        false if called in calling thread. This param is compared with {@link Output#dstInDispatcherThread},
-   *        only if it is equal with them, the message is outputted.
+   *        only if it is equal with them, the message is output.
+   * @param bDispatchAlways true then the output is used both in calling and in dispatcher thread.
+   *   This boolean should be set only if the calling thread is the same as the dispatcher thread
+   *   and the message should dispatch in the messag creation thread therefore.       
    * @param identNumber identification of the message.
    * @param creationTime
    * @param text The identifier text @pjava2c=zeroTermString.
    * @param args @pjava2c=nonPersistent.
    * @return 0 if all destinations are processed, elsewhere dstBits with bits of non-processed dst.
    */
-  protected final int dispatchMsg(int dstBits, boolean bDispatchInDispatcherThread
+  protected final int dispatchMsg(int dstBits, boolean bDispatchInDispatcherThread, boolean bDispatchAlways
       , int identNumber, final OS_TimeStamp creationTime, String text, final Va_list args)
   { //final boolean bDispatchInDispatcherThread = (dstBits & mDispatchInDispatcherThread)!=0;
     //assert, that dstBits is positive, because >>=1 and 0-test fails elsewhere.
@@ -434,8 +529,10 @@ public class MsgDispatcherCore implements LogMessage
     @Java4C.zeroTermString String sTextMsg = text;  //maybe null if not used.
     boolean bMsgTextGotten = false;
     while(dstBits != 0 && bitTest < mDispatchBits) //abort if no bits are set anymore.
-    { if(  (dstBits & bitTest)!=0 
-        && ( ( outputs[idst].dstInDispatcherThread &&  bDispatchInDispatcherThread)  //dispatch in the requested thread
+    { if(  (dstBits & bitTest)!=0 //test if this bit for output is set
+           //test whether the bit should be used: 
+        && ( bDispatchAlways
+           ||( outputs[idst].dstInDispatcherThread &&  bDispatchInDispatcherThread)  //dispatch in the requested thread
            ||(!outputs[idst].dstInDispatcherThread && !bDispatchInDispatcherThread)
            )
         )

@@ -42,7 +42,12 @@ public class ZGenExecuter {
   
   
   /**Version, history and license.
-   * <ul>2013-12-26 Hartmut new: subroutine returns a value and assigns to any variable.
+   * <ul>
+   * <li>2014-01-09 Hartmut new: If the "text" variable or any other Appendable variable has a null-value,
+   *   a StringBuilder is instantiated therefore and stored in this variable. It is possible therewith
+   *   to create an text only if necessary. We don't need a StringBuilder instance if it is never used. 
+   * <li>2014-01-06 Hartmut new: {@link ZGenThreadResult} has the error Variable, test thread 
+   * <li>2013-12-26 Hartmut new: subroutine returns a value and assigns to any variable.
    * <li>2013-12-26 Hartmut re-engineering: Now the Statement class is obsolete. Instead all statements have the base class
    *   {@link ZGenitem}. That class contains only elements which are necessary for all statements. Some special statements
    *   have its own class with some more elements, especially for the ZBNF parse result. Compare it with the syntax
@@ -108,7 +113,7 @@ public class ZGenExecuter {
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public int version = 20131029;
+  static final public String sVersion = "2014-01-12";
 
   /**Variable for any exception while accessing any java resources. It is the $error variable of the script. */
   protected String accessError = null;
@@ -326,20 +331,19 @@ public class ZGenExecuter {
    * @throws IOException
    * @throws IllegalAccessException if a const scriptVariable are attempt to modify.
    */
-  public int execute(ZGenScript genScript, boolean accessPrivate, boolean bWaitForThreads, Appendable out) 
+  public CharSequence execute(ZGenScript genScript, boolean accessPrivate, boolean bWaitForThreads, Appendable out) 
   throws Exception, IllegalAccessException
-  {
-    this.bAccessPrivate = accessPrivate;
+  { this.bAccessPrivate = accessPrivate;
     //this.data = userData;
     this.genScript = genScript;
 
     if(!bScriptVariableGenerated){
       genScriptVariables(genScript, accessPrivate, null);
     }
-    setScriptVariable("text", 'A', out, true);
+    setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
     ZGenScript.Subroutine contentScript = genScript.getMain();
-    ExecuteLevel genFile = new ExecuteLevel(scriptThread, null, null);
-    genFile.execute(contentScript.statementlist, out, false);
+    ExecuteLevel execFile = new ExecuteLevel(scriptThread, null, null);
+    execFile.execute(contentScript.statementlist, out, false);
     if(bWaitForThreads){
       boolean bWait = true;
       while(bWait){
@@ -353,7 +357,11 @@ public class ZGenExecuter {
       }
 
     }
-    return 0;
+    @SuppressWarnings("cast")
+    DataAccess.Variable<Object> varText = (DataAccess.Variable<Object>)scriptLevel.localVariables.get("text");
+    CharSequence sText = (CharSequence)varText.value();
+    if(sText == null) return null;
+    else return sText;
   }
 
   
@@ -847,11 +855,24 @@ public class ZGenExecuter {
      * @throws Exception 
      */
     void textAppendToVarOrOut(ZGenScript.TextOut statement) throws Exception
-    { Object variable = statement.variable.getDataObj(localVariables, bAccessPrivate, false); //getVariable(localVariables,name, false);
-      if(!(variable instanceof Appendable)) {
+    { Object chn;
+      Object oVar = DataAccess.access(statement.variable.datapath(), null, localVariables, bAccessPrivate, false, true, null);
+      if(oVar instanceof DataAccess.Variable<?>){
+        @SuppressWarnings("unchecked")
+        DataAccess.Variable<Object> var = (DataAccess.Variable<Object>) oVar;
+        chn = var.value();
+        if(chn == null && var.type() == 'A'){
+          chn = new StringBuilder();
+          var.setValue(chn);            //Creates a new StringBuilder for an uninitialized variable. Stores there.
+        }
+      } else {
+        //it is not a variable, can be direct stored Appendable:
+        chn = oVar;
+      }
+      if(!(chn instanceof Appendable)) {
         throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
       }
-      Appendable out1 = (Appendable)variable;  //append, it may be a StringBuilder.
+      Appendable out1 = (Appendable)chn;  //append, it may be a StringBuilder.
       if(statement.statementlist !=null){
         //executes the statement, use the Appendable to output immediately
         execute(statement.statementlist, out1, false);

@@ -421,7 +421,7 @@ public class CmdExecuter implements Closeable
             if(outs != null && processOut.ready()){
               if( (sLine= processOut.readLine()) !=null){
                 for(Appendable out :outs){
-                  out.append(sLine).append('\n');
+                  out.append(sLine).append("\n");
                 }
               } else {
                 //Because processOut returns null, it is "end of file" for the output stream of the started process.

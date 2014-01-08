@@ -217,6 +217,8 @@ public abstract class MainCmd implements MainCmd_ifc
   /**Version, able to read as hex yyyymmdd.
    * Changes:
    * <ul>
+   * <li>2014-01-08 Hartmut bugfix: {@link #sendMsgTimeToAppendableDst(Appendable, int, int, OS_TimeStamp, String, Object...)}
+   *   catches a IllegalFormatException 
    * <li>2013-12-30 Hartmut chg: {@link #testArgument(String, int)} emptyArg supported, was commented.
    * <li>2013-12-15 Hartmut new: Argument --msgcfg adds the {@link MsgRedirectConsole} to the main instance.
    *   Therewith the Conversion of System.out.println(...) and System.err... can be used in all applications.
@@ -1527,11 +1529,15 @@ public abstract class MainCmd implements MainCmd_ifc
     
   final void sendMsgTimeToAppendableDst(Appendable dst, int identNumber, int reportLevel, OS_TimeStamp creationTime,
       String text, Object... args) {
-      final String line;
+      String line;
       if(args.length == 0){
         line = dateFormatMsg.format(creationTime) + "; " + identNumber + "; " + text;
       } else {
-        line = dateFormatMsg.format(creationTime) + "; " + identNumber + "; " + String.format(text,args);
+        try{
+          line = dateFormatMsg.format(creationTime) + "; " + identNumber + "; " + String.format(text,args);
+        } catch(IllegalFormatException exc){
+          line = dateFormatMsg.format(creationTime) + "; " + identNumber + "; " + text;
+        }
       }
       try{ 
         dst.append(line);

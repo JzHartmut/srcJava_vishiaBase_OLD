@@ -114,8 +114,6 @@ public static final int version = 0x20120302;
   private int maxDst = 0;
 
   
-  private final MsgDispatcherCore.Entry entryMsgBufferOverflow = new MsgDispatcherCore.Entry();
-  
 
   //private final int msgIdentQueueOverflow;
       
@@ -621,60 +619,6 @@ public static final int version = 0x20120302;
   
   
   
-  /**Dispatches all messages, which are stored in the queue. 
-   * This routine should be called in a user thread. It is called in {@link #tickAndFlushOrClose()} 
-   * and in @ {@link #flush()} and link #close()}.
-   * @return number of messages which are found to dispatch, for statistic use.
-   */
-  public final int dispatchQueuedMsg()
-  { int nrofFoundMsg = 0;
-    /**Limit the number of while-loops to prevent thread hanging. */
-    int cntDispatchedMsg = 100;
-    boolean bCont;
-    MsgDispatcherCore.Entry firstNotSentMsg = null;
-    do
-    { MsgDispatcherCore.Entry entry = listOrders.poll();
-      bCont = (entry != null && entry != firstNotSentMsg);
-      if(bCont)
-      { nrofFoundMsg +=1;
-        dispatchMsg(entry.dst, true, entry.ident, entry.timestamp, entry.text, entry.values.get_va_list());
-        entry.values.clean();
-        entry.ident = 0;  
-        freeOrders.offer(entry);
-      }
-      
-    }while(bCont && (--cntDispatchedMsg) >=0);
-    //The buffer is empty yet.
-    if(ctLostMessages >0){                              //dispatch the message about overflow of queued message.
-      entryMsgBufferOverflow.values.setArg(0, ctLostMessages);
-      //Note: In this time after readout the queue till set ctLostMessage to 0 an newly overflow may be occurred.
-      //That is possible if a higher priority task or interrupt fills the queue. But it is able to expect
-      //that this overflow continues after set ctLostMessages = 0, so it is detected. A thread safe operation
-      //does not necessary.
-      ctLostMessages = 0;
-      int dstBits = searchDispatchBits(entryMsgBufferOverflow.ident);
-      entryMsgBufferOverflow.timestamp.set(OS_TimeStamp.os_getDateTime());
-      ///
-      dispatchMsg(dstBits, true, entryMsgBufferOverflow.ident, entryMsgBufferOverflow.timestamp
-          , entryMsgBufferOverflow.text, entryMsgBufferOverflow.values.get_va_list());
-    }
-    if(cntDispatchedMsg == 0)
-    { /**max nrof msg are processed:
-       * The while-queue is left because a thread hanging isn't able to accept.
-       * The rest of messages, if there are any, will stay in the queue.
-       * This routine is repeated, if any other message is added to the queue
-       * or after a well-long delay. The situation of thread hanging because any error
-       * is the fatal version of software error. Prevent it. 
-       */
-      //printf("MsgDisp: WARNING to much messages in queue\n");
-      /**Count this situation to enable to inspect it. */  
-      testCnt.tomuchMsgPerThread +=1;
-    }
-    return nrofFoundMsg;
-  }
-  
-  
-  
   /**It's a debug helper. The method is empty, but it is a mark to set a breakpoint. */
   final void stop(){}
 
@@ -697,25 +641,10 @@ public static final int version = 0x20120302;
   { dispatchQueuedMsg();
   }
 
-  /**Outputs the queued messages calling {@link LogMessage#flush()} for all queued outputs.
-   * This method can be called in the dispatcher thread cyclically, as opposite to the 
-   * {@link DispatcherThread#start()}, where this routine is called too. 
-   */
-  public final void tickAndFlushOrClose()
-  { dispatchQueuedMsg();
-    for(int ix = 0; ix < outputs.length; ix++){
-      MsgDispatcherCore.Output output = outputs[ix];
-      if(output.dstInDispatcherThread){
-        output.outputIfc.flush();
-      }
-    }
-  }
-  
-  
-  /**Class to organize a dispachter thread.
-   * 
-   *
-   */
+  /**Class to organize a dispatcher thread. This class can be used if another cyclic thread is not available
+   * in the users application space which runs the {@link MsgDispatcher#tickAndFlushOrClose()} cyclically.
+   * If the user has a cyclic thread, in embedded systems the background loop can be used too, 
+   * then this instance is not necessary. */
   public class DispatcherThread extends Thread
   {
     private final int cycleMillisec;
