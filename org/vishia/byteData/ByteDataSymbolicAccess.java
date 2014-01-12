@@ -25,6 +25,7 @@ package org.vishia.byteData;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.vishia.bridgeC.ConcurrentLinkedQueue;
 import org.vishia.bridgeC.IllegalArgumentExceptionJc;
 import org.vishia.byteData.RawDataAccess;
 import org.vishia.mainCmd.Report;
@@ -306,6 +307,17 @@ public class ByteDataSymbolicAccess {
       ByteDataSymbolicAccess.this.timeRequestNewValue = timeRequested;
     }
     
+    @Override public void requestValue(long timeRequested, Runnable run)
+    {
+      ByteDataSymbolicAccess.this.timeRequestNewValue = timeRequested;
+      int catastrophicCount = 10;
+      while(ByteDataSymbolicAccess.this.runOnRecv.remove(run)){  //prevent multiple add 
+        if(--catastrophicCount <0){ throw new IllegalArgumentExceptionJc("ByteDataSymbolicAccess - requestValue catastrophicalCount", run.hashCode()); }
+      }
+      boolean offerOk = ByteDataSymbolicAccess.this.runOnRecv.offer(run);
+      if(!offerOk){ throw new IllegalArgumentExceptionJc("ByteDataSymbolicAccess - requestValue run cannot be added", run.hashCode()); }
+    }
+    
     @Override public boolean isRequestedValue(boolean retryFaultyVariables){
       if(ByteDataSymbolicAccess.this.timeRequestNewValue == 0) return false;  //never requested
       long timeNew = ByteDataSymbolicAccess.this.timeRequestNewValue - ByteDataSymbolicAccess.this.timeSetNewValue;
@@ -350,6 +362,8 @@ public class ByteDataSymbolicAccess {
   int nrofData;
   
   long timeRequestNewValue;
+  
+  private final ConcurrentLinkedQueue<Runnable> runOnRecv = new ConcurrentLinkedQueue<Runnable>();
   
   long timeSetNewValue;
   

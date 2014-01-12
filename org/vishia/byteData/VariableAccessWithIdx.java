@@ -164,6 +164,9 @@ public class VariableAccessWithIdx implements VariableAccess_ifc
   @Override
   public void requestValue(long timeRequested){ variable.requestValue(timeRequested); }
 
+  @Override
+  public void requestValue(long timeRequested, Runnable run){ variable.requestValue(timeRequested, run); }
+
   @Override public boolean isRequestedValue(boolean retryFaultyVariables){
     return variable.isRequestedValue(retryFaultyVariables);
   }

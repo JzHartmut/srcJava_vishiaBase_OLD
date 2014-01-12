@@ -119,7 +119,7 @@ public class StringPartScan extends StringPart
    * @java2c=return-this.
    * @return
    */
-  public StringPartScan scanStart()
+  public final StringPartScan scanStart()
   { bCurrentOk = true;
     scanOk();  //turn all indicees to ok
     return this;
@@ -129,7 +129,7 @@ public class StringPartScan extends StringPart
   
   
   
-  private boolean scanEntry()
+  private final boolean scanEntry()
   { if(bCurrentOk)
     { seekNoWhitespaceOrComments();
       if(bStartScan)
@@ -153,7 +153,7 @@ public class StringPartScan extends StringPart
    * @return true if the current scanning was ok, false if it was not ok.
    */
 
-  public boolean scanOk()
+  public final boolean scanOk()
   { if(bCurrentOk) 
     { beginScan =  beginLast = begin;    //the scanOk-position is the begin of maximal part.
       bStartScan = true;   //set all idxLast... to 0
@@ -181,7 +181,7 @@ public class StringPartScan extends StringPart
    *  @param sTest String to test
       @return this
   */
-  public StringPartScan scan(final CharSequence sTestP)
+  public final StringPartScan scan(final CharSequence sTestP)
   { if(bCurrentOk)   //NOTE: do not call scanEntry() because it returns false if end of text is reached,
     {                //      but the sTestP may contain only cEndOfText. end of text will be okay than.
       seekNoWhitespaceOrComments();
@@ -214,7 +214,7 @@ public class StringPartScan extends StringPart
    * @param sResult
    * @return
    */
-  public StringPartScan scanQuotion(CharSequence sQuotionmarkStart, String sQuotionMarkEnd, String[] sResult)
+  public final StringPartScan scanQuotion(CharSequence sQuotionmarkStart, String sQuotionMarkEnd, String[] sResult)
   { return scanQuotion(sQuotionmarkStart, sQuotionMarkEnd, sResult, Integer.MAX_VALUE);
   }
   
@@ -227,7 +227,7 @@ public class StringPartScan extends StringPart
    * @param maxToTest
    * @return
    */
-  public StringPartScan scanQuotion(CharSequence sQuotionmarkStart, String sQuotionMarkEnd, String[] sResult, int maxToTest)
+  public final StringPartScan scanQuotion(CharSequence sQuotionmarkStart, String sQuotionMarkEnd, String[] sResult, int maxToTest)
   { if(scanEntry())
     { scan(sQuotionmarkStart).lentoNonEscapedString(sQuotionMarkEnd, maxToTest);
       if(bCurrentOk)
@@ -247,7 +247,7 @@ public class StringPartScan extends StringPart
       @param bHex true: scan hex Digits and realize base 16, otherwise realize base 10.
       @return long number represent the digits.
   */
-  private long scanDigits(boolean bHex, int maxNrofChars)
+  private final long scanDigits(boolean bHex, int maxNrofChars)
   { if(bCurrentOk)
     { long nn = 0;
       boolean bCont = true;
@@ -287,7 +287,7 @@ public class StringPartScan extends StringPart
    * @java2c=return-this.
    * @return
    */
-  public StringPartScan scanPositivInteger() throws ParseException  //::TODO:: scanLong(String sPicture)
+  public final StringPartScan scanPositivInteger() throws ParseException  //::TODO:: scanLong(String sPicture)
   { if(scanEntry())
     { long value = scanDigits(false, Integer.MAX_VALUE);
       if(bCurrentOk)
@@ -309,7 +309,7 @@ public class StringPartScan extends StringPart
    * @java2c=return-this.
    * @return this
    */
-  public StringPartScan scanInteger() throws ParseException  //::TODO:: scanLong(String sPicture)
+  public final StringPartScan scanInteger() throws ParseException  //::TODO:: scanLong(String sPicture)
   { if(scanEntry())
     { boolean bNegativValue = false;
       if( content.charAt(begin) == '-')
@@ -340,7 +340,7 @@ public class StringPartScan extends StringPart
    * @return this
    * @throws ParseException if the buffer is not free to hold the float number.
    */
-  public StringPartScan scanFloatNumber(boolean cleanBuffer)  throws ParseException
+  public final StringPartScan scanFloatNumber(boolean cleanBuffer)  throws ParseException
   {
     if(cleanBuffer){
       idxLastFloatNumber = -1; 
@@ -359,7 +359,7 @@ public class StringPartScan extends StringPart
    * @return this
    * @throws ParseException if the buffer is not free to hold the float number.
    */
-  public StringPartScan scanFloatNumber() throws ParseException  //::TODO:: scanLong(String sPicture)
+  public final StringPartScan scanFloatNumber() throws ParseException  //::TODO:: scanLong(String sPicture)
   { if(scanEntry())
     { long nInteger = 0, nFractional = 0;
       int nDivisorFract = 1, nExponent;
@@ -462,7 +462,7 @@ public class StringPartScan extends StringPart
    * @throws ParseException if the buffer is not free to hold an integer number.
    * @java2c=return-this.
    */
-  public StringPartScan scanHex(int maxNrofChars) throws ParseException  //::TODO:: scanLong(String sPicture)
+  public final StringPartScan scanHex(int maxNrofChars) throws ParseException  //::TODO:: scanLong(String sPicture)
   { if(scanEntry())
     { long value = scanDigits(true, maxNrofChars);
       if(bCurrentOk)
@@ -487,7 +487,7 @@ public class StringPartScan extends StringPart
    * @param maxNrofChars The maximal number of chars to scan, if <=0 than no limit.
    * @return this to concatenate the call.
    */
-  public StringPartScan scanHexOrDecimal(int maxNrofChars) throws ParseException  //::TODO:: scanLong(String sPicture)
+  public final StringPartScan scanHexOrDecimal(int maxNrofChars) throws ParseException  //::TODO:: scanLong(String sPicture)
   { if(scanEntry())
     { long value;
       if( StringFunctions.equals(content, begin, begin+2, "0x"))
@@ -511,7 +511,7 @@ public class StringPartScan extends StringPart
    * @java2c=return-this.
    * @return
    */
-  public StringPartScan scanIdentifier()
+  public final StringPartScan scanIdentifier()
   { return scanIdentifier(null, null);
   }
   
@@ -522,7 +522,7 @@ public class StringPartScan extends StringPart
    * @param additionalChars
    * @return
    */
-  public StringPartScan scanIdentifier(String additionalStartChars, String additionalChars)
+  public final StringPartScan scanIdentifier(String additionalStartChars, String additionalChars)
   { if(scanEntry())
     { lentoIdentifier(additionalStartChars, additionalChars);
       if(bFound)
@@ -547,7 +547,7 @@ public class StringPartScan extends StringPart
    *         depending on the expectable values.
    * @throws ParseException if called though no scan routine was called. 
    */
-  public long getLastScannedIntegerNumber() throws ParseException
+  public final long getLastScannedIntegerNumber() throws ParseException
   { if(idxLastIntegerNumber >= 0)
     { return nLastIntegerNumber [idxLastIntegerNumber--];
     }
@@ -560,7 +560,7 @@ public class StringPartScan extends StringPart
    *         depending on the expectable values and the storing format.
    * @throws ParseException if called though no scan routine was called. 
    */
-  public double getLastScannedFloatNumber() throws ParseException
+  public final double getLastScannedFloatNumber() throws ParseException
   { if(idxLastFloatNumber >= 0)
     { return nLastFloatNumber[idxLastFloatNumber--];
     }
@@ -573,7 +573,7 @@ public class StringPartScan extends StringPart
    * @return The CharSequence which refers in the parent sequence. Use toString() if you need
    *   an persistent String.
    */
-  public CharSequence getLastScannedString()
+  public final CharSequence getLastScannedString()
   { return sLastString;
   }
   
@@ -594,17 +594,17 @@ public class StringPartScan extends StringPart
    *  after the getting chars!
    *  @param sCharsEnd Assembling of chars determine the end of the part.  
    * */
-  public CharSequence getCircumScriptionToAnyChar(String sCharsEnd)
+  public final CharSequence getCircumScriptionToAnyChar(String sCharsEnd)
   { return getCircumScriptionToAnyChar_p(sCharsEnd, false);
   }
   
   
-  public CharSequence getCircumScriptionToAnyCharOutsideQuotion(String sCharsEnd)
+  public final CharSequence getCircumScriptionToAnyCharOutsideQuotion(String sCharsEnd)
   { return getCircumScriptionToAnyChar_p(sCharsEnd, true);
   }
   
   
-  private CharSequence getCircumScriptionToAnyChar_p(String sCharsEnd, boolean bOutsideQuotion)
+  private final CharSequence getCircumScriptionToAnyChar_p(String sCharsEnd, boolean bOutsideQuotion)
   { CharSequence sResult;
     if(begin == 4910)
       Assert.stop();
@@ -664,7 +664,7 @@ public class StringPartScan extends StringPart
    * @return
    * @since 2013-09-07
    */
-  public StringPartScan scanTranscriptionToAnyChar(CharSequence[] dst, String sCharsEnd
+  public final StringPartScan scanTranscriptionToAnyChar(CharSequence[] dst, String sCharsEnd
       , char transcriptChar, char quotationStartChar, char quotationEndChar)
   { if(scanEntry()){
       if(begin == 4910)

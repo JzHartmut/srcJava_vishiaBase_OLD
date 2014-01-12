@@ -26,31 +26,39 @@
  */
 package org.vishia.byteData;
 
+import org.vishia.util.Java4C;
+
 /**This class is use-able to free access to data.
  * @deprecated, use {@link ByteDataAccessSimple} instead.
  */ 
 public class RawDataAccess  extends ByteDataAccess
 {
   
+  
+  
   public RawDataAccess()
   { 
   }
 
+  @Override
   protected void specifyEmptyDefaultData() 
   {
   }
 
 
+  @Override
   protected int specifyLengthElement() 
   { return -1;
   }
   
   
+  @Override
   public int specifyLengthElementHead() 
   { return 0;
   } 
 
   
+  @Override
   public void setBigEndian(boolean value)
   { super.setBigEndian(value);
   }
@@ -84,24 +92,47 @@ public class RawDataAccess  extends ByteDataAccess
    * @param idx byte-offset, the offset is not tested. If the offset is wrong, a null-pointer-exception throws.
    * @return double value
    */
+  @Java4C.inline
   public final double getDoubleVal(int idx)
   { return Double.longBitsToDouble(_getLong(idx, 8));
   }
 
   
-  
+  /**
+   * @param idx
+   * @param nrofBytes
+   * @param value  xxxxxx
+   */
+  @Java4C.inline
   public final void setIntVal(int idx, int nrofBytes, long value)
-  { _setLong(idx, nrofBytes, value);
+  { try{
+      _setLong(idx, nrofBytes, value);  //test2
+    }catch(Exception exc){
+      throw new RuntimeException(exc); //only test
+    }
   }
   
   public final void setFloatVal(int idx, float value)
   { //call of the protected super method.
+    /** @Java4C.StringBuilderInThreadCxt*/
+    if(idx < 0) throw new IndexOutOfBoundsException("setDoubleVal:" + idx); 
   	super.setFloat(idx, value);
   }
   
+  @Java4C.inline
   public final void setDoubleVal(int idx, double value)
   { //call of the protected super method.
-  	super.setDouble(idx, value);
+    /** @Java4C.StringBuilderInThreadCxt*/
+    if(idx < 0){ 
+      @Java4C.StringBuilderInThreadCxt String msg = "setDoubleVal:" + idx; 
+      throw new IndexOutOfBoundsException(msg); 
+    }
+    super.setDouble(idx, value);
   }
+  
+  
+  @Override 
+  @Java4C.exclude
+  public String toString(){ return super.toString(); }
   
 }

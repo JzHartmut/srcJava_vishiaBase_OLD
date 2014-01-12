@@ -31,7 +31,7 @@ import java.lang.annotation.RetentionPolicy;
  */
 public interface Java4C {
   
-  /**Version, history and license
+  /**Version, history and license.
    * <ul>
    * <li>2012-08-22 Hartmut new {@link exclude} for elements and classes which should not be generated in C
    * <li>2011-01-05 Hartmut created: It is better to use java language annotations instead annotations in comment,
@@ -61,7 +61,7 @@ public interface Java4C {
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
-  public final static int version = 0x20120219; 
+  public final static String sVersion = "2014-01-12"; 
 
   
   public @interface StackInstance{}
@@ -76,22 +76,41 @@ public interface Java4C {
 	
   /**Designates that the following variable is a variable for dynamic call, a method-table-reference. */
   public @interface DynamicCall{  }
-	
-  /**The String is used only non-Persist. Written on definition of String variable. */
+  
+  /**The String is used only non-Persist or a CharSequence is used as non-Persist String. 
+   * Written on definition of String variable. In C the String or CharSequence can be hold in a StringJc
+   * which can refer a String in the Stack. In Java this reference should only be a Stack reference.
+   * The reference should not be stored on any other location. */
   public @interface nonPersistent{}
+  
+  /**The CharSequence reference should be used as a StringJc instance.
+   * It is applicable if the CharSequence variable in Java is set only from a StringBuilder or a String,
+   * it is without conversion. String and StringBuilder/StringBuffer implements the CharSequence interface.
+   * If the CharSequence comes from any other instance, it can't be converted to a StringJc in C,
+   * then this annotation should not be used.
+   * */
+  public @interface StringJc{}
   
   /**The String is designated as non-persistent, especially located in ThreadContext. */
   public @interface toStringNonPersist{}
   
-  /**The method or field is not translated to C. It means the method with given name is programmed in C direct
-   * or it is not necessary there. */
+  public @interface StringBuilderInThreadCxt{}
+
+  public @interface StringBuilderInStack{ int value();}
+  
+  /**The method or field is not existing for C-translation. Both the definition and the implementation
+   * is not translated to C. */
   public @interface exclude{}
+  
+  /**The implementation of the method is not translated to C. 
+   * Usual the method with given name is programmed in C direct. */
+  public @interface excludeImpl{}
   
   /**Declare the String as const char* in C-language. */
   public @interface zeroTermString{}
   
-  /**The method is translated building a simple macro. */
-  public @interface define{}
+  /**The method is translated building a simple macro or inline method for C++. */
+  public @interface inline{}
   
   /**The class contains only methods. The super class should be enhanced with that methods whithout build
    * a special class. */

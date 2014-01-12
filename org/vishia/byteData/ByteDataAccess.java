@@ -27,6 +27,8 @@ import java.util.Arrays;
 import org.vishia.util.StringFormatter;
 import org.vishia.util.Java4C;
 
+
+
 /**This class is a base class to control the access to binary data.
  * The binary data may typically used or produced from a part of software written in C or C++.
  * There the binary data are struct-constructs. Another example - build of datagram structures.
@@ -71,7 +73,6 @@ import org.vishia.util.Java4C;
  * <li>idxCurrentChild = -1.
  * <li>idxCurrentChildEnd = index after known (head-) data.
  * </ul>
- * Deprecated: A call of {@link #next()} sets the indices to a possible but not yet defined current child:
  * <ul>
  * <li>idxCurrentChild = the index after the last known child or known (head-) data.
  *     It is idxCurrentChildEnd from state before.    
@@ -122,6 +123,7 @@ public abstract class ByteDataAccess
 {
   /**The version. 
    * <ul>
+   * <li>2014-01-12 Hartmut new: Java4C.inline for C-compilation. 
    * <li>2013-12-08 Hartmut new: {@link #ByteDataAccess(int, int)} as super constructor with given head and data size.
    *   {@link #addChild(ByteDataAccess)} accepts an initialized not used child. Uses {@link #kInitializedWithLength}.
    *   That is the possibility to work without dynamic linked methods {@link #specifyLengthElement()} etc. for proper work
@@ -224,14 +226,61 @@ public abstract class ByteDataAccess
   /** Index in the data, position of element code*/
   protected static final int kIdxElementCode = 0;
 
-  /** Conversion of characters in range 0x80..0xbf */
-  //protected static final String sConvertHiChars = "���?���^�~{}[|]���\\.............................................";
+
+  /** Constructs a new empty instance. Use assign() to work with it. */
+  protected ByteDataAccess()
+  { this.data = null;
+    this.bBigEndian = false;
+    bExpand = false;
+    idxBegin = 0;
+    idxEnd = 0;
+    idxFirstChild = 0;
+    idxCurrentChild = -1;  //to mark start.
+    idxCurrentChildEnd = 0;
+    parent = null;
+    //currentChild = null;
+    //charset = Charset.forName("ISO-8859-1");  //NOTE: String(..., Charset) is only support from Java 6
+    charset = "ISO-8859-1";
+  }
 
 
-  /**returns the length of the head. It is specified lastly by {@link specifyLengthElementHead()}
+  /** Constructs a new empty instance. Use assign() to work with it. 
+   * @param sizeHead number of bytes for the head. See {@link #assignData(byte[], int, int, int)}.
+   *   <ul>
+   *   <li>If negative, especially -1, the overridden method {@link #specifyLengthElementHead()} is called
+   *     to get the length of the head. It depends on the definition of the derived class.
+   *   <li>If 0 or >0, it is the length. Then the overridden method is not called, especially for usage in C.
+   *   </ul>               
+   * @param sizeData number of significant bytes in data for this child.
+   *   <ul>
+   *   <li>If sizeChild is to large in respect to data.length, an exception may be thrown on access.
+   *   <li>If the sizeChild is < 0 (especially -1), it means, it is not known outside.
+   *     Than the element is initialized with its known head length calling {@link #specifyLengthElement()}.
+   *   <li>If the length is >0, it defines the size of this access. Between the head and this length
+   *     some children can be added to access that data.
+   *   </ul>  
+   * */
+  protected ByteDataAccess(int sizeHead, int sizeData){
+    this.data = null;
+    this.bBigEndian = false;
+    bExpand = false;
+    idxBegin = 0;
+    idxEnd = sizeData;
+    idxFirstChild = sizeHead;
+    idxCurrentChild = -1;  //to mark start.
+    idxCurrentChildEnd = kInitializedWithLength;
+    parent = null;
+    //currentChild = null;
+    //charset = Charset.forName("ISO-8859-1");  //NOTE: String(..., Charset) is only support from Java 6
+    charset = "ISO-8859-1";
+  }
+
+
+  /**Returns the length of the head. It is specified lastly by {@link specifyLengthElementHead()}
    * of the derived class. But this method returns the difference between (idxFirstChild - idxBegin),
    * which is initialized in construction or {@link #assignData(byte[], int)}-invocations and not changed normally.
    */ 
+  @Java4C.inline
   public final int getLengthHead(){ return idxFirstChild - idxBegin; }
   
 
@@ -291,6 +340,14 @@ public abstract class ByteDataAccess
 
 
 
+  /** Notifies, that a child is added. This method may be overload,
+   * if the user must take somme actions, count the number of childs or others.
+   */
+  protected void notifyAddChild()
+  { //in default, do nothing with this.
+  }
+
+
   /** Returns the length of a child element at current position specified in  the derivated class.
    * The derivated class must known its possible child elements and must get there length
    * with enquiry of specifyLengthElement() of the current child types.
@@ -318,147 +375,34 @@ public abstract class ByteDataAccess
   }
 
 
-  /** Constructs a new empty instance. Use assign() to work with it. */
-  protected ByteDataAccess()
-  { this.data = null;
-    this.bBigEndian = false;
-    bExpand = false;
-    idxBegin = 0;
-    idxEnd = 0;
-    idxFirstChild = 0;
-    idxCurrentChild = -1;  //to mark start.
-    idxCurrentChildEnd = 0;
-    parent = null;
-    //currentChild = null;
-    //charset = Charset.forName("ISO-8859-1");  //NOTE: String(..., Charset) is only support from Java 6
-    charset = "ISO-8859-1";
-  }
-
-
-  
-  
-  /** Constructs a new empty instance. Use assign() to work with it. 
-   * @param sizeHead number of bytes for the head. See {@link #assignData(byte[], int, int, int)}.
-   *   <ul>
-   *   <li>If negative, especially -1, the overridden method {@link #specifyLengthElementHead()} is called
-   *     to get the length of the head. It depends on the definition of the derived class.
-   *   <li>If 0 or >0, it is the length. Then the overridden method is not called, especially for usage in C.
-   *   </ul>               
-   * @param sizeData number of significant bytes in data for this child.
-   *   <ul>
-   *   <li>If sizeChild is to large in respect to data.length, an exception may be thrown on access.
-   *   <li>If the sizeChild is < 0 (especially -1), it means, it is not known outside.
-   *     Than the element is initialized with its known head length calling {@link #specifyLengthElement()}.
-   *   <li>If the length is >0, it defines the size of this access. Between the head and this length
-   *     some children can be added to access that data.
-   *   </ul>  
-   * */
-  protected ByteDataAccess(int sizeHead, int sizeData){
-    this.data = null;
-    this.bBigEndian = false;
-    bExpand = false;
-    idxBegin = 0;
-    idxEnd = sizeData;
-    idxFirstChild = sizeHead;
-    idxCurrentChild = -1;  //to mark start.
-    idxCurrentChildEnd = kInitializedWithLength;
-    parent = null;
-    //currentChild = null;
-    //charset = Charset.forName("ISO-8859-1");  //NOTE: String(..., Charset) is only support from Java 6
-    charset = "ISO-8859-1";
-  }
-
-  
-  /**Assigns new data to this element. <br>
-
-   * The user may overwrite this method and call super.assignData(data, length) inside
-   * if some additional actions should be done.<br/>
-   * This method is also usefull to deassign a current data buffer, call <code>assign(null, 0);</code>.
+  /**This method is called inside all assign...() methods. 
+   * It should be overridden by a users derivation if any fix childs are present. 
+   * In the overridden routines the method {@link assignDataAtIndex(byte[], int)} should be called for the fix childs.
+   * example:<pre>
+   * @Override protected void assignDataToFixChilds()
+   * { myFixChild.assignDataAtIndex(super.data, super.idxBegin +kIdxmyFixChild);
+   * } 
+   * <pre>
+   * Note that the indices are relative to idxBegin. use <code>super.</code> because an own element data or idxBegin may be present.
    * <br>
-   * If the element are using before, its connection to an other parent is dissolved.
-   * <br>
-   * @param data The data. The length of data may be greater as
-   *             the number of the significant bytes.
-   * @param length Number of significant bytes in data.
-   *               If length is > data.length, an exception may be thrown
-   *               in any state of the evaluation.
-   * @throws IllegalArgumentException if the length is > data.length
+   * The originally implementation is empty.
    */
-  public void assignData(byte[] data, int length) 
-  throws IllegalArgumentException
-  { if(length == 0)
-    { length = -1;  //because elsewhere an exception is thrown. At least the head length are present.
-    }
-    assignData(data, length, 0);  
+  protected void assignDataToFixChilds() throws IllegalArgumentException
+  {
   }
-  
-  
-  
-  /**Assigns new data to this element at given index in data. 
-   * This method is called on {@link #addChild(ByteDataAccess)}.
-   * <br>
-   * The user may overwrite this method and call super.assignData(data, length) inside
-   * if some additional actions should be done.
-   * <br/>
-   * This method is also usefull to deassign a current data buffer, call <code>assign(null, 0);</code>.
-   * <br>
-   * If the element are using before, its connection to an other parent is dissolved.
-   * <br>
-   * @param data The data. The length of data may be greater as
-   *             the number of the significant bytes.
-   * @param lengthHead number of bytes for the head.
-   *   <ul>
-   *   <li>If negative, especially -1, the overridden method {@link #specifyLengthElementHead()} is called
-   *     to get the length of the head. It depends on the definition of the derived class.
-   *   <li>If 0 or >0, it is the length. Then the overridden method is not called, especially for usage in C.
-   *   </ul>               
-   * @param lengthData absolute Number of significant bytes in data from idx=0.
-   *   <ul>
-   *   <li>If length is > data.length, an exception is thrown.
-   *   <li>If the length is <0 (especially -1), it means, it is not known outside.
-   *     Than the element is initialized with its known head length.
-   *     The length mustn't not ==0, it is tested. Use -1 also if the head length is 0.
-   *   <li>If the length is >0, it defines the size of this access. Between the head and this length
-   *     some children can be added to access that data.
-   *   </ul>  
-   * @param index Start position in data 
-   * @throws IllegalArgumentException 
-   */
 
-  public void assignData(byte[] data, int lengthHead, int lengthData, int index) 
-  throws IllegalArgumentException
-  { this.data = data;
-    if(index < 0)
-    { throw new RuntimeException("idx have to be >=0");
-    }
-    idxBegin = index; 
-    /*
-    if(parent!= null && parent.currentChild == this)
-    { parent.currentChild = null;  //the child is invalid because it is new assigned.
-    }
-    */
-    parent = null;
-    reset(lengthHead, lengthData);
-    assignDataToFixChilds();
-  }
-  
-  
-  
-  /**Assigns data without a given length of head. The length of the head is gotten
-   * with call of the overridden method {@link #specifyLengthElementHead()} of the users class.
-   * It calls {@link #assignData(byte[], int, int, int)} with lengthHead = -1.
-   * @param data
-   * @param lengthData
-   * @param index
-   * @throws IllegalArgumentException
+
+  /**Sets the big or little endian mode. 
+   * This method is override-able, because a derived class
+   * may set the endian of embedded children too.
+   *
+   * @param val true if big endian, hi byte at lower adress, false if little endian.
    */
-  public void assignData(byte[] data, int lengthData, int index) 
-  throws IllegalArgumentException
-  { assignData(data, -1, lengthData, index);
+  public void setBigEndian(boolean val)
+  { bBigEndian = val;
   }
-  
-  
-  
+
+
   /**Resets the view to the buffer. The data in the buffer may be set newly. Either they are declared
    * as empty, then call <pre>
    * reset(0);  //all data are invalid.
@@ -501,16 +445,106 @@ public abstract class ByteDataAccess
     //lengthData is inclusively head. Other variants are calling problems.
     idxEnd = bExpand ? idxFirstChild : /*idxFirstChild + */ idxBegin + lengthData;
     if(idxEnd > data.length)
-    { throw new IllegalArgumentException("not enough data bytes, requested=" + idxEnd + ", buffer-length=" + data.length);
+    { @Java4C.StringBuilderInThreadCxt String msg = "not enough data bytes, requested=" + idxEnd + ", buffer-length=" + data.length;
+      throw new IllegalArgumentException(msg);
     }
     
+  }
+
+  
+  /**Assigns new data to this element at given index in data. 
+   * This method is called on {@link #addChild(ByteDataAccess)}.
+   * <br>
+   * The user may overwrite this method and call super.assignData(data, length) inside
+   * if some additional actions should be done.
+   * <br/>
+   * This method is also usefull to deassign a current data buffer, call <code>assign(null, 0);</code>.
+   * <br>
+   * If the element are using before, its connection to an other parent is dissolved.
+   * <br>
+   * @param data The data. The length of data may be greater as
+   *             the number of the significant bytes.
+   * @param lengthHead number of bytes for the head.
+   *   <ul>
+   *   <li>If negative, especially -1, the overridden method {@link #specifyLengthElementHead()} is called
+   *     to get the length of the head. It depends on the definition of the derived class.
+   *   <li>If 0 or >0, it is the length. Then the overridden method is not called, especially for usage in C.
+   *   </ul>               
+   * @param lengthData absolute Number of significant bytes in data from idx=0.
+   *   <ul>
+   *   <li>If length is > data.length, an exception is thrown.
+   *   <li>If the length is <0 (especially -1), it means, it is not known outside.
+   *     Than the element is initialized with its known head length.
+   *     The length mustn't not ==0, it is tested. Use -1 also if the head length is 0.
+   *   <li>If the length is >0, it defines the size of this access. Between the head and this length
+   *     some children can be added to access that data.
+   *   </ul>  
+   * @param index Start position in data 
+   * @throws IllegalArgumentException 
+   */
+  public final void assignData(byte[] dataP, int lengthHead, int lengthData, int index) 
+  throws IllegalArgumentException
+  { this.data = dataP;
+    if(index < 0)
+    { throw new RuntimeException("idx have to be >=0");
+    }
+    idxBegin = index; 
+    /*
+    if(parent!= null && parent.currentChild == this)
+    { parent.currentChild = null;  //the child is invalid because it is new assigned.
+    }
+    */
+    parent = null;
+    reset(lengthHead, lengthData);
+    assignDataToFixChilds();
+  }
+  
+  
+  
+  /**Assigns data without a given length of head. The length of the head is gotten
+   * with call of the overridden method {@link #specifyLengthElementHead()} of the users class.
+   * It calls {@link #assignData(byte[], int, int, int)} with lengthHead = -1.
+   * @param data
+   * @param lengthData
+   * @param index
+   * @throws IllegalArgumentException
+   */
+  @Java4C.inline
+  public final void assignData(byte[] data, int lengthData, int index) 
+  throws IllegalArgumentException
+  { assignData(data, -1, lengthData, index);
   }
   
   
   
 
-  
+  /**Assigns new data to this element. <br>
 
+   * The user may overwrite this method and call super.assignData(data, length) inside
+   * if some additional actions should be done.<br/>
+   * This method is also usefull to deassign a current data buffer, call <code>assign(null, 0);</code>.
+   * <br>
+   * If the element are using before, its connection to an other parent is dissolved.
+   * <br>
+   * @param data The data. The length of data may be greater as
+   *             the number of the significant bytes.
+   * @param length Number of significant bytes in data.
+   *               If length is > data.length, an exception may be thrown
+   *               in any state of the evaluation.
+   * @throws IllegalArgumentException if the length is > data.length
+   */
+  @Java4C.inline
+  public final void assignData(byte[] data, int length) 
+  throws IllegalArgumentException
+  { if(length == 0)
+    { length = -1;  //because elsewhere an exception is thrown. At least the head length are present.
+    }
+    assignData(data, length, 0);  
+  }
+  
+  
+  
+  
   /**Initializes a top level, the data are considered as non initalized.
    * The length of the head should be a constant value, given from
    * method call {@link specifyLengthElementHead()}. The child Positions
@@ -535,13 +569,14 @@ public abstract class ByteDataAccess
   final public void assignEmpty(byte[] data) 
   { try{ assignData(data, -1, 0);} catch(IllegalArgumentException e){}
 
-    specifyEmptyDefaultData();
+    specifyEmptyDefaultData();  //overrideable
   }
 
   
   /**Remove all children. Let the head unchanged.
    * @since 2010-11-16
    */
+  @Java4C.inline
   public final void removeChildren()
   { 
     idxCurrentChildEnd = idxFirstChild;
@@ -559,6 +594,7 @@ public abstract class ByteDataAccess
   
   
   /**Remove all connections. Especially for children. */
+  @Java4C.inline
   final public void detach()
   { /*
     if(currentChild !=null){ 
@@ -588,6 +624,7 @@ public abstract class ByteDataAccess
    * @throws IllegalArgumentException if a length of the new type is specified but the byte[]-data are shorter. 
    *                         The length of byte[] is tested. 
    */
+  @Java4C.inline
   final protected void assignCasted_i(ByteDataAccess src, int offsetCastToInput, int lengthDst)
   throws IllegalArgumentException
   { this.bBigEndian = src.bBigEndian;
@@ -608,64 +645,12 @@ public abstract class ByteDataAccess
    * @param input
    * @throws IllegalArgumentException
    */
+  @Java4C.inline
   final protected void assignDowncast_i(ByteDataAccess input)
   throws IllegalArgumentException
   { assignCasted_i(input, 0, -1);
   }
   
-  
-  
-
-  /**assigns the element to the current child position of parent,
-   * to represent the current child of the parent.
-   * This method should be used by reading out byte[] data 
-   * if it is detected, that the content of data matches of this derivated type of
-   * ByteDataAccess. {@link next()} should be called before. The pattern of using is:
-   * <pre>
-   * 
-    int nWhat;    //code of the element
-    while( (nWhat = dataElement.next()) != ByteDataAccess.kEndOfElements )
-    { switch(nWhat)  //test the first byte of the current element
-      { case ByteDataAccess.kText:
-        { sText = dataElement.getText();
-        } break;
-        case code1:
-        { code1Element.assignAsChild(dataElement);
-          evaluateValue(code1Element);
-        } break:
-        case code2:
-        { code1Element.assignAsChild(dataElement);
-          evaluateValue(code1Element);
-        } break:
-        default: throw new IllegalArgumentException("unknown Element", dataElement);
-      }
-    }
-    </pre>
-   * The difference to {@link addChild(ByteDataAccess)} is: addChild() is used 
-   * to writeout to data, addChild() appends the child always after idxEnd,
-   * but this method is used to read from data and appends the child at position of the current child.
-   * <br>
-   * The data reference is copied, the idxBegin of this element
-   * is set to the idxChild of parent, it is the current child position.
-   * All other indices are setted calling {@link specifyLengthElementHead()}: idxChild
-   * and {@link specifyLengthElement()}: idxEnd.
-   * The idxChildEnd of parent is setted, so calling next() after this operation
-   * increments in data after this new child.
-   * <br>
-   * If the element are using before, its connection to an other parent is dissolved.
-   * @param parent The parent. It should reference data, and a current child position
-   *        should be set by calling next() before. See sample at {@link next()}.
-   * @throws IllegalArgumentException If the data are wrong. The exception is thrown
-   *        orginal from {@link specifyLengthElement()}.
-   * @deprecated use addChild()
-   */
-  @Deprecated
-  final public void assignAsChild(ByteDataAccess parent)
-  throws IllegalArgumentException
-  { parent.addChild(this);
-  }
-
-
 
 
   
@@ -716,23 +701,6 @@ public abstract class ByteDataAccess
 
 
   
-  /**This method is called inside all assign...() methods. 
-   * It should be overridden by a users derivation if any fix childs are present. 
-   * In the overridden routines the method {@link assignDataAtIndex(byte[], int)} should be called for the fix childs.
-   * example:<pre>
-   * @Override protected void assignDataToFixChilds()
-   * { myFixChild.assignDataAtIndex(super.data, super.idxBegin +kIdxmyFixChild);
-   * } 
-   * <pre>
-   * Note that the indices are relative to idxBegin. use <code>super.</code> because an own element data or idxBegin may be present.
-   * <br>
-   * The originally implementation is empty.
-   */
-  protected void assignDataToFixChilds() throws IllegalArgumentException
-  {
-  }
-
-
   /**adds an child Element after the current child or as first child after head.
    * With the aid of the child Element the data can be read or write structured.
    * <br><br>
@@ -792,6 +760,60 @@ public abstract class ByteDataAccess
 
   
   
+
+  /**assigns the element to the current child position of parent,
+   * to represent the current child of the parent.
+   * This method should be used by reading out byte[] data 
+   * if it is detected, that the content of data matches of this derivated type of
+   * ByteDataAccess. {@link next()} should be called before. The pattern of using is:
+   * <pre>
+   * 
+    int nWhat;    //code of the element
+    while( (nWhat = dataElement.next()) != ByteDataAccess.kEndOfElements )
+    { switch(nWhat)  //test the first byte of the current element
+      { case ByteDataAccess.kText:
+        { sText = dataElement.getText();
+        } break;
+        case code1:
+        { code1Element.assignAsChild(dataElement);
+          evaluateValue(code1Element);
+        } break:
+        case code2:
+        { code1Element.assignAsChild(dataElement);
+          evaluateValue(code1Element);
+        } break:
+        default: throw new IllegalArgumentException("unknown Element", dataElement);
+      }
+    }
+    </pre>
+   * The difference to {@link addChild(ByteDataAccess)} is: addChild() is used 
+   * to writeout to data, addChild() appends the child always after idxEnd,
+   * but this method is used to read from data and appends the child at position of the current child.
+   * <br>
+   * The data reference is copied, the idxBegin of this element
+   * is set to the idxChild of parent, it is the current child position.
+   * All other indices are setted calling {@link specifyLengthElementHead()}: idxChild
+   * and {@link specifyLengthElement()}: idxEnd.
+   * The idxChildEnd of parent is setted, so calling next() after this operation
+   * increments in data after this new child.
+   * <br>
+   * If the element are using before, its connection to an other parent is dissolved.
+   * @param parent The parent. It should reference data, and a current child position
+   *        should be set by calling next() before. See sample at {@link next()}.
+   * @throws IllegalArgumentException If the data are wrong. The exception is thrown
+   *        orginal from {@link specifyLengthElement()}.
+   * @deprecated use addChild()
+   */
+  @Java4C.inline
+  @Deprecated
+  final public void assignAsChild(ByteDataAccess parent)
+  throws IllegalArgumentException
+  { parent.addChild(this);
+  }
+
+
+
+  
   /**remove the current child to assign another current child instead of the first one.
    * This method is usefull if data are tested with several structures.
    * It mustn't be called in expand mode. In expand mode you have to be consider about your children.
@@ -799,6 +821,7 @@ public abstract class ByteDataAccess
    * @param child
    * @throws IllegalArgumentException
    */
+  @Java4C.inline
   final public void removeChild() 
   throws IllegalArgumentException
   { if(bExpand) throw new RuntimeException("don't call it in expand mode");
@@ -862,13 +885,15 @@ public abstract class ByteDataAccess
   throws IllegalArgumentException
   { if(bExpand)
     { if(data.length < idxCurrentChild + nrofBytes)
-      { throw new IllegalArgumentException("data length to small:"+ (idxCurrentChild + nrofBytes));
+      { @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
+        throw new IllegalArgumentException(msg);
       }
     }
     else
     { if(idxEnd < idxCurrentChildEnd)
       { //not expand, but the nrof data are to few
-        throw new IllegalArgumentException("to few user data:"+ (idxCurrentChild + nrofBytes));
+        @Java4C.StringBuilderInThreadCxt String msg = "to few user data:"+ (idxCurrentChild + nrofBytes);
+        throw new IllegalArgumentException(msg);
       }
     }
     expand(idxCurrentChild + nrofBytes);  //also of all parents
@@ -884,6 +909,7 @@ public abstract class ByteDataAccess
    *              to add some content.
    * @throws IllegalArgumentException 
    */
+  @Java4C.inline
   final public void addChildEmpty(ByteDataAccess child) 
   throws IllegalArgumentException
   { addChild(child);
@@ -891,14 +917,6 @@ public abstract class ByteDataAccess
   }
   
   
-
-  /** Notifies, that a child is added. This method may be overload,
-   * if the user must take somme actions, count the number of childs or others.
-   */
-  protected void notifyAddChild()
-  { //in default, do nothing with this.
-  }
-
 
   /** Increments the idxEnd and the idxCurrentChildEnd if a new child is added. Called only
    * inside method addChild(child) and recursively to correct
@@ -1025,8 +1043,10 @@ public abstract class ByteDataAccess
   public final void addChildInteger(int nrofBytes, long value) 
   throws IllegalArgumentException
   { setIdxtoNextCurrentChild();
-    if(data.length < idxCurrentChild + nrofBytes)
-      throw new IllegalArgumentException("data length to small:"+ (idxCurrentChild + nrofBytes));
+    if(data.length < idxCurrentChild + nrofBytes){
+      @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
+      throw new IllegalArgumentException(msg);
+    }
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     _setLong(idxCurrentChild - idxBegin, nrofBytes, value);  
@@ -1043,8 +1063,10 @@ public abstract class ByteDataAccess
   public final void addChildFloat(float value) 
   throws IllegalArgumentException
   { setIdxtoNextCurrentChild();
-    if(data.length < idxCurrentChild + 4)
-      throw new IllegalArgumentException("data length to small:"+ (idxCurrentChild + 4));
+    if(data.length < idxCurrentChild + 4){
+      @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + 4);
+      throw new IllegalArgumentException(msg);
+    }
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     setFloat(idxCurrentChild - idxBegin, value);  
@@ -1089,8 +1111,10 @@ public abstract class ByteDataAccess
   throws IllegalArgumentException, UnsupportedEncodingException
   { setIdxtoNextCurrentChild();
     int nrofBytes = value.length();
-    if(data.length < idxCurrentChild + nrofBytes)
-      throw new IllegalArgumentException("data length to small:"+ (idxCurrentChild + nrofBytes));
+    if(data.length < idxCurrentChild + nrofBytes){
+      @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
+      throw new IllegalArgumentException(msg);
+    }
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     _setString(idxCurrentChild - idxBegin, nrofBytes, value, sEncoding, preventCtrlChars);  
@@ -1098,34 +1122,25 @@ public abstract class ByteDataAccess
   }
   
   
-  
   /**Adds a child with String value.
    * 
-   * @param value String to add
-   * @throws IllegalArgumentException
-   */
-  public final void addChildString(String value) throws IllegalArgumentException
-  { try{ addChildString(value, null); } 
-    catch(UnsupportedEncodingException exc){ throw new RuntimeException(exc);} //it isn't able.
-  }
-
-
-  /**Adds a child with String value.
-   * 
-   * @param value String to add, @pjava2c=nonPersistent.
-   * @throws IllegalArgumentException
+   * @param valueCs String to add, @pjava2c=nonPersistent.
+   * @param sEncoding String describes the encoding for translation from UTF16 to bytes. 
+   * @throws IllegalArgumentException XXX
    * @throws UnsupportedEncodingException 
    */
-  public final void addChildString(CharSequence value, String sEncoding) 
+  public final void addChildString(CharSequence valueCs, String sEncoding) 
   throws IllegalArgumentException, UnsupportedEncodingException
   { setIdxtoNextCurrentChild();
-    int nrofBytes = value.length();
-    if(data.length < idxCurrentChild + nrofBytes)
-      throw new IllegalArgumentException("data length to small:"+ (idxCurrentChild + nrofBytes));
+    int nrofBytes = valueCs.length();
+    if(data.length < idxCurrentChild + nrofBytes){
+      @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
+      throw new IllegalArgumentException(msg);
+    }
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     for(int ii=0; ii<nrofBytes; ++ii){
-      byte charByte = (byte)(value.charAt(ii));  //TODO encoding
+      byte charByte = (byte)(valueCs.charAt(ii));  //TODO encoding
       data[idxCurrentChild+ii] = charByte;
     }
     expand(idxCurrentChild + nrofBytes);
@@ -1138,37 +1153,10 @@ public abstract class ByteDataAccess
    * @param value String to add, @pjava2c=nonPersistent.
    * @throws IllegalArgumentException
    */
+  @Java4C.inline
   public final void addChildString(CharSequence value) throws IllegalArgumentException
   { try{ addChildString(value, null); } 
     catch(UnsupportedEncodingException exc){ throw new RuntimeException(exc);} //it isn't able.
-  }
-
-
-  /** Writes a String into data with given color.
-   * The user can overwrite this method and call super.addText(ss) inside
-   * if some additional actions should be done.
-   * @param ss The String to write
-   * @param color The color
-   * @deprecated
-   */
-  @Deprecated
-  public final int addText(String ss)
-  throws IllegalArgumentException
-  { if(parent != null || idxBegin == 0)
-    { /**@java2c=ByteStringJc.  */
-      byte[] chars = ss.getBytes();  //the ASCII represantation;
-      int srcLen = chars.length;
-      int dataLen = data.length;
-      for(int ii=0; ii<srcLen; ii++)
-      { byte cc = chars[ii];
-        if(cc < 0x20) cc = 0x3f;  //'?' in ASCII
-        if(idxEnd >= dataLen) throw new IllegalArgumentException("element to long");
-        data[idxEnd++] = cc;
-      }
-      expandParent();
-      return(idxEnd-idxBegin);  //current nr of bytes
-    }
-    else throw new IllegalArgumentException("inadmissable add-operation");
   }
 
 
@@ -1178,39 +1166,11 @@ public abstract class ByteDataAccess
    * The calling of next() after them supplies the first child element.
    *
    */
+  @Java4C.inline
   public final void rewind()
   { idxCurrentChild = -1;
   }
 
-  /** Sets the data index to the position after the current child element and returns its code.<br>
-   * If more than 1 byte determines the code, the user should call getInt32(idxChild)
-   * to get the code.
-   * Usage:<pre>
-   * while( (eElement = code.next()) != kEndOfElements)
-   * { switch(eElement) { ... }
-   * } </pre>
-   * @return The first byte, that may be the code of the child element.<br>
-   *         If this code is between 0x20 to 0xbf, it is assumed that is an
-   *         character, kText is returned than.<br>
-   *         If no more childs are available, kEndOfElements is returned.<br>
-   * @deprecated, it is from the first idea. To evaluate unknown data on end use {@link #sufficingBytesForNextChild(int)}
-   *   and add a child which describes the base structure, it may be a {@link #addChildInteger(int, long)} 
-   *   and evauate its data. The meaning of only 1 byte to determine the child should not be defined as rule. 
-  */
-  @Deprecated final public int next()
-  throws IllegalArgumentException
-  { byte eWhat;
-    setIdxtoNextCurrentChild();
-    idxCurrentChildEnd = -2;  //the child content is not known, this index will be set if setLengthCurrentChildElement() is called.
-    if( idxCurrentChild >= idxEnd)
-    { eWhat = kEndOfElements;  //no more data
-    }
-    else
-    { eWhat = data[idxCurrentChild];
-      if(isTextByte(eWhat)){ eWhat = kText; }
-    }
-    return eWhat;
-  }
 
 
   /**returns true if the given number of bytes is sufficing in the data from position of next child. 
@@ -1259,6 +1219,7 @@ public abstract class ByteDataAccess
    *                  to the end of data determines by calling assingData(...)
    *                  or by calling addChild() with a known size of child or setLengthElement() .
    */ 
+  @Java4C.inline
   final public int getMaxNrofBytes()
   { return data.length - idxBegin;
   }
@@ -1270,6 +1231,7 @@ public abstract class ByteDataAccess
    * @return The number of bytes of the actual element in the buffer.
    *         It is (idxEnd - idxBegin).
    */
+  @Java4C.inline
   final public int getLength()
   { return idxEnd - idxBegin;
   }
@@ -1280,6 +1242,7 @@ public abstract class ByteDataAccess
    * @return The number of bytes of data in the buffer.
    *         It is idxEnd.
    */
+  @Java4C.inline
   final public int getLengthTotal()
   { return idxEnd;
   } 
@@ -1289,6 +1252,7 @@ public abstract class ByteDataAccess
   /** Returns the data buffer itself. The actual total length is getted with getLengthTotal().
    * @return The number of bytes of the data in the buffer.
    */
+  @Java4C.inline
   final public byte[] getData()
   { return data;
   }
@@ -1297,6 +1261,7 @@ public abstract class ByteDataAccess
    * 
    * @return index of this element in the data buffer.
    */  
+  @Java4C.inline
   final public int getPositionInBuffer()
   { return idxBegin;
   }
@@ -1307,6 +1272,7 @@ public abstract class ByteDataAccess
    * 
    * @return index of the current child of this element in the data buffer.
    */  
+  @Java4C.inline
   final public int getPositionNextChildInBuffer()
   { return idxCurrentChildEnd;
   }
@@ -1377,6 +1343,7 @@ public abstract class ByteDataAccess
    * 
    * @param length The length of data of this current (last) child.
    */
+  @Java4C.inline
   final public void setLengthElement(int length)
   { //if(!bExpand && )
     expand(idxBegin + length);
@@ -1387,39 +1354,6 @@ public abstract class ByteDataAccess
   
   
   
-  /** Returns true if the current child element represents a TEXT(), direct ASCII chars,
-   * false if the element is a complex element.
-   * Text chararacters are coded with 0x20..0x7f, the standard ASCII code,
-   * and with 0x80 to 0xbf, special characters user defined.
-   *
-   */
-  public final boolean isTextByte(byte nn)
-  { return (nn >= 0x20);
-  }
-
-
-  /** Returns the current string or null on end*/
-  final public String getText()
-  { if(idxCurrentChild >= idxEnd) return null;
-    else
-    { byte nn = data[idxCurrentChild];
-      if( isTextByte(nn))
-      { idxCurrentChildEnd = idxCurrentChild;
-        char cc = '?';
-        StringBuffer ss = new StringBuffer(20);
-        while(  idxCurrentChildEnd < idxEnd
-             && isTextByte(nn = data[idxCurrentChildEnd])
-             )
-        { if(nn < 0) cc = '?'; //{ cc=convertHiChars(nn);}  //range between 0x80..0xbf
-          else cc = (char)(nn);     //convert 0x20...7F to character
-          ss.append(cc);  //konvert to Unicode
-          idxCurrentChildEnd +=1;
-        }
-        return ss.toString();
-      }
-      else return null;  //no Text
-    }
-  }
 
   /**Returns a String from the given position inside the actual element .
    * The bytes are interpreted in the given encoding.
@@ -1428,7 +1362,7 @@ public abstract class ByteDataAccess
    * @param nmax Maximal number of bytes
    * @return The String representation of the bytes.
    */
-  protected String getString(int idx, int nmax)
+  protected final String getString(int idx, int nmax)
   { String sRet;
     try{ sRet = new String(data, idxBegin + idx, nmax, "ISO-8859-1");} 
     catch (UnsupportedEncodingException e)  {sRet = null; }
@@ -1439,6 +1373,7 @@ public abstract class ByteDataAccess
     }
     return sRet;
   }
+  
   
   
 
@@ -1452,7 +1387,7 @@ public abstract class ByteDataAccess
    * @deprecated, use {@link _setString(int, int, String)}
    * @throws  
    */
-  protected int setString(int idx, int nmax, String ss)
+  protected final int setString(int idx, int nmax, String ss)
   { if(ss.length()>nmax){ ss = ss.substring(0, nmax); } //truncate.
     /**Use a @java2c=ByteStringJc. In C there may not be a difference between the String
      * and the string of byte[].*/
@@ -1466,16 +1401,6 @@ public abstract class ByteDataAccess
   }
   
   
-
-  /**Sets the big or little endian mode. 
-   * This method is override-able, because a derived class
-   * may set the endian of embedded children too.
-   *
-   * @param val true if big endian, hi byte at lower adress, false if little endian.
-   */
-  public void setBigEndian(boolean val)
-  { bBigEndian = val;
-  }
 
   /** Returns the content of 1 to 8 bytes inside the actual element as a long number,
    * big- or little-endian depending on setBigEndian().
@@ -1716,6 +1641,7 @@ public abstract class ByteDataAccess
   }
 
   
+  @Java4C.inline
   public final int getUint32(int idx)
   { return getInt32(idx);
   }
@@ -1805,37 +1731,44 @@ public abstract class ByteDataAccess
 
   
   protected final int getUint32(int idxBytes, int idxArray, int lengthArray)
-  { if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getUint16:" + idxArray);
+  { /** @Java4C.StringBuilderInThreadCxt*/
+    if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getUint16:" + idxArray);
     return getUint32(idxBytes + 4*idxArray);
   }
   
   protected final int getInt32(int idxBytes, int idxArray, int lengthArray)
-  { if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt32:" + idxArray);
+  { /** @Java4C.StringBuilderInThreadCxt*/
+    if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt32:" + idxArray);
     return getInt32(idxBytes + 4*idxArray);
   }
   
   protected final int getInt16(int idxBytes, int idxArray, int lengthArray)
-  { if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
+  { /** @Java4C.StringBuilderInThreadCxt*/
+    if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
     return getInt16(idxBytes + 2*idxArray);
   }
   
   protected final int getInt8(int idxBytes, int idxArray, int lengthArray)
-  { if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt8:" + idxArray);
+  { /** @Java4C.StringBuilderInThreadCxt*/
+    if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt8:" + idxArray);
     return getInt8(idxBytes + idxArray);
   }
   
-  protected int getUint16(int idxBytes, int idxArray, int lengthArray)
-  { if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getUint16:" + idxArray);
+  protected final int getUint16(int idxBytes, int idxArray, int lengthArray)
+  { /** @Java4C.StringBuilderInThreadCxt*/
+    if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getUint16:" + idxArray);
     return getUint16(idxBytes + 2*idxArray);
   }
   
-  protected int getUint8(int idxBytes, int idxArray, int lengthArray)
-  { if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getUint8:" + idxArray);
+  protected final int getUint8(int idxBytes, int idxArray, int lengthArray)
+  { /** @Java4C.StringBuilderInThreadCxt*/
+    if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getUint8:" + idxArray);
     return getInt8(idxBytes + idxArray);
   }
   
-  protected float getFloat(int idxBytes, int idxArray, int lengthArray)
-  { if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getFloat:" + idxArray);
+  protected final float getFloat(int idxBytes, int idxArray, int lengthArray)
+  { /** @Java4C.StringBuilderInThreadCxt*/
+    if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getFloat:" + idxArray);
     return getFloat(idxBytes + 4*idxArray);
   }
   
@@ -1847,10 +1780,11 @@ public abstract class ByteDataAccess
    * according to the IEEE 754 floating-point "single format" bit layout, preserving Not-a-Number (NaN) values,
    * like converted from java.lang.Float.floatToRawIntBits().
    */
+  @Java4C.inline
   protected final void setFloat(int idx, float value)
   {
     int intRepresentation = Float.floatToRawIntBits(value);
-    setInt32(idx, intRepresentation);
+    _setLong(idx, 4, intRepresentation);
   }
 
 
@@ -1859,6 +1793,7 @@ public abstract class ByteDataAccess
    * according to the IEEE 754 floating-point "double format" bit layout, preserving Not-a-Number (NaN) values,
    * like converted from java.lang.Double.doubleToRawLongBits().
    */
+  @Java4C.inline
   protected final void setDouble(int idx, double value)
   {
     long intRepresentation = Double.doubleToRawLongBits(value);
@@ -1889,24 +1824,28 @@ public abstract class ByteDataAccess
     }
   }
 
+  /** Set the content of 1 bytes as a positive nr between 0..256.
+   *
+   * @param idx The position of leading byte in the current elements data.
+   *            This is not the absolute position in data, idxBegin is added.<br/>
+   * @param value The value in range 0..65535. The value is taken modulo 0xffff.
+   * */
+  @Java4C.inline
+  protected final void setInt8(int idx, int value)
+  { data[idxBegin + idx] = (byte)(value & 0xff);
+  }
+
+
+
   /** Set the content of 1 bytes as a positive nr between 0..255, big- or little-endian.
   *
   * @param idx The position of leading byte in the current elements data.
   *            This is not the absolute position in data, idxBegin is added.<br/>
   * @param value The value in range 0..65535. The value is taken modulo 0xff.
   * */
+  @Java4C.inline
   protected final void setUint8(int idx, int value)
   { setInt8(idx, value);  //its the same because modulo!
-  }
-
-  /** Set the content of 2 bytes as a positive nr between 0..65535, big- or little-endian.
-  *
-  * @param idx The position of leading byte in the current elements data.
-  *            This is not the absolute position in data, idxBegin is added.<br/>
-  * @param value The value in range 0..65535. The value is taken modulo 0xffff.
-  * */
-  protected final void setUint16(int idx, int value)
-  { setInt16(idx, value);  //its the same because modulo!
   }
 
   /** Set the content of 4 bytes as a positive nr between 0..2pow32-1, big- or little-endian.
@@ -1951,52 +1890,68 @@ public abstract class ByteDataAccess
       data[idxBegin + idx]   = (byte)(value & 0xff);
     }
   }
-
-  /** Set the content of 1 bytes as a positive nr between 0..256.
-   *
-   * @param idx The position of leading byte in the current elements data.
-   *            This is not the absolute position in data, idxBegin is added.<br/>
-   * @param value The value in range 0..65535. The value is taken modulo 0xffff.
-   * */
-  protected final void setInt8(int idx, int value)
-  { data[idxBegin + idx] = (byte)(value & 0xff);
+  
+  
+  /** Set the content of 2 bytes as a positive nr between 0..65535, big- or little-endian.
+  *
+  * @param idx The position of leading byte in the current elements data.
+  *            This is not the absolute position in data, idxBegin is added.<br/>
+  * @param value The value in range 0..65535. The value is taken modulo 0xffff.
+  * */
+  @Java4C.inline
+  protected final void setUint16(int idx, int value)
+  { setInt16(idx, value);  //its the same because modulo!
   }
 
 
   
+  @Java4C.inline
   protected final void setUint32(int idxBytes, int idxArray, int lengthArray, int val)
-  { if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("setUint32:" + idxArray);
+  { /** @Java4C.StringBuilderInThreadCxt TestRest */
+    if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("setUint32:" + idxArray);
     setUint32(idxBytes + 4*idxArray, val);
   }
   
+  @Java4C.inline
   protected final void setInt32(int idxBytes, int idxArray, int lengthArray, int val)
-  { if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("setInt32:" + idxArray);
+  { /** @Java4C.StringBuilderInThreadCxt*/
+    if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("setInt32:" + idxArray);
     setInt32(idxBytes + 4*idxArray, val);
   }
   
+  @Java4C.inline
   protected final void setInt16(int idxBytes, int idxArray, int lengthArray, int val)
-  { if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
+  { /** @Java4C.StringBuilderInThreadCxt*/
+    if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
     setInt16(idxBytes + 2*idxArray, val);
   }
   
+  @Java4C.inline
   protected final void setInt8(int idxBytes, int idxArray, int lengthArray, int val)
-  { if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
+  { /** @Java4C.StringBuilderInThreadCxt*/
+    if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
     setInt8(idxBytes + idxArray, val);
   }
   
   
+  @Java4C.inline
   protected final void setUint16(int idxBytes, int idxArray, int lengthArray, int val)
-  { if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
+  { /** @Java4C.StringBuilderInThreadCxt*/
+    if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
     setUint16(idxBytes + 2*idxArray, val);
   }
   
+  @Java4C.inline
   protected final void setUint8(int idxBytes, int idxArray, int lengthArray, int val)
-  { if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
+  { /** @Java4C.StringBuilderInThreadCxt*/
+    if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
     setUint8(idxBytes + idxArray, val);
   }
   
+  @Java4C.inline
   protected final void setFloat(int idxBytes, int idxArray, int lengthArray, float val)
-  { if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
+  { /** @Java4C.StringBuilderInThreadCxt*/
+    if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
     setFloat(idxBytes + 4 * idxArray, val);
   }
   
@@ -2009,6 +1964,7 @@ public abstract class ByteDataAccess
   final public void copyDataFrom(ByteDataAccess src)
   throws IllegalArgumentException
   { int len = src.getLength();
+    /** @Java4C.StringBuilderInThreadCxt*/
     if(data.length < len) throw new IndexOutOfBoundsException("copy, dst to small" + len);
     System.arraycopy(src.data,src.idxBegin,data,idxBegin,len);
   }
@@ -2042,12 +1998,12 @@ public abstract class ByteDataAccess
   }
   */
 
-  /**This method is especially usefull to debug in eclipse. 
+  /**This method is especially usefully to debug in eclipse. 
    * It shows the first bytes of head, the position of child and the first bytes of the child.
    */
   @Override
   @Java4C.exclude
-  public String toString()
+  public String toString() 
   { //NOTE: do not create a new object in every call, it is uneffective.
     if(data==null){ return "no data"; }
     else

@@ -88,7 +88,7 @@ public interface XmlNode extends SortedTree<XmlNode>
   public XmlNode addContent(String text);
   
   /**Adds a child node. 
-   * If the child nodes {@link #getName()} starts with "@", it is added as an attribute to this with the {@link #getText()}
+   * If the child nodes {@link #getName()} starts with "@", it is added as an attribute to this with the {@link #text()}
    * as attribute value. This opens the possibility to create a XmlNode independent of a parent and independent of checking
    * whether it should be an attribute, and convert it to an attribute later.
    * 

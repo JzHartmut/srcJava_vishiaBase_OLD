@@ -26,10 +26,12 @@ import java.util.Collection;
 
 
 //import java.util.concurrent.ConcurrentLinkedQueue;
-/**This version of ConcurrentLinkedQueue inherites the original java.util.concurrent.ConcurrentLinkedQueue 
- * without any other extensions or overload methods,
- * but it has special constructors, which are oriented to a C-language implementation for embedded systemss
- * with a static memory allocation. In Java the special constructor functions were dummies.
+/**This version of ConcurrentLinkedQueue extends the original java.util.concurrent.ConcurrentLinkedQueue 
+ * without any other extensions or overload methods else {@link #shareNodePool(ConcurrentLinkedQueue)}
+ * and {@link #initNodePool(MemC)}. Both methods are used only in C language. In Java they are empty.
+ * This class has special constructors, which are oriented to a C-language implementation for embedded systems
+ * with a static memory allocation. In Java the special constructor have not an functionality.
+ * In Java the garbage collected nodes are used in any case.
  */
 public class ConcurrentLinkedQueue<EntryType> extends java.util.concurrent.ConcurrentLinkedQueue<EntryType>
 {
@@ -52,6 +54,19 @@ public class ConcurrentLinkedQueue<EntryType> extends java.util.concurrent.Concu
   { super(c);
   }
 
+  
+  /**Creates a ConcurrentLinkedQueue without initialization of the nodes.
+   * After construction before the first usage one of {@link #initNodePool(MemC)}
+   * or {@link #shareNodePool(ConcurrentLinkedQueue)} have to be invoked for this instance
+   * for C-usage.
+   * @param bInit should be false. It is only a marker. true then initialization is done (? C)
+   */
+  public ConcurrentLinkedQueue(boolean bInit){
+    super();
+  }
+  
+  
+  
   /**Creates an empty LinkedQueue,
    * but with memory to save nodes.
    * Additional for C-Using in embedded systems. 
@@ -68,5 +83,14 @@ public class ConcurrentLinkedQueue<EntryType> extends java.util.concurrent.Concu
   { //ignore the sharing in Java implementation!
     super();
   }
+  
+  
+  /**This routine should be invoked after construction, before the first usage.
+   * @param srcNodeShare
+   */
+  public void shareNodePool(ConcurrentLinkedQueue<EntryType> srcNodeShare){}
+  
+  public void initNodePool(MemC memNodes){}
+  
   
 }

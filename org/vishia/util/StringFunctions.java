@@ -61,14 +61,6 @@ public class StringFunctions {
   
   /**Returns the position of the end of an identifier.
    * @param src The input string
-   * @param start at this position the indentier starts.
-   * @param endq max number of chars to check
-   * @return 0 if src[start] doesn't match to an identifier character, number of found identifier chars after src until end.
-   */
-  public static int posAfterIdentifier(CharSequence src, int start, int endMax){ return posAfterIdentifier(src, start, endMax, null, null); }
-
-  /**Returns the position of the end of an identifier.
-   * @param src The input string
    * @param start at this position the identifier starts.
    * @param endq max number of chars to check
    * @param additionalStartChars maybe null, some chars as additional start chars of an identifier.
@@ -96,6 +88,14 @@ public class StringFunctions {
     return pos;
   }
   
+  /**Returns the position of the end of an identifier.
+   * @param src The input string
+   * @param start at this position the indentier starts.
+   * @param endq max number of chars to check
+   * @return 0 if src[start] doesn't match to an identifier character, number of found identifier chars after src until end.
+   */
+  public static int posAfterIdentifier(CharSequence src, int start, int endMax){ return posAfterIdentifier(src, start, endMax, null, null); }
+
 
   /**Parses a given String and convert it to the integer number.
    * The String may start with a negative sign ('-') and should contain digits after them.
@@ -146,7 +146,7 @@ public class StringFunctions {
   
 
   
-  @Java4C.define public static int parseIntRadix(final String srcP, final int pos, final int sizeP, final int radix, final int[] parsedChars)
+  @Java4C.inline public static int parseIntRadix(final String srcP, final int pos, final int sizeP, final int radix, final int[] parsedChars)
   {
     return parseIntRadix(srcP, pos, sizeP, radix, parsedChars, null);
   }
@@ -351,17 +351,6 @@ public class StringFunctions {
     return new String(buffer, 0, ix);
   }
   
-  /**Compares two Strings or StringBuilder-content or any other CharSequence.
-   * It is the adequate functionality like {@link java.lang.String#compareTo(String)}. 
-   * @param s1
-   * @param s2
-   * @return 0 if all characters are equal, 1 if s1 > s2,  -1 if s1 < s2
-   */
-  public static int compare(CharSequence s1, CharSequence s2){
-    return compare(s1, 0, s2, 0, Integer.MAX_VALUE);
-  }  
-  
-  
   
   /**Compares two CharSequence (Strings, StringBuilder-content etc.
    * It is the adequate functionality like {@link java.lang.String#compareTo(String)}.
@@ -410,6 +399,29 @@ public class StringFunctions {
   
   
   /**Compares two Strings or StringBuilder-content or any other CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#compareTo(String)}. 
+   * @param s1
+   * @param s2
+   * @return 0 if all characters are equal, 1 if s1 > s2,  -1 if s1 < s2
+   */
+  public static int compare(CharSequence s1, CharSequence s2){
+    return compare(s1, 0, s2, 0, Integer.MAX_VALUE);
+  }  
+  
+  
+  public static boolean equals(CharSequence s1, int from, int to, CharSequence s2){
+    int zz = to - from;
+    if( zz != s2.length()) return false;
+    else {
+      for(int ii = 0; ii<zz; ++ii){
+        if(s1.charAt(from + ii) != s2.charAt(ii)) return false;
+      }
+      return true;
+    }
+  }
+  
+
+  /**Compares two Strings or StringBuilder-content or any other CharSequence.
    * It is the adequate functionality like {@link java.lang.String#equals(Object)}.
    * But the  {@link java.lang.String#equals(Object)} does only compare instances of Strings,
    * it does not compare a String with any other {@link java.lang.CharSequence} whether there are equal.
@@ -432,18 +444,6 @@ public class StringFunctions {
   }
 
   
-  public static boolean equals(CharSequence s1, int from, int to, CharSequence s2){
-    int zz = to - from;
-    if( zz != s2.length()) return false;
-    else {
-      for(int ii = 0; ii<zz; ++ii){
-        if(s1.charAt(from + ii) != s2.charAt(ii)) return false;
-      }
-      return true;
-    }
-  }
-  
-
   
   /**Checks whether the given CharSequence starts with a CharSequence.
    * It is the adequate functionality like {@link java.lang.String#startsWith(String)}
@@ -536,16 +536,6 @@ public class StringFunctions {
   
   
   /**Searches the last occurrence of the given char in a CharSequence.
-   * It is the adequate functionality like {@link java.lang.String#lastIndexOf(char)}. 
-   * @param sq A CharSequence
-   * @param str CharSequence which is searched.
-   * @return -1 if not found, else first occurrence where sq.charAt(return) == ch. 
-   */
-  public static int lastIndexOf(CharSequence sq, char ch){
-    return lastIndexOf(sq, 0, Integer.MAX_VALUE, ch);
-  }
-
-  /**Searches the last occurrence of the given char in a CharSequence.
    * It is the adequate functionality like {@link java.lang.String#lastIndexOf(char, fromEnd)}. 
    * @param sq Any sequence
    * @param fromIndex range, it starts comparison on to - str.lengt()
@@ -564,6 +554,16 @@ public class StringFunctions {
     return -1;  //not found;
   }
   
+
+  /**Searches the last occurrence of the given char in a CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#lastIndexOf(char)}. 
+   * @param sq A CharSequence
+   * @param str CharSequence which is searched.
+   * @return -1 if not found, else first occurrence where sq.charAt(return) == ch. 
+   */
+  public static int lastIndexOf(CharSequence sq, char ch){
+    return lastIndexOf(sq, 0, Integer.MAX_VALUE, ch);
+  }
 
   /**Checks whether the given CharSequence contains the other given CharSequence.
    * It is the adequate functionality like {@link java.lang.String#indexOf(String, int)}. 

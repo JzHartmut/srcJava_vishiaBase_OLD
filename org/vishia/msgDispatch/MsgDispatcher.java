@@ -393,7 +393,7 @@ public static final int version = 0x20120302;
         {
           continueAll = false;  //finish.
         }
-        else if(spCtrl.scanInteger().scanOk())
+        else if(spCtrl.scanInteger().scanOk())  //XXXXX
         { fromIdent = (int)spCtrl.getLastScannedIntegerNumber();
           toIdent = -1;
           if(spCtrl.scan("..").scanInteger().scanOk())

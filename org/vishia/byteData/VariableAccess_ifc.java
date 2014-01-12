@@ -162,8 +162,15 @@ public interface VariableAccess_ifc
   String setString(String value);
   
   /**Requests a new value from the target device.
+   * @param timeRequested the current time
    */
   void requestValue(long timeRequested);
+  
+  /**Requests a new value from the target device.
+   * @param timeRequested the current time
+   * @param run method which should be invoked if the request is resolved, optional operation.
+   */
+  void requestValue(long timeRequested, Runnable run);
   
   boolean isRequestedValue(boolean retryFaultyVariables);
   //boolean requestValueFromTarget(long timeRequested, boolean retryDisabledVariable);  

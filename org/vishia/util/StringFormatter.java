@@ -286,7 +286,7 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
   int postr= -1;
   while(--maxChars >=0){
     char cc = str.charAt(++postr);
-    int replace1 = "\n\r\f".indexOf(cc);
+    int replace1; replace1 = "\n\r\f".indexOf(cc);  //NOTE: smallbug in Java2C
     if(replace1 >=0){
       cc = replaceLinefeed.charAt(replace1);
     }
@@ -996,7 +996,12 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
     return(pict.length());
   }
 
-  
+  /**Converts a timestamp in a String representation with {@link #dateFormatToday} etc.
+   * @param timestamp
+   * @return
+   */
+  @SuppressWarnings("boxing")
+  @Java4C.exclude
   public String convertTimestampToday(long timestamp){
     long dateNow = System.currentTimeMillis();
     long diffTime = dateNow - timestamp;
