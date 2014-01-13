@@ -978,7 +978,7 @@ that is a liststring and his part The associated String
   </pre>
   *  @java2c=return-this.
     @param sSeek The string to search for.
-    @param mode Mode of seeking, use ones of back, seekToLeft, seekNormal, added with seekEnd.
+    @param mode Mode of seeking, use ones of {@link #seekBack}, {@link #seekToLeft}, {@link #seekNormal}, added with {@link #seekEnd}.
     @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
   public final StringPart seek(String sSeek, int mode){ 
@@ -1023,6 +1023,14 @@ that is a liststring and his part The associated String
   }
 
 
+  /**Seeks to the given String, result is left side of the string.
+   * @param sSeek
+   * @return
+   */
+  @Java4C.inline
+  public StringPart seek(String sSeek){ return seek(sSeek, seekNormal); }
+  
+  
 
 /** Searchs the given String inside the valid part, posits the begin of the part to the begin of the searched string.
 *  The end of the part is not affected.<br>

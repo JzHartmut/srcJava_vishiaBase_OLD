@@ -26,6 +26,7 @@ import org.vishia.util.CalculatorExpr;
 import org.vishia.util.DataAccess;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
+import org.vishia.util.StringPartAppend;
 import org.vishia.util.StringSeq;
 
 
@@ -43,6 +44,7 @@ public class ZGenExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-01-12 Hartmut chg: now uses a Stringjar {@link StringPartAppend} instead StringBuffer in Syntax and execution.
    * <li>2014-01-09 Hartmut new: If the "text" variable or any other Appendable variable has a null-value,
    *   a StringBuilder is instantiated therefore and stored in this variable. It is possible therewith
    *   to create an text only if necessary. We don't need a StringBuilder instance if it is never used. 
@@ -359,9 +361,11 @@ public class ZGenExecuter {
     }
     @SuppressWarnings("cast")
     DataAccess.Variable<Object> varText = (DataAccess.Variable<Object>)scriptLevel.localVariables.get("text");
-    CharSequence sText = (CharSequence)varText.value();
-    if(sText == null) return null;
-    else return sText;
+    Object oText = varText.value();
+    if(oText !=null && oText instanceof CharSequence){
+      return (CharSequence)oText;
+    }
+    else return null;
   }
 
   
@@ -862,8 +866,8 @@ public class ZGenExecuter {
         DataAccess.Variable<Object> var = (DataAccess.Variable<Object>) oVar;
         chn = var.value();
         if(chn == null && var.type() == 'A'){
-          chn = new StringBuilder();
-          var.setValue(chn);            //Creates a new StringBuilder for an uninitialized variable. Stores there.
+          chn = new StringPartAppend();
+          var.setValue(chn);            //Creates a new StringPartAppend for an uninitialized variable. Stores there.
         }
       } else {
         //it is not a variable, can be direct stored Appendable:
@@ -872,7 +876,7 @@ public class ZGenExecuter {
       if(!(chn instanceof Appendable)) {
         throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
       }
-      Appendable out1 = (Appendable)chn;  //append, it may be a StringBuilder.
+      Appendable out1 = (Appendable)chn;  //append, it may be a StringPartAppend.
       if(statement.statementlist !=null){
         //executes the statement, use the Appendable to output immediately
         execute(statement.statementlist, out1, false);
@@ -1242,9 +1246,9 @@ public class ZGenExecuter {
               throwIllegalDstArgument("assign to appendable faulty", assignObj1, statement); 
             } break;
             case 'U': {
-              assert(dst instanceof StringBuilder);            
-              StringBuilder u = (StringBuilder) dst;
-              u.setLength(0);
+              assert(dst instanceof StringPartAppend);            
+              StringPartAppend u = (StringPartAppend) dst;
+              u.clear();
               if(!(val instanceof CharSequence)){
                 val = val.toString();
               }
@@ -1300,10 +1304,12 @@ public class ZGenExecuter {
       switch(statement.elementType()){
         case 'U': {
           if(init == null){
-            val = new StringBuilder(256);
+            val = new StringPartAppend();
           } else {
             CharSequence init1 = init instanceof CharSequence ? (CharSequence)init : init.toString();
-            val = new StringBuilder(init1);
+            StringPartAppend u = new StringPartAppend();
+            u.append(init1);
+            val = u;
           }
         } break;
         case 'S':{
@@ -1395,7 +1401,7 @@ public class ZGenExecuter {
         if(o==null){ return "null"; }
         else {return o.toString(); }
       } else if(arg.statementlist !=null){
-        StringBuilder u = new StringBuilder();
+        StringPartAppend u = new StringPartAppend();
         executeNewlevel(arg.statementlist, u, false);
         return StringSeq.create(u, true);
       } else if(arg.expression !=null){
@@ -1426,7 +1432,7 @@ public class ZGenExecuter {
       else if(arg.dataAccess !=null){
         obj = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
       } else if(arg.statementlist !=null){
-        StringBuilder u = new StringBuilder();
+        StringPartAppend u = new StringPartAppend();
         executeNewlevel(arg.statementlist, u, false);
         obj = u.toString();
       } else if(arg.expression !=null){

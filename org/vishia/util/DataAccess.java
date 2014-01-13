@@ -714,7 +714,7 @@ public class DataAccess {
   ) throws InvocationTargetException, NoSuchMethodException{
     Object data1 = null;
     Class<?> clazz = dataPool.getClass();
-    if(element.ident.equals("append"))
+    if(element.ident.equals("seek"))
       Assert.stop();
     boolean bOk = false;
     do{

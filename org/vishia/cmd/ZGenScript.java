@@ -499,13 +499,13 @@ public class ZGenScript {
     
     /**Defines a variable which is able to use as String buffer.
      */
-    public DefVariable new_StringBuffer(){
+    public DefVariable new_Stringjar(){
       if(statementlist == null){ statementlist = new StatementList(this); }
       statementlist.bContainsVariableDef = true; 
       return new DefVariable(parentList, 'U'); 
     } 
 
-    public void add_StringBuffer(DefVariable val){ statementlist.statements.add(val);  statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
+    public void add_Stringjar(DefVariable val){ statementlist.statements.add(val);  statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
     
         
     /**Defines a variable which is able to use as container.
@@ -1566,12 +1566,12 @@ public class ZGenScript {
     
     /**Defines a variable which is able to use as String buffer.
      */
-    public DefVariable new_StringBuffer(){
+    public DefVariable new_Stringjar(){
       bContainsVariableDef = true; 
       return new DefVariable(this, 'U'); 
     } 
 
-    public void add_StringBuffer(DefVariable val){ statements.add(val);  onerrorAccu = null; withoutOnerror.add(val);}
+    public void add_Stringjar(DefVariable val){ statements.add(val);  onerrorAccu = null; withoutOnerror.add(val);}
     
         
     /**Defines a variable which is able to use as container.

@@ -45,6 +45,7 @@ public interface VariableAccess_ifc
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-01-10 Hartmut new  enhancement of {@link #requestValue(long, Runnable) with Runnable.
    * <li>2013-12-10 Hartmut new Separate {@link VariableAccessArray_ifc} and this interface.
    *   All simple accesses and especially {@link VariableAccessWithIdx} need this interface.
    *   All implementations need the {@link VariableAccessArray_ifc} if they support arrays.

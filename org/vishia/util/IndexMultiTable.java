@@ -81,6 +81,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-01-12 Hartmut chg: toString better for viewing, with all keys 
    * <li>2013-12-02 Hartmut new: Implementation of {@link #remove(Object)} was missing, {@link #searchInTables(Comparable, boolean, IndexBox)}
    *   restructured. It returns the table and index, able to use for internal searching. 
    * <li>2013-09-15 Hartmut new: Implementation of {@link #delete(int)} and {@link EntrySetIterator#remove()}.
@@ -1111,11 +1112,28 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   @Override
   public String toString(){
     StringBuilder u = new StringBuilder();
-    if(isHyperBlock){ u.append("IdxTableHyperBlock; "); } else { u.append("IndexMultiTable; ");}
-    if(sizeBlock >1){ u.append(aKeys[0]).append(" ..").append(sizeBlock).append(".. ").append(aKeys[sizeBlock -1]); }
-    else { u.append(aKeys[0]); }
+    toString(u);
     return u.toString();
   }
+  
+  
+  private void toString(StringBuilder u){
+    if(sizeBlock ==0){
+      u.append("..emptyIndexMultiTable...");
+    }
+    else if(isHyperBlock){
+      for(int ii=0; ii<sizeBlock; ++ii){
+        IndexMultiTable<?,?> subTable = (IndexMultiTable<?,?>)aValues[ii];
+        subTable.toString(u);
+      }
+    } else { 
+      for(int ii=0; ii<sizeBlock; ++ii){
+        u.append(aKeys[ii]).append(", ");
+      }
+    }
+    
+  }
+  
   
   
   /**This interface is necessary to provide tables and the minimum and maximum value for any user specific type.
