@@ -673,10 +673,14 @@ public class ZGenExecuter {
             String sError1 = exc.getMessage();
             try{ setLocalVariable("errorMsg", 'S', sError1, false);
             } catch(IllegalAccessException exc1){ throw new IllegalArgumentException(exc1); }
-            executeSubLevel(statement, out);
+            executeSubLevel(statement, out);  //executes the onerror block
+            threadData.error.setValue(null);  //clear for next usage.
           } else {
             CharSequence sExc = Assert.exceptionInfo("ZGen - execute-exception;", exc, 0, 20);
-            throw new RuntimeException(sExc.toString());
+            if(threadData.error.value()==null){
+              threadData.error.setValue(sExc);
+            }
+            throw exc; //new RuntimeException(sExc.toString());
             //sError = exc.getMessage();
             //System.err.println("ZGen - execute-exception; " + exc.getMessage());
             //exc.printStackTrace();
