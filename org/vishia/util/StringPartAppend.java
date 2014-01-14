@@ -5,7 +5,7 @@ import java.io.IOException;
 /**This class combines an Appendable with the capability of StringPartScan.
  * All append methods sets the endMax of the StringPart to the new length. The current part end
  * will be set to endMax only if is on endMax before append.
- * @author hartmut Schorrig
+ * @author Hartmut Schorrig
  *
  */
 public class StringPartAppend extends StringPartScan implements Appendable
@@ -46,12 +46,40 @@ public class StringPartAppend extends StringPartScan implements Appendable
   static final public String sVersion = "2014-01-12";
 
   
-  public StringPartAppend(){
+  /**Creates an String jar with 1000 character (default size). Not that the size of the internal used
+   * {@link java.lang.StringBuilder} will be increased if necessary. */
+  public StringPartAppend() {
     super(new StringBuilder(1000));
   }
 
   
-  public void clear(){ ((StringBuilder)content).setLength(0); }
+  /**Creates an String jar with a given character size. */
+  public StringPartAppend(int size) {
+    super(new StringBuilder(size));
+  }
+
+  
+  /**Returns the internal StringBuilder to use methods of that.
+   * Note that a change of content may need invocation of {@link #seekBegin()} and {@link #setLengthMax()}
+   * or {@link #setParttoMax()} of the returned stringBuilder().
+   * Use the following schema: <pre>
+   *   StringBuilder myBuffer = myStringPartAppend.buffer();
+   *   myBuffer.insert("do anything with it");
+   *   myStringPartAppend.setParttoMax();  
+   * </pre>  
+   * @return the internal used StringBuilder instance.
+   */
+  public StringBuilder buffer(){ return (StringBuilder)content; }
+  
+  
+  
+  /**Clears the content of the StringBuilder and resets all StringPart length.
+   * 
+   */
+  public void clear() { 
+    ((StringBuilder)content).setLength(0); 
+    assign(content); //assigns the own content to set all positions to 0.
+  }
 
   @Override public Appendable append(CharSequence csq) throws IOException
   { ((StringBuilder)content).append(csq);
@@ -84,7 +112,6 @@ public class StringPartAppend extends StringPartScan implements Appendable
   }
 
   
-  StringBuilder buffer(){ return (StringBuilder)content; }
   
   
 }

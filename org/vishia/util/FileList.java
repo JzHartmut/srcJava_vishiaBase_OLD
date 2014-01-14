@@ -39,6 +39,7 @@ public class FileList
 
   /**Version, history and license.
    * <ul>
+   * <li>2014-01-14 Hartmut chg: round up and down to 10 seconds, to ignore second differences on writing.
    * <li>2013-08-09 Hartmut created: The FileList was written by me in 1994..2001 in C++-Language.
    *   Now it is available for Java usage. One of the motivation was the necessity of correction of
    *   time stamps of reverted files from Bazaar and git.
@@ -159,6 +160,7 @@ public class FileList
   private void writeOneFile(Writer out, FileSystem.FileAndBasePath entry) throws IOException
   {
     long date = entry.file.lastModified();
+    date = ((date + 5000) /10000) * 10000;      //round up and down to 10 seconds, to ignore second differences
     long length = entry.file.length();
     formatter.reset();
     formatter.addint(length, "2222'222'222'222 ");

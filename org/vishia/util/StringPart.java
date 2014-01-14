@@ -102,6 +102,8 @@ public class StringPart implements CharSequence, Comparable<CharSequence>, Close
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-01-12 Hartmut new: {@link #setParttoMax()} usefully for new view to content.
+   * <li>2013-12-29 Hartmut bugfix in {@link Part#Part(int, int)}   
    * <li>2013-10-26 Hartmut chg: Does not use substring yet, some gardening, renaming. 
    * <li>2013-09-07 Hartmut new: {@link #scanTranscriptionToAnyChar(CharSequence[], String, char, char, char)}
    *   the {@link #getCircumScriptionToAnyChar(String)} does not work correctly (it has a bug). Use the new one.
@@ -147,7 +149,7 @@ public class StringPart implements CharSequence, Comparable<CharSequence>, Close
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
-  public final static int version = 20131027; 
+  public final static String sVersion = "2014-01-12"; 
   /** The actual start position of the valid part.*/
   protected int begin;
   /** The actual exclusive end position of the valid part.*/
@@ -308,10 +310,8 @@ abcdefghijklmnopqrstuvwxyz  The associated String
   */
   public final StringPart assign(CharSequence ref)
   { 
-    begiMin = beginLast = begin = 0;
-    endMax = end = endLast = ref.length();
-    bStartScan = bCurrentOk = true;
     content = ref;
+    setParttoMax();
     return this;
   }
 
@@ -529,6 +529,17 @@ abcdefghijklmnopqrstuvwxyz  The associated String
 
 
 
+  /**Sets the full range of available text.
+   * begin is set to 0, end is set to the length() of the content.
+   */
+  @Java4C.inline 
+  public void setParttoMax(){
+    begiMin = beginLast = begin = 0;
+    endMax = end = endLast = content.length();
+    bStartScan = bCurrentOk = true;
+
+  }
+  
 
 
 
