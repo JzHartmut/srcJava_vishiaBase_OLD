@@ -689,7 +689,7 @@ public class ZGenExecuter {
           }
         }
       }//while
-      DataAccess.Variable retVar = localVariables.get("return");
+      DataAccess.Variable<Object> retVar = localVariables.get("return");
       if(retVar !=null){
         @SuppressWarnings("unchecked")
         Map<String, DataAccess.Variable> ret =  (Map<String, DataAccess.Variable>)retVar.value(); 
@@ -834,15 +834,29 @@ public class ZGenExecuter {
       
       CalculatorExpr.Value check;
       boolean bCheck;
-      try{
+      if(ifBlock.condition !=null){
         check = ifBlock.condition.calcDataAccess(localVariables);
         bCheck = check.booleanValue();
-      } catch(NoSuchElementException exc){
-        bCheck = false;
-      } catch(NoSuchFieldException exc){
-        bCheck = false;
-      } catch(NoSuchMethodException exc){
-        bCheck = false;
+      } else if(ifBlock.conditionValue !=null){
+        //dataAccess: The condition is true if the accessed element is found and returns !=null
+        try{
+          Object oVal = ifBlock.conditionValue.getDataObj(localVariables, bAccessPrivate, false);
+          if(oVal instanceof Number){
+            bCheck = ((Number)oVal).intValue() !=0;
+          } else if(oVal instanceof Boolean){
+            bCheck = ((Boolean)oVal).booleanValue();
+          } else {
+            bCheck = oVal !=null;
+          }
+        } catch(NoSuchElementException exc){
+          bCheck = false;
+        } catch(NoSuchFieldException exc){
+          bCheck = false;
+        } catch(NoSuchMethodException exc){
+          bCheck = false;
+        }
+      } else { 
+        throw new RuntimeException("ZGenExecuter - syntax problem, ifBlock should contain either a expression or a dataAccess;");
       }
       if(bCheck){
         execute(ifBlock.statementlist, out, bIfHasNext);

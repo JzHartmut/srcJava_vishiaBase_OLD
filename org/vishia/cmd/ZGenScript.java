@@ -1093,7 +1093,8 @@ public class ZGenScript {
   {
     
     public CalculatorExpr condition;
-    
+
+    DataAccess conditionValue;
     
     CondStatement(StatementList parentList, char type){
       super(parentList, type);
@@ -1108,6 +1109,15 @@ public class ZGenScript {
       condition = val.expr; 
     }
     
+    @Override
+    public DataAccess.DataAccessSet new_datapath() { 
+      return new DataAccess.DataAccessSet(); 
+    }
+    
+    @Override
+    public void add_datapath(DataAccess.DataAccessSet val){ 
+      conditionValue = val;
+    }
 
     
   };
