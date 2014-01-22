@@ -135,6 +135,7 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-11-03 Hartmut bugfix: Problem on {@link #removeChildren()} if an exception was before.
    * <li>2013-11-03 Hartmut bugfix: {@link #iterChildren()} have to be return null, see its interface-definition.
    *   It had returned an Iterator, which first {@link Iterator#hasNext()} returns false. But with them
    *   it is not determined simply whether a node has children or not. The {@link org.vishia.xmlSimple.SimpleXmlOutputter}
@@ -507,8 +508,12 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
     while(firstChild !=null){
       firstChild.detach();
     }
-    assert(nrofChildren ==0);
-
+    if(nrofChildren !=0 || lastChild !=null){
+      Assert.stop();
+    }
+    nrofChildren = 0;
+    lastChild = null;
+    
   }
   
   

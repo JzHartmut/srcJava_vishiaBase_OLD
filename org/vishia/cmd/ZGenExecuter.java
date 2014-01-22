@@ -595,7 +595,8 @@ public class ZGenExecuter {
         try{    
           switch(statement.elementType()){
           case 't': executeText(statement, out);break; //<:>...textexpression <.>
-          case 'n': uBuffer.append(newline);  break;   //<<.n+>
+          case 'n': uBuffer.append(newline);  break;   //<.n+>
+          case '\\': uBuffer.append(statement.textArg);  break;   //<:n> transcription
           case 'T': textAppendToVarOrOut((ZGenScript.TextOut)statement); break; //<+text>...<.+> 
           case 'U': defineExpr((ZGenScript.DefVariable)statement); break; //setStringVariable(statement); break; 
           case 'S': defineExpr((ZGenScript.DefVariable)statement); break; //setStringVariable(statement); break; 

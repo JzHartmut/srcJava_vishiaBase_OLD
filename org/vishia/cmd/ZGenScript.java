@@ -461,7 +461,7 @@ public class ZGenScript {
     } 
     
     
-    public void set_newline(){
+    public void XXXXXset_newline(){
       if(statementlist == null){ statementlist = new StatementList(this); }
       statementlist.statements.add(new XXXXXXStatement(parentList, 'n'));   /// 
     }
@@ -1043,6 +1043,12 @@ public class ZGenScript {
     }
 
     public void set_newline(){
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.statements.add(new ZGenitem(parentList, 'n'));  
+    }
+
+    
+    public void XXXXset_transscription(String val){
       if(statementlist == null){ statementlist = new StatementList(this); }
       statementlist.statements.add(new ZGenitem(parentList, 'n'));  
     }
@@ -1696,6 +1702,19 @@ public class ZGenScript {
       }
     }
     
+    
+    public void set_transcription(String val){
+      ZGenitem statement = new ZGenitem(this, '\\');
+      char cc = val.charAt(0);
+      switch(cc){
+        case 'n': statement.textArg = "\n"; break;
+        case 'r': statement.textArg = "\r"; break;
+        case 't': statement.textArg = "\t"; break;
+        case '<': statement.textArg = "<"; break;
+      }
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+    }
     
     public void set_newline(){
       ZGenitem statement = new ZGenitem(this, 'n');
