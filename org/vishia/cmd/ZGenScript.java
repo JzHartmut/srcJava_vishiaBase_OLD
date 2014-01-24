@@ -306,12 +306,12 @@ public class ZGenScript {
     
     public void add_textExpr(StatementList val){}
 
-    public CalculatorExpr.SetExpr new_expression() { 
+    public CalculatorExpr.SetExpr new_numExpr() { 
       assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
       return new CalculatorExpr.SetExpr(true, this); 
     }
 
-    public void add_expression(CalculatorExpr.SetExpr val){ 
+    public void add_numExpr(CalculatorExpr.SetExpr val){ 
       val.closeExprPreparation();
       expression = val.expr; 
     }
@@ -444,9 +444,9 @@ public class ZGenScript {
     /**Sets the nonEmptyText From ZBNF. invokes {@link #set_textReplLf(String)} if the text contains
      * other characters as white spaces. 
      */
-    public void set_nonEmptyText(String text){
+    public void XXXXset_plainText(String text){
       if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.set_nonEmptyText(text);      
+      statementlist.set_plainText(text);      
     }
 
     
@@ -1030,9 +1030,15 @@ public class ZGenScript {
     /**The variable which should be created or to which a value is assigned to. */
     public DataAccess variable;
     
+    int indent;
+    
     TextOut(StatementList parentList, char elementType)
     { super(parentList, elementType);
     }
+    
+    
+    
+    public void set_inputColumn_(int col){ this.indent = col; } 
     
     /**From Zbnf: [{ <datapath?-assign> = }] 
      */
@@ -1106,7 +1112,7 @@ public class ZGenScript {
       super(parentList, type);
     }
 
-    /**From Zbnf: < condition>. A condition is an expression. It is the same like {@link #new_expression()}
+    /**From Zbnf: < condition>. A condition is an expression. It is the same like {@link #new_numExpr()}
      */
     public CalculatorExpr.SetExpr new_condition(){  return new CalculatorExpr.SetExpr(true, this);  }
     
@@ -1494,6 +1500,8 @@ public class ZGenScript {
     public boolean bContainsVariableDef;
 
     
+    int indent;
+    
     /**Scripts for some local variable. This scripts where executed with current data on start of processing this genContent.
      * The generator stores the results in a Map<String, String> localVariable. 
      * 
@@ -1522,7 +1530,9 @@ public class ZGenScript {
     */
         
     
+    public void set_inputColumn_(int col){ this.indent = col; } 
     
+
     
     public StatementList new_statementBlock(){
       ZGenitem statement = new ZGenitem(this, 'B');
@@ -1693,10 +1703,10 @@ public class ZGenScript {
     
 
     
-    /**Sets the nonEmptyText From ZBNF. invokes {@link #set_textReplLf(String)} if the text contains
+    /**Sets the plainText From ZBNF. invokes {@link #set_textReplLf(String)} if the text contains
      * other characters as white spaces. 
      */
-    public void set_nonEmptyText(String text){
+    public void set_plainText(String text){
       if(!StringFunctions.isEmptyOrOnlyWhitespaces(text)){
         set_textReplLf(text);
       }

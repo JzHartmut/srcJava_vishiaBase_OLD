@@ -1798,7 +1798,7 @@ public class CalculatorExpr
     if(genString !=null){
       ZGenExecuter.ExecuteLevel executer = (ZGenExecuter.ExecuteLevel)DataAccess.getVariable(javaVariables, "zgensub", true).value();
       StringBuilder u = new StringBuilder();
-      executer.executeNewlevel(genString, u, false);
+      executer.executeNewlevel(genString, u, 0, false);
       return new CalculatorExpr.Value(u.toString());
     } else {
       accu = new Value(); //empty

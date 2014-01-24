@@ -150,6 +150,11 @@ public class ZGenExecuter {
   
   private boolean bScriptVariableGenerated;
   
+  /**The time stamp from {@link System#currentTimeMillis()} on start of script. */
+  public long startmilli;
+  
+  /**The time stamp from {@link System#nanoTime()} on start of script. */
+  public long startnano;
   
   /**The newline char sequence. */
   String newline = "\r\n";
@@ -245,7 +250,7 @@ public class ZGenExecuter {
     //
     //generate all variables in this script:
     try{
-      scriptLevel.execute(genScript.scriptClass, null, false);
+      scriptLevel.execute(genScript.scriptClass, null, 0, false);
       /*
       for(ZGenScript.DefVariable scriptVariableScript: genScript.getListScriptVariables()){
         Object value;
@@ -345,7 +350,9 @@ public class ZGenExecuter {
     setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
     ZGenScript.Subroutine contentScript = genScript.getMain();
     ExecuteLevel execFile = new ExecuteLevel(scriptThread, null, null);
-    execFile.execute(contentScript.statementlist, out, false);
+    startmilli = System.currentTimeMillis();
+    startnano = System.nanoTime();
+    execFile.execute(contentScript.statementlist, out, 0, false);
     if(bWaitForThreads){
       boolean bWait = true;
       while(bWait){
@@ -369,11 +376,12 @@ public class ZGenExecuter {
   }
 
   
-  /**Executes the given sub routine. The script variables are used from a {@link #initialize(ZGenScript, boolean)}
+  /**Executes the given sub routine invoked from any user application. 
+   * The script variables are used from a {@link #initialize(ZGenScript, boolean)}
    * or one of the last {@link #execute(ZGenScript, boolean, boolean, Appendable)}.
    * The {@link ExecuteLevel}, the subroutine's context, is created below the script level. 
    * All of the script variables are known in the subroutine. Additional the args are given.
-   * 
+   * The time measurements {@link #startmilli} and {@link #startnano} starts newly.
    * @param statement The subroutine in the script.
    * @param accessPrivate
    * @param out The text output.
@@ -389,7 +397,9 @@ public class ZGenExecuter {
     level.localVariables.putAll(args);
     setScriptVariable("text", 'A', out, true);
     //Executes the statements of the sub routine:
-    level.execute(statement.statementlist, out, false);
+    startmilli = System.currentTimeMillis();
+    startnano = System.nanoTime();
+    level.execute(statement.statementlist, out, 0, false);
     //return sError1;
   }
   
@@ -422,7 +432,7 @@ public class ZGenExecuter {
   
   public void runThread(ExecuteLevel executeLevel, ZGenScript.ThreadBlock statement){
     try{ 
-      executeLevel.execute(statement.statementlist, null, false);
+      executeLevel.execute(statement.statementlist, null, 0, false);
     } 
     catch(Exception exc){
       //TODO anything with the environment onerror statement?
@@ -564,7 +574,7 @@ public class ZGenExecuter {
      * @return an error hint.
      * @throws IOException
      */
-    public Object executeNewlevel(ZGenScript.StatementList contentScript, final Appendable out, boolean bContainerHasNext) 
+    public Object executeNewlevel(ZGenScript.StatementList contentScript, final Appendable out, int indentOut, boolean bContainerHasNext) 
     throws Exception 
     { final ExecuteLevel level;
       if(contentScript.bContainsVariableDef){
@@ -572,17 +582,17 @@ public class ZGenExecuter {
       } else {
         level = this;
       }
-      return level.execute(contentScript, out, bContainerHasNext);
+      return level.execute(contentScript, out, indentOut, bContainerHasNext);
     }
 
   
     /**
      * @param contentScript
      * @param bContainerHasNext Especially for <:for:element:container>SCRIPT<.for> to implement <:hasNext>
-     * @return
+     * @return a return Map if created.
      * @throws IOException 
      */
-    public Map<String, DataAccess.Variable> execute(ZGenScript.StatementList contentScript, final Appendable out, boolean bContainerHasNext) 
+    public Map<String, DataAccess.Variable<Object>> execute(ZGenScript.StatementList contentScript, final Appendable out, int indentOut, boolean bContainerHasNext) 
     throws Exception 
     {
       Appendable uBuffer = out;
@@ -594,10 +604,10 @@ public class ZGenExecuter {
         //for(TextGenScript.ScriptElement statement: contentScript.content){
         try{    
           switch(statement.elementType()){
-          case 't': executeText(statement, out);break; //<:>...textexpression <.>
+          case 't': executeText(statement, out, indentOut);break; //<:>...textexpression <.>
           case 'n': uBuffer.append(newline);  break;   //<.n+>
           case '\\': uBuffer.append(statement.textArg);  break;   //<:n> transcription
-          case 'T': textAppendToVarOrOut((ZGenScript.TextOut)statement); break; //<+text>...<.+> 
+          case 'T': textAppendToVarOrOut((ZGenScript.TextOut)statement, out); break; //<+text>...<.+> 
           case 'U': defineExpr((ZGenScript.DefVariable)statement); break; //setStringVariable(statement); break; 
           case 'S': defineExpr((ZGenScript.DefVariable)statement); break; //setStringVariable(statement); break; 
           case 'P': { //create a new local variable as pipe
@@ -618,19 +628,19 @@ public class ZGenExecuter {
             executeDefVariable((ZGenScript.DefVariable)statement, 'O', value, false);
           } break;
           case 'e': executeDatatext((ZGenScript.DataText)statement, out); break; 
-          case 's': executeSubroutine((ZGenScript.CallStatement)statement, out); break;  //sub
+          case 's': executeSubroutine((ZGenScript.CallStatement)statement, out, indentOut); break;  //sub
           case 'x': executeThread((ZGenScript.ThreadBlock)statement); break;             //thread
           case 'm': executeMove((ZGenScript.CallStatement)statement); break;             //move
           case 'y': executeCopy((ZGenScript.CallStatement)statement); break;             //copy
           case 'c': executeCmdline((ZGenScript.CmdInvoke)statement); break;              //cmd
           case 'd': executeChangeCurrDir(statement); break;                              //cd
           case 'C': { //generation <:for:name:path> <genContent> <.for>                   //for
-            executeForContainer((ZGenScript.ForStatement)statement, out);
+            executeForContainer((ZGenScript.ForStatement)statement, out, indentOut);
           } break;
-          case 'B': executeSubLevel(statement, out); break;                     //statementBlock
-          case 'F': executeIfStatement((ZGenScript.IfStatement)statement, out); break;
-          case 'w': whileStatement((ZGenScript.CondStatement)statement, out); break;
-          case 'N': executeIfContainerHasNext(statement, out, bContainerHasNext); break;
+          case 'B': executeSubLevel(statement, out, indentOut); break;                     //statementBlock
+          case 'F': executeIfStatement((ZGenScript.IfStatement)statement, out, indentOut); break;
+          case 'w': whileStatement((ZGenScript.CondStatement)statement, out, indentOut); break;
+          case 'N': executeIfContainerHasNext(statement, out, indentOut, bContainerHasNext); break;
           case '=': { 
             Object val = evalObject(statement, false);
             executeAssign((ZGenScript.AssignExpr)statement, val); 
@@ -674,7 +684,7 @@ public class ZGenExecuter {
             String sError1 = exc.getMessage();
             try{ setLocalVariable("errorMsg", 'S', sError1, false);
             } catch(IllegalAccessException exc1){ throw new IllegalArgumentException(exc1); }
-            executeSubLevel(statement, out);  //executes the onerror block
+            executeSubLevel(statement, out, indentOut);  //executes the onerror block
             threadData.error.setValue(null);  //clear for next usage.
           } else {
             CharSequence sExc = Assert.exceptionInfo("ZGen - execute-exception;", exc, 0, 20);
@@ -693,7 +703,7 @@ public class ZGenExecuter {
       DataAccess.Variable<Object> retVar = localVariables.get("return");
       if(retVar !=null){
         @SuppressWarnings("unchecked")
-        Map<String, DataAccess.Variable> ret =  (Map<String, DataAccess.Variable>)retVar.value(); 
+        Map<String, DataAccess.Variable<Object>> ret =  (Map<String, DataAccess.Variable<Object>>)retVar.value(); 
         return ret;
       }
       else { return null; }
@@ -701,22 +711,38 @@ public class ZGenExecuter {
     
     
     
-    void executeText(ZGenScript.ZGenitem statement, Appendable out) throws IOException{
+    void executeText(ZGenScript.ZGenitem statement, Appendable out, int indentOut) throws IOException{
       int posLine = 0;
-      int posEnd;
+      int posEnd1, posEnd2;
       if(statement.textArg.startsWith("'''trans ==> dst"))
         stop();
+      int zText = statement.textArg.length();
       do{
-        posEnd = statement.textArg.indexOf('\n', posLine);
-        if(posEnd >= 0){ 
-          out.append(statement.textArg.substring(posLine, posEnd));   
-          out.append(newline);
-          posLine = posEnd +1;  //after \n 
-        } else {
+        char cEnd = '\n';  
+        posEnd1 = statement.textArg.indexOf(cEnd, posLine);
+        posEnd2 = statement.textArg.indexOf('\r', posLine);
+        if(posEnd2 >= 0 && (posEnd2 < posEnd1 || posEnd1 <0)){
+          posEnd1 = posEnd2;  // \r found before \n
+          cEnd = '\r';
+        }
+        if(posEnd1 >= 0){ 
+          out.append(statement.textArg.substring(posLine, posEnd1));   
+          out.append(newline);  //The newline of ZGen invocation.
+          //skip over posEnd1, skip over the other end line character if found. 
+          if(++posEnd1 < zText){
+            if(cEnd == '\r'){ if(statement.textArg.charAt(posEnd1)=='\n'){ posEnd1 +=1; }}
+            else            { if(statement.textArg.charAt(posEnd1)=='\r'){ posEnd1 +=1; }}
+            int indentCt = indentOut;
+            while(--indentCt >= 0 && posEnd1 < zText && " \t".indexOf(statement.textArg.charAt(posEnd1))>=0){
+              posEnd1 +=1; //skip over all indentation chars  
+            }
+          }
+          posLine = posEnd1;
+        } else { //the rest till end.
           out.append(statement.textArg.substring(posLine));   
         }
         
-      } while(posEnd >=0);  //output all lines.
+      } while(posEnd1 >=0);  //output all lines.
     }
     
     
@@ -729,7 +755,7 @@ public class ZGenExecuter {
     }
 
       
-    void executeForContainer(ZGenScript.ForStatement statement, Appendable out) throws Exception
+    void executeForContainer(ZGenScript.ForStatement statement, Appendable out, int indentOut) throws Exception
     {
       ZGenScript.StatementList subContent = statement.statementlist();  //The same sub content is used for all container elements.
       ExecuteLevel forExecuter = new ExecuteLevel(threadData, this, localVariables);
@@ -747,7 +773,7 @@ public class ZGenExecuter {
         while(!forExecuter.isBreak() && iter.hasNext()){
           Object foreachData = iter.next();
           forVariable.setValue(foreachData);
-          forExecuter.execute(subContent, out, iter.hasNext());
+          forExecuter.execute(subContent, out, indentOut, iter.hasNext());
         }//while of for-loop
       }
       else if(container !=null && container instanceof Map<?,?>){
@@ -758,7 +784,7 @@ public class ZGenExecuter {
           Map.Entry<?, ?> foreachDataEntry = (Map.Entry<?, ?>)iter.next();
           Object foreachData = foreachDataEntry.getValue();
           forVariable.setValue(foreachData);
-          forExecuter.execute(subContent, out, iter.hasNext());
+          forExecuter.execute(subContent, out, indentOut, iter.hasNext());
         }
       }
     }
@@ -766,11 +792,11 @@ public class ZGenExecuter {
     
     
     
-    void executeIfContainerHasNext(ZGenScript.ZGenitem hasNextScript, Appendable out, boolean bContainerHasNext) 
+    void executeIfContainerHasNext(ZGenScript.ZGenitem hasNextScript, Appendable out, int indentOut, boolean bContainerHasNext) 
     throws Exception{
       if(bContainerHasNext){
         //(new Gen_Content(this, false)).
-        execute(hasNextScript.statementlist(), out, false);
+        execute(hasNextScript.statementlist(), out, indentOut, false);
       }
     }
     
@@ -778,7 +804,7 @@ public class ZGenExecuter {
     
     /**it contains maybe more as one if block and else. 
      * @throws Exception */
-    void executeIfStatement(ZGenScript.IfStatement ifStatement, Appendable out) throws Exception{
+    void executeIfStatement(ZGenScript.IfStatement ifStatement, Appendable out, int indentOut) throws Exception{
       Iterator<ZGenScript.ZGenitem> iter = ifStatement.statementlist.statements.iterator();
       boolean found = false;  //if block found
       while(iter.hasNext() && !found ){
@@ -786,11 +812,11 @@ public class ZGenExecuter {
         switch(statement.elementType()){
           case 'G': { //if-block
             boolean hasNext = iter.hasNext();
-            found = executeIfBlock((ZGenScript.IfCondition)statement, out, hasNext);
+            found = executeIfBlock((ZGenScript.IfCondition)statement, out, indentOut, hasNext);
           } break;
           case 'E': { //elsef
             if(!found){
-              execute(statement.statementlist, out, false);
+              execute(statement.statementlist, out, indentOut, false);
             }
           } break;
           default:{
@@ -804,7 +830,7 @@ public class ZGenExecuter {
     
     /**Executes a while statement. 
      * @throws Exception */
-    void whileStatement(ZGenScript.CondStatement whileStatement, Appendable out) 
+    void whileStatement(ZGenScript.CondStatement whileStatement, Appendable out, int indentOut) 
     throws Exception 
     {
       boolean cond;
@@ -812,7 +838,7 @@ public class ZGenExecuter {
         CalculatorExpr.Value check = whileStatement.condition.calcDataAccess(localVariables);
         cond = check.booleanValue();
         if(cond){
-          execute(whileStatement.statementlist, out, false);
+          execute(whileStatement.statementlist, out, indentOut, false);
         }
       } while(cond);  //if executed, check cond again.  
     }
@@ -828,7 +854,7 @@ public class ZGenExecuter {
      * @return true if the condition is true. If it returns false, an elsif or else-Block should be executed.
      * @throws Exception
      */
-    boolean executeIfBlock(ZGenScript.IfCondition ifBlock, Appendable out, boolean bIfHasNext) 
+    boolean executeIfBlock(ZGenScript.IfCondition ifBlock, Appendable out, int indentOut, boolean bIfHasNext) 
     throws Exception
     {
       //Object check = getContent(ifBlock, localVariables, false);
@@ -860,7 +886,7 @@ public class ZGenExecuter {
         throw new RuntimeException("ZGenExecuter - syntax problem, ifBlock should contain either a expression or a dataAccess;");
       }
       if(bCheck){
-        execute(ifBlock.statementlist, out, bIfHasNext);
+        execute(ifBlock.statementlist, out, indentOut, bIfHasNext);
       }
       return bCheck;
     }
@@ -877,28 +903,33 @@ public class ZGenExecuter {
      * @param statement the statement
      * @throws Exception 
      */
-    void textAppendToVarOrOut(ZGenScript.TextOut statement) throws Exception
-    { Object chn;
-      Object oVar = DataAccess.access(statement.variable.datapath(), null, localVariables, bAccessPrivate, false, true, null);
-      if(oVar instanceof DataAccess.Variable<?>){
-        @SuppressWarnings("unchecked")
-        DataAccess.Variable<Object> var = (DataAccess.Variable<Object>) oVar;
-        chn = var.value();
-        if(chn == null && var.type() == 'A'){
-          chn = new StringPartAppend();
-          var.setValue(chn);            //Creates a new StringPartAppend for an uninitialized variable. Stores there.
+    void textAppendToVarOrOut(ZGenScript.TextOut statement, Appendable out) throws Exception
+    { Appendable out1;
+      if(statement.variable !=null){
+        Object chn;
+        Object oVar = DataAccess.access(statement.variable.datapath(), null, localVariables, bAccessPrivate, false, true, null);
+        if(oVar instanceof DataAccess.Variable<?>){
+          @SuppressWarnings("unchecked")
+          DataAccess.Variable<Object> var = (DataAccess.Variable<Object>) oVar;
+          chn = var.value();
+          if(chn == null && var.type() == 'A'){
+            chn = new StringPartAppend();
+            var.setValue(chn);            //Creates a new StringPartAppend for an uninitialized variable. Stores there.
+          }
+        } else {
+          //it is not a variable, can be direct stored Appendable:
+          chn = oVar;
         }
+        if(!(chn instanceof Appendable)) {
+          throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
+        }
+        out1 = (Appendable)chn;  //append, it may be a StringPartAppend.
       } else {
-        //it is not a variable, can be direct stored Appendable:
-        chn = oVar;
+        out1 = out;
       }
-      if(!(chn instanceof Appendable)) {
-        throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
-      }
-      Appendable out1 = (Appendable)chn;  //append, it may be a StringPartAppend.
       if(statement.statementlist !=null){
         //executes the statement, use the Appendable to output immediately
-        execute(statement.statementlist, out1, false);
+        execute(statement.statementlist, out1, statement.indent, false);
       } else {
         //Any other text expression
         CharSequence text = evalString(statement);
@@ -915,7 +946,7 @@ public class ZGenExecuter {
     
     
     
-    void executeSubroutine(ZGenScript.CallStatement callStatement, Appendable out) 
+    void executeSubroutine(ZGenScript.CallStatement callStatement, Appendable out, int indentOut) 
     throws IllegalArgumentException, Exception
     {
       boolean ok = true;
@@ -978,7 +1009,7 @@ public class ZGenExecuter {
           ok = writeError("??: call" + nameSubtext + " called with arguments, it has not one.??", out);
         }
         if(ok){
-          Object val = subtextGenerator.execute(subtextScript.statementlist, out, false);
+          Object val = subtextGenerator.execute(subtextScript.statementlist, out, indentOut, false);
           executeAssign(callStatement, val);
         }
       }
@@ -1027,7 +1058,7 @@ public class ZGenExecuter {
      * @return
      * @throws IOException
      */
-    public Object executeSubLevel(ZGenScript.ZGenitem script, Appendable out) 
+    public Object executeSubLevel(ZGenScript.ZGenitem script, Appendable out, int indentOut) 
     throws Exception
     {
       ExecuteLevel genContent;
@@ -1036,7 +1067,7 @@ public class ZGenExecuter {
       } else {
         genContent = this;  //don't use an own instance, save memory and calculation time.
       }
-      return genContent.execute(script.statementlist, out, false);
+      return genContent.execute(script.statementlist, out, indentOut, false);
     }
 
     
@@ -1421,7 +1452,7 @@ public class ZGenExecuter {
         else {return o.toString(); }
       } else if(arg.statementlist !=null){
         StringPartAppend u = new StringPartAppend();
-        executeNewlevel(arg.statementlist, u, false);
+        executeNewlevel(arg.statementlist, u, 0, false);
         return StringSeq.create(u, true);
       } else if(arg.expression !=null){
         CalculatorExpr.Value value = arg.expression.calcDataAccess(localVariables);
@@ -1452,7 +1483,7 @@ public class ZGenExecuter {
         obj = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
       } else if(arg.statementlist !=null){
         StringPartAppend u = new StringPartAppend();
-        executeNewlevel(arg.statementlist, u, false);
+        executeNewlevel(arg.statementlist, u, arg.statementlist.indent, false);
         obj = u.toString();
       } else if(arg.expression !=null){
         CalculatorExpr.Value value = arg.expression.calcDataAccess(localVariables);
