@@ -258,12 +258,12 @@ public class ZGenScript {
     
     
     
-    public DataAccess.DataAccessSet new_datapath() { 
+    public ZGenDataAccess new_datapath() { 
       assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
-      return new DataAccess.DataAccessSet(); 
+      return new ZGenDataAccess(); 
     }
     
-    public void add_datapath(DataAccess.DataAccessSet val){ 
+    public void add_datapath(ZGenDataAccess val){ 
       dataAccess = val;
     }
     
@@ -306,14 +306,19 @@ public class ZGenScript {
     
     public void add_textExpr(StatementList val){}
 
-    public CalculatorExpr.SetExpr new_numExpr() { 
+    public ZGenCalculatorExpr new_numExpr() { 
       assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
-      return new CalculatorExpr.SetExpr(true, this); 
+      return new ZGenCalculatorExpr(this); 
     }
 
-    public void add_numExpr(CalculatorExpr.SetExpr val){ 
-      val.closeExprPreparation();
-      expression = val.expr; 
+    public void add_numExpr(ZGenCalculatorExpr val){ 
+      DataAccess datapath = val.onlyDataAccess();
+      if(datapath !=null){
+        this.dataAccess = datapath;
+      } else {
+        val.closeExprPreparation();
+        this.expression = val.expr; 
+      }
     }
     
     
@@ -372,6 +377,89 @@ public class ZGenScript {
 
     
   }
+  
+ 
+
+  
+  public static class ZGenDataAccess extends DataAccess.DataAccessSet {
+
+    
+    public ZGenDataAccess(){ super(); }
+    
+    @Override public final ZGenDatapathElement new_datapathElement(){ return new ZGenDatapathElement(); }
+
+    public final void add_datapathElement(ZGenDatapathElement val){ 
+      super.add_datapathElement(val); 
+    }
+    
+    
+  }
+  
+  
+  
+  
+  public static class ZGenDatapathElement extends DataAccess.SetDatapathElement {
+
+    
+    /**Expressions to calculate the {@link #fnArgs}.
+     * The arguments of a subroutine can be given directly, then the expression is not necessary
+     * and this reference is null.
+     */
+    protected List<ZGenitem> fnArgsExpr;
+
+    public ZGenDatapathElement(){ super(); }
+    
+    /**Creates a new Expression Set instance to add any properties of an expression.
+     * This method is used especially by {@link org.vishia.zbnf.ZbnfJavaOutput} to set
+     * results from the parser. This method may be overridden for enhanced capabilities.
+     * @return
+     */
+    public ZGenitem new_argument(){
+      //ObjExpr actualArgument = new ObjExpr(new_CaluclatorExpr());
+      ZGenitem actualArgument = new ZGenitem(null, '+');
+      //ScriptElement actualArgument = new ScriptElement('e', null);
+      //ZbnfDataPathElement actualArgument = new ZbnfDataPathElement();
+      return actualArgument;
+    }
+    
+    /**From Zbnf.
+     * The Arguments of type {@link Statement} have to be resolved by evaluating its value in the data context. 
+     * The value is stored in {@link DataAccess.DatapathElement#addActualArgument(Object)}.
+     * See {@link #add_datapathElement(org.vishia.util.DataAccess.DatapathElement)}.
+     * @param val The Scriptelement which describes how to get the value.
+     */
+    public void add_argument(ZGenitem val){ 
+      if(fnArgsExpr == null){ fnArgsExpr = new ArrayList<ZGenitem>(); }
+      fnArgsExpr.add(val);
+    } 
+    
+   
+  }
+  
+  
+  public static class ZGenCalculatorExpr extends CalculatorExpr.SetExpr {
+    
+    ZGenCalculatorExpr(Object dbgParent){ super(true, dbgParent); }
+    
+    /**It creates an {@link ZGenDataAccess} because overridden {@link #newDataAccessSet()}
+     * of {@link CalculatorExpr.SetExpr#newDataAccessSet()} 
+     */
+    @Override public ZGenDataAccess new_datapath(){ 
+      return (ZGenDataAccess)super.new_datapath();  
+    }
+
+    public void add_datapath(ZGenDataAccess val){ }
+
+    @Override protected ZGenDataAccess newDataAccessSet(){ return new ZGenDataAccess(); }
+    
+    
+  }
+  
+  
+  
+  
+  
+  
   
   
   
@@ -585,9 +673,9 @@ public class ZGenScript {
     
     /**From Zbnf: [{ <datapath?-assign> = }] 
      */
-    public DataAccess.DataAccessSet new_assign(){ return new DataAccess.DataAccessSet(); }
+    public ZGenDataAccess new_assign(){ return new ZGenDataAccess(); }
     
-    public void add_assign(DataAccess.DataAccessSet val){ 
+    public void add_assign(ZGenDataAccess val){ 
       if(variable == null){ variable = val; }
       else {
         if(assignObjs == null){ assignObjs = new LinkedList<DataAccess>(); }
@@ -598,9 +686,9 @@ public class ZGenScript {
     
     /**From Zbnf: < variable?defVariable> 
      */
-    public DataAccess.DataAccessSet new_defVariable(){ return new DataAccess.DataAccessSet(); }
+    public ZGenDataAccess new_defVariable(){ return new ZGenDataAccess(); }
     
-    public void add_defVariable(DataAccess.DataAccessSet val){   
+    public void add_defVariable(ZGenDataAccess val){   
       int whichStatement = "SPULJW".indexOf(elementType);
       char whichVariableType = "SPULOA".charAt(whichStatement);
       val.setTypeToLastElement(whichVariableType);
@@ -944,9 +1032,9 @@ public class ZGenScript {
     
     /**From Zbnf: < variable?defVariable> inside a DefVariable::=...
      */
-    public DataAccess.DataAccessSet new_defVariable(){ return new DataAccess.DataAccessSet(); }
+    public ZGenDataAccess new_defVariable(){ return new ZGenDataAccess(); }
     
-    public void add_defVariable(DataAccess.DataAccessSet val){   
+    public void add_defVariable(ZGenDataAccess val){   
       int whichStatement = "SPULJWMC".indexOf(elementType);
       char whichVariableType = "SPULOAMO".charAt(whichStatement);  //from elementType to variable type.
       val.setTypeToLastElement(whichVariableType);
@@ -992,11 +1080,11 @@ public class ZGenScript {
     /**Any variable given by name or java instance  which is used to assign to it.
      * A variable is given by the start element of the data path. An instance is given by any more complex datapath
      * null if not used. */
-    public List<DataAccess> assignObjs;
+    public List<ZGenDataAccess> assignObjs;
     
     
     /**The variable which should be created or to which a value is assigned to. */
-    public DataAccess variable;
+    public ZGenDataAccess variable;
     
     AssignExpr(StatementList parentList, char elementType)
     { super(parentList, elementType);
@@ -1004,12 +1092,12 @@ public class ZGenScript {
     
     /**From Zbnf: [{ <datapath?-assign> = }] 
      */
-    public DataAccess.DataAccessSet new_assign(){ return new DataAccess.DataAccessSet(); }
+    public ZGenDataAccess new_assign(){ return new ZGenDataAccess(); }
     
-    public void add_assign(DataAccess.DataAccessSet val){ 
+    public void add_assign(ZGenDataAccess val){ 
       if(variable == null){ variable = val; }
       else {
-        if(assignObjs == null){ assignObjs = new LinkedList<DataAccess>(); }
+        if(assignObjs == null){ assignObjs = new LinkedList<ZGenDataAccess>(); }
         assignObjs.add(val); 
       }
     }
@@ -1028,7 +1116,7 @@ public class ZGenScript {
   {
 
     /**The variable which should be created or to which a value is assigned to. */
-    public DataAccess variable;
+    public ZGenDataAccess variable;
     
     int indent;
     
@@ -1042,9 +1130,9 @@ public class ZGenScript {
     
     /**From Zbnf: [{ <datapath?-assign> = }] 
      */
-    public DataAccess.DataAccessSet new_assign(){ return new DataAccess.DataAccessSet(); }
+    public ZGenDataAccess new_assign(){ return new ZGenDataAccess(); }
     
-    public void add_assign(DataAccess.DataAccessSet val){ 
+    public void add_assign(ZGenDataAccess val){ 
       variable = val; 
     }
 
@@ -1104,9 +1192,9 @@ public class ZGenScript {
   public static class CondStatement extends ZGenitem
   {
     
-    public CalculatorExpr condition;
+    public ZGenitem condition;
 
-    DataAccess conditionValue;
+    //DataAccess conditionValue;
     
     CondStatement(StatementList parentList, char type){
       super(parentList, type);
@@ -1114,21 +1202,23 @@ public class ZGenScript {
 
     /**From Zbnf: < condition>. A condition is an expression. It is the same like {@link #new_numExpr()}
      */
-    public CalculatorExpr.SetExpr new_condition(){  return new CalculatorExpr.SetExpr(true, this);  }
-    
-    public void add_condition(CalculatorExpr.SetExpr val){ 
-      val.closeExprPreparation();
-      condition = val.expr; 
+    public ZGenCalculatorExpr new_condition(){  
+      condition = new ZGenitem(statementlist, '.');
+      return condition.new_numExpr();
     }
     
-    @Override
-    public DataAccess.DataAccessSet new_datapath() { 
-      return new DataAccess.DataAccessSet(); 
+    public void add_condition(ZGenCalculatorExpr val){ 
+      condition.add_numExpr(val);
     }
     
-    @Override
-    public void add_datapath(DataAccess.DataAccessSet val){ 
-      conditionValue = val;
+    //@Override
+    public ZGenDataAccess XXXnew_datapath() { 
+      return new ZGenDataAccess(); 
+    }
+    
+    //@Override
+    public void XXXadd_datapath(ZGenDataAccess val){ 
+      //conditionValue = val;
     }
 
     
@@ -1157,9 +1247,9 @@ public class ZGenScript {
     
     /**From Zbnf: < variable?defVariable> inside a DefVariable::=...
      */
-    public DataAccess.DataAccessSet XXXnew_defVariable(){ return new DataAccess.DataAccessSet(); }
+    public ZGenDataAccess XXXnew_defVariable(){ return new ZGenDataAccess(); }
     
-    public void XXXadd_defVariable(DataAccess.DataAccessSet val){   
+    public void XXXadd_defVariable(ZGenDataAccess val){   
       int whichStatement = "SPULJWMC".indexOf(elementType);
       char whichVariableType = "SPULOAMO".charAt(whichStatement);  //from elementType to variable type.
       val.setTypeToLastElement(whichVariableType);
@@ -1170,11 +1260,11 @@ public class ZGenScript {
     public void set_forVariable(String name){ this.forVariable = name; }
 
     
-    public DataAccess.DataAccessSet new_forContainer() { 
-      return new DataAccess.DataAccessSet(); 
+    public ZGenDataAccess new_forContainer() { 
+      return new ZGenDataAccess(); 
     }
     
-    public void add_forContainer(DataAccess.DataAccessSet val){ 
+    public void add_forContainer(ZGenDataAccess val){ 
       forContainer = val;
     }
     
@@ -1377,11 +1467,11 @@ public class ZGenScript {
 
     /**From Zbnf: [{ Thread <datapath?defThreadVar> = }] 
      */
-    public DataAccess.DataAccessSet new_defThreadVar(){ 
-      return new DataAccess.DataAccessSet(); 
+    public ZGenDataAccess new_defThreadVar(){ 
+      return new ZGenDataAccess(); 
     }
     
-    public void add_defThreadVar(DataAccess.DataAccessSet val){ 
+    public void add_defThreadVar(ZGenDataAccess val){ 
       val.setTypeToLastElement('T');
       threadVariable = val;
       //identArgJbat = "N";  //Marker for a new Variable.
@@ -1390,11 +1480,11 @@ public class ZGenScript {
     
     /**From Zbnf: [{ Thread <datapath?assignThreadVar> = }] 
      */
-    public DataAccess.DataAccessSet new_assignThreadVar(){ 
-      return new DataAccess.DataAccessSet(); 
+    public ZGenDataAccess new_assignThreadVar(){ 
+      return new ZGenDataAccess(); 
     }
     
-    public void add_assignThreadVar(DataAccess.DataAccessSet val){ 
+    public void add_assignThreadVar(ZGenDataAccess val){ 
       threadVariable = val;
     }
 

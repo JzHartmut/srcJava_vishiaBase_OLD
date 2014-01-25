@@ -56,6 +56,10 @@ import java.util.TreeMap;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2014-01-26 Hartmut chg: The element <code>fnArgsExpr</code> of {@link DatapathElement} is removed from here. 
+   *   It is now located in {@link org.vishia.cmd.ZGenScript.ZGenDatapathElement} because it is necessary
+   *   only for the ZGen usage. This class is more simple in its functionality.
+   * <li>2014-01-25 Hartmut chg: some methods of {@link DataAccessSet} are final now. Nonody overrides.  
    * <li>2013-12-26 Hartmut chg: {@link #createOrReplaceVariable(Map, String, char, Object, boolean)} instead setVariable(...)
    *   with type argument.
    * <li>2013-12-26 Hartmut chg: {@link #getData(String, Object, boolean, boolean, boolean, Dst)} returns the variable
@@ -247,13 +251,6 @@ public class DataAccess {
     return access(datapath, null, localVariables, accessPrivate, bContainer, false, null);
   }
 
-  
-  public Variable accessVariable(Map<String, DataAccess.Variable<Object>> localVariables , boolean accessPrivate) 
-  throws Exception
-  {
-    return (Variable)access(datapath, null, localVariables, accessPrivate, false, true, null);
-  }
-  
   
   /**Stores the given value in the element determined by the data path, maybe create a new Variable therewith.
    * 
@@ -528,11 +525,6 @@ public class DataAccess {
   //throws ReflectiveOperationException  //only Java7
   throws Exception
   {
-    for(DataAccess.DatapathElement dataElement : datapath){  //loop over all elements of the path with or without arguments.
-      if(dataElement.fnArgsExpr !=null){
-        dataElement.calculateArguments(dataPool);
-      }
-    }
     Object data1;  //the currently instance of each element.
     Iterator<DatapathElement> iter = datapath.iterator();
     DatapathElement element = iter.next();
@@ -1327,16 +1319,16 @@ public class DataAccess {
   public static class DataAccessSet extends DataAccess{
 
     /**Invoked if an access to an existing variable is stored. */
-    public DataAccessSet(){ }
+    public DataAccessSet(){ super(); }
     
-    public DatapathElementSet new_datapathElement(){ return new DatapathElementSet(); }
+    public SetDatapathElement new_datapathElement(){ return new SetDatapathElement(); }
 
-    public void add_datapathElement(DatapathElementSet val){ 
-      super.add_datapathElement(val); //Note: super does not get a DatapathElementSet but only its superclass.
+    public final void add_datapathElement(SetDatapathElement val){ 
+      super.add_datapathElement(val); //Note: super does not get a SetDatapathElement but only its superclass.
     }
     
     
-    public void set_envVariable(String ident){
+    public final void set_envVariable(String ident){
       if(datapath == null){
         datapath = new ArrayList<DataAccess.DatapathElement>();
       }
@@ -1347,7 +1339,7 @@ public class DataAccess {
     }
     
 
-    public void set_startVariable(String ident){
+    public final void set_startVariable(String ident){
       if(datapath == null){
         datapath = new ArrayList<DataAccess.DatapathElement>();
       }
@@ -1358,19 +1350,19 @@ public class DataAccess {
     }
     
     
-    public DatapathElementSet new_newJavaClass()
-    { DatapathElementSet value = new DatapathElementSet();
+    public final SetDatapathElement new_newJavaClass()
+    { SetDatapathElement value = new_datapathElement();
       value.whatisit = '+';
       //ScriptElement contentElement = new ScriptElement('J', null); ///
       //subContent.content.add(contentElement);
       return value;
     }
     
-    public void add_newJavaClass(DatapathElementSet val) { add_datapathElement(val); }
+    public final void add_newJavaClass(SetDatapathElement val) { add_datapathElement(val); }
 
 
-    public DatapathElementSet new_staticJavaMethod()
-    { DatapathElementSet value = new DatapathElementSet();
+    public final SetDatapathElement new_staticJavaMethod()
+    { SetDatapathElement value = new_datapathElement();
       value.whatisit = '%';
       return value;
       //ScriptElement contentElement = new ScriptElement('j', null); ///
@@ -1378,11 +1370,11 @@ public class DataAccess {
       //return contentElement;
     }
     
-    public void add_staticJavaMethod(DatapathElementSet val) { add_datapathElement(val); }
+    public final void add_staticJavaMethod(SetDatapathElement val) { add_datapathElement(val); }
 
 
     /**This routine have to be invoked as last one to set the type. */
-    public void setTypeToLastElement(char type){
+    public final void setTypeToLastElement(char type){
       int ix = datapath.size() -1;
       if(ix >=0){
         DatapathElement last = datapath.get(ix);
@@ -1410,13 +1402,13 @@ public class DataAccess {
    * especially from a ZBNF parser result, see {@link org.vishia.zbnf.ZbnfJavaOutput}.
    * It is instantiated if the {@link DataAccessSet} is used, see {@link DataAccessSet#new_datapathElement()}
    */
-  public static class DatapathElementSet extends DatapathElement{
+  public static class SetDatapathElement extends DatapathElement{
   
     protected final Object dbgParent;
     
-    public DatapathElementSet(Object dbgParent){ this.dbgParent = dbgParent; }
+    public SetDatapathElement(Object dbgParent){ this.dbgParent = dbgParent; }
     
-    public DatapathElementSet(){ this.dbgParent = null; }
+    public SetDatapathElement(){ this.dbgParent = null; }
     
     
     /**Creates a new instance of {@link CalculatorExpr}. 
@@ -1426,31 +1418,6 @@ public class DataAccess {
     public CalculatorExpr new_CaluclatorExpr(){ return new CalculatorExpr(); }
 
     
-    /**Creates a new Expression Set instance to add any properties of an expression.
-     * This method is used especially by {@link org.vishia.zbnf.ZbnfJavaOutput} to set
-     * results from the parser. This method may be overridden for enhanced capabilities.
-     * @return
-     */
-    public CalculatorExpr.SetExpr new_argument(){
-      CalculatorExpr.SetExpr actualArgument = new CalculatorExpr.SetExpr(new_CaluclatorExpr());
-      //ScriptElement actualArgument = new ScriptElement('e', null);
-      //ZbnfDataPathElement actualArgument = new ZbnfDataPathElement();
-      return actualArgument;
-    }
-    
-    /**From Zbnf.
-     * The Arguments of type {@link Statement} have to be resolved by evaluating its value in the data context. 
-     * The value is stored in {@link DataAccess.DatapathElement#addActualArgument(Object)}.
-     * See {@link #add_datapathElement(org.vishia.util.DataAccess.DatapathElement)}.
-     * @param val The Scriptelement which describes how to get the value.
-     */
-    public void add_argument(CalculatorExpr.SetExpr val){ 
-      if(fnArgsExpr == null){ fnArgsExpr = new ArrayList<CalculatorExpr>(); }
-      val.closeExprPreparation();
-      fnArgsExpr.add(val.expr);
-    } 
-    
-
     public void set_ident(String text){ this.ident = text; }
     
     public void set_whatisit(String text){ this.whatisit = text.charAt(0); }
@@ -1561,15 +1528,13 @@ public class DataAccess {
     
     public void setIdent(String ident){ this.ident = ident; }
     
-    /**Expressions to calculate the {@link #fnArgs}.
-     * The arguments of a subroutine can be given directly, then the expression is not necessary
-     * and this reference is null.
-     */
-    protected List<CalculatorExpr> fnArgsExpr;
-
     /**List of arguments of a method. If null, it is not a method or the method has not arguments. */
     protected List<Object> fnArgs;
     
+    
+    public void clearActualArguments(){
+      fnArgs = null;
+    }
     
     /**Adds any argument with its value.  */
     public void addActualArgument(Object arg){
@@ -1579,28 +1544,6 @@ public class DataAccess {
       fnArgs.add(arg);
     }
     
-    /**Adds any expression to calculate as argument.
-     * @param val An expression
-     */
-    public void addArgumentExpression(CalculatorExpr val){ 
-      if(fnArgsExpr == null){ fnArgsExpr = new ArrayList<CalculatorExpr>(); }
-      fnArgsExpr.add(val);
-    } 
-    
-
-    public void calculateArguments(Map<String, DataAccess.Variable<Object>> localVariables) 
-    throws Exception{
-      if(fnArgsExpr !=null){
-        //it is a element with arguments, usual a method call. 
-        if(fnArgs !=null){ fnArgs.clear(); }
-        for(CalculatorExpr expr: fnArgsExpr){
-          CalculatorExpr.Value value = expr.calcDataAccess(localVariables); //maybe calls overridden method of ZbatchGenScript.Expression
-          Object oValue = value.objValue();
-          addActualArgument(oValue);
-        }
-      }
-      
-    }
 
     /**For debugging.*/
     @Override public String toString(){

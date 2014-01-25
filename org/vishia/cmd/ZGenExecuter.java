@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 
 import org.vishia.cmd.CmdExecuter;
+import org.vishia.cmd.ZGenScript.ZGenDataAccess;
 import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.Assert;
 import org.vishia.util.CalculatorExpr;
@@ -749,7 +750,7 @@ public class ZGenExecuter {
 
     void executeDefVariable(ZGenScript.DefVariable statement, char type, Object value, boolean isConst) 
     throws Exception {
-      DataAccess.storeValue(statement.defVariable.datapath(), localVariables, value, bAccessPrivate);
+      storeValue(statement.defVariable, localVariables, value, bAccessPrivate);
       //setLocalVariable(statement.name, type, value, isConst);
        
     }
@@ -762,7 +763,8 @@ public class ZGenExecuter {
       //creates the for-variable in the executer level.
       DataAccess.Variable forVariable = DataAccess.createOrReplaceVariable(forExecuter.localVariables, statement.forVariable, 'O', null, false);
       //a new level for the for... statements. It contains the foreachData and maybe some more variables.
-      Object container = statement.forContainer.getDataObj(localVariables, bAccessPrivate, true);
+      Object container = dataAccess(statement.forContainer, localVariables, bAccessPrivate, true, false, null);
+      //Object container = statement.forContainer.getDataObj(localVariables, bAccessPrivate, true);
       //DataAccess.Dst dst = new DataAccess.Dst();
       //DataAccess.access(statement.defVariable.datapath(), null, localVariables, bAccessPrivate,false, true, dst);
       if(container instanceof String && ((String)container).startsWith("<?")){
@@ -835,8 +837,7 @@ public class ZGenExecuter {
     {
       boolean cond;
       do{
-        CalculatorExpr.Value check = whileStatement.condition.calcDataAccess(localVariables);
-        cond = check.booleanValue();
+        cond = evalCondition(whileStatement.condition); //.calcDataAccess(localVariables);
         if(cond){
           execute(whileStatement.statementlist, out, indentOut, false);
         }
@@ -859,32 +860,9 @@ public class ZGenExecuter {
     {
       //Object check = getContent(ifBlock, localVariables, false);
       
-      CalculatorExpr.Value check;
+      //CalculatorExpr.Value check;
       boolean bCheck;
-      if(ifBlock.condition !=null){
-        check = ifBlock.condition.calcDataAccess(localVariables);
-        bCheck = check.booleanValue();
-      } else if(ifBlock.conditionValue !=null){
-        //dataAccess: The condition is true if the accessed element is found and returns !=null
-        try{
-          Object oVal = ifBlock.conditionValue.getDataObj(localVariables, bAccessPrivate, false);
-          if(oVal instanceof Number){
-            bCheck = ((Number)oVal).intValue() !=0;
-          } else if(oVal instanceof Boolean){
-            bCheck = ((Boolean)oVal).booleanValue();
-          } else {
-            bCheck = oVal !=null;
-          }
-        } catch(NoSuchElementException exc){
-          bCheck = false;
-        } catch(NoSuchFieldException exc){
-          bCheck = false;
-        } catch(NoSuchMethodException exc){
-          bCheck = false;
-        }
-      } else { 
-        throw new RuntimeException("ZGenExecuter - syntax problem, ifBlock should contain either a expression or a dataAccess;");
-      }
+      bCheck = evalCondition(ifBlock.condition); //.calcDataAccess(localVariables);
       if(bCheck){
         execute(ifBlock.statementlist, out, indentOut, bIfHasNext);
       }
@@ -907,7 +885,8 @@ public class ZGenExecuter {
     { Appendable out1;
       if(statement.variable !=null){
         Object chn;
-        Object oVar = DataAccess.access(statement.variable.datapath(), null, localVariables, bAccessPrivate, false, true, null);
+        //Object oVar = DataAccess.access(statement.variable.datapath(), null, localVariables, bAccessPrivate, false, true, null);
+        Object oVar = dataAccess(statement.variable,localVariables, bAccessPrivate, false, true, null);
         if(oVar instanceof DataAccess.Variable<?>){
           @SuppressWarnings("unchecked")
           DataAccess.Variable<Object> var = (DataAccess.Variable<Object>) oVar;
@@ -1028,7 +1007,7 @@ public class ZGenExecuter {
         try{
           //if(statement.threadName != null){  //marker for a new ThreadVariable
             result = new ZGenThreadResult();
-            DataAccess.storeValue(statement.threadVariable.datapath(), localVariables, result, bAccessPrivate);
+            storeValue(statement.threadVariable, localVariables, result, bAccessPrivate);
           //} else { 
             //use existing thread variable, Exception if not found.
           //  result = (ZGenThreadResult)statement.threadVariable.getDataObj(localVariables, bAccessPrivate, false);
@@ -1098,14 +1077,16 @@ public class ZGenExecuter {
       List<Appendable> outCmd;
       if(statement.variable !=null){
         outCmd = new LinkedList<Appendable>();
-        Object oOutCmd = statement.variable.getDataObj(localVariables, bAccessPrivate, false);
+        Object oOutCmd = dataAccess(statement.variable, localVariables, bAccessPrivate, false, false, null);
+        //Object oOutCmd = statement.variable.getDataObj(localVariables, bAccessPrivate, false);
         if(oOutCmd instanceof Appendable){
           outCmd.add((Appendable)oOutCmd);
         } else { throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
         }
         if(statement.assignObjs !=null){
           for(DataAccess assignObj1 : statement.assignObjs){
-            oOutCmd = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
+            oOutCmd = dataAccess(assignObj1, localVariables, bAccessPrivate, false, false, null);
+            //oOutCmd = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
             if(oOutCmd instanceof Appendable){
               outCmd.add((Appendable)oOutCmd);
             } else { throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
@@ -1193,7 +1174,8 @@ public class ZGenExecuter {
     {
       CharSequence text = "??";
       try{
-        Object obj = statement.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
+        Object obj = dataAccess(statement.dataAccess, localVariables, bAccessPrivate, false, false, null);
+        //Object obj = statement.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
         if(obj==null){ text = "null"; 
         } else {
           //else if(obj instanceof CalculatorExpr.Value){
@@ -1258,7 +1240,7 @@ public class ZGenExecuter {
       } else {
         writer = new FileWriter(sFilename);  //given absolute path
       }
-      DataAccess.storeValue(statement.defVariable.datapath(), localVariables, writer, bAccessPrivate);
+      storeValue(statement.defVariable, localVariables, writer, bAccessPrivate);
       //setLocalVariable(statement.identArgJbat, 'A', writer);
     }
     
@@ -1281,13 +1263,14 @@ public class ZGenExecuter {
     void executeAssign(ZGenScript.AssignExpr statement, Object val) 
     throws IllegalArgumentException, Exception
     {
-      DataAccess assignObj1 = statement.variable;
-      Iterator<DataAccess> iter1 = statement.assignObjs == null ? null : statement.assignObjs.iterator();
+      ZGenScript.ZGenDataAccess assignObj1 = statement.variable;
+      Iterator<ZGenScript.ZGenDataAccess> iter1 = statement.assignObjs == null ? null : statement.assignObjs.iterator();
       while(assignObj1 !=null) {
         //Object dst = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
         DataAccess.Dst dstField = new DataAccess.Dst();
-        List<DataAccess.DatapathElement> datapath = assignObj1.datapath(); 
-        Object dst = DataAccess.access(datapath, null, localVariables, bAccessPrivate, false, true, dstField);
+        //List<DataAccess.DatapathElement> datapath = assignObj1.datapath(); 
+        //Object dst = DataAccess.access(datapath, null, localVariables, bAccessPrivate, false, true, dstField);
+        Object dst = dataAccess(assignObj1,localVariables, bAccessPrivate, false, true, dstField);
         if(dst instanceof DataAccess.Variable){
           DataAccess.Variable var = (DataAccess.Variable) dst; //assignObj1.accessVariable(localVariables, bAccessPrivate);
           dst = var.value();
@@ -1380,7 +1363,7 @@ public class ZGenExecuter {
         DataAccess.Variable<Object> ret = new DataAccess.Variable<Object>('M', "return", new_Variables());
         localVariables.add("return", ret);
       }
-      statement.defVariable.storeValue(localVariables, val, bAccessPrivate);
+      storeValue(statement.defVariable, localVariables, val, bAccessPrivate);
       
     }
     
@@ -1396,9 +1379,10 @@ public class ZGenExecuter {
     {
       Object val = evalObject(statement, false);
       DataAccess assignObj1 = statement.variable;
-      Iterator<DataAccess> iter1 = statement.assignObjs == null ? null : statement.assignObjs.iterator();
+      Iterator<ZGenScript.ZGenDataAccess> iter1 = statement.assignObjs == null ? null : statement.assignObjs.iterator();
       while(assignObj1 !=null) {
-        Object dst = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
+        Object dst = dataAccess(assignObj1, localVariables, bAccessPrivate, false, false, null);
+        //Object dst = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
         if(dst instanceof Appendable){
           if(!(val instanceof CharSequence)){
             val = val.toString();
@@ -1428,7 +1412,8 @@ public class ZGenExecuter {
      */
     public Object evalDatapathOrExpr(ZGenScript.Argument arg) throws Exception{
       if(arg.dataAccess !=null){
-        Object o = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
+        Object o = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
+        //Object o = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
         if(o==null){ return "null"; }
         else {return o; }
       } else if(arg.expression !=null){
@@ -1447,7 +1432,8 @@ public class ZGenExecuter {
     {
       if(arg.textArg !=null) return arg.textArg;
       else if(arg.dataAccess !=null){
-        Object o = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
+        Object o = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
+        //Object o = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
         if(o==null){ return "null"; }
         else {return o.toString(); }
       } else if(arg.statementlist !=null){
@@ -1461,6 +1447,60 @@ public class ZGenExecuter {
       //} else throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
     }
     
+    
+    
+    /**Accesses the data. Before execution all arguments of methods inside the {@link #datapath()}
+     * are calculated with the capability of ZGen.
+     * @param dataPool
+     * @param accessPrivate
+     * @param bContainer
+     * @param bVariable
+     * @param dst
+     * @return
+     * @throws Exception
+     */
+    Object dataAccess(DataAccess dataAccess
+    , Map<String, DataAccess.Variable<Object>> dataPool
+    , boolean accessPrivate
+    , boolean bContainer
+    , boolean bVariable
+    , DataAccess.Dst dst
+    ) throws Exception {
+      calculateArguments(dataAccess);
+      return DataAccess.access(dataAccess.datapath(), null, dataPool, accessPrivate, bContainer, bVariable, dst);
+    }
+      
+    
+    
+    void storeValue(DataAccess dataAccess
+    , Map<String, DataAccess.Variable<Object>> dataPool
+    , Object value
+    , boolean accessPrivate
+    )throws Exception {
+      calculateArguments(dataAccess);
+      dataAccess.storeValue(dataPool, value, accessPrivate);
+    }
+
+    
+    
+    
+    private void calculateArguments(DataAccess dataAccess) throws Exception {
+      for(DataAccess.DatapathElement dataElement : dataAccess.datapath()){  //loop over all elements of the path with or without arguments.
+        //check all datapath elements whether they have method calls with arguments:
+        if(dataElement instanceof ZGenScript.ZGenDatapathElement){
+          ZGenScript.ZGenDatapathElement zgenDataElement = (ZGenScript.ZGenDatapathElement)dataElement;
+          dataElement.clearActualArguments();
+          if(zgenDataElement.fnArgsExpr !=null){
+            int nrofArgs = zgenDataElement.fnArgsExpr.size();
+            for(ZGenScript.ZGenitem expr: zgenDataElement.fnArgsExpr){
+              Object arg = evalObject(expr, false);
+              dataElement.addActualArgument(arg);
+            }
+          }
+        }
+      }
+
+    }
     
     
     
@@ -1480,7 +1520,9 @@ public class ZGenExecuter {
       Object obj;
       if(arg.textArg !=null) return arg.textArg;
       else if(arg.dataAccess !=null){
-        obj = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
+        //calculate arguments firstly:
+        obj = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
+        //obj = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
       } else if(arg.statementlist !=null){
         StringPartAppend u = new StringPartAppend();
         executeNewlevel(arg.statementlist, u, arg.statementlist.indent, false);
@@ -1491,6 +1533,41 @@ public class ZGenExecuter {
       } else obj = null;  //throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
       return obj;
     }
+    
+    
+    
+    
+    public boolean evalCondition(ZGenScript.ZGenitem arg) throws Exception{
+      boolean ret;
+      if(arg.textArg !=null) return true;
+      else if(arg.dataAccess !=null){
+        try{
+          Object obj = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
+          if(obj instanceof Number){
+            ret = ((Number)obj).intValue() !=0;
+          } else if(obj instanceof Boolean){
+            ret = ((Boolean)obj).booleanValue();
+          } else {
+            ret = obj !=null;
+          }
+        } catch(NoSuchElementException exc){
+          ret = false;
+        } catch(NoSuchFieldException exc){
+          ret = false;
+        } catch(NoSuchMethodException exc){
+          ret = false;
+        }
+      } else if(arg.statementlist !=null){
+        throw new IllegalArgumentException("ZGenExecuter - unexpected, faulty syntax");
+      } else if(arg.expression !=null){
+        CalculatorExpr.Value value = arg.expression.calcDataAccess(localVariables);
+        ret = value.booleanValue();
+      } else throw new IllegalArgumentException("ZGenExecuter - unexpected, faulty syntax");
+      return ret;
+      
+    }
+    
+    
     
     boolean isBreak(){ return isBreak; }
     

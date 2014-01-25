@@ -42,6 +42,10 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-01-26 Hartmut chg: To add a datapath now {@link SetExpr#new_datapath()} is offered, all details of a datapath
+   *   are handled in {@link DataAccess.DataAccessSet}. To support more complex {@link DataAccess.DatapathElement} especially
+   *   with expressions or datapath as arguments, the method {@link SetExpr#newDataAccessSet()} supports overriding
+   *   in a derived class of {@link SetExpr}, see {@link org.vishia.cmd.ZGenScript.ZGenCalculatorExpr}. 
    * <li>2013-10-19 Hartmut new: {@link SetExpr} should know all possibilities of {@link DataAccess.DataAccessSet}
    *   too because an expression may be an DataAccess only. Yet only {@link SetExpr#new_newJavaClass()} realized.
    * <li>2013-10-19 Hartmut new: The CalculatorExpr gets the capability to generate String expressions
@@ -96,38 +100,7 @@ public class CalculatorExpr
   
    
    
-   
   
-  /**A path to any Java Object or method given with identifier names.
-   * The access is organized using reflection.
-   * <ul>
-   * <li>This class can describe a left value. It may be a Container to which a value is added
-   * or a {@link java.lang.Appendable}, to which a String is added.  
-   * <li>This class can describe a value, which is the result of access to the last element of the path.
-   * </ul>
-   */
-  public static class XXXDatapath
-  {
-    /**The description of the path to any data if the script-element refers data. It is null if the script element
-     * does not refer data. If it is filled, the instances are of type {@link DataAccess.DatapathElementSet}.
-     * If it is used in {@link DataAccess}, its base class {@link DataAccess.DatapathElement} are used. The difference
-     * are the handling of actual values for method calls. See {@link DataAccess.DatapathElementSet#actualArguments}.
-     */
-    protected List<DataAccess.DatapathElement> datapath;
-    
-    public List<DataAccess.DatapathElement> datapath(){ return datapath; }
-    
-    public void add_datapathElement(DataAccess.DatapathElement item){ 
-      if(datapath == null){
-        datapath = new ArrayList<DataAccess.DatapathElement>();
-      }
-      datapath.add(item); 
-    }
-
-    
-    
-  }
-   
    
   /**A value, maybe a constant, any given Object or an access description to a java program element.
    * 
@@ -870,7 +843,7 @@ public class CalculatorExpr
     protected Value value;
     
     /**Set if the value of the operation should be gotten by data access on calculation time. */
-    protected DataAccess datapath;
+    protected DataAccess.DataAccessSet datapath;
     
     public Operation(){
       this.ixVariable = kArgumentUndefined;
@@ -910,7 +883,7 @@ public class CalculatorExpr
     public boolean hasUnaryOperator(){ return unaryOperator !=null || unaryOperators !=null; }
     
     public void add_datapathElement(DataAccess.DatapathElement item){ 
-      if(datapath == null){ datapath = new DataAccess();}
+      if(datapath == null){ datapath = new DataAccess.DataAccessSet();}
       datapath.add_datapathElement(item); 
     }
     
@@ -1089,22 +1062,6 @@ public class CalculatorExpr
     
     
     
-    public SetExpr XXXnew_boolStartOperation(){
-      //if(actOperation !=null){ addToOperations(); }
-      assert(actOperation == null);
-      actOperation = new CalculatorExpr.Operation("!", -1);
-      return this;
-    }
-    
-    
-    /**Designates the end of a multiplication operation. Takes the operation into the expression list.
-     * @param val this, unused
-     */
-    public void XXXadd_boolStartOperation(SetExpr val){
-      addToOperations(); 
-    }
-    
-    
     public SetExpr new_boolAndOperation(){
       if(actOperation !=null){ addToOperations(); }
       return this;
@@ -1144,33 +1101,6 @@ public class CalculatorExpr
 
     
     
-    public SetExpr XXXnew_boolExpr(){ 
-      return this;
-    }
-
-    
-    public void XXXadd_boolExpr(SetExpr  val){ 
-      if(actOperation !=null){
-        if(actOperation.hasOperator()){
-          actOperation.addUnaryOperator("b");
-        }
-        addToOperations();
-      }
-    }
-
-    
-    public SetExpr XXXnew_objExpr(){ 
-      return this;
-    }
-
-    public void XXXadd_objExpr(SetExpr  val){ 
-      if(actOperation ==null){
-        actOperation = new CalculatorExpr.Operation();
-        actOperation.setStackOperand();  
-      }
-      addToOperations(); 
-    }
-
     public SetExpr new_cmpOperation(){
       if(actOperation !=null){
         addToOperations();  //if it is a start operation.
@@ -1192,16 +1122,6 @@ public class CalculatorExpr
       actOperation.setOperator(val);
     }
     
-    
-    public SetExpr xxxnew_numExpression(){ 
-      return this;
-    }
-
-    
-    public void xxxadd_numExpression(SetExpr  val){ 
-      
-    }
-
     
     
     public void set_unaryOperator(String op){
@@ -1229,14 +1149,6 @@ public class CalculatorExpr
       //actOperation.setStackOperand();  //NOTE the operation will be set by following set_multOperation() etc.
     }
 
-    public SetExpr XXXnew_startOperation(){
-      return this;
-    }
-    
-    public void XXXadd_startOperation(SetExpr val){
-      addToOperations(); 
-    }
-
     /**Designates the start of a new adding operation. The first start value should be taken into the
      * stackOperation statement list as start operation.
      * @return this
@@ -1256,6 +1168,28 @@ public class CalculatorExpr
         actOperation.setStackOperand();  
       }
       actOperation.setOperator("+");
+      addToOperations(); 
+    }
+
+    /**Designates the start of a new adding operation. The first start value should be taken into the
+     * stackOperation statement list as start operation.
+     * @return this
+     */
+    public SetExpr new_subOperation(){
+      if(actOperation !=null){ addToOperations(); }
+      assert(actOperation == null);  //will be set by values. operator will be set by add_addOperation
+      return this;  
+    }
+    
+    /**Designates the end of an add operation. Takes the operation into the expression list.
+     * @param val this, unused
+     */
+    public void add_subOperation(SetExpr val){
+      if(actOperation ==null){
+        actOperation = new CalculatorExpr.Operation();
+        actOperation.setStackOperand();  
+      }
+      actOperation.setOperator("-");
       addToOperations(); 
     }
 
@@ -1306,46 +1240,36 @@ public class CalculatorExpr
     
     
     
-    public void set_startVariable(String ident){
-      if(actOperation == null){ actOperation = new CalculatorExpr.Operation(); }
-      DataAccess.DatapathElement element = new DataAccess.DatapathElement();
-      element.whatisit = '@';
-      element.ident = ident;
-      actOperation.add_datapathElement(element);
-    }
+    /**It is override-able to create an derived instance.
+     */
+    protected DataAccess.DataAccessSet newDataAccessSet(){ return new DataAccess.DataAccessSet(); }
     
-    public SetExpr new_datapath(){ return this; }
-    
-    public void add_datapath(SetExpr val){ 
-      //actOperation.add_datapathElement(val); 
-    }
-    
-
-    /**Creates a new {@link DataAccess.DatapathElementSet} instance for a {@link DataAccess.DatapathElement}
-     * This method should be overridden if the arguments of a method should support derived features
-     * of a derived instance of this class.
+    /**Returns this because all methods of {@link DataAccess.DataAccessSet} are delegated in this class.
      * @return
      */
-    public DataAccess.DatapathElementSet new_datapathElement(){ 
-      return new DataAccess.DatapathElementSet(); 
-    }
-    
-    public void add_datapathElement(DataAccess.DatapathElementSet val){ 
+    public DataAccess.DataAccessSet new_datapath(){ 
+      assert(actOperation ==null);
       if(actOperation == null){ actOperation = new CalculatorExpr.Operation(); }
-      actOperation.add_datapathElement(val); 
-    }
+      if(actOperation.datapath == null){ actOperation.datapath = newDataAccessSet();}
+      return actOperation.datapath;
+    } 
     
+    public void add_datapath(DataAccess.DataAccessSet val){ }
     
-    public DataAccess.DatapathElementSet new_newJavaClass()
-    { DataAccess.DatapathElementSet value = new DataAccess.DatapathElementSet();
-      value.whatisit = '+';
-      return value;
-    }
-    
-    public void add_newJavaClass(DataAccess.DatapathElementSet val) { add_datapathElement(val); }
 
-
-    
+    /**Returns the datapath if the expression contains only a datapath.
+     * @return null if the expression is more complex.
+     */
+    public DataAccess onlyDataAccess(){
+      if((expr.listOperations == null || expr.listOperations.size() ==0)
+        && actOperation !=null
+        //&& actOperation.ixVariable == Operation.kDatapath
+      ){ 
+        return actOperation.datapath;
+      } else {
+        return null;
+      }
+    }
     
 
     /**This routine must be called at least. It adds a simple value to the operation list.
