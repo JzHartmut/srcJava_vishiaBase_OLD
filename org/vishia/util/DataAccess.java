@@ -1,12 +1,12 @@
 package org.vishia.util;
 
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -15,11 +15,18 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.TreeMap;
 
+import org.vishia.util.Assert;
+import org.vishia.util.TreeNodeBase;
 
 
 
-/**This class contains methods to access data and invoke methods with symbolic access using reflection mechanism.
- * The class is helpful to deal with reflection. Some methods are offered to make it simply.
+
+/**This class contains methods to access and set data and invoke methods with symbolic access using reflection mechanism.
+ * The class is helpful to deal with reflection. Some methods are offered to make it simply. This class is independent
+ * of other classes else {@link Assert} and {@link TreeNodeBase}. The last one is checked whether it is used as container.
+ * It is not necessary to work with.
+ * <br><br> 
+ * All methods throws the proper exception if anything is not correct. The user should catch it if necessary.
  * <ul>
  * <li>Simple access to fields, also to super and enclosing instances
  * <li>Access to referred instance in one method.
@@ -34,9 +41,7 @@ import java.util.TreeMap;
  *   Invokes {@link #getDataFromField(String, Object, boolean)}. 
  * <li>{@link #getData(List, Object, Map, boolean, boolean)} Data from a complex referenced instance
  *   maybe with method invocations. It uses a <code>List< {@link DatapathElement}></code> to access,
- *   it uses or calculates method arguments before access. The method arguments can use a DataAccess too,
- *   or it can use a {@link CalculatorExpr} to calculate the arguments. Recursively invocations of methods of this class
- *   can be occurred. Static methods and creation of instances can invoked too. See {@link DatapathElement}.
+ *   it uses method arguments. Static methods and creation of instances can invoked too. See {@link DatapathElement}.
  * <li>{@link #create(String, Object...)} creates an instance by symbolic name.
  * <li>{@link #storeValue(List, Map, Object, boolean)} stores instead accesses
  * <li>{@link #setVariable(Map, String, Object)}, {@link #getVariable(Map, String, boolean)}: Deal with variables.
@@ -49,7 +54,6 @@ import java.util.TreeMap;
  * This class can hold a datapath, see {@link #add_datapathElement(DatapathElement)} and can access with this path
  * using the non-static method {@link #getDataObj(Map, boolean, boolean)}.
  * <br><br> 
- * This class is used inside {@link org.vishia.cmd.ZGenExecuter} but it is promising in other applications too. 
  * @author Hartmut Schorrig
  *
  */
@@ -59,7 +63,7 @@ public class DataAccess {
    * <li>2014-01-26 Hartmut chg: The element <code>fnArgsExpr</code> of {@link DatapathElement} is removed from here. 
    *   It is now located in {@link org.vishia.cmd.ZGenScript.ZGenDatapathElement} because it is necessary
    *   only for the ZGen usage. This class is more simple in its functionality.
-   * <li>2014-01-25 Hartmut chg: some methods of {@link DataAccessSet} are final now. Nonody overrides.  
+   * <li>2014-01-25 Hartmut chg: some methods of {@link DataAccessSet} are final now. Nobody overrides.  
    * <li>2013-12-26 Hartmut chg: {@link #createOrReplaceVariable(Map, String, char, Object, boolean)} instead setVariable(...)
    *   with type argument.
    * <li>2013-12-26 Hartmut chg: {@link #getData(String, Object, boolean, boolean, boolean, Dst)} returns the variable
@@ -100,8 +104,6 @@ public class DataAccess {
    * <li>2013-01-05 Hartmut new: reads $$ENV_VAR.
    * <li>2013-01-02 Hartmut new: Supports access to methods whith parameter with automatic cast from CharSequence to String and to File.
    *   Uses the {@link DatapathElement#fnArgs} and {@link #getData(List, Object, Map, boolean, boolean)}.
-   * <li>2012-12-26 Hartmut new: {@link #create(String, DataAccess.Variable...)}, the {@link DatapathElement#whatisit} can contain 'n'
-   *   to force creation of a new instance.
    * <li>2012-12-23 Hartmut chg, new: {@link #getStringFromObject(Object, String)} now uses a format string.
    * <li>2012-12-22 Hartmut new: {@link DatapathElement#constValue} as general possibility, usual for the first element of a path.
    * <li>2012-12-08 Hartmut new: {@link #getData(String, Object, boolean)} as subroutine in {@link #getData(List, Object, Map, boolean, boolean)}
@@ -148,9 +150,20 @@ public class DataAccess {
   
   
   
-  protected static interface Conversion
+  /**Interface to convert between data.
+   */
+  public static interface Conversion
   {
+    /**Executes the conversion
+     * @param src the source data
+     * @return the result data.
+     */
     Object convert(Object src); 
+    
+    /**Checks whether the value of source allows the conversion.
+     * @param src The src value.
+     * @return true if allowed
+     */
     boolean canConvert(Object src); 
   }
   
@@ -259,11 +272,13 @@ public class DataAccess {
    *   {@link Variable#type()}, this variable is created newly. 
    *   The destination before, that is either the param variables or the result of the path before,
    *   have to be a <code>Map< String, DataAccess.Variables></code>.
-   * <li>If the variable referred by the path exists, it should be a {@link java.util.List} or
-   * a {@link java.lang.Appendable}. Then the value is added or appended to it.
-   * <li>If the variable referred by the path exists, and the path before is a Map, the variable is replaced.
-   * <li>If the variable referred by the path does not exists, it is tried to add. The adding is
-   *   possible only if the parent variable is of type {@link java.util.Map} with a String as key.
+   * <li>If the path exists and refers to a {@link Variable} then to value of the variable is replaced.   
+   * <li>If the destination referred by the path exists and it is a {@link java.util.List} or
+   * a {@link java.lang.Appendable}, then the value is added respectively appended to it.
+   * <li>If the destination referred by the path exists, and the path before is a Map, then
+   *   the element of the map is replaced.
+   * <li>If the destination referred by the path does not exists, and the path before is a Map<String, Type>, then
+   *   the element of the map is put. 
    * <li>If the path consists of more as one element and any parent element does not exists too,
    *   it is added only if its parent is of type {@link java.util.Map} with a String as key.
    * <li>The parent of the first element is the variables container. It is of type Map. 
@@ -272,9 +287,6 @@ public class DataAccess {
    * <li>If the path consists of some elements and all of them are Map or one of them does not exist,
    *   a Tree of Maps is build in variable.      
    * </ul>
-   * The path refers to a non-existing variable.
-   * The path may have more as one elements. 
-   * Usual the path has only 1 element, it stores in the {@link #localVariables}.
    * 
    * @param path
    * @param variables
@@ -283,7 +295,6 @@ public class DataAccess {
    * @throws IOException if append fails.
    * @throws IllegalAccessException if a field exists but can't access. Note that private members can be accessed.
    */
-  @SuppressWarnings("unchecked")
   public static void storeValue(List<DatapathElement> path, Map<String, Variable<Object>> variables, Object value, boolean bAccessPrivate) 
   throws Exception {
     Dst dst = new Dst();
@@ -291,8 +302,9 @@ public class DataAccess {
     //If it is a Variable, return the Variable, not its content.
     //If it is not a Variable, the dst contains the Field.
     Object o = DataAccess.access(path, null, variables, bAccessPrivate, false, true, dst);
-    if(o instanceof Variable){
-      Variable var = (Variable)(o); 
+    if(o instanceof Variable<?>){
+      @SuppressWarnings("unchecked")
+      Variable<Object> var = (Variable<Object>)(o); 
       var.setValue(value);
     } else {
       dst.set(value);  //try to set the value to the field. If the type is not proper, throws an exception.
@@ -300,78 +312,12 @@ public class DataAccess {
   }
 
   
-  
-  
-  public static void XXXstoreValue(List<DatapathElement> path, Map<String, Variable> variables, Object value, boolean bAccessPrivate) 
-  throws IOException, IllegalAccessException {
-    
-    
-    Object dst = variables;
-    Iterator<DataAccess.DatapathElement> iter = path.iterator();
-    DataAccess.DatapathElement element;
-    while(iter.hasNext()) {
-      element = iter.next();
-      if(element.ident.equals("test2String"))
-        Assert.stop();
-      Object dst2;
-      if(element.whatisit >='A' && element.whatisit <='Z'){
-        //It is a new defined variable. 
-        if(dst instanceof Map<?,?>){
-          //Class clazz = dst.getClass();
-          //Type[] gen2 = clazz.getGenericInterfaces();
-          //TypeVariable[] gen = clazz.getTypeParameters();
-          //TODO check generic type.
-          //Or: we will have a variable, it should be able to store there!
-          Map<String, DataAccess.Variable> varContainer = (Map<String, DataAccess.Variable>)dst;
-          varContainer.put(element.ident, new DataAccess.Variable(element.whatisit, element.ident, value));
-        } else if (dst instanceof DataAccess.Variable){
-          //necessary?
-        } else {
-          throw new IllegalArgumentException("DataAccess.storeValue - destination should be Map<String, DataAccess.Variable>; " + dst);
-        }
-      } else {
-        try{ dst2 = DataAccess.getData(element.ident, dst, bAccessPrivate, false, false, null);}
-        catch(NoSuchFieldException exc){ dst2 = null; }
-        if(iter.hasNext()){
-          if(dst2 == null){
-            assert(dst instanceof Map<?, ?>);
-            dst2 = new IndexMultiTable<String, DataAccess.Variable>(IndexMultiTable.providerString);
-            createOrReplaceVariable((Map<String, DataAccess.Variable<Object>>)dst, element.ident, 'V', dst2, false);
-          }
-          dst = dst2;
-        } else {
-          //last item in path.
-          if(dst2 == null){
-            assert(dst instanceof Map<?, ?>);
-            createOrReplaceVariable((Map<String, DataAccess.Variable<Object>>)dst, element.ident, 'O', value, false);
-          } else {
-            //the last element is found, try assign the value to it, it should be any container or Appendable.
-            if(dst2 instanceof StringSeq && value instanceof CharSequence){
-              ((StringSeq)dst2).change((CharSequence)value);
-            } else if(dst2 instanceof Appendable){
-              final CharSequence cVal;
-              if(!(value instanceof CharSequence)){
-                cVal = value.toString();
-              } else {
-                cVal = (CharSequence)value;
-              }
-              ((Appendable)dst2).append(cVal);
-            } else if(dst2 instanceof List){
-              ((List)dst2).add(value);
-            } else if(dst instanceof Map){
-              //replace, don't use dst2
-              createOrReplaceVariable((Map<String, DataAccess.Variable<Object>>)dst,element.ident, 'O', value, false);
-            } else {  
-              throw new IllegalArgumentException("JbatchExecuter - can't add value to; " + path);
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  
-  
+  /**Stores the value in the given path. See {@link #storeValue(List, Map, Object, boolean)}.
+   * @param variables
+   * @param value
+   * @param bAccessPrivate
+   * @throws Exception
+   */
   public void storeValue( Map<String, Variable<Object>> variables, Object value, boolean bAccessPrivate) 
   throws Exception
   {
@@ -386,7 +332,12 @@ public class DataAccess {
   
   
   
-  private static Map<String, Conversion> initConversion(){
+  /**This method initializes the internal conversion index. It is only public to document
+   * which conversions are possible. One can invoke the method and view the result.
+   * The keys in the map describe possible conversions <code>fromType:toType</code>.
+   * @return An index for conversion. Used internal.
+   */
+  public static Map<String, Conversion> initConversion(){
     Map<String, Conversion> conversion1 = new TreeMap<String, Conversion>();
     conversion1.put("java.lang.Long:int", long2int);
     conversion1.put("java.lang.Integer:int", obj2obj);
@@ -400,6 +351,8 @@ public class DataAccess {
     return conversion1;
   }
   
+  
+  
   private final static Class<?> getClass(String name){
     try{
       return Class.forName(name);
@@ -407,30 +360,6 @@ public class DataAccess {
       return null;
     }
   }
-  
-  
-  
-  /**Creates an object with the given class name und the given constructor arguments.
-   * @param classname className The fully qualified name of the desired class. See {@link java.lang.Class#forName(String)}.
-   * @param args empty, null or some arguments. 
-   * @return
-   * @throws ClassNotFoundException
-   * @throws NoSuchMethodException
-   * @throws SecurityException
-   * @throws InstantiationException
-   * @throws IllegalAccessException
-   * @throws IllegalArgumentException
-   * @throws InvocationTargetException
-   */
-  public static Object create(String classname, Object ... args) 
-  throws ClassNotFoundException, NoSuchMethodException, SecurityException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException{
-    Class<?> clazz = Class.forName(classname);
-    Constructor<?> ctor = clazz.getConstructor(ifcMainCmdLogging_ifc);  //args[0].getClass()); //
-    Object ret = ctor.newInstance(args);
-    return ret;
-    
-  }
-  
   
   
   
@@ -563,8 +492,9 @@ public class DataAccess {
     while(element !=null){
       //has a next element
       //
-      if(data1 instanceof Variable){
-        data1 = ((Variable)data1).value;  //take the content of a variable!
+      if(data1 instanceof Variable<?>){
+        @SuppressWarnings("unchecked") Variable<Object> var = (Variable<Object>)data1;
+        data1 = var.value;  //take the content of a variable!
       }
       //
       if(element.whatisit >='A' && element.whatisit <='Z'){
@@ -573,10 +503,10 @@ public class DataAccess {
           //it should be a variable container!
           @SuppressWarnings("unchecked")
           Map<String, DataAccess.Variable> varContainer = (Map<String, DataAccess.Variable>)data1;
-          Variable newVariable = new DataAccess.Variable(element.whatisit, element.ident, null);
+          Variable<Object> newVariable = new DataAccess.Variable<Object>(element.whatisit, element.ident, null);
           varContainer.put(element.ident, newVariable);
           data1 = newVariable;
-        } else if (data1 instanceof DataAccess.Variable){
+        } else if (data1 instanceof DataAccess.Variable<?>){
           //necessary?
         } else {
           throw new IllegalArgumentException("DataAccess.storeValue - destination should be Map<String, DataAccess.Variable>; " + dst);
@@ -605,8 +535,9 @@ public class DataAccess {
       element = iter.hasNext() ? iter.next() : null;
     }
     //return
-    if(data1 instanceof Variable && !bVariable){  //use the value of the variable.
-      data1 = ((Variable)data1).value;
+    if(data1 instanceof Variable<?> && !bVariable){  //use the value of the variable.
+      @SuppressWarnings("unchecked") Variable<Object> var = (Variable<Object>)data1;
+      data1 = var.value;
     }
     if(data1 == null) return null;
     else if(bContainer){
@@ -635,56 +566,39 @@ public class DataAccess {
    */
   protected static Object invokeNew(      
       DatapathElement element
-    ) throws NoSuchMethodException //throws ClassNotFoundException{
+    ) throws Exception //throws ClassNotFoundException{
   { Object data1 = null;
     if(element.ident.equals("java.io.FileOutputStream"))
       Assert.stop();
-    try{ 
-      //int posClass = element.ident.lastIndexOf('.');
-      //String sClass = element.ident.substring(0, posClass);
-      //String sMethod = element.ident.substring(posClass +1);
-      Class<?> clazz = Class.forName(element.ident);
-      Constructor<?>[] methods = clazz.getConstructors();
-      boolean bOk = false;
-      for(Constructor<?> method: methods){
-        bOk = false;
-        String sMethodName = method.getName();
-        Class<?>[] paramTypes = method.getParameterTypes();
-        
-        Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
-        if(actArgs !=null){
-          bOk = true;
-          try{ 
-            data1 = method.newInstance(actArgs);
-          } catch(IllegalAccessException exc){
-            CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
-            throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
-          } catch(InstantiationException exc){
-            CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
-            throw new NoSuchMethodException("DataAccess - new invocation problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
-          }
-          break;  //method found.
+    //int posClass = element.ident.lastIndexOf('.');
+    //String sClass = element.ident.substring(0, posClass);
+    //String sMethod = element.ident.substring(posClass +1);
+    Class<?> clazz = Class.forName(element.ident);
+    Constructor<?>[] methods = clazz.getConstructors();
+    boolean bOk = false;
+    for(Constructor<?> method: methods){
+      bOk = false;
+      Class<?>[] paramTypes = method.getParameterTypes();
+      Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
+      if(actArgs !=null){
+        bOk = true;
+        try{ 
+          data1 = method.newInstance(actArgs);
+        } catch(IllegalAccessException exc){
+          CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
+          throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+        } catch(InstantiationException exc){
+          CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
+          throw new NoSuchMethodException("DataAccess - new invocation problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
         }
+        break;  //method found.
       }
-      if(!bOk) {
-        Assert.stackInfo("", 5);
-        CharSequence stackInfo = Assert.stackInfo(" called: ", 3, 5);
-        throw new NoSuchMethodException("DataAccess - method not found: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
-      }
-    } catch (ClassNotFoundException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (SecurityException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (IllegalArgumentException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (InvocationTargetException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
     }
-    //} catch 
+    if(!bOk) {
+      Assert.stackInfo("", 5);
+      CharSequence stackInfo = Assert.stackInfo(" called: ", 3, 5);
+      throw new NoSuchMethodException("DataAccess - method not found: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+    }
     return data1;    
   }
   
@@ -758,52 +672,35 @@ public class DataAccess {
   { Object data1 = null;
     if(element.ident.contains("xml.Xslt"))
       Assert.stop();
-    try{ 
-      int posClass = element.ident.lastIndexOf('.');
-      String sClass = element.ident.substring(0, posClass);
-      String sMethod = element.ident.substring(posClass +1);
-      Class<?> clazz = Class.forName(sClass);
-      Method[] methods = clazz.getMethods();
-      boolean bOk = false;
-      for(Method method: methods){
-        bOk = false;
-        String sMethodName = method.getName();
-        if(sMethodName.equals(sMethod)){
-          Class<?>[] paramTypes = method.getParameterTypes();
-          
-          Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
-          if(actArgs !=null){
-            bOk = true;
-            try{ 
-              data1 = method.invoke(null, actArgs);
-            } catch(IllegalAccessException exc){
-              CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
-              throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
-            }
-            break;  //method found.
+    int posClass = element.ident.lastIndexOf('.');
+    String sClass = element.ident.substring(0, posClass);
+    String sMethod = element.ident.substring(posClass +1);
+    Class<?> clazz = Class.forName(sClass);
+    Method[] methods = clazz.getMethods();
+    boolean bOk = false;
+    for(Method method: methods){
+      bOk = false;
+      String sMethodName = method.getName();
+      if(sMethodName.equals(sMethod)){
+        Class<?>[] paramTypes = method.getParameterTypes();
+        
+        Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
+        if(actArgs !=null){
+          bOk = true;
+          try{ 
+            data1 = method.invoke(null, actArgs);
+          } catch(IllegalAccessException exc){
+            CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
+            throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
           }
+          break;  //method found.
         }
       }
-      if(!bOk) {
-        Assert.stackInfo("", 5);
-        CharSequence stackInfo = Assert.stackInfo(" called: ", 3, 5);
-        throw new NoSuchMethodException("DataAccess - method not found: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
-      }
-    } catch (ClassNotFoundException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (SecurityException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (IllegalArgumentException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (InvocationTargetException e) {
-      //Exception in invocation of this method. Use the cause
-      Throwable cause = e.getCause();
-      if(cause instanceof Exception) throw (Exception)cause;
-      else new RuntimeException(cause);
-      //e.printStackTrace();
+    }
+    if(!bOk) {
+      Assert.stackInfo("", 5);
+      CharSequence stackInfo = Assert.stackInfo(" called: ", 3, 5);
+      throw new NoSuchMethodException("DataAccess - method not found: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
     }
     //} catch 
     return data1;    
@@ -829,25 +726,26 @@ public class DataAccess {
    *   <br>null if the number of argtypes is not equal to the number of providedArgs or if the providedArgs and argTypes does not match. 
    *   The array have to be created with the size proper to 
    */
-  protected static Object[] checkAndConvertArgTypes(List<Object> providedArgs, Class<?>[] argTypes){
+  protected static Object[] checkAndConvertArgTypes(Object[] providedArgs, Class<?>[] argTypes){
     Object[] actArgs;
     if(argTypes.length == 0 && providedArgs == null){
       actArgs = new Object[0]; //matches, but no args.
     }
     else if(providedArgs !=null 
-      && (  argTypes.length == providedArgs.size()
-         || argTypes.length > 0 && argTypes.length < providedArgs.size() && argTypes[argTypes.length -1].isArray()  
+      && (  argTypes.length == providedArgs.length
+         || argTypes.length > 0 && argTypes.length < providedArgs.length && argTypes[argTypes.length -1].isArray()  
       )  ){
       //check it
       boolean bOk = true;
       int iParam = 0;  //iterator-index in argTypes, maybe less then ix
       //check the matching of parameter types inclusive convertibility.
       Class<?> argType = null;
-      Conversion[] conversions = new Conversion[providedArgs.size()];
+      Conversion[] conversions = new Conversion[providedArgs.length];
       int ix = -1;    //iterator-index in actTypes
-      Iterator<Object> iter = providedArgs.iterator();
-      while(bOk && iter.hasNext()) {                        
-        Object actValue = iter.next();              //iterate through provided arguments
+      //Iterator<Object> iter = providedArgs.iterator();
+      int iProvideArgs = -1;
+      while(bOk && ++iProvideArgs < providedArgs.length) {                        
+        Object actValue = providedArgs[iProvideArgs];              //iterate through provided arguments
         bOk = false;   //check for this arg
         ix +=1;
         if(actValue == null){
@@ -855,7 +753,7 @@ public class DataAccess {
           conversions[ix] = obj2obj;
         } else {
           Class<?> actType = actValue.getClass();
-          if(iParam == argTypes.length-1 && providedArgs.size() > iParam+1 && argTypes[iParam].isArray()){
+          if(iParam == argTypes.length-1 && providedArgs.length > iParam+1 && argTypes[iParam].isArray()){
             //There are more given arguments and the last one is an array or a variable argument list.
             //store the rest in lastArrayArg instead.
             argType = argTypes[iParam].getComponentType();
@@ -875,15 +773,15 @@ public class DataAccess {
       if(bOk){
         //the last or only one Argument as array
         Object[] lastArrayArg;
-        if(argTypes.length < providedArgs.size()){
+        if(argTypes.length < providedArgs.length){
           Class<?> lastType = argTypes[argTypes.length-1].getComponentType();
           //create the appropriate array type:
           if(lastType == String.class){ 
             //A String is typical especially for invocation of a static main(String[] args)
-            lastArrayArg = new String[providedArgs.size() - argTypes.length +1]; }
+            lastArrayArg = new String[providedArgs.length - argTypes.length +1]; }
           else {
             //TODO what else
-            lastArrayArg = new String[providedArgs.size() - argTypes.length +1]; }
+            lastArrayArg = new String[providedArgs.length - argTypes.length +1]; }
         } else {
           lastArrayArg = null;
         }
@@ -906,7 +804,6 @@ public class DataAccess {
             }
           } //else: it fills the last array of variable argument list. remain argType unchanged.
           Object actArg;
-          String typeName = argType.getName();
           assert(conversions[ix] !=null);
           //if(conversions[ix] !=null){
             actArg = conversions[ix].convert(arg);
@@ -943,19 +840,23 @@ public class DataAccess {
   
 
   
-  /**Checks the given type and all its super and interface types.
+  /**Checks whether the given actType with its value arg matches to the given argType. 
+   * It checks all its super and interface types.
    * If actType is an interface, all super interfaces are checked after them.
    * If actType is a class, all interfaces are checked but not the superclass.
    * This routine will be called recursively for the interfaces.
    * To get the interfaces of a class and all super interfaces of an interface,
    * the routine {@link java.lang.Class#getInterfaces()} is called.
+   * Last not least the {@link #checkTypes(Class, Class, Object)} is called
+   * for a possible conversion.
    * 
-   * @param argType Requested type of the argument
-   * @param ifcType Maybe derived type of the arg
+   * @param argType Requested type
+   * @param actType Given type, it may be a super class, an interface or a conversion may exists.
    * @param arg The argument itself to check value ranges for conversion using {@link Conversion#canConvert(Object)}.
-   * @return null if it does not match, elsewhere a conversion routine for arg.
+   * @return null if it does not match, elsewhere a conversion routine for conversion.
+   *   If it is an super or interface type, the Conversion routine does return the instance itself.
    */
-  protected static Conversion checkArgTypes(Class<?> argType, Class<?> actType, Object arg){
+  public static Conversion checkArgTypes(Class<?> argType, Class<?> actType, Object arg){
     Conversion conv = null;
     Class<?> supertype = actType;
     while(conv == null && supertype !=null){
@@ -987,7 +888,13 @@ public class DataAccess {
   
   
 
-  private static Conversion checkTypes(Class<?> argType, Class<?> actType, Object arg){
+  /**Checks whether a given type with its value can be converted to a destination type. 
+   * @param argType The destination type.
+   * @param actType The given type.
+   * @param arg The value
+   * @return null if conversion is not possible, elsewhere the conversion.
+   */
+  public static Conversion checkTypes(Class<?> argType, Class<?> actType, Object arg){
     if(argType == actType){ return obj2obj; }
     else {
       String conversion2 = actType.getName() + ":" + argType.getName(); //forex "Long:int"
@@ -1034,30 +941,34 @@ public class DataAccess {
       , Dst dst) 
   throws NoSuchFieldException, IllegalAccessException
   {
+    final Object instance1;
     Object data1 = null;
-    if(instance instanceof Variable){
-      instance = ((Variable)instance).value;  
+    if(instance instanceof Variable<?>){
+      @SuppressWarnings("unchecked") Variable<Object> var = (Variable<Object>)instance;
+      instance1 = var.value;  
+    } else {
+      instance1 = instance;
     }
     if(name.equals("compileOptions"))
       Assert.stop();
-    if(instance instanceof Map<?, ?>){
+    if(instance1 instanceof Map<?, ?>){
       @SuppressWarnings("unchecked")
       //Note: on runtime the generic type of map can be set in any case because it is unknown.
       //Try to store that type, 
-      Map<String, Object> map = (Map<String,Object>)instance;
+      Map<String, Object> map = (Map<String,Object>)instance1;
       data1 = map.get(name);
       if(data1 == null && bVariable){
         //not found, but a variable is expected: create one.
-        data1 = new Variable('?', name, null);
+        data1 = new Variable<Object>('?', name, null);
         map.put(name, data1);
       }
     } else {
       try{
-        data1 = getDataFromField(name, instance, accessPrivate, dst);
+        data1 = getDataFromField(name, instance1, accessPrivate, dst);
       }catch(NoSuchFieldException exc){
         //NOTE: if it is a TreeNodeBase, first search a field with the name, then search in data
-        if(instance instanceof TreeNodeBase<?,?,?>){
-          TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)instance;
+        if(instance1 instanceof TreeNodeBase<?,?,?>){
+          TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)instance1;
           if(bContainer){ data1 = treeNode.listChildren(name); }
           else { data1 = treeNode.getChild(name); }  //if more as one element with that name, select the first one.
           if(data1 == null){
@@ -1066,8 +977,9 @@ public class DataAccess {
         } else throw exc;
       }
     }
-    if(data1 instanceof Variable && !bVariable){
-      data1 = ((Variable)data1).value;  
+    if(data1 instanceof Variable<?> && !bVariable){
+      @SuppressWarnings("unchecked") Variable<Object> var = (Variable<Object>)data1;
+      data1 = var.value;  
     }
     
     return data1;  //maybe null
@@ -1100,7 +1012,6 @@ public class DataAccess {
   throws NoSuchFieldException, IllegalAccessException {
     if(recursiveCt > 100) throw new IllegalArgumentException("recursion error");
     Object ret = null;
-    Class<?> clazz2 = clazz;
     boolean bSearchSuperOuter = false;
     try{ 
       Field field = clazz.getDeclaredField(name); 
@@ -1114,19 +1025,19 @@ public class DataAccess {
     }
     catch(NoSuchFieldException exc){ bSearchSuperOuter = true; }
     if(bSearchSuperOuter){
-      Class<?> superClazz = clazz2 = clazz.getSuperclass();
+      Class<?> superClazz = clazz.getSuperclass();
       if(superClazz !=null){
         try{
           ret = getDataFromField(name, obj, accessPrivate, superClazz, dst, recursiveCt+1);  //searchs in thats enclosing and super classes.  
           bSearchSuperOuter = false;
         }catch(NoSuchFieldException exc){
-          //not found in the super hierarchie:
+          //not found in the super hierarchies:
           bSearchSuperOuter = true;
         }
       }
     }
     if(bSearchSuperOuter){
-      Class<?> outerClazz = clazz2 = clazz.getEnclosingClass();
+      Class<?> outerClazz = clazz.getEnclosingClass();
       if(outerClazz !=null){
         Object outer = getEnclosingInstance(obj);
         try{
@@ -1186,8 +1097,9 @@ public class DataAccess {
   public static String getStringFromObject(Object content, String format){
     String sContent;
     Object val1;
-    if(content instanceof Variable){
-      val1 = ((Variable)content).value;
+    if(content instanceof Variable<?>){
+      @SuppressWarnings("unchecked") Variable<Object> var = (Variable<Object>)content;
+      val1 = var.value;
     } else {
       val1 = content;
     }
@@ -1290,7 +1202,7 @@ public class DataAccess {
    */
   public static Variable<Object> getVariable(Map<String, Variable<Object>> map, String name, boolean strict) 
   throws NoSuchFieldException{
-    Variable var = map.get(name);
+    Variable<Object> var = map.get(name);
     if(var !=null) return var; //maybe null
     else {
       if(strict) throw new NoSuchFieldException("DataAccess.getVariable - not found; " + name);
@@ -1411,13 +1323,6 @@ public class DataAccess {
     public SetDatapathElement(){ this.dbgParent = null; }
     
     
-    /**Creates a new instance of {@link CalculatorExpr}. 
-     * This routine may be overridden if an derived class will use an enhanced expression.
-     * @return any CalculatorExpr instance.
-     */
-    public CalculatorExpr new_CaluclatorExpr(){ return new CalculatorExpr(); }
-
-    
     public void set_ident(String text){ this.ident = text; }
     
     public void set_whatisit(String text){ this.whatisit = text.charAt(0); }
@@ -1478,6 +1383,9 @@ public class DataAccess {
      */
     protected char whatisit;
 
+    /**List of arguments of a method. If null, it is not a method or the method has not arguments. */
+    protected Object[] fnArgs;
+
     /**Creates an empty element.
      * 
      */
@@ -1515,7 +1423,6 @@ public class DataAccess {
       int posNameEnd = name.indexOf('(');
       if(posNameEnd != -1){
         whatisit = whatisit == '%' ? '%' : '(';
-        //TODO
       } else {
         posNameEnd = name.length();
       }
@@ -1528,20 +1435,15 @@ public class DataAccess {
     
     public void setIdent(String ident){ this.ident = ident; }
     
-    /**List of arguments of a method. If null, it is not a method or the method has not arguments. */
-    protected List<Object> fnArgs;
-    
-    
-    public void clearActualArguments(){
-      fnArgs = null;
+    /**Adds any argument with its value.  */
+    public void setActualArguments(Object... args){
+      fnArgs = args;
     }
     
+
     /**Adds any argument with its value.  */
-    public void addActualArgument(Object arg){
-      if(fnArgs == null){
-        fnArgs = new ArrayList<Object>();
-      }
-      fnArgs.add(arg);
+    public void setActualArgumentArray(Object[] args){
+      fnArgs = args;
     }
     
 
@@ -1558,12 +1460,20 @@ public class DataAccess {
   
   
   
+  /**Result of an {@link DataAccess#access(List, Object, Map, boolean, boolean, boolean, Dst)}
+   * to store a value.
+   */
   public static class Dst
   {
     protected Field field;
     
     protected Object obj;
     
+    /**Sets the val to the given instance.
+     * @param val It is tried to cast, see 
+     * @throws IllegalArgumentException
+     * @throws IllegalAccessException
+     */
     public void set(Object val) throws IllegalArgumentException, IllegalAccessException
     {
       Conversion conversion = checkArgTypes(field.getType(), val.getClass(), val);
@@ -1572,7 +1482,6 @@ public class DataAccess {
         field.set(obj, val2);
       }
       else throw new IllegalArgumentException("DataAccess - cannot assign; " + field + " = " + val);
-      
     }
     
   }

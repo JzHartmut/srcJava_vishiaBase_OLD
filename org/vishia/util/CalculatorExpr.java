@@ -8,8 +8,6 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.TreeMap;
 
-import org.vishia.cmd.ZGenExecuter;
-import org.vishia.cmd.ZGenScript;
 
 
 /**This class provides a calculator for expressions. The expression are given 
@@ -1031,15 +1029,6 @@ public class CalculatorExpr
     
     
     
-    /**From Zbnf, a part <:>...<.> */
-    public ZGenScript.StatementList new_textExpr(){ 
-      //JbatchExecuter.ZbatchExpression expr = (JbatchExecuter.ZbatchExpression)super.expr;
-      return expr.genString = new ZGenScript.StatementList(); }
-    
-    /**From Zbnf, a part <:>...<.> */
-    public void add_textExpr(ZGenScript.StatementList val){}
-    
-
     
     
     public SetExpr new_boolOrOperation(){
@@ -1345,11 +1334,6 @@ public class CalculatorExpr
   
   
   
-  
-  /**An expression can be a String concatenation build with constant strings and data.
-   * If this association is not null, the expression is calculated as String expression.*/
-  protected ZGenScript.StatementList genString;
-
   
   
   /**Map of all available operators associated with its String expression.
@@ -1719,83 +1703,76 @@ public class CalculatorExpr
    *   if the access via reflection is done.
    */
   public Value calcDataAccess(Map<String, DataAccess.Variable<Object>> javaVariables, Object... args) throws Exception{
-    if(genString !=null){
-      ZGenExecuter.ExecuteLevel executer = (ZGenExecuter.ExecuteLevel)DataAccess.getVariable(javaVariables, "zgensub", true).value();
-      StringBuilder u = new StringBuilder();
-      executer.executeNewlevel(genString, u, 0, false);
-      return new CalculatorExpr.Value(u.toString());
-    } else {
-      accu = new Value(); //empty
-      Value val3 = new Value();  //Instance to hold values for the right side operand.
-      Value val2; //Reference to the right side operand
-      ExpressionType type = startExpr;
-      for(Operation oper: listOperations){
-        if(accu.type == 'Z' && //special for boolean operation: don't evaluate an operand if it is not necessary.
-            ( !accu.boolVal && oper.operator == Operators.boolAndOperation  //false remain false on and operation
-            || accu.boolVal && oper.operator == Operators.boolOrOperation   //true remain true on or operation
-          ) ){
-          //don't get arguments, no side effect (like in Java, C etc.
-        } else {
-          //Get the operand either from args or from Operation
-          Object oval2;
-          if(oper.ixVariable >=0){ 
-            val2 = val3;
-            oval2 = args[oper.ixVariable];   //may throw ArrayOutOfBoundsException if less arguments
-          }  //an input value
-          else if(oper.ixVariable == Operation.kStackOperand){
-            val2 = accu;
-            accu = stack.pop();              //may throw Exception if the stack is emtpy.
-            oval2 = null;
-          }
-          else if(oper.datapath !=null){
-            val2 = val3;
-            oval2 = oper.datapath.getDataObj(javaVariables, true, false);
-            if(oval2 == null){
-              //get data does not throw an exception, but returns null:
-              val2.type = 'o'; val2.oVal = null;
-            }
-          }
-          else {
-            val2 = oper.value;              //immediate value.
-            oval2 = null;
-          }
-          //
-          //Convert a Object-wrapped value into its real representation.
-          if(oval2 !=null){
-            if(oval2 instanceof Long)             { val2.longVal =   ((Long)oval2).longValue(); val2.type = 'J'; }
-            else if(oval2 instanceof Integer)     { val2.intVal = ((Integer)oval2).intValue(); val2.type = 'I'; }
-            else if(oval2 instanceof Short)       { val2.intVal =   ((Short)oval2).intValue(); val2.type = 'I'; }
-            else if(oval2 instanceof Byte)        { val2.intVal =    ((Byte)oval2).intValue(); val2.type = 'I'; }
-            else if(oval2 instanceof Boolean)     { val2.boolVal = ((Boolean)oval2).booleanValue(); val2.type = 'Z'; }
-            else if(oval2 instanceof Double)      { val2.doubleVal = ((Double)oval2).doubleValue(); val2.type = 'D'; }
-            else if(oval2 instanceof Float)       { val2.floatVal = ((Float)oval2).floatValue(); val2.type = 'F'; }
-            else if(oval2 instanceof StringSeq)   { val2.stringVal = (StringSeq)oval2; val2.type = 't'; }
-            else                                  { val2.oVal = oval2; val2.type = 'o'; }
-            val2.oVal = oval2;;
-          }
-          if(oper.operator == Operators.setOperation && accu.type != '?'){
-            stack.push(accu);
-            accu = new Value();
-          }
-          //Convert the value adequate the given type of expression:
-          if(!oper.operator.isUnary()){  //if unary, don't change the type
-            type = type.checkArgument(accu, val2);    //may change the type.
-          }
-          //
-          //executes the operation:
-          if(oper.unaryOperator !=null){
-            oper.unaryOperator.operate(type, val2, null);   //change the right value
-          }
-          else if(oper.unaryOperators !=null){
-            for(Operator unary: oper.unaryOperators){
-              unary.operate(type, val2, null);   //change the right value
-            }
-          }
-          type = oper.operator.operate(type, accu, val2);  //operate, may change the type if the operator forces it.
+    accu = new Value(); //empty
+    Value val3 = new Value();  //Instance to hold values for the right side operand.
+    Value val2; //Reference to the right side operand
+    ExpressionType type = startExpr;
+    for(Operation oper: listOperations){
+      if(accu.type == 'Z' && //special for boolean operation: don't evaluate an operand if it is not necessary.
+          ( !accu.boolVal && oper.operator == Operators.boolAndOperation  //false remain false on and operation
+          || accu.boolVal && oper.operator == Operators.boolOrOperation   //true remain true on or operation
+        ) ){
+        //don't get arguments, no side effect (like in Java, C etc.
+      } else {
+        //Get the operand either from args or from Operation
+        Object oval2;
+        if(oper.ixVariable >=0){ 
+          val2 = val3;
+          oval2 = args[oper.ixVariable];   //may throw ArrayOutOfBoundsException if less arguments
+        }  //an input value
+        else if(oper.ixVariable == Operation.kStackOperand){
+          val2 = accu;
+          accu = stack.pop();              //may throw Exception if the stack is emtpy.
+          oval2 = null;
         }
+        else if(oper.datapath !=null){
+          val2 = val3;
+          oval2 = oper.datapath.getDataObj(javaVariables, true, false);
+          if(oval2 == null){
+            //get data does not throw an exception, but returns null:
+            val2.type = 'o'; val2.oVal = null;
+          }
+        }
+        else {
+          val2 = oper.value;              //immediate value.
+          oval2 = null;
+        }
+        //
+        //Convert a Object-wrapped value into its real representation.
+        if(oval2 !=null){
+          if(oval2 instanceof Long)             { val2.longVal =   ((Long)oval2).longValue(); val2.type = 'J'; }
+          else if(oval2 instanceof Integer)     { val2.intVal = ((Integer)oval2).intValue(); val2.type = 'I'; }
+          else if(oval2 instanceof Short)       { val2.intVal =   ((Short)oval2).intValue(); val2.type = 'I'; }
+          else if(oval2 instanceof Byte)        { val2.intVal =    ((Byte)oval2).intValue(); val2.type = 'I'; }
+          else if(oval2 instanceof Boolean)     { val2.boolVal = ((Boolean)oval2).booleanValue(); val2.type = 'Z'; }
+          else if(oval2 instanceof Double)      { val2.doubleVal = ((Double)oval2).doubleValue(); val2.type = 'D'; }
+          else if(oval2 instanceof Float)       { val2.floatVal = ((Float)oval2).floatValue(); val2.type = 'F'; }
+          else if(oval2 instanceof StringSeq)   { val2.stringVal = (StringSeq)oval2; val2.type = 't'; }
+          else                                  { val2.oVal = oval2; val2.type = 'o'; }
+          val2.oVal = oval2;;
+        }
+        if(oper.operator == Operators.setOperation && accu.type != '?'){
+          stack.push(accu);
+          accu = new Value();
+        }
+        //Convert the value adequate the given type of expression:
+        if(!oper.operator.isUnary()){  //if unary, don't change the type
+          type = type.checkArgument(accu, val2);    //may change the type.
+        }
+        //
+        //executes the operation:
+        if(oper.unaryOperator !=null){
+          oper.unaryOperator.operate(type, val2, null);   //change the right value
+        }
+        else if(oper.unaryOperators !=null){
+          for(Operator unary: oper.unaryOperators){
+            unary.operate(type, val2, null);   //change the right value
+          }
+        }
+        type = oper.operator.operate(type, accu, val2);  //operate, may change the type if the operator forces it.
       }
-      return accu;
     }
+    return accu;
   }
   
   

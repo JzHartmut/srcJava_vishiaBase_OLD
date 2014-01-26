@@ -1489,13 +1489,15 @@ public class ZGenExecuter {
         //check all datapath elements whether they have method calls with arguments:
         if(dataElement instanceof ZGenScript.ZGenDatapathElement){
           ZGenScript.ZGenDatapathElement zgenDataElement = (ZGenScript.ZGenDatapathElement)dataElement;
-          dataElement.clearActualArguments();
           if(zgenDataElement.fnArgsExpr !=null){
             int nrofArgs = zgenDataElement.fnArgsExpr.size();
+            Object[] args = new Object[nrofArgs];
+            int iArgs = -1;
             for(ZGenScript.ZGenitem expr: zgenDataElement.fnArgsExpr){
               Object arg = evalObject(expr, false);
-              dataElement.addActualArgument(arg);
+              args[++iArgs] = arg;
             }
+            zgenDataElement.setActualArgumentArray(args);
           }
         }
       }
