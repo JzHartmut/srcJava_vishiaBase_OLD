@@ -77,7 +77,11 @@ public class VariableAccessWithBitmask implements VariableAccess_ifc
   
   public double getDouble(){ return variable.getDouble(); }
 
-  public float getFloat(){ return variable.getFloat(); }
+  /**Returns the presentation float value for the integer bits in the variable.
+   * The variable will be interpreted anyway as an integer variable, because its bits are accessed.
+   * @see org.vishia.byteData.VariableAccess_ifc#getFloat()
+   */
+  public float getFloat(){ return getInt(); }
 
   public String getString(){ return variable.getString(); }
   

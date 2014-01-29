@@ -93,7 +93,7 @@ public class CalculatorExpr
    * 
    * 
    */
-   @SuppressWarnings("hiding")
+  //@SuppressWarnings("hiding")
   public final static int version = 20121222;
   
    

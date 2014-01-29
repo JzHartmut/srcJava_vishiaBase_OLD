@@ -81,10 +81,16 @@ public interface VariableContainer_ifc
 	
 	
 	/**Searches the variable in the container and returns the access to it.
-	 * @param dataPath Path. It can have array access designations "[index]". Than usual an instance of
-	 *   {@link VariableAccessWithIdx} is returned, which contains the index and the reference to the variable
-	 *   in the container. If the variable is an array variable and the dataPath does not contains an "[index]",
-	 *   the array variable is returned which implements the {@link VariableAccessArray_ifc} usual. 
+	 * <ul>
+	 * <li>path[index]: The dataPath can have array access designations "[index]". Than usual an instance of
+   *   {@link VariableAccessWithIdx} is returned, which contains the index and the reference to the variable
+   *   in the container. If the variable is an array variable and the dataPath does not contains an "[index]",
+   *   the array variable is returned which implements the {@link VariableAccessArray_ifc} usual. 
+   * <li>path.9..5: The dataPath can contain a bit designation as last part. "9..5" means the bits 9 to 5, 
+   *   it is the mask 0x03e, shiftet >>3. That value are presented then.
+   *   If a bit designation is given, the return instance is an {@link VariableAccessWithBitmask} instance.
+   * </ul>  
+	 * @param dataPath Path. 
 	 * @return Instance of access control to the variable. The instance may instanceof {@link VariableAccessArray_ifc}.
 	 *   Then a cast should be recommended to access the array elements. That is a special case.
 	 */
