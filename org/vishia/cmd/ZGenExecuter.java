@@ -641,6 +641,7 @@ public class ZGenExecuter {
           case 'B': executeSubLevel(statement, out, indentOut); break;                     //statementBlock
           case 'F': executeIfStatement((ZGenScript.IfStatement)statement, out, indentOut); break;
           case 'w': whileStatement((ZGenScript.CondStatement)statement, out, indentOut); break;
+          case 'u': dowhileStatement((ZGenScript.CondStatement)statement, out, indentOut); break;
           case 'N': executeIfContainerHasNext(statement, out, indentOut, bContainerHasNext); break;
           case '=': { 
             Object val = evalObject(statement, false);
@@ -650,7 +651,8 @@ public class ZGenExecuter {
           case '?': break;  //don't execute a onerror, skip it.  //onerror
           case 'z': throw new ZGenExecuter.ExitException(((ZGenScript.ExitStatement)statement).exitValue);  
           case 'D': debug(statement); break;  //debug
-          case 'b': isBreak = true;
+          case 'r': execThrow(statement); break;
+          case 'b': isBreak = true; break;
           default: 
             uBuffer.append("Jbat - execute-unknown type; '" + statement.elementType() + "' :ERROR=== ");
           }//switch
@@ -761,32 +763,43 @@ public class ZGenExecuter {
       ZGenScript.StatementList subContent = statement.statementlist();  //The same sub content is used for all container elements.
       ExecuteLevel forExecuter = new ExecuteLevel(threadData, this, localVariables);
       //creates the for-variable in the executer level.
-      DataAccess.Variable forVariable = DataAccess.createOrReplaceVariable(forExecuter.localVariables, statement.forVariable, 'O', null, false);
+      DataAccess.Variable<Object> forVariable = DataAccess.createOrReplaceVariable(forExecuter.localVariables, statement.forVariable, 'O', null, false);
       //a new level for the for... statements. It contains the foreachData and maybe some more variables.
       Object container = dataAccess(statement.forContainer, localVariables, bAccessPrivate, true, false, null);
       //Object container = statement.forContainer.getDataObj(localVariables, bAccessPrivate, true);
       //DataAccess.Dst dst = new DataAccess.Dst();
       //DataAccess.access(statement.defVariable.datapath(), null, localVariables, bAccessPrivate,false, true, dst);
+      boolean cond = true;
       if(container instanceof String && ((String)container).startsWith("<?")){
         writeError((String)container, out);
       }
       else if(container !=null && container instanceof Iterable<?>){
         Iterator<?> iter = ((Iterable<?>)container).iterator();
-        while(!forExecuter.isBreak() && iter.hasNext()){
-          Object foreachData = iter.next();
-          forVariable.setValue(foreachData);
-          forExecuter.execute(subContent, out, indentOut, iter.hasNext());
+        while(cond && !forExecuter.isBreak() && iter.hasNext()){
+          if(statement.condition !=null){
+            cond = evalCondition(statement.condition);
+          }
+          if(cond){
+            Object foreachData = iter.next();
+            forVariable.setValue(foreachData);
+            forExecuter.execute(subContent, out, indentOut, iter.hasNext());
+          }
         }//while of for-loop
       }
       else if(container !=null && container instanceof Map<?,?>){
         Map<?,?> map = (Map<?,?>)container;
         Set<?> entries = map.entrySet();
         Iterator<?> iter = entries.iterator();
-        while(!forExecuter.isBreak() && iter.hasNext()){
-          Map.Entry<?, ?> foreachDataEntry = (Map.Entry<?, ?>)iter.next();
-          Object foreachData = foreachDataEntry.getValue();
-          forVariable.setValue(foreachData);
-          forExecuter.execute(subContent, out, indentOut, iter.hasNext());
+        while(cond && !forExecuter.isBreak() && iter.hasNext()){
+          if(statement.condition !=null){
+            cond = evalCondition(statement.condition);
+          }
+          if(cond){
+            Map.Entry<?, ?> foreachDataEntry = (Map.Entry<?, ?>)iter.next();
+            Object foreachData = foreachDataEntry.getValue();
+            forVariable.setValue(foreachData);
+            forExecuter.execute(subContent, out, indentOut, iter.hasNext());
+          }
         }
       }
     }
@@ -841,6 +854,20 @@ public class ZGenExecuter {
         if(cond){
           execute(whileStatement.statementlist, out, indentOut, false);
         }
+      } while(cond);  //if executed, check cond again.  
+    }
+    
+    
+    
+    /**Executes a dowhile statement. 
+     * @throws Exception */
+    void dowhileStatement(ZGenScript.CondStatement whileStatement, Appendable out, int indentOut) 
+    throws Exception 
+    {
+      boolean cond;
+      do{
+        execute(whileStatement.statementlist, out, indentOut, false);
+        cond = evalCondition(whileStatement.condition); //.calcDataAccess(localVariables);
       } while(cond);  //if executed, check cond again.  
     }
     
@@ -1397,6 +1424,13 @@ public class ZGenExecuter {
           assignObj1 = null;
         }
       }
+    }
+    
+    
+    
+    void execThrow(ZGenScript.ZGenitem statement) throws Exception {
+      CharSequence msg = evalString(statement);
+      throw new IllegalArgumentException(msg.toString());
     }
     
     

@@ -322,7 +322,42 @@ public class ZGenScript {
     }
     
     
-
+    @Override public String toString(){
+      switch(elementType){
+        case 't': return "text"; //textArg.toString();
+        /*
+        case 'S': return "String " + identArgJbat;
+        case 'J': return "Obj " + identArgJbat;
+        case 'P': return "Pipe " + identArgJbat;
+        case 'U': return "Buffer " + identArgJbat;
+        case 'o': return "(?outp." + textArg + "?)";
+        case 'i': return "(?inp." + textArg + "?)";
+        */
+        case 'e': return "<*" +   ">";  //expressions.get(0).datapath
+        //case 'g': return "<$" + path + ">";
+        //case 's': return "call " + identArgJbat;
+        case 'B': return "{ statementblock }";
+        case '?': return "onerror";
+        case 'I': return "(?forInput?)...(/?)";
+        case 'L': return "(?forList "  + "?)";
+        case 'C': return "<:for:Container "  + "?)";
+        case 'F': return "if";
+        case 'G': return "elsif";
+        case 'N': return "<:hasNext> content <.hasNext>";
+        case 'E': return "else";
+        case 'Y': return "<:file>";
+        case 'b': return "break;";
+        case 'c': return "cmd;";
+        case 'm': return "move;";
+        case 'x': return "thread";
+        case 'y': return "copy";
+        case 'z': return "exit";
+        case '=': return "assignExpr";
+        case '+': return "appendExpr";
+        //case 'X': return "call " + identArgJbat ;
+        default: return "(??" + elementType + " " + "?)";
+      }
+    }
 
   }
   
@@ -374,7 +409,9 @@ public class ZGenScript {
       statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);
     }
     
-
+    @Override public String toString(){
+      return identArgJbat + " = " + super.toString();
+    }
     
   }
   
@@ -753,57 +790,6 @@ public class ZGenScript {
       statementlist.statements.add(statement);
     }
     
- 
-      
-    public ForStatement new_forContainer()
-    { if(statementlist == null) { statementlist = new StatementList(this); }
-      return statementlist.new_forContainer();
-    }
-    
-    public void add_forContainer(ForStatement val){statementlist.add_forContainer(val);}
-
-    
-    public CondStatement new_whileBlock()
-    { if(statementlist == null) { statementlist = new StatementList(this); }
-      return statementlist.new_whileBlock();
-    }
-    
-    public void add_whileBlock(CondStatement val){statementlist.add_whileBlock(val); }
-
-
-    
-    public CondStatement new_if()
-    { StatementList subGenContent = new StatementList(this);
-      CondStatement statement = new CondStatement(parentList, 'F');
-      statement.statementlist = subGenContent;  //The statement contains a genContent. 
-      return statement;
-    }
-    
-    public void add_if(CondStatement val){
-      if(statementlist == null) { statementlist = new StatementList(this); }
-      statementlist.statements.add(val);
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);
-      
-    }
-
-    
-    public IfCondition new_ifBlock()
-    { StatementList subGenContent = new StatementList(this);
-      IfCondition statement = new IfCondition(parentList, 'G');
-      statement.statementlist = subGenContent;  //The statement contains a genContent. 
-      statementlist.statements.add(statement);
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
-      return statement;
-    }
-    
-    public void add_ifBlock(IfCondition val){}
-
-    public XXXXXXStatement new_hasNext()
-    { XXXXXXStatement statement = new XXXXXXStatement(parentList, 'N');
-      statementlist.statements.add(statement);
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
-      return statement;
-    }
     
     public void add_hasNext(XXXXXXStatement val){}
 
@@ -831,34 +817,6 @@ public class ZGenScript {
     
     
 
-    public XXXXXXStatement new_cmdWait()
-    { if(statementlist == null){ statementlist = new StatementList(this); }
-      XXXXXXStatement statement = new XXXXXXStatement(parentList, 'c');
-      statementlist.statements.add(statement);
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
-      return statement;
-    }
-    
-    public void add_cmdLine(XXXXXXStatement val){}
-
-    
-    public XXXXXXStatement new_cmdStart()
-    { if(statementlist == null){ statementlist = new StatementList(this); }
-      XXXXXXStatement statement = new XXXXXXStatement(parentList, 'c');
-      statementlist.statements.add(statement);
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
-      return statement;
-    }
-    
-    public void add_cmdStart(XXXXXXStatement val){}
-
-    
-    /*
-    public void set_cd(String val)
-    { if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.set_cd(val);
-    }
-    */
     
 
     public ZGenitem new_cd()
@@ -1108,7 +1066,7 @@ public class ZGenScript {
       else throw new IllegalArgumentException("ZGenScript - unexpected set_append");
     }
     
-    @Override public String toString(){ return "DefVariable " + variable; }
+    @Override public String toString(){ return  variable + " = " + super.toString(); }
   }
   
   
@@ -1211,22 +1169,27 @@ public class ZGenScript {
       condition.add_numExpr(val);
     }
     
-    //@Override
-    public ZGenDataAccess XXXnew_datapath() { 
-      return new ZGenDataAccess(); 
-    }
-    
-    //@Override
-    public void XXXadd_datapath(ZGenDataAccess val){ 
-      //conditionValue = val;
-    }
-
-    
   };
   
   
   
-  public static class ForStatement extends ZGenitem
+  public static class IfCondition extends CondStatement
+  {
+    
+    public boolean bElse;
+    
+    IfCondition(StatementList parentList, char whatis){
+      super(parentList, whatis);
+    }
+    
+  }
+
+
+
+
+
+
+  public static class ForStatement extends CondStatement
   {
     
     String forVariable;
@@ -1234,28 +1197,10 @@ public class ZGenScript {
     
     DataAccess forContainer;
     
-    /**The variable which should be created. 
-     * The variable maybe build with name.subname.subname. 
-     * It is possible to add an element to an internal container in Java data. 
-     */
-    public DataAccess XXXdefVariable;
-    
     ForStatement(StatementList parentList, char type){
       super(parentList, type);
     }
     
-    
-    /**From Zbnf: < variable?defVariable> inside a DefVariable::=...
-     */
-    public ZGenDataAccess XXXnew_defVariable(){ return new ZGenDataAccess(); }
-    
-    public void XXXadd_defVariable(ZGenDataAccess val){   
-      int whichStatement = "SPULJWMC".indexOf(elementType);
-      char whichVariableType = "SPULOAMO".charAt(whichStatement);  //from elementType to variable type.
-      val.setTypeToLastElement(whichVariableType);
-      XXXdefVariable = val;
-    }
-
     
     public void set_forVariable(String name){ this.forVariable = name; }
 
@@ -1494,23 +1439,6 @@ public class ZGenScript {
   
   
   }
-  
-  
-  
-  public static class IfCondition extends CondStatement
-  {
-    
-    public boolean bElse;
-    
-    IfCondition(StatementList parentList, char whatis){
-      super(parentList, whatis);
-    }
-    
-  }
-  
-  
-  
-  
   
   
   
@@ -1835,11 +1763,11 @@ public class ZGenScript {
     
     
     
-    public ZGenitem new_return(){ 
+    public ZGenitem new_throw(){ 
       return new ZGenitem(this, 'r'); 
     } 
 
-    public void add_return(ZGenitem val){ 
+    public void add_throw(ZGenitem val){ 
       statements.add(val);  
       onerrorAccu = null; 
       withoutOnerror.add(val);
@@ -1867,7 +1795,7 @@ public class ZGenScript {
     
 
     public void set_breakBlock(){ 
-      XXXXXXStatement statement = new XXXXXXStatement(this, 'b');
+      ZGenitem statement = new ZGenitem(this, 'b');
       statements.add(statement);
     }
     
@@ -1875,7 +1803,7 @@ public class ZGenScript {
 
     
     
-    public IfStatement new_if(){
+    public IfStatement new_ifCtrl(){
       StatementList subGenContent = new StatementList(parentStatement);
       IfStatement statement = new IfStatement(this, 'F');
       statement.statementlist = subGenContent;  //The statement contains a genContent. 
@@ -1884,7 +1812,7 @@ public class ZGenScript {
     }
 
     
-    public void add_if(IfStatement val){
+    public void add_ifCtrl(IfStatement val){
       statements.add(val);
       onerrorAccu = null; withoutOnerror.add(val);
       
@@ -1910,24 +1838,34 @@ public class ZGenScript {
      * It builds a DefVariable, because it is similar. Variable is the for-variable.
      * @return 
      */
-    public ForStatement new_forContainer()
+    public ForStatement new_forCtrl()
     { ForStatement statement = new ForStatement(this, 'C');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;
     }
     
-    public void add_forContainer(ForStatement val){}
+    public void add_forCtrl(ForStatement val){}
 
 
-    public CondStatement new_whileBlock()
+    public CondStatement new_whileCtrl()
     { CondStatement statement = new CondStatement(this, 'w');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;
     }
     
-    public void add_whileBlock(CondStatement val){}
+    public void add_whileCtrl(CondStatement val){}
+
+
+    public CondStatement new_dowhileCtrl()
+    { CondStatement statement = new CondStatement(this, 'u');
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
+    }
+    
+    public void add_dowhileCtrl(CondStatement val){}
 
 
     public ThreadBlock new_threadBlock()
