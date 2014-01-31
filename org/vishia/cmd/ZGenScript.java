@@ -337,7 +337,6 @@ public class ZGenScript {
         //case 'g': return "<$" + path + ">";
         //case 's': return "call " + identArgJbat;
         case 'B': return "{ statementblock }";
-        case '?': return "onerror";
         case 'I': return "(?forInput?)...(/?)";
         case 'L': return "(?forList "  + "?)";
         case 'C': return "<:for:Container "  + "?)";
@@ -1453,8 +1452,8 @@ public class ZGenScript {
  */
   public final static class Onerror extends ZGenitem
   {
-    /**From ZBNF */
-    public int errorLevel;
+    /**From ZBNF. If not changed then it is not a cmd error type.*/
+    public int errorLevel = Integer.MIN_VALUE;
     
     
     /**
@@ -1462,6 +1461,7 @@ public class ZGenScript {
      * <li>'n' for notfound
      * <li>'f' file error
      * <li>'i' any internal exception.
+     * <li>'?' any exception.
      * </ul>
      * 
      */
@@ -1474,6 +1474,18 @@ public class ZGenScript {
     Onerror(StatementList parentList){
       super(parentList, '?');
     }
+    
+    /**Sets the statement to a cmd error execution.
+     * See {@link ZGenExecuter.ExecuteLevel#execCmdError(Onerror)}.
+     * This method is called in {@link StatementList#add_onerror(Onerror)}.
+     */
+    void setCmdError(){ elementType = '#'; }
+    
+    @Override public String toString(){
+      if(elementType == '#') return "onerror " + errorLevel;
+      else return "onerror " + errorType;
+    }
+    
  }
   
   
@@ -1556,10 +1568,10 @@ public class ZGenScript {
       ZGenitem statement = new ZGenitem(this, 'B');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
-      return statement.statementlist;
+      return statement.statementlist = new StatementList(statement);
     }
     
-    public void add_statementBlock(ZGenitem val){}
+    public void add_statementBlock(StatementList val){}
 
     
 
@@ -1781,6 +1793,9 @@ public class ZGenScript {
     
 
     public void add_onerror(Onerror val){
+      if(val.errorLevel != Integer.MIN_VALUE){
+        val.setCmdError();
+      }
       statements.add(val);
       /*
       if(statementlist.onerrorAccu == null){ statementlist.onerrorAccu = new LinkedList<Onerror>(); }
