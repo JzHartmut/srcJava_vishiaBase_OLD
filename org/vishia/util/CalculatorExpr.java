@@ -40,6 +40,7 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-01-26 Hartmut bugfix: and-expression with !val && val did not work.  
    * <li>2014-01-26 Hartmut chg: To add a datapath now {@link SetExpr#new_datapath()} is offered, all details of a datapath
    *   are handled in {@link DataAccess.DataAccessSet}. To support more complex {@link DataAccess.DatapathElement} especially
    *   with expressions or datapath as arguments, the method {@link SetExpr#newDataAccessSet()} supports overriding
@@ -1252,6 +1253,10 @@ public class CalculatorExpr
     public DataAccess onlyDataAccess(){
       if((expr.listOperations == null || expr.listOperations.size() ==0)
         && actOperation !=null
+        && unaryOperators.size() ==0
+        && actOperation.unaryOperator == null && actOperation.unaryOperators == null
+        && actOperation.value == null
+        && actOperation.datapath !=null
         //&& actOperation.ixVariable == Operation.kDatapath
       ){ 
         return actOperation.datapath;
@@ -1762,11 +1767,11 @@ public class CalculatorExpr
         //
         //executes the operation:
         if(oper.unaryOperator !=null){
-          oper.unaryOperator.operate(type, val2, null);   //change the right value
+          type = oper.unaryOperator.operate(type, val2, null);   //change the right value
         }
         else if(oper.unaryOperators !=null){
           for(Operator unary: oper.unaryOperators){
-            unary.operate(type, val2, null);   //change the right value
+            type = unary.operate(type, val2, null);   //change the right value
           }
         }
         type = oper.operator.operate(type, accu, val2);  //operate, may change the type if the operator forces it.

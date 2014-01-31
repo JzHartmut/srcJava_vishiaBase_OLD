@@ -7,6 +7,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -520,7 +521,7 @@ public class DataAccess {
           } break;
           case '(': {
             if(data1 !=null){
-              data1 = invokeMethod(element, data1); 
+              data1 = invokeMethod(element, data1, accessPrivate); 
             }
             //else: let data1=null, return null
           } break;
@@ -617,33 +618,39 @@ public class DataAccess {
   public static Object invokeMethod(      
     DatapathElement element
   , Object dataPool
-  ) throws InvocationTargetException, NoSuchMethodException{
+  , boolean accessPrivate
+  ) throws InvocationTargetException, NoSuchMethodException, Exception {
     Object data1 = null;
     Class<?> clazz = dataPool.getClass();
-    if(element.ident.equals("seek"))
+    if(element.ident.equals("equals"))
       Assert.stop();
     boolean bOk = false;
     do{
-      Method[] methods = clazz.getDeclaredMethods();
-      for(Method method: methods){
-        bOk = false;
-        if(method.getName().equals(element.ident)){
-          Class<?>[] paramTypes = method.getParameterTypes();
-          
-          Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
-          if(actArgs !=null){
-            bOk = true;
-            try{ 
-              data1 = method.invoke(dataPool, actArgs);
-            } catch(IllegalAccessException exc){
-              CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
-              throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
-            } catch(InvocationTargetException exc){
-              Assert.stop();
-              throw exc;
-            }
+      if(accessPrivate || (clazz.getModifiers() & Modifier.PUBLIC) !=0){
+        Method[] methods = accessPrivate ? clazz.getDeclaredMethods() : clazz.getMethods();
+        for(Method method: methods){
+          bOk = false;
+          if(method.getName().equals(element.ident)){
+            method.setAccessible(accessPrivate);
+            Class<?>[] paramTypes = method.getParameterTypes();
             
-            break;  //method found.
+            Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
+            if(actArgs !=null){
+              bOk = true;
+              try{ 
+                data1 = method.invoke(dataPool, actArgs);
+              } catch(IllegalAccessException exc){
+                CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
+                throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+              } catch(InvocationTargetException exc){
+                Assert.stop();
+                throw exc;
+              } catch(Exception exc){
+                throw exc;
+              }
+              
+              break;  //method found.
+            }
           }
         }
       }

@@ -7,6 +7,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -638,8 +639,11 @@ public class ZGenExecuter {
           case 'L': {
             Object value = evalObject(statement, true); 
               //getContent(statement, localVariables, false);  //not a container
-            if(!(value instanceof Iterable<?>)) 
-              throw new NoSuchFieldException("JbatExecuter - exec variable must be of type Iterable ;" + ((ZGenScript.DefVariable)statement).defVariable);
+            if(value !=null && !(value instanceof Iterable<?>)) 
+              throw new NoSuchFieldException("ZGenExecuter - exec variable must be of type Iterable ;" + ((ZGenScript.DefVariable)statement).defVariable);
+            if(value ==null){ //initialize the list
+              value = new ArrayList<Object>();
+            }
             executeDefVariable((ZGenScript.DefVariable)statement, 'L', value, true);
           } break;
           case 'M': executeDefVariable((ZGenScript.DefVariable)statement, 'M', new TreeMap<String, Object>(), true); break; 
@@ -1477,6 +1481,10 @@ public class ZGenExecuter {
             val = val.toString();
           }
           ((Appendable) dst).append((CharSequence)val);
+        } else if(dst instanceof List<?>){
+          @SuppressWarnings("unchecked")
+          List<Object> list = (List<Object>)dst; 
+          list.add(val);
         } else {
           throwIllegalDstArgument("dst should be Appendable", assignObj1, statement);
         }
