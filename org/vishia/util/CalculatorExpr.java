@@ -1221,7 +1221,7 @@ public class CalculatorExpr
     
     
     
-    public void set_text(String val){
+    public void set_textValue(String val){
       if(actOperation == null){ actOperation = new CalculatorExpr.Operation(); }
       actOperation.set_textValue(val);
     }

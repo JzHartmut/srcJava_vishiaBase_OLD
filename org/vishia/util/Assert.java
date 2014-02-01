@@ -139,7 +139,8 @@ public class Assert
   public static CharSequence exceptionInfo(String startText, Throwable exc, int firstLevel, int nrofLevels){
     StringBuilder u = new StringBuilder(500);
     u.append(startText).append("; ");
-    u.append(exc.getMessage()).append("; ");
+    u.append(exc.toString()).append("; ");
+    //u.append(exc.getMessage()).append("; ");
     StackTraceElement[] stack = exc.getStackTrace();
     int zStack = stack.length;
     if(firstLevel >= zStack){ firstLevel = zStack-1; }

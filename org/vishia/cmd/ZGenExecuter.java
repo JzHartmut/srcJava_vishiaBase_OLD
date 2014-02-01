@@ -674,6 +674,7 @@ public class ZGenExecuter {
           case 'z': throw new ZGenExecuter.ExitException(((ZGenScript.ExitStatement)statement).exitValue);  
           case 'D': debug(statement); break;  //debug
           case 'r': execThrow(statement); break;
+          case 'v': execThrowonerror((ZGenScript.Onerror)statement); break;
           case 'b': isBreak = true; ret = ZGenExecuter.kBreak; break;
           case '#': ret = execCmdError((ZGenScript.Onerror)statement, out, indentOut); break;
           default: 
@@ -689,6 +690,7 @@ public class ZGenExecuter {
           int errLevel = 0;
           if(exc instanceof ExitException){ excType = 'e'; errLevel = ((ExitException)exc).exitLevel; }
           else if(exc instanceof IOException){ excType = 'f'; }
+          else if(exc instanceof CmdErrorLevelException){ excType = 'c'; }
           else if(exc instanceof NoSuchFieldException || exc instanceof NoSuchMethodException){ excType = 'n'; }
           else { excType = 'i'; }
           //Search the block of onerror after this statement.
@@ -1375,6 +1377,7 @@ public class ZGenExecuter {
               assert(dst instanceof StringPartAppend);            
               StringPartAppend u = (StringPartAppend) dst;
               u.clear();
+              if(val == null){ val = "--null--"; }
               if(!(val instanceof CharSequence)){
                 val = val.toString();
               }
@@ -1501,6 +1504,18 @@ public class ZGenExecuter {
     void execThrow(ZGenScript.ZGenitem statement) throws Exception {
       CharSequence msg = evalString(statement);
       throw new IllegalArgumentException(msg.toString());
+    }
+    
+    
+    
+    /**Throws an {@link CmdErrorLevelException} if the errorlevel is >= statement.errorLevel.
+     * @param statement
+     * @throws CmdErrorLevelException
+     */
+    void execThrowonerror(ZGenScript.Onerror statement) throws CmdErrorLevelException{
+      if(cmdErrorlevel >= statement.errorLevel){
+        throw new CmdErrorLevelException(cmdErrorlevel);
+      }
     }
     
     
@@ -1800,8 +1815,23 @@ public class ZGenExecuter {
   }
   
   
+  public static class CmdErrorLevelException extends Exception
+  {
+    private static final long serialVersionUID = 7785185972638755384L;
+    
+    public int errorLevel;
+    
+    public CmdErrorLevelException(int errorLevel){
+      super("cmd error level = " + errorLevel);
+      this.errorLevel = errorLevel;
+    }
+  }
+  
+  
   public static class ExitException extends Exception
   {
+    private static final long serialVersionUID = 1L;
+    
     public int exitLevel;
     
     public ExitException(int exitLevel){

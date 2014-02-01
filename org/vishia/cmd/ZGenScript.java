@@ -1483,6 +1483,7 @@ public class ZGenScript {
     
     @Override public String toString(){
       if(elementType == '#') return "onerror " + errorLevel;
+      else if(elementType == 'v') return "throwonerror " + errorLevel;
       else return "onerror " + errorType;
     }
     
@@ -1785,6 +1786,13 @@ public class ZGenScript {
       withoutOnerror.add(val);
     }
     
+    public void set_throwonerror(int val){ 
+      Onerror statement = new Onerror(this);
+      statement.elementType = 'v';
+      statement.errorLevel = val;
+      statements.add(statement);
+    } 
+
     
     
     public Onerror new_onerror(){
@@ -1808,6 +1816,16 @@ public class ZGenScript {
     }
 
     
+
+    public Onerror new_iferrorlevel(){
+      return new Onerror(this);
+    }
+    
+    public void add_iferrorlevel(Onerror val){
+      val.setCmdError();
+      statements.add(val);
+    }
+
 
     public void set_breakBlock(){ 
       ZGenitem statement = new ZGenitem(this, 'b');
