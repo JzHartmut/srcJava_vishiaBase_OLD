@@ -963,7 +963,9 @@ public class CalculatorExpr
       return this.operator !=null; 
     }
     
-    
+    /**Returns the datapath of this operation or null if the operator is not a datapath.
+     */
+    public DataAccess datapath(){ return datapath; }
     
     @Override public String toString(){ 
       StringBuilder u = new StringBuilder();
@@ -1538,6 +1540,13 @@ public class CalculatorExpr
   public void addOperation(Operation operation){
     listOperations.add(operation);
   }
+  
+  
+  
+  /**Gets the list of operations in return polish notation.
+   * Especially a datapath may completed with actual arguments of its called methods.
+   */
+  public List<Operation> listOperations(){ return listOperations; }
   
   
   /**Gets a operator to prepare operations.

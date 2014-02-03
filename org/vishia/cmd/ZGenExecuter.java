@@ -710,8 +710,8 @@ public class ZGenExecuter {
           }
           if(found){
             String sError1 = exc.getMessage();
-            try{ setLocalVariable("errorMsg", 'S', sError1, false);
-            } catch(IllegalAccessException exc1){ throw new IllegalArgumentException(exc1); }
+            threadData.error.setValue(sError1);
+            threadData.exception = exc;
             ret = execute(statement.statementlist, out, indentOut, false);  //executes the onerror block
             //a kBreak, kReturn etc. is used in the calling level.
             threadData.error.setValue(null);  //clear for next usage.
@@ -1535,7 +1535,7 @@ public class ZGenExecuter {
         if(o==null){ return "null"; }
         else {return o; }
       } else if(arg.expression !=null){
-        CalculatorExpr.Value value = arg.expression.calcDataAccess(localVariables);
+        CalculatorExpr.Value value = calculateExpression(arg.expression); //.calcDataAccess(localVariables);
         if(value.isObjValue()){ return value.objValue(); }
         else return value;
       } else throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
@@ -1559,7 +1559,7 @@ public class ZGenExecuter {
         executeNewlevel(arg.statementlist, u, 0, false);
         return StringSeq.create(u, true);
       } else if(arg.expression !=null){
-        CalculatorExpr.Value value = arg.expression.calcDataAccess(localVariables);
+        CalculatorExpr.Value value = calculateExpression(arg.expression); //.calcDataAccess(localVariables);
         return value.stringValue();
       } else return null;  //it is admissible.
       //} else throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
@@ -1599,6 +1599,19 @@ public class ZGenExecuter {
       dataAccess.storeValue(dataPool, value, accessPrivate);
     }
 
+    
+    
+    private CalculatorExpr.Value calculateExpression(CalculatorExpr expr) 
+    throws Exception {
+      for(CalculatorExpr.Operation operation: expr.listOperations()){
+        DataAccess datapath = operation.datapath();
+        if(datapath !=null){
+          calculateArguments(datapath);
+        }
+      }
+      return expr.calcDataAccess(localVariables);
+    }
+    
     
     
     
@@ -1648,7 +1661,7 @@ public class ZGenExecuter {
         executeNewlevel(arg.statementlist, u, arg.statementlist.indent, false);
         obj = u.toString();
       } else if(arg.expression !=null){
-        CalculatorExpr.Value value = arg.expression.calcDataAccess(localVariables);
+        CalculatorExpr.Value value = calculateExpression(arg.expression); //.calcDataAccess(localVariables);
         obj = value.objValue();
       } else obj = null;  //throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
       return obj;
@@ -1680,7 +1693,7 @@ public class ZGenExecuter {
       } else if(arg.statementlist !=null){
         throw new IllegalArgumentException("ZGenExecuter - unexpected, faulty syntax");
       } else if(arg.expression !=null){
-        CalculatorExpr.Value value = arg.expression.calcDataAccess(localVariables);
+        CalculatorExpr.Value value = calculateExpression(arg.expression); //.calcDataAccess(localVariables);
         ret = value.booleanValue();
       } else throw new IllegalArgumentException("ZGenExecuter - unexpected, faulty syntax");
       return ret;
@@ -1757,6 +1770,7 @@ public class ZGenExecuter {
      * This text can be gotten by the "error" variable.
      */
     DataAccess.Variable<Object> error = new DataAccess.Variable<Object>('S', "error", null);
+    Exception exception;
     
     /**State of thread execution. 
      * <ul>
