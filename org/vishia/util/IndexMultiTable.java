@@ -81,6 +81,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-01-12 Hartmut chg: {@link #sortin(int, Comparable, Object)} new Algorithm
    * <li>2014-01-12 Hartmut chg: toString better for viewing, with all keys 
    * <li>2013-12-02 Hartmut new: Implementation of {@link #remove(Object)} was missing, {@link #searchInTables(Comparable, boolean, IndexBox)}
    *   restructured. It returns the table and index, able to use for internal searching. 
@@ -145,6 +146,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * It is the same value as obj.length or key.length. */
   protected final static int maxBlock = AllocInBlock.restSizeBlock(IndexMultiTable.class, 80) / 8; //C: 8=sizeof(int) + sizeof(Object*) 
 
+  boolean shouldCheck = false;
+  
   /**actual number of objects stored in this table. */
   protected int sizeBlock;
   
@@ -406,6 +409,10 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   }
   
 
+  
+  
+  
+  
   /**constructs an empty instance without data with a given size and key type. 
    * @param size The size of one table.
    * @param type one of char I L or s for int, long or String key.
@@ -419,15 +426,24 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   }
   */
   
+  
+  
+  public void shouldCheck(boolean val){ shouldCheck = val; }
+  
 
   
   @Override public Type put(Key key, Type obj){
-    return putOrAdd(key, obj, false);
+    return putOrAdd(key, obj, null, false);
   }
 
   
   public Type add(Key key, Type obj){
-    return putOrAdd(key, obj, true);
+    return putOrAdd(key, obj, null, true);
+  }
+
+  
+  public Type addBefore(Key key, Type obj, Type objNext){
+    return putOrAdd(key, obj, objNext, true);
   }
 
   
@@ -438,9 +454,10 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * 
    */
   @SuppressWarnings("unchecked")
-  private Type putOrAdd(Key arg0, Type obj1, boolean shouldAdd)
+  private Type putOrAdd(Key arg0, Type obj1, Type objNext, boolean shouldAdd)
   { Type lastObj = null;
     boolean found;
+    IndexMultiTable<Key, Type> dst = this;
     //int key1 = arg0.intValue();
     //place object with same key after the last object with the same key.
     int idx = Arrays.binarySearch(aKeys, arg0); //, sizeBlock, key1);
@@ -453,7 +470,18 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     else
     { //if key1 is found, sorting after the last value with that index.
       found = true;
-      if(isHyperBlock || shouldAdd){
+      if(objNext !=null && !isHyperBlock && shouldAdd){
+        //check firstly objects after:
+        while(dst.aValues[idx] != objNext && compare(dst.aKeys[idx],arg0) == 0)  //while the keys are identically
+        { idx+=1;
+          if(idx >= sizeBlock){ //end of this block reached, continue in next sibling
+            dst = nextSibling();
+            idx = 0;
+          }
+        }
+        //check all objects before:
+      }
+      else if(isHyperBlock || shouldAdd){
         while(idx <sizeBlock && compare(aKeys[idx],arg0) == 0)  //while the keys are identically
         { idx+=1; 
         }
@@ -490,6 +518,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         child = null;
         stop();
       }
+      /*
       if(child !=null && child.sizeBlock == maxBlock)
       { //this child is full, divide it before using
         //int idxH = maxBlock / 2;
@@ -519,8 +548,9 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         }
       }
       else 
+      */
       { //the child has space.
-        lastObj = child.putOrAdd(arg0, obj1, shouldAdd); 
+        lastObj = child.putOrAdd(arg0, obj1, objNext, shouldAdd); 
       }
     }
     else
@@ -555,14 +585,42 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         stop();
       if(parent != null)
       { //it has a hyper block, use it!
-        //IndexInteger<Type> hyper = parent; 
-        stop();
+        //create a new sibling of this parent.
+        IndexMultiTable<Key, Type> sibling = new IndexMultiTable<Key, Type>(provider);
+        sibling.parent = parent;
+        sibling.shouldCheck = shouldCheck;
+        sibling.isHyperBlock = isHyperBlock;
+        //sortin divides the parent in 2 tables if it is full.
+        int newSize = sizeBlock/2;
+        if(idx > newSize){
+          int idx2 = movein(this, sibling, newSize, 0, idx - newSize);
+          int sizeSibling = movein(this, sibling, idx, idx2+1, sizeBlock - idx);
+          sibling.aKeys[idx2] = key1;
+          sibling.aValues[idx2] = obj1;
+          sibling.sizeBlock = sizeSibling;
+          sizeBlock = newSize;
+        } else {
+          sibling.sizeBlock = movein(this, sibling, newSize, 0, sizeBlock - newSize);
+          if(idx < newSize){
+            movein(this, this, idx, idx+1, newSize -idx);
+          }
+          this.aKeys[idx] = key1;
+          this.aValues[idx] = obj1;
+          sizeBlock = newSize +1;
+        }
+        for(int ix1 = sizeBlock; ix1 < maxBlock; ++ix1){
+          aKeys[ix1] = maxKey__;
+          aValues[ix1] = null;   //beware dangling references!
+        }
+        parent.sortin(this.ixInParent+1, sibling.aKeys[0], sibling);  //sortin the empty table in parent.      
       }
       else
-      { //divide the content of the current block in 2 blocks.
+      { //The top level block:
+        //divide the content of the current block in 2 blocks.
         IndexMultiTable<Key, Type> left = new IndexMultiTable<Key, Type>(provider);
         IndexMultiTable<Key, Type> right = new IndexMultiTable<Key, Type>(provider);
         left.parent = this; right.parent=this;
+        left.shouldCheck = right.shouldCheck = shouldCheck;
         sortInSeparated2arrays(idx, key1, obj1, this, left, right);
         //the current block is now a hyper block.
         this.isHyperBlock = true;
@@ -582,17 +640,48 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         
     }
     else
-    { if(idx < sizeBlock)
-      { System.arraycopy(aKeys, idx, aKeys, idx+1, sizeBlock-idx);
-        System.arraycopy(aValues, idx, aValues, idx+1, sizeBlock-idx);
+    { //shift all values 1 to right, regard ixInParent if it is a child table.
+      if(idx < sizeBlock)
+      { //move all following items to right:
+        movein(this, this, idx, idx+1, sizeBlock - idx);
       }
       sizeBlock +=1;
       aKeys[idx] = key1;
       aValues[idx] = obj1;
     }
+    if(obj1 instanceof IndexMultiTable<?, ?>){
+      IndexMultiTable<?,?> childTable = (IndexMultiTable<?,?>)obj1;
+      childTable.ixInParent = idx;
+    }
     check();
   }
   
+  
+ 
+  
+  /**
+   * @param src
+   * @param dst
+   * @param ixSrc
+   * @param ixDst
+   * @param size
+   * @return the index of dst after the last element.
+   */
+  private int movein(IndexMultiTable<Key,Type> src, IndexMultiTable<Key,Type> dst, int ixSrc, int ixDst, int size){
+    int ixRet = ixDst + size;
+    int ix2 = ixRet-1;
+    for(int ix1 = ixSrc + size-1; ix1 >= ixSrc; --ix1){
+      Object value = src.aValues[ix1];
+      if(value instanceof IndexMultiTable<?,?>){
+        IndexMultiTable<?,?> childTable = (IndexMultiTable<?,?>)value;
+        childTable.ixInParent = ix2;
+      }
+      dst.aValues[ix2] = value;
+      dst.aKeys[ix2] = src.aKeys[ix1];
+      ix2 -=1;
+    }
+    return ixRet;
+  }
   
   
   
@@ -925,6 +1014,21 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
 
 
+  IndexMultiTable<Key, Type> nextSibling(){
+    IndexMultiTable<Key, Type> sibling = null;
+    if(parent !=null){
+      if(ixInParent < sizeBlock-1){
+        @SuppressWarnings("unchecked")
+        IndexMultiTable<Key, Type> sibling1 = (IndexMultiTable<Key, Type>)parent.aValues[ixInParent+1];
+        sibling = sibling1;
+      } else {
+        Assert.check(false);
+      }
+    } else {
+      Assert.check(false);
+    }
+    return sibling;
+  }
 
 
 
@@ -1028,8 +1132,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   @SuppressWarnings("unchecked")
   void check()
-  { boolean shouldCheck = false;
-    if(shouldCheck)
+  { if(shouldCheck)
     { if(sizeBlock >=1){ assert1(aValues[0] != null); }
       for(int ii=1; ii < sizeBlock; ii++)
       { assert1(compare(aKeys[ii-1],aKeys[ii]) <= 0);

@@ -14,6 +14,7 @@ public class TestIndexMultiTable
   static class Test{
     String name;
     Test(String name){ this.name = name; }
+    @Override public String toString(){ return name; }
   }
   
   IndexMultiTable.Provide<String> provider = new IndexMultiTable.Provide<String>(){
@@ -29,7 +30,9 @@ public class TestIndexMultiTable
   
   void test(){
     IndexMultiTable<String, Test> idx = new IndexMultiTable<String, Test>(provider);
+    idx.shouldCheck(true);
     //Map<String, Test> idx = new TreeMap<String, Test>();
+    Test next;
     idx.add("b2", new Test(",b2"));    
     idx.add("n2", new Test(",n2"));    
     idx.add("z2", new Test(",z2"));    
@@ -45,12 +48,33 @@ public class TestIndexMultiTable
     idx.add("j1", new Test(",j1"));    
     idx.add("k1", new Test(",k1"));    
     idx.add("i2", new Test(",i2"));    
+    idx.add("d2", new Test(",d2c"));    
+    idx.add("d2", next = new Test(",d2e"));    
     idx.add("j2", new Test(",j2"));    
     idx.add("k2", new Test(",k2a"));    
+    idx.add("d2", new Test(",d2f"));    
+    idx.add("d2", new Test(",d2f1"));    
+    idx.add("d2", new Test(",d2f2"));    
+    idx.add("d2", new Test(",d2f3"));    
+    idx.add("d2", new Test(",d2f4"));    
+    idx.add("d2", new Test(",d2f5"));    
+    idx.add("d2", new Test(",d2f6"));    
+    idx.add("d2", new Test(",d2f7"));    
+    idx.add("d2", new Test(",d2f8"));    
+    idx.add("d2", new Test(",d2f9"));    
+    idx.add("d2", new Test(",d2fa"));    
+    idx.add("d2", new Test(",d2fb"));    
+    idx.add("d2", new Test(",d2fc"));    
+    idx.add("d2", new Test(",d2fd"));    
+    idx.add("d2", new Test(",d2fe"));    
+    idx.add("d2", new Test(",d2ff"));    
+    idx.add("d2", new Test(",d2fg"));    
+    idx.add("d2", new Test(",d2g"));    
     idx.add("l1", new Test(",l1"));    
     idx.add("k2", new Test(",k2b"));    
     idx.add("b2", new Test(",b2b"));    
     idx.add("ac", new Test(",ac"));    
+    idx.addBefore("d2", new Test(",d2d"), next);    
     idx.add("c5", new Test(",c5"));    
 
     Test value = idx.search("b21");

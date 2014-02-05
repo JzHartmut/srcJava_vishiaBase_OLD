@@ -135,6 +135,7 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
 
   /**Version, history and license.
    * <ul>
+   * <li>2014-02-09 Hartmut preparing new methods: {@link #movetoSiblingNext(TreeNodeBase)}, {@link #swap(TreeNodeBase)}
    * <li>2013-11-03 Hartmut bugfix: Problem on {@link #removeChildren()} if an exception was before.
    * <li>2013-11-03 Hartmut bugfix: {@link #iterChildren()} have to be return null, see its interface-definition.
    *   It had returned an Iterator, which first {@link Iterator#hasNext()} returns false. But with them
@@ -316,7 +317,7 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
   { if(childNode.parent !=null || childNode.next !=null || childNode.prev !=null){
       throw new IllegalArgumentException("Node has a parent, it is contained anywhere other, invoke detach!");
     }
-    addNodeKeyed(childNode);
+    addNodeKeyed(childNode, null);
     nrofChildren +=1;
     if(firstChild == null){
       firstChild = lastChild = childNode;
@@ -335,7 +336,7 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
     if(childNode.parent !=null){
       throw new IllegalArgumentException("Node has a parent, it is contained anywhere other, invoke detach!");
     }
-    addNodeKeyed(childNode);
+    addNodeKeyed(childNode, null);
     nrofChildren +=1;
     childNode.next = firstChild;  //maybe null
     if(firstChild !=null){
@@ -363,7 +364,7 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
     if(parent1 == null){
       throw new IllegalArgumentException("TreeNodeBase.addSiblingNext - this Node has not a parent;" + parent);
     }
-    parent1.addNodeKeyed(childNode);
+    parent1.addNodeKeyed(childNode, null);
     parent1.nrofChildren +=1;
     childNode.prev = dthis;
     childNode.next = this.next;   //may be null if this is the last one
@@ -390,7 +391,7 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
     if(parent1 == null){
       throw new IllegalArgumentException("TreeNodeBase.addSiblingNext - this Node has not a parent;" + parent);
     }
-    parent1.addNodeKeyed(childNode);
+    parent1.addNodeKeyed(childNode, null);
     parent1.nrofChildren +=1;
     childNode.next = dthis;
     childNode.prev = this.prev;  //may be null if this is the first one
@@ -408,7 +409,7 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
    * The referenced parent of the child is the metaNode if the key is not unique.
    * @param childNode
    */
-  private void addNodeKeyed(DerivedNode childNode){
+  private void addNodeKeyed(DerivedNode childNode, TreeNodeBase<DerivedNode, Data, IfcType> prev){
     @SuppressWarnings("unchecked")
     DerivedNode dthis = (DerivedNode)this; 
     if(childNode.key == null){
@@ -443,6 +444,7 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
           childNodeFound.parent = metaNode;  //it is the first one node.
           @SuppressWarnings("unchecked")
           DerivedNode childFound1 = (DerivedNode)childNodeFound;
+          //TODO do not add at end, add after prev!
           metaNode.children.add(childFound1);
         }
         metaNode.children.add(childNode);
@@ -451,6 +453,49 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
     }
     
   }
+  
+  
+  
+  
+  /**Swaps two nodes, this and dst. Both nodes are members of any treeNode bought. 
+   * It is not necessary that both TreeNode have the same root. This and dst may be siblings.
+   * @param dst The tree node which is swapped with this.
+   */
+  public void swap(DerivedNode other){
+    
+  }
+  
+  
+  /**Remove the dst node from its bough and add it as next sibling after this.
+   * It is not necessary that both TreeNode have the same root. This and dst may be siblings.
+   * @param src the tree node which should be removed and add as next sibling of this.
+   */
+  public void movetoSiblingNext(DerivedNode src){
+    
+  }
+  
+  
+  /**Remove the dst node from its bough and add it as previous sibling before this.
+   * It is not necessary that both TreeNode have the same root. This and dst may be siblings.
+   * @param src the tree node which should be removed and add as next sibling of this.
+   */
+  public void movetoSiblingPrev(DerivedNode src){
+    
+  }
+  
+  
+  /**Remove the dst node from its bough and add it as the first child of this.
+   * If this has children already, at least one, it is the same like 
+   * <code>firstChild().movetoSiblingPrev(src)</code>. But if this has not children, it is the first one.
+   * It is not necessary that both TreeNode have the same root. This and dst may be siblings.
+   * @param src the tree node which should be removed and add as next sibling of this.
+   */
+  public void movetoFirstChild(DerivedNode src){
+    
+  }
+  
+  
+  
   
   
   /**Detaches the node from its tree. A node can only be member of one tree of TreeNodeBase, 

@@ -10,6 +10,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.vishia.event.Event;
@@ -564,6 +565,11 @@ public class FileRemote extends File implements MarkMask_ifc
    */
   public Map<String,FileRemote> children() { return children; }
   
+  
+  //private Map<String, FileRemote> createChildrenList(){ return new TreeMap<String, FileRemote>(); } 
+  
+  private Map<String, FileRemote> createChildrenList(){ return new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString); } 
+
  
   public static boolean setAccessorSelector(FileRemoteAccessorSelector accessorSelectorP){
     boolean wasSetAlready = accessorSelector !=null;
@@ -633,7 +639,8 @@ public class FileRemote extends File implements MarkMask_ifc
   
   void putNewChild(FileRemote child){
     if(children == null){
-      children = new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString);  //TreeMap<String, FileRemote>();
+      //children = new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString);  //TreeMap<String, FileRemote>();
+      children = createChildrenList();  
     }
     if(child.parent != this){
       if(child.parent != null)
@@ -1101,7 +1108,7 @@ public class FileRemote extends File implements MarkMask_ifc
         this.parent = itsCluster.getFile(sParent, null); //new FileRemote(device, null, sParent, null, 0, 0, 0, null); 
         if(this.parent.children == null){
           //at least this is the child of the parent. All other children are unknown yet. 
-          this.parent.children = new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString);  //TreeMap<String, FileRemote>();
+          this.parent.children = createChildrenList(); //new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString);  //TreeMap<String, FileRemote>();
           this.parent.children.put(this.sFile, this);
           this.parent.timeChildren = 0; //it may be more children. Not evaluated.
         }
@@ -2277,7 +2284,7 @@ public class FileRemote extends File implements MarkMask_ifc
     
     public void setChildrenRefreshed(){ flags &= ~mShouldRefresh; timeRefresh = timeChildren = System.currentTimeMillis(); }
     
-    public void newChildren(){ children = new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString); } //TreeMap<String, FileRemote>(); }
+    public void newChildren(){ children = createChildrenList(); }
     
     /**Creates a new file as child of this file. It does not add the child itself because it may be gathered
      * in an seconst container and then exchanged. Only for internal use.

@@ -1092,7 +1092,7 @@ public class ZGenExecuter {
           //  result = (ZGenThreadResult)statement.threadVariable.getDataObj(localVariables, bAccessPrivate, false);
           //}
         } catch(Exception exc){
-          throw new IllegalArgumentException("JbatchExecuter - thread assign failure; path=" + statement.dataAccess.toString());
+          throw new IllegalArgumentException("JbatchExecuter - thread assign failure; path=" + statement.threadVariable.toString());
         }
       } else {
         result = new ZGenThreadResult();  //without assignment to a variable.
