@@ -146,10 +146,24 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * It is the same value as obj.length or key.length. */
   protected final static int maxBlock = AllocInBlock.restSizeBlock(IndexMultiTable.class, 80) / 8; //C: 8=sizeof(int) + sizeof(Object*) 
 
-  boolean shouldCheck = false;
+  /**Array of keys, there are sorted ascending. The same key can occure some times. */ 
+  //private final Comparable<Key>[] key = new Comparable[maxBlock];
   
+  protected final Key[] aKeys; // = new Key[maxBlock];
+
+  /**Array of objects appropritate to the keys. */
+  protected final Object[] aValues = new Object[maxBlock];
+
+  /**The parent if it is a child table. */
+  private IndexMultiTable<Key, Type> parent;
+
   /**actual number of objects stored in this table. */
   protected int sizeBlock;
+
+  /**actual number of objects stored in the whole table tree. */
+  protected int size;
+
+  boolean shouldCheck = false;
   
   /**The index of the first entry overall. */
   protected int ixValue0;
@@ -160,17 +174,6 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   /**modification access counter for Iterator. */
   //@SuppressWarnings("unused")
   protected int modcount;
-  
-  /**Array of objects appropritate to the keys. */
-  protected final Object[] aValues = new Object[maxBlock];
-  
-  /**Array of keys, there are sorted ascending. The same key can occure some times. */ 
-  //private final Comparable<Key>[] key = new Comparable[maxBlock];
-  
-  protected final Key[] aKeys; // = new Key[maxBlock];
-  
-  /**The parent if it is a child table. */
-  private IndexMultiTable<Key, Type> parent;
   
   /**Index of this table in its parent. */
   private int ixInParent;
@@ -438,6 +441,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
   
   public Type add(Key key, Type obj){
+    if(key.equals("olor:") && size == 20)
+      Assert.stop();
     return putOrAdd(key, obj, null, true);
   }
 
@@ -654,6 +659,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       childTable.ixInParent = idx;
     }
     check();
+    size +=1;
   }
   
   
@@ -1141,8 +1147,11 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           stop();
       }
       if(isHyperBlock)
-      { for(int ii=1; ii < sizeBlock; ii++)
-        { assert1(aKeys[ii] == ((IndexMultiTable<Key, Type>)aValues[ii]).aKeys[0]); 
+      { for(int ii=0; ii < sizeBlock; ii++)
+        { assert1(aValues[ii] instanceof IndexMultiTable<?,?>);
+          IndexMultiTable<Key, Type> childtable = (IndexMultiTable<Key, Type>)aValues[ii]; 
+          assert1(aKeys[ii] == childtable.aKeys[0]); 
+          assert1(childtable.ixInParent == ii);
         }
       }
       for(int ii=sizeBlock; ii < maxBlock; ii++)

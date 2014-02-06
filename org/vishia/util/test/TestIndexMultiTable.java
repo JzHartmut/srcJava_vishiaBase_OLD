@@ -1,5 +1,10 @@
 package org.vishia.util.test;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
@@ -27,9 +32,10 @@ public class TestIndexMultiTable
   };
   
   
+  IndexMultiTable<String, Test> idx = new IndexMultiTable<String, Test>(provider);
+  Map<String, Object> idx2 = new TreeMap<String, Object>();
   
   void test(){
-    IndexMultiTable<String, Test> idx = new IndexMultiTable<String, Test>(provider);
     idx.shouldCheck(true);
     //Map<String, Test> idx = new TreeMap<String, Test>();
     Test next;
@@ -100,8 +106,90 @@ public class TestIndexMultiTable
     
   }
   
+  
+  
+  
+  void testFile(File file){
+    idx.shouldCheck(true);
+    try{
+      BufferedReader rd = new BufferedReader(new FileReader(file));
+      String line;
+      while((line = rd.readLine())!=null){
+        int len = line.length();
+        int lenKey = 5;
+        for(int iline = 0; iline < len-lenKey; iline += lenKey){
+          String key = line.substring(iline, iline + lenKey);
+          Test value = new Test(key);
+          idx.add(key, value);
+          addTreemap(idx2,key, value);
+        }
+      }
+    } catch(IOException exc){
+      System.err.println("TestIndexMultiTable - IOException; "+ exc);
+    }
+    Iterator<Map.Entry<String, Object>> iterTreemap = idx2.entrySet().iterator();
+    Iterator<Test> iterList = null;
+    for(Map.Entry<String, Test> entry: idx.entrySet()){
+      Test value = entry.getValue();
+      
+      //get the value2
+      Test value2;
+      if(iterList !=null && iterList.hasNext()){
+        value2 = iterList.next();
+      } else {
+        Map.Entry<String, Object> entryTreemap = iterTreemap.next();
+        Object treemapitem = entryTreemap.getValue();
+        if(treemapitem instanceof ArrayList<?>){
+          @SuppressWarnings("unchecked")
+          ArrayList<Test> node = (ArrayList<Test>) treemapitem;
+          iterList = (node).iterator();
+          value2 = iterList.next();
+        } else {
+          value2 = (Test)treemapitem;
+          iterList = null;
+        }
+      }
+      assert(value == value2); //same order, same instances.
+    }
+  }
+  
+  
+  
+  
+  
+  /**This method fills a Map with maybe Objects with the same key.
+   * All Objects with the same key are stored in an ArrayList, which is the member of the idx for this key.
+   * @param idx Any Map, unified key
+   * @param key The key
+   * @param value The object
+   */
+  public static void addTreemap(Map<String, Object> idx, String key, Test value){
+    Object valTreemap = idx.get(key);  //key containing?
+    if(valTreemap!=null){
+      //key already containing
+      if(valTreemap instanceof ArrayList<?>){
+        @SuppressWarnings("unchecked")
+        ArrayList<Test> listnode = (ArrayList<Test>) valTreemap;
+        listnode.add(value);  //append
+      } else {
+        assert(valTreemap instanceof Test);
+        ArrayList<Test> listnode = new ArrayList<Test>();
+        listnode.add((Test)valTreemap);   
+        listnode.add(value);
+        idx.put(key, listnode);
+      }
+    } else {
+      idx.put(key, value);
+    }
+  }
+  
+  
+  
+  
+  
   public static void main(String[] args){
     TestIndexMultiTable main = new TestIndexMultiTable();
-    main.test();
+    //main.test();
+    main.testFile(new File("D:/vishia/Java/links.html")); //any text file to test
   }
 }
