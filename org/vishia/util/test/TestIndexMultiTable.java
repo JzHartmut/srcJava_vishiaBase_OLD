@@ -3,9 +3,12 @@ package org.vishia.util.test;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -17,8 +20,12 @@ public class TestIndexMultiTable
 {
 
   static class Test{
+    static int _ident = 0;
     String name;
-    Test(String name){ this.name = name; }
+    String check;
+    int ident;
+    Test(String name){ this.name = name; this.check = name; ident = ++_ident;}
+    Test(String name, String check){ this.name = name; this.check = check; ident = ++_ident;}
     @Override public String toString(){ return name; }
   }
   
@@ -39,58 +46,70 @@ public class TestIndexMultiTable
     idx.shouldCheck(true);
     //Map<String, Test> idx = new TreeMap<String, Test>();
     Test next;
-    idx.add("b2", new Test(",b2"));    
-    idx.add("n2", new Test(",n2"));    
-    idx.add("z2", new Test(",z2"));    
-    idx.add("m2", new Test(",m2"));    
-    idx.add("m1", new Test(",m1"));    
-    idx.add("ab", new Test(",ab1"));    
-    idx.add("ab", new Test(",ab2"));    
-    idx.add("d2", new Test(",d2a"));    
-    idx.add("d2", new Test(",d2b"));    
-    idx.add("d3", new Test(",d3"));    
-    idx.add("d4", new Test(",d4"));    
-    idx.add("i1", new Test(",i1"));    
-    idx.add("j1", new Test(",j1"));    
-    idx.add("k1", new Test(",k1"));    
-    idx.add("i2", new Test(",i2"));    
-    idx.add("d2", new Test(",d2c"));    
-    idx.add("d2", next = new Test(",d2e"));    
-    idx.add("j2", new Test(",j2"));    
-    idx.add("k2", new Test(",k2a"));    
-    idx.add("d2", new Test(",d2f"));    
-    idx.add("d2", new Test(",d2f1"));    
-    idx.add("d2", new Test(",d2f2"));    
-    idx.add("d2", new Test(",d2f3"));    
-    idx.add("d2", new Test(",d2f4"));    
-    idx.add("d2", new Test(",d2f5"));    
-    idx.add("d2", new Test(",d2f6"));    
-    idx.add("d2", new Test(",d2f7"));    
-    idx.add("d2", new Test(",d2f8"));    
-    idx.add("d2", new Test(",d2f9"));    
-    idx.add("d2", new Test(",d2fa"));    
-    idx.add("d2", new Test(",d2fb"));    
-    idx.add("d2", new Test(",d2fc"));    
-    idx.add("d2", new Test(",d2fd"));    
-    idx.add("d2", new Test(",d2fe"));    
-    idx.add("d2", new Test(",d2ff"));    
-    idx.add("d2", new Test(",d2fg"));    
-    idx.add("d2", new Test(",d2g"));    
-    idx.add("l1", new Test(",l1"));    
-    idx.add("k2", new Test(",k2b"));    
-    idx.add("b2", new Test(",b2b"));    
-    idx.add("ac", new Test(",ac"));    
-    idx.addBefore("d2", new Test(",d2d"), next);    
-    idx.add("c5", new Test(",c5"));    
+    List<Test> list = new ArrayList<Test>();
+    list.add(new Test("b2"));    
+    list.add(new Test("n2"));    
+    list.add(new Test("z2"));    
+    list.add(new Test("m2"));    
+    list.add(new Test("m1"));    
+    list.add(new Test("ab1"));    
+    list.add(new Test("ab2"));    
+    list.add(new Test("d2a"));    
+    list.add(new Test("d2b"));    
+    list.add(new Test("d3"));    
+    list.add(new Test("d4"));    
+    list.add(new Test("i1"));    
+    list.add(new Test("j1"));    
+    list.add(new Test("k1"));    
+    list.add(new Test("i2"));    
+    list.add(new Test("d2c"));    
+    list.add(next = new Test("d2e"));    
+    list.add(new Test("j2"));    
+    list.add(new Test("k2a"));    
+    list.add(new Test("d2f"));    
+    list.add(new Test("d2f1"));    
+    list.add(new Test("d2f2"));    
+    list.add(new Test("d2f3"));    
+    list.add(new Test("d2f4"));    
+    list.add(new Test("d2f5"));    
+    list.add(new Test("d2f6"));    
+    list.add(new Test("d2f7"));    
+    list.add(new Test("d2f8"));    
+    list.add(new Test("d2f9"));    
+    list.add(new Test("d2fa"));    
+    list.add(new Test("d2fb"));    
+    list.add(new Test("d2fc"));    
+    list.add(new Test("d2fd"));    
+    list.add(new Test("d2fe"));    
+    list.add(new Test("d2ff"));    
+    list.add(new Test("d2fg"));    
+    list.add(new Test("d2g"));    
+    list.add(new Test("l1"));    
+    list.add(new Test("k2b"));    
+    list.add(new Test("b2b"));    
+    list.add(new Test("ac"));
+    
+    for(Test test: list){
+      String cmpr = test.name.substring(0,2);
+      if(test.ident == 14)
+        Assert.stop();
+      idx.add(cmpr, test);
+      idx.checkTable();
+    }
+    
+    idx.addBefore("d2", new Test("d2d"), next);    
+    idx.checkTable();
+    idx.add("aa", new Test("aa"));    
+    idx.checkTable();
 
     Test value = idx.search("b21");
     System.out.println(value.name);
     StringBuilder utest = new StringBuilder(); 
     //check sorted content:
     for(Test test: idx){
-      utest.append(test.name);
+      utest.append(test.name).append('-');
     }
-    Assert.check(StringFunctions.equals(utest, ",ab1,ab2,ac,b2,b2b,c5,d2a,d2b,d3,d4,i1,i2,j1,j2,k1,k2a,k2b,l1,m1,m2,n2,z2"));
+    //Assert.check(StringFunctions.equals(utest, ",ab1,ab2,ac,b2,b2b,c5,d2a,d2b,d3,d4,i1,i2,j1,j2,k1,k2a,k2b,l1,m1,m2,n2,z2"));
     //
     //Iterator starting from any point between:
     //
@@ -102,7 +121,7 @@ public class TestIndexMultiTable
       utest.append(obj.name);
       //System.out.println(obj.name);
     }
-    Assert.check(StringFunctions.equals(utest, ",d2a,d2b,d3,d4,i1,i2,j1,j2,k1,k2a,k2b,l1,m1,m2,n2,z2"));
+    //Assert.check(StringFunctions.equals(utest, ",d2a,d2b,d3,d4,i1,i2,j1,j2,k1,k2a,k2b,l1,m1,m2,n2,z2"));
     
   }
   
@@ -110,51 +129,67 @@ public class TestIndexMultiTable
   
   
   void testFile(File file){
+    idx.clear();
+    idx2.clear();
     idx.shouldCheck(true);
     try{
       BufferedReader rd = new BufferedReader(new FileReader(file));
       String line;
       int testct = 0;
       while((line = rd.readLine())!=null){
+        int pos = 0;
         int len = line.length();
         int lenKey = 5;
-        for(int iline = 0; iline < len-lenKey; iline += lenKey){
-          String key = line.substring(iline, iline + lenKey);
+        while(pos >=0 && pos < len-lenKey){
+          String key = line.substring(pos, pos + lenKey);
           Test value = new Test(key);
-          if(++testct == 123){
+          if(++testct == 22){
             Assert.stop();
           }
-          idx.add(key, value);
+          idx.append(key, value);
           idx.checkTable();
           addTreemap(idx2,key, value);
+          pos = line.indexOf(' ', pos+1);
         }
       }
     } catch(IOException exc){
       System.err.println("TestIndexMultiTable - IOException; "+ exc);
     }
-    Iterator<Map.Entry<String, Object>> iterTreemap = idx2.entrySet().iterator();
-    Iterator<Test> iterList = null;
-    for(Map.Entry<String, Test> entry: idx.entrySet()){
-      Test value = entry.getValue();
-      
-      //get the value2
-      Test value2;
-      if(iterList !=null && iterList.hasNext()){
-        value2 = iterList.next();
-      } else {
-        Map.Entry<String, Object> entryTreemap = iterTreemap.next();
-        Object treemapitem = entryTreemap.getValue();
-        if(treemapitem instanceof ArrayList<?>){
-          @SuppressWarnings("unchecked")
-          ArrayList<Test> node = (ArrayList<Test>) treemapitem;
-          iterList = (node).iterator();
+    //check it with iterate through both lists.
+    File fileout = new File("TestIndexMultiTable-result.txt");
+    try{
+      Writer out = new FileWriter(fileout);
+      Iterator<Map.Entry<String, Object>> iterTreemap = idx2.entrySet().iterator();
+      Iterator<Test> iterList = null;
+      Map.Entry<String, Object> entryTreemap = null;
+      for(Map.Entry<String, Test> entry: idx.entrySet()){
+        Test value = entry.getValue();
+        
+        //get the value2
+        Test value2;
+        if(iterList !=null && iterList.hasNext()){
           value2 = iterList.next();
         } else {
-          value2 = (Test)treemapitem;
-          iterList = null;
+          entryTreemap = iterTreemap.next();
+          Object treemapitem = entryTreemap.getValue();
+          if(treemapitem instanceof ArrayList<?>){
+            @SuppressWarnings("unchecked")
+            ArrayList<Test> node = (ArrayList<Test>) treemapitem;
+            iterList = (node).iterator();
+            value2 = iterList.next();
+          } else {
+            value2 = (Test)treemapitem;
+            iterList = null;
+          }
         }
+        out.append(entry.getKey()).append(":").append(Integer.toString(value.ident))
+           .append("   ").append(entryTreemap.getKey()).append(":").append(Integer.toString(value2.ident))
+           .append('\n');
+        assert(value == value2); //same order, same instances.
       }
-      assert(value == value2); //same order, same instances.
+      out.close();
+    } catch(IOException exc){
+      System.err.println("TestIndexMultiTable - file problem;");
     }
   }
   
@@ -194,7 +229,7 @@ public class TestIndexMultiTable
   
   public static void main(String[] args){
     TestIndexMultiTable main = new TestIndexMultiTable();
-    //main.test();
+    main.test();
     main.testFile(new File("D:/vishia/Java/links.html")); //any text file to test
   }
 }
