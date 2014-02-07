@@ -114,13 +114,18 @@ public class TestIndexMultiTable
     try{
       BufferedReader rd = new BufferedReader(new FileReader(file));
       String line;
+      int testct = 0;
       while((line = rd.readLine())!=null){
         int len = line.length();
         int lenKey = 5;
         for(int iline = 0; iline < len-lenKey; iline += lenKey){
           String key = line.substring(iline, iline + lenKey);
           Test value = new Test(key);
+          if(++testct == 123){
+            Assert.stop();
+          }
           idx.add(key, value);
+          idx.checkTable();
           addTreemap(idx2,key, value);
         }
       }

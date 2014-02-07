@@ -136,6 +136,10 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    */
   public static final int version = 20130807;
 
+  static int identParent_ = 100;
+  
+  final int identParent = ++identParent_; 
+  
   final Key minKey__;
   
   final Key maxKey__;
@@ -158,15 +162,12 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   private IndexMultiTable<Key, Type> parent;
 
   /**actual number of objects stored in this table. */
-  protected int sizeBlock;
+  private int sizeBlock;
 
   /**actual number of objects stored in the whole table tree. */
-  protected int size;
+  private int sizeAll;
 
-  boolean shouldCheck = false;
-  
-  /**The index of the first entry overall. */
-  protected int ixValue0;
+  private boolean shouldCheck = false;
   
   /**True, than {@link #aValues} contains instances of this class too. */
   protected boolean isHyperBlock;
@@ -409,6 +410,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     this.maxKey__ = provider.genMax();
     for(int idx = 0; idx < maxBlock; idx++){ aKeys[idx] = maxKey__; }
     sizeBlock = 0;
+    ixInParent = -1;
   }
   
 
@@ -417,7 +419,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   
   /**constructs an empty instance without data with a given size and key type. 
-   * @param size The size of one table.
+   * @param sizeAll The size of one table.
    * @param type one of char I L or s for int, long or String key.
    */
   /*
@@ -441,7 +443,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
   
   public Type add(Key key, Type obj){
-    if(key.equals("olor:") && size == 20)
+    if(key.equals("ckgro") && sizeAll == 19)
       Assert.stop();
     return putOrAdd(key, obj, null, true);
   }
@@ -460,8 +462,24 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    */
   @SuppressWarnings("unchecked")
   private Type putOrAdd(Key arg0, Type obj1, Type objNext, boolean shouldAdd)
-  { Type lastObj = null;
+  { //NOTE: returns inside too.
+    check();
+    Type lastObj = null;
     boolean found;
+    if(isHyperBlock && sizeBlock == maxBlock){
+      //split the block because it may be insufficient. If it is insufficient,
+      //the split from child to parent does not work. split yet.
+      if(parent !=null){
+        IndexMultiTable<Key, Type> sibling = splitIntoSibling(-1, null, null);
+        if(sibling.aKeys[0].compareTo(arg0) <=0){
+          //do it in the sibling.
+          return sibling.putOrAdd(arg0, obj1, objNext, shouldAdd);
+        }
+      } else {
+        splitTopLevel(-1, null, null);
+      }
+    }
+    check();
     IndexMultiTable<Key, Type> dst = this;
     //int key1 = arg0.intValue();
     //place object with same key after the last object with the same key.
@@ -563,11 +581,13 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       if(idx <0)
       { idx = -idx -1;
         sortin(idx, arg0, obj1);  //idx+1 because sortin after found position.            
+        check();
       }
       else
       { //found
         if(!found || shouldAdd){
           sortin(idx, arg0, obj1);  //idx+1 because sortin after found position.            
+          check();
         } else {
           aValues[idx] = obj1;   //replace the existing one.
         }
@@ -584,65 +604,23 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   
   private void sortin(int idx, Key key1, Object obj1)
-  { if(sizeBlock == maxBlock)
+  { check();
+    if(sizeBlock == maxBlock)
     { //divide the block:
       if(isHyperBlock)
         stop();
       if(parent != null)
       { //it has a hyper block, use it!
-        //create a new sibling of this parent.
-        IndexMultiTable<Key, Type> sibling = new IndexMultiTable<Key, Type>(provider);
-        sibling.parent = parent;
-        sibling.shouldCheck = shouldCheck;
-        sibling.isHyperBlock = isHyperBlock;
-        //sortin divides the parent in 2 tables if it is full.
-        int newSize = sizeBlock/2;
-        if(idx > newSize){
-          int idx2 = movein(this, sibling, newSize, 0, idx - newSize);
-          int sizeSibling = movein(this, sibling, idx, idx2+1, sizeBlock - idx);
-          sibling.aKeys[idx2] = key1;
-          sibling.aValues[idx2] = obj1;
-          sibling.sizeBlock = sizeSibling;
-          sizeBlock = newSize;
-        } else {
-          sibling.sizeBlock = movein(this, sibling, newSize, 0, sizeBlock - newSize);
-          if(idx < newSize){
-            movein(this, this, idx, idx+1, newSize -idx);
-          }
-          this.aKeys[idx] = key1;
-          this.aValues[idx] = obj1;
-          sizeBlock = newSize +1;
-        }
-        for(int ix1 = sizeBlock; ix1 < maxBlock; ++ix1){
-          aKeys[ix1] = maxKey__;
-          aValues[ix1] = null;   //beware dangling references!
-        }
-        parent.sortin(this.ixInParent+1, sibling.aKeys[0], sibling);  //sortin the empty table in parent.      
+        //create a new sibling of this.
+        splitIntoSibling(idx, key1, obj1);
+        check();
       }
       else
-      { //The top level block:
+      { //The top level block, it can be splitted only.
         //divide the content of the current block in 2 blocks.
-        IndexMultiTable<Key, Type> left = new IndexMultiTable<Key, Type>(provider);
-        IndexMultiTable<Key, Type> right = new IndexMultiTable<Key, Type>(provider);
-        left.parent = this; right.parent=this;
-        left.shouldCheck = right.shouldCheck = shouldCheck;
-        sortInSeparated2arrays(idx, key1, obj1, this, left, right);
-        //the current block is now a hyper block.
-        this.isHyperBlock = true;
-        aValues[0] = left;
-        aValues[1] = right;
-        aKeys[0] = left.aKeys[0]; //minKey__;  //because it is possible to sort in lesser keys.
-        aKeys[1] = right.aKeys[0];
-        left.ixInParent = 0;
-        right.ixInParent = 1;
-        for(int idxFill = 2; idxFill < maxBlock; idxFill++)
-        { aKeys[idxFill] = maxKey__; 
-          aValues[idxFill] = null;
-        }
-        sizeBlock = 2;
-        left.check();right.check();
+        splitTopLevel(idx, key1, obj1);
+        check();
       }
-        
     }
     else
     { //shift all values 1 to right, regard ixInParent if it is a child table.
@@ -653,14 +631,140 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       sizeBlock +=1;
       aKeys[idx] = key1;
       aValues[idx] = obj1;
-    }
-    if(obj1 instanceof IndexMultiTable<?, ?>){
-      IndexMultiTable<?,?> childTable = (IndexMultiTable<?,?>)obj1;
-      childTable.ixInParent = idx;
+      if(obj1 instanceof IndexMultiTable<?, ?>){
+        IndexMultiTable<?,?> childTable = (IndexMultiTable<?,?>)obj1;
+        childTable.ixInParent = idx;
+      }
     }
     check();
-    size +=1;
+    sizeAll +=1;
   }
+  
+  
+  
+  private void splitTopLevel(int idx, Key key1, Object obj1){
+    IndexMultiTable<Key, Type> left = new IndexMultiTable<Key, Type>(provider);
+    IndexMultiTable<Key, Type> right = new IndexMultiTable<Key, Type>(provider);
+    left.parent = right.parent=this;
+    left.shouldCheck = right.shouldCheck = shouldCheck;
+    left.isHyperBlock = right.isHyperBlock = isHyperBlock;
+    left.ixInParent = 0;
+    right.ixInParent = 1;
+    //the current block is now a hyper block.
+    this.isHyperBlock = true;
+    int newSize = sizeBlock/2;
+    if(idx > newSize){
+      left.sizeAll = movein(this, left, 0, 0, newSize);
+      left.sizeBlock = newSize;
+      right.sizeAll = movein(this, right, newSize, 0, idx - newSize);
+      int ix1 = idx - newSize;
+      right.aKeys[ix1] = key1;
+      right.aValues[ix1] = obj1;
+      if(obj1 instanceof IndexMultiTable<?,?>){
+        IndexMultiTable<?,?> childTable = (IndexMultiTable<?,?>)obj1;
+        childTable.ixInParent = ix1;
+      }
+      right.sizeAll += movein(this, right, idx, ix1+1, sizeBlock - idx);
+      right.sizeBlock = sizeBlock - newSize +1;
+      aValues[0] = left;
+      aValues[1] = right;
+      left.check();
+      right.check();
+    } else {
+      if(idx >=0){
+        left.sizeAll = movein(this, left, 0, 0, idx);
+        left.aKeys[idx] = key1;
+        left.aValues[idx] = obj1;
+        if(obj1 instanceof IndexMultiTable<?,?>){
+          IndexMultiTable<?,?> childTable = (IndexMultiTable<?,?>)obj1;
+          childTable.ixInParent = idx;
+        }
+        left.sizeAll += 1;
+        left.sizeAll += movein(this, left, idx, idx+1, newSize - idx);
+        left.sizeBlock = newSize +1;
+      } else {
+        left.sizeAll = movein(this, left, 0, 0, newSize);
+        left.sizeBlock = newSize;
+      }
+      right.sizeAll = movein(this, right, newSize, 0, sizeBlock - newSize);
+      right.sizeBlock = sizeBlock - newSize;
+      aValues[0] = left;
+      aValues[1] = right;
+      left.check();
+      right.check();
+    }
+    aKeys[0] = left.aKeys[0]; //minKey__;  //because it is possible to sort in lesser keys.
+    aKeys[1] = right.aKeys[0];
+    sizeBlock = 2;
+    clearRestArray(this);
+    check();
+  }
+  
+  
+  
+  /**
+   * @param idx if <0 then do not sortin a key, obj1
+   * @param key1
+   * @param obj1
+   */
+  private IndexMultiTable<Key, Type> splitIntoSibling(int idx, Key key1, Object obj1){
+    IndexMultiTable<Key, Type> sibling = new IndexMultiTable<Key, Type>(provider);
+    sibling.parent = parent;
+    sibling.shouldCheck = shouldCheck;
+    sibling.isHyperBlock = isHyperBlock;
+    sibling.ixInParent = this.ixInParent +1;
+    //sortin divides the parent in 2 tables if it is full.
+    int newSize = sizeBlock/2;
+    if(idx > newSize){
+      //new element moved into the sibling.
+      int ix1 = idx - newSize;
+      sibling.sizeAll = movein(this, sibling, newSize, 0, idx - newSize);
+      sibling.aKeys[ix1] = key1;
+      sibling.aValues[ix1] = obj1;
+      if(obj1 instanceof IndexMultiTable<?,?>){
+        IndexMultiTable<?,?> childTable = (IndexMultiTable<?,?>)obj1;
+        childTable.ixInParent = ix1;
+      }
+      sibling.sizeAll +=1;
+      sibling.sizeAll += movein(this, sibling, idx, ix1 +1, sizeBlock - idx);
+      sibling.sizeBlock = sizeBlock - newSize +1;
+      sizeBlock = newSize;
+      sizeAll -= sibling.sizeAll;
+      //sibling.sizeAll +=1;  //the new element.
+      clearRestArray(this);
+      parent.sortin(sibling.ixInParent, sibling.aKeys[0], sibling);  //sortin the empty table in parent.      
+      this.check();
+      sibling.check();
+      parent.check();
+    } else {
+      //new element moved into this.
+      sibling.sizeAll = movein(this, sibling, newSize, 0, sizeBlock - newSize);
+      sibling.sizeBlock = sizeBlock - newSize; 
+      if(idx >=0){
+        if(idx < newSize){
+          movein(this, this, idx, idx+1, newSize -idx);
+        }
+        this.aKeys[idx] = key1;
+        this.aValues[idx] = obj1;
+        if(obj1 instanceof IndexMultiTable<?,?>){
+          IndexMultiTable<?,?> childTable = (IndexMultiTable<?,?>)obj1;
+          childTable.ixInParent = idx;
+        }
+        sizeBlock = newSize +1;
+        sizeAll = sizeAll - sibling.sizeAll +1;
+      } else {
+        sizeBlock = newSize;
+        sizeAll = sizeAll - sibling.sizeAll;
+      }
+      clearRestArray(this);
+      parent.sortin(sibling.ixInParent, sibling.aKeys[0], sibling);  //sortin the empty table in parent.      
+      this.check();
+      sibling.check();
+      parent.check();
+    }
+    return sibling;
+  }
+  
   
   
  
@@ -670,23 +774,35 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * @param dst
    * @param ixSrc
    * @param ixDst
-   * @param size
+   * @param sizeAll
    * @return the index of dst after the last element.
    */
-  private int movein(IndexMultiTable<Key,Type> src, IndexMultiTable<Key,Type> dst, int ixSrc, int ixDst, int size){
-    int ixRet = ixDst + size;
-    int ix2 = ixRet-1;
-    for(int ix1 = ixSrc + size-1; ix1 >= ixSrc; --ix1){
+  private int movein(IndexMultiTable<Key,Type> src, IndexMultiTable<Key,Type> dst, int ixSrc, int ixDst, int nrof){
+    int sizeRet = nrof;
+    int ix2 = ixDst + nrof - 1;
+    for(int ix1 = ixSrc + nrof-1; ix1 >= ixSrc; --ix1){
       Object value = src.aValues[ix1];
-      if(value instanceof IndexMultiTable<?,?>){
-        IndexMultiTable<?,?> childTable = (IndexMultiTable<?,?>)value;
+      if(value instanceof IndexMultiTable<?,?>) {
+        @SuppressWarnings("unchecked")
+        IndexMultiTable<Key,Type> childTable = (IndexMultiTable<Key,Type>)value;
         childTable.ixInParent = ix2;
-      }
+        childTable.parent = dst;
+        sizeRet += childTable.sizeAll -1;  //-1: 1 element is counted initial
+      } 
       dst.aValues[ix2] = value;
       dst.aKeys[ix2] = src.aKeys[ix1];
       ix2 -=1;
     }
-    return ixRet;
+    return sizeRet;
+  }
+  
+  
+  private void clearRestArray(IndexMultiTable<Key,Type> dst){
+    for(int ix = dst.sizeBlock; ix < maxBlock; ix++)
+    { dst.aKeys[ix] = dst.maxKey__; 
+      dst.aValues[ix] = null;
+    }
+    
   }
   
   
@@ -1138,8 +1254,11 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   @SuppressWarnings("unchecked")
   void check()
-  { if(shouldCheck)
-    { if(sizeBlock >=1){ assert1(aValues[0] != null); }
+  { if(shouldCheck){
+      if(parent!=null){
+        assert1(parent.aValues[ixInParent] == this);
+      }
+      if(sizeBlock >=1){ assert1(aValues[0] != null); }
       for(int ii=1; ii < sizeBlock; ii++)
       { assert1(compare(aKeys[ii-1],aKeys[ii]) <= 0);
         assert1(aValues[ii] != null);
@@ -1160,6 +1279,38 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       }
     }  
   }
+  
+  
+  public void checkTable(){ checkTable(null, null, -1, provider.genMin() );}
+  
+  
+  public Key checkTable(IndexMultiTable<Key, Type> parentP, Key keyParentP, int ixInParentP, Key keylastP){
+    Key keylast = keylastP;
+    assert1(parentP == null || keyParentP.equals(aKeys[0]));
+    assert1(this.parent == parentP);
+    assert1(this.ixInParent == ixInParentP);
+    for(int ix = 0; ix < sizeBlock; ++ix){
+      if(isHyperBlock){
+        assert1(aValues[ix] instanceof IndexMultiTable<?,?>);
+        @SuppressWarnings("unchecked")
+        IndexMultiTable<Key,Type> childTable = (IndexMultiTable<Key,Type>)aValues[ix];
+        keylast = childTable.checkTable(this, aKeys[ix], ix, keylast);
+      } else {
+        assert1(compare(aKeys[ix], keylast) >= 0);
+        keylast = aKeys[ix];
+      }
+    }
+    for(int ix=sizeBlock; ix < maxBlock; ix++)
+    { assert1(aKeys[ix] == maxKey__);
+      assert1(aValues[ix] == null);
+    }
+    return keylast;
+  }
+  
+  
+  
+  
+  
   
   
   void assert1(boolean cond)
@@ -1224,6 +1375,10 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   @Override
   public String toString(){
     StringBuilder u = new StringBuilder();
+    if(parent !=null){
+      u.append("#").append(parent.identParent);
+    }
+    if(isHyperBlock){ u.append(':'); } else { u.append('='); }
     toString(u);
     return u.toString();
   }
