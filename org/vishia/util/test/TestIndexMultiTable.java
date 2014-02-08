@@ -39,7 +39,7 @@ public class TestIndexMultiTable
   };
   
   
-  IndexMultiTable<String, Test> idx = new IndexMultiTable<String, Test>(provider);
+  IndexMultiTable<String, Test> idx = new IndexMultiTable<String, Test>(IndexMultiTable.providerString);
   Map<String, Object> idx2 = new TreeMap<String, Object>();
   
   void test(){
@@ -130,28 +130,35 @@ public class TestIndexMultiTable
   
   void testFile(File file){
     float timediff;
+    int testct = 0;
     idx.clear();
     idx2.clear();
     idx.shouldCheck(false);
     try{
       BufferedReader rd = new BufferedReader(new FileReader(file));
       String line;
-      int testct = 0;
       long timestart = System.nanoTime();
       while((line = rd.readLine())!=null){
+        int zline = line.length();
         int pos = 0;
-        int len = line.length();
         int lenKey = 5;
-        while(pos >=0 && pos < len-lenKey){
+        while(pos >=0 && pos < zline-lenKey){
           String key = line.substring(pos, pos + lenKey);
           Test value = new Test(key);
-          if(++testct == 22){
+          if(++testct == 27){
             Assert.stop();
           }
-          idx.append(key, value);
-          idx.checkTable();
-          addTreemap(idx2,key, value);
+          if(key.equals("capab"))
+            Assert.stop();
+          idx.put(key, value);
+          //idx2.put(key, value);
+          //idx.append(key, value);
+          //idx.checkTable();
+          //addTreemap(idx2,key, value);
           pos = line.indexOf(' ', pos+1);
+          if(pos >=0){
+            while(pos < zline && line.charAt(pos) ==' '){ pos +=1; }
+          }
         }
       }
       long timeend = System.nanoTime();
@@ -237,6 +244,6 @@ public class TestIndexMultiTable
   public static void main(String[] args){
     TestIndexMultiTable main = new TestIndexMultiTable();
     main.test();
-    main.testFile(new File("D:/vishia/Java/links.html")); //any text file to test
+    main.testFile(new File("D:/vishia/ZBNF/sf/ZBNF/examples_XML/DocuGenerationViaXML/docuSrc/ZGen.topic")); //any text file to test
   }
 }
