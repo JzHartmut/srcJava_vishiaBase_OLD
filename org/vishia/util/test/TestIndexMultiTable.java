@@ -31,11 +31,11 @@ public class TestIndexMultiTable
   
   IndexMultiTable.Provide<String> provider = new IndexMultiTable.Provide<String>(){
 
-    @Override public String[] genArray(int size){ return new String[size]; }
+    @Override public String[] createSortKeyArray(int size){ return new String[size]; }
 
-    @Override public String genMax(){ return "zzzzzzzzzzzzz"; }
+    @Override public String getMaxSortKey(){ return "zzzzzzzzzzzzz"; }
 
-    @Override public String genMin(){ return " "; }
+    @Override public String getMinSortKey(){ return " "; }
   };
   
   
@@ -129,13 +129,15 @@ public class TestIndexMultiTable
   
   
   void testFile(File file){
+    float timediff;
     idx.clear();
     idx2.clear();
-    idx.shouldCheck(true);
+    idx.shouldCheck(false);
     try{
       BufferedReader rd = new BufferedReader(new FileReader(file));
       String line;
       int testct = 0;
+      long timestart = System.nanoTime();
       while((line = rd.readLine())!=null){
         int pos = 0;
         int len = line.length();
@@ -152,13 +154,18 @@ public class TestIndexMultiTable
           pos = line.indexOf(' ', pos+1);
         }
       }
+      long timeend = System.nanoTime();
+      timediff = (timeend - timestart)/1000000.0f;
     } catch(IOException exc){
       System.err.println("TestIndexMultiTable - IOException; "+ exc);
+      timediff = -1;
     }
     //check it with iterate through both lists.
     File fileout = new File("TestIndexMultiTable-result.txt");
+    
     try{
       Writer out = new FileWriter(fileout);
+      out.append(Float.toString(timediff)).append("ms \n");
       Iterator<Map.Entry<String, Object>> iterTreemap = idx2.entrySet().iterator();
       Iterator<Test> iterList = null;
       Map.Entry<String, Object> entryTreemap = null;

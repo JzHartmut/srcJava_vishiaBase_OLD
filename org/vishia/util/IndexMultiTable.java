@@ -152,7 +152,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   /**The maximal nr of elements in a block, maximal value of sizeBlock.
    * It is the same value as obj.length or key.length. */
-  protected final static int maxBlock = AllocInBlock.restSizeBlock(IndexMultiTable.class, 80) / 8; //C: 8=sizeof(int) + sizeof(Object*) 
+  protected final static int maxBlock = AllocInBlock.restSizeBlock(IndexMultiTable.class, 160) / 8; //C: 8=sizeof(int) + sizeof(Object*) 
 
   /**Array of keys, there are sorted ascending. The same key can occure some times. */ 
   //private final Comparable<Key>[] key = new Comparable[maxBlock];
@@ -409,9 +409,9 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   public IndexMultiTable(Provide<Key> provider)
   { //this(1000, 'I');
     this.provider = provider;
-    this.aKeys = provider.genArray(maxBlock);
-    this.minKey__ = provider.genMin();
-    this.maxKey__ = provider.genMax();
+    this.aKeys = provider.createSortKeyArray(maxBlock);
+    this.minKey__ = provider.getMinSortKey();
+    this.maxKey__ = provider.getMaxSortKey();
     for(int idx = 0; idx < maxBlock; idx++){ aKeys[idx] = maxKey__; }
     sizeBlock = 0;
     ixInParent = -1;
@@ -441,25 +441,68 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
 
   
-  @Override public Type put(Key key, Type obj){
-    return putOrAdd(key, obj, null, KindofAdd.replace);
+  /**Puts the (key - value) pair to the container. An existing value with the same key will be replaced
+   * like described in the interface. If more as one value with this key are existing, the first one
+   * will be replaced only. 
+   * <br>
+   * See {@link #add(Comparable, Object)} and {@link #append(Comparable, Object)}.
+   * @param key
+   * @param value
+   * @return The last value with this key if existing.
+   */
+  @Override public Type put(Key key, Type value){
+    return putOrAdd(key, value, null, KindofAdd.replace);
   }
 
   
-  public Type add(Key key, Type obj){
-    return putOrAdd(key, obj, null, KindofAdd.addOptimized);
+  /**Adds the (key - value) pair to the container. All existing values with the same key will be retained.
+   * If one or some values with the same key are contained in the container already, the new value is placed
+   * in a non-defined order with that values. The order depends from the search algorithm. It is the fastest
+   * variant to sort in a new value. This method should be used if the order of values with the same key
+   * are not regardless.
+   * <br>
+   * See {@link #put(Comparable, Object)} and {@link #append(Comparable, Object)}.
+   * @param key
+   * @param value
+   * @return The last value with this key if existing.
+   */
+  public void add(Key key, Type value){
+    putOrAdd(key, value, null, KindofAdd.addOptimized);
   }
 
   
-  public Type append(Key key, Type obj){
+  /**Appends the (key - value) pair to the container. All existing values with the same key will be retained.
+   * If one or some values with the same key are contained in the container already, the new value is placed
+   * in order after all other. The values with the same key are sorted by its append order.
+   * If some more values with the same key are existing, the searching can be need some calculation time.
+   * But the time is less if the table size is less. 
+   * This method should be used if the order of values with the same key is need.
+   * <br>
+   * See {@link #put(Comparable, Object)} and {@link #append(Comparable, Object)}.
+   * @param key
+   * @param value
+   * @return The last value with this key if existing.
+   */
+  public void append(Key key, Type obj){
     if(key.equals("ckgro") && sizeAll == 19)
       Assert.stop();
-    return putOrAdd(key, obj, null, KindofAdd.addLast);
+    putOrAdd(key, obj, null, KindofAdd.addLast);
   }
 
   
-  public Type addBefore(Key key, Type obj, Type objNext){
-    return putOrAdd(key, obj, objNext, KindofAdd.addBefore);
+  /**Adds the (key - value) pair to the container. All existing values with the same key will be retained.
+   * The value is placed before the given next value which must have the same key. If the nextValue is not found,
+   * the key is placed in a non deterministic order.
+   * If some more values with the same key are existing, the searching can be need some calculation time.
+   * This method should be used only if that order of values with the same key is need.
+   * <br>
+   * See {@link #put(Comparable, Object)}, {@link #add(Comparable, Object)} and {@link #append(Comparable, Object)}.
+   * @param key
+   * @param value
+   * @return The last value with this key if existing.
+   */
+  public void addBefore(Key key, Type value, Type valueNext){
+    putOrAdd(key, value, valueNext, KindofAdd.addBefore);
   }
 
   
@@ -469,7 +512,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    *  
    * 
    */
-  private Type putOrAdd(Key arg0, Type obj1, Type objNext, KindofAdd kind)
+  private Type putOrAdd(Key sortKey, Type value, Type valueNext, KindofAdd kind)
   { //NOTE: returns inside too.
     check();
     Type lastObj = null;
@@ -478,9 +521,9 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       //the split from child to parent does not work. split yet.
       if(parent !=null){
         IndexMultiTable<Key, Type> sibling = splitIntoSibling(-1, null, null);
-        if(compare(sibling.aKeys[0],arg0) <=0){
+        if(compare(sibling.aKeys[0],sortKey) <=0){
           //do it in the sibling.
-          return sibling.putOrAdd(arg0, obj1, objNext, kind);
+          return sibling.putOrAdd(sortKey, value, valueNext, kind);
         }
       } else {
         splitTopLevel(-1, null, null);
@@ -488,7 +531,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     }
     check();
     //place object with same key after the last object with the same key.
-    int idx = Arrays.binarySearch(aKeys, arg0); //, sizeBlock, key1);
+    int idx = Arrays.binarySearch(aKeys, sortKey); //, sizeBlock, key1);
     if(idx < 0) {
       //not found
       idx = -idx-1;  //NOTE: sortin after that map, which index starts with equal or lesser index.
@@ -503,8 +546,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           IndexMultiTable<Key, Type> parents = this;
           while(parents != null)
           { //if(key1 < key[0])
-            if(compare(arg0,aKeys[0]) <0)
-            { aKeys[0] = arg0; //correct the key, key1 will be the less of child.
+            if(compare(sortKey,aKeys[0]) <0)
+            { aKeys[0] = sortKey; //correct the key, key1 will be the less of child.
             }
             parents = parents.parent;
           }
@@ -512,17 +555,17 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         }
         @SuppressWarnings("unchecked")
         IndexMultiTable<Key, Type> childTable = (IndexMultiTable<Key, Type>)aValues[idx];
-        lastObj = childTable.putOrAdd(arg0, obj1, objNext, kind); 
+        lastObj = childTable.putOrAdd(sortKey, value, valueNext, kind); 
       }
       else {
         //no hyperblock, has leaf data:
         if(idx <0)
         { idx = -idx -1;
-          sortin(idx, arg0, obj1);  //idx+1 because sortin after found position.            
+          sortin(idx, sortKey, value);  //idx+1 because sortin after found position.            
           check();
         }
         else
-        { sortin(idx, arg0, obj1);  //idx+1 because sortin after found position.            
+        { sortin(idx, sortKey, value);  //idx+1 because sortin after found position.            
           check();
         }
       }
@@ -534,25 +577,25 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         case replace: {
           //should replace.
           lastObj = (Type)aValues[idx];
-          aValues[idx] = obj1;   //replace the existing one.
+          aValues[idx] = value;   //replace the existing one.
         } break;
         case addBefore: {
-          boolean ok = searchAndSortin(arg0, obj1, idx, objNext);
+          boolean ok = searchAndSortin(sortKey, value, idx, valueNext);
           if(!ok){
-            searchbackAndSortin(arg0, obj1, idx, objNext);
+            searchbackAndSortin(sortKey, value, idx, valueNext);
           }
         } break;
         case addLast: {
-          assert(objNext ==null);
-          searchLastAndSortin(arg0, obj1, idx);
+          assert(valueNext ==null);
+          searchLastAndSortin(sortKey, value, idx);
         } break;
         case addOptimized: {
           if(isHyperBlock){
             @SuppressWarnings("unchecked")
             IndexMultiTable<Key, Type> childTable = (IndexMultiTable<Key, Type>)aValues[idx];
-            childTable.putOrAdd(arg0, obj1, objNext, kind);
+            childTable.putOrAdd(sortKey, value, valueNext, kind);
           } else {
-            sortin(idx, arg0, obj1);
+            sortin(idx, sortKey, value);
           }
         } break;
       }//switch
@@ -563,29 +606,54 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
 
   
-  private boolean searchLastAndSortin(Key cmpr, Type value, int ixstart){
+  /**Sorts in the given value after all other values with the same key.
+   * <ul>
+   * <li>If this table has a parent table and the parent table or its parent has a next child with the same key,
+   *   then this method is started in the parent. It searches the last key in the parent firstly. Therewith
+   *   it is faster to search the end of entries with this key.
+   * <li>Elsewhere the last key is searched in this table. Only this table and maybe its children contains the key.
+   * <li>If this table is not a hyper block, the value is {@link #sortin(int, Comparable, Object)} after the last
+   *   found key.
+   * <li>If this table is a hyper block, the last child table with the same key is entered with this method
+   *   to continue in the child.     
+   * </ul>
+   * @param sortkey The key for sort values.
+   * @param value
+   * @param ixstart The start index where a this key is found.
+   * @return
+   */
+  private boolean searchLastAndSortin(Key sortkey, Type value, int ixstart){
     boolean cont = true;
     int ix = ixstart;
-    if(parent !=null && ixInParent +1 < parent.sizeBlock 
-        && compare(parent.aKeys[ixInParent+1], cmpr)==0) {
-      //the next sibling starts with the same key, look in the parent!
-      //Note that it is recursively, starts with the highest parent with that property,
-      //walk trough the parent firstly, therefore it is fast.
-      return parent.searchLastAndSortin(cmpr, value, ixInParent+1);
+    IndexMultiTable<Key, Type> parent1 = parent, child1 = this;
+    while(parent1 !=null){
+      if( child1.ixInParent +1 < parent1.sizeBlock 
+        && compare(parent1.aKeys[child1.ixInParent+1], sortkey)==0) {
+        //the next sibling starts with the same key, look in the parent!
+        //Note that it is recursively, starts with the highest parent with that property,
+        //walk trough the parent firstly, therefore it is fast.
+        return parent1.searchLastAndSortin(sortkey, value, ixInParent+1);
+      }
+      else if(child1.ixInParent == parent1.sizeBlock){
+        //it is possible that the parent's parent have more same keys:
+        child1 = parent1; parent1 = parent1.parent;  //may be null, then abort
+      } else {
+        parent1 = null; //forces finish searching parent.
+      }
     }
     while(cont && ix < sizeBlock){
       if((++ix) == sizeBlock             //end of block reached. The sibling does not contain the key because parent is tested.
-        || compare(aKeys[ix],cmpr) != 0  //next child has another key 
+        || compare(aKeys[ix],sortkey) != 0  //next child has another key 
         ){
         if(isHyperBlock){
           ix-=1;  //it should be stored in the last hyper block, not in the next one. 
           @SuppressWarnings("unchecked")
           IndexMultiTable<Key, Type> childTable = (IndexMultiTable<Key, Type>)aValues[ix];
-          childTable.searchLastAndSortin(cmpr, value, 0);
+          childTable.searchLastAndSortin(sortkey, value, 0);
           cont = false;
         } else {
           cont = false;
-          sortin(ix, cmpr, value);   //sortin after 
+          sortin(ix, sortkey, value);   //sortin after 
         }
       }
     }
@@ -593,7 +661,17 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   }
   
   
-  private boolean searchAndSortin(Key cmpr, Type value, int ixstart, Type valueNext){
+  
+  
+  /**Sorts in the given value before the given element with the same key forward.
+   * Starting from the given position all elements where iterate.
+   * @param sortkey The key for sort values.
+   * @param value
+   * @param ixstart The start index where a this key is found.
+   * @param valueNext the requested next value.
+   * @return
+   */
+  private boolean searchAndSortin(Key sortkey, Type value, int ixstart, Type valueNext){
     boolean cont = true;
     boolean ok = false;
     int ix = ixstart;
@@ -601,18 +679,18 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       if(isHyperBlock){
         @SuppressWarnings("unchecked")
         IndexMultiTable<Key, Type> childTable = (IndexMultiTable<Key, Type>)aValues[ix];
-        ok = childTable.searchAndSortin(cmpr, value, ix, valueNext);
+        ok = childTable.searchAndSortin(sortkey, value, ix, valueNext);
         cont = !ok;
         if(cont){
           ix +=1;  //continue with next.
         }
       } else {
         if(ix < (sizeBlock -1) || aValues[ix+1] == valueNext){
-          sortin(ix, cmpr, value);
+          sortin(ix, sortkey, value);
           ok = true;
           cont = false;
         }
-        else if((++ix) < sizeBlock && compare(aKeys[ix],cmpr) != 0){
+        else if((++ix) < sizeBlock && compare(aKeys[ix],sortkey) != 0){
           cont = false;
         }
       }
@@ -621,11 +699,31 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   }
   
   
-  private boolean searchbackAndSortin(Key cmpr, Type value, int ixstart, Type valueNext){
+  /**Sorts in the given value before the given element with the same key backward.
+   * Starting from the given position all elements where iterate. TODO not ready yet.
+   * @param sortkey The key for sort values.
+   * @param value
+   * @param ixstart The start index where a this key is found.
+   * @param valueNext the requested next value.
+   * @return
+   */
+  private boolean searchbackAndSortin(Key sortkey, Type value, int ixstart, Type valueNext){
     return false;
   }
   
-  private void sortin(int idx, Key key1, Object obj1)
+  
+  
+  
+  /**inserts the given element into the table at given position.
+   * If the table is less, it will be split either in an additional sibling 
+   * or, if it is the top level table, into two new tables under the top table.
+   * Split is done with {@link #splitIntoSibling(int, Comparable, Object)} or {@link #splitTopLevel(int, Comparable, Object)}.
+   * If the table is split, the value is inserted in the correct table.
+   * @param ix The index position for the actual table where the value should be sorted in.
+   * @param sortkey sorting string to insert.
+   * @param value value to insert.
+   */
+  private void sortin(int ix, Key sortkey, Object value)
   { check();
     if(sizeBlock == maxBlock)
     { //divide the block:
@@ -634,28 +732,28 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       if(parent != null)
       { //it has a hyper block, use it!
         //create a new sibling of this.
-        splitIntoSibling(idx, key1, obj1);
+        splitIntoSibling(ix, sortkey, value);
         check();
       }
       else
       { //The top level block, it can be splitted only.
         //divide the content of the current block in 2 blocks.
-        splitTopLevel(idx, key1, obj1);
+        splitTopLevel(ix, sortkey, value);
         check();
       }
     }
     else
     { //shift all values 1 to right, regard ixInParent if it is a child table.
-      if(idx < sizeBlock)
+      if(ix < sizeBlock)
       { //move all following items to right:
-        movein(this, this, idx, idx+1, sizeBlock - idx);
+        movein(this, this, ix, ix+1, sizeBlock - ix);
       }
       sizeBlock +=1;
-      aKeys[idx] = key1;
-      aValues[idx] = obj1;
-      if(obj1 instanceof IndexMultiTable<?, ?>){
-        IndexMultiTable<?,?> childTable = (IndexMultiTable<?,?>)obj1;
-        childTable.ixInParent = idx;
+      aKeys[ix] = sortkey;
+      aValues[ix] = value;
+      if(value instanceof IndexMultiTable<?, ?>){
+        IndexMultiTable<?,?> childTable = (IndexMultiTable<?,?>)value;
+        childTable.ixInParent = ix;
       }
     }
     check();
@@ -791,13 +889,15 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
  
   
-  /**
-   * @param src
-   * @param dst
-   * @param ixSrc
-   * @param ixDst
-   * @param sizeAll
-   * @return the index of dst after the last element.
+  /**Moves some elements of the src table in the dst table. Note that this method does not need any information
+   * of this. It is a static method. Only because Key and Src should be known - the same like the calling instance -
+   * this method is not static.
+   * @param src The source table
+   * @param dst The destination table
+   * @param ixSrc Position in src
+   * @param ixDst Position in dst
+   * @param nrof number of elements to move from src to dst.
+   * @return the number of elements moved inclusively all elements in children, to build {@link #sizeAll}
    */
   private int movein(IndexMultiTable<Key,Type> src, IndexMultiTable<Key,Type> dst, int ixSrc, int ixDst, int nrof){
     int sizeRet = nrof;
@@ -819,7 +919,12 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   }
   
   
+  /**Cleanup the part if {@link #aKeys} and {@link #aValues} which are not used.
+   * Note: {@link #sizeBlock} have to be set correctly.
+   * @param dst The table where clean up is done.
+   */
   private void clearRestArray(IndexMultiTable<Key,Type> dst){
+    Key maxKey = provider.getMaxSortKey();
     for(int ix = dst.sizeBlock; ix < maxBlock; ix++)
     { dst.aKeys[ix] = dst.maxKey__; 
       dst.aValues[ix] = null;
@@ -831,7 +936,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   
   /**separates the src into two arrays with the half size and sort in the object.
-   * 
+   * Yet not used.
    * @param idx Primordially index of the obj in the src array. 
    * @param key1 The key value
    * @param obj1 The object
@@ -1212,9 +1317,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
 
   public int size()
-  {
-    // TODO Auto-generated method stub
-    return 0;
+  { return sizeAll;
   }
 
 
@@ -1255,6 +1358,10 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
 
 
+  /**
+   * @param keyArg
+   * @return
+   */
   @SuppressWarnings({ "unchecked" })
   @Override public Type remove(Object keyArg){
     assert(keyArg instanceof Comparable<?>);
@@ -1303,10 +1410,31 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   }
   
   
-  public void checkTable(){ checkTable(null, null, -1, provider.genMin() );}
+  /**Checks the consistency of the table. This method is only proper for test of the algorithm
+   * and assurance of correctness. 
+   * The check starts with the top table. It iterates over all children in order of the tables and checks:
+   * <ul>
+   * <li>{@link #ixInParent} and {@link #parent} of a child hyper table.
+   * <li>equality of the {@link #aKeys}[ixInParent] in the parent and {@link #aKeys}[0] in the child hyper table.
+   * <li>Order of all sort keys in all tables.
+   * <li>All not used entries in {@link #aKeys} should have the {@link Provide#getMaxSortKey()}
+   *   and all not used entries in {@link #aValues} should have null.
+   * </ul> 
+   * If any error is found, an RuntimeException is invoked. It is recommended to test in a debugger.
+   * If the algorithm in this class is correct, the exception should not be invoked.
+   */ 
+  public void checkTable(){ checkTable(null, null, -1, provider.getMinSortKey() );}
   
   
-  public Key checkTable(IndexMultiTable<Key, Type> parentP, Key keyParentP, int ixInParentP, Key keylastP){
+  /**Checks the consistency of the table. This method is only proper for test of the algorithm
+   * and assurance of correctness.  
+   * @param parentP The parent of this table or null for the top table.
+   * @param keyParentP The key of this table in the parents entry. null for top table.
+   * @param ixInParentP The position of this table in the parent's table. -1 for top table.
+   * @param keylastP The last key from the walking through the last child, minimal key for top table.
+   * @return The last found key in order of tables.
+   */
+  private Key checkTable(IndexMultiTable<Key, Type> parentP, Key keyParentP, int ixInParentP, Key keylastP){
     Key keylast = keylastP;
     assert1(parentP == null || keyParentP.equals(aKeys[0]));
     assert1(this.parent == parentP);
@@ -1339,7 +1467,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   {
     if(!cond)
     { stop();
-      throw new RuntimeException("assertiuon");
+      throw new RuntimeException("IndexMultiTable - is corrupted;");
     }  
   }
 
@@ -1430,19 +1558,24 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * @param <Key>
    */
   public interface Provide<Key>{
-    Key[] genArray(int size);
-    Key genMin();
-    Key genMax();
+    /**Creates an array of the Key type with given size. */
+    Key[] createSortKeyArray(int size);
+    
+    /**Returns the minimal value of the key. It is a static value. */
+    Key getMinSortKey();
+    
+    /**Returns the maximal value of the key. It is a static value. */
+    Key getMaxSortKey();
   }
 
   /**Provider for String keys. Used for {@link #IndexMultiTable(Provide)}. */
   public static final IndexMultiTable.Provide<String> providerString = new IndexMultiTable.Provide<String>(){
 
-    @Override public String[] genArray(int size){ return new String[size]; }
+    @Override public String[] createSortKeyArray(int size){ return new String[size]; }
 
-    @Override public String genMax(){ return "\255\255\255\255\255\255\255\255\255"; }
+    @Override public String getMaxSortKey(){ return "\255\255\255\255\255\255\255\255\255"; }
 
-    @Override public String genMin(){ return " "; }
+    @Override public String getMinSortKey(){ return " "; }
   };
   
 
