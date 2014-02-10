@@ -13,6 +13,7 @@ public class StringFunctions {
 
   /**Version, history and license.
    * <ul>
+   * <li>2013-09-07 Hartmut new: {@link #parseFloat(String, int, int, char, int[])} with choiceable separator (123,45, german decimal point)
    * <li>2013-09-07 Hartmut new: {@link #convertTranscription(CharSequence, char)} used form {@link SpecialCharStrings#resolveCircumScription(String)}
    * <li>2013-08-29 Hartmut bugfix: {@link #compare(CharSequence, int, CharSequence, int, int)}, {@link #indexOf(CharSequence, CharSequence, int)}
    * <li>2013-08-10 Hartmut new: {@link #parseIntRadix(String, int, int, int, int[], String)} now can skip
@@ -120,7 +121,9 @@ public class StringFunctions {
     int size = srcP.length() - pos;
     if(size > sizeP){ size = sizeP; }
     int maxDigit = (radix <=10) ? '0' + radix -1 : '9'; 
-    if(srcP.charAt(ixSrc) == '-') { ixSrc+=1; size -=1; bNegativ = true; }
+    if(size > 0 && srcP.charAt(ixSrc) == '-') { 
+      ixSrc+=1; size -=1; bNegativ = true; 
+    }
     else { bNegativ = false; }
     while(--size >= 0){
       cc = srcP.charAt(ixSrc);
@@ -238,7 +241,9 @@ public class StringFunctions {
   }
   
   
-  
+  public static float parseFloat(String src, int pos, int sizeP, int[] parsedCharsP)
+  { return parseFloat(src, pos, sizeP, '.', parsedCharsP);
+  }  
   
   
   /**Parses a given String and convert it to the float number.
@@ -254,18 +259,19 @@ public class StringFunctions {
    * @param parsedCharsP
    * @return
    */
-  public static float parseFloat(String src, int pos, int sizeP, int[] parsedCharsP)
+  public static float parseFloat(String src, int pos, int sizeP, char decimalpoint, int[] parsedCharsP)
   {
     int parsedChars = 0;
     float ret;
-    int size = src.length() - pos;
-    if(size > sizeP){ size = sizeP; }
+    int restlen = src.length() - pos;
+    if(restlen > sizeP){ restlen = sizeP; }
     int[] zParsed = new int[1];
-    ret = parseIntRadix(src, pos, size, 10, zParsed);
+    ret = parseIntRadix(src, pos, restlen, 10, zParsed);
     parsedChars += zParsed[0];  //maybe 0 if .123 is written
-    int ixsrc = pos + zParsed[0]; size -= zParsed[0];
-    if(src.charAt(ixsrc)=='.'){
-      float fracPart = parseIntRadix(src, ixsrc +1, size-1, 10, zParsed);
+    int ixsrc = pos + zParsed[0]; 
+    restlen -= zParsed[0];
+    if(ixsrc < (restlen+pos) && src.charAt(ixsrc)==decimalpoint){
+      float fracPart = parseIntRadix(src, ixsrc +1, restlen-1, 10, zParsed);
       if(zParsed[0] >0){
         switch(zParsed[0]){
         case 1: fracPart *= 0.1f; break;
@@ -282,7 +288,7 @@ public class StringFunctions {
         ret += fracPart;
       }
       parsedChars += zParsed[0]+1;  //maybe 0 if .123 is written
-      size -= zParsed[0]-1;
+      restlen -= zParsed[0]-1;
     }
     //TODO exponent
     if(parsedCharsP !=null){

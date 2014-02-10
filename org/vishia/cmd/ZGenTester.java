@@ -1,5 +1,10 @@
 package org.vishia.cmd;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
+import java.util.Map;
+
 public class ZGenTester
 {
 
@@ -41,6 +46,19 @@ public class ZGenTester
     
   }
 
+  
+  
+  public void mapToFile(Map<String, Object> map, String sFile) throws IOException{
+    Writer wr = new FileWriter(sFile); 
+    for(Map.Entry<String, Object> entry: map.entrySet()){
+      String key = entry.getKey();
+      Object value = entry.getValue();
+      wr.append(key).append("   -   ").append(value.toString()).append("\n");  
+    }
+    wr.close();
+  }
+  
+  
   
   
   /**This method is only intend to set a breakpoint into it.

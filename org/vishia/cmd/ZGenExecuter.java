@@ -746,7 +746,7 @@ public class ZGenExecuter {
     void executeText(ZGenScript.ZGenitem statement, Appendable out, int indentOut) throws IOException{
       int posLine = 0;
       int posEnd1, posEnd2;
-      if(statement.textArg.startsWith("'''trans ==> dst"))
+      if(statement.textArg.startsWith("  "))
         stop();
       int zText = statement.textArg.length();
       do{

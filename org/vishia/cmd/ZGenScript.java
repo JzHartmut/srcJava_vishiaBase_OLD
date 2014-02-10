@@ -1738,9 +1738,9 @@ public class ZGenScript {
      * other characters as white spaces. 
      */
     public void set_plainText(String text){
-      if(!StringFunctions.isEmptyOrOnlyWhitespaces(text)){
+      //if(!StringFunctions.isEmptyOrOnlyWhitespaces(text)){
         set_textReplLf(text);
-      }
+      //}
     }
     
     

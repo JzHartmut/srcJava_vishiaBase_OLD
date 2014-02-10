@@ -302,6 +302,7 @@ public abstract class MainCmd implements MainCmd_ifc
       this.help = help; 
       this.set = set;
     }
+    @Override public String toString(){ return arg + help + '\n'; }
   }
   
   
