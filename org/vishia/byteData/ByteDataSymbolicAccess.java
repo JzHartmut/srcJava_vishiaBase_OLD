@@ -53,6 +53,7 @@ public class ByteDataSymbolicAccess {
 
   /**Version, history and license. The version number is a date written as yyyymmdd as decimal number.
    * <ul>
+   * <li>2013-11-26 Hartmut new: {@link #copyNewData(byte[], int, int, long)}
    * <li>2013-11-26 Hartmut chg {@link #assignData(byte[], long)} with timestamp required. Usages should updated.
    *   A timestamp is a substantial propertiy of dynamic data. Use {@link System#currentTimeMillis()}.
    * <li>2012-09-24 Hartmut new {@link Variable#getLong(int...)} and {@link Variable#setLong(long, int...)} 
@@ -357,15 +358,18 @@ public class ByteDataSymbolicAccess {
   
   private byte[] data;
   
-  int ixStartData;
+  private int ixStartData;
   
-  int nrofData;
+  private int nrofData;
   
-  long timeRequestNewValue;
+  private long timeRequestNewValue;
   
   private final ConcurrentLinkedQueue<Runnable> runOnRecv = new ConcurrentLinkedQueue<Runnable>();
   
-  long timeSetNewValue;
+  /**The last refresh time.
+   * 
+   */
+  private long timeSetNewValue;
   
   private final RawDataAccess dataAccess = new RawDataAccess();
   
@@ -397,7 +401,18 @@ public class ByteDataSymbolicAccess {
     timeRequestNewValue = 0; 
   }
   
-  
+  /**Replace the data bytes in the buffer.
+   * @param src source
+   * @param srcpos maybe any position in the source buffer
+   * @param srclen number of bytes in source buffer. It should be the same like number of bytes in this.data,
+   *   but it may be lesser or more. Lesser: Only a part of data are replaces.
+   * @param time timestamp of receive.
+   */
+  public void copyNewData(byte[] src, int srcpos, int srclen, long time){
+    int len = srclen > data.length ? data.length : srclen;
+    System.arraycopy(src, srcpos, data, 0, len);
+    timeSetNewValue = time;
+  }
   
   public int lengthData(){ return data ==null ? 0 : data.length; }
   
