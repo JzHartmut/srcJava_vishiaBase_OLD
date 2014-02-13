@@ -43,8 +43,9 @@ import org.vishia.mainCmd.Report;
  * The variable may be given with Java-written instantiation too.
  * 
  * The data are given calling {@link #assignData(byte[])}, {@link #assignData(byte[], int, int)}
- * from any source. The data can be updated outside, for example by a communication via network receive.
- * The data gets a timestamp of updating calling 
+ * from any source. New data can be updated outside, for example by a communication via network receive,
+ * and update in the data buffer by calling {@link #copyNewData(byte[], int, int, long)}.
+ * Thereby a timestamp of updating is provided. It supports the method {@link VariableAccess_ifc#getLastRefreshTime()}. 
  * 
  * @author Hartmut Schorrig
  *
@@ -431,6 +432,20 @@ public class ByteDataSymbolicAccess {
    */
   public Variable getVariable(String name)
   { return indexVariable.get(name);
+  }
+  
+  /**Searches a variable by name and returns it.
+   * A variable is a description of the byte position. length, type in a byte[]-Array.
+   * @param name The name 
+   * @return null if not found.
+   * @throws NoSuchFieldException 
+   */
+  public Variable getVariableAssert(String name) throws NoSuchFieldException
+  { ByteDataSymbolicAccess.Variable variable = indexVariable.get(name);
+    if(variable == null){
+      throw new NoSuchFieldException("ByteDataSymbolicAccess - Variable not found; " + name);
+    }
+    return variable;
   }
   
   public double getDouble(String name)
