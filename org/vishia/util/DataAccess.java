@@ -964,11 +964,18 @@ public class DataAccess {
       //Try to store that type, 
       Map<String, Object> map = (Map<String,Object>)instance1;
       data1 = map.get(name);
+      if(data1 == null){
+        if(!map.containsKey(name)){ //checks whether this key with value null is stored.
+          throw new NoSuchFieldException(name);
+        }
+      }
+      /*
       if(data1 == null && bVariable){
         //not found, but a variable is expected: create one.
         data1 = new Variable<Object>('?', name, null);
         map.put(name, data1);
       }
+      */
     } else {
       try{
         data1 = getDataFromField(name, instance1, accessPrivate, dst);

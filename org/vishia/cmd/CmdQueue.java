@@ -163,9 +163,9 @@ public class CmdQueue implements Closeable
   
   
   
-  public void initExecuter(ZGenScript script) throws IllegalAccessException{
+  public void initExecuter(ZGenScript script, String sCurrdir) throws IllegalAccessException{
     try{ 
-      zgenExecuter.initialize(script, false);
+      zgenExecuter.initialize(script, false, sCurrdir);
     }catch(IOException exc){
       Assert.stop();
       //System.err
@@ -257,7 +257,7 @@ public class CmdQueue implements Closeable
         }
         if(cmd1.jbat !=null){
           if(outStatus !=null){ outStatus.append(cmd1.jbat.toString()); }
-          zgenExecuter.execSub(cmd1.jbat, cmd1.args, false, log);
+          zgenExecuter.execSub(cmd1.jbat, cmd1.args, false, log, cmd1.currentDir);
         } else {
           //a operation system command:
           String[] sCmd = cmd1.cmd.prepareCmd(cmd1);

@@ -28,6 +28,7 @@ import org.vishia.util.StringFunctions;
 public class ZGenScript {
   /**Version, history and license.
    * <ul>
+   * <li>2014-02-16 Hartmut: new {@link #fileScript} stored here. 
    * <li>2014-01-01 Hartmut re-engineering: {@link ZGenitem} has one of 4 active associations for its content.
    * <li>2013-12-26 Hartmut re-engineering: Now the Statement class is obsolete. Instead all statements have the base class
    *   {@link ZGenitem}. That class contains only elements which are necessary for all statements. Some special statements
@@ -100,6 +101,8 @@ public class ZGenScript {
 
   final MainCmdLogging_ifc console;
 
+  final File fileScript;
+  
   
   final Map<String, Subroutine> subroutinesAll = new TreeMap<String, Subroutine>();
   
@@ -126,8 +129,9 @@ public class ZGenScript {
   
   //public String scriptclassMain;
 
-  public ZGenScript(Object executer, MainCmdLogging_ifc console)
+  public ZGenScript(MainCmdLogging_ifc console, File fileScript)
   { this.console = console;
+    this.fileScript = fileScript;
 
   }
 

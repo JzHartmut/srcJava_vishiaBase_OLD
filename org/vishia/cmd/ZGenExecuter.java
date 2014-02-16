@@ -28,6 +28,7 @@ import org.vishia.util.CalculatorExpr;
 import org.vishia.util.DataAccess;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
+import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPartAppend;
 import org.vishia.util.StringSeq;
 
@@ -46,6 +47,9 @@ public class ZGenExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-02-16 Hartmut chg: Build of script variable currdir, scriptfile, scriptdir with them in {@link ZGenExecuter#genScriptVariables(ZGenScript, boolean, Map, CharSequence)}.
+   *   {@link #execute(ZGenScript, boolean, boolean, Appendable, String)} and {@link #execSub(org.vishia.cmd.ZGenScript.Subroutine, Map, boolean, Appendable, File)}
+   *   with sCurrDir.
    * <li>2014-02-01 Hartmut new: onerror errorlevel for cmd now works as statement. {@link ExecuteLevel#cmdErrorlevel}. 
    * <li>2014-02-01 Hartmut chg: now {@link ExecuteLevel#execute(org.vishia.cmd.ZGenScript.StatementList, Appendable, int, boolean)}
    *   returns the exit designation (break, return) 
@@ -230,8 +234,13 @@ public class ZGenExecuter {
    * @throws IOException
    * @throws IllegalAccessException 
    */
-  public Map<String, DataAccess.Variable<Object>> genScriptVariables(ZGenScript genScriptPar
-      , boolean accessPrivate, Map<String, DataAccess.Variable<Object>> srcVariables) 
+  public Map<String, DataAccess.Variable<Object>> genScriptVariables(
+      ZGenScript genScriptPar
+    , boolean accessPrivate
+    , Map<String
+    , DataAccess.Variable<Object>> srcVariables
+    , CharSequence sCurrdirArg
+  ) 
   throws IOException, IllegalAccessException
   {
     this.genScript = genScriptPar;
@@ -243,62 +252,96 @@ public class ZGenExecuter {
         DataAccess.createOrReplaceVariable(scriptLevel.localVariables, var.name(), var.type(), var.value(), var.isConst());
       }
     }
-    if(scriptLevel.localVariables.get("currdir") == null){
-      //CurrDir currDirWrapper = new CurrDir();
-      //currDirWrapper.currDir 
-      File currdir = new File(".").getAbsoluteFile().getParentFile();
-      //StringBuilder cd = new StringBuilder();
-      //cd.append(FileSystem.normalizePath(currDirWrapper.currDir.getAbsolutePath()));
-      //DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "$CD", 'E', currdir.toString(), false);
-      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "currdir", 'O', currdir, false);
-    }
+    //do not replace variables which are set from outside.
     //if(scriptLevel.localVariables.get("error") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "error", 'A', accessError, true); }
     if(scriptLevel.localVariables.get("mainCmdLogging") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "mainCmdLogging", 'O', log, true); }
     if(scriptLevel.localVariables.get("nextNr") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextNr", 'O', nextNr, true); }
     //DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nrElementInContainer", 'O', null);
-    if(scriptLevel.localVariables.get("out") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "out", 'A', System.out, true); }
-    if(scriptLevel.localVariables.get("err") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "err", 'A', System.err, true); }
-    if(scriptLevel.localVariables.get("null") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
-    if(scriptLevel.localVariables.get("jbat") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jbat", 'O', this, true); }
-    if(scriptLevel.localVariables.get("zgen") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "zgen", 'O', this, true); }
-    if(scriptLevel.localVariables.get("file") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "file", 'O', new FileSystem(), true); }
-    if(scriptLevel.localVariables.get("test") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new ZGenTester(), true); }
+    if(scriptLevel.localVariables.get("out") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "out", 'A', System.out, true); }
+    if(scriptLevel.localVariables.get("err") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "err", 'A', System.err, true); }
+    if(scriptLevel.localVariables.get("null") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
+    if(scriptLevel.localVariables.get("jbat") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jbat", 'O', this, true); }
+    if(scriptLevel.localVariables.get("zgen") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "zgen", 'O', this, true); }
+    if(scriptLevel.localVariables.get("file") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "file", 'O', new FileSystem(), true); }
+    if(scriptLevel.localVariables.get("test") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new ZGenTester(), true); }
+    File filescript = genScript.fileScript;
+    if(scriptLevel.localVariables.get("filescript") == null && filescript !=null) { 
+      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "filescript", 'O', filescript, true);
+      File dirscript = FileSystem.getDirectory(filescript).getCanonicalFile();
+      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "dirscript", 'O', dirscript, true);
+    }
     //
     //generate all variables in this script:
     try{
       scriptLevel.execute(genScript.scriptClass, null, 0, false);
-      /*
-      for(ZGenScript.DefVariable scriptVariableScript: genScript.getListScriptVariables()){
-        Object value;
-        switch(scriptVariableScript.elementType()){
-          case 'S':  value = scriptLevel.evalString(scriptVariableScript); break;
-          case 'J':  value = scriptLevel.evalObject(scriptVariableScript, true); break;
-          default: value = "???";
-        }
-        /*
-        List<DataAccess.DatapathElement> assignPath = scriptVariableScript.defVariable.datapath();
-        if(assignPath.size() == 1 && assignPath.get(0).ident().equals("$CD")){
-          //special handling of current directory:
-          scriptLevel.changeCurrDir((CharSequence)value);  //normalize, set "currDir"
-        } else {
-          scriptVariableScript.defVariable.storeValue(scriptLevel.localVariables, value, true);
-        }
-        */
-        /*
-        StringBuilder uVariable = new StringBuilder();
-        ExecuteLevel genVariable = new ExecuteLevel(null, scriptLevel.localVariables); //NOTE: use recent scriptLevel.localVariables.
-        genVariable.execute(scriptVariableScript.getSubContent(), uVariable, false);
-        scriptLevel.localVariables.put(scriptVariableScript.identArgJbat, uVariable); //Buffer.toString());
-        * /
-      }
-      */
     } catch(Exception exc){
       System.out.println("JbatchExecuter - Scriptvariable faulty; " );
     }
+    setCurrdirScript(sCurrdirArg);
     bScriptVariableGenerated = true;
     return scriptLevel.localVariables;
   }
   
+
+  
+  /**Sets or replaces the script variable <code>currdir</code> with that File, which is described by
+   * the sCurrdirArg and the maybe relative path of value of currdir.
+   * @param sCurrdirArg maybe null, then the system's current directory is used.
+   * @throws IllegalAccessException if any exception of {@link DataAccess#createOrReplaceVariable(Map, String, char, Object, boolean)}. 
+   * @throws IOException 
+   * @throws IllegalArgumentException Checks the existence of currdir.
+   */
+  private void setCurrdirScript(CharSequence sCurrdirArg) throws IllegalAccessException, IOException
+  {
+    final File currdir;
+    CharSequence sCurrdirScript = ".";
+    Object oCurrdirScript = null;
+    try{ 
+      //currdir may be a String or CharSequence if the script contains a text expression.
+      //it may be a File object too especially in secondary called scripts.
+      //set sCurrdirScript with it.
+      oCurrdirScript = DataAccess.getData("currdir", scriptLevel.localVariables, false, false, false, null);
+      //assignment currdir exists.
+      if(oCurrdirScript instanceof CharSequence){ sCurrdirScript = (CharSequence)oCurrdirScript; }
+      else { sCurrdirScript = oCurrdirScript.toString(); }
+    } catch(NoSuchFieldException exc){} //currdir is not found, don't use it.
+    //
+    if(FileSystem.isAbsolutePath(sCurrdirScript)){
+      if(oCurrdirScript instanceof File){
+        currdir = (File)oCurrdirScript;
+      } else {
+        currdir = new File(sCurrdirScript.toString()).getCanonicalFile();
+      }
+    }
+    else { 
+      //not determined by an absolute currdir = scriptvalue
+      if(sCurrdirArg ==null){
+        //sCurrdirScript contains a relative path or "." per default.
+        //create from the operation systems current directory of this process with the maybe given relative path.
+        currdir = new File(sCurrdirScript.toString()).getCanonicalFile().getParentFile();
+      } else {
+        File currdirArg;
+        if(FileSystem.isAbsolutePath(sCurrdirArg)){
+          currdirArg = new File(sCurrdirArg.toString()).getCanonicalFile();
+        } else {
+          currdirArg = new File(sCurrdirArg.toString()).getAbsoluteFile().getCanonicalFile();
+        }
+        if(currdirArg.isFile()){ 
+          currdirArg = currdirArg.getParentFile().getCanonicalFile();
+        }
+        if(StringFunctions.equals(sCurrdirScript, ".")){
+          currdir = currdirArg.getCanonicalFile();
+        } else {
+          currdir = (new File(currdirArg, sCurrdirScript.toString())).getCanonicalFile();
+        }
+      }
+    }
+    if(!currdir.exists()){
+      throw new IllegalArgumentException("ZGenExecuter - currdir does not exists; " 
+          + currdir.getPath() + "; arg=" + sCurrdirArg + "; script=" + sCurrdirScript);
+    }
+    DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "currdir", 'O', currdir, false);
+  }
 
 
   
@@ -327,13 +370,13 @@ public class ZGenExecuter {
    * @throws IOException only if out.append throws it.
    * @throws IllegalAccessException if a const scriptVariable are attempt to modify.
    */
-  public void initialize(@SuppressWarnings("hiding") ZGenScript genScript, boolean accessPrivate) 
+  public void initialize(@SuppressWarnings("hiding") ZGenScript genScript, boolean accessPrivate, String sCurrdir) 
   throws IOException, IllegalAccessException
   {
     this.scriptLevel.localVariables.clear();
     this.bAccessPrivate = accessPrivate;
     this.genScript = genScript;
-    genScriptVariables(genScript, accessPrivate, null);
+    genScriptVariables(genScript, accessPrivate, null, sCurrdir);
   }
 
   
@@ -354,14 +397,20 @@ public class ZGenExecuter {
    * @throws IOException
    * @throws IllegalAccessException if a const scriptVariable are attempt to modify.
    */
-  public CharSequence execute(ZGenScript genScript, boolean accessPrivate, boolean bWaitForThreads, Appendable out) 
+  public CharSequence execute(
+      ZGenScript genScript
+    , boolean accessPrivate
+    , boolean bWaitForThreads
+    , Appendable out
+    , String sCurrdir
+    ) 
   throws Exception, IllegalAccessException
   { this.bAccessPrivate = accessPrivate;
     //this.data = userData;
     this.genScript = genScript;
 
     if(!bScriptVariableGenerated){
-      genScriptVariables(genScript, accessPrivate, null);
+      genScriptVariables(genScript, accessPrivate, null, sCurrdir);
     }
     setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
     ZGenScript.Subroutine contentScript = genScript.getMain();
@@ -405,12 +454,15 @@ public class ZGenExecuter {
    * @throws IOException
    */
   public void execSub(ZGenScript.Subroutine statement, Map<String, DataAccess.Variable<Object>> args
-      , boolean accessPrivate, Appendable out) 
+      , boolean accessPrivate, Appendable out, File currdir) 
   throws Exception
   {
     ExecuteLevel level = new ExecuteLevel(scriptThread, scriptLevel, null);
     //The args should be added to the localVariables of the subroutines level:
     level.localVariables.putAll(args);
+    if(currdir !=null){
+      DataAccess.createOrReplaceVariable(level.localVariables, "currdir", 'O', currdir, false);
+    }
     setScriptVariable("text", 'A', out, true);
     //Executes the statements of the sub routine:
     startmilli = System.currentTimeMillis();
@@ -422,11 +474,11 @@ public class ZGenExecuter {
   
   
   
-  public Object getScriptVariable(String name) throws NoSuchFieldException
+  public DataAccess.Variable<Object> getScriptVariable(String name) throws NoSuchFieldException
   { return DataAccess.getVariable(scriptLevel.localVariables, name, true); }
 
   
-  public DataAccess.Variable removeScriptVariable(String name)
+  public DataAccess.Variable<Object> removeScriptVariable(String name)
   { return scriptLevel.localVariables.remove(name);
     
   }
