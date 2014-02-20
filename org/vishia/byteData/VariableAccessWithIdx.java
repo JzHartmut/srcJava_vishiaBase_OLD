@@ -103,6 +103,14 @@ public class VariableAccessWithIdx implements VariableAccess_ifc
 
   public String getString(){ return variable.getString(ixArray); }
   
+  
+  @Override public void setRefreshed(long time){
+    if(variable != null){
+      variable.setRefreshed(time); 
+    }
+    
+  }
+  
   public long getLastRefreshTime(){ 
     if(variable == null){
       return -1;

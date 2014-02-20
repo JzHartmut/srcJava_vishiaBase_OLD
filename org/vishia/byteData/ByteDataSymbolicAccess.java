@@ -329,6 +329,8 @@ public class ByteDataSymbolicAccess {
 
     @Override public long getLastRefreshTime(){ return ByteDataSymbolicAccess.this.timeSetNewValue; }
 
+    @Override public void setRefreshed(long time){ ByteDataSymbolicAccess.this.timeSetNewValue = time; }
+    
     @Override public double getDouble() { return getDouble(0); }
 
     @Override public float getFloat() { return getFloat(0); }

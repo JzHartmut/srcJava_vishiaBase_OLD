@@ -85,6 +85,15 @@ public class VariableAccessWithBitmask implements VariableAccess_ifc
 
   public String getString(){ return variable.getString(); }
   
+  
+  @Override public void setRefreshed(long time){ 
+    if(variable != null){
+      variable.setRefreshed(time); 
+    }
+    
+  }
+  
+  
   public long getLastRefreshTime(){ 
     if(variable == null){
       return -1;

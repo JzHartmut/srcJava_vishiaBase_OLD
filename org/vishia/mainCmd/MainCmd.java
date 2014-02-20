@@ -1535,9 +1535,12 @@ public abstract class MainCmd implements MainCmd_ifc
         line = dateFormatMsg.format(creationTime) + "; " + identNumber + "; " + text;
       } else {
         try{
+          if(args[0] instanceof Object[]){
+            args = (Object[])args[0];
+          }
           line = dateFormatMsg.format(creationTime) + "; " + identNumber + "; " + String.format(text,args);
         } catch(IllegalFormatException exc){
-          line = dateFormatMsg.format(creationTime) + "; " + identNumber + "; " + text;
+          line = dateFormatMsg.format(creationTime) + "; FORMATEXCEPTION " + identNumber + "; " + text;
         }
       }
       try{ 

@@ -48,6 +48,8 @@ public class ThreadRun implements Closeable
   
   private final Thread thread;
   
+  private final String name;
+  
   /**Helper variable to stop one or more threads without changing the source.
    */
   protected boolean stopThread;
@@ -59,8 +61,6 @@ public class ThreadRun implements Closeable
   
   private boolean bThreadWaits;
   
-  
-  private boolean bWork;
   
   /**The cyclically wait. */
   private int waitMillisec = 100;
@@ -84,9 +84,9 @@ public class ThreadRun implements Closeable
   
   public ThreadRun(String name, Step step, int cycletime){
     thread = new Thread(run, name);
+    this.name = name;
     this.step = step;
     this.cycletime = cycletime; 
-    this.nextCycle = (int)(System.currentTimeMillis() + cycletime);
   }
   
 
@@ -104,7 +104,6 @@ public class ThreadRun implements Closeable
    */
   public void forceStep(boolean forceNextStep){
     synchronized(this){
-      bWork = forceNextStep;                  //if it is in step, it does not wait after the current step.
       if(bThreadWaits){ notify(); }  //wakes up.
     }
   }
@@ -130,30 +129,44 @@ public class ThreadRun implements Closeable
    */
   protected void run(){
     runThread = true;
-    bWork = step.start();
+    int shortTime = ((int)System.currentTimeMillis());
+    nextCycle = shortTime;
+    int timeStepLast = shortTime;
+   
+    //
+    int timewait = step.start(cycletime);
+    //
     while(runThread){
-      synchronized(this){
-        if(cycletime > 0 && !bWork){ //NOTE: its possible that 
-          nextCycle += cycletime;
-          int shortTime = ((int)System.currentTimeMillis());
-          waitMillisec = nextCycle - shortTime;
-          if(waitMillisec > cycletime || waitMillisec < -cycletime){
-            waitMillisec = cycletime;   //synchronize with a faulty cycletime, maybe on time error.
-            nextCycle =  shortTime;
-          } else if(waitMillisec <= 0) {
-            waitMillisec = (cycletime / 16)+1;  //wait at least 1 ms. 
-            ctTimeoverflow +=1;
-            waitMillisec = cycletime;   //synchronize with a faulty cycletime, maybe on time error.
-            nextCycle =  shortTime;
-          } else {
-            stepTimeMeasure = cycletime - waitMillisec;
-            stepTimeMeasureMid += 0.01f * (stepTimeMeasure - stepTimeMeasureMid);
-          }
-          bThreadWaits = true;
+      shortTime = ((int)System.currentTimeMillis());
+      int calctimelast = shortTime - timeStepLast;
+      if(timewait <0){
+        nextCycle += cycletime;
+        waitMillisec = nextCycle - shortTime;
+        if(waitMillisec > 2* cycletime || waitMillisec < -cycletime){
+          System.out.printf("ThreadRun " + name + " - new time synchronization; %d\n", new Integer(waitMillisec));
+
+          waitMillisec = cycletime;   //synchronize with a faulty cycletime, maybe on time error.
+          nextCycle =  shortTime;
+        } else if(waitMillisec <= 0) {
+          waitMillisec = (cycletime / 16)+1;  //wait at least 1 ms. 
+          ctTimeoverflow +=1;
+          waitMillisec = cycletime;   //synchronize with a faulty cycletime, maybe on time error.
           if(waitMillisec < 50){
-            //System.out.println("ThreadRun - less 50 ms;");
+            System.out.printf("ThreadRun " + name + "- less 50 ms;\n", new Integer(waitMillisec));
             waitMillisec = 50;
           }
+          nextCycle =  shortTime;
+        } else {
+          stepTimeMeasure = cycletime - waitMillisec;
+          stepTimeMeasureMid += 0.01f * (stepTimeMeasure - stepTimeMeasureMid);
+        }
+      } else {
+        this.nextCycle = shortTime + timewait;
+        waitMillisec = timewait;
+      }
+      synchronized(this){
+        if(waitMillisec > 0){ //NOTE: its possible that the step routine will continue immediately, then not wait.
+          bThreadWaits = true;
           try{ wait(waitMillisec); } catch(InterruptedException exc){}
           bThreadWaits = false;
         } else {
@@ -161,10 +174,13 @@ public class ThreadRun implements Closeable
         }
       }
       if(runThread){
+        shortTime = ((int)System.currentTimeMillis());
+        int cycletimelast = shortTime - timeStepLast;
         try{
-          bWork = step.step(cycletime);
+          timeStepLast = shortTime;
+          timewait = step.step(cycletime, cycletimelast, calctimelast);
         }catch(Throwable exc){
-          System.err.println(Assert.exceptionInfo("InspcMng - unexpected Exception; ", exc, 0, 7));
+          System.err.println(Assert.exceptionInfo("ThreadRun " + thread.getName() + " - unexpected Exception; ", exc, 0, 7));
           exc.printStackTrace(System.err);
         }
 
@@ -182,9 +198,23 @@ public class ThreadRun implements Closeable
   
   public interface Step{
     
-    public boolean start();
+    /**Invoked one time of start of the thread in the thread routine.
+     * @return >=0 then it is the wait time for the next step execution (start time).
+     *   if ==0 then the next step() is executed without wait.
+     *   <0, especially -1 then waits the cycle time to the first step.
+     */
+    public int start(int cycletimeNom);
     
-    public boolean step(int cycletime);
+    /**Invoked cyclically. The cycle is independent of the calculation time of the step
+     * if the step calculation time is lesser than the cycle time. 
+     * @param cycletime the programmed cycle time
+     * @param lastCalctime the last need calculation time.
+     *   The step routine can check whether there is a time overflow.
+     * @return >=0 the waits to the next step this given time,
+     *   if ==0 then the next step() is executed without wait.
+     *  <0, especially -1: Executes the next step in exactly the cycle time.
+     */
+    public int step(int cycletimeNom, int cycletimeLast, int calctimeLast);
   }
   
   
