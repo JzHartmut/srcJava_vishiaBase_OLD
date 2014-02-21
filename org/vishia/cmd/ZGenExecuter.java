@@ -1434,6 +1434,10 @@ public class ZGenExecuter {
       Object oVal = val;
       Boolean cond = null;
       ZGenScript.ZGenDataAccess assignObj1 = statement.variable;
+      if(assignObj1 ==null){
+        //no assignment, only an expression which is a procedure call:
+        evalObject(statement, false);
+      }
       Iterator<ZGenScript.ZGenDataAccess> iter1 = statement.assignObjs == null ? null : statement.assignObjs.iterator();
       while(assignObj1 !=null) {
         //Object dst = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
@@ -1481,7 +1485,8 @@ public class ZGenExecuter {
           }//switch
         } else {
           //check whether the field is compatible with val
-          dstField.set(val);
+          if(oVal == null){ oVal = evalObject(statement, false); }
+          dstField.set(oVal);
           //DataAccess.storeValue(assignObj1.datapath(), localVariables, val, bAccessPrivate);
         }
         if(iter1 !=null && iter1.hasNext()){
