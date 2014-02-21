@@ -6,7 +6,6 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -21,16 +20,17 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 
 import org.vishia.cmd.CmdExecuter;
-import org.vishia.cmd.ZGenScript.ZGenDataAccess;
 import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.Assert;
 import org.vishia.util.CalculatorExpr;
+import org.vishia.util.Conversion;
 import org.vishia.util.DataAccess;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPartAppend;
 import org.vishia.util.StringSeq;
+import org.vishia.util.CalculatorExpr.Value;
 
 
 /**This class is the executer of ZGen. With it both statements can be executed and texts from any Java-stored data 
@@ -47,6 +47,7 @@ public class ZGenExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-02-22 Hartmut new: Bool and Num as variable types.
    * <li>2014-02-16 Hartmut chg: Build of script variable currdir, scriptfile, scriptdir with them in {@link ZGenExecuter#genScriptVariables(ZGenScript, boolean, Map, CharSequence)}.
    *   {@link #execute(ZGenScript, boolean, boolean, Appendable, String)} and {@link #execSub(org.vishia.cmd.ZGenScript.Subroutine, Map, boolean, Appendable, File)}
    *   with sCurrDir.
@@ -206,6 +207,7 @@ public class ZGenExecuter {
   }
   
   
+  
   /**Returns the association to all script variables. The script variables can be changed
    * via this association. Note that change of script variables is a global action, which should not
    * be done for special requests in any subroutine.
@@ -264,6 +266,7 @@ public class ZGenExecuter {
     if(scriptLevel.localVariables.get("zgen") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "zgen", 'O', this, true); }
     if(scriptLevel.localVariables.get("file") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "file", 'O', new FileSystem(), true); }
     if(scriptLevel.localVariables.get("test") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new ZGenTester(), true); }
+    if(scriptLevel.localVariables.get("conv") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "conv", 'O', new Conversion(), true); }
     File filescript = genScript.fileScript;
     if(scriptLevel.localVariables.get("filescript") == null && filescript !=null) { 
       DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "filescript", 'O', filescript, true);
@@ -704,6 +707,14 @@ public class ZGenExecuter {
             Object value = evalObject(statement, false);
             executeDefVariable((ZGenScript.DefVariable)statement, 'O', value, false);
           } break;
+          case 'K': {
+            Object value = evalValue(statement, false);
+            executeDefVariable((ZGenScript.DefVariable)statement, 'K', value, false);
+          } break;
+          case 'Q': {
+            Object cond = new Boolean(evalCondition(statement));
+            executeDefVariable((ZGenScript.DefVariable)statement, 'Q', cond, false);
+          } break;
           case 'e': executeDatatext((ZGenScript.DataText)statement, out); break; 
           case 's': execSubroutine((ZGenScript.CallStatement)statement, out, indentOut); break;  //sub
           case 'x': executeThread((ZGenScript.ThreadBlock)statement); break;             //thread
@@ -717,10 +728,7 @@ public class ZGenExecuter {
           case 'w': ret = whileStatement((ZGenScript.CondStatement)statement, out, indentOut); break;
           case 'u': ret = dowhileStatement((ZGenScript.CondStatement)statement, out, indentOut); break;
           case 'N': executeIfContainerHasNext(statement, out, indentOut, bContainerHasNext); break;
-          case '=': { 
-            Object val = evalObject(statement, false);
-            executeAssign((ZGenScript.AssignExpr)statement, val); 
-          } break;
+          case '=': assignStatement(statement); break;
           case '+': appendExpr((ZGenScript.AssignExpr)statement); break;        //+=
           case '?': break;  //don't execute a onerror, skip it.  //onerror
           case 'z': throw new ZGenExecuter.ExitException(((ZGenScript.ExitStatement)statement).exitValue);  
@@ -1118,7 +1126,7 @@ public class ZGenExecuter {
           if(callStatement.variable !=null || callStatement.assignObjs !=null){
             DataAccess.Variable<Object> retVar = subtextGenerator.localVariables.get("return");
             Object value = retVar !=null ? retVar.value() : null;
-            executeAssign(callStatement, value);
+            assignObj(callStatement, value, false);
           }
         }
       }
@@ -1325,11 +1333,13 @@ public class ZGenExecuter {
         //Object obj = statement.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
         if(obj==null){ text = "null"; 
         } else {
-          //else if(obj instanceof CalculatorExpr.Value){
-          //  obj = ((CalculatorExpr.Value)obj).objValue();
-          //}
           if(statement.format !=null){ //it is a format string:
-             text = String.format(statement.format, obj);
+            if(obj instanceof CalculatorExpr.Value){
+              obj = ((CalculatorExpr.Value)obj).objValue();  
+              //converted to boxed numeric if numeric.
+              //boxed numeric is necessary for format
+            }
+            text = String.format(statement.format, obj);
           } else {
             text = obj.toString();
           }
@@ -1393,6 +1403,14 @@ public class ZGenExecuter {
     
     
     
+    private void assignStatement(ZGenScript.ZGenitem statement) throws IllegalArgumentException, Exception{
+      //Object val = evalObject(statement, false);
+      assignObj((ZGenScript.AssignExpr)statement, null, true); //val); 
+    }
+    
+    
+    
+    
     
     /**Executes a <code>assignment::= [{ < datapath?assign > = }] < expression > ;.</code>.
      * If the datapath to assign is only a localVariable (one simple name), then the expression
@@ -1404,12 +1422,17 @@ public class ZGenExecuter {
      * <li>All others cause an error. 
      * </ul>
      * @param statement
+     * @param val value to assign. If not null then bEval should be false.
+     * @param bEval if true then the value will be evaluate from the statement.
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    void executeAssign(ZGenScript.AssignExpr statement, Object val) 
+    private void assignObj(ZGenScript.AssignExpr statement, Object val, boolean bEval) 
     throws IllegalArgumentException, Exception
     {
+      CalculatorExpr.Value value = null;
+      Object oVal = val;
+      Boolean cond = null;
       ZGenScript.ZGenDataAccess assignObj1 = statement.variable;
       Iterator<ZGenScript.ZGenDataAccess> iter1 = statement.assignObjs == null ? null : statement.assignObjs.iterator();
       while(assignObj1 !=null) {
@@ -1418,8 +1441,16 @@ public class ZGenExecuter {
         //List<DataAccess.DatapathElement> datapath = assignObj1.datapath(); 
         //Object dst = DataAccess.access(datapath, null, localVariables, bAccessPrivate, false, true, dstField);
         Object dst = dataAccess(assignObj1,localVariables, bAccessPrivate, false, true, dstField);
-        if(dst instanceof DataAccess.Variable){
-          DataAccess.Variable var = (DataAccess.Variable) dst; //assignObj1.accessVariable(localVariables, bAccessPrivate);
+        if(dst instanceof DataAccess.Variable<?>){
+          @SuppressWarnings("unchecked")
+          DataAccess.Variable<Object> var = (DataAccess.Variable<Object>) dst; //assignObj1.accessVariable(localVariables, bAccessPrivate);
+          char vartype = var.type();
+          switch(vartype){
+            case 'K': if(value == null){ value = evalValue(statement, false); } break;
+            case 'Q': if(cond == null){ cond = new Boolean(evalCondition(statement)); } break;
+            default: if(oVal == null){ oVal = evalObject(statement, false); }
+          }
+          
           dst = var.value();
           switch(var.type()){
             case 'A': {
@@ -1429,21 +1460,23 @@ public class ZGenExecuter {
               assert(dst instanceof StringPartAppend);            
               StringPartAppend u = (StringPartAppend) dst;
               u.clear();
-              if(val == null){ val = "--null--"; }
-              if(!(val instanceof CharSequence)){
-                val = val.toString();
+              Object ocVal = oVal == null ? "--null--" : oVal;
+              if(!(ocVal instanceof CharSequence)){
+                ocVal = ocVal.toString();
               }
-              u.append((CharSequence)val);
+              u.append((CharSequence)ocVal);
             } break;
             case 'S':{
-              if(val == null || val instanceof String || val instanceof StringSeq && ((StringSeq)val).isUnmated()){
-                var.setValue(val);
+              if(oVal == null || val instanceof String || val instanceof StringSeq && ((StringSeq)val).isUnmated()){
+                var.setValue(oVal);
               } else {
-                var.setValue(val.toString());
+                var.setValue(oVal.toString());
               }
             } break;
+            case 'K': var.setValue(value); break;
+            case 'Q': var.setValue(cond); break;
             default:{
-              var.setValue(val);   //sets the value to the variable.
+              var.setValue(oVal);   //sets the value to the variable.
             }
           }//switch
         } else {
@@ -1539,7 +1572,13 @@ public class ZGenExecuter {
         } else if(dst instanceof List<?>){
           @SuppressWarnings("unchecked")
           List<Object> list = (List<Object>)dst; 
-          list.add(val);
+          if(val instanceof List<?>){
+            for(Object entry: (List<Object>)val){
+              list.add(entry);
+            }
+          } else {
+            list.add(val);
+          }
         } else {
           throwIllegalDstArgument("dst should be Appendable", assignObj1, statement);
         }
@@ -1670,6 +1709,9 @@ public class ZGenExecuter {
     private void calculateArguments(DataAccess dataAccess) throws Exception {
       for(DataAccess.DatapathElement dataElement : dataAccess.datapath()){  //loop over all elements of the path with or without arguments.
         //check all datapath elements whether they have method calls with arguments:
+        String sTest = dataElement.toString();
+        if(sTest.contains("Xslt.exec"))
+          Assert.stop();
         if(dataElement instanceof ZGenScript.ZGenDatapathElement){
           ZGenScript.ZGenDatapathElement zgenDataElement = (ZGenScript.ZGenDatapathElement)dataElement;
           if(zgenDataElement.fnArgsExpr !=null){
@@ -1717,6 +1759,46 @@ public class ZGenExecuter {
         obj = value.objValue();
       } else obj = null;  //throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
       return obj;
+    }
+    
+    
+    
+    
+    /**Gets the value of the given Argument. It is a {@link ZGenScript.ZGenitem#expression}
+     * @param arg
+     * @return
+     * @throws Exception
+     */
+    public CalculatorExpr.Value evalValue(ZGenScript.ZGenitem arg, boolean bContainer) throws Exception{
+      if(arg.textArg !=null){
+        return null;  //TODO
+      }
+      else if(arg.dataAccess !=null){
+        CalculatorExpr.Value value;
+        Object obj = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
+        if(obj instanceof Float){
+          value = new Value(((Float)obj).floatValue());
+        } else if(obj instanceof Double){
+          value = new Value(((Double)obj).doubleValue());
+        } else if(obj instanceof Long){
+          value = new Value(((Long)obj).longValue());
+        } else if(obj instanceof Integer){
+          value = new Value(((Integer)obj).intValue());
+        } else if(obj instanceof Short){
+          value = new Value(((Short)obj).shortValue());
+        } else if(obj instanceof Byte){
+          value = new Value(((Byte)obj).byteValue());
+        } else if(obj instanceof Boolean){
+          value = new Value(((Boolean)obj).booleanValue());
+        } else {
+          value = new Value(obj);
+        }
+        return value;
+      } else if(arg.expression !=null) {
+        return calculateExpression(arg.expression); 
+      } else {
+        return null;  //no value given.
+      }
     }
     
     

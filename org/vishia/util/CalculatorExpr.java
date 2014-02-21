@@ -40,6 +40,8 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-02-22 Hartmut new: {@link #calcDataAccess(Map, Object...)} accepts {@link Value} as return of dataAccess.
+   *   A Value is stored for Num variables in ZGen especially.
    * <li>2014-01-26 Hartmut bugfix: and-expression with !val && val did not work.  
    * <li>2014-01-26 Hartmut chg: To add a datapath now {@link SetExpr#new_datapath()} is offered, all details of a datapath
    *   are handled in {@link DataAccess.DataAccessSet}. To support more complex {@link DataAccess.DatapathElement} especially
@@ -1718,7 +1720,7 @@ public class CalculatorExpr
    */
   public Value calcDataAccess(Map<String, DataAccess.Variable<Object>> javaVariables, Object... args) throws Exception{
     accu = new Value(); //empty
-    Value val3 = new Value();  //Instance to hold values for the right side operand.
+    Value val2jar = new Value();  //Instance to hold values for the right side operand.
     Value val2; //Reference to the right side operand
     ExpressionType type = startExpr;
     for(Operation oper: listOperations){
@@ -1731,29 +1733,30 @@ public class CalculatorExpr
         //Get the operand either from args or from Operation
         Object oval2;
         if(oper.ixVariable >=0){ 
-          val2 = val3;
           oval2 = args[oper.ixVariable];   //may throw ArrayOutOfBoundsException if less arguments
         }  //an input value
         else if(oper.ixVariable == Operation.kStackOperand){
-          val2 = accu;
+          oval2 = accu;
           accu = stack.pop();              //may throw Exception if the stack is emtpy.
-          oval2 = null;
+          //oval2 = null;
         }
         else if(oper.datapath !=null){
-          val2 = val3;
           oval2 = oper.datapath.getDataObj(javaVariables, true, false);
-          if(oval2 == null){
-            //get data does not throw an exception, but returns null:
-            val2.type = 'o'; val2.oVal = null;
-          }
         }
         else {
-          val2 = oper.value;              //immediate value.
-          oval2 = null;
+          oval2 = oper.value;              //immediate value.
+          //oval2 = null;
         }
         //
-        //Convert a Object-wrapped value into its real representation.
-        if(oval2 !=null){
+        if(oval2 == null){
+          val2 = val2jar;
+          //get data does not throw an exception, but returns null:
+          val2.type = 'o'; val2.oVal = null;
+        } else if(oval2 instanceof Value){
+          val2 = (Value)oval2;
+        } else {
+          val2 = val2jar;
+          //Convert a Object-wrapped value into its real representation.
           if(oval2 instanceof Long)             { val2.longVal =   ((Long)oval2).longValue(); val2.type = 'J'; }
           else if(oval2 instanceof Integer)     { val2.intVal = ((Integer)oval2).intValue(); val2.type = 'I'; }
           else if(oval2 instanceof Short)       { val2.intVal =   ((Short)oval2).intValue(); val2.type = 'I'; }
@@ -1762,7 +1765,7 @@ public class CalculatorExpr
           else if(oval2 instanceof Double)      { val2.doubleVal = ((Double)oval2).doubleValue(); val2.type = 'D'; }
           else if(oval2 instanceof Float)       { val2.floatVal = ((Float)oval2).floatValue(); val2.type = 'F'; }
           else if(oval2 instanceof StringSeq)   { val2.stringVal = (StringSeq)oval2; val2.type = 't'; }
-          else                                  { val2.oVal = oval2; val2.type = 'o'; }
+          else                                   { val2.oVal = oval2; val2.type = 'o'; }
           val2.oVal = oval2;;
         }
         if(oper.operator == Operators.setOperation && accu.type != '?'){

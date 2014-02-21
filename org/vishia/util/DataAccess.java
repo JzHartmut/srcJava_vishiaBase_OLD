@@ -622,7 +622,7 @@ public class DataAccess {
   ) throws InvocationTargetException, NoSuchMethodException, Exception {
     Object data1 = null;
     Class<?> clazz = dataPool.getClass();
-    if(element.ident.equals("equals"))
+    if(element.ident.equals("exec"))
       Assert.stop();
     boolean bOk = false;
     do{
@@ -1388,6 +1388,8 @@ public class DataAccess {
      * <li>'(': subroutine maybe with or without arguments in {@link #fnArgs}.
      * <li>'S': A new String variable
      * <li>'O': A new Object variable
+     * <li>'K': A new Value variable
+     * <li>'Q': A new Boolean variable
      * <li>'A': A new Appendable variable
      * <li>'E': A new environment variable
      * <li>'P': A new pipe variable.

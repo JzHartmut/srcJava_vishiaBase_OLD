@@ -28,6 +28,7 @@ import org.vishia.util.StringFunctions;
 public class ZGenScript {
   /**Version, history and license.
    * <ul>
+   * <li>2014-02-22 Hartmut new: Bool and Num as variable types.
    * <li>2014-02-16 Hartmut: new {@link #fileScript} stored here. 
    * <li>2014-01-01 Hartmut re-engineering: {@link ZGenitem} has one of 4 active associations for its content.
    * <li>2013-12-26 Hartmut re-engineering: Now the Statement class is obsolete. Instead all statements have the base class
@@ -316,6 +317,22 @@ public class ZGenScript {
     }
 
     public void add_numExpr(ZGenCalculatorExpr val){ 
+      DataAccess datapath = val.onlyDataAccess();
+      if(datapath !=null){
+        this.dataAccess = datapath;
+      } else {
+        val.closeExprPreparation();
+        this.expression = val.expr; 
+      }
+    }
+    
+    
+    public ZGenCalculatorExpr new_boolExpr() { 
+      assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
+      return new ZGenCalculatorExpr(this); 
+    }
+
+    public void add_boolExpr(ZGenCalculatorExpr val){ 
       DataAccess datapath = val.onlyDataAccess();
       if(datapath !=null){
         this.dataAccess = datapath;
@@ -996,8 +1013,8 @@ public class ZGenScript {
     public ZGenDataAccess new_defVariable(){ return new ZGenDataAccess(); }
     
     public void add_defVariable(ZGenDataAccess val){   
-      int whichStatement = "SPULJWMC".indexOf(elementType);
-      char whichVariableType = "SPULOAMO".charAt(whichStatement);  //from elementType to variable type.
+      int whichStatement = "SPULJKQWMC".indexOf(elementType);
+      char whichVariableType = "SPULOKQAMO".charAt(whichStatement);  //from elementType to variable type.
       val.setTypeToLastElement(whichVariableType);
       defVariable = val;
     }
@@ -1028,7 +1045,7 @@ public class ZGenScript {
     
     //public void set_name(String name){ this.name = name; }
 
-    @Override public String toString(){ return "ZGen-DefVariable " + defVariable; }
+    @Override public String toString(){ return "ZGen-DefVariable " + elementType + ":"+ defVariable; }
     
   };
   
@@ -1253,11 +1270,30 @@ public class ZGenScript {
     /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
     public void add_formalArgument(Subroutine val){}
     
-    public DefVariable new_objVariable(){
+    public DefVariable new_DefObjVar(){
       return new DefVariable(parentList, 'J'); 
     }
     
-    public void add_objVariable(DefVariable val) {
+    public void add_DefObjVar(DefVariable val) {
+      if(formalArgs == null){ formalArgs = new ArrayList<DefVariable>(); }
+      formalArgs.add(val);
+    }
+
+    public DefVariable new_DefNumVar(){
+      return new DefVariable(parentList, 'K'); 
+    }
+    
+    public void add_DefNumVar(DefVariable val) {
+      if(formalArgs == null){ formalArgs = new ArrayList<DefVariable>(); }
+      formalArgs.add(val);
+    }
+
+    
+    public DefVariable new_DefBoolVar(){
+      return new DefVariable(parentList, 'Q'); 
+    }
+    
+    public void add_DefBoolVar(DefVariable val) {
       if(formalArgs == null){ formalArgs = new ArrayList<DefVariable>(); }
       formalArgs.add(val);
     }
@@ -1670,12 +1706,28 @@ public class ZGenScript {
     
     /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
      */
-    public DefVariable new_objVariable(){ 
+    public DefVariable new_DefObjVar(){ 
       bContainsVariableDef = true; 
       return new DefVariable(this, 'J'); 
     } 
 
-    public void add_objVariable(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);}
+    public void add_DefObjVar(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);}
+    
+    
+    public DefVariable new_DefNumVar(){ 
+      bContainsVariableDef = true; 
+      return new DefVariable(this, 'K'); 
+    } 
+
+    public void add_DefNumVar(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);}
+    
+    
+    public DefVariable new_DefBoolVar(){ 
+      bContainsVariableDef = true; 
+      return new DefVariable(this, 'Q'); 
+    } 
+
+    public void add_DefBoolVar(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);}
     
     
 
@@ -2055,23 +2107,6 @@ public class ZGenScript {
       String nameGlobal = cmpnName == null ? sName : cmpnName + "." + sName;
       subroutinesAll.put(nameGlobal, val); 
     }
-    
-    /**Defines a variable with initial value. <= <variableDef?textVariable> \<\.=\>
-     */
-    //@Override
-    public DefVariable XXXnew_textVariable(){ return new DefVariable(this, 'S'); }
-
-    //@Override
-    public void XXXadd_textVariable(DefVariable val){ XXXlistScriptVariables.add(val); } 
-    
-    
-    /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
-     */
-    //@Override
-    public DefVariable XXXnew_objVariable(){ return new DefVariable(this, 'J'); } ///
-
-    //@Override
-    public void XXXadd_objVariable(DefVariable val){ XXXlistScriptVariables.add(val); } 
     
     
     

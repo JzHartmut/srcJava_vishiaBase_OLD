@@ -1,4 +1,3 @@
-@echo on
 echo %0
 pause
 
@@ -17,7 +16,7 @@ if exist %DSTDIR%%DST_priv% rmdir /Q /S %DSTDIR%%DST_priv% >NUL
 if not exist %DSTDIR%%DST% mkdir %DSTDIR%%DST%
 if not exist %DSTDIR%%DST_priv% mkdir %DSTDIR%%DST_priv%
 
-echo javadoc -d %DSTDIR%%DST% -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH%
+echo javadoc -nonavbar -d %DSTDIR%%DST% -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH%
 %JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST% -protected -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST%\javadoc.rpt 2>%DSTDIR%%DST%\javadoc.err
 if errorlevel 1 goto :error
 copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DSTDIR%%DST%\stylesheet.css >NUL
