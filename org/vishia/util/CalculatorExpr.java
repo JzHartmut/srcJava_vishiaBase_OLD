@@ -1241,14 +1241,14 @@ public class CalculatorExpr
     /**Returns this because all methods of {@link DataAccess.DataAccessSet} are delegated in this class.
      * @return
      */
-    public DataAccess.DataAccessSet new_datapath(){ 
+    public DataAccess.DataAccessSet new_dataAccess(){ 
       assert(actOperation ==null);
       if(actOperation == null){ actOperation = new CalculatorExpr.Operation(); }
       if(actOperation.datapath == null){ actOperation.datapath = newDataAccessSet();}
       return actOperation.datapath;
     } 
     
-    public void add_datapath(DataAccess.DataAccessSet val){ }
+    public void add_dataAccess(DataAccess.DataAccessSet val){ }
     
 
     /**Returns the datapath if the expression contains only a datapath.

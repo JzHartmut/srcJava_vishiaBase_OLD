@@ -174,11 +174,12 @@ public class ThreadRun implements Closeable
         }
       }
       if(runThread){
-        shortTime = ((int)System.currentTimeMillis());
+        long timeAbs = System.currentTimeMillis();
+        shortTime = ((int)timeAbs);
         int cycletimelast = shortTime - timeStepLast;
         try{
           timeStepLast = shortTime;
-          timewait = step.step(cycletime, cycletimelast, calctimelast);
+          timewait = step.step(cycletime, cycletimelast, calctimelast, timeAbs);
         }catch(Throwable exc){
           System.err.println(Assert.exceptionInfo("ThreadRun " + thread.getName() + " - unexpected Exception; ", exc, 0, 7));
           exc.printStackTrace(System.err);
@@ -214,7 +215,7 @@ public class ThreadRun implements Closeable
      *   if ==0 then the next step() is executed without wait.
      *  <0, especially -1: Executes the next step in exactly the cycle time.
      */
-    public int step(int cycletimeNom, int cycletimeLast, int calctimeLast);
+    public int step(int cycletimeNom, int cycletimeLast, int calctimeLast, long millisecAbs);
   }
   
   

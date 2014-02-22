@@ -66,7 +66,7 @@ public class ZGenScript {
    *   content elements. Only if a sub content is need, an instance of Zbnf_genContent is created as {@link XXXXXXStatement#statementlist}.
    *   Furthermore the {@link XXXXXXStatement#statementlist} should be final because it is only created if need for the special 
    *   {@link XXXXXXStatement#elementType}-types (TODO). This version works for {@link org.vishia.stateMGen.StateMGen}.
-   * <li>2012-10-11 Hartmut chg Syntax changed of ZmakeGenCtrl.zbnf: datapath::={ <$?path>? \.}. 
+   * <li>2012-10-11 Hartmut chg Syntax changed of ZmakeGenCtrl.zbnf: dataAccess::={ <$?path>? \.}. 
    *   instead dataAccess::=<$?name>\.<$?elementPart>., it is more universal. adapted. 
    * <li>2012-10-10 new: Some enhancements, it is used for {@link org.vishia.zbatch.ZbatchExecuter} now too.
    * <li>2011-03-00 created.
@@ -263,12 +263,12 @@ public class ZGenScript {
     
     
     
-    public ZGenDataAccess new_datapath() { 
+    public ZGenDataAccess new_dataAccess() { 
       assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
       return new ZGenDataAccess(); 
     }
     
-    public void add_datapath(ZGenDataAccess val){ 
+    public void add_dataAccess(ZGenDataAccess val){ 
       dataAccess = val;
     }
     
@@ -317,9 +317,9 @@ public class ZGenScript {
     }
 
     public void add_numExpr(ZGenCalculatorExpr val){ 
-      DataAccess datapath = val.onlyDataAccess();
-      if(datapath !=null){
-        this.dataAccess = datapath;
+      DataAccess dataAccess = val.onlyDataAccess();
+      if(dataAccess !=null){
+        this.dataAccess = dataAccess;
       } else {
         val.closeExprPreparation();
         this.expression = val.expr; 
@@ -333,9 +333,9 @@ public class ZGenScript {
     }
 
     public void add_boolExpr(ZGenCalculatorExpr val){ 
-      DataAccess datapath = val.onlyDataAccess();
-      if(datapath !=null){
-        this.dataAccess = datapath;
+      DataAccess dataAccess = val.onlyDataAccess();
+      if(dataAccess !=null){
+        this.dataAccess = dataAccess;
       } else {
         val.closeExprPreparation();
         this.expression = val.expr; 
@@ -354,7 +354,7 @@ public class ZGenScript {
         case 'o': return "(?outp." + textArg + "?)";
         case 'i': return "(?inp." + textArg + "?)";
         */
-        case 'e': return "<*" +   ">";  //expressions.get(0).datapath
+        case 'e': return "<*" +   ">";  //expressions.get(0).dataAccess
         //case 'g': return "<$" + path + ">";
         //case 's': return "call " + identArgJbat;
         case 'B': return "{ statementblock }";
@@ -501,11 +501,11 @@ public class ZGenScript {
     /**It creates an {@link ZGenDataAccess} because overridden {@link #newDataAccessSet()}
      * of {@link CalculatorExpr.SetExpr#newDataAccessSet()} 
      */
-    @Override public ZGenDataAccess new_datapath(){ 
-      return (ZGenDataAccess)super.new_datapath();  
+    @Override public ZGenDataAccess new_dataAccess(){ 
+      return (ZGenDataAccess)super.new_dataAccess();  
     }
 
-    public void add_datapath(ZGenDataAccess val){ }
+    public void add_dataAccess(ZGenDataAccess val){ }
 
     @Override protected ZGenDataAccess newDataAccessSet(){ return new ZGenDataAccess(); }
     
@@ -537,7 +537,7 @@ public class ZGenScript {
   {
     
     /**Any variable given by name or java instance  which is used to assign to it.
-     * A variable is given by the start element of the data path. An instance is given by any more complex datapath
+     * A variable is given by the start element of the data path. An instance is given by any more complex dataAccess
      * null if not used. */
     public List<DataAccess> assignObjs;
     
@@ -728,7 +728,7 @@ public class ZGenScript {
       arguments.add(val); }
     
     
-    /**From Zbnf: [{ <datapath?-assign> = }] 
+    /**From Zbnf: [{ <dataAccess?-assign> = }] 
      */
     public ZGenDataAccess new_assign(){ return new ZGenDataAccess(); }
     
@@ -947,7 +947,7 @@ public class ZGenScript {
       case 'o': return "(?outp." + textArg + "?)";
       case 'i': return "(?inp." + textArg + "?)";
       */
-      case 'e': return "<*" +   ">";  //expressions.get(0).datapath
+      case 'e': return "<*" +   ">";  //expressions.get(0).dataAccess
       //case 'g': return "<$" + path + ">";
       //case 's': return "call " + identArgJbat;
       case 'B': return "{ statementblock }";
@@ -977,7 +977,7 @@ public class ZGenScript {
   }
 
   
-  /**In ZBNF: <*datapath:formatString>
+  /**In ZBNF: <*dataAccess:formatString>
    */
   public static class DataText extends ZGenitem
   {
@@ -1068,7 +1068,7 @@ public class ZGenScript {
     { super(parentList, elementType);
     }
     
-    /**From Zbnf: [{ <datapath?-assign> = }] 
+    /**From Zbnf: [{ <dataAccess?-assign> = }] 
      */
     public ZGenDataAccess new_assign(){ return new ZGenDataAccess(); }
     
@@ -1106,7 +1106,7 @@ public class ZGenScript {
     
     public void set_inputColumn_(int col){ this.indent = col; } 
     
-    /**From Zbnf: [{ <datapath?-assign> = }] 
+    /**From Zbnf: [{ <dataAccess?-assign> = }] 
      */
     public ZGenDataAccess new_assign(){ return new ZGenDataAccess(); }
     
@@ -1449,7 +1449,7 @@ public class ZGenScript {
     
     public void XXXset_name(String name){ this.XXXthreadName = name; }
 
-    /**From Zbnf: [{ Thread <datapath?defThreadVar> = }] 
+    /**From Zbnf: [{ Thread <dataAccess?defThreadVar> = }] 
      */
     public ZGenDataAccess new_defThreadVar(){ 
       return new ZGenDataAccess(); 
@@ -1462,7 +1462,7 @@ public class ZGenScript {
     }
 
     
-    /**From Zbnf: [{ Thread <datapath?assignThreadVar> = }] 
+    /**From Zbnf: [{ Thread <dataAccess?assignThreadVar> = }] 
      */
     public ZGenDataAccess new_assignThreadVar(){ 
       return new ZGenDataAccess(); 
@@ -2055,9 +2055,9 @@ public class ZGenScript {
     }  
     
     
-    public void XXXadd_datapath(String val)
+    public void XXXadd_dataAccess(String val)
     {
-      //datapath.add(val);
+      //dataAccess.add(val);
     }
 
     
