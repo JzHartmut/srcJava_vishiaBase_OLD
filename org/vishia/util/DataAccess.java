@@ -1182,13 +1182,14 @@ public class DataAccess {
   
   
   /**Creates or replaces a variable with a simple name in the given container. 
-   * If the variable exists, it will be replaced by the new definition.
+   * If the variable exists, its content will be replaced by the new definition.
+   * It means that the same variable referred by another one is changed too.
    * @param map The container for variables.
    * @param name The name of the variable in the container.
    * @param type one of A O J S U L M V E = Appendable, Object, Object, String, StringBuilder, ListContainer, Map, VariableTree, EnvironmentVariable
    * @param content The new value
    * @param isConst true then create a const variable, or change content of a constant variable.
-   * @throws IllegalAccessException  if a const variable is attempt to modify.
+   * @throws IllegalAccessException  if a const variable is attempt to modify without isConst argument.
    */
   public static Variable<Object> createOrReplaceVariable(Map<String, Variable<Object>> map, String name, char type, Object content, boolean isConst) throws IllegalAccessException{
     DataAccess.Variable<Object> var = map.get(name);

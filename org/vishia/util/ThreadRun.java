@@ -142,7 +142,7 @@ public class ThreadRun implements Closeable
       if(timewait <0){
         nextCycle += cycletime;
         waitMillisec = nextCycle - shortTime;
-        if(waitMillisec > 2* cycletime || waitMillisec < -cycletime){
+        if(waitMillisec > 5* cycletime || waitMillisec < -cycletime){
           System.out.printf("ThreadRun " + name + " - new time synchronization; %d\n", new Integer(waitMillisec));
 
           waitMillisec = cycletime;   //synchronize with a faulty cycletime, maybe on time error.

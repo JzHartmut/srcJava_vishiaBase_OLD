@@ -1263,6 +1263,7 @@ public class ZGenExecuter {
       cmdExecuter.setCurrentDir(currdir);
       this.cmdErrorlevel = cmdExecuter.execute(args, statement.bShouldNotWait, null, outCmd, null);
       cmdExecuter.close();
+      setLocalVariable("cmdErrorlevel", 'N', new CalculatorExpr.Value(cmdErrorlevel), true);
     }
     
 
