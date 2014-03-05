@@ -543,6 +543,7 @@ public class DataAccess {
     if(data1 == null) return null;
     else if(bContainer){
       //should return a container
+      if(data1.getClass().isArray()) return data1;
       if(data1 instanceof Iterable<?> || data1 instanceof Map<?,?>) return data1;
       else {
         //Build a container if only one element is addressed.
@@ -577,22 +578,28 @@ public class DataAccess {
     Class<?> clazz = Class.forName(element.ident);
     Constructor<?>[] methods = clazz.getConstructors();
     boolean bOk = false;
-    for(Constructor<?> method: methods){
-      bOk = false;
-      Class<?>[] paramTypes = method.getParameterTypes();
-      Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
-      if(actArgs !=null){
-        bOk = true;
-        try{ 
-          data1 = method.newInstance(actArgs);
-        } catch(IllegalAccessException exc){
-          CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
-          throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
-        } catch(InstantiationException exc){
-          CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
-          throw new NoSuchMethodException("DataAccess - new invocation problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+    if(methods.length==0 && element.fnArgs ==null){
+      //only a default constructor, it is requested
+      data1 = clazz.newInstance();
+      bOk = data1 !=null;
+    } else {
+      for(Constructor<?> method: methods){
+        bOk = false;
+        Class<?>[] paramTypes = method.getParameterTypes();
+        Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
+        if(actArgs !=null){
+          bOk = true;
+          try{ 
+            data1 = method.newInstance(actArgs);
+          } catch(IllegalAccessException exc){
+            CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
+            throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+          } catch(InstantiationException exc){
+            CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
+            throw new NoSuchMethodException("DataAccess - new invocation problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+          }
+          break;  //method found.
         }
-        break;  //method found.
       }
     }
     if(!bOk) {
@@ -1231,7 +1238,14 @@ public class DataAccess {
   @Override public String toString(){ return datapath !=null ? datapath.toString() : "emtpy DataAccess"; }
   
   
-  
+  public void writeStruct(Appendable out) throws IOException {
+    String sep = "";
+    for(DatapathElement element: datapath){
+      out.append(sep);
+      element.writeStruct(out);
+      sep = ".";
+    }
+  }
   
   
   
@@ -1398,7 +1412,7 @@ public class DataAccess {
      * </ul>
      * A new Variable should be stored newly as {@link Variable} with that given type using {@link DataAccess#storeValue(List, Map, Object, boolean)}.
      */
-    protected char whatisit;
+    protected char whatisit = '.';
 
     /**List of arguments of a method. If null, it is not a method or the method has not arguments. */
     protected Object[] fnArgs;
@@ -1463,11 +1477,29 @@ public class DataAccess {
       fnArgs = args;
     }
     
+    
+    
+    public void writeStruct(Appendable out) throws IOException {
+      out.append(whatisit);
+      if(whatisit >='A' && whatisit <='Z'){
+        out.append(':');
+      }
+      out.append(ident);
+      if(fnArgs!=null){
+        String sep = "(";
+        for(Object arg: fnArgs){
+          out.append(sep).append(arg.toString());
+          sep = ", ";
+        }
+        out.append(")");
+      }
+    }
+
 
     /**For debugging.*/
     @Override public String toString(){
-      if(whatisit == 0){ return "?" + ident; }
-      else if(whatisit !='('){ return "" + whatisit + " " + ident;}
+      if(whatisit == 0){ return ident + ":?"; }
+      else if(whatisit !='('){ return ident + ":" + whatisit;}
       else{
         return ident + "(...)";
       }

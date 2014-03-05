@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -47,6 +48,9 @@ public class ZGenExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-03-01 Hartmut new: {@link ExecuteLevel#execForContainer(org.vishia.cmd.ZGenScript.ForStatement, Appendable, int)}
+   *   now supports arrays as container too.
+   * <li>2014-03-01 Hartmut new: !argsCheck! functionality.  
    * <li>2014-02-22 Hartmut new: Bool and Num as variable types.
    * <li>2014-02-16 Hartmut chg: Build of script variable currdir, scriptfile, scriptdir with them in {@link ZGenExecuter#genScriptVariables(ZGenScript, boolean, Map, CharSequence)}.
    *   {@link #execute(ZGenScript, boolean, boolean, Appendable, String)} and {@link #execSub(org.vishia.cmd.ZGenScript.Subroutine, Map, boolean, Appendable, File)}
@@ -256,7 +260,7 @@ public class ZGenExecuter {
     }
     //do not replace variables which are set from outside.
     //if(scriptLevel.localVariables.get("error") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "error", 'A', accessError, true); }
-    if(scriptLevel.localVariables.get("mainCmdLogging") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "mainCmdLogging", 'O', log, true); }
+    if(scriptLevel.localVariables.get("console") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "console", 'O', log, true); }
     if(scriptLevel.localVariables.get("nextNr") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextNr", 'O', nextNr, true); }
     //DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nrElementInContainer", 'O', null);
     if(scriptLevel.localVariables.get("out") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "out", 'A', System.out, true); }
@@ -268,10 +272,12 @@ public class ZGenExecuter {
     if(scriptLevel.localVariables.get("test") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new ZGenTester(), true); }
     if(scriptLevel.localVariables.get("conv") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "conv", 'O', new Conversion(), true); }
     File filescript = genScript.fileScript;
-    if(scriptLevel.localVariables.get("filescript") == null && filescript !=null) { 
-      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "filescript", 'O', filescript, true);
-      File dirscript = FileSystem.getDirectory(filescript).getCanonicalFile();
-      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "dirscript", 'O', dirscript, true);
+    if(scriptLevel.localVariables.get("scriptfile") == null && filescript !=null) { 
+      String scriptfile = filescript.getName();
+      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "scriptfile", 'S', scriptfile, true);
+      CharSequence scriptdir = FileSystem.normalizePath(FileSystem.getDir(filescript));
+      //File dirscript = FileSystem.getDirectory(filescript).getCanonicalFile();
+      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "scriptdir", 'S', scriptdir, true);
     }
     //
     //generate all variables in this script:
@@ -416,10 +422,18 @@ public class ZGenExecuter {
       genScriptVariables(genScript, accessPrivate, null, sCurrdir);
     }
     setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
-    ZGenScript.Subroutine contentScript = genScript.getMain();
     ExecuteLevel execFile = new ExecuteLevel(scriptThread, null, null);
+    if(genScript.checkZGenFile !=null){
+      CharSequence sFilecheck = execFile.evalString(genScript.checkZGenFile);
+      File filecheck = new File(sFilecheck.toString());
+      Writer writer = new FileWriter(filecheck);
+      genScript.writeStruct(writer);
+      writer.close();
+    }
+    
     startmilli = System.currentTimeMillis();
     startnano = System.nanoTime();
+    ZGenScript.Subroutine contentScript = genScript.getMain();
     execFile.execute(contentScript.statementlist, out, 0, false);
     if(bWaitForThreads){
       boolean bWait = true;
@@ -533,7 +547,7 @@ public class ZGenExecuter {
   
   CharSequence textError(Exception exc, ZGenScript.ZGenitem zgenitem){
     StringBuilder text = new StringBuilder(100); 
-    text.append(exc).append( " @FILE:").append(zgenitem.srcLine).append(",").append(zgenitem.srcColumn);
+    text.append(exc).append( " @").append(zgenitem.parentList.srcFile).append(":").append(zgenitem.srcLine).append(",").append(zgenitem.srcColumn);
     if(bWriteErrorInOutput){
       Throwable excCause = exc, excText = exc;
       int catastrophicalcount = 10;
@@ -720,11 +734,11 @@ public class ZGenExecuter {
           case 'x': executeThread((ZGenScript.ThreadBlock)statement); break;             //thread
           case 'm': executeMove((ZGenScript.CallStatement)statement); break;             //move
           case 'y': executeCopy((ZGenScript.CallStatement)statement); break;             //copy
-          case 'c': executeCmdline((ZGenScript.CmdInvoke)statement); break;              //cmd
+          case 'c': execCmdline((ZGenScript.CmdInvoke)statement); break;              //cmd
           case 'd': executeChangeCurrDir(statement); break;                              //cd
-          case 'C': ret = executeForContainer((ZGenScript.ForStatement)statement, out, indentOut); break;
+          case 'C': ret = execForContainer((ZGenScript.ForStatement)statement, out, indentOut); break;  //for
           case 'B': ret = execNestedLevel(statement, out, indentOut); break;              //statementBlock
-          case 'F': executeIfStatement((ZGenScript.IfStatement)statement, out, indentOut); break;
+          case 'f': executeIfStatement((ZGenScript.IfStatement)statement, out, indentOut); break;
           case 'w': ret = whileStatement((ZGenScript.CondStatement)statement, out, indentOut); break;
           case 'u': ret = dowhileStatement((ZGenScript.CondStatement)statement, out, indentOut); break;
           case 'N': executeIfContainerHasNext(statement, out, indentOut, bContainerHasNext); break;
@@ -737,6 +751,7 @@ public class ZGenExecuter {
           case 'v': execThrowonerror((ZGenScript.Onerror)statement); break;
           case 'b': isBreak = true; ret = ZGenExecuter.kBreak; break;
           case '#': ret = execCmdError((ZGenScript.Onerror)statement, out, indentOut); break;
+          case 'F': createFileSet((ZGenScript.UserFileset) statement); break;
           default: 
             uBuffer.append("Jbat - execute-unknown type; '" + statement.elementType() + "' :ERROR=== ");
           }//switch
@@ -748,10 +763,16 @@ public class ZGenExecuter {
           boolean found = false;
           char excType;   //NOTE: the errortype in an onerror statement is the first letter of error keyword in syntax; notfound, file, internal, exit
           int errLevel = 0;
-          if(exc instanceof ExitException){ excType = 'e'; errLevel = ((ExitException)exc).exitLevel; }
-          else if(exc instanceof IOException){ excType = 'f'; }
-          else if(exc instanceof CmdErrorLevelException){ excType = 'c'; }
-          else if(exc instanceof NoSuchFieldException || exc instanceof NoSuchMethodException){ excType = 'n'; }
+          final Throwable exc1;
+          if(exc instanceof InvocationTargetException){
+            exc1 = exc.getCause();
+          } else {
+            exc1 = exc;
+          }
+          if(exc1 instanceof ExitException){ excType = 'e'; errLevel = ((ExitException)exc).exitLevel; }
+          else if(exc1 instanceof IOException){ excType = 'f'; }
+          else if(exc1 instanceof CmdErrorLevelException){ excType = 'c'; }
+          else if(exc1 instanceof NoSuchFieldException || exc1 instanceof NoSuchMethodException){ excType = 'n'; }
           else { excType = 'i'; }
           //Search the block of onerror after this statement.
           //Maybe use an index in any statement, to prevent search time.
@@ -769,18 +790,22 @@ public class ZGenExecuter {
             } while(!found && ++ixStatement < contentScript.statements.size() && (statement = contentScript.statements.get(ixStatement)).elementType() == '?');
           }
           if(found){
-            String sError1 = exc.getMessage();
+            String sError1 = exc1.getMessage();
             threadData.error.setValue(sError1);
-            threadData.exception = exc;
+            threadData.exception = exc1;
             ret = execute(statement.statementlist, out, indentOut, false);  //executes the onerror block
             //a kBreak, kReturn etc. is used in the calling level.
             threadData.error.setValue(null);  //clear for next usage.
           } else {
-            CharSequence sExc = Assert.exceptionInfo("ZGen - execute-exception;", exc, 0, 20);
+            CharSequence sExc = Assert.exceptionInfo("ZGen - execute-exception;", exc1, 0, 20);
             if(threadData.error.value()==null){
               threadData.error.setValue(sExc);
             }
-            throw exc; //new RuntimeException(sExc.toString());
+            if(exc1 instanceof Exception){
+              throw (Exception)exc1; 
+            } else {
+              new RuntimeException(exc1);
+            }
             //sError = exc.getMessage();
             //System.err.println("ZGen - execute-exception; " + exc.getMessage());
             //exc.printStackTrace();
@@ -846,8 +871,15 @@ public class ZGenExecuter {
        
     }
 
+    
+    
+    void createFileSet(ZGenScript.UserFileset statement) throws Exception {
+      ZGenFileset filepath = new ZGenFileset(this, statement);
+      storeValue(statement.defVariable, localVariables, filepath, false);
+    }
+    
       
-    int executeForContainer(ZGenScript.ForStatement statement, Appendable out, int indentOut) throws Exception
+    private int execForContainer(ZGenScript.ForStatement statement, Appendable out, int indentOut) throws Exception
     {
       ZGenScript.StatementList subContent = statement.statementlist();  //The same sub content is used for all container elements.
       ExecuteLevel forExecuter = new ExecuteLevel(threadData, this, localVariables);
@@ -891,6 +923,23 @@ public class ZGenExecuter {
             Object foreachData = foreachDataEntry.getValue();
             forVariable.setValue(foreachData);
             cont = forExecuter.execute(subContent, out, indentOut, iter.hasNext());
+          }
+        }
+      }
+      else if(container !=null && container.getClass().isArray()){
+        Object[] aContainer = (Object[])container;
+        int zContainer = aContainer.length;
+        int iContainer = -1;
+        while(cond && !forExecuter.isBreak() && ++iContainer < zContainer){
+          cond = (cont == kSuccess);
+          if(cond && statement.condition !=null){
+            cond = evalCondition(statement.condition);
+          }
+          if(cond){
+            Object foreachData = aContainer[iContainer];
+            forVariable.setValue(foreachData);
+            boolean bLastElement = iContainer < zContainer-1;
+            cont = forExecuter.execute(subContent, out, indentOut, bLastElement);
           }
         }
       }
@@ -1199,7 +1248,7 @@ public class ZGenExecuter {
 
     
     
-    void executeCmdline(ZGenScript.CmdInvoke statement) 
+    private void execCmdline(ZGenScript.CmdInvoke statement) 
     throws IllegalArgumentException, Exception
     {
       boolean ok = true;
@@ -1222,6 +1271,13 @@ public class ZGenExecuter {
         args = new String[1]; 
       }
       args[0] = sCmd.toString();
+      if(statement.bCmdCheck){
+        setLocalVariable("argsCheck", 'L', args, true);
+      }
+      //
+      //The standard output of the cmd line invocation is written into destination variable.
+      //Gather a list of Appendable for the execution. 
+      //
       List<Appendable> outCmd;
       if(statement.variable !=null){
         outCmd = new LinkedList<Appendable>();
@@ -1243,14 +1299,17 @@ public class ZGenExecuter {
       } else {
         outCmd = null;
       }
+      
       CmdExecuter cmdExecuter = new CmdExecuter();
-      //CurrDir currDir = (CurrDir)DataAccess.getVariable(localVariables,"currDir", true);
       
       Map<String,String> env = cmdExecuter.environment();
       Iterator<DataAccess.Variable<Object>> iter = localVariables.iterator("$");
       boolean cont = true;
+      //
+      //gather all variables starting with "$" as environment variable. 
+      //
       while(cont && iter.hasNext()){
-        DataAccess.Variable variable = iter.next();
+        DataAccess.Variable<Object> variable = iter.next();
         String name = variable.name();
         String value = variable.value().toString();
         if(name.startsWith("$")){
@@ -1259,9 +1318,18 @@ public class ZGenExecuter {
           cont = false;
         }
       }
+      //
+      //currdir
+      //
       File currdir = (File)localVariables.get("currdir").value();
       cmdExecuter.setCurrentDir(currdir);
+      //
+      //execute, run other process on operation system. With or without wait.
+      //
       this.cmdErrorlevel = cmdExecuter.execute(args, statement.bShouldNotWait, null, outCmd, null);
+      //
+      //close
+      //
       cmdExecuter.close();
       setLocalVariable("cmdErrorlevel", 'N', new CalculatorExpr.Value(cmdErrorlevel), true);
     }
@@ -1910,7 +1978,7 @@ public class ZGenExecuter {
      * This text can be gotten by the "error" variable.
      */
     DataAccess.Variable<Object> error = new DataAccess.Variable<Object>('S', "error", null);
-    Exception exception;
+    Throwable exception;
     
     /**State of thread execution. 
      * <ul>

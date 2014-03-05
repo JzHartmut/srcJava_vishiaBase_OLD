@@ -528,6 +528,14 @@ public class FileSystem
   }
   
 
+  /**Returns the directory of the given file.
+   * Note that the {@link java.io.File#getParentFile()} does not return the directory if the File is described as a relative path
+   * which does not contain a directory. This method builds the absolute path of the input file and returns its directory. 
+   * @param file
+   * @return null if the file is the root directory. 
+   *   To distinguish whether the file is not exist or it is the root directory one can check file.exist().  
+   * throws FileNotFoundException if the file is not existing and therefore the directory of it is not able to build.
+   */
   public static File getDirectory(File file) throws FileNotFoundException
   { File dir;
     if(!file.exists()) throw new FileNotFoundException("not exists:" + file.getName());
@@ -540,7 +548,7 @@ public class FileSystem
   
   
   /**Returns the directory of the given file.
-   * The {@link java.io.File#getParentFile()} does not return the directory if the File is described as a relative path
+   * Note that the {@link java.io.File#getParentFile()} does not return the directory if the File is described as a relative path
    * which does not contain a directory. This method builds the absolute path of the input file and returns its directory. 
    * @param file
    * @return null if the file does not exists or the file is the root directory. 
@@ -758,6 +766,16 @@ public class FileSystem
     return cleanAbsolutePath(sAbs);
   }
   
+  
+  
+  /**Returns the normalized absolute path from a file. See {@link #normalizePath(CharSequence)}.
+   * @param file Any relative or absolute file.
+   * @return The returned CharSequence is a StringBuilder which is never referenced elsewhere
+   *   or it is a String.
+   */
+  public static CharSequence normalizePath(File file){
+    return normalizePath(file.getAbsolutePath());
+  }
   
   
   /**Cleans any /../ and /./ from a path, it makes it normalized or canonical.

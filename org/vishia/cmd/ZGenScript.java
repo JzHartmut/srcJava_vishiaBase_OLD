@@ -1,6 +1,7 @@
 package org.vishia.cmd;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -108,6 +109,9 @@ public class ZGenScript {
   final Map<String, Subroutine> subroutinesAll = new TreeMap<String, Subroutine>();
   
   
+  final Map<String, FilesetVariable> filesetVar = new TreeMap<String, FilesetVariable>();
+  
+  
   
   /**List of the script variables in order of creation in the jbat script file and all includes.
    * The script variables can contain inputs of other variables which are defined before.
@@ -124,6 +128,8 @@ public class ZGenScript {
   /**The script element for the whole file. It shall contain calling of <code><*subtext:name:...></code> 
    */
   Subroutine scriptFile;
+  
+  protected ZGenitem checkZGenFile;
   
   /**The class which presents the script level. */
   ZGenClass scriptClass;
@@ -164,6 +170,15 @@ public class ZGenScript {
   
   
   public Subroutine getSubtextScript(CharSequence name){ return subroutinesAll.get(name.toString()); }
+  
+  
+  public void writeStruct(Appendable out) throws IOException{
+    scriptFile.writeStruct(0, out);
+    for(Map.Entry<String, Subroutine> entry: subroutinesAll.entrySet()){
+      Subroutine sub = entry.getValue();
+      sub.writeStruct(0, out);
+    }
+  }
   
   
   public List<DefVariable> XXXgetListScriptVariables(){ return XXXlistScriptVariables; }
@@ -343,40 +358,94 @@ public class ZGenScript {
     }
     
     
-    @Override public String toString(){
-      switch(elementType){
-        case 't': return "text"; //textArg.toString();
-        /*
-        case 'S': return "String " + identArgJbat;
-        case 'J': return "Obj " + identArgJbat;
-        case 'P': return "Pipe " + identArgJbat;
-        case 'U': return "Buffer " + identArgJbat;
-        case 'o': return "(?outp." + textArg + "?)";
-        case 'i': return "(?inp." + textArg + "?)";
-        */
-        case 'e': return "<*" +   ">";  //expressions.get(0).dataAccess
-        //case 'g': return "<$" + path + ">";
-        //case 's': return "call " + identArgJbat;
-        case 'B': return "{ statementblock }";
-        case 'I': return "(?forInput?)...(/?)";
-        case 'L': return "(?forList "  + "?)";
-        case 'C': return "<:for:Container "  + "?)";
-        case 'F': return "if";
-        case 'G': return "elsif";
-        case 'N': return "<:hasNext> content <.hasNext>";
-        case 'E': return "else";
-        case 'Y': return "<:file>";
-        case 'b': return "break;";
-        case 'c': return "cmd;";
-        case 'm': return "move;";
-        case 'x': return "thread";
-        case 'y': return "copy";
-        case 'z': return "exit";
-        case '=': return "assignExpr";
-        case '+': return "appendExpr";
-        //case 'X': return "call " + identArgJbat ;
-        default: return "(??" + elementType + " " + "?)";
+    static String sindentA = "                                                                               "; 
+    
+    /**Writes a complete readable information about this item with all nested information.
+     * @param indent
+     * @param out
+     * @throws IOException
+     */
+    final void writeStruct(int indent, Appendable out) throws IOException{
+      String sIndent= (2*indent < sindentA.length()-2) ? sindentA.substring(0, 2*indent) : sindentA;
+      out.append(sIndent);
+      writeStructLine(out);
+      writeStructAdd(indent, out);
+      if(textArg !=null){
+        out.append("\"").append(textArg).append("\"");
       }
+      if(dataAccess !=null){
+        dataAccess.writeStruct(out);
+      }
+      if(expression !=null){
+        String sExpr = expression.toString();
+        out.append(sExpr);
+      }
+      out.append("\n");
+      if(statementlist !=null){
+        for(ZGenitem item: statementlist.statements){
+          item.writeStruct(indent+1, out);
+        }
+      }
+    }
+    
+    /**Prepares information in following lines if necessary. It is possible to append in the only one line too.
+     * This routine have to be append a newline at last.
+     * @param indent
+     * @param out
+     * @throws IOException
+     */
+    void writeStructAdd(int indent, Appendable out) throws IOException{  }
+    
+    
+    /**Prepares the information about the ZGenitem in one line. A newline is not appended here! 
+     * This routine is called in {@link #toString()} and in {@link #writeStruct(int, Appendable)}.
+     * It should be called in all overridden routines with super.writeStructLine
+     * for the derived statement types. 
+     * @param u 
+     * @throws IOException
+     */
+    void writeStructLine(Appendable u) throws IOException {
+      u.append(" @").append(Integer.toString(srcLine)).append(",").append(Integer.toString(srcColumn)).append(':').append(elementType);
+      switch(elementType){
+        case 't': u.append(" text \"").append(textArg).append("\""); break;
+        /*
+        case 'S': u.append("String " + identArgJbat;
+        case 'J': u.append("Obj " + identArgJbat;
+        case 'P': u.append("Pipe " + identArgJbat;
+        case 'U': u.append("Buffer " + identArgJbat;
+        case 'o': u.append("(?outp." + textArg + "?)";
+        case 'i': u.append("(?inp." + textArg + "?)";
+        */
+        case 'e': u.append(" <*)"); break;  //expressions.get(0).dataAccess
+        //case 'g': u.append("<$" + path + ">";
+        //case 's': u.append("call " + identArgJbat;
+        case 'B': u.append(" { statementblock }"); break;
+        case 'I': u.append(" (?forInput?)...(/?)"); break;
+        case 'L': u.append(" (?forList "  + "?)"); break;
+        case 'C': u.append(" <:for:Container "  + "?)"); break;
+        case 'f': u.append(" if "); break;
+        case 'F': u.append(" Fileset "); break;
+        case 'G': u.append(" elsif "); break;
+        case 'N': u.append(" <:hasNext> content <.hasNext>"); break;
+        case 'E': u.append(" else "); break;
+        case 'Y': u.append(" <:file> "); break;
+        case 'b': u.append(" break; "); break;
+        case 'c': u.append(" cmd "); break;
+        case 'm': u.append(" move "); break;
+        case 'x': u.append(" thread "); break;
+        case 'y': u.append(" copy "); break;
+        case 'z': u.append(" exit "); break;
+        //case 'X': u.append(" call " + identArgJbat ;
+        default: //do nothing. Fo in overridden method.
+      }
+
+    }
+    
+    
+    @Override public String toString(){
+      StringBuilder u = new StringBuilder();
+      try{ writeStructLine(u); } catch(IOException exc){} //append on StringBuilder has not a IOException!
+      return u.toString();
     }
 
   }
@@ -489,8 +558,17 @@ public class ZGenScript {
       if(fnArgsExpr == null){ fnArgsExpr = new ArrayList<ZGenitem>(); }
       fnArgsExpr.add(val);
     } 
+
     
-   
+    public void writeStruct(int indent, Appendable out) throws IOException {
+      out.append(ident).append(':').append(whatisit);
+      if(fnArgsExpr!=null){
+        String sep = "(";
+        for(ZGenitem arg: fnArgsExpr){
+          arg.writeStruct(indent+1, out);
+        }
+      }
+    }
   }
   
   
@@ -516,8 +594,231 @@ public class ZGenScript {
   
   
   
+  /**A < fileset> in the ZmakeStd.zbnf. It is assigned to a script variable if it was created by parsing the ZmakeUserScript.
+   * If the fileset is used in a target, it is associated to the target to get the absolute paths of the files
+   * temporary while processing that target.
+   * <br><br>
+   * The Zbnf syntax for parsing is defined as
+   * <pre>
+   * fileset::= { basepath = <file?basepath> | <file> ? , }.
+   * </pre>
+   * The <code>basepath</code> is a general path for all files which is the basepath (in opposite to localpath of each file)
+   * or which is a pre-basepath if any file is given with basepath.
+   * <br><br>
+   * Uml-Notation see {@link org.vishia.util.Docu_UML_simpleNotation}:
+   * <pre>
+   *               UserFileset
+   *                    |------------commonBasepath-------->{@link UserFilepath}
+   *                    |
+   *                    |------------filesOfFileset-------*>{@link UserFilepath}
+   *                                                        -drive:
+   *                                                        -absPath: boolean
+   *                                                        -basepath
+   *                                                        -localdir
+   *                                                        -name
+   *                                                        -someFiles: boolean
+   *                                                        -ext
+   * </pre>
+   * 
+   */
+  public static class UserFileset extends DefVariable
+  {
+    
+    final ZGenScript script;
+    
+    /**From ZBNF basepath = <""?!prepSrcpath>. It is a part of the base path anyway. It may be absolute, but usually relative. 
+     * If null then unused. */
+    UserFilepath commonBasepath;
+    
+    /**From ZBNF srcext = <""?srcext>. If null then unused. */
+    //public String srcext;
+    
+    
+    /**All entries of the file set how it is given in the users script. */
+    List<UserFilepath> filesOfFileset = new LinkedList<UserFilepath>();
+    
+    UserFileset(StatementList parentList, ZGenScript script){
+      super(parentList, 'F');
+      this.script = script;
+    }
+    
+    
+    public UserFileset(StatementList parentList){
+      super(parentList, 'F');
+      this.script = null;
+    }
+    
+    
+    public void set_name(String name){
+      DataAccess.DataAccessSet dataAccess1 = new DataAccess.DataAccessSet();
+      this.dataAccess = dataAccess1;
+      dataAccess1.set_startVariable(name);
+    }
+    
+    
+    /**From Zbnf: srcpath = <""?!prepSrcpath>.
+     * It sets the base path for all files of this fileset. This basepath is usually relative.
+     * @return ZBNF component.
+     */
+    public ZbnfUserFilepath new_commonpath(){ return new ZbnfUserFilepath(script); }  //NOTE: it has not a parent. this is not its parent!
+    public void set_commonpath(ZbnfUserFilepath val){ commonBasepath = val.filepath; }
+    
+    /**From ZBNF: < file>. */
+    public ZbnfUserFilepath new_file(){ return new ZbnfUserFilepath(script); }
+    
+    /**From ZBNF: < file>. */
+    public void add_file(ZbnfUserFilepath valz){ 
+      UserFilepath val =valz.filepath;
+      if(val.basepath !=null || val.localdir.length() >0 || val.name.length() >0 || val.drive !=null){
+        //only if any field is set. not on empty val
+        filesOfFileset.add(val); 
+      }
+    }
+    
+    
+    /*
+    void listFilesExpanded(List<UserFilepath> files, UserFilepath accesspath, boolean expandFiles) {  ////
+      for(UserFilepath filepath: filesOfFileset){
+        if(expandFiles && (filepath.someFiles || filepath.allTree)){
+          filepath.expandFiles(files, commonBasepath, accesspath, null);  //TODO script.currDir);
+        } else {
+          //clone filepath! add srcpath
+          UserFilepath targetsrc = new UserFilepath(script, filepath, commonBasepath, accesspath);
+          files.add(targetsrc);
+        }
+      }
+    }
+    
+    public List<UserFilepath> listFilesExpanded(UserFilepath accesspath, boolean expandFiles) { 
+      List<UserFilepath> files = new LinkedList<UserFilepath>();
+      listFilesExpanded(files, accesspath, expandFiles);
+      return files;
+    }
+    
+    
+    public List<UserFilepath> listFilesExpanded() { return listFilesExpanded(null, true); }
+
+    */
+      
+      
+    @Override
+    public String toString(){ 
+      StringBuilder u = new StringBuilder();
+      if(commonBasepath !=null) u.append("basepath="+commonBasepath+", ");
+      u.append(filesOfFileset);
+      return u.toString();
+    }
+  }
   
   
+ 
+  
+  
+  public static class UserFilepath {
+  
+  
+    /**From ZBNF: $<$?scriptVariable>. If given, then the {@link #basePath()} starts with it. It is an absolute path then. */
+    String scriptVariable, envVariable;
+    
+    String drive;
+    /**From Zbnf: [ [/|\\]<?@absPath>]. Set if the path starts with '/' or '\' maybe after drive letter. */
+    boolean absPath;
+    
+    /**Path-part before a ':'. It is null if the basepath is not given. */
+    String basepath;
+    
+    /**Localpath after ':' or the whole path. It is an empty "" if a directory is not given. 
+     * It does not contain a separating slash on end. */
+    String localdir = "";
+    
+    /**From Zbnf: The filename without extension. */
+    String name = "";
+    
+    
+    /**From Zbnf: The extension inclusive the leading dot. */
+    String ext = "";
+    
+    boolean allTree, someFiles;
+    
+
+  
+  
+  }
+  
+  
+  
+  /**This class is used only temporary while processing the parse result into a instance of {@link UserFilepath}
+   * while running {@link ZbnfJavaOutput}. 
+   */
+  public static class ZbnfUserFilepath{
+    
+    /**The instance which are filled with the components content. It is used for the user's data tree. */
+    final UserFilepath filepath;
+    
+    
+    ZbnfUserFilepath( ZGenScript script){
+      filepath = new UserFilepath();
+    }
+    
+    /**FromZbnf. */
+    public void set_drive(String val){ filepath.drive = val; }
+    
+    
+    /**FromZbnf. */
+    public void set_absPath(){ filepath.absPath = true; }
+    
+    /**FromZbnf. */
+    public void set_scriptVariable(String val){ filepath.scriptVariable = val; }
+    
+    
+    /**FromZbnf. */
+    public void set_envVariable(String val){ filepath.envVariable = val; }
+    
+    
+
+    
+    //public void set_someFiles(){ someFiles = true; }
+    //public void set_wildcardExt(){ wildcardExt = true; }
+    //public void set_allTree(){ allTree = true; }
+    
+    /**FromZbnf. */
+    public void set_pathbase(String val){
+      filepath.basepath = val.replace('\\', '/');   //file is empty and ext does not start with dot. It is a filename without extension.
+      filepath.allTree = val.indexOf('*')>=0;
+    }
+    
+    /**FromZbnf. */
+    public void set_path(String val){
+      filepath.localdir = val.replace('\\', '/');   //file is empty and ext does not start with dot. It is a filename without extension.
+      filepath.allTree = val.indexOf('*')>=0;
+    }
+    
+    /**FromZbnf. */
+    public void set_name(String val){
+      filepath.name = val;   //file is empty and ext does not start with dot. It is a filename without extension.
+      filepath.someFiles |= val.indexOf('*')>=0;
+    }
+    
+    /**FromZbnf. If the name is empty, it is not the extension but the name.*/
+    public void set_ext(String val){
+      if(val.equals(".") && filepath.name.equals(".")){
+        filepath.name = "..";
+        //filepath.localdir += "../";
+      }
+      else if((val.length() >0 && val.charAt(0) == '.') || filepath.name.length() >0  ){ 
+        filepath.ext = val;  // it is really the extension 
+      } else { 
+        //a file name is not given, only an extension is parsed. Use it as file name because it is not an extension!
+        filepath.name = val;   //file is empty and ext does not start with dot. It is a filename without extension.
+      }
+      filepath.someFiles |= val.indexOf('*')>=0;
+    }
+    
+
+  }
+  
+  
+
   
   
   /**An element of the script, maybe a simple text, an condition etc.
@@ -955,7 +1256,7 @@ public class ZGenScript {
       case 'I': return "(?forInput?)...(/?)";
       case 'L': return "(?forList "  + "?)";
       case 'C': return "<:for:Container "  + "?)";
-      case 'F': return "if";
+      case 'f': return "if";
       case 'G': return "elsif";
       case 'N': return "<:hasNext> content <.hasNext>";
       case 'E': return "else";
@@ -993,6 +1294,40 @@ public class ZGenScript {
   }
   
   
+
+  
+  
+  /**A < variable> in the ZmakeStd.zbnf is
+   * variable::=<$?@name> = [ fileset ( <fileset> ) | <string>  } ].
+   *
+   */
+  public static class FilesetVariable extends ZGenScript.Argument
+  { //final UserScript script;
+    public FilesetVariable(StatementList parentList)
+    {
+      super(parentList);
+      // TODO Auto-generated constructor stub
+    }
+
+    public CharSequence text(){ return null; }
+    
+    //public String name;
+    UserFileset fileset;
+    
+    UserFilepath filepath;
+    
+    
+    //JbatGenScript.Expression expression;
+    
+    //public UserString string;
+    
+  }
+
+  
+  
+  
+  
+  
   
   public static class DefVariable extends ZGenitem
   {
@@ -1013,8 +1348,8 @@ public class ZGenScript {
     public ZGenDataAccess new_defVariable(){ return new ZGenDataAccess(); }
     
     public void add_defVariable(ZGenDataAccess val){   
-      int whichStatement = "SPULJKQWMC".indexOf(elementType);
-      char whichVariableType = "SPULOKQAMO".charAt(whichStatement);  //from elementType to variable type.
+      int whichStatement = "SPULJKQWMCF".indexOf(elementType);
+      char whichVariableType = "SPULOKQAMOF".charAt(whichStatement);  //from elementType to variable type.
       val.setTypeToLastElement(whichVariableType);
       defVariable = val;
     }
@@ -1043,9 +1378,12 @@ public class ZGenScript {
     }
     
     
-    //public void set_name(String name){ this.name = name; }
+    @Override void writeStructLine(Appendable out) throws IOException {
+      super.writeStructLine(out);
+      out.append(" Defvariable ").append(defVariable.toString());
+    }
 
-    @Override public String toString(){ return "ZGen-DefVariable " + elementType + ":"+ defVariable; }
+    @Override public String toString(){ return elementType + "=" + "DefVariable " + ":"+ defVariable; }
     
   };
   
@@ -1085,6 +1423,20 @@ public class ZGenScript {
       if(elementType == '='){ elementType = '+'; }
       else throw new IllegalArgumentException("ZGenScript - unexpected set_append");
     }
+    
+    
+    @Override void writeStructLine(Appendable out) throws IOException {
+      super.writeStructLine(out);
+      if(variable !=null){
+        out.append(" assign ");
+        variable.writeStruct(out);
+        out.append(" = ");        
+      } else {
+        out.append(" invoke ");
+      }
+    }
+
+    
     
     @Override public String toString(){ return  variable + " = " + super.toString(); }
   }
@@ -1337,6 +1689,24 @@ public class ZGenScript {
       formalArgs.add(val); 
     } 
     
+    @Override void writeStructAdd(int indent, Appendable out) throws IOException{
+      if(formalArgs !=null){
+        for(DefVariable item: formalArgs){
+          item.writeStruct(indent+1, out);
+        }
+      }
+      out.append(")\n");
+    }
+    
+    
+    @Override void writeStructLine(Appendable out) throws IOException {
+      super.writeStructLine(out);
+      if(name==null){
+        out.append(" main(");
+      } else {
+        out.append(" sub ").append(name).append("(");
+      }
+    }
 
     
   };
@@ -1371,6 +1741,18 @@ public class ZGenScript {
       if(actualArgs == null){ actualArgs = new ArrayList<Argument>(); }
       actualArgs.add(val); }
     
+    
+    @Override void writeStructAdd(int indent, Appendable out) throws IOException{
+      callName.writeStruct(0, out);
+      if(actualArgs !=null){
+        for(Argument item: actualArgs){
+          item.writeStruct(indent+1, out);
+        }
+      }
+      out.append("\n");
+    }
+    
+
   };
   
   
@@ -1401,6 +1783,7 @@ public class ZGenScript {
     /**The variable which should be created or to which a value is assigned to. */
     public DataAccess inputPipe;
     
+    boolean bCmdCheck;
 
     public boolean bShouldNotWait;
 
@@ -1416,7 +1799,9 @@ public class ZGenScript {
       if(cmdArgs == null){ cmdArgs = new ArrayList<ZGenitem>(); }
       cmdArgs.add(val); 
     }
-     
+    
+    
+    public void set_argsCheck(){ bCmdCheck = true; }
 
   }
   
@@ -1704,6 +2089,19 @@ public class ZGenScript {
       withoutOnerror.add(val);
     }
     
+    /**Defines a variable which is able to use as Appendable, it is a Writer.
+     */
+    public UserFileset new_Filesetdef(){
+      bContainsVariableDef = true; 
+      return new UserFileset(this, null); 
+    } 
+
+    public void add_Filesetdef(UserFileset val){ 
+      statements.add(val);  
+      onerrorAccu = null; 
+      withoutOnerror.add(val);
+    }
+    
     /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
      */
     public DefVariable new_DefObjVar(){ 
@@ -1894,7 +2292,7 @@ public class ZGenScript {
     
     public IfStatement new_ifCtrl(){
       StatementList subGenContent = new StatementList(parentStatement);
-      IfStatement statement = new IfStatement(this, 'F');
+      IfStatement statement = new IfStatement(this, 'f');
       statement.statementlist = subGenContent;  //The statement contains a genContent. 
       return statement;
 
@@ -2165,6 +2563,10 @@ public class ZGenScript {
     public void add_mainScript(StatementList val){  }
     
     
+    
+    public ZGenitem new_checkZGen(){ return new ZGenitem(this, '\0'); } 
+
+    public void add_checkZGen(ZGenitem val){ outer.checkZGenFile = val; }
 
   }
   

@@ -683,12 +683,12 @@ public class Copy_FileLocalAccJava7
     //actData = checkedFiles.poll();  //start with the first entry.
     actData = new DataSetCopy1Recurs(null);
     actData.src = fileSrc;
-    if(bOnlyOneFile && dirDst.exists() && dirDst.isDirectory()){
+    if(bOnlyOneFile && dirDst !=null && dirDst.exists() && dirDst.isDirectory()){
       String sName = actData.src.getName();
       FileRemote fileDst = dirDst == null ? null : dirDst.child(sName); 
       actData.dst = fileDst;                                 //complete actData with dst.
     } else {
-      actData.dst = dirDst;  //it is a file.
+      actData.dst = dirDst;  //it is a file. Or null on delete (no dst necessary)
     }
     /*
     if(actData !=null){
