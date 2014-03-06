@@ -368,13 +368,17 @@ public class DataAccess {
    * The argument path contains elements, which describes the access path.
    * <ul>
    * <li>The datapath can start with an element designated with {@link DatapathElement#whatisit} == '$'. 
-   *   Then the result of the access is the String representation of the environment variable of the operation system
-   *   or null if that environment variable is not found. Only this element of datapath is used, it should be the only one usual. 
+   *   Then the result is searched first in the given dataPool with '$' on start of identifier.
+   *   Note that the name of the variable in {@link DatapathElement#ident} usual does not start with '$' itself.
+   *   If it is found, the dataPool contains this environment variable too, it is valid.
+   *   if it is not found (normal case), then the result of the access is the String representation of 
+   *   the environment variable of the operation system or null if that environment variable is not found. 
+   *   Only this element of datapath is used, it should be the only one usual. 
    * <li>The datapath can start with an optional ,,startVariable,, as {@link DatapathElement#whatisit} == '@'. 
    *   Then the param dataPool should provide additional data references, which are addressed by the  {@link DatapathElement#ident}
    *   of the first element.
-   * <li>If the datapath does not start with a ,,startVariable,, or it is not an environment variable access, the access starts 
-   *   on the given datapool. 
+   * <li>If the datapath does not start with a ,,startVariable,, and it is not an environment variable access, 
+   *   the access starts on the given dataRoot object. 
    * </ul>
    * The elements of datapath describe the access to data. Any element before supplies a reference for the path 
    * of the next element.
@@ -455,7 +459,7 @@ public class DataAccess {
   //throws ReflectiveOperationException  //only Java7
   throws Exception
   {
-    Object data1;  //the currently instance of each element.
+    Object data1 = null;  //the currently instance of each element.
     Iterator<DatapathElement> iter = datapath.iterator();
     DatapathElement element = iter.next();
     //if(element.constValue !=null){
@@ -468,7 +472,12 @@ public class DataAccess {
     }
     //get the start instance:
     if(element.whatisit == '$'){
-      data1 = System.getenv(element.ident);
+      if(dataPool !=null){
+        data1 = dataPool.get("$" + element.ident);
+      }
+      if(data1 == null){
+        data1 = System.getenv(element.ident);
+      }
       if(data1 == null) {
         data1 = System.getProperty(element.ident);  //read from Java system property
       }

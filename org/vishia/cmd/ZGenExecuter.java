@@ -48,6 +48,7 @@ public class ZGenExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined here. Only one concept!
    * <li>2014-03-01 Hartmut new: {@link ExecuteLevel#execForContainer(org.vishia.cmd.ZGenScript.ForStatement, Appendable, int)}
    *   now supports arrays as container too.
    * <li>2014-03-01 Hartmut new: !argsCheck! functionality.  
@@ -129,7 +130,7 @@ public class ZGenExecuter {
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String sVersion = "2014-01-12";
+  static final public String sVersion = "2014-03-07";
 
   /**Variable for any exception while accessing any java resources. It is the $error variable of the script. */
   protected String accessError = null;
@@ -640,6 +641,23 @@ public class ZGenExecuter {
     public MainCmdLogging_ifc log(){ return log; }
     
     
+    
+    public File currdir(){
+      return (File)localVariables.get("currdir").value();
+    }
+    
+    /**Returns the current directory with slash on end.
+     * @return a StringBuilder instance which is not referenced elsewhere.
+     */
+    public CharSequence sCurrdir(){
+      CharSequence ret = FileSystem.normalizePath((File)localVariables.get("currdir").value());
+      if(!(ret instanceof StringBuilder)){
+        ret = new StringBuilder(ret);
+      }
+      ((StringBuilder)ret).append('/');
+      return ret;
+    }
+    
     public void setLocalVariable(String name, char type, Object content, boolean isConst) 
     throws IllegalAccessException {
       DataAccess.createOrReplaceVariable(localVariables, name, type, content, isConst);
@@ -730,7 +748,7 @@ public class ZGenExecuter {
             executeDefVariable((ZGenScript.DefVariable)statement, 'Q', cond, false);
           } break;
           case 'e': executeDatatext((ZGenScript.DataText)statement, out); break; 
-          case 's': execSubroutine((ZGenScript.CallStatement)statement, out, indentOut); break;  //sub
+          case 's': execSubroutine((ZGenScript.CallStatement)statement, null, out, indentOut); break;  //sub
           case 'x': executeThread((ZGenScript.ThreadBlock)statement); break;             //thread
           case 'm': executeMove((ZGenScript.CallStatement)statement); break;             //move
           case 'y': executeCopy((ZGenScript.CallStatement)statement); break;             //copy
@@ -752,8 +770,9 @@ public class ZGenExecuter {
           case 'b': isBreak = true; ret = ZGenExecuter.kBreak; break;
           case '#': ret = execCmdError((ZGenScript.Onerror)statement, out, indentOut); break;
           case 'F': createFileSet((ZGenScript.UserFileset) statement); break;
+          case 'Z': execZmake((ZGenScript.Zmake) statement, out, indentOut); break;
           default: 
-            uBuffer.append("Jbat - execute-unknown type; '" + statement.elementType() + "' :ERROR=== ");
+            uBuffer.append("ZGen - execute-unknown type; '" + statement.elementType() + "' :ERROR=== ");
           }//switch
           
         } catch(Exception exc){
@@ -1105,7 +1124,8 @@ public class ZGenExecuter {
     
     
     
-    private int execSubroutine(ZGenScript.CallStatement callStatement, Appendable out, int indentOut) 
+    private int execSubroutine(ZGenScript.CallStatement callStatement, List<DataAccess.Variable<Object>> additionalArgs
+        , Appendable out, int indentOut) 
     throws IllegalArgumentException, Exception
     { int success = kSuccess;
       boolean ok = true;
@@ -1123,14 +1143,14 @@ public class ZGenExecuter {
       if(subtextScript == null){
         throw new NoSuchElementException("JbatExecuter - subroutine not found; " + nameSubtext);
       } else {
-        ExecuteLevel subtextGenerator = new ExecuteLevel(threadData, this, null);
+        ExecuteLevel sublevel = new ExecuteLevel(threadData, this, null);
         if(subtextScript.formalArgs !=null){
           //
           //build a Map temporary to check which arguments are used:
           //
-          TreeMap<String, CheckArgument> check = new TreeMap<String, CheckArgument>();
+          TreeMap<String, ZGenScript.DefVariable> check = new TreeMap<String, ZGenScript.DefVariable>();
           for(ZGenScript.DefVariable formalArg: subtextScript.formalArgs) {
-            check.put(formalArg.getVariableIdent(), new CheckArgument(formalArg));
+            check.put(formalArg.getVariableIdent(), formalArg);
           }
           //
           //process all actual arguments:
@@ -1140,40 +1160,53 @@ public class ZGenExecuter {
             for( ZGenScript.Argument actualArg: actualArgs){  //process all actual arguments
               Object ref;
               ref = evalObject(actualArg, false);
-              CheckArgument checkArg = check.get(actualArg.getIdent());      //is it a requested argument (per name)?
+              ZGenScript.DefVariable checkArg = check.remove(actualArg.getIdent());      //is it a requested argument (per name)?
               if(checkArg == null){
-                ok = writeError("??: *subtext;" + nameSubtext + ": " + actualArg.identArgJbat + " faulty argument.?? ", out);
+                ok = writeError("ZGen.execCall - unexpected argument;" + nameSubtext + ": " + actualArg.identArgJbat, out);
               } else {
-                checkArg.used = true;    //requested and resolved.
-                char cType = checkArg.formalArg.elementType();
+                char cType = checkArg.elementType();
                 //creates the argument variable with given actual value and the requested type in the sub level.
-                DataAccess.createOrReplaceVariable(subtextGenerator.localVariables, actualArg.identArgJbat, cType, ref, false);
+                DataAccess.createOrReplaceVariable(sublevel.localVariables, actualArg.identArgJbat, cType, ref, false);
+              }
+            }
+          }
+          //
+          //process additional arguments
+          //
+          if(additionalArgs !=null){
+            for(DataAccess.Variable<Object> arg: additionalArgs){
+              String name = arg.name();
+              ZGenScript.DefVariable checkArg = check.remove(name);      //is it a requested argument (per name)?
+              if(checkArg == null){
+                ok = writeError("ZGen.execCall - unexpected argument;" + nameSubtext + ": " + name, out);
+              } else {
+                char cType = checkArg.elementType();
+                //creates the argument variable with given actual value and the requested type in the sub level.
+                DataAccess.createOrReplaceVariable(sublevel.localVariables, name, cType, arg.value(), false);
               }
             }
           }
           //check whether all formal arguments are given with actual args or get its default values.
           //if not all variables are correct, write error.
-          for(Map.Entry<String, CheckArgument> checkArg : check.entrySet()){
-            CheckArgument arg = checkArg.getValue();
-            if(!arg.used){
-              //Generate on scriptLevel (classLevel) because the formal parameter list should not know things of the calling environment.
-              Object ref = scriptLevel.evalObject(arg.formalArg, false);
-              String name = arg.formalArg.getVariableIdent();
-              char cType = arg.formalArg.elementType();
-              //creates the argument variable with given default value and the requested type.
-              DataAccess.createOrReplaceVariable(localVariables, name, cType, ref, false);
-            }
+          for(Map.Entry<String, ZGenScript.DefVariable> checkArg : check.entrySet()){
+            ZGenScript.DefVariable arg = checkArg.getValue();
+            //Generate on scriptLevel (classLevel) because the formal parameter list should not know things of the calling environment.
+            Object ref = scriptLevel.evalObject(arg, false);
+            String name = arg.getVariableIdent();
+            char cType = arg.elementType();
+            //creates the argument variable with given default value and the requested type.
+            DataAccess.createOrReplaceVariable(sublevel.localVariables, name, cType, ref, false);
           }
         } else if(callStatement.actualArgs !=null){
           ok = writeError("??: call" + nameSubtext + " called with arguments, it has not one.??", out);
         }
         if(ok){
-          success = subtextGenerator.execute(subtextScript.statementlist, out, indentOut, false);
+          success = sublevel.execute(subtextScript.statementlist, out, indentOut, false);
           if(success == kBreak || success == kReturn){
             success = kSuccess;  //break or return in subroutine ignored on calling level!
           }
           if(callStatement.variable !=null || callStatement.assignObjs !=null){
-            DataAccess.Variable<Object> retVar = subtextGenerator.localVariables.get("return");
+            DataAccess.Variable<Object> retVar = sublevel.localVariables.get("return");
             Object value = retVar !=null ? retVar.value() : null;
             assignObj(callStatement, value, false);
           }
@@ -1181,6 +1214,53 @@ public class ZGenExecuter {
       }
       return success;
     }
+    
+   
+    
+    
+    
+    
+    
+    /**Executes a Zmake subroutine call. Additional to {@link #execSubroutine(org.vishia.cmd.ZGenScript.CallStatement, ExecuteLevel, Appendable, int)}
+     * a {@link ZmakeTarget} will be prepared and stored as 'target' in the localVariables of the sublevel.
+     * @param statement
+     * @param out
+     * @param indentOut
+     * @throws IllegalArgumentException
+     * @throws Exception
+     */
+    private void execZmake(ZGenScript.Zmake statement, Appendable out, int indentOut) 
+    throws IllegalArgumentException, Exception {
+      ZmakeTarget target = new ZmakeTarget(this);
+      target.output = new ZGenFilepath(this, statement.output);  //prepare to ready-to-use form.
+      for(ZGenScript.ZmakeInput input: statement.input){
+        //search the named file set. It is stored in a ready-to-use form in any variable.
+        DataAccess.Variable<Object> filesetV = localVariables.get(input.zmakeFilesetName);
+        if(filesetV == null) throw new NoSuchFieldException("ZGen.execZmake - fileset not found;" + input.zmakeFilesetName);
+        Object filesetO = filesetV.value();
+        if(!(filesetO instanceof ZGenFileset)) throw new NoSuchFieldException("ZGen.execZmake - fileset faulty type;" + input.zmakeFilesetName);
+        //store the file set and the path before:
+        ZmakeTarget.Input zinput = new ZmakeTarget.Input();
+        zinput.fileset = (ZGenFileset) filesetO;
+        if(input.zmakeInputDir !=null){
+          zinput.dir = new ZGenFilepath(this, input.zmakeInputDir);
+        }
+        if(target.inputs ==null){ target.inputs = new ArrayList<ZmakeTarget.Input>(); }
+        target.inputs.add(zinput);
+      }
+      //Build a temporary list only with the 'target=target' as additionalArgs for the subroutine call
+      List<DataAccess.Variable<Object>> args = new LinkedList<DataAccess.Variable<Object>>();
+      DataAccess.Variable<Object> targetV = new DataAccess.Variable<Object>('O',"target", target, true);
+      args.add(targetV);
+      //
+      //same as a normal subroutine.
+      execSubroutine(statement, args, out, indentOut);
+    }
+    
+    
+    
+    
+    
     
     
     
@@ -1826,7 +1906,7 @@ public class ZGenExecuter {
         //obj = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
       } else if(arg.statementlist !=null){
         StringPartAppend u = new StringPartAppend();
-        executeNewlevel(arg.statementlist, u, arg.statementlist.indent, false);
+        executeNewlevel(arg.statementlist, u, arg.statementlist.indentText, false);
         obj = u.toString();
       } else if(arg.expression !=null){
         CalculatorExpr.Value value = calculateExpression(arg.expression); //.calcDataAccess(localVariables);
@@ -1945,20 +2025,6 @@ public class ZGenExecuter {
   
   
   
-
-  
-  /**Class only to check argument lists and use default values for arguments. */
-  private class CheckArgument
-  {
-    /**Reference to the formal argument. */
-    final ZGenScript.DefVariable formalArg;
-    
-    /**Set to true if this argument is used. */
-    boolean used;
-    
-    CheckArgument(ZGenScript.DefVariable formalArg){ this.formalArg = formalArg; }
-  }
-  
   
   void stop(){
     
@@ -2060,6 +2126,8 @@ public class ZGenExecuter {
       this.exitLevel = exitLevel;
     }
   }
+  
+  
   
   
   

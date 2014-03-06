@@ -29,6 +29,7 @@ import org.vishia.util.StringFunctions;
 public class ZGenScript {
   /**Version, history and license.
    * <ul>
+   * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined here. Only one concept!
    * <li>2014-02-22 Hartmut new: Bool and Num as variable types.
    * <li>2014-02-16 Hartmut: new {@link #fileScript} stored here. 
    * <li>2014-01-01 Hartmut re-engineering: {@link ZGenitem} has one of 4 active associations for its content.
@@ -117,8 +118,8 @@ public class ZGenScript {
    * The script variables can contain inputs of other variables which are defined before.
    * Therefore the order is important.
    * This list is stored firstly in the {@link StatementList#statements} in an instance of 
-   * {@link ZbnfMainGenCtrl} and then transferred from all includes and from the main script 
-   * to this container because the {@link ZbnfMainGenCtrl} is only temporary and a ensemble of all
+   * {@link ZbnfZGenScript} and then transferred from all includes and from the main script 
+   * to this container because the {@link ZbnfZGenScript} is only temporary and a ensemble of all
    * Statements should be present from all included files. The statements do not contain
    * any other type of statement than script variables because only ScriptVariables are admissible
    * in the syntax. Outside of subroutines and main there should only exist variable definitions. 
@@ -127,7 +128,7 @@ public class ZGenScript {
 
   /**The script element for the whole file. It shall contain calling of <code><*subtext:name:...></code> 
    */
-  Subroutine scriptFile;
+  Subroutine mainRoutine;
   
   protected ZGenitem checkZGenFile;
   
@@ -143,17 +144,17 @@ public class ZGenScript {
   }
 
   
-  public void setMainRoutine(Subroutine scriptFile){
-    this.scriptFile = scriptFile;
+  public void setMainRoutine(Subroutine mainRoutine){
+    this.mainRoutine = mainRoutine;
   }
   
   public ZGenClass scriptClass(){ return scriptClass; }
   
   
-  public void setFromIncludedScript(ZbnfMainGenCtrl includedScript){
-    if(includedScript.getMainRoutine() !=null){
+  public void XXXsetFromIncludedScript(ZbnfZGenScript includedScript){
+    if(includedScript.scriptfile.getMainRoutine() !=null){
       //use the last found main, also from a included script but firstly from main.
-      scriptFile = includedScript.getMainRoutine();   
+      mainRoutine = includedScript.scriptfile.getMainRoutine();   
     }
     if(includedScript.outer.scriptClass.statements !=null){
       for(ZGenitem item: includedScript.outer.scriptClass.statements){
@@ -166,18 +167,15 @@ public class ZGenScript {
 
   }
   
-  public final Subroutine getMain(){ return scriptFile; }
+  public final Subroutine getMain(){ return mainRoutine; }
   
   
   public Subroutine getSubtextScript(CharSequence name){ return subroutinesAll.get(name.toString()); }
   
   
   public void writeStruct(Appendable out) throws IOException{
-    scriptFile.writeStruct(0, out);
-    for(Map.Entry<String, Subroutine> entry: subroutinesAll.entrySet()){
-      Subroutine sub = entry.getValue();
-      sub.writeStruct(0, out);
-    }
+    //mainRoutine.writeStruct(0, out);
+    scriptClass.writeStruct(0, out);
   }
   
   
@@ -660,11 +658,11 @@ public class ZGenScript {
      * It sets the base path for all files of this fileset. This basepath is usually relative.
      * @return ZBNF component.
      */
-    public ZbnfUserFilepath new_commonpath(){ return new ZbnfUserFilepath(script); }  //NOTE: it has not a parent. this is not its parent!
+    public ZbnfUserFilepath new_commonpath(){ return new ZbnfUserFilepath(); }  //NOTE: it has not a parent. this is not its parent!
     public void set_commonpath(ZbnfUserFilepath val){ commonBasepath = val.filepath; }
     
     /**From ZBNF: < file>. */
-    public ZbnfUserFilepath new_file(){ return new ZbnfUserFilepath(script); }
+    public ZbnfUserFilepath new_file(){ return new ZbnfUserFilepath(); }
     
     /**From ZBNF: < file>. */
     public void add_file(ZbnfUserFilepath valz){ 
@@ -756,7 +754,7 @@ public class ZGenScript {
     final UserFilepath filepath;
     
     
-    ZbnfUserFilepath( ZGenScript script){
+    ZbnfUserFilepath(){
       filepath = new UserFilepath();
     }
     
@@ -819,6 +817,46 @@ public class ZGenScript {
   
   
 
+  public static class Zmake extends CallStatement {
+
+    
+    UserFilepath output;
+    
+    List<ZmakeInput> input = new ArrayList<ZmakeInput>();
+    
+    Zmake(StatementList parentList)
+    { super(parentList, 'Z');
+    }
+    
+    
+    public ZbnfUserFilepath new_output(){
+      return new ZbnfUserFilepath();
+    }
+    
+    public void add_output(ZbnfUserFilepath val){ output = val.filepath; }
+    
+    
+    public ZmakeInput new_zmakeInput(){ return new ZmakeInput(); }
+    
+    public void add_zmakeInput(ZmakeInput val){ input.add(val); };
+    
+    
+  }
+  
+  
+  
+  public static class ZmakeInput {
+    
+    public String zmakeFilesetName;
+    
+    UserFilepath zmakeInputDir;
+    
+    
+    public ZbnfUserFilepath new_zmakeInputDir(){ return new ZbnfUserFilepath(); }
+    
+    public void add_zmakeInputDir(ZbnfUserFilepath val){ zmakeInputDir = val.filepath; }
+  }
+  
   
   
   /**An element of the script, maybe a simple text, an condition etc.
@@ -1956,7 +1994,7 @@ public class ZGenScript {
     public boolean bContainsVariableDef;
 
     
-    int indent;
+    int indentText;
     
     /**Scripts for some local variable. This scripts where executed with current data on start of processing this genContent.
      * The generator stores the results in a Map<String, String> localVariable. 
@@ -1986,7 +2024,7 @@ public class ZGenScript {
     */
         
     
-    public void set_inputColumn_(int col){ this.indent = col; } 
+    public void set_inputColumn_(int col){ this.indentText = col; } 
     
 
     
@@ -2101,6 +2139,19 @@ public class ZGenScript {
       onerrorAccu = null; 
       withoutOnerror.add(val);
     }
+    
+    
+    public Zmake new_zmake(){
+      bContainsVariableDef = true; 
+      return new Zmake(this); 
+    }
+    
+    public void add_zmake(Zmake val){ 
+      statements.add(val);  
+      onerrorAccu = null; 
+      withoutOnerror.add(val);
+    }
+    
     
     /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
      */
@@ -2508,6 +2559,27 @@ public class ZGenScript {
     
     
     
+    public void writeStruct(int indent, Appendable out) throws IOException{
+      
+      if(statements !=null){
+        for(ZGenitem item: statements){
+          item.writeStruct(indent+1, out);
+        }
+      }
+      for(Map.Entry<String, Subroutine> entry: subroutines.entrySet()){
+        Subroutine sub = entry.getValue();
+        sub.writeStruct(0, out);
+      }
+      //for(Map.Entry<String, ZGenClass> entry: classes.entrySet()){
+      if(classes !=null){
+        for(ZGenClass class1: classes){
+          class1.writeStruct(indent+1, out);
+        }
+      }
+    }
+
+    
+    
   }
   
   
@@ -2523,44 +2595,35 @@ public class ZGenScript {
    * ZmakeGenctrl::= { <target> } \e.
    * </pre>
    */
-  public final static class ZbnfMainGenCtrl extends ZGenClass
+  public final static class ZbnfZGenScript extends ZGenClass
   {
 
     protected final ZGenScript outer;
     
-    //public String scriptclass;
+    public Scriptfile scriptfile;    
     
-    public List<String> includes;
-    
-    /**The script element for the whole file of this script. 
-     * It is possible that it is from a included script.
-     * It shall contain calling of <code><*subtext:name:...></code> 
-     */
-    Subroutine mainScript;
-    
-    
-    
-    public ZbnfMainGenCtrl(ZGenScript outer){
+    public ZbnfZGenScript(ZGenScript outer){
       outer.super();   //ZGenClass is non-static, enclosing is outer.
       this.outer = outer;
       outer.scriptClass = this; //outer.new ZGenClass();
     }
     
-    /**Returns the main routine which may be parsed in this maybe included script. */
-    public Subroutine getMainRoutine(){ return mainScript; }
-    
     public void set_include(String val){ 
-      if(includes ==null){ includes = new ArrayList<String>(); }
-      includes.add(val); 
+      if(scriptfile.includes ==null){ scriptfile.includes = new ArrayList<String>(); }
+      scriptfile.includes.add(val); 
     }
     
-    public StatementList new_mainScript(){ 
-      mainScript = new Subroutine(outer.scriptClass); 
-      mainScript.statementlist = new StatementList(null);
-      return mainScript.statementlist;
+    /**Any script file gets its own mainRoutine because the {@link #scriptfile} is one instance per parsed script file.
+     * The lastly valid {@link ZGenScript#scriptFile} is set from the last processes file.
+     * @return
+     */
+    public StatementList new_mainRoutine(){ 
+      scriptfile.mainRoutine = new Subroutine(outer.scriptClass); 
+      scriptfile.mainRoutine.statementlist = new StatementList(null);
+      return scriptfile.mainRoutine.statementlist;
     }
     
-    public void add_mainScript(StatementList val){  }
+    public void add_mainRoutine(StatementList val){  }
     
     
     
@@ -2571,5 +2634,25 @@ public class ZGenScript {
   }
   
 
+  
+  /**For one scriptfile, on include use extra instance per include.
+   */
+  public static class Scriptfile {
+    public List<String> includes;
+    
+    /**The script element for the whole file of this script. 
+     * It is possible that it is from a included script.
+     * It shall contain calling of <code><*subtext:name:...></code> 
+     */
+    Subroutine mainRoutine;
+    
+    /**Returns the main routine which may be parsed in this maybe included script. */
+    public Subroutine getMainRoutine(){ return mainRoutine; }
+    
+    
+    
+  }
+  
+  
 
 }

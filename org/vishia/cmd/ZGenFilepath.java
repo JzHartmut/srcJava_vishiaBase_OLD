@@ -8,8 +8,13 @@ import org.vishia.util.Assert;
 import org.vishia.util.DataAccess;
 import org.vishia.util.FileSystem;
 
-/**This class describes one file entry in a zmake script. The file entry can contain wild cards.
+/**This class describes a file entity in a executer level of ZGen. The file entity can contain wild cards.
+ * It can refer to a variable which contains the base path.
  * It may be a absolute or a relative path. It can have a base path and a local path part.
+ * This class contains only the reference to the {@link ZGenExecuter.ExecuteLevel} where this variable is located
+ * and a reference to the {@link ZGenScript.UserFilepath}. The last one contains all information about the
+ * file entity. This class is used to get all presentation possibilities of the file. Therefore the current directory
+ * should be known which is given in the ZGen executer level. 
  * <ul>
  * <li><b>localpath</b>:
  *   If you write <code>anyPath/path:localPath/path/file.ext</code> then it describes a path which part 
@@ -35,7 +40,7 @@ import org.vishia.util.FileSystem;
  *   calling {@link #absFile()} or adequate and the path is not given as absolute path, then the current directory is used
  *   as prefix for the path. The current directory is a property of the {@link UserScript#sCurrDir}. The current directory
  *   of the operation system is not used for that. 
- * <li><b>opeation systems current directory</b>: In opposite if you generate a relative path and the executing system
+ * <li><b>operation systems current directory</b>: In opposite if you generate a relative path and the executing system
  *   expects a normal path then it may use the operation system's current directory. But that behaviour is outside of this tool.
  * <li><b>Slash or backslash</b>: The user script can contain slash characters for path directory separation also for windows systems.
  *   It is recommended to use slash. The script which should be generate may expect back slashes on windows systems.
@@ -112,6 +117,11 @@ public final class ZGenFilepath {
   
   /**Version, history and license.
    * <ul>   
+   * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined here. Only one concept!
+   *   This file was copied from srcJava_Zbnf/org/vishia/zmake/Userfilepath.
+   *   The data of a file are referenced with {@link #data}. The original fields are contained in
+   *   {@link ZGenScript.UserFilepath}. Both are separated because the parts in ZGenScript are set completely
+   *   by parsing the script. This class contains the access methods which uses the reference {@link #zgenlevel}.
    * <li>2013-03-10 Hartmut new: {@link FileSystem#normalizePath(CharSequence)} called in {@link #absbasepath(CharSequence)}
    *   offers the normalize path for all absolute file paths. 
    * <li>2013-03-10 Hartmut new: Replace wildcards: {@link #absfile(ZGenFilepath)} (TODO for some more access methods)
@@ -157,25 +167,25 @@ public final class ZGenFilepath {
    */
   //private final UserFileset itsFileset;
   
-  private final ZGenExecuter.ExecuteLevel script;
+  private final ZGenExecuter.ExecuteLevel zgenlevel;
   
 
-  ZGenScript.UserFilepath data;
+  final ZGenScript.UserFilepath data;
   
   /**An empty file path which is used as argument if a common base path is not given. */
   static ZGenFilepath emptyParent = new ZGenFilepath();
   
+  /**Only for {@link #emptyParent}. */
   private ZGenFilepath(){
-    this.script = null;
+    this.zgenlevel = null;
+    data = new ZGenScript.UserFilepath(); //with empty elements. 
   }
   
-  
-  public String script_sCurrDir(){ return null; }  //dummy yet now
   
   
   
   ZGenFilepath(ZGenExecuter.ExecuteLevel script, ZGenScript.UserFilepath filepath){
-    this.script = script;
+    this.zgenlevel = script;
     this.data = filepath;
   }
   
@@ -187,14 +197,15 @@ public final class ZGenFilepath {
    * @param pathbase0 additional pre-pathbase before base, maybe null
    *  
    */
-  ZGenFilepath(ZGenScript script, ZGenFilepath src, ZGenFilepath commonPath, ZGenFilepath accessPath) {
+  ZGenFilepath(ZGenExecuter.ExecuteLevel zgenlevel, ZGenFilepath src, ZGenFilepath commonPath, ZGenFilepath accessPath) {
+    this.zgenlevel = zgenlevel;
+    data = new ZGenScript.UserFilepath();  //an empty instance to hold information from sources.
     CharSequence basePath = src.basepath(null, commonPath, accessPath, null);
     CharSequence localDir = src.localDir(null, commonPath, accessPath);
     int posbase = isRootpath(basePath);
     data.drive = posbase >=2 ? Character.toString(basePath.charAt(0)) : null;
     data.absPath = posbase == 1 || posbase == 3;
     data.basepath = basePath.subSequence(posbase, basePath.length()).toString();
-    this.script = null;  //TODO script;
     data.localdir = localDir.toString();
     if(!data.localdir.endsWith("/"))
       Assert.stop();
@@ -364,7 +375,7 @@ public final class ZGenFilepath {
     ZGenFilepath varfile;
     if((data.basepath !=null || useBaseFile !=null && useBaseFile[0]) && data.scriptVariable !=null){
       //get the variable if a base path is given or the file may be used as base path
-      DataAccess.Variable<Object> var1 = script.localVariables.get(data.scriptVariable);
+      DataAccess.Variable<Object> var1 = zgenlevel.localVariables.get(data.scriptVariable);
       if(var1 !=null){
         Object var0 = var1.value();
         if(var0 instanceof ZGenScript.FilesetVariable){
@@ -674,12 +685,12 @@ public final class ZGenFilepath {
         } else {
           ret = uRet = new StringBuilder(ret);
         }
-        String sCurrDir = script_sCurrDir();
+        CharSequence sCurrDir = zgenlevel.sCurrdir();
         if(uRet.length() >=2 && uRet.charAt(1) == ':'){
           //a drive is present but it is not a root path
           if(sCurrDir.length()>=2 && sCurrDir.charAt(1)==':' && uRet.charAt(0) == sCurrDir.charAt(0)){
             //Same drive letter like sCurrDir: replace the absolute path.
-            uRet.replace(0, 2, sCurrDir);
+            uRet.replace(0, 2, sCurrDir.toString());
           }
           else {
             //a drive is present, but it is another drive else in sCurrDir But the path is not absolute:
@@ -687,12 +698,12 @@ public final class ZGenFilepath {
           }
         }
         else {  //a drive is not present.
-          uRet.insert(0, script_sCurrDir());
+          uRet.insert(0, sCurrDir);
         }
       }
       else {
         //ret is "", then return the current dir only.
-        ret = script_sCurrDir();
+        ret = zgenlevel.sCurrdir();
       }
     }
     ret = FileSystem.normalizePath(ret);
@@ -1044,7 +1055,7 @@ public final class ZGenFilepath {
    * @param filepathWildcards
    * @param absPath
    */
-  void expandFiles(List<ZGenFilepath> listToadd, ZGenFilepath commonPath, ZGenFilepath accessPath, File currdir){
+  public void expandFiles(List<ZGenFilepath> listToadd, ZGenFilepath commonPath, ZGenFilepath accessPath, File currdir){
     List<FileSystem.FileAndBasePath> listFiles = new LinkedList<FileSystem.FileAndBasePath>();
     final CharSequence basepath1 = this.basepath(null, commonPath, accessPath, null); //getPartsFromFilepath(file, null, "absBasePath").toString();
     int posRoot = isRootpath(basepath1);
@@ -1065,7 +1076,7 @@ public final class ZGenFilepath {
       //let it empty.
     }
     for(FileSystem.FileAndBasePath file1: listFiles){
-      ZGenFilepath filepath2 = new ZGenFilepath(script, data);
+      ZGenFilepath filepath2 = new ZGenFilepath(zgenlevel, data);
       filepath2.data.absPath = absPath;
       filepath2.data.drive = drive;
       filepath2.data.basepath = basepath;  //it is the same. Maybe null
