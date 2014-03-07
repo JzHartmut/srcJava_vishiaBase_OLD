@@ -65,23 +65,24 @@ public class ZmakeTarget
     this.zgenlevel = zgenlevel;
   }
   
-  public List<ZGenFilepath> allInputFiles(){
+  public List<ZGenFilepath> allInputFiles() throws NoSuchFieldException{
     return prepareFiles(inputs, false);
   }
   
   /**Prepares all files which are given with a parameter.
    * In the ZmakeUserScript it can be given in form (examples)
    * <pre>
-   * ...target(..., param=fileset1:accesspath + fileset2:accesspath, ...);
-   * ...target(..., param=file1+file2,...)
-   * ...target(..., param=file,...)
-   * ...target(..., param=fileset,...)
+   * ...target(..., accesspath &fileset1, accesspath & + fileset2, ...);
+   * ...target(..., file1+file2,...)
+   * ...target(..., file,...)
+   * ...target(..., fileset,...)
    * </pre>
-   * All files and members of a fileset of this parameter are combined in one List<{@link UserFilepath}> 
-   * which can be used as container for ZmakeGenerationScript.
-   * @return A list of {@link UserFilepath} independent of a {@link UserFileset}.
+   * All files and members of a fileset of this parameter are combined in one List 
+   * which can be used as container for ZGen script.
+   * @return A list of {@link ZGenFilepath} independent of a {@link ZGenFileset}.
+   * @throws NoSuchFieldException If a Filepath uses a variable and this variable is not found.
    */
-  public List<ZGenFilepath> allInputFilesExpanded(){
+  public List<ZGenFilepath> allInputFilesExpanded() throws NoSuchFieldException{
     return prepareFiles(inputs, true);
   }
 
@@ -90,8 +91,9 @@ public class ZmakeTarget
    * @param filesOrFilesets A TargetInput contains either some files or some filesets or both.
    * @param expandFiles true then resolve wildcards and return only existing files.
    * @return A list of files.
+   * @throws NoSuchFieldException If a Filepath has a variable, and that is not found. 
    */
-  private List<ZGenFilepath> prepareFiles( List<Input> filesOrFilesets, boolean expandFiles) {
+  private List<ZGenFilepath> prepareFiles( List<Input> filesOrFilesets, boolean expandFiles) throws NoSuchFieldException {
     //
     //check whether the target has a parameter srcpath=... or commonpath = ....
     ZGenFilepath commonPathTarget = null;
@@ -105,7 +107,7 @@ public class ZmakeTarget
         }
         else if(targetInputParam.dir !=null){
           if(expandFiles){
-            targetInputParam.dir.expandFiles(files, commonPathTarget, null, zgenlevel.currdir());
+            targetInputParam.dir.expandFiles(files, commonPathTarget, null);
           } else {
             ZGenFilepath targetsrc = new ZGenFilepath(zgenlevel, targetInputParam.dir, commonPathTarget, null);
             files.add(targetsrc);  

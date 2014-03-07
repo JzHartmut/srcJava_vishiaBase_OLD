@@ -201,9 +201,9 @@ public class ZGenScript {
      * <tr><td>T</td><td>textual output to any variable or file</td></tr>
      * <tr><td>l</td><td>add to list</td></tr>
      * <tr><td>i</td><td>content of the input, {@link #textArg} describes the build-prescript, 
-     *                   see {@link ZmakeGenerator#getPartsFromFilepath(org.vishia.zmake.ZmakeUserScript.UserFilepath, String)}</td></tr>
+     *                   see {@link ZmakeGenerator#getPartsFromFilepath(org.vishia.zmake.ZmakeUserScript.Filepath, String)}</td></tr>
      * <tr><td>o</td><td>content of the output, {@link #textArg} describes the build-prescript, 
-     *                   see {@link ZmakeGenerator#getPartsFromFilepath(org.vishia.zmake.ZmakeUserScript.UserFilepath, String)}</td></tr>
+     *                   see {@link ZmakeGenerator#getPartsFromFilepath(org.vishia.zmake.ZmakeUserScript.Filepath, String)}</td></tr>
      * <tr><td>e</td><td>A datatext, from <*expression> or such.</td></tr>
      * <tr><td>XXXg</td><td>content of a data path starting with an internal variable (reference) or value of the variable.</td></tr>
      * <tr><td>s</td><td>call of a subtext by name. {@link #textArg}==null, {@link #statementlist} == null.</td></tr>
@@ -422,8 +422,9 @@ public class ZGenScript {
         case 'L': u.append(" (?forList "  + "?)"); break;
         case 'C': u.append(" <:for:Container "  + "?)"); break;
         case 'f': u.append(" if "); break;
-        case 'F': u.append(" Fileset "); break;
-        case 'G': u.append(" elsif "); break;
+        case 'F': u.append(" Filepath "); break;
+        case 'G': u.append(" Fileset "); break;
+        case 'g': u.append(" elsif "); break;
         case 'N': u.append(" <:hasNext> content <.hasNext>"); break;
         case 'E': u.append(" else "); break;
         case 'Y': u.append(" <:file> "); break;
@@ -606,9 +607,9 @@ public class ZGenScript {
    * Uml-Notation see {@link org.vishia.util.Docu_UML_simpleNotation}:
    * <pre>
    *               UserFileset
-   *                    |------------commonBasepath-------->{@link UserFilepath}
+   *                    |------------commonBasepath-------->{@link Filepath}
    *                    |
-   *                    |------------filesOfFileset-------*>{@link UserFilepath}
+   *                    |------------filesOfFileset-------*>{@link Filepath}
    *                                                        -drive:
    *                                                        -absPath: boolean
    *                                                        -basepath
@@ -626,23 +627,23 @@ public class ZGenScript {
     
     /**From ZBNF basepath = <""?!prepSrcpath>. It is a part of the base path anyway. It may be absolute, but usually relative. 
      * If null then unused. */
-    UserFilepath commonBasepath;
+    Filepath commonBasepath;
     
     /**From ZBNF srcext = <""?srcext>. If null then unused. */
     //public String srcext;
     
     
     /**All entries of the file set how it is given in the users script. */
-    List<UserFilepath> filesOfFileset = new LinkedList<UserFilepath>();
+    List<Filepath> filesOfFileset = new LinkedList<Filepath>();
     
     UserFileset(StatementList parentList, ZGenScript script){
-      super(parentList, 'F');
+      super(parentList, 'G');
       this.script = script;
     }
     
     
     public UserFileset(StatementList parentList){
-      super(parentList, 'F');
+      super(parentList, 'G');
       this.script = null;
     }
     
@@ -658,15 +659,15 @@ public class ZGenScript {
      * It sets the base path for all files of this fileset. This basepath is usually relative.
      * @return ZBNF component.
      */
-    public ZbnfUserFilepath new_commonpath(){ return new ZbnfUserFilepath(); }  //NOTE: it has not a parent. this is not its parent!
-    public void set_commonpath(ZbnfUserFilepath val){ commonBasepath = val.filepath; }
+    public ZbnfFilepath new_commonpath(){ return new ZbnfFilepath(); }  //NOTE: it has not a parent. this is not its parent!
+    public void set_commonpath(ZbnfFilepath val){ commonBasepath = val.filepath; }
     
     /**From ZBNF: < file>. */
-    public ZbnfUserFilepath new_file(){ return new ZbnfUserFilepath(); }
+    public ZbnfFilepath new_Filepath(){ return new ZbnfFilepath(); }
     
     /**From ZBNF: < file>. */
-    public void add_file(ZbnfUserFilepath valz){ 
-      UserFilepath val =valz.filepath;
+    public void add_Filepath(ZbnfFilepath valz){ 
+      Filepath val =valz.filepath;
       if(val.basepath !=null || val.localdir.length() >0 || val.name.length() >0 || val.drive !=null){
         //only if any field is set. not on empty val
         filesOfFileset.add(val); 
@@ -709,34 +710,58 @@ public class ZGenScript {
   }
   
   
+
+  
+  public static class DefFilepath extends DefVariable
+  {
+    Filepath filepath;
+
+    DefFilepath(StatementList parentList){
+      super(parentList, 'F');
+    }
+  
+    public ZbnfFilepath new_Filepath(){ return new ZbnfFilepath(); } 
+    
+    public void add_Filepath(ZbnfFilepath val){ filepath = val.filepath; } 
+    
+  }
  
   
   
-  public static class UserFilepath {
+  /**The parsed content of a Filepath in a ZGen script.
+   */
+  public final static class Filepath {
   
   
-    /**From ZBNF: $<$?scriptVariable>. If given, then the {@link #basePath()} starts with it. It is an absolute path then. */
-    String scriptVariable, envVariable;
+    /**From ZBNF: $<$?scriptVariable>. If given, then the basePath() starts with it. 
+     */
+    protected String scriptVariable, envVariable;
     
+    /**The drive letter if a drive is given. */
     String drive;
+    
     /**From Zbnf: [ [/|\\]<?@absPath>]. Set if the path starts with '/' or '\' maybe after drive letter. */
-    boolean absPath;
+    protected boolean absPath;
     
     /**Path-part before a ':'. It is null if the basepath is not given. */
-    String basepath;
+    protected String basepath;
     
     /**Localpath after ':' or the whole path. It is an empty "" if a directory is not given. 
-     * It does not contain a separating slash on end. */
-    String localdir = "";
+     * It does not contain a slash on end. */
+    protected String localdir = "";
     
     /**From Zbnf: The filename without extension. */
-    String name = "";
+    protected String name = "";
     
     
     /**From Zbnf: The extension inclusive the leading dot. */
-    String ext = "";
+    protected String ext = "";
     
-    boolean allTree, someFiles;
+    /**Set to true if a "*" was found in any directory part.*/
+    protected boolean allTree;
+    
+    /**Set to true if a "*" was found in the name or extension.*/
+    protected boolean someFiles;
     
 
   
@@ -745,17 +770,17 @@ public class ZGenScript {
   
   
   
-  /**This class is used only temporary while processing the parse result into a instance of {@link UserFilepath}
+  /**This class is used only temporary while processing the parse result into a instance of {@link Filepath}
    * while running {@link ZbnfJavaOutput}. 
    */
-  public static class ZbnfUserFilepath{
+  public static class ZbnfFilepath{
     
     /**The instance which are filled with the components content. It is used for the user's data tree. */
-    final UserFilepath filepath;
+    final Filepath filepath;
     
     
-    ZbnfUserFilepath(){
-      filepath = new UserFilepath();
+    ZbnfFilepath(){
+      filepath = new Filepath();
     }
     
     /**FromZbnf. */
@@ -820,7 +845,7 @@ public class ZGenScript {
   public static class Zmake extends CallStatement {
 
     
-    UserFilepath output;
+    Filepath output;
     
     List<ZmakeInput> input = new ArrayList<ZmakeInput>();
     
@@ -829,11 +854,11 @@ public class ZGenScript {
     }
     
     
-    public ZbnfUserFilepath new_output(){
-      return new ZbnfUserFilepath();
+    public ZbnfFilepath new_output(){
+      return new ZbnfFilepath();
     }
     
-    public void add_output(ZbnfUserFilepath val){ output = val.filepath; }
+    public void add_output(ZbnfFilepath val){ output = val.filepath; }
     
     
     public ZmakeInput new_zmakeInput(){ return new ZmakeInput(); }
@@ -849,12 +874,12 @@ public class ZGenScript {
     
     public String zmakeFilesetName;
     
-    UserFilepath zmakeInputDir;
+    Filepath zmakeInputDir;
     
     
-    public ZbnfUserFilepath new_zmakeInputDir(){ return new ZbnfUserFilepath(); }
+    public ZbnfFilepath new_zmakeInputDir(){ return new ZbnfFilepath(); }
     
-    public void add_zmakeInputDir(ZbnfUserFilepath val){ zmakeInputDir = val.filepath; }
+    public void add_zmakeInputDir(ZbnfFilepath val){ zmakeInputDir = val.filepath; }
   }
   
   
@@ -1295,7 +1320,7 @@ public class ZGenScript {
       case 'L': return "(?forList "  + "?)";
       case 'C': return "<:for:Container "  + "?)";
       case 'f': return "if";
-      case 'G': return "elsif";
+      case 'g': return "elsif";
       case 'N': return "<:hasNext> content <.hasNext>";
       case 'E': return "else";
       case 'Y': return "<:file>";
@@ -1352,7 +1377,7 @@ public class ZGenScript {
     //public String name;
     UserFileset fileset;
     
-    UserFilepath filepath;
+    Filepath filepath;
     
     
     //JbatGenScript.Expression expression;
@@ -1386,8 +1411,8 @@ public class ZGenScript {
     public ZGenDataAccess new_defVariable(){ return new ZGenDataAccess(); }
     
     public void add_defVariable(ZGenDataAccess val){   
-      int whichStatement = "SPULJKQWMCF".indexOf(elementType);
-      char whichVariableType = "SPULOKQAMOF".charAt(whichStatement);  //from elementType to variable type.
+      int whichStatement = "SPULJKQWMCFG".indexOf(elementType);
+      char whichVariableType = "SPULOKQAMOFG".charAt(whichStatement);  //from elementType to variable type.
       val.setTypeToLastElement(whichVariableType);
       defVariable = val;
     }
@@ -1528,7 +1553,7 @@ public class ZGenScript {
     
     public IfCondition new_ifBlock()
     { //StatementList subGenContent = new StatementList(this);
-      IfCondition statement = new IfCondition(parentList, 'G');
+      IfCondition statement = new IfCondition(parentList, 'g');
       //statement.statementlist = subGenContent;  //The statement contains a genContent. 
       statementlist.statements.add(statement);
       statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
@@ -2129,12 +2154,24 @@ public class ZGenScript {
     
     /**Defines a variable which is able to use as Appendable, it is a Writer.
      */
-    public UserFileset new_Filesetdef(){
+    public DefFilepath new_DefFilepath(){
       bContainsVariableDef = true; 
-      return new UserFileset(this, null); 
+      return new DefFilepath(this); 
     } 
 
-    public void add_Filesetdef(UserFileset val){ 
+    public void add_DefFilepath(DefFilepath val){ 
+      statements.add(val);  
+      onerrorAccu = null; 
+      withoutOnerror.add(val);
+    }
+    
+    
+    public UserFileset new_DefFileset(){
+      bContainsVariableDef = true; 
+      return new UserFileset(this); 
+    } 
+
+    public void add_DefFileset(UserFileset val){ 
       statements.add(val);  
       onerrorAccu = null; 
       withoutOnerror.add(val);

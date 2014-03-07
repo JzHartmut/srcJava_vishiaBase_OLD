@@ -12,7 +12,7 @@ import org.vishia.util.FileSystem;
  * It can refer to a variable which contains the base path.
  * It may be a absolute or a relative path. It can have a base path and a local path part.
  * This class contains only the reference to the {@link ZGenExecuter.ExecuteLevel} where this variable is located
- * and a reference to the {@link ZGenScript.UserFilepath}. The last one contains all information about the
+ * and a reference to the {@link ZGenScript.Filepath}. The last one contains all information about the
  * file entity. This class is used to get all presentation possibilities of the file. Therefore the current directory
  * should be known which is given in the ZGen executer level. 
  * <ul>
@@ -120,7 +120,7 @@ public final class ZGenFilepath {
    * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined here. Only one concept!
    *   This file was copied from srcJava_Zbnf/org/vishia/zmake/Userfilepath.
    *   The data of a file are referenced with {@link #data}. The original fields are contained in
-   *   {@link ZGenScript.UserFilepath}. Both are separated because the parts in ZGenScript are set completely
+   *   {@link ZGenScript.Filepath}. Both are separated because the parts in ZGenScript are set completely
    *   by parsing the script. This class contains the access methods which uses the reference {@link #zgenlevel}.
    * <li>2013-03-10 Hartmut new: {@link FileSystem#normalizePath(CharSequence)} called in {@link #absbasepath(CharSequence)}
    *   offers the normalize path for all absolute file paths. 
@@ -170,7 +170,7 @@ public final class ZGenFilepath {
   private final ZGenExecuter.ExecuteLevel zgenlevel;
   
 
-  final ZGenScript.UserFilepath data;
+  final ZGenScript.Filepath data;
   
   /**An empty file path which is used as argument if a common base path is not given. */
   static ZGenFilepath emptyParent = new ZGenFilepath();
@@ -178,28 +178,41 @@ public final class ZGenFilepath {
   /**Only for {@link #emptyParent}. */
   private ZGenFilepath(){
     this.zgenlevel = null;
-    data = new ZGenScript.UserFilepath(); //with empty elements. 
+    data = new ZGenScript.Filepath(); //with empty elements. 
   }
   
   
   
   
-  ZGenFilepath(ZGenExecuter.ExecuteLevel script, ZGenScript.UserFilepath filepath){
-    this.zgenlevel = script;
+  /**Creates an empty instance with empty data which can be filled.
+   * @param zgenlevel
+   */
+  ZGenFilepath(ZGenExecuter.ExecuteLevel zgenlevel){
+    this.zgenlevel = zgenlevel;
+    this.data = new ZGenScript.Filepath(); //with empty elements.
+  }
+  
+  /**Creates an instance with given data.
+   * @param zgenlevel
+   * @param filepath given data
+   */
+  ZGenFilepath(ZGenExecuter.ExecuteLevel zgenlevel, ZGenScript.Filepath filepath){
+    this.zgenlevel = zgenlevel;
     this.data = filepath;
   }
   
   /**Creates a ZGenFilepath entry with an additonal pathbase.
    * if the basepath of src is given and the pathbase0 is given, both are joined: pathbase0/src.pathbase.
-   * @param script  Reference to the script, necessary for the current directory
+   * @param zgenlevel  Reference to the zgenlevel, necessary for the current directory
    * @param src The source (clone source)
    * @param basepath An additional basepath usual stored as <code>basepath=path, ...</code> in a fileset, maybe null
    * @param pathbase0 additional pre-pathbase before base, maybe null
+   * @throws NoSuchFieldException 
    *  
    */
-  ZGenFilepath(ZGenExecuter.ExecuteLevel zgenlevel, ZGenFilepath src, ZGenFilepath commonPath, ZGenFilepath accessPath) {
+  ZGenFilepath(ZGenExecuter.ExecuteLevel zgenlevel, ZGenFilepath src, ZGenFilepath commonPath, ZGenFilepath accessPath) throws NoSuchFieldException {
     this.zgenlevel = zgenlevel;
-    data = new ZGenScript.UserFilepath();  //an empty instance to hold information from sources.
+    data = new ZGenScript.Filepath();  //an empty instance to hold information from sources.
     CharSequence basePath = src.basepath(null, commonPath, accessPath, null);
     CharSequence localDir = src.localDir(null, commonPath, accessPath);
     int posbase = isRootpath(basePath);
@@ -363,9 +376,10 @@ public final class ZGenFilepath {
    *   It is a StringBuilder if the path is assembled from more as one parts.
    *   It is a String if uRet is null and the basepath is simple.
    *   A returned StringBuilder may be used to append some other parts furthermore.
+   * @throws NoSuchFieldException 
    *  
    */
-  protected CharSequence basepath(StringBuilder uRet, ZGenFilepath commonPath, ZGenFilepath accessPath, boolean[] useBaseFile) 
+  protected CharSequence basepath(StringBuilder uRet, ZGenFilepath commonPath, ZGenFilepath accessPath, boolean[] useBaseFile) throws NoSuchFieldException 
   { 
     //if(generalPath == null){ generalPath = emptyParent; }
     //first check singulary conditions
@@ -597,9 +611,10 @@ public final class ZGenFilepath {
    * @param generalPath
    * @param accessPath
    * @return Either the {@link #localdir} as String or a StringBuilder instance. If uRet is given, it is returned.
+   * @throws NoSuchFieldException if a requested scriptvariable was not found.
    *  
    */
-  public CharSequence localDir(StringBuilder uRet, ZGenFilepath commonPath, ZGenFilepath accessPath) {
+  public CharSequence localDir(StringBuilder uRet, ZGenFilepath commonPath, ZGenFilepath accessPath) throws NoSuchFieldException {
     ///
     if(  data.basepath !=null     //if a basepath is given, then only this localpath is valid.
       || (  (commonPath == null || commonPath.data.basepath ==null) //either no commonPath or commonPath is a basepath completely
@@ -617,14 +632,17 @@ public final class ZGenFilepath {
     else {
       assert(data.basepath == null);
       if(uRet ==null){ uRet = new StringBuilder(); } //it is necessary. Build it if null.
-      ZGenScript.FilesetVariable var;
+      //ZGenScript.FilesetVariable var;
       ZGenFilepath varfile;
+      Object varO;
       if(data.scriptVariable !=null){
-        var = null; //script.filesetVar.get(data.scriptVariable);
-        varfile = null; //TODO var.filepath;
+        DataAccess.Variable<Object> varV = zgenlevel.localVariables.get(data.scriptVariable);
+        if(varV == null) throw new NoSuchFieldException(data.scriptVariable);
+        varO = varV.value();
+        varfile = varO instanceof ZGenFilepath ? (ZGenFilepath) varO : null;
       } else { 
-        var = null;
         varfile = null;
+        varO = null;
       }
       if(varfile !=null){
         varfile.localFile(uRet, commonPath, accessPath);  //The full varfile.localfile should use.
@@ -636,12 +654,8 @@ public final class ZGenFilepath {
         accessPath.localFile(uRet, null, null);
       }
       //
-      if(var !=null && var.filepath == null){
-        try{ 
-          CharSequence varpath = var.text();
-          uRet.append(varpath);
-        } 
-        catch(Exception exc){ throw new IllegalArgumentException(exc.getMessage()); }
+      if(varfile ==null && varO != null){
+        uRet.append(varO.toString());   //another variable than a Filepath, it is used as String
       }
       if(data.envVariable !=null){
         CharSequence varpath = System.getenv(data.envVariable);
@@ -656,7 +670,8 @@ public final class ZGenFilepath {
   }
   
   
-  public CharSequence localFile(StringBuilder uRet, ZGenFilepath commonPath, ZGenFilepath accessPath) {
+  public CharSequence localFile(StringBuilder uRet, ZGenFilepath commonPath, ZGenFilepath accessPath) 
+  throws NoSuchFieldException {
     CharSequence dir = localDir(uRet, commonPath, accessPath);
     if(uRet ==null){
       uRet = dir instanceof StringBuilder ? (StringBuilder)dir: new StringBuilder(dir);
@@ -712,24 +727,26 @@ public final class ZGenFilepath {
   
   /**Method can be called in the generation script: <*absbasepath()>. 
    * @return the whole path inclusive a given general path in a {@link UserFileSet} as absolute path.
+   * @throws NoSuchFieldException 
    *  
    */
-  public CharSequence absbasepath() { 
+  public CharSequence absbasepath() throws NoSuchFieldException { 
     CharSequence basepath = basepath(null, emptyParent, null, null);
     //basepath = driveRoot(basepath, emptyParent,null);
     return absbasepath(basepath);
   }
   
-  public CharSequence absbasepathW() { return toWindows(absbasepath()); }
+  public CharSequence absbasepathW() throws NoSuchFieldException { return toWindows(absbasepath()); }
   
 
   
   /**Method can be called in the generation script: <*path.absdir()>. 
    * @return the whole path to the parent of this file inclusive a given general path in a {@link UserFileSet}.
    *   The path is absolute. If it is given as relative path, the general current directory of the script is used.
+   * @throws NoSuchFieldException 
    *   
    */
-  public CharSequence absdir()  { 
+  public CharSequence absdir() throws NoSuchFieldException  { 
     CharSequence basePath = absbasepath();
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     int zpath = (data.localdir == null) ? 0 : data.localdir.length();
@@ -741,14 +758,15 @@ public final class ZGenFilepath {
     return uRet;
   }
   
-  public CharSequence absdirW(){ return toWindows(absdir()); }
+  public CharSequence absdirW() throws NoSuchFieldException{ return toWindows(absdir()); }
   
   
   /**Method can be called in the generation script: <*data.absname()>. 
    * @return the whole path with file name but without extension inclusive a given general path in a {@link UserFileSet}.
    *   Either as absolute or as relative path.
+   * @throws NoSuchFieldException 
    */
-  public CharSequence absname(){ 
+  public CharSequence absname() throws NoSuchFieldException{ 
     CharSequence basePath = absbasepath();
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     int pos;
@@ -759,7 +777,7 @@ public final class ZGenFilepath {
     return uRet;
   }
   
-  public CharSequence absnameW(){ return toWindows(absname()); }
+  public CharSequence absnameW() throws NoSuchFieldException{ return toWindows(absname()); }
   
 
 
@@ -767,8 +785,9 @@ public final class ZGenFilepath {
   /**Method can be called in the generation script: <*path.absfile()>. 
    * @return the whole path inclusive a given general path .
    *   The path is absolute. If it is given as relative path, the general current directory of the script is used.
+   * @throws NoSuchFieldException 
    */
-  public CharSequence absfile(){ 
+  public CharSequence absfile() throws NoSuchFieldException{ 
     CharSequence basePath = absbasepath();
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     addLocalName(uRet);
@@ -776,15 +795,16 @@ public final class ZGenFilepath {
     return uRet;
   }
   
-  public CharSequence absfileW(){ return toWindows(absfile()); }
+  public CharSequence absfileW() throws NoSuchFieldException{ return toWindows(absfile()); }
   
   
   /**Method can be called in the generation script: <*path.absfile()>.
    * @param replWildc With them localdir and name a wildcard in this.localdir and this.name is replaced.
    * @return the whole path inclusive a given general path .
    *   The path is absolute. If it is given as relative path, the general current directory of the script is used.
+   * @throws NoSuchFieldException 
    */
-  public CharSequence absfile(ZGenFilepath replWildc){ 
+  public CharSequence absfile(ZGenFilepath replWildc) throws NoSuchFieldException{ 
     CharSequence basePath = absbasepath();
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     addLocalName(uRet, replWildc);
@@ -796,21 +816,23 @@ public final class ZGenFilepath {
    * @return the whole base path inclusive a given general path in a {@link UserFileSet}.
    *   till a ':' in the input path or an empty string.
    *   Either as absolute or as relative path how it is given.
+   * @throws NoSuchFieldException 
    */
-  public CharSequence basepath(){ return basepath(null, emptyParent, null, null); }
+  public CharSequence basepath() throws NoSuchFieldException{ return basepath(null, emptyParent, null, null); }
    
   
 
   
-  public CharSequence basepathW(){ return toWindows(basepath()); }
+  public CharSequence basepathW() throws NoSuchFieldException{ return toWindows(basepath()); }
   
   
   
   /**Method can be called in the generation script: <*path.dir()>. 
    * @return the whole path to the parent of this file inclusive a given general path in a {@link UserFileSet}.
    *   The path is absolute or relative like it is given.
+   * @throws NoSuchFieldException 
    */
-  public CharSequence dir(){ 
+  public CharSequence dir() throws NoSuchFieldException{ 
     CharSequence basePath = basepath();
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     int zpath = (data.localdir == null) ? 0 : data.localdir.length();
@@ -824,13 +846,14 @@ public final class ZGenFilepath {
 
   
   
-  public CharSequence dirW(){ return toWindows(dir()); }
+  public CharSequence dirW() throws NoSuchFieldException{ return toWindows(dir()); }
   
   /**Method can be called in the generation script: <*data.pathname()>. 
    * @return the whole path with file name but without extension inclusive a given general path in a {@link UserFileSet}.
    *   The path is absolute or relative like it is given.
+   * @throws NoSuchFieldException 
    */
-  public CharSequence pathname(){ 
+  public CharSequence pathname() throws NoSuchFieldException{ 
     CharSequence basePath = basepath();
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     int pos;
@@ -841,7 +864,7 @@ public final class ZGenFilepath {
     return uRet;
   }
   
-  public CharSequence pathnameW(){ return toWindows(pathname()); }
+  public CharSequence pathnameW() throws NoSuchFieldException{ return toWindows(pathname()); }
   
 
 
@@ -849,8 +872,9 @@ public final class ZGenFilepath {
    * @param accesspath Access path may be given by usage.
    * @return the whole path with file name and extension.
    *   The path is absolute or relative like it is given.
+   * @throws NoSuchFieldException 
    */
-  public CharSequence file(StringBuilder uRet, ZGenFilepath accesspath){
+  public CharSequence file(StringBuilder uRet, ZGenFilepath accesspath) throws NoSuchFieldException{
     return file(uRet,null,accesspath);
   }
   
@@ -858,8 +882,10 @@ public final class ZGenFilepath {
    * @param accesspath Access path may be given by usage.
    * @return the whole path with file name and extension.
    *   The path is absolute or relative like it is given.
+   * @throws NoSuchFieldException 
    */
-  public CharSequence file(StringBuilder uRet, ZGenFilepath commonPath, ZGenFilepath accesspath){ 
+  public CharSequence file(StringBuilder uRet, ZGenFilepath commonPath, ZGenFilepath accesspath) 
+  throws NoSuchFieldException { 
     CharSequence basePath = basepath(null, commonPath, accesspath, null);
     uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     localDir(uRet, emptyParent, accesspath);
@@ -874,23 +900,25 @@ public final class ZGenFilepath {
   /**Method can be called in the generation script: <*data.file()>. 
    * @return the whole path with file name and extension.
    *   The path is absolute or relative like it is given.
+   * @throws NoSuchFieldException 
    */
-  public CharSequence file(){ 
+  public CharSequence file() throws NoSuchFieldException{ 
     CharSequence basePath = basepath();
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     addLocalName(uRet);
     return uRet.append(data.ext);
   }
   
-  public CharSequence fileW(){ return toWindows(file()); }
+  public CharSequence fileW() throws NoSuchFieldException{ return toWindows(file()); }
   
   
   
   /**Method can be called in the generation script: <*data.base_localdir()>. 
    * @return the basepath:localpath in a {@link UserFileSet} with given wildcards 
    *   inclusive a given general path. The path is absolute or relative like it is given.
+   * @throws NoSuchFieldException 
    */
-  public CharSequence base_localdir(){ 
+  public CharSequence base_localdir() throws NoSuchFieldException{ 
     CharSequence basePath = basepath();
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     if( uRet.length() >0){ uRet.append(":"); }
@@ -898,14 +926,15 @@ public final class ZGenFilepath {
     return uRet;
   }
   
-  public CharSequence base_localdirW(){ return toWindows(base_localdir()); }
+  public CharSequence base_localdirW() throws NoSuchFieldException{ return toWindows(base_localdir()); }
   
   
   /**Method can be called in the generation script: <*data.base_localfile()>. 
    * @return the basepath:localpath/name.ext in a {@link UserFileSet} with given wildcards 
    *   inclusive a given general path. The path is absolute or relative like it is given.
+   * @throws NoSuchFieldException 
    */
-  public CharSequence base_localfile(){ 
+  public CharSequence base_localfile() throws NoSuchFieldException{ 
     CharSequence basePath = basepath();
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     if( uRet.length() >0){ uRet.append(":"); }
@@ -917,7 +946,7 @@ public final class ZGenFilepath {
     return uRet;
   }
   
-  public CharSequence base_localfileW(){ return toWindows(base_localfile()); }
+  public CharSequence base_localfileW() throws NoSuchFieldException{ return toWindows(base_localfile()); }
   
   
   
@@ -1049,21 +1078,22 @@ public final class ZGenFilepath {
     }
   }
   
-  /**Fills this.{@link #filesOfFilesetExpanded} with all files, which are selected by the filepathWildcards and the absPath.
-   * The filepathWildcards does not need to contain in this UserFileset, it may be contained in another one too.
-   * Especially the {@link UserTarget} in form of this base class can be filled.
-   * @param filepathWildcards
-   * @param absPath
+  /**Builds non-wildcard instance for any found file and add all these instances to the given list
+   * for all files, which are selected by this instance maybe with wild-cards and the given commonPath and accessPath.
+   * The expansion with wild-cards is a capability of {@link FileSystem#addFilesWithBasePath(File, String, List)}
+   * which is used here as core routine.
+   * 
+   * @param listToadd List which will be completed with all found files
+   * @param commonPath if not null, the path before this given file path. 
+   * @param accessPath if not null, the path before a commonPath and before this given file path.
+   * @throws NoSuchFieldException 
    */
-  public void expandFiles(List<ZGenFilepath> listToadd, ZGenFilepath commonPath, ZGenFilepath accessPath, File currdir){
+  public void expandFiles(List<ZGenFilepath> listToadd, ZGenFilepath commonPath, ZGenFilepath accessPath) throws NoSuchFieldException{
     List<FileSystem.FileAndBasePath> listFiles = new LinkedList<FileSystem.FileAndBasePath>();
     final CharSequence basepath1 = this.basepath(null, commonPath, accessPath, null); //getPartsFromFilepath(file, null, "absBasePath").toString();
     int posRoot = isRootpath(basepath1);
     final CharSequence basePathNonRoot = posRoot == 0 ? basepath1: basepath1.subSequence(posRoot, basepath1.length());
     final String basepath = basePathNonRoot.toString();  //persistent content.
-    //CharSequence basepathroot = driveRoot(basepath, commonPath, accessPath);
-    //boolean absPath = isRootpath(basepathroot) >0;
-    //String drive = basepathroot.length() >=2 && basepathroot.charAt(1) == ':' ? String.valueOf(basepathroot.charAt(0)): null;
     String drive = posRoot >=2 ? Character.toString(basepath1.charAt(0)) : null;
     boolean absPath = posRoot == 1 || posRoot == 3;
     
@@ -1073,16 +1103,16 @@ public final class ZGenFilepath {
     final String sPathSearch = absBasepath + ":" + localfilePath;
     try{ FileSystem.addFilesWithBasePath(null, sPathSearch, listFiles);
     } catch(Exception exc){
-      //let it empty.
+      //let it empty. Files may not be found.
     }
     for(FileSystem.FileAndBasePath file1: listFiles){
-      ZGenFilepath filepath2 = new ZGenFilepath(zgenlevel, data);
+      ZGenFilepath filepath2 = new ZGenFilepath(zgenlevel);  //new instance for found file.
       filepath2.data.absPath = absPath;
       filepath2.data.drive = drive;
       filepath2.data.basepath = basepath;  //it is the same. Maybe null
       int posName = file1.localPath.lastIndexOf('/') +1;  //if not found, set to 0
       int posExt = file1.localPath.lastIndexOf('.');
-      final String sPath = file1.localPath.substring(0, posName);  //"" if only name
+      final String sPath = posName >0 ? file1.localPath.substring(0, posName-1) : "";  //"" if only name
       final String sName;
       final String sExt;
       if(posExt < 0){ sExt = ""; sName = file1.localPath.substring(posName); }
@@ -1100,7 +1130,10 @@ public final class ZGenFilepath {
   
   @Override
   public String toString()
-  { return base_localfile().toString();
+  { try{ return base_localfile().toString();}
+    catch(NoSuchFieldException exc){
+      return "faulty variable";
+    }
   }
 
 }

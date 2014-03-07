@@ -50,13 +50,12 @@ public class ZGenFileset
   
   
   
-  void listFilesExpanded(List<ZGenFilepath> files, ZGenFilepath accesspath, boolean expandFiles) {  ////
-    File currdir = zgenlevel.currdir();
-    for(ZGenScript.UserFilepath scriptFilepath: data.filesOfFileset){
+  void listFilesExpanded(List<ZGenFilepath> files, ZGenFilepath accesspath, boolean expandFiles) throws NoSuchFieldException {  ////
+    for(ZGenScript.Filepath scriptFilepath: data.filesOfFileset){
       ZGenFilepath filepath = new ZGenFilepath(zgenlevel, scriptFilepath);
       ZGenFilepath commonBasepath = data.commonBasepath ==null ? null : new ZGenFilepath(zgenlevel, data.commonBasepath);
       if(expandFiles && (filepath.data.someFiles || filepath.data.allTree)){
-        filepath.expandFiles(files, commonBasepath, accesspath, currdir);
+        filepath.expandFiles(files, commonBasepath, accesspath);
       } else {
         //clone filepath! add srcpath
         ZGenFilepath targetsrc = new ZGenFilepath(zgenlevel, filepath, commonBasepath, accesspath);
@@ -65,14 +64,14 @@ public class ZGenFileset
     }
   }
 
-  public List<ZGenFilepath> listFilesExpanded(ZGenFilepath accesspath, boolean expandFiles) { 
+  public List<ZGenFilepath> listFilesExpanded(ZGenFilepath accesspath, boolean expandFiles) throws NoSuchFieldException { 
     List<ZGenFilepath> files = new ArrayList<ZGenFilepath>();
     listFilesExpanded(files, accesspath, expandFiles);
     return files;
   }
   
   
-  public List<ZGenFilepath> listFilesExpanded() { return listFilesExpanded(null, true); }
+  public List<ZGenFilepath> listFilesExpanded() throws NoSuchFieldException { return listFilesExpanded(null, true); }
 
     
     

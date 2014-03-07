@@ -285,7 +285,7 @@ public class ZGenExecuter {
     try{
       scriptLevel.execute(genScript.scriptClass, null, 0, false);
     } catch(Exception exc){
-      System.out.println("JbatchExecuter - Scriptvariable faulty; " );
+      System.out.println("ZGen.genScriptVariables - Scriptvariable faulty; " + exc.getMessage() );
     }
     setCurrdirScript(sCurrdirArg);
     bScriptVariableGenerated = true;
@@ -769,7 +769,8 @@ public class ZGenExecuter {
           case 'v': execThrowonerror((ZGenScript.Onerror)statement); break;
           case 'b': isBreak = true; ret = ZGenExecuter.kBreak; break;
           case '#': ret = execCmdError((ZGenScript.Onerror)statement, out, indentOut); break;
-          case 'F': createFileSet((ZGenScript.UserFileset) statement); break;
+          case 'F': createFilepath((ZGenScript.DefFilepath) statement); break;
+          case 'G': createFileSet((ZGenScript.UserFileset) statement); break;
           case 'Z': execZmake((ZGenScript.Zmake) statement, out, indentOut); break;
           default: 
             uBuffer.append("ZGen - execute-unknown type; '" + statement.elementType() + "' :ERROR=== ");
@@ -892,6 +893,12 @@ public class ZGenExecuter {
 
     
     
+    void createFilepath(ZGenScript.DefFilepath statement) throws Exception {
+      ZGenFilepath filepath = new ZGenFilepath(this, statement.filepath);
+      storeValue(statement.defVariable, localVariables, filepath, false);
+    }
+    
+      
     void createFileSet(ZGenScript.UserFileset statement) throws Exception {
       ZGenFileset filepath = new ZGenFileset(this, statement);
       storeValue(statement.defVariable, localVariables, filepath, false);
@@ -990,7 +997,7 @@ public class ZGenExecuter {
       while(iter.hasNext() && cont == kFalse ){
         ZGenScript.ZGenitem statement = iter.next();
         switch(statement.elementType()){
-          case 'G': { //if-block
+          case 'g': { //if-block
             boolean hasNext = iter.hasNext();
             cont = executeIfBlock((ZGenScript.IfCondition)statement, out, indentOut, hasNext);
           } break;
