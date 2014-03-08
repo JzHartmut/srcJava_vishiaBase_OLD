@@ -385,29 +385,24 @@ public final class ZGenFilepath {
     //first check singulary conditions
     ///
     int pos;
-    ZGenScript.FilesetVariable var;
     ZGenFilepath varfile;
+    Object varO;
     if((data.basepath !=null || useBaseFile !=null && useBaseFile[0]) && data.scriptVariable !=null){
       //get the variable if a base path is given or the file may be used as base path
-      DataAccess.Variable<Object> var1 = zgenlevel.localVariables.get(data.scriptVariable);
-      if(var1 !=null){
-        Object var0 = var1.value();
-        if(var0 instanceof ZGenScript.FilesetVariable){
-          //varfile = ((ZGenScript.FilesetVariable)var0).filepath;
-        }
-      }
-      var = null;
-      varfile = null;  //TODO var.filepath;
+      DataAccess.Variable<Object> varV = zgenlevel.localVariables.get(data.scriptVariable);
+      if(varV == null) throw new NoSuchFieldException(data.scriptVariable);
+      varO = varV.value();
+      varfile = varO instanceof ZGenFilepath ? (ZGenFilepath) varO : null;
     } else { 
-      var = null;
       varfile = null;
+      varO = null;
     }
     if(data.absPath){
       //  common    variable    this         basepath build with         : localdir build with   
       //  | base    | base abs  base abs
       //  x  x      x  x   x     1    1      /thisBase                   : thisLocal
       //  x  x      x  x   x     0    1      "/"                         : thisLocal
-      if(data.drive !=null || data.basepath !=null || uRet !=null || var !=null || data.envVariable !=null){
+      if(data.drive !=null || data.basepath !=null || uRet !=null || varO !=null || data.envVariable !=null){
         if(uRet == null){ uRet = new StringBuilder(); }  //it is necessary.
         else { uRet.setLength(0); }
         if(data.drive !=null){ 
@@ -436,7 +431,7 @@ public final class ZGenFilepath {
       //  1  x      1  x   0     1    0      commonFile + varFile + thisBase : thisLocal
       //  0         0            1    0      thisBase                    : thisLocal
       //  1  x      0            1    0      commonFile + thisBase       : thisLocal
-      if(commonPath !=null || accessPath !=null || var !=null || data.envVariable !=null){
+      if(commonPath !=null || accessPath !=null || varO !=null || data.envVariable !=null){
         //  common    variable    this         basepath build with         : localdir build with   
         //  | base    | base abs  base abs
         //  x         1  x   1     1    0      /varFile + thisBase         : thisLocal
@@ -468,7 +463,7 @@ public final class ZGenFilepath {
           //possible to have a variable with text or environment variable.
           prepath = uRet;
         }
-        if(data.basepath.length() >0 || var !=null && varfile == null || data.envVariable !=null){
+        if(data.basepath.length() >0 || varO !=null && varfile == null || data.envVariable !=null){
           //need to add somewhat, build the StringBuilder if not done.
           if(prepath instanceof StringBuilder){
             uRet = (StringBuilder)prepath;
@@ -478,9 +473,8 @@ public final class ZGenFilepath {
           }
         }
         final CharSequence text;
-        if(var !=null && varfile == null){
-          try{ text = var.text(); }
-          catch(Exception exc){ throw new IllegalArgumentException(exc.getMessage()); }
+        if(varO !=null && varfile == null){
+          text = varO.toString();
         }  
         else if(data.envVariable !=null){
           text = System.getenv(data.envVariable);

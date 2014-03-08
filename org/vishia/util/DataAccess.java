@@ -234,7 +234,7 @@ public class DataAccess {
   
   private static Map<String, Conversion> idxConversions = initConversion();
   
-  
+  private static String debugIdent;
   
   /**The description of the path to any data if the script-element refers data. It is null if the script element
    * does not refer data. If it is filled, the instances are of type {@link ZbnfDataPathElement}.
@@ -242,6 +242,69 @@ public class DataAccess {
    * are the handling of actual values for method calls. See {@link ZbnfDataPathElement#actualArguments}.
    */
   protected List<DataAccess.DatapathElement> datapath;
+  
+  
+  /**Creates a Datapath with given String.
+   * The first character of an element determines the type, see {@link DatapathElement#set(String)}.
+   * <ul>
+   * <li>If the path does not start with $+%! then it is separated in path elements, the separator is the dot.
+   * <li>If the path starts with $ it is an access to an environment variable.
+   * <li>+ new
+   * <li>% ! static method.
+   * <li>
+   * </ul> 
+   * For example for a simple local variable in the datapool write "@name".
+   * @param path
+   */
+  public DataAccess(String path){
+    datapath = new ArrayList<DataAccess.DatapathElement>();
+    if("$+%!".indexOf(path.charAt(0))>=0){
+      //only one element, environment variable, new Instance, static method.
+      DatapathElement element = new DatapathElement(path);
+      datapath.add(element);
+    } else {
+      //First element starts with '@' then from datapool.
+      String[] pathElements = path.split("\\.");
+      for(String sElement: pathElements){
+        DatapathElement element = new DatapathElement(sElement);
+        datapath.add(element);
+      }
+    }
+  }
+  
+  
+  /**Creates a Datapath with given String.
+   * The first character of an element determines the type, see {@link DatapathElement#set(String)}.
+   * <ul>
+   * <li>If the path does not start with $+%! then it is separated in path elements, the separator is the dot.
+   * <li>If the path starts with $ it is an access to an environment variable.
+   * <li>+ new
+   * <li>% ! static method.
+   * <li>
+   * </ul> 
+   * For example for a simple local variable in the datapool write "@name".
+   * @param path
+   * @param cTypeNewVariable if A...Z then the last element will be designated with it.
+   *   Then a new variable should be created in the parent's container with the access.
+   */
+  public DataAccess(String path, char cTypeNewVariable){
+    datapath = new ArrayList<DataAccess.DatapathElement>();
+    String[] pathElements = path.split("\\.");
+    DatapathElement element = null;
+    for(int ii=0; ii < pathElements.length; ++ii){
+      String sElement = pathElements[ii];
+      element = new DatapathElement(sElement);
+      datapath.add(element);
+    }
+    if(cTypeNewVariable >= 'A' && cTypeNewVariable <='Z' && element !=null){
+      element.whatisit = cTypeNewVariable;  //from the last element.
+    }
+  }
+  
+  
+  public DataAccess(){}
+  
+  
   
   public final List<DataAccess.DatapathElement> datapath(){ return datapath; }
   
@@ -467,8 +530,8 @@ public class DataAccess {
     //  element = null;  //no more following
     //}
     //else 
-    if(element.ident.startsWith("debug")){
-      Assert.stop();
+    if(element.ident.equals(debugIdent)){
+      debug();
     }
     //get the start instance:
     if(element.whatisit == '$'){
@@ -502,6 +565,9 @@ public class DataAccess {
     while(element !=null){
       //has a next element
       //
+      if(element.ident.equals(debugIdent)){
+        debug();
+      }
       if(data1 instanceof Variable<?>){
         @SuppressWarnings("unchecked") Variable<Object> var = (Variable<Object>)data1;
         data1 = var.value;  //take the content of a variable!
@@ -1245,6 +1311,19 @@ public class DataAccess {
    * @see java.lang.Object#toString()
    */
   @Override public String toString(){ return datapath !=null ? datapath.toString() : "emtpy DataAccess"; }
+  
+  
+  /**A debug helper: Set this ident to any String, which is expected for access.
+   * Then a breakpoint may be used. Set the breakpoint in the routine {@link #debug()}
+   * in any IDE (Eclipse...)
+   * @param ident The ident to break;
+   */
+  public static void debugIdent(String ident){ debugIdent = ident; }
+  
+  
+  protected static void debug(){
+    Assert.stop();
+  }
   
   
   public void writeStruct(Appendable out) throws IOException {

@@ -48,6 +48,8 @@ public class ZGenExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-03-08 Hartmut new: debug_dataAccessArgument() able to call from outside, to force breakpoint.
+   * <li>2014-03-08 Hartmut new: Filepath as type of a named argument regarded on call, see syntax
    * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined here. Only one concept!
    * <li>2014-03-01 Hartmut new: {@link ExecuteLevel#execForContainer(org.vishia.cmd.ZGenScript.ForStatement, Appendable, int)}
    *   now supports arrays as container too.
@@ -527,6 +529,7 @@ public class ZGenExecuter {
   }
   
 
+  
 
   /**
    * @param sError
@@ -584,6 +587,9 @@ public class ZGenExecuter {
     
     /**Set on break statement. Used only in a for-container execution to break the loop over the elements. */
     private boolean isBreak;
+    
+    private boolean debug_dataAccessArguments;
+    
     
     /**The error level which is returned from an operation system cmd invocation.
      * It is used for the {@link #execCmdError(org.vishia.cmd.ZGenScript.Onerror)}.
@@ -748,7 +754,7 @@ public class ZGenExecuter {
             executeDefVariable((ZGenScript.DefVariable)statement, 'Q', cond, false);
           } break;
           case 'e': executeDatatext((ZGenScript.DataText)statement, out); break; 
-          case 's': execSubroutine((ZGenScript.CallStatement)statement, null, out, indentOut); break;  //sub
+          case 's': execCall((ZGenScript.CallStatement)statement, null, out, indentOut); break;  //sub
           case 'x': executeThread((ZGenScript.ThreadBlock)statement); break;             //thread
           case 'm': executeMove((ZGenScript.CallStatement)statement); break;             //move
           case 'y': executeCopy((ZGenScript.CallStatement)statement); break;             //copy
@@ -1131,7 +1137,7 @@ public class ZGenExecuter {
     
     
     
-    private int execSubroutine(ZGenScript.CallStatement callStatement, List<DataAccess.Variable<Object>> additionalArgs
+    private int execCall(ZGenScript.CallStatement callStatement, List<DataAccess.Variable<Object>> additionalArgs
         , Appendable out, int indentOut) 
     throws IllegalArgumentException, Exception
     { int success = kSuccess;
@@ -1261,7 +1267,7 @@ public class ZGenExecuter {
       args.add(targetV);
       //
       //same as a normal subroutine.
-      execSubroutine(statement, args, out, indentOut);
+      execCall(statement, args, out, indentOut);
     }
     
     
@@ -1868,11 +1874,12 @@ public class ZGenExecuter {
     
     
     private void calculateArguments(DataAccess dataAccess) throws Exception {
+      if(debug_dataAccessArguments){
+        debug(); //set breakpoint into!
+        debug_dataAccessArguments = false;
+      }
       for(DataAccess.DatapathElement dataElement : dataAccess.datapath()){  //loop over all elements of the path with or without arguments.
         //check all datapath elements whether they have method calls with arguments:
-        String sTest = dataElement.toString();
-        if(sTest.contains("Xslt.exec"))
-          Assert.stop();
         if(dataElement instanceof ZGenScript.ZGenDatapathElement){
           ZGenScript.ZGenDatapathElement zgenDataElement = (ZGenScript.ZGenDatapathElement)dataElement;
           if(zgenDataElement.fnArgsExpr !=null){
@@ -1918,6 +1925,13 @@ public class ZGenExecuter {
       } else if(arg.expression !=null){
         CalculatorExpr.Value value = calculateExpression(arg.expression); //.calcDataAccess(localVariables);
         obj = value.objValue();
+      } else if(arg instanceof ZGenScript.Argument){
+        ZGenScript.Argument arg1 = (ZGenScript.Argument) arg;
+        if(arg1.filepath !=null){
+          obj = new ZGenFilepath(this, arg1.filepath);
+        } else {
+          obj = null;
+        }
       } else obj = null;  //throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
       return obj;
     }
@@ -2004,6 +2018,13 @@ public class ZGenExecuter {
       Assert.stop();
     }
     
+    
+    public void debug_dataAccessArguments(){ debug_dataAccessArguments = true; }
+    
+    
+    void debug(){
+      Assert.stop();
+    }
     
     void throwIllegalDstArgument(CharSequence text, DataAccess dst, ZGenScript.ZGenitem statement)
     throws IllegalArgumentException

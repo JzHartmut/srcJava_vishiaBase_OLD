@@ -110,9 +110,6 @@ public class ZGenScript {
   final Map<String, Subroutine> subroutinesAll = new TreeMap<String, Subroutine>();
   
   
-  final Map<String, FilesetVariable> filesetVar = new TreeMap<String, FilesetVariable>();
-  
-  
   
   /**List of the script variables in order of creation in the jbat script file and all includes.
    * The script variables can contain inputs of other variables which are defined before.
@@ -461,6 +458,9 @@ public class ZGenScript {
     
     /**Name of the argument. It is the key to assign calling argument values. */
     public String identArgJbat;
+    
+    /**Set whether the argument is a filepath. The the references of ZGenitem are null.*/
+    protected Filepath filepath;
    
     public Argument(StatementList parentList){
       super(parentList, '.');
@@ -470,36 +470,17 @@ public class ZGenScript {
     
     public String getIdent(){ return identArgJbat; }
     
-    public void XXXset_nonEmptyText(String text){
-      if(!StringFunctions.isEmptyOrOnlyWhitespaces(text)){
-        set_text(text);
-      }
-    }
-    
-    
-    
-    public void XXXset_textReplf(String text){
-      set_text(text);
-    }
-    
-    
-    
-    
-    /**Set from ZBNF:  (\?*<$?dataText>\?) */
-    //@Override
-    public DataText new_XXXdataText(){ return new DataText(parentList); }
-    
-    /**Set from ZBNF:  (\?*<*dataText>\?) */
-    //@Override
-    public void add_XXXdataText(DataText val){ 
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.statements.add(val); 
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);
-    }
-    
     @Override public String toString(){
       return identArgJbat + " = " + super.toString();
     }
+ 
+    
+    /**From ZBNF: The argument is given with <code>Filepath name = "a path"</code>. */
+    public ZbnfFilepath new_Filepath(){ return new ZbnfFilepath(); }
+    
+    public void add_Filepath(ZbnfFilepath valz){ filepath =valz.filepath; }
+    
+
     
   }
   
@@ -662,7 +643,7 @@ public class ZGenScript {
     public ZbnfFilepath new_commonpath(){ return new ZbnfFilepath(); }  //NOTE: it has not a parent. this is not its parent!
     public void set_commonpath(ZbnfFilepath val){ commonBasepath = val.filepath; }
     
-    /**From ZBNF: < file>. */
+    /**From ZBNF: < Filepath>. */
     public ZbnfFilepath new_Filepath(){ return new ZbnfFilepath(); }
     
     /**From ZBNF: < file>. */
@@ -675,30 +656,6 @@ public class ZGenScript {
     }
     
     
-    /*
-    void listFilesExpanded(List<UserFilepath> files, UserFilepath accesspath, boolean expandFiles) {  ////
-      for(UserFilepath filepath: filesOfFileset){
-        if(expandFiles && (filepath.someFiles || filepath.allTree)){
-          filepath.expandFiles(files, commonBasepath, accesspath, null);  //TODO script.currDir);
-        } else {
-          //clone filepath! add srcpath
-          UserFilepath targetsrc = new UserFilepath(script, filepath, commonBasepath, accesspath);
-          files.add(targetsrc);
-        }
-      }
-    }
-    
-    public List<UserFilepath> listFilesExpanded(UserFilepath accesspath, boolean expandFiles) { 
-      List<UserFilepath> files = new LinkedList<UserFilepath>();
-      listFilesExpanded(files, accesspath, expandFiles);
-      return files;
-    }
-    
-    
-    public List<UserFilepath> listFilesExpanded() { return listFilesExpanded(null, true); }
-
-    */
-      
       
     @Override
     public String toString(){ 
@@ -1360,37 +1317,6 @@ public class ZGenScript {
 
   
   
-  /**A < variable> in the ZmakeStd.zbnf is
-   * variable::=<$?@name> = [ fileset ( <fileset> ) | <string>  } ].
-   *
-   */
-  public static class FilesetVariable extends ZGenScript.Argument
-  { //final UserScript script;
-    public FilesetVariable(StatementList parentList)
-    {
-      super(parentList);
-      // TODO Auto-generated constructor stub
-    }
-
-    public CharSequence text(){ return null; }
-    
-    //public String name;
-    UserFileset fileset;
-    
-    Filepath filepath;
-    
-    
-    //JbatGenScript.Expression expression;
-    
-    //public UserString string;
-    
-  }
-
-  
-  
-  
-  
-  
   
   public static class DefVariable extends ZGenitem
   {
@@ -1734,6 +1660,16 @@ public class ZGenScript {
     }
 
     
+    public DefFilepath new_DefFilepath(){ return new DefFilepath(this.parentList); } 
+
+    public void add_DefFilepath(DefFilepath val){ 
+      if(formalArgs == null){ formalArgs = new ArrayList<DefVariable>(); }
+      formalArgs.add(val);
+    }
+    
+    
+
+    
     /**Defines or changes an environment variable with value. set NAME = TEXT;
      * Handle in the same kind like a String variable
      */
@@ -1751,6 +1687,9 @@ public class ZGenScript {
       //val.identArgJbat = "$" + val.identArgJbat;
       formalArgs.add(val); 
     } 
+
+    
+    
     
     @Override void writeStructAdd(int indent, Appendable out) throws IOException{
       if(formalArgs !=null){
@@ -2152,8 +2091,6 @@ public class ZGenScript {
       withoutOnerror.add(val);
     }
     
-    /**Defines a variable which is able to use as Appendable, it is a Writer.
-     */
     public DefFilepath new_DefFilepath(){
       bContainsVariableDef = true; 
       return new DefFilepath(this); 
@@ -2649,6 +2586,19 @@ public class ZGenScript {
       if(scriptfile.includes ==null){ scriptfile.includes = new ArrayList<String>(); }
       scriptfile.includes.add(val); 
     }
+    
+    /**Defines a variable with initial value. <= <variableAssign?textVariable> \<\.=\>
+     */
+    public DefVariable new_scriptCurrdir(){
+      bContainsVariableDef = true; 
+      DefVariable variable = new DefVariable(this, 'S'); 
+      variable.defVariable = new DataAccess("@currdir", 'S');
+      return variable;
+    } 
+
+    public void add_scriptCurrdir(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);} 
+    
+    
     
     /**Any script file gets its own mainRoutine because the {@link #scriptfile} is one instance per parsed script file.
      * The lastly valid {@link ZGenScript#scriptFile} is set from the last processes file.
