@@ -27,6 +27,9 @@
  *
  ****************************************************************************/
 package org.vishia.util;
+import java.io.Closeable;
+import java.io.Flushable;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -48,14 +51,15 @@ import java.util.Date;
  * The wording 'add' means, the current position is increment, so the next add()-operation adds 
  * something behind the previous add()-operation. In the insert mode the content at pos is shifted to right.
  * <br>
- * Every {@link pos(int)}-operation is successfull. If the buffer in shorter as the required position, spaces will be filled
+ * Every {@link pos(int)}-operation is successfully. If the buffer in shorter as the required position, spaces will be filled
  * onto the required position. So a buffer content can also be filled first right, than left.
  */
-public class StringFormatter
+public class StringFormatter implements Appendable, Closeable
 {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-03-13: Hartmut new {@link #pos(int, int)} 
    * <li>2013-03-31: Hartmut new {@link #convertTimestampToday(long)}
    * <li>2013-01-19: Hartmut new: {@link #addReplaceLinefeed(CharSequence, CharSequence, int)}.
    * <li>2009-05-03: Hartmut bugfix in strPicture: nr of inserted chars was incorrect.
@@ -91,7 +95,7 @@ public class StringFormatter
    * 
    * 
    */
-  public static final int version = 20130331;
+  public static final String version = "2013-03-31";
   
   private static final byte mNrofBytesInWord = 0x1F;
 
@@ -124,6 +128,17 @@ public class StringFormatter
   private static final String spaces = "                                                          ";
   
   protected final StringBuilder buffer;
+  
+  /**Destination to output a full line.
+   * If not null, then the line will be written if a \n character is in the buffer.
+   */
+  protected final Appendable lineout;
+  
+  /**The last written Character on {@link #append(char)}.
+   * If it is a '\r' a following '\n' does not force a newline. 
+   * If if is a '\n' a following '\r' does not force a newline. 
+   */
+  private char lastNewline = 'x';
 
   /**The position of actual writing.
    * 
@@ -133,6 +148,8 @@ public class StringFormatter
   /**True than add inserts, false than it overwrites. */
   private boolean bInsert = false;
   
+  
+  private String sNewline = "\n";
   
   private char cDecimalSeparator = '.';
   
@@ -155,6 +172,25 @@ public class StringFormatter
   
   public StringFormatter()
   { buffer = new StringBuilder();
+    lineout = null;
+  }
+
+
+  
+  /**Constructs an instance with a linked line-out channel and a StringBuffer of the given length.
+   * If a '\n' character will be {@link #append(char)} or {@link #append(CharSequence)} or {@link #append(CharSequence, int, int)}
+   * to this instance, the part till the '\n' will be written to the lineout and removed.
+   * It means the internal buffer contains only the current line. This current line
+   * can be formatted in the known kind.
+   * @param lineout Any appendable (Writer)
+   * @param newlineString usual "\n", "\r\n" or "\r" 
+   * @param defaultBufferLength usual about 100..200 for the length of line. The buffer will be increased 
+   *   if a longer line is necessary.
+   */
+  public StringFormatter(Appendable lineout, String newlineString, int defaultBufferLength)
+  { buffer = new StringBuilder(defaultBufferLength);
+    this.sNewline = newlineString;
+    this.lineout = lineout;
   }
 
 
@@ -164,6 +200,7 @@ public class StringFormatter
    */
   public StringFormatter(int length)
   { buffer = new StringBuilder(length);
+    lineout = null;
   }
 
 
@@ -173,6 +210,7 @@ public class StringFormatter
    */
   public StringFormatter(String str)
   { buffer = new StringBuilder(str);
+    lineout = null;
   }
 
 
@@ -183,6 +221,7 @@ public class StringFormatter
    */
   public StringFormatter(StringBuilder buffer)
   { this.buffer = buffer;
+    lineout = null;
   }
 
 
@@ -239,9 +278,22 @@ public class StringFormatter
 
   
   /**Sets the current write position to the given position. */
-  public StringFormatter pos(int newPos)
-  { if(newPos < 0) throw new IndexOutOfBoundsException("negativ position not supported");
-    pos = newPos;
+  public StringFormatter pos(int newPos){ return pos(newPos, -1); }
+  
+  /**Sets the current write position to the given position. 
+   * If minChars <0 then the position may be set to left. Existing text will be overridden.
+   * If minChars >=0 then the new position is at least the number of minChars right side to the current pos.
+   * If the pos is less the buffer.length, all characters right of pos in the buffer will be overridden
+   * on the next add- or append- operation. This condition is valid independent of this method.
+   * If the pos is more right than the length of the buffer, spaces will be included.
+   * */
+  public StringFormatter pos(int newPos, int minChars)
+  { if(newPos < 0) throw new IndexOutOfBoundsException("negative position not supported");
+    if(minChars >= 0 && pos+minChars > newPos){
+      pos += minChars;
+    } else {
+      pos = newPos;
+    }
     int pos1 = buffer.length();
     while(pos1 < pos )
     { buffer.append(' '); pos1 +=1;
@@ -671,8 +723,8 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
   
   
   
-  public StringFormatter add(char ch)
-  { prepareBufferPos(1);
+  public StringFormatter add(char ch){     
+    prepareBufferPos(1);
     buffer.setCharAt(this.pos++, ch);
     return this;
   }
@@ -1025,6 +1077,58 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
     if(val < 0.001f){ ret = String.format("%1.6f", val); };
     return ret;
   }
-  
-  
+
+
+
+  @Override
+  public StringFormatter append(CharSequence csq) throws IOException { 
+    append(csq, 0, csq.length()); 
+    return this; 
+  }
+
+
+
+  @Override
+  public StringFormatter append(char c) throws IOException { 
+    if(lineout !=null && (c == '\n' || c=='\r')){
+      if(c == '\n' && lastNewline != '\r' || c=='\r' && lastNewline != '\n'){
+        lineout.append(buffer, 0, pos);
+        lineout.append(sNewline);
+        buffer.delete(0, pos);
+        pos = 0;
+      }
+    } else {
+      add(c);
+    }      
+    lastNewline = c;  //store anyway the last character. 
+    return this;
+  }
+
+
+
+  @Override
+  public StringFormatter  append(CharSequence csq, int start, int end)
+  throws IOException
+  {
+    for(int ii=start; ii<end; ++ii){
+      char cc = csq.charAt(ii);
+      append(cc);
+    }
+    return this;
+  }
+
+
+
+  @Override
+  public void close() throws IOException
+  {
+    if(lineout !=null){
+      lineout.append(buffer);
+    }
+    reset();
+  }
+
+
+
+   
 }

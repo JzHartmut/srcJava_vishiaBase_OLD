@@ -28,6 +28,7 @@ import org.vishia.util.Conversion;
 import org.vishia.util.DataAccess;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
+import org.vishia.util.StringFormatter;
 import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPartAppend;
 import org.vishia.util.StringSeq;
@@ -437,7 +438,9 @@ public class ZGenExecuter {
     startmilli = System.currentTimeMillis();
     startnano = System.nanoTime();
     ZGenScript.Subroutine contentScript = genScript.getMain();
-    execFile.execute(contentScript.statementlist, out, 0, false);
+    StringFormatter outLines = new StringFormatter(out, "\n", 200);
+    execFile.execute(contentScript.statementlist, outLines, 0, false);
+    outLines.close();
     if(bWaitForThreads){
       boolean bWait = true;
       while(bWait){
@@ -487,7 +490,9 @@ public class ZGenExecuter {
     //Executes the statements of the sub routine:
     startmilli = System.currentTimeMillis();
     startnano = System.nanoTime();
-    level.execute(statement.statementlist, out, 0, false);
+    StringFormatter outLines = new StringFormatter(out, "\n", 200);
+    level.execute(statement.statementlist, outLines, 0, false);
+    outLines.close();
     //return sError1;
   }
   
@@ -688,7 +693,7 @@ public class ZGenExecuter {
      * @return an error hint.
      * @throws IOException
      */
-    public int executeNewlevel(ZGenScript.StatementList contentScript, final Appendable out, int indentOut, boolean bContainerHasNext) 
+    public int executeNewlevel(ZGenScript.StatementList contentScript, final StringFormatter out, int indentOut, boolean bContainerHasNext) 
     throws Exception 
     { final ExecuteLevel level;
       if(contentScript.bContainsVariableDef){
@@ -706,7 +711,7 @@ public class ZGenExecuter {
      * @return a return Map if created.
      * @throws IOException 
      */
-    private int execute(ZGenScript.StatementList contentScript, final Appendable out, int indentOut, boolean bContainerHasNext) 
+    private int execute(ZGenScript.StatementList contentScript, final StringFormatter out, int indentOut, boolean bContainerHasNext) 
     throws Exception 
     {
       Appendable uBuffer = out;
@@ -720,6 +725,7 @@ public class ZGenExecuter {
         try{    
           switch(statement.elementType()){
           case 't': executeText(statement, out, indentOut);break; //<:>...textexpression <.>
+          case '@': execSetColumn((ZGenScript.TextColumn)statement, out, indentOut);break; //<:@23>
           case 'n': uBuffer.append(newline);  break;   //<.n+>
           case '\\': uBuffer.append(statement.textArg);  break;   //<:n> transcription
           case 'T': textAppendToVarOrOut((ZGenScript.TextOut)statement, out); break; //<+text>...<.+> 
@@ -889,6 +895,11 @@ public class ZGenExecuter {
     }
     
     
+    void execSetColumn(ZGenScript.TextColumn statement, StringFormatter out, int indentOut) throws IOException{
+      out.pos(statement.column, statement.minChars);
+    }
+    
+    
 
     void executeDefVariable(ZGenScript.DefVariable statement, char type, Object value, boolean isConst) 
     throws Exception {
@@ -911,7 +922,7 @@ public class ZGenExecuter {
     }
     
       
-    private int execForContainer(ZGenScript.ForStatement statement, Appendable out, int indentOut) throws Exception
+    private int execForContainer(ZGenScript.ForStatement statement, StringFormatter out, int indentOut) throws Exception
     {
       ZGenScript.StatementList subContent = statement.statementlist();  //The same sub content is used for all container elements.
       ExecuteLevel forExecuter = new ExecuteLevel(threadData, this, localVariables);
@@ -982,7 +993,7 @@ public class ZGenExecuter {
     
     
     
-    int executeIfContainerHasNext(ZGenScript.ZGenitem hasNextScript, Appendable out, int indentOut, boolean bContainerHasNext) 
+    int executeIfContainerHasNext(ZGenScript.ZGenitem hasNextScript, StringFormatter out, int indentOut, boolean bContainerHasNext) 
     throws Exception{
       int cont = kSuccess;
       if(bContainerHasNext){
@@ -996,7 +1007,7 @@ public class ZGenExecuter {
     
     /**it contains maybe more as one if block and else. 
      * @throws Exception */
-    int executeIfStatement(ZGenScript.IfStatement ifStatement, Appendable out, int indentOut) throws Exception{
+    int executeIfStatement(ZGenScript.IfStatement ifStatement, StringFormatter out, int indentOut) throws Exception{
       int cont = kFalse;
       Iterator<ZGenScript.ZGenitem> iter = ifStatement.statementlist.statements.iterator();
       //boolean found = false;  //if block found
@@ -1023,7 +1034,7 @@ public class ZGenExecuter {
     
     /**Executes a while statement. 
      * @throws Exception */
-    int whileStatement(ZGenScript.CondStatement whileStatement, Appendable out, int indentOut) 
+    int whileStatement(ZGenScript.CondStatement whileStatement, StringFormatter out, int indentOut) 
     throws Exception 
     {
       int cont = kSuccess;
@@ -1043,7 +1054,7 @@ public class ZGenExecuter {
     
     /**Executes a dowhile statement. 
      * @throws Exception */
-    int dowhileStatement(ZGenScript.CondStatement whileStatement, Appendable out, int indentOut) 
+    int dowhileStatement(ZGenScript.CondStatement whileStatement, StringFormatter out, int indentOut) 
     throws Exception 
     { int cont;
       boolean cond;
@@ -1067,7 +1078,7 @@ public class ZGenExecuter {
      * @return true if the condition is true. If it returns false, an elsif or else-Block should be executed.
      * @throws Exception
      */
-    int executeIfBlock(ZGenScript.IfCondition ifBlock, Appendable out, int indentOut, boolean bIfHasNext) 
+    int executeIfBlock(ZGenScript.IfCondition ifBlock, StringFormatter out, int indentOut, boolean bIfHasNext) 
     throws Exception
     { int cont;
       //Object check = getContent(ifBlock, localVariables, false);
@@ -1093,8 +1104,9 @@ public class ZGenExecuter {
      * @param statement the statement
      * @throws Exception 
      */
-    void textAppendToVarOrOut(ZGenScript.TextOut statement, Appendable out) throws Exception
-    { Appendable out1;
+    void textAppendToVarOrOut(ZGenScript.TextOut statement, StringFormatter out) throws Exception
+    { StringFormatter out1;
+      boolean bShouldClose;
       if(statement.variable !=null){
         Object chn;
         //Object oVar = DataAccess.access(statement.variable.datapath(), null, localVariables, bAccessPrivate, false, true, null);
@@ -1111,12 +1123,20 @@ public class ZGenExecuter {
           //it is not a variable, can be direct stored Appendable:
           chn = oVar;
         }
-        if(!(chn instanceof Appendable)) {
+        if(chn instanceof StringFormatter){
+          out1 = (StringFormatter)chn;
+          bShouldClose = false;
+        } else if((chn instanceof Appendable)) {
+          out1 = new StringFormatter((Appendable)chn, "\n", 200);  //append, it may be a StringPartAppend.
+          bShouldClose = true;
+        } else {
           throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
+          out1 = new StringFormatter();  //NOTE: it is a dummy because the statement above throws.
+          bShouldClose = false;
         }
-        out1 = (Appendable)chn;  //append, it may be a StringPartAppend.
       } else {
         out1 = out;
+        bShouldClose = false;
       }
       if(statement.statementlist !=null){
         //executes the statement, use the Appendable to output immediately
@@ -1128,6 +1148,9 @@ public class ZGenExecuter {
           out1.append(text);
         }
       }
+      if(bShouldClose){
+        out1.close();
+      }
     }
     
     
@@ -1138,7 +1161,7 @@ public class ZGenExecuter {
     
     
     private int execCall(ZGenScript.CallStatement callStatement, List<DataAccess.Variable<Object>> additionalArgs
-        , Appendable out, int indentOut) 
+        , StringFormatter out, int indentOut) 
     throws IllegalArgumentException, Exception
     { int success = kSuccess;
       boolean ok = true;
@@ -1242,7 +1265,7 @@ public class ZGenExecuter {
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    private void execZmake(ZGenScript.Zmake statement, Appendable out, int indentOut) 
+    private void execZmake(ZGenScript.Zmake statement, StringFormatter out, int indentOut) 
     throws IllegalArgumentException, Exception {
       ZmakeTarget target = new ZmakeTarget(this);
       target.output = new ZGenFilepath(this, statement.output);  //prepare to ready-to-use form.
@@ -1323,7 +1346,7 @@ public class ZGenExecuter {
      *   inside the block. All other return values of execute are returned.
      * @throws IOException
      */
-    private int execNestedLevel(ZGenScript.ZGenitem script, Appendable out, int indentOut) 
+    private int execNestedLevel(ZGenScript.ZGenitem script, StringFormatter out, int indentOut) 
     throws Exception
     {
       ExecuteLevel genContent;
@@ -1428,7 +1451,7 @@ public class ZGenExecuter {
     }
     
 
-    int execCmdError(ZGenScript.Onerror statement, Appendable out, int indentOut) throws Exception {
+    int execCmdError(ZGenScript.Onerror statement, StringFormatter out, int indentOut) throws Exception {
       int ret = 0;
       if(this.cmdErrorlevel >= statement.errorLevel){
         ret = execute(statement.statementlist, out, indentOut, false);
@@ -1813,9 +1836,10 @@ public class ZGenExecuter {
         if(o==null){ return "null"; }
         else {return o.toString(); }
       } else if(arg.statementlist !=null){
-        StringPartAppend u = new StringPartAppend();
+        StringFormatter u = new StringFormatter();
+        //StringPartAppend u = new StringPartAppend();
         executeNewlevel(arg.statementlist, u, 0, false);
-        return StringSeq.create(u, true);
+        return u.getBuffer(); //StringSeq.create(u, true);
       } else if(arg.expression !=null){
         CalculatorExpr.Value value = calculateExpression(arg.expression); //.calcDataAccess(localVariables);
         return value.stringValue();
@@ -1919,7 +1943,8 @@ public class ZGenExecuter {
         obj = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
         //obj = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
       } else if(arg.statementlist !=null){
-        StringPartAppend u = new StringPartAppend();
+        //StringPartAppend u = new StringPartAppend();
+        StringFormatter u = new StringFormatter();
         executeNewlevel(arg.statementlist, u, arg.statementlist.indentText, false);
         obj = u.toString();
       } else if(arg.expression !=null){

@@ -1469,6 +1469,29 @@ public class ZGenScript {
   
   
   
+  public static class TextColumn extends ZGenitem
+  {
+    /**The column where the current position is to be set. */
+    final int column;
+    
+    /**If >=0, then at least this number of spaces are added on setColumn. 
+     * The column is not be exact than, but existing text won't be not overridden.
+     * If -1 then the setPosition may override existing text, but the column is exact.
+     */
+    int minChars = -1;
+    
+    TextColumn(StatementList parentList, int column)
+    { super(parentList, '@');
+      this.column = column;
+    }
+
+    @Override
+    void writeStructAdd(int indent, Appendable out) throws IOException{ out.append(" setColumn ").append(Integer.toString(column)); }
+
+  }
+  
+  
+  
   
   public static class IfStatement extends ZGenitem
   {
@@ -1925,6 +1948,7 @@ public class ZGenScript {
    */
   public static class StatementList
   {
+    ZGenitem currStatement;
     
     /**Hint to the source of this parsed argument or statement. */
     String srcFile = "srcFile-yet-unknown";
@@ -2211,6 +2235,17 @@ public class ZGenScript {
     }
     
     
+    
+    public void set_setColumn(int val){
+      currStatement = new TextColumn(this, val);
+      statements.add(currStatement);
+      onerrorAccu = null; withoutOnerror.add(currStatement);
+    }
+
+    
+    public void set_minChars(int val){
+      ((TextColumn)currStatement).minChars = val;
+    }
 
     
     /**Sets the plainText From ZBNF. invokes {@link #set_textReplLf(String)} if the text contains

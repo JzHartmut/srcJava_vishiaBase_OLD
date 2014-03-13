@@ -63,7 +63,7 @@ del /F/Q %OUTDIR_JAVAC%\%JAR_JAVAC%
 del /F/Q %OUTDIR_JAVAC%\%JAR_JAVAC%.compile.log
 del /F/Q %OUTDIR_JAVAC%\%JAR_JAVAC%.compile_error.log
 
-echo === javac -sourcepath %SRCPATH_JAVAC% -classpath %CLASSPATH_JAVAC% %INPUT_JAVAC%
+echo === javac -d %TMP_JAVAC%\bin -sourcepath %SRCPATH_JAVAC% -classpath %CLASSPATH_JAVAC% %INPUT_JAVAC%
 
 %JAVA_JDK%\bin\javac -deprecation -d %TMP_JAVAC%\bin -sourcepath %SRCPATH_JAVAC% -classpath %CLASSPATH_JAVAC% %INPUT_JAVAC% 1>>%TMP_JAVAC%\javac_ok.txt 2>%TMP_JAVAC%\javac_error.txt
 if ERRORLEVEL 1 (

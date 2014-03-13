@@ -61,6 +61,7 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2014-03-08 Hartmut new: {@link #debugIdent(String)} sets an identifier on which debug() was called, to set manual breakpoint while debugging. 
    * <li>2014-01-26 Hartmut chg: The element <code>fnArgsExpr</code> of {@link DatapathElement} is removed from here. 
    *   It is now located in {@link org.vishia.cmd.ZGenScript.ZGenDatapathElement} because it is necessary
    *   only for the ZGen usage. This class is more simple in its functionality.

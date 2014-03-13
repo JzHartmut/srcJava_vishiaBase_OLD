@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.Map;
 
+import org.vishia.util.StringFunctions;
+
 public class ZGenTester
 {
 
@@ -50,12 +52,22 @@ public class ZGenTester
   
   public void mapToFile(Map<String, Object> map, String sFile) throws IOException{
     Writer wr = new FileWriter(sFile); 
+      mapToFile(map, wr, 0);
+    wr.close();
+  }
+  
+  
+  public void mapToFile(Map<String, Object> map, Appendable wr, int indent) throws IOException{
     for(Map.Entry<String, Object> entry: map.entrySet()){
       String key = entry.getKey();
       Object value = entry.getValue();
-      wr.append(key).append("   -   ").append(value.toString()).append("\n");  
+      wr.append(StringFunctions.indent2(indent)).append(key).append("; ").append(value.toString()).append("\n");  
+      if(value instanceof Map<?, ?>){
+        @SuppressWarnings("unchecked")
+        Map<String, Object> submap = (Map<String, Object>) value;  
+        mapToFile(submap, wr, indent+1);
+      }
     }
-    wr.close();
   }
   
   

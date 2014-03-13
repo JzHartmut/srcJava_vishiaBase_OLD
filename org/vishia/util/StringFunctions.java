@@ -13,6 +13,7 @@ public class StringFunctions {
 
   /**Version, history and license.
    * <ul>
+   * <li>2014-03-11 Hartmut new: {@link #indent2(int)}
    * <li>2013-09-07 Hartmut new: {@link #parseFloat(String, int, int, char, int[])} with choiceable separator (123,45, german decimal point)
    * <li>2013-09-07 Hartmut new: {@link #convertTranscription(CharSequence, char)} used form {@link SpecialCharStrings#resolveCircumScription(String)}
    * <li>2013-08-29 Hartmut bugfix: {@link #compare(CharSequence, int, CharSequence, int, int)}, {@link #indexOf(CharSequence, CharSequence, int)}
@@ -715,5 +716,30 @@ public class StringFunctions {
     return sResult;
   }
 
+  
+  static String indentString = "\n                                                                                                    ";
+  
+  /**Returns a String with 2*indent spaces for indentation.
+   * If indent is >50, return only 100 spaces. 
+   * @param indent indentation
+   * @return
+   */
+  public static String indent2(int indent){
+    if(2*indent < indentString.length()-1){ return indentString.substring(1, 1 + 2*indent); }
+    else return indentString.substring(1);
+  }
+  
+  /**Returns a String with a newline \n character and 2*indent spaces for indentation.
+   * If indent is >50, return only 100 spaces. 
+   * @param indent indentation
+   * @return
+   */
+  public static String nl_indent2(int indent){
+    if(2*indent < indentString.length()-1){ return indentString.substring(0, 1 + 2*indent); }
+    else return indentString;
+  }
+  
+  
+  
   
 }

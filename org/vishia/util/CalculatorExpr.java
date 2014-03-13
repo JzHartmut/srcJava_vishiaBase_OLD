@@ -40,6 +40,7 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-02-22 Hartmut chg: now string >= string2 tests 'startswith' instead alphabetiv comparison. 
    * <li>2014-02-22 Hartmut new: {@link #calcDataAccess(Map, Object...)} accepts {@link Value} as return of dataAccess.
    *   A Value is stored for Num variables in ZGen especially.
    * <li>2014-01-26 Hartmut bugfix: and-expression with !val && val did not work.  
@@ -97,7 +98,7 @@ public class CalculatorExpr
    * 
    */
   //@SuppressWarnings("hiding")
-  public final static int version = 20121222;
+  public final static int version = 0x20140311;
   
    
    
@@ -705,7 +706,7 @@ public class CalculatorExpr
         case 'D': accu.boolVal = accu.doubleVal >= arg.doubleVal; break;
         case 'F': accu.boolVal = accu.floatVal >= arg.floatVal; break;
         case 'Z': accu.boolVal = true; break;
-        case 't': accu.boolVal = StringFunctions.compare(accu.stringVal, arg.stringVal) >= 0; break;
+        case 't': accu.boolVal = StringFunctions.startsWith(accu.stringVal, arg.stringVal); break;
         case 'o': accu.boolVal = accu.oVal instanceof Comparable<?> && arg.oVal instanceof Comparable<?> ? ((Comparable)accu.oVal).compareTo(arg.oVal) >= 0 : false; break;
         default: throw new IllegalArgumentException("unknown type" + type.toString());
       }
