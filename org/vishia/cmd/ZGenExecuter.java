@@ -523,13 +523,15 @@ public class ZGenExecuter {
   }
   
   
-  public void runThread(ExecuteLevel executeLevel, ZGenScript.ThreadBlock statement){
-    try{ 
-      executeLevel.execute(statement.statementlist, null, 0, false);
+  public void runThread(ExecuteLevel executeLevel, ZGenScript.ThreadBlock statement, ZGenThreadResult threadVar){
+    try{
+      StringFormatter out = new StringFormatter(threadVar.uText, "\n", 200);
+      executeLevel.execute(statement.statementlist, out, 0, false);
+      out.close();
     } 
     catch(Exception exc){
-      //TODO anything with the environment onerror statement?
-      exc.printStackTrace(System.out);
+      threadVar.exception = exc;
+      //finishes the thread.
     }
   }
   
@@ -725,7 +727,7 @@ public class ZGenExecuter {
         try{    
           switch(statement.elementType()){
           case 't': executeText(statement, out, indentOut);break; //<:>...textexpression <.>
-          case '@': execSetColumn((ZGenScript.TextColumn)statement, out, indentOut);break; //<:@23>
+          case '@': execSetColumn((ZGenScript.TextColumn)statement);break; //<:@23>
           case 'n': uBuffer.append(newline);  break;   //<.n+>
           case '\\': uBuffer.append(statement.textArg);  break;   //<:n> transcription
           case 'T': textAppendToVarOrOut((ZGenScript.TextOut)statement, out); break; //<+text>...<.+> 
@@ -895,7 +897,8 @@ public class ZGenExecuter {
     }
     
     
-    void execSetColumn(ZGenScript.TextColumn statement, StringFormatter out, int indentOut) throws IOException{
+    void execSetColumn(ZGenScript.TextColumn statement) throws IOException{
+      StringFormatter out = threadData.out();
       out.pos(statement.column, statement.minChars);
     }
     
@@ -1517,17 +1520,17 @@ public class ZGenExecuter {
         Object obj = dataAccess(statement.dataAccess, localVariables, bAccessPrivate, false, false, null);
         //Object obj = statement.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
         if(obj==null){ text = "null"; 
-        } else {
-          if(statement.format !=null){ //it is a format string:
+        } else if(statement.format !=null){ //it is a format string:
             if(obj instanceof CalculatorExpr.Value){
               obj = ((CalculatorExpr.Value)obj).objValue();  
               //converted to boxed numeric if numeric.
               //boxed numeric is necessary for format
             }
             text = String.format(statement.format, obj);
-          } else {
-            text = obj.toString();
-          }
+        } else if (obj instanceof CharSequence){
+          text = (CharSequence)obj;
+        } else {
+          text = obj.toString();
         }
       } catch(Exception exc){
         text = textError(exc, statement);  //throws
@@ -2091,12 +2094,17 @@ public class ZGenExecuter {
    */
   protected static class ZGenThreadResult implements CharSequence
   {
-    StringBuilder uText = new StringBuilder();
+    StringBuilder uText;
+    
+    StringFormatter out; //textLine;
+    
+    int indentOut;
     
     /**Exception text. If not null then an exception is thrown and maybe thrown for the next level.
      * This text can be gotten by the "error" variable.
      */
     DataAccess.Variable<Object> error = new DataAccess.Variable<Object>('S', "error", null);
+    
     Throwable exception;
     
     /**State of thread execution. 
@@ -2115,12 +2123,33 @@ public class ZGenExecuter {
       state = 'i';
     }
     
+    
+    protected StringFormatter out(){
+      if(uText == null){
+        uText = new StringBuilder();
+      }
+      if(out == null){
+        out = new StringFormatter(uText, "\n", 200);
+      }
+      return out;
+    }
+    
+    
+    public boolean join(int time){
+      synchronized(this){
+        try {
+          wait(time);
+        } catch (InterruptedException e) { }
+      }
+      return state == 'y';
+    }
+    
     @Override public char charAt(int index){ return uText.charAt(index); }
 
     @Override public int length(){ return uText.length(); }
 
     @Override public CharSequence subSequence(int start, int end){ return uText.subSequence(start, end); }
-    
+  
   }
   
   
@@ -2143,12 +2172,17 @@ public class ZGenExecuter {
     }
 
     @Override public void run(){ 
-      runThread(executeLevel, statement); 
-      synchronized(threads){
+      result.state = 'r';
+      runThread(executeLevel, statement, result); 
+      result.state = 'y';
+      synchronized(result){
+        result.notifyAll();   //any other thread may wait for join
+      }
+      synchronized(threads){  //remove this thread from the list of threads.
         boolean bOk = threads.remove(this);
         assert(bOk);
         if(threads.size() == 0){
-          threads.notify();
+          threads.notify();    //notify the waiting main thread to finish.
         }
       }
     }

@@ -181,6 +181,14 @@ public class DataAccess {
     @Override public String toString(){ return "long:int"; }
   };
   
+  protected static Conversion int2long = new Conversion(){
+    @Override public Object convert(Object src){
+      return new Long(((Integer)src).intValue());
+    }
+    @Override public boolean canConvert(Object src){ return true;}
+    @Override public String toString(){ return "int:long"; }
+  };
+  
   protected static Conversion number2bool = new Conversion(){
     @Override public Object convert(Object src){
       return new Boolean(((Number)src).longValue() !=0);
@@ -406,6 +414,7 @@ public class DataAccess {
     Map<String, Conversion> conversion1 = new TreeMap<String, Conversion>();
     conversion1.put("java.lang.Long:int", long2int);
     conversion1.put("java.lang.Integer:int", obj2obj);
+    conversion1.put("java.lang.Integer:long", int2long);
     conversion1.put("java.lang.Float:float", obj2obj);
     conversion1.put("java.lang.Double:double", obj2obj);
     conversion1.put("java.lang.Number:boolean", number2bool);

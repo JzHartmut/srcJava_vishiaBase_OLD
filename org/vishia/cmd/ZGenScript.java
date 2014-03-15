@@ -2044,6 +2044,11 @@ public class ZGenScript {
       onerrorAccu = null; withoutOnerror.add(val);
     } 
     
+    
+    public void set_debug(){
+      statements.add(new ZGenitem(this, 'D'));
+    }
+    
     /**Gathers a text which is assigned to any variable or output. <+ name>text<.+>
      */
     public TextOut new_textOut(){ return new TextOut(this, 'T'); }
