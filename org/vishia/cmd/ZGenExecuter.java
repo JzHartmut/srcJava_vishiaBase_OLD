@@ -49,6 +49,8 @@ public class ZGenExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-03-05 Hartmut new: {@link ZGenThreadResult#uText} and {@link ZGenThreadResult#out} will only be created
+   *   on demand if it need. Save calculation time for fast threads. 
    * <li>2014-03-08 Hartmut new: debug_dataAccessArgument() able to call from outside, to force breakpoint.
    * <li>2014-03-08 Hartmut new: Filepath as type of a named argument regarded on call, see syntax
    * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined here. Only one concept!
@@ -434,33 +436,8 @@ public class ZGenExecuter {
       genScript.writeStruct(writer);
       writer.close();
     }
-    
-    startmilli = System.currentTimeMillis();
-    startnano = System.nanoTime();
     ZGenScript.Subroutine contentScript = genScript.getMain();
-    StringFormatter outLines = new StringFormatter(out, "\n", 200);
-    execFile.execute(contentScript.statementlist, outLines, 0, false);
-    outLines.close();
-    if(bWaitForThreads){
-      boolean bWait = true;
-      while(bWait){
-        synchronized(threads){
-          bWait = threads.size() !=0;
-          if(bWait){
-            try{ threads.wait(1000); }
-            catch(InterruptedException exc){}
-          }
-        }
-      }
-
-    }
-    @SuppressWarnings("cast")
-    DataAccess.Variable<Object> varText = (DataAccess.Variable<Object>)scriptLevel.localVariables.get("text");
-    Object oText = varText.value();
-    if(oText !=null && oText instanceof CharSequence){
-      return (CharSequence)oText;
-    }
-    else return null;
+    return execute(execFile, contentScript, true);
   }
 
   
@@ -499,6 +476,34 @@ public class ZGenExecuter {
   
   
   
+  private CharSequence execute(ExecuteLevel execSub, ZGenScript.Subroutine statement, boolean bWaitForThreads)
+  throws Exception {
+    startmilli = System.currentTimeMillis();
+    startnano = System.nanoTime();
+    execSub.execute(statement.statementlist, null, 0, false);
+    if(execSub.threadData.out !=null){
+      execSub.threadData.out.close();
+    }
+    if(bWaitForThreads){
+      boolean bWait = true;
+      while(bWait){
+        synchronized(threads){
+          bWait = threads.size() !=0;
+          if(bWait){
+            try{ threads.wait(1000); }
+            catch(InterruptedException exc){}
+          }
+        }
+      }
+
+    }
+    return execSub.threadData.uText;  //may be null if a text is not produced.
+  }
+  
+  
+  
+  
+  
   public DataAccess.Variable<Object> getScriptVariable(String name) throws NoSuchFieldException
   { return DataAccess.getVariable(scriptLevel.localVariables, name, true); }
 
@@ -525,9 +530,7 @@ public class ZGenExecuter {
   
   public void runThread(ExecuteLevel executeLevel, ZGenScript.ThreadBlock statement, ZGenThreadResult threadVar){
     try{
-      StringFormatter out = new StringFormatter(threadVar.uText, "\n", 200);
-      executeLevel.execute(statement.statementlist, out, 0, false);
-      out.close();
+      executeLevel.execute(statement.statementlist, null, 0, false);
     } 
     catch(Exception exc){
       threadVar.exception = exc;
@@ -538,23 +541,6 @@ public class ZGenExecuter {
 
   
 
-  /**
-   * @param sError
-   * @param out
-   * @return false to assign to an ok variable.
-   * @throws IOException
-   */
-  boolean writeError(String sError, Appendable out) throws IOException{
-    if(bWriteErrorInOutput){
-      out.append(sError);
-    } else {
-      throw new IllegalArgumentException(sError); 
-    }
-    return false;
-
-  }
-  
-  
   
   CharSequence textError(Exception exc, ZGenScript.ZGenitem zgenitem){
     StringBuilder text = new StringBuilder(100); 
@@ -707,16 +693,18 @@ public class ZGenExecuter {
     }
 
   
-    /**
-     * @param contentScript
+    /**Processes the statement of the current node in the ZGenitem.
+     * @param contentScript 
+     * @param out The current output. Either it is a special output channel for <+channel>...<.+>
+     *   or it is the threadData.out or it is null if threadData.out is not initialized yet.
+     * @param indentOut The indentation in the script.
      * @param bContainerHasNext Especially for <:for:element:container>SCRIPT<.for> to implement <:hasNext>
-     * @return a return Map if created.
-     * @throws IOException 
+     * @return
+     * @throws Exception
      */
     private int execute(ZGenScript.StatementList contentScript, final StringFormatter out, int indentOut, boolean bContainerHasNext) 
     throws Exception 
     {
-      Appendable uBuffer = out;
       //Generate direct requested output. It is especially on inner content-scripts.
       int ixStatement = -1;
       int ret = 0;
@@ -728,8 +716,8 @@ public class ZGenExecuter {
           switch(statement.elementType()){
           case 't': executeText(statement, out, indentOut);break; //<:>...textexpression <.>
           case '@': execSetColumn((ZGenScript.TextColumn)statement);break; //<:@23>
-          case 'n': uBuffer.append(newline);  break;   //<.n+>
-          case '\\': uBuffer.append(statement.textArg);  break;   //<:n> transcription
+          case 'n': execAppendText(newline, out);  break;   //<.n+>
+          case '\\': execAppendText(statement.textArg, out);  break;   //<:n> transcription
           case 'T': textAppendToVarOrOut((ZGenScript.TextOut)statement, out); break; //<+text>...<.+> 
           case 'U': defineExpr((ZGenScript.DefVariable)statement); break; //setStringVariable(statement); break; 
           case 'S': defineExpr((ZGenScript.DefVariable)statement); break; //setStringVariable(statement); break; 
@@ -787,7 +775,7 @@ public class ZGenExecuter {
           case 'G': createFileSet((ZGenScript.UserFileset) statement); break;
           case 'Z': execZmake((ZGenScript.Zmake) statement, out, indentOut); break;
           default: 
-            uBuffer.append("ZGen - execute-unknown type; '" + statement.elementType() + "' :ERROR=== ");
+            writeError("ZGenExecute - unknown statement; '" + statement.elementType() + "' :ERROR=== ", out);
           }//switch
           
         } catch(Exception exc){
@@ -862,7 +850,7 @@ public class ZGenExecuter {
     
     
     
-    void executeText(ZGenScript.ZGenitem statement, Appendable out, int indentOut) throws IOException{
+    void executeText(ZGenScript.ZGenitem statement, Appendable outP, int indentOut) throws IOException{
       int posLine = 0;
       int posEnd1, posEnd2;
       if(statement.textArg.startsWith("  "))
@@ -875,6 +863,12 @@ public class ZGenExecuter {
         if(posEnd2 >= 0 && (posEnd2 < posEnd1 || posEnd1 <0)){
           posEnd1 = posEnd2;  // \r found before \n
           cEnd = '\r';
+        }
+        Appendable out;
+        if(outP == null){ 
+          out = threadData.out();  //not a <+channel>, if out not given use threadData, maybe created it.
+        } else {
+          out = outP;
         }
         if(posEnd1 >= 0){ 
           out.append(statement.textArg.substring(posLine, posEnd1));   
@@ -1025,7 +1019,7 @@ public class ZGenExecuter {
             cont = execute(statement.statementlist, out, indentOut, false);
           } break;
           default:{
-            out.append(" ===ERROR: unknown type '" + statement.elementType() + "' :ERROR=== ");
+            writeError("ZGenExecuter.executeIf - unknown statement; " + statement.elementType(), out);
           }
         }//switch
       }//for
@@ -1506,13 +1500,28 @@ public class ZGenExecuter {
     
      
     
+    
+    private void execAppendText(CharSequence text, Appendable outP) throws IOException{
+      Appendable out;
+      if(outP == null){ 
+        out = threadData.out();  //not a <+channel>, if out not given use threadData, maybe created it.
+      } else {
+        out = outP;
+      }
+      out.append(text); 
+    }
+    
+    
+    
+    
+    
     /**Inserts <*a_datapath> in the out.
      * @param statement
      * @param out
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    private void executeDatatext(ZGenScript.DataText statement, Appendable out)  //<*datatext>
+    private void executeDatatext(ZGenScript.DataText statement, Appendable outP)  //<*datatext>
     throws IllegalArgumentException, Exception
     {
       CharSequence text = "??";
@@ -1535,8 +1544,10 @@ public class ZGenExecuter {
       } catch(Exception exc){
         text = textError(exc, statement);  //throws
       }
-      out.append(text); 
+      execAppendText(text, outP);
     }
+
+    
     
     void executeMove(ZGenScript.CallStatement statement) 
     throws IllegalArgumentException, Exception
@@ -2041,6 +2052,33 @@ public class ZGenExecuter {
     
     boolean isBreak(){ return isBreak; }
     
+    
+    /**
+     * @param sError
+     * @param out
+     * @return false to assign to an ok variable.
+     * @throws IOException
+     */
+    boolean writeError(String sError, Appendable outP) throws IOException{
+      if(bWriteErrorInOutput){
+        Appendable out;
+        if(outP == null){ 
+          out = threadData.out();  //not a <+channel>, if out not given use threadData, maybe created it.
+        } else {
+          out = outP;
+        }
+        out.append(sError);
+      } else {
+        throw new IllegalArgumentException(sError); 
+      }
+      return false;
+
+    }
+    
+    
+
+    
+    
     void debug(ZGenScript.ZGenitem statement) throws Exception{
       CharSequence text = evalString(statement);
       Assert.stop();
@@ -2122,6 +2160,7 @@ public class ZGenExecuter {
     protected void clear(){
       state = 'i';
     }
+    
     
     
     protected StringFormatter out(){
