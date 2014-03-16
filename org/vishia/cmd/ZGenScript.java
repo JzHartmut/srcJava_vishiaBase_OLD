@@ -1327,10 +1327,15 @@ public class ZGenScript {
      */
     public DataAccess defVariable;
     
+    boolean bConst;
+    
     DefVariable(StatementList parentList, char type){
       super(parentList, type);
     }
     
+    
+    /**From Zbnf: [ const <?const>] */
+    public void set_const(){ bConst = true; } 
     
     /**From Zbnf: < variable?defVariable> inside a DefVariable::=...
      */
@@ -1339,6 +1344,9 @@ public class ZGenScript {
     public void add_defVariable(ZGenDataAccess val){   
       int whichStatement = "SPULJKQWMCFG".indexOf(elementType);
       char whichVariableType = "SPULOKQAMOFG".charAt(whichStatement);  //from elementType to variable type.
+      if(bConst){
+        whichVariableType = Character.toLowerCase(whichVariableType);  //see DataAccess.access
+      }
       val.setTypeToLastElement(whichVariableType);
       defVariable = val;
     }

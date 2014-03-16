@@ -4,6 +4,37 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+/**A Fileset instance in a ZGen script especially for zmake. It is assigned to a script variable 
+ * with the syntax (See {@link org.vishia.zgen.ZGenSyntax})
+ * <pre>
+ * Fileset myFileset = ( filepath1, filepath2 );
+ * </pre>
+ * If the fileset is used in a target, it is associated to the target to get the absolute paths of the files
+ * temporary while processing that target.
+ * <br><br>
+ * The Zbnf syntax for parsing is defined as
+ * <pre>
+ * fileset::= { basepath = <file?basepath> | <file> ? , }.
+ * </pre>
+ * The <code>basepath</code> is a general path for all files which is the basepath (in opposite to localpath of each file)
+ * or which is a pre-basepath if any file is given with basepath.
+ * <br><br>
+ * Uml-Notation see {@link org.vishia.util.Docu_UML_simpleNotation}:
+ * <pre>
+ *               UserFileset
+ *                    |------------commonBasepath-------->{@link UserFilepath}
+ *                    |
+ *                    |------------filesOfFileset-------*>{@link UserFilepath}
+ *                                                        -drive:
+ *                                                        -absPath: boolean
+ *                                                        -basepath
+ *                                                        -localdir
+ *                                                        -name
+ *                                                        -someFiles: boolean
+ *                                                        -ext
+ * </pre>
+ * 
+ */
 public class ZGenFileset
 {
   

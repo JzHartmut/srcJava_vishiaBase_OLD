@@ -2,7 +2,7 @@ package org.vishia.util;
 
 import java.io.IOException;
 
-/**This class combines an Appendable with the capability of StringPartScan.
+/**This class combines an Appendable with the capability of {@link StringPartScan}.
  * All append methods sets the endMax of the StringPart to the new length. The current part end
  * will be set to endMax only if is on endMax before append.
  * @author Hartmut Schorrig

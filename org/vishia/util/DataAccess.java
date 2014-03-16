@@ -245,6 +245,8 @@ public class DataAccess {
   
   private static String debugIdent;
   
+  private static String debugMethod;
+  
   /**The description of the path to any data if the script-element refers data. It is null if the script element
    * does not refer data. If it is filled, the instances are of type {@link ZbnfDataPathElement}.
    * If it is used in {@link DataAccess}, its base class {@link DataAccess.DatapathElement} are used. The difference
@@ -440,21 +442,46 @@ public class DataAccess {
   /**Universal method to accesses data. 
    * The argument path contains elements, which describes the access path.
    * <ul>
-   * <li>The datapath can start with an element designated with {@link DatapathElement#whatisit} == '$'. 
-   *   Then the result is searched first in the given dataPool with '$' on start of identifier.
-   *   Note that the name of the variable in {@link DatapathElement#ident} usual does not start with '$' itself.
-   *   If it is found, the dataPool contains this environment variable too, it is valid.
-   *   if it is not found (normal case), then the result of the access is the String representation of 
-   *   the environment variable of the operation system or null if that environment variable is not found. 
-   *   Only this element of datapath is used, it should be the only one usual. 
-   * <li>The datapath can start with an optional ,,startVariable,, as {@link DatapathElement#whatisit} == '@'. 
-   *   Then the param dataPool should provide additional data references, which are addressed by the  {@link DatapathElement#ident}
-   *   of the first element.
-   * <li>If the datapath does not start with a ,,startVariable,, and it is not an environment variable access, 
-   *   the access starts on the given dataRoot object. 
+   * <li><code>$</code>: The datapath can start with an element designated with {@link DatapathElement#whatisit} == '$'. 
+   *   It describes an access to an <em>environment variable</em>.
+   *   The the variable is searched first in the given dataPool with an additional '$' on start of identifier.
+   *   Note that the name of the variable ({@link DatapathElement#ident}) does not start with that '$' itself.
+   *   If it is found, the dataPool contains this environment variable, it is prior.
+   *   If the environment variable is not found in the datapool (a normal case), then the 
+   *   variable is searched in the environment variables of the operation system. Its String representation is returned.
+   *   If the environment variable is not found, null is returned. 
+   *   The datapath should contain only this one element. Only this first element of the datapath is used. 
+   * <li><code>@</code>: The datapath can start with an optional ,,startVariable,, as {@link DatapathElement#whatisit} == '@'. 
+   *   Then the identifier is searched in the dataPool. The param dataPool should provide additional data references, 
+   *   which are addressed by the  {@link DatapathElement#ident} of the first element.
+   * <li><code>A..Z a..z</code>: If the only one first element or the last element is designated with {@link DatapathElement#whatisit} == 'A' .. 'Z'
+   *   or 'a' ...'z' a new Variable will be created in the given datapool. 
+   *   The character 'A'...'Z' describes the type. If lower case is written then the variable is created as const.  
+   * <li><code>+</code>: The only one first element with {@link DatapathElement#whatisit} == '+' is the creation of instance maybe with or without arguments 
+   *   in {@link DatapathElement#fnArgs}
+   * <li><code>%</code>: The only one first element with {@link DatapathElement#whatisit} == '%' is a call of a static routine maybe with or without arguments 
+   *   in {@link DatapathElement#fnArgs}
+   * <li><code>(</code>: An element with {@link DatapathElement#whatisit} == '(' is a method invocation maybe with or without arguments.
+   *   in {@link DatapathElement#fnArgs}
+   * <li>The first element which is not designated with one of the special characters expected "(" 
+   *   is searched in the given dataRoot object. 
+   * <li>The elements of datapath describe the access to data. Any element before supplies a reference for the path 
+   *   of the next element.
+   * <li>Any element expected the special first elements which is not designated with "(" is searched as a 
+   *   {@link java.lang.reflect.Field} in the given instance of the parent level, the first element in dataRoot.
+   * <li>If the instance of the parent level is instanceof {@link java.util.Map} then the element is searched by name
+   *   as member of this map. The key of the map should be instanceof String.
+   * <li>If an element is not found a {@link NoSuchFieldException} or {@link NoSuchMethodException} is returned.
+   * <li>If any method is invoked and this method throws an Exception, a {@link InvocationTargetException} is thrown.       
    * </ul>
-   * The elements of datapath describe the access to data. Any element before supplies a reference for the path 
-   * of the next element.
+   * <br><br><b>Examples</b>
+   * <ul>
+   * <li>datapath = <code>[myField:.]</code>: The content respectively referenced instance of the field 
+   *   <code>myField</code> inside the dataRoot instance is returned.
+   * <li>datapath = <code>[myReference:., myField:.]</code>: The content respectively referenced instance 
+   *   of the field <code>myReference</code> inside the dataRoot instance is read. From that instance the
+   *   <code>myField</code> content of referenced instance is returned.
+   * </ul>  
    * <br><br>
    * <b>Variable</b>:<br>
    * {@link Variable} are designated especially for referencing from one or more Map<String, Variable>. 
@@ -467,15 +494,6 @@ public class DataAccess {
    * <b>Access with an element with {@link DatapathElement#whatisit} == '.'</b>:<br>
    * The  {@link DatapathElement#ident} may determine a field of the current data reference or it may be a key for a indexed container.
    * The {@link #getData(String, DataAccess.Variable, boolean, boolean)} is invoked, see there for further explanation. 
-   * <br><br>
-   * <b>Creating an instance or invocation of methods</b>:
-   * <li>An element with {@link DatapathElement#whatisit} == '+' is the creation of instance maybe with or without arguments 
-   *   in {@link DatapathElement#fnArgs}
-   * <li>An element with {@link DatapathElement#whatisit} == '%' is a call of a static routine maybe with or without arguments 
-   *   in {@link DatapathElement#fnArgs}
-   * <li>An element with {@link DatapathElement#whatisit} == '(' is a method invocation maybe with or without arguments.
-   *   in {@link DatapathElement#fnArgs}
-   * </ul>
    * <br><br>
    * <b>Calculation of arguments</b>:<br>
    * This routine calculates all method's arguments it an expression is given in the datapathElement
@@ -569,6 +587,8 @@ public class DataAccess {
       element = iter.hasNext() ? iter.next() : null;
     } else if(element.whatisit >='A' && element.whatisit <='Z'){
       data1 = dataPool;  //add to the data pool
+    } else if(element.whatisit >='a' && element.whatisit <='z'){
+      data1 = dataPool;  //add to the data pool
     } else {
       data1 = dataRoot;
     }
@@ -583,24 +603,33 @@ public class DataAccess {
         data1 = var.value;  //take the content of a variable!
       }
       //
-      if(element.whatisit >='A' && element.whatisit <='Z'){
+      final char whatisit;
+      final boolean bConst;
+      //
+      //check sonst variable
+      if(element.whatisit >='a' && element.whatisit <='z'){
+        whatisit = Character.toUpperCase(element.whatisit);
+        bConst = true;
+      } else {
+        whatisit = element.whatisit;
+        bConst = false;  //maybe unused.
+      }
+      //
+      //check variable
+      if(whatisit >='A' && whatisit <='Z'){
         //It is a new defined variable. 
         if(data1 instanceof Map<?,?>){ //unable to check generic type.
           //it should be a variable container!
           @SuppressWarnings("unchecked")
           Map<String, DataAccess.Variable> varContainer = (Map<String, DataAccess.Variable>)data1;
-          Variable<Object> newVariable = new DataAccess.Variable<Object>(element.whatisit, element.ident, null);
+          Variable<Object> newVariable = new DataAccess.Variable<Object>(whatisit, element.ident, null, bConst);
           varContainer.put(element.ident, newVariable);
           data1 = newVariable;
-        } else if (data1 instanceof DataAccess.Variable<?>){
-          //necessary?
         } else {
           throw new IllegalArgumentException("DataAccess.storeValue - destination should be Map<String, DataAccess.Variable>; " + dst);
         }
      } else {
-        if(element.ident.equals("test2String"))
-          Assert.stop();
-        switch(element.whatisit) {
+        switch(whatisit) {
           case '+': {  //create a new instance, call constructor
             data1 = invokeNew(element);
           } break;
@@ -723,6 +752,9 @@ public class DataAccess {
         for(Method method: methods){
           bOk = false;
           if(method.getName().equals(element.ident)){
+            if(debugMethod !=null && debugMethod.equals(element.ident)){
+              debug();
+            }
             method.setAccessible(accessPrivate);
             Class<?>[] paramTypes = method.getParameterTypes();
             
@@ -1331,8 +1363,19 @@ public class DataAccess {
   public static void debugIdent(String ident){ debugIdent = ident; }
   
   
+  /**A debug helper: Set this identifier to any String, which is expected for invocation of a method.
+   * Then a breakpoint may be used. Set the breakpoint in the routine {@link #debug()}
+   * in any IDE (Eclipse...)
+   * @param ident The identifier to break;
+   */
+  public static void debugMethod(String ident){ debugMethod = ident; }
+  
+  
+  /**Set a breakpoint here to edit a {@link #debugIdent(String)}
+   * 
+   */
   protected static void debug(){
-    Assert.stop();
+    Debugutil.stop();
   }
   
   
