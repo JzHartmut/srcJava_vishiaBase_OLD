@@ -379,7 +379,7 @@ public final class ZGenFilepath {
    * @throws NoSuchFieldException 
    *  
    */
-  protected CharSequence basepath(StringBuilder uRet, ZGenFilepath commonPath, ZGenFilepath accessPath, boolean[] useBaseFile) throws NoSuchFieldException 
+  protected CharSequence basepath(StringBuilder uRetP, ZGenFilepath commonPath, ZGenFilepath accessPath, boolean[] useBaseFile) throws NoSuchFieldException 
   { 
     //if(generalPath == null){ generalPath = emptyParent; }
     //first check singulary conditions
@@ -402,9 +402,9 @@ public final class ZGenFilepath {
       //  | base    | base abs  base abs
       //  x  x      x  x   x     1    1      /thisBase                   : thisLocal
       //  x  x      x  x   x     0    1      "/"                         : thisLocal
-      if(data.drive !=null || data.basepath !=null || uRet !=null || varO !=null || data.envVariable !=null){
-        if(uRet == null){ uRet = new StringBuilder(); }  //it is necessary.
-        else { uRet.setLength(0); }
+      if(data.drive !=null || data.basepath !=null || uRetP !=null || varO !=null || data.envVariable !=null){
+        StringBuilder uRet = uRetP !=null ? uRetP : new StringBuilder();   //it is necessary.
+        uRet.setLength(0);
         if(data.drive !=null){ 
           uRet.append(data.drive).append(":");
         }
@@ -417,7 +417,7 @@ public final class ZGenFilepath {
         }
         return uRet;
       } else {
-        assert(uRet == null && data.basepath ==null && data.drive == null);
+        assert(uRetP == null && data.basepath ==null && data.drive == null);
         return "/";
       }
     }
@@ -439,6 +439,7 @@ public final class ZGenFilepath {
         //  1  x      1  x   0     1    0      commonFile + varFile + thisBase : thisLocal
         //  1  x      0            1    0      commonFile + thisBase       : thisLocal
         CharSequence prepath;
+        StringBuilder uRet = uRetP !=null ? uRetP : new StringBuilder();   //it is necessary.
         
         if(varfile !=null){
           //  common    variable    this         basepath build with         : localdir build with   
@@ -536,6 +537,7 @@ public final class ZGenFilepath {
       CharSequence prepath;
       boolean[] useBaseFileSub = new boolean[1];
       useBaseFileSub[0] = true;  //use the file of commonPath or accessPath as base path. 
+      StringBuilder uRet = uRetP !=null ? uRetP : new StringBuilder();   //it is necessary.
       if(varfile !=null && (varfile.data.basepath !=null || useBaseFile !=null && useBaseFile[0])){
         //use the variableFile if it is called recursively. 
         //The variable is that one from commonPath or accessPath of the caller.
@@ -743,6 +745,8 @@ public final class ZGenFilepath {
   public CharSequence absdir() throws NoSuchFieldException  { 
     CharSequence basePath = absbasepath();
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
+    return localDir(uRet, null, null);
+    /*
     int zpath = (data.localdir == null) ? 0 : data.localdir.length();
     if(zpath > 0){ //not empty
       int pos;
@@ -750,6 +754,7 @@ public final class ZGenFilepath {
       uRet.append(data.localdir);
     }
     return uRet;
+    */
   }
   
   public CharSequence absdirW() throws NoSuchFieldException{ return toWindows(absdir()); }

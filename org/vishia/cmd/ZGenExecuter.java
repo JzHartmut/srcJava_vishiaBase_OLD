@@ -49,7 +49,7 @@ public class ZGenExecuter {
   
   /**Version, history and license.
    * <ul>
-   * <li>2014-03-05 Hartmut new: {@link ZGenThreadResult#uText} and {@link ZGenThreadResult#out} will only be created
+   * <li>2014-03-05 Hartmut new: {@link ThreadData#uText} and {@link ThreadData#out} will only be created
    *   on demand if it need. Save calculation time for fast threads. 
    * <li>2014-03-08 Hartmut new: debug_dataAccessArgument() able to call from outside, to force breakpoint.
    * <li>2014-03-08 Hartmut new: Filepath as type of a named argument regarded on call, see syntax
@@ -68,7 +68,7 @@ public class ZGenExecuter {
    * <li>2014-01-09 Hartmut new: If the "text" variable or any other Appendable variable has a null-value,
    *   a StringBuilder is instantiated therefore and stored in this variable. It is possible therewith
    *   to create an text only if necessary. We don't need a StringBuilder instance if it is never used. 
-   * <li>2014-01-06 Hartmut new: {@link ZGenThreadResult} has the error Variable, test thread 
+   * <li>2014-01-06 Hartmut new: {@link ThreadData} has the error Variable, test thread 
    * <li>2013-12-26 Hartmut new: subroutine returns a value and assigns to any variable.
    * <li>2013-12-26 Hartmut re-engineering: Now the Statement class is obsolete. Instead all statements have the base class
    *   {@link ZGenitem}. That class contains only elements which are necessary for all statements. Some special statements
@@ -170,7 +170,7 @@ public class ZGenExecuter {
   
   final ExecuteLevel scriptLevel;
   
-  final ZGenThreadResult scriptThread;
+  final ThreadData scriptThread;
   
   /**Generated content of all script environment variables. The script variables are present in all routines 
    * in their local variables pool. The value is either a String, CharSequence or any Object pointer.  */
@@ -198,7 +198,7 @@ public class ZGenExecuter {
   public ZGenExecuter(MainCmdLogging_ifc log){
     this.log = log;
     bWriteErrorInOutput = false;
-    scriptThread = new ZGenThreadResult();
+    scriptThread = new ThreadData();
     scriptLevel = new ExecuteLevel(scriptThread);
   }
   
@@ -212,7 +212,7 @@ public class ZGenExecuter {
   public ZGenExecuter(MainCmdLogging_ifc log, boolean bWriteErrorInOutput){
     this.log = log;
     this.bWriteErrorInOutput = bWriteErrorInOutput;
-    scriptThread = new ZGenThreadResult();
+    scriptThread = new ThreadData();
     scriptLevel = new ExecuteLevel(scriptThread);
   }
   
@@ -528,7 +528,7 @@ public class ZGenExecuter {
   }
   
   
-  public void runThread(ExecuteLevel executeLevel, ZGenScript.ThreadBlock statement, ZGenThreadResult threadVar){
+  public void runThread(ExecuteLevel executeLevel, ZGenScript.ThreadBlock statement, ThreadData threadVar){
     try{
       executeLevel.execute(statement.statementlist, null, 0, false);
     } 
@@ -571,7 +571,7 @@ public class ZGenExecuter {
     public final ExecuteLevel parent;
     
     
-    final ZGenThreadResult threadData;
+    final ThreadData threadData;
     
     /**Generated content of local variables in this nested level including the {@link ZbatchExecuter#scriptLevel.localVariables}.
      * The variables are type invariant on language level. The type is checked and therefore 
@@ -596,7 +596,7 @@ public class ZGenExecuter {
      *   local variables of its calling routine! This argument is only set if nested statement blocks
      *   are to execute. 
      */
-    protected ExecuteLevel(ZGenThreadResult threadData, ExecuteLevel parent, Map<String, DataAccess.Variable<Object>> parentVariables)
+    protected ExecuteLevel(ThreadData threadData, ExecuteLevel parent, Map<String, DataAccess.Variable<Object>> parentVariables)
     { this.parent = parent;
       this.threadData = threadData;
       localVariables = new_Variables();
@@ -628,7 +628,7 @@ public class ZGenExecuter {
     
     /**Constructs data for the script execution level.
      */
-    protected ExecuteLevel(ZGenThreadResult threadData)
+    protected ExecuteLevel(ThreadData threadData)
     { this.parent = null;
       this.threadData = threadData;
       localVariables = new_Variables();
@@ -1303,11 +1303,11 @@ public class ZGenExecuter {
      */
     private void executeThread(ZGenScript.ThreadBlock statement) 
     throws Exception
-    { final ZGenThreadResult result;
+    { final ThreadData result;
       if(statement.threadVariable !=null){
         try{
           //if(statement.threadName != null){  //marker for a new ThreadVariable
-            result = new ZGenThreadResult();
+            result = new ThreadData();
             storeValue(statement.threadVariable, localVariables, result, bAccessPrivate);
           //} else { 
             //use existing thread variable, Exception if not found.
@@ -1317,7 +1317,7 @@ public class ZGenExecuter {
           throw new IllegalArgumentException("JbatchExecuter - thread assign failure; path=" + statement.threadVariable.toString());
         }
       } else {
-        result = new ZGenThreadResult();  //without assignment to a variable.
+        result = new ThreadData();  //without assignment to a variable.
       }
       ExecuteLevel threadLevel = new ExecuteLevel(result, this, localVariables);
       ZGenThread thread = new ZGenThread(threadLevel, statement, result);
@@ -2130,7 +2130,7 @@ public class ZGenExecuter {
   /**State variable of a running thread or finished thread.
    * This instance will be notified if any waits (join operation)
    */
-  protected static class ZGenThreadResult implements CharSequence
+  protected static class ThreadData implements CharSequence
   {
     StringBuilder uText;
     
@@ -2155,7 +2155,7 @@ public class ZGenExecuter {
     char state = 'i';
 
     
-    ZGenThreadResult(){}
+    ThreadData(){}
     
     protected void clear(){
       state = 'i';
@@ -2201,9 +2201,9 @@ public class ZGenExecuter {
 
     final ZGenScript.ThreadBlock statement;
 
-    final ZGenThreadResult result;
+    final ThreadData result;
     
-    public ZGenThread(ExecuteLevel executeLevel, ZGenScript.ThreadBlock statement, ZGenThreadResult result)
+    public ZGenThread(ExecuteLevel executeLevel, ZGenScript.ThreadBlock statement, ThreadData result)
     {
       this.executeLevel = executeLevel;
       this.statement = statement;
