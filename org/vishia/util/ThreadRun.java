@@ -59,7 +59,7 @@ public class ThreadRun implements Closeable
   private boolean runThread;
 
   
-  private boolean bThreadWaits;
+  private boolean bThreadWaits, bIsNotified;
   
   
   /**The cyclically wait. */
@@ -104,7 +104,10 @@ public class ThreadRun implements Closeable
    */
   public void forceStep(boolean forceNextStep){
     synchronized(this){
-      if(bThreadWaits){ notify(); }  //wakes up.
+      if(bThreadWaits){ 
+        bIsNotified = true;
+        notify();   //wakes up.
+      }
     }
   }
   
@@ -133,6 +136,7 @@ public class ThreadRun implements Closeable
     nextCycle = shortTime;
     int timeStepLast = shortTime;
    
+    int ctOutofrange=0, ctless0=0, ctOk=0, ctWaitInterrupted=0;
     //
     int timewait = step.start(cycletime);
     //
@@ -140,23 +144,28 @@ public class ThreadRun implements Closeable
       shortTime = ((int)System.currentTimeMillis());
       int calctimelast = shortTime - timeStepLast;
       if(timewait <0){
-        nextCycle += cycletime;
         waitMillisec = nextCycle - shortTime;
-        if(waitMillisec > 5* cycletime || waitMillisec < -cycletime){
-          System.out.printf("ThreadRun " + name + " - new time synchronization; %d\n", new Integer(waitMillisec));
-
+        if(waitMillisec > (5* cycletime) || waitMillisec < -cycletime){
+          System.out.printf("ThreadRun name=" + name + " - new time synchronization; %d; ctOk=%d; ctless0=%d; ctNowait=%d;\n"
+            , new Integer(waitMillisec), new Integer(ctOk), new Integer(ctless0), new Integer(ctWaitInterrupted));
+          ctOk = ctless0 = ctWaitInterrupted = 0;
+          ctOutofrange +=1;
           waitMillisec = cycletime;   //synchronize with a faulty cycletime, maybe on time error.
-          nextCycle =  shortTime;
+          nextCycle =  shortTime + cycletime;
+          Debugutil.stop();
         } else if(waitMillisec <= 0) {
           waitMillisec = (cycletime / 16)+1;  //wait at least 1 ms. 
           ctTimeoverflow +=1;
           waitMillisec = cycletime;   //synchronize with a faulty cycletime, maybe on time error.
           if(waitMillisec < 50){
-            System.out.printf("ThreadRun " + name + "- less 50 ms;\n", new Integer(waitMillisec));
+            System.out.printf("ThreadRun name=" + name + "- less 50 ms;\n", new Integer(waitMillisec));
             waitMillisec = 50;
           }
+          ctOk = 0;
+          ctless0 +=1;
           nextCycle =  shortTime;
         } else {
+          ctOk += 1;
           stepTimeMeasure = cycletime - waitMillisec;
           stepTimeMeasureMid += 0.01f * (stepTimeMeasure - stepTimeMeasureMid);
         }
@@ -164,10 +173,15 @@ public class ThreadRun implements Closeable
         this.nextCycle = shortTime + timewait;
         waitMillisec = timewait;
       }
+      nextCycle += cycletime;
       synchronized(this){
         if(waitMillisec > 0){ //NOTE: its possible that the step routine will continue immediately, then not wait.
+          bIsNotified = false;
           bThreadWaits = true;
-          try{ wait(waitMillisec); } catch(InterruptedException exc){}
+          try{ wait(waitMillisec); } 
+          catch(InterruptedException exc){
+            ctWaitInterrupted +=1;
+          }
           bThreadWaits = false;
         } else {
           Assert.stop();
@@ -175,13 +189,25 @@ public class ThreadRun implements Closeable
       }
       if(runThread){
         long timeAbs = System.currentTimeMillis();
+        int timeWait = ((int)timeAbs) - shortTime;
+        if(timeWait < cycletime/2){
+          Debugutil.stop();
+        }
         shortTime = ((int)timeAbs);
+        if(bIsNotified){
+          //the thread was notified. It means the last cycle was shorter by user intention.
+          //plan the next cycle  starting from the current time
+          nextCycle = shortTime + cycletime;
+        }
         int cycletimelast = shortTime - timeStepLast;
+        if(cycletimelast < cycletime/2){
+          Debugutil.stop();
+        }
         try{
           timeStepLast = shortTime;
           timewait = step.step(cycletime, cycletimelast, calctimelast, timeAbs);
         }catch(Throwable exc){
-          System.err.println(Assert.exceptionInfo("ThreadRun " + thread.getName() + " - unexpected Exception; ", exc, 0, 7));
+          System.err.println(Assert.exceptionInfo("ThreadRun name=" + thread.getName() + " - unexpected Exception; ", exc, 0, 7));
           exc.printStackTrace(System.err);
         }
 

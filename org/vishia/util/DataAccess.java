@@ -717,32 +717,51 @@ public class DataAccess {
       }
     }
     if(!bOk) {
-      Assert.stackInfo("", 5);
-      CharSequence stackInfo = Assert.stackInfo(" called: ", 3, 5);
-      throw new NoSuchMethodException("DataAccess - method not found: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+      StringBuilder msg = new StringBuilder(1000);
+      msg.append("DataAccess - constructor not found: ")
+         .append(clazz.getName()).append(".") .append(element.ident) .append("(...)");
+      CharSequence stackInfo = Assert.stackInfo(msg, 3, 8);
+      throw new NoSuchMethodException(stackInfo.toString());
     }
     return data1;    
   }
   
   
   
-  
+  /**Invokes the method which is described with the element.
+   * @param element its {@link DatapathElement#whatisit} == '('.
+   *   The {@link DatapathElement#identArgJbat} should contain the "methodname" inside the class of datapool.
+   * @param obj The instance which is the instance of the method.
+   * @return the return value of the method
+   * @throws InvocationTargetException 
+   * @throws NoSuchMethodException 
+   */
+  public static Object invokeMethod(      
+      DatapathElement element
+    , Object obj
+    , boolean accessPrivate
+    ) throws InvocationTargetException, NoSuchMethodException, Exception {
+    return invokeMethod(element, obj, accessPrivate, false);
+  }  
   
   /**Invokes the method which is described with the element.
    * @param element its {@link DatapathElement#whatisit} == '('.
    *   The {@link DatapathElement#identArgJbat} should contain the "methodname" inside the class of datapool.
-   * @param dataPool The instance which is the instance of the method.
+   * @param obj The instance which is the instance of the method.
+   * @param bNoExceptionifNotFound if the then does not a NochSuchMethodException if the method was not found.
+   *   This is a special flag if the method is optional.
    * @return the return value of the method
    * @throws InvocationTargetException 
    * @throws NoSuchMethodException 
    */
   public static Object invokeMethod(      
     DatapathElement element
-  , Object dataPool
+  , Object obj
   , boolean accessPrivate
+  , boolean bNoExceptionifNotFound
   ) throws InvocationTargetException, NoSuchMethodException, Exception {
     Object data1 = null;
-    Class<?> clazz = dataPool.getClass();
+    Class<?> clazz = obj.getClass();
     if(element.ident.equals("exec"))
       Assert.stop();
     boolean bOk = false;
@@ -762,7 +781,7 @@ public class DataAccess {
             if(actArgs !=null){
               bOk = true;
               try{ 
-                data1 = method.invoke(dataPool, actArgs);
+                data1 = method.invoke(obj, actArgs);
               } catch(IllegalAccessException exc){
                 CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
                 throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
@@ -779,10 +798,12 @@ public class DataAccess {
         }
       }
     } while(!bOk && (clazz = clazz.getSuperclass()) !=null);
-    if(!bOk) {
-      Assert.stackInfo("", 5);
-      CharSequence stackInfo = Assert.stackInfo(" called: ", 3, 5);
-      throw new NoSuchMethodException("DataAccess - method not found: " + dataPool.getClass().getName() + "." + element.ident + "(...)" + stackInfo);
+    if(!bOk && !bNoExceptionifNotFound) {
+      StringBuilder msg = new StringBuilder(1000);
+      msg.append("DataAccess - method not found: ")
+         .append(obj.getClass().getName()).append(".") .append(element.ident) .append("(...)");
+      CharSequence stackInfo = Assert.stackInfo(msg, 3, 5);
+      throw new NoSuchMethodException(stackInfo.toString());
     }
     //Method method = clazz.getDeclaredMethod(element.ident);
     //data1 = method.invoke(dataPool);
@@ -829,9 +850,11 @@ public class DataAccess {
       }
     }
     if(!bOk) {
-      Assert.stackInfo("", 5);
-      CharSequence stackInfo = Assert.stackInfo(" called: ", 3, 5);
-      throw new NoSuchMethodException("DataAccess - method not found: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+      StringBuilder msg = new StringBuilder(1000);
+      msg.append("DataAccess - static method not found: ")
+      .append(clazz.getName()).append(".") .append(element.ident) .append("(...)");
+      CharSequence stackInfo = Assert.stackInfo(msg, 3, 5);
+      throw new NoSuchMethodException(stackInfo.toString());
     }
     //} catch 
     return data1;    

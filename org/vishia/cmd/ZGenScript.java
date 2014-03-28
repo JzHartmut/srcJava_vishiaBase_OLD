@@ -721,7 +721,15 @@ public class ZGenScript {
     protected boolean someFiles;
     
 
-  
+    @Override public String toString() {
+      StringBuilder u = new StringBuilder();
+      if(drive!=null) { u.append(drive); }
+      if(absPath) { u.append("/"); }
+      if(basepath!=null) { u.append(basepath).append(":"); }
+      if(localdir.length()>0) { u.append(localdir).append("/"); }
+      u.append(name).append(ext);
+      return u.toString();
+    }
   
   }
   
@@ -804,6 +812,8 @@ public class ZGenScript {
     
     Filepath output;
     
+    String name;
+    
     List<ZmakeInput> input = new ArrayList<ZmakeInput>();
     
     Zmake(StatementList parentList)
@@ -815,7 +825,14 @@ public class ZGenScript {
       return new ZbnfFilepath();
     }
     
-    public void add_output(ZbnfFilepath val){ output = val.filepath; }
+    public void set_name(String name){ this.name = name; }
+    
+    public void add_output(ZbnfFilepath val){ 
+      output = val.filepath;
+      if(name == null){
+        name = output.toString();
+      }
+    }
     
     
     public ZmakeInput new_zmakeInput(){ return new ZmakeInput(); }
@@ -829,14 +846,40 @@ public class ZGenScript {
   
   public static class ZmakeInput {
     
-    public String zmakeFilesetName;
+    /**From Zbnf, either a fileset or a filepath variable for the fileset.*/
+    String accessPathVariableName;
     
-    Filepath zmakeInputDir;
+    /**From Zbnf, if null then {@link #zmakeFilepathName} may be the fileset. */
+    String filesetVariableName;
     
+    /**The filepath for the fileset. */
+    Filepath accessPath;
+
+    /**From Zbnf. The first occurrence of &name is supposed as the fileset name because it is unknown yet
+     * whether a second &name is given. But if a second &name is given, {@link #set_zmakeFilesetVariable(String)}
+     * is called which assigns this val to {@link #accessPathVariable} 
+     * @param val
+     */
+    public void set_accessPathOrFilesetVariable(String val){ 
+      this.filesetVariableName = val; //unknown yet whether a zmakeFileset follows. Assume it is it. 
+    }
+
     
-    public ZbnfFilepath new_zmakeInputDir(){ return new ZbnfFilepath(); }
+    /**From Zbnf. The second occurrence of &name is supposed as the fileset anyway.
+     * If a fileset name is stored already, it is the {@link #accessPathVariable}.
+     * @param val
+     */
+    public void set_zmakeFilesetVariable(String val){
+      if(this.filesetVariableName !=null){
+        assert(accessPath == null);  //it is an alternative option in syntax.
+        this.accessPathVariableName = this.filesetVariableName;  //it is the file path
+      }
+      this.filesetVariableName = val; 
+    }
     
-    public void add_zmakeInputDir(ZbnfFilepath val){ zmakeInputDir = val.filepath; }
+    public ZbnfFilepath new_accessPath(){ return new ZbnfFilepath(); }
+    
+    public void add_accessPath(ZbnfFilepath val){ accessPath = val.filepath; }
   }
   
   

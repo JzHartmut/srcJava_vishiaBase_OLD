@@ -58,11 +58,14 @@ public class ZmakeTarget
    */
   public ZGenFilepath output;
   
+  public final String name;
+  
   private final ZGenExecuter.ExecuteLevel zgenlevel;
   
   
-  public ZmakeTarget(ZGenExecuter.ExecuteLevel zgenlevel){
+  public ZmakeTarget(ZGenExecuter.ExecuteLevel zgenlevel, String name){
     this.zgenlevel = zgenlevel;
+    this.name = name;
   }
   
   public List<ZGenFilepath> allInputFiles() throws NoSuchFieldException{

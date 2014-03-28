@@ -26,6 +26,7 @@ import org.vishia.util.Assert;
 import org.vishia.util.CalculatorExpr;
 import org.vishia.util.Conversion;
 import org.vishia.util.DataAccess;
+import org.vishia.util.Debugutil;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.StringFormatter;
@@ -288,7 +289,7 @@ public class ZGenExecuter {
     //
     //generate all variables in this script:
     try{
-      scriptLevel.execute(genScript.scriptClass, null, 0, false);
+      scriptLevel.execute(genScript.scriptClass, null, 0, false, -1);
     } catch(Exception exc){
       System.out.println("ZGen.genScriptVariables - Scriptvariable faulty; " + exc.getMessage() );
     }
@@ -468,7 +469,7 @@ public class ZGenExecuter {
     startmilli = System.currentTimeMillis();
     startnano = System.nanoTime();
     StringFormatter outLines = new StringFormatter(out, "\n", 200);
-    level.execute(statement.statementlist, outLines, 0, false);
+    level.execute(statement.statementlist, outLines, 0, false, -1);
     outLines.close();
     //return sError1;
   }
@@ -480,7 +481,7 @@ public class ZGenExecuter {
   throws Exception {
     startmilli = System.currentTimeMillis();
     startnano = System.nanoTime();
-    execSub.execute(statement.statementlist, null, 0, false);
+    execSub.execute(statement.statementlist, null, 0, false, -1);
     if(execSub.threadData.out !=null){
       execSub.threadData.out.close();
     }
@@ -530,7 +531,7 @@ public class ZGenExecuter {
   
   public void runThread(ExecuteLevel executeLevel, ZGenScript.ThreadBlock statement, ThreadData threadVar){
     try{
-      executeLevel.execute(statement.statementlist, null, 0, false);
+      executeLevel.execute(statement.statementlist, null, 0, false, -1);
     } 
     catch(Exception exc){
       threadVar.exception = exc;
@@ -582,7 +583,6 @@ public class ZGenExecuter {
     private boolean isBreak;
     
     private boolean debug_dataAccessArguments;
-    
     
     /**The error level which is returned from an operation system cmd invocation.
      * It is used for the {@link #execCmdError(org.vishia.cmd.ZGenScript.Onerror)}.
@@ -681,7 +681,8 @@ public class ZGenExecuter {
      * @return an error hint.
      * @throws IOException
      */
-    public int executeNewlevel(ZGenScript.StatementList contentScript, final StringFormatter out, int indentOut, boolean bContainerHasNext) 
+    public int executeNewlevel(ZGenScript.StatementList contentScript, final StringFormatter out, int indentOut
+        , boolean bContainerHasNext, int nDebug) 
     throws Exception 
     { final ExecuteLevel level;
       if(contentScript.bContainsVariableDef){
@@ -689,7 +690,7 @@ public class ZGenExecuter {
       } else {
         level = this;
       }
-      return level.execute(contentScript, out, indentOut, bContainerHasNext);
+      return level.execute(contentScript, out, indentOut, bContainerHasNext, nDebug);
     }
 
   
@@ -702,7 +703,7 @@ public class ZGenExecuter {
      * @return
      * @throws Exception
      */
-    private int execute(ZGenScript.StatementList contentScript, final StringFormatter out, int indentOut, boolean bContainerHasNext) 
+    private int execute(ZGenScript.StatementList contentScript, final StringFormatter out, int indentOut, boolean bContainerHasNext, int nDebugP) 
     throws Exception 
     {
       //Generate direct requested output. It is especially on inner content-scripts.
@@ -711,14 +712,29 @@ public class ZGenExecuter {
       //Note: don't use an Iterator, use ixStatement because it will be incremented onError.
       while(ret == 0 && ++ixStatement < contentScript.statements.size()) { //iter.hasNext() && sError == null){
         ZGenScript.ZGenitem statement = contentScript.statements.get(ixStatement); //iter.next();
+        int nDebug1 = 0; //TODO nDebug>0 || debugNext >=0;
+        if(statement.elementType() == 'D'){
+          nDebug1 = debug(statement);  //debug
+          if(++ixStatement < contentScript.statements.size()) { //iter.hasNext() && sError == null){
+            statement = contentScript.statements.get(ixStatement);
+          } else {
+            //debug was the last statement, it is unecessary.
+          }
+        } else {
+          nDebug1 = nDebugP;
+        }
+        if(nDebug1 >=0){
+          //TODO print a debug text
+          Debugutil.stop();
+        }
         //for(TextGenScript.ScriptElement statement: contentScript.content){
         try{    
           switch(statement.elementType()){
           case 't': executeText(statement, out, indentOut);break; //<:>...textexpression <.>
-          case '@': execSetColumn((ZGenScript.TextColumn)statement);break; //<:@23>
+          case '@': execSetColumn((ZGenScript.TextColumn)statement, out);break; //<:@23>
           case 'n': execAppendText(newline, out);  break;   //<.n+>
           case '\\': execAppendText(statement.textArg, out);  break;   //<:n> transcription
-          case 'T': textAppendToVarOrOut((ZGenScript.TextOut)statement, out); break; //<+text>...<.+> 
+          case 'T': textAppendToVarOrOut((ZGenScript.TextOut)statement, out, --nDebug1); break; //<+text>...<.+> 
           case 'U': defineExpr((ZGenScript.DefVariable)statement); break; //setStringVariable(statement); break; 
           case 'S': defineExpr((ZGenScript.DefVariable)statement); break; //setStringVariable(statement); break; 
           case 'P': { //create a new local variable as pipe
@@ -750,30 +766,30 @@ public class ZGenExecuter {
             executeDefVariable((ZGenScript.DefVariable)statement, 'Q', cond, false);
           } break;
           case 'e': executeDatatext((ZGenScript.DataText)statement, out); break; 
-          case 's': execCall((ZGenScript.CallStatement)statement, null, out, indentOut); break;  //sub
+          case 's': execCall((ZGenScript.CallStatement)statement, null, out, indentOut, --nDebug1); break;  //sub
           case 'x': executeThread((ZGenScript.ThreadBlock)statement); break;             //thread
           case 'm': executeMove((ZGenScript.CallStatement)statement); break;             //move
           case 'y': executeCopy((ZGenScript.CallStatement)statement); break;             //copy
           case 'c': execCmdline((ZGenScript.CmdInvoke)statement); break;              //cmd
           case 'd': executeChangeCurrDir(statement); break;                              //cd
-          case 'C': ret = execForContainer((ZGenScript.ForStatement)statement, out, indentOut); break;  //for
-          case 'B': ret = execNestedLevel(statement, out, indentOut); break;              //statementBlock
-          case 'f': executeIfStatement((ZGenScript.IfStatement)statement, out, indentOut); break;
-          case 'w': ret = whileStatement((ZGenScript.CondStatement)statement, out, indentOut); break;
-          case 'u': ret = dowhileStatement((ZGenScript.CondStatement)statement, out, indentOut); break;
-          case 'N': executeIfContainerHasNext(statement, out, indentOut, bContainerHasNext); break;
+          case 'C': ret = execForContainer((ZGenScript.ForStatement)statement, out, indentOut, --nDebug1); break;  //for
+          case 'B': ret = execNestedLevel(statement, out, indentOut, --nDebug1); break;              //statementBlock
+          case 'f': executeIfStatement((ZGenScript.IfStatement)statement, out, indentOut, --nDebug1); break;
+          case 'w': ret = whileStatement((ZGenScript.CondStatement)statement, out, indentOut, --nDebug1); break;
+          case 'u': ret = dowhileStatement((ZGenScript.CondStatement)statement, out, indentOut, --nDebug1); break;
+          case 'N': executeIfContainerHasNext(statement, out, indentOut, bContainerHasNext, --nDebug1); break;
           case '=': assignStatement(statement); break;
           case '+': appendExpr((ZGenScript.AssignExpr)statement); break;        //+=
           case '?': break;  //don't execute a onerror, skip it.  //onerror
           case 'z': throw new ZGenExecuter.ExitException(((ZGenScript.ExitStatement)statement).exitValue);  
-          case 'D': debug(statement); break;  //debug
           case 'r': execThrow(statement); break;
           case 'v': execThrowonerror((ZGenScript.Onerror)statement); break;
           case 'b': isBreak = true; ret = ZGenExecuter.kBreak; break;
           case '#': ret = execCmdError((ZGenScript.Onerror)statement, out, indentOut); break;
           case 'F': createFilepath((ZGenScript.DefFilepath) statement); break;
           case 'G': createFileSet((ZGenScript.UserFileset) statement); break;
-          case 'Z': execZmake((ZGenScript.Zmake) statement, out, indentOut); break;
+          case 'Z': execZmake((ZGenScript.Zmake) statement, out, indentOut, --nDebug1); break;
+          case 'D': break; // a second debug statement one after another or debug on end is ignored.
           default: 
             writeError("ZGenExecute - unknown statement; '" + statement.elementType() + "' :ERROR=== ", out);
           }//switch
@@ -815,7 +831,7 @@ public class ZGenExecuter {
             String sError1 = exc1.getMessage();
             threadData.error.setValue(sError1);
             threadData.exception = exc1;
-            ret = execute(statement.statementlist, out, indentOut, false);  //executes the onerror block
+            ret = execute(statement.statementlist, out, indentOut, false, -1);  //executes the onerror block
             //a kBreak, kReturn etc. is used in the calling level.
             threadData.error.setValue(null);  //clear for next usage.
           } else {
@@ -891,8 +907,8 @@ public class ZGenExecuter {
     }
     
     
-    void execSetColumn(ZGenScript.TextColumn statement) throws IOException{
-      StringFormatter out = threadData.out();
+    void execSetColumn(ZGenScript.TextColumn statement, StringFormatter outP) throws IOException{
+      StringFormatter out = outP !=null ? outP : threadData.out();
       out.pos(statement.column, statement.minChars);
     }
     
@@ -919,7 +935,8 @@ public class ZGenExecuter {
     }
     
       
-    private int execForContainer(ZGenScript.ForStatement statement, StringFormatter out, int indentOut) throws Exception
+    private int execForContainer(ZGenScript.ForStatement statement, StringFormatter out, int indentOut, int nDebug) 
+    throws Exception
     {
       ZGenScript.StatementList subContent = statement.statementlist();  //The same sub content is used for all container elements.
       ExecuteLevel forExecuter = new ExecuteLevel(threadData, this, localVariables);
@@ -945,7 +962,7 @@ public class ZGenExecuter {
           if(cond){
             Object foreachData = iter.next();
             forVariable.setValue(foreachData);
-            cont = forExecuter.execute(subContent, out, indentOut, iter.hasNext());
+            cont = forExecuter.execute(subContent, out, indentOut, iter.hasNext(), nDebug);
           }
         }//while of for-loop
       }
@@ -962,7 +979,7 @@ public class ZGenExecuter {
             Map.Entry<?, ?> foreachDataEntry = (Map.Entry<?, ?>)iter.next();
             Object foreachData = foreachDataEntry.getValue();
             forVariable.setValue(foreachData);
-            cont = forExecuter.execute(subContent, out, indentOut, iter.hasNext());
+            cont = forExecuter.execute(subContent, out, indentOut, iter.hasNext(), nDebug);
           }
         }
       }
@@ -979,7 +996,7 @@ public class ZGenExecuter {
             Object foreachData = aContainer[iContainer];
             forVariable.setValue(foreachData);
             boolean bLastElement = iContainer < zContainer-1;
-            cont = forExecuter.execute(subContent, out, indentOut, bLastElement);
+            cont = forExecuter.execute(subContent, out, indentOut, bLastElement, nDebug);
           }
         }
       }
@@ -990,12 +1007,12 @@ public class ZGenExecuter {
     
     
     
-    int executeIfContainerHasNext(ZGenScript.ZGenitem hasNextScript, StringFormatter out, int indentOut, boolean bContainerHasNext) 
+    int executeIfContainerHasNext(ZGenScript.ZGenitem hasNextScript, StringFormatter out, int indentOut, boolean bContainerHasNext, int nDebug) 
     throws Exception{
       int cont = kSuccess;
       if(bContainerHasNext){
         //(new Gen_Content(this, false)).
-        cont = execute(hasNextScript.statementlist(), out, indentOut, false);
+        cont = execute(hasNextScript.statementlist(), out, indentOut, false, nDebug);
       }
       return cont;
     }
@@ -1004,7 +1021,8 @@ public class ZGenExecuter {
     
     /**it contains maybe more as one if block and else. 
      * @throws Exception */
-    int executeIfStatement(ZGenScript.IfStatement ifStatement, StringFormatter out, int indentOut) throws Exception{
+    int executeIfStatement(ZGenScript.IfStatement ifStatement, StringFormatter out, int indentOut, int nDebug) 
+    throws Exception{
       int cont = kFalse;
       Iterator<ZGenScript.ZGenitem> iter = ifStatement.statementlist.statements.iterator();
       //boolean found = false;  //if block found
@@ -1013,10 +1031,10 @@ public class ZGenExecuter {
         switch(statement.elementType()){
           case 'g': { //if-block
             boolean hasNext = iter.hasNext();
-            cont = executeIfBlock((ZGenScript.IfCondition)statement, out, indentOut, hasNext);
+            cont = executeIfBlock((ZGenScript.IfCondition)statement, out, indentOut, hasNext, nDebug);
           } break;
           case 'E': { //elsef
-            cont = execute(statement.statementlist, out, indentOut, false);
+            cont = execute(statement.statementlist, out, indentOut, false, nDebug);
           } break;
           default:{
             writeError("ZGenExecuter.executeIf - unknown statement; " + statement.elementType(), out);
@@ -1031,7 +1049,7 @@ public class ZGenExecuter {
     
     /**Executes a while statement. 
      * @throws Exception */
-    int whileStatement(ZGenScript.CondStatement whileStatement, StringFormatter out, int indentOut) 
+    int whileStatement(ZGenScript.CondStatement whileStatement, StringFormatter out, int indentOut, int nDebug) 
     throws Exception 
     {
       int cont = kSuccess;
@@ -1040,7 +1058,7 @@ public class ZGenExecuter {
         cond =  (cont ==kSuccess)
              && evalCondition(whileStatement.condition); //.calcDataAccess(localVariables);
         if(cond){
-          cont = execute(whileStatement.statementlist, out, indentOut, false);
+          cont = execute(whileStatement.statementlist, out, indentOut, false, nDebug);
         }
       } while(cond);  //if executed, check cond again.  
       if(cont == kBreak){ cont = kSuccess; } //break in while does not break at calling level.
@@ -1051,12 +1069,12 @@ public class ZGenExecuter {
     
     /**Executes a dowhile statement. 
      * @throws Exception */
-    int dowhileStatement(ZGenScript.CondStatement whileStatement, StringFormatter out, int indentOut) 
+    int dowhileStatement(ZGenScript.CondStatement whileStatement, StringFormatter out, int indentOut, int nDebug) 
     throws Exception 
     { int cont;
       boolean cond;
       do{
-        cont = execute(whileStatement.statementlist, out, indentOut, false);
+        cont = execute(whileStatement.statementlist, out, indentOut, false, nDebug);
         cond =  (cont ==kSuccess)
              && evalCondition(whileStatement.condition); //.calcDataAccess(localVariables);
       } while(cond);  //if executed, check cond again.  
@@ -1075,7 +1093,7 @@ public class ZGenExecuter {
      * @return true if the condition is true. If it returns false, an elsif or else-Block should be executed.
      * @throws Exception
      */
-    int executeIfBlock(ZGenScript.IfCondition ifBlock, StringFormatter out, int indentOut, boolean bIfHasNext) 
+    int executeIfBlock(ZGenScript.IfCondition ifBlock, StringFormatter out, int indentOut, boolean bIfHasNext, int nDebug) 
     throws Exception
     { int cont;
       //Object check = getContent(ifBlock, localVariables, false);
@@ -1084,7 +1102,7 @@ public class ZGenExecuter {
       boolean bCheck;
       bCheck = evalCondition(ifBlock.condition); //.calcDataAccess(localVariables);
       if(bCheck){
-        cont = execute(ifBlock.statementlist, out, indentOut, bIfHasNext);
+        cont = execute(ifBlock.statementlist, out, indentOut, bIfHasNext, nDebug);
       } else cont = kFalse;
       return cont;
     }
@@ -1101,7 +1119,7 @@ public class ZGenExecuter {
      * @param statement the statement
      * @throws Exception 
      */
-    void textAppendToVarOrOut(ZGenScript.TextOut statement, StringFormatter out) throws Exception
+    void textAppendToVarOrOut(ZGenScript.TextOut statement, StringFormatter out, int nDebug) throws Exception
     { StringFormatter out1;
       boolean bShouldClose;
       if(statement.variable !=null){
@@ -1137,7 +1155,7 @@ public class ZGenExecuter {
       }
       if(statement.statementlist !=null){
         //executes the statement, use the Appendable to output immediately
-        execute(statement.statementlist, out1, statement.indent, false);
+        execute(statement.statementlist, out1, statement.indent, false, nDebug);
       } else {
         //Any other text expression
         CharSequence text = evalString(statement);
@@ -1158,7 +1176,7 @@ public class ZGenExecuter {
     
     
     private int execCall(ZGenScript.CallStatement callStatement, List<DataAccess.Variable<Object>> additionalArgs
-        , StringFormatter out, int indentOut) 
+        , StringFormatter out, int indentOut, int nDebug) 
     throws IllegalArgumentException, Exception
     { int success = kSuccess;
       boolean ok = true;
@@ -1234,7 +1252,7 @@ public class ZGenExecuter {
           ok = writeError("??: call" + nameSubtext + " called with arguments, it has not one.??", out);
         }
         if(ok){
-          success = sublevel.execute(subtextScript.statementlist, out, indentOut, false);
+          success = sublevel.execute(subtextScript.statementlist, out, indentOut, false, nDebug);
           if(success == kBreak || success == kReturn){
             success = kSuccess;  //break or return in subroutine ignored on calling level!
           }
@@ -1262,22 +1280,30 @@ public class ZGenExecuter {
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    private void execZmake(ZGenScript.Zmake statement, StringFormatter out, int indentOut) 
+    private void execZmake(ZGenScript.Zmake statement, StringFormatter out, int indentOut, int nDebug) 
     throws IllegalArgumentException, Exception {
-      ZmakeTarget target = new ZmakeTarget(this);
+      ZmakeTarget target = new ZmakeTarget(this, statement.name);
       target.output = new ZGenFilepath(this, statement.output);  //prepare to ready-to-use form.
       for(ZGenScript.ZmakeInput input: statement.input){
         //search the named file set. It is stored in a ready-to-use form in any variable.
-        DataAccess.Variable<Object> filesetV = localVariables.get(input.zmakeFilesetName);
-        if(filesetV == null) throw new NoSuchFieldException("ZGen.execZmake - fileset not found;" + input.zmakeFilesetName);
+        DataAccess.Variable<Object> filesetV = localVariables.get(input.filesetVariableName);
+        if(filesetV == null) throw new NoSuchFieldException("ZGen.execZmake - fileset not found;" + input.filesetVariableName);
         Object filesetO = filesetV.value();
-        if(!(filesetO instanceof ZGenFileset)) throw new NoSuchFieldException("ZGen.execZmake - fileset faulty type;" + input.zmakeFilesetName);
+        if(!(filesetO instanceof ZGenFileset)) throw new NoSuchFieldException("ZGen.execZmake - fileset faulty type;" + input.filesetVariableName);
         //store the file set and the path before:
         ZmakeTarget.Input zinput = new ZmakeTarget.Input();
         zinput.fileset = (ZGenFileset) filesetO;
-        if(input.zmakeInputDir !=null){
-          zinput.dir = new ZGenFilepath(this, input.zmakeInputDir);
+        if(input.accessPath !=null){
+          zinput.dir = new ZGenFilepath(this, input.accessPath);
+          assert(input.accessPathVariableName == null);  //it is only an alternative
+        } else if(input.accessPathVariableName !=null){
+          DataAccess.Variable<Object> filepathV = localVariables.get(input.accessPathVariableName);
+          if(filepathV == null) throw new NoSuchFieldException("ZGen.execZmake - file dir not found;" + input.accessPathVariableName);
+          Object filepathO = filepathV.value();
+          if(!(filepathO instanceof ZGenFilepath))  throw new NoSuchFieldException("ZGen.execZmake - filepath faulty type, should be a Filepath;" + input.filesetVariableName);
+          zinput.dir = (ZGenFilepath)filepathO;         
         }
+
         if(target.inputs ==null){ target.inputs = new ArrayList<ZmakeTarget.Input>(); }
         target.inputs.add(zinput);
       }
@@ -1287,7 +1313,7 @@ public class ZGenExecuter {
       args.add(targetV);
       //
       //same as a normal subroutine.
-      execCall(statement, args, out, indentOut);
+      execCall(statement, args, out, indentOut, nDebug);
     }
     
     
@@ -1343,7 +1369,7 @@ public class ZGenExecuter {
      *   inside the block. All other return values of execute are returned.
      * @throws IOException
      */
-    private int execNestedLevel(ZGenScript.ZGenitem script, StringFormatter out, int indentOut) 
+    private int execNestedLevel(ZGenScript.ZGenitem script, StringFormatter out, int indentOut, int nDebug) 
     throws Exception
     {
       ExecuteLevel genContent;
@@ -1352,7 +1378,7 @@ public class ZGenExecuter {
       } else {
         genContent = this;  //don't use an own instance, save memory and calculation time.
       }
-      int ret = genContent.execute(script.statementlist, out, indentOut, false);
+      int ret = genContent.execute(script.statementlist, out, indentOut, false, nDebug);
       if(ret == kBreak){ 
         ret = kSuccess; 
       }
@@ -1451,7 +1477,7 @@ public class ZGenExecuter {
     int execCmdError(ZGenScript.Onerror statement, StringFormatter out, int indentOut) throws Exception {
       int ret = 0;
       if(this.cmdErrorlevel >= statement.errorLevel){
-        ret = execute(statement.statementlist, out, indentOut, false);
+        ret = execute(statement.statementlist, out, indentOut, false, -1);
       }
       return ret;
     }
@@ -1852,7 +1878,7 @@ public class ZGenExecuter {
       } else if(arg.statementlist !=null){
         StringFormatter u = new StringFormatter();
         //StringPartAppend u = new StringPartAppend();
-        executeNewlevel(arg.statementlist, u, 0, false);
+        executeNewlevel(arg.statementlist, u, 0, false, -1);
         return u.getBuffer(); //StringSeq.create(u, true);
       } else if(arg.expression !=null){
         CalculatorExpr.Value value = calculateExpression(arg.expression); //.calcDataAccess(localVariables);
@@ -1959,7 +1985,7 @@ public class ZGenExecuter {
       } else if(arg.statementlist !=null){
         //StringPartAppend u = new StringPartAppend();
         StringFormatter u = new StringFormatter();
-        executeNewlevel(arg.statementlist, u, arg.statementlist.indentText, false);
+        executeNewlevel(arg.statementlist, u, arg.statementlist.indentText, false, -1);
         obj = u.toString();
       } else if(arg.expression !=null){
         CalculatorExpr.Value value = calculateExpression(arg.expression); //.calcDataAccess(localVariables);
@@ -2079,9 +2105,10 @@ public class ZGenExecuter {
 
     
     
-    void debug(ZGenScript.ZGenitem statement) throws Exception{
+    int debug(ZGenScript.ZGenitem statement) throws Exception{
       CharSequence text = evalString(statement);
       Assert.stop();
+      return 1;
     }
     
     

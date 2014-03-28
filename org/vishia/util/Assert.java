@@ -129,17 +129,47 @@ public class Assert
   }
   
   
+
   /**Prepares an exception information inclusively some levels of stack trace in a short (one line) form.
-   * @param startText Any start text of the returned text
+   * @param startText Any start text of the returned text. 
+   *   If this refers a StringBuilder, it is used to prepare the output text. 
+   *   Note that the StringBuilder should be used only locally for that.
+   *   That is a typical practice if the text is assembled before. 
+   *   It saves dynamic memory allocation operations.
    * @param exc The exception, its getMessage() will be appended
    * @param firstLevel First level of stack. 0 is the routine where the exception is thrown, 1 the caller etc.
    * @param nrofLevels maximum of numbers of levels to show in stack. Use for example 10 to prevent to long lines if it may be deeper.
    * @return A string in form of CharSequence. Use ...toString() to build a String if necessary.
    */
-  public static CharSequence exceptionInfo(String startText, Throwable exc, int firstLevel, int nrofLevels){
-    StringBuilder u = new StringBuilder(500);
-    u.append(startText).append("; ");
-    u.append(exc.toString()).append("; ");
+  public static CharSequence exceptionInfo(CharSequence startText, Throwable exc, int firstLevel, int nrofLevels){
+    return exceptionInfo(startText, exc, firstLevel, nrofLevels, true);
+  }
+  
+  
+  /**Prepares an exception information inclusively some levels of stack trace in a short (one line) form.
+   * @param startText Any start text of the returned text. 
+   *   If this refers a StringBuilder, it is used to prepare the output text. 
+   *   Note that the StringBuilder should be used only locally for that.
+   *   That is a typical practice if the text is assembled before. 
+   *   It saves dynamic memory allocation operations.
+   * @param exc The exception, its getMessage() will be appended
+   * @param firstLevel First level of stack. 0 is the routine where the exception is thrown, 1 the caller etc.
+   * @param nrofLevels maximum of numbers of levels to show in stack. Use for example 10 to prevent to long lines if it may be deeper.
+   * @return A string in form of CharSequence. Use ...toString() to build a String if necessary.
+   */
+  public static CharSequence exceptionInfo(CharSequence startText, Throwable exc
+      , int firstLevel, int nrofLevels, boolean bWithExceptiontext){
+    StringBuilder u;
+    if(startText instanceof StringBuilder){
+      u = (StringBuilder)startText;
+    } else {
+      u = new StringBuilder(500);
+      u.append(startText);
+    }
+    u.append("; ");
+    if(bWithExceptiontext){
+      u.append(exc.toString()).append("; ");
+    }
     //u.append(exc.getMessage()).append("; ");
     StackTraceElement[] stack = exc.getStackTrace();
     int zStack = stack.length;
@@ -192,25 +222,33 @@ public class Assert
 
   /**Prepares an information about the stack trace without occurring of a exception in a short (one line) form.
    * @param startText Any start text of the returned text
+   *   If this refers a StringBuilder, it is used to prepare the output text. 
+   *   Note that the StringBuilder should be used only locally for that.
+   *   That is a typical practice if the text is assembled before. 
+   *   It saves dynamic memory allocation operations.
    * @param nrofLevels maximum of numbers of levels to show in stack. Use for example 10 to prevent to long lines if it may be deeper.
    *   The first level is the caller of this routine.
    * @return A string in form of CharSequence. Use ...toString() to build a String if necessary.
    */
-  public static CharSequence stackInfo(String startText, int nrofLevel){ return stackInfo(startText, 1, nrofLevel); }
+  public static CharSequence stackInfo(CharSequence startText, int nrofLevel){ return stackInfo(startText, 1, nrofLevel); }
 
   
   /**Prepares an information about the stack trace without occurring of a exception in a short (one line) form.
    * @param startText Any start text of the returned text
+   *   If this refers a StringBuilder, it is used to prepare the output text. 
+   *   Note that the StringBuilder should be used only locally for that.
+   *   That is a typical practice if the text is assembled before. 
+   *   It saves dynamic memory allocation operations.
    * @param firstLevel First level of stack. 0 is this routine, 1 the caller etc.
    * @param nrofLevels maximum of numbers of levels to show in stack. Use for example 10 to prevent to long lines if it may be deeper.
    * @return A string in form of CharSequence. Use ...toString() to build a String if necessary.
    */
-  public static CharSequence stackInfo(String startText, int firstLevel, int nrofLevel){
+  public static CharSequence stackInfo(CharSequence startText, int firstLevel, int nrofLevel){
     final CharSequence s;
     try{ throw new RuntimeException("stackInfo");
     } catch(RuntimeException exc){
       //exc.printStackTrace(System.out);
-      s = exceptionInfo(startText, exc, firstLevel, nrofLevel);
+      s = exceptionInfo(startText, exc, firstLevel, nrofLevel, false);
     }
     return s;
   }
