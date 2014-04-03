@@ -201,6 +201,15 @@ public final class ZGenFilepath {
     this.data = filepath;
   }
   
+  /**Creates an instance with given data.
+   * @param zgenlevel
+   * @param filepath given data
+   */
+  ZGenFilepath(ZGenExecuter.ExecuteLevel zgenlevel, String filepath){
+    this.zgenlevel = zgenlevel;
+    this.data = new ZGenScript.Filepath(filepath);
+  }
+  
   /**Creates a ZGenFilepath entry with an additonal pathbase.
    * if the basepath of src is given and the pathbase0 is given, both are joined: pathbase0/src.pathbase.
    * @param zgenlevel  Reference to the zgenlevel, necessary for the current directory

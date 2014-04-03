@@ -725,7 +725,7 @@ public class ZGenExecuter {
         }
         if(nDebug1 >=0){
           //TODO print a debug text
-          Debugutil.stop();
+          Debugutil.stop();  //NOTE: set the local variable nDebug1 to 0: stop debugging for sub levels.
         }
         //for(TextGenScript.ScriptElement statement: contentScript.content){
         try{    
@@ -1294,14 +1294,26 @@ public class ZGenExecuter {
         ZmakeTarget.Input zinput = new ZmakeTarget.Input();
         zinput.fileset = (ZGenFileset) filesetO;
         if(input.accessPath !=null){
-          zinput.dir = new ZGenFilepath(this, input.accessPath);
+          zinput.accesspathFilepath = new ZGenFilepath(this, input.accessPath);
           assert(input.accessPathVariableName == null);  //it is only an alternative
         } else if(input.accessPathVariableName !=null){
-          DataAccess.Variable<Object> filepathV = localVariables.get(input.accessPathVariableName);
-          if(filepathV == null) throw new NoSuchFieldException("ZGen.execZmake - file dir not found;" + input.accessPathVariableName);
-          Object filepathO = filepathV.value();
-          if(!(filepathO instanceof ZGenFilepath))  throw new NoSuchFieldException("ZGen.execZmake - filepath faulty type, should be a Filepath;" + input.filesetVariableName);
-          zinput.dir = (ZGenFilepath)filepathO;         
+          if(input.accessPathEnvironmentVar){
+            DataAccess.Variable<Object> filepathV = localVariables.get("$" + input.accessPathVariableName);
+            String accesspathString;
+            if(filepathV !=null){
+              accesspathString = filepathV.name().toString();
+            } else {
+              accesspathString = System.getenv(input.accessPathVariableName);
+            }
+            if(accesspathString == null)throw new NoSuchFieldException("ZGen.execZmake - accesspath-environment variable not found; " + input.accessPathVariableName);
+            Assert.check(false);
+          } else {
+            DataAccess.Variable<Object> filepathV = localVariables.get(input.accessPathVariableName);
+            if(filepathV == null) throw new NoSuchFieldException("ZGen.execZmake - accesspath-variable not found; " + input.accessPathVariableName);
+            Object filepathO = filepathV.value();
+            if(!(filepathO instanceof ZGenFilepath))  throw new NoSuchFieldException("ZGen.execZmake - filepath faulty type, should be a Filepath;" + input.filesetVariableName);
+            zinput.accesspathFilepath = (ZGenFilepath)filepathO;
+          }
         }
 
         if(target.inputs ==null){ target.inputs = new ArrayList<ZmakeTarget.Input>(); }

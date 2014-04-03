@@ -721,6 +721,42 @@ public class ZGenScript {
     protected boolean someFiles;
     
 
+    public Filepath(){}
+    
+    /**parses the string given path. */
+    public Filepath(String pathP){
+      String path = pathP.replace('\\', '/');
+      int zpath = path.length();
+      int posbase = 0, poslocal=0, posname = 0, posext;
+      if(zpath >=2 && path.charAt(1) == ':'){ 
+        drive = path.substring(0,1);
+        posbase = poslocal = posname = 2;
+      }
+      if(zpath > posbase +1 && path.charAt(posbase) == '/'){
+        absPath = true;
+        posbase = poslocal = posname = posbase +1;
+      }
+      posname = path.lastIndexOf('/') +1;
+      if(posname < posbase){ posname = posbase; }
+      poslocal = path.indexOf(':', posbase);
+      if(poslocal >=0){
+        if(posname < poslocal){
+          posname = poslocal +1;  //':' as separator to name
+        }
+        basepath = path.substring(posbase, poslocal);
+        localdir = path.substring(poslocal+1, posname);  //may be empty
+      } else if(posname > posbase){
+        localdir = path.substring(posbase, posname-1);
+      }
+      posext = path.lastIndexOf('.');
+      if(posext <= posname){
+        posext = zpath;  //no extension.
+      }
+      name = path.substring(posname, posext);
+      ext = path.substring(posext);  //with "."
+    }
+    
+    
     @Override public String toString() {
       StringBuilder u = new StringBuilder();
       if(drive!=null) { u.append(drive); }
@@ -849,11 +885,18 @@ public class ZGenScript {
     /**From Zbnf, either a fileset or a filepath variable for the fileset.*/
     String accessPathVariableName;
     
+    boolean accessPathEnvironmentVar;
+    
     /**From Zbnf, if null then {@link #zmakeFilepathName} may be the fileset. */
     String filesetVariableName;
     
     /**The filepath for the fileset. */
     Filepath accessPath;
+    
+    
+    public void set_accessPath(String val){
+      accessPath = new Filepath(val);  //prepare it with its parts.
+    }
 
     /**From Zbnf. The first occurrence of &name is supposed as the fileset name because it is unknown yet
      * whether a second &name is given. But if a second &name is given, {@link #set_zmakeFilesetVariable(String)}
@@ -864,6 +907,16 @@ public class ZGenScript {
       this.filesetVariableName = val; //unknown yet whether a zmakeFileset follows. Assume it is it. 
     }
 
+    
+    /**From Zbnf. The access path from an environment variable.
+     * The environment variable should contain an absolute path 
+     * or a relative path from the operation systems's current directory. 
+     * @param val without $
+     */
+    public void set_accessPathEnvirVariable(String val){
+      this.accessPathVariableName = val;
+      this.accessPathEnvironmentVar = true;
+    }
     
     /**From Zbnf. The second occurrence of &name is supposed as the fileset anyway.
      * If a fileset name is stored already, it is the {@link #accessPathVariable}.

@@ -46,7 +46,7 @@ public class ZmakeTarget
 
   public static class Input {
     ZGenFileset fileset;
-    ZGenFilepath dir;
+    ZGenFilepath accesspathFilepath;
   }
   
  
@@ -106,13 +106,13 @@ public class ZmakeTarget
       { //expand file or fileset:
         //
         if(targetInputParam.fileset !=null){
-          targetInputParam.fileset.listFilesExpanded(files, targetInputParam.dir, expandFiles);
+          targetInputParam.fileset.listFilesExpanded(files, targetInputParam.accesspathFilepath, expandFiles);
         }
-        else if(targetInputParam.dir !=null){
+        else if(targetInputParam.accesspathFilepath !=null){
           if(expandFiles){
-            targetInputParam.dir.expandFiles(files, commonPathTarget, null);
+            targetInputParam.accesspathFilepath.expandFiles(files, commonPathTarget, null);
           } else {
-            ZGenFilepath targetsrc = new ZGenFilepath(zgenlevel, targetInputParam.dir, commonPathTarget, null);
+            ZGenFilepath targetsrc = new ZGenFilepath(zgenlevel, targetInputParam.accesspathFilepath, commonPathTarget, null);
             files.add(targetsrc);  
           }
         } else { 
