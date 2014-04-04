@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.vishia.util.Assert;
 import org.vishia.util.DataAccess;
+import org.vishia.util.FilePath;
 import org.vishia.util.FileSystem;
 
 /**This class describes a file entity in a executer level of ZGen. The file entity can contain wild cards.
@@ -170,7 +171,7 @@ public final class ZGenFilepath {
   private final ZGenExecuter.ExecuteLevel zgenlevel;
   
 
-  final ZGenScript.Filepath data;
+  final FilePath data;
   
   /**An empty file path which is used as argument if a common base path is not given. */
   static ZGenFilepath emptyParent = new ZGenFilepath();
@@ -178,7 +179,7 @@ public final class ZGenFilepath {
   /**Only for {@link #emptyParent}. */
   private ZGenFilepath(){
     this.zgenlevel = null;
-    data = new ZGenScript.Filepath(); //with empty elements. 
+    data = new FilePath(); //with empty elements. 
   }
   
   
@@ -189,14 +190,14 @@ public final class ZGenFilepath {
    */
   ZGenFilepath(ZGenExecuter.ExecuteLevel zgenlevel){
     this.zgenlevel = zgenlevel;
-    this.data = new ZGenScript.Filepath(); //with empty elements.
+    this.data = new FilePath(); //with empty elements.
   }
   
   /**Creates an instance with given data.
    * @param zgenlevel
    * @param filepath given data
    */
-  ZGenFilepath(ZGenExecuter.ExecuteLevel zgenlevel, ZGenScript.Filepath filepath){
+  ZGenFilepath(ZGenExecuter.ExecuteLevel zgenlevel, FilePath filepath){
     this.zgenlevel = zgenlevel;
     this.data = filepath;
   }
@@ -207,7 +208,7 @@ public final class ZGenFilepath {
    */
   ZGenFilepath(ZGenExecuter.ExecuteLevel zgenlevel, String filepath){
     this.zgenlevel = zgenlevel;
-    this.data = new ZGenScript.Filepath(filepath);
+    this.data = new FilePath(filepath);
   }
   
   /**Creates a ZGenFilepath entry with an additonal pathbase.
@@ -221,7 +222,7 @@ public final class ZGenFilepath {
    */
   ZGenFilepath(ZGenExecuter.ExecuteLevel zgenlevel, ZGenFilepath src, ZGenFilepath commonPath, ZGenFilepath accessPath) throws NoSuchFieldException {
     this.zgenlevel = zgenlevel;
-    data = new ZGenScript.Filepath();  //an empty instance to hold information from sources.
+    data = new FilePath();  //an empty instance to hold information from sources.
     CharSequence basePath = src.basepath(null, commonPath, accessPath, null);
     CharSequence localDir = src.localDir(null, commonPath, accessPath);
     int posbase = isRootpath(basePath);
@@ -240,6 +241,10 @@ public final class ZGenFilepath {
   }
   
 
+  
+  
+  
+  
   
   /**Inserts the given drive letter and the root designation on start of buffer. It does nothing if the path is relative.
    * @param u The buffer

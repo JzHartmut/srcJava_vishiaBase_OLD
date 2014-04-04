@@ -12,6 +12,7 @@ import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.Assert;
 import org.vishia.util.CalculatorExpr;
 import org.vishia.util.DataAccess;
+import org.vishia.util.FilePath;
 import org.vishia.util.StringFunctions;
 
 
@@ -460,7 +461,7 @@ public class ZGenScript {
     public String identArgJbat;
     
     /**Set whether the argument is a filepath. The the references of ZGenitem are null.*/
-    protected Filepath filepath;
+    protected FilePath filepath;
    
     public Argument(StatementList parentList){
       super(parentList, '.');
@@ -476,9 +477,9 @@ public class ZGenScript {
  
     
     /**From ZBNF: The argument is given with <code>Filepath name = "a path"</code>. */
-    public ZbnfFilepath new_Filepath(){ return new ZbnfFilepath(); }
+    public FilePath.ZbnfFilepath new_Filepath(){ return new FilePath.ZbnfFilepath(); }
     
-    public void add_Filepath(ZbnfFilepath valz){ filepath =valz.filepath; }
+    public void add_Filepath(FilePath.ZbnfFilepath valz){ filepath =valz.filepath; }
     
 
     
@@ -608,14 +609,14 @@ public class ZGenScript {
     
     /**From ZBNF basepath = <""?!prepSrcpath>. It is a part of the base path anyway. It may be absolute, but usually relative. 
      * If null then unused. */
-    Filepath commonBasepath;
+    FilePath commonBasepath;
     
     /**From ZBNF srcext = <""?srcext>. If null then unused. */
     //public String srcext;
     
     
     /**All entries of the file set how it is given in the users script. */
-    List<Filepath> filesOfFileset = new LinkedList<Filepath>();
+    List<FilePath> filesOfFileset = new LinkedList<FilePath>();
     
     UserFileset(StatementList parentList, ZGenScript script){
       super(parentList, 'G');
@@ -640,16 +641,16 @@ public class ZGenScript {
      * It sets the base path for all files of this fileset. This basepath is usually relative.
      * @return ZBNF component.
      */
-    public ZbnfFilepath new_commonpath(){ return new ZbnfFilepath(); }  //NOTE: it has not a parent. this is not its parent!
-    public void set_commonpath(ZbnfFilepath val){ commonBasepath = val.filepath; }
+    public FilePath.ZbnfFilepath new_commonpath(){ return new FilePath.ZbnfFilepath(); }  //NOTE: it has not a parent. this is not its parent!
+    public void set_commonpath(FilePath.ZbnfFilepath val){ commonBasepath = val.filepath; }
     
     /**From ZBNF: < Filepath>. */
-    public ZbnfFilepath new_Filepath(){ return new ZbnfFilepath(); }
+    public FilePath.ZbnfFilepath new_Filepath(){ return new FilePath.ZbnfFilepath(); }
     
     /**From ZBNF: < file>. */
-    public void add_Filepath(ZbnfFilepath valz){ 
-      Filepath val =valz.filepath;
-      if(val.basepath !=null || val.localdir.length() >0 || val.name.length() >0 || val.drive !=null){
+    public void add_Filepath(FilePath.ZbnfFilepath valz){ 
+      FilePath val =valz.filepath;
+      if(val.isNotEmpty()){
         //only if any field is set. not on empty val
         filesOfFileset.add(val); 
       }
@@ -671,182 +672,27 @@ public class ZGenScript {
   
   public static class DefFilepath extends DefVariable
   {
-    Filepath filepath;
+    FilePath filepath;
 
     DefFilepath(StatementList parentList){
       super(parentList, 'F');
     }
   
-    public ZbnfFilepath new_Filepath(){ return new ZbnfFilepath(); } 
+    public FilePath.ZbnfFilepath new_Filepath(){ return new FilePath.ZbnfFilepath(); } 
     
-    public void add_Filepath(ZbnfFilepath val){ filepath = val.filepath; } 
+    public void add_Filepath(FilePath.ZbnfFilepath val){ filepath = val.filepath; } 
     
   }
  
   
   
-  /**The parsed content of a Filepath in a ZGen script.
-   */
-  public final static class Filepath {
-  
-  
-    /**From ZBNF: $<$?scriptVariable>. If given, then the basePath() starts with it. 
-     */
-    protected String scriptVariable, envVariable;
-    
-    /**The drive letter if a drive is given. */
-    String drive;
-    
-    /**From Zbnf: [ [/|\\]<?@absPath>]. Set if the path starts with '/' or '\' maybe after drive letter. */
-    protected boolean absPath;
-    
-    /**Path-part before a ':'. It is null if the basepath is not given. */
-    protected String basepath;
-    
-    /**Localpath after ':' or the whole path. It is an empty "" if a directory is not given. 
-     * It does not contain a slash on end. */
-    protected String localdir = "";
-    
-    /**From Zbnf: The filename without extension. */
-    protected String name = "";
-    
-    
-    /**From Zbnf: The extension inclusive the leading dot. */
-    protected String ext = "";
-    
-    /**Set to true if a "*" was found in any directory part.*/
-    protected boolean allTree;
-    
-    /**Set to true if a "*" was found in the name or extension.*/
-    protected boolean someFiles;
-    
-
-    public Filepath(){}
-    
-    /**parses the string given path. */
-    public Filepath(String pathP){
-      String path = pathP.replace('\\', '/');
-      int zpath = path.length();
-      int posbase = 0, poslocal=0, posname = 0, posext;
-      if(zpath >=2 && path.charAt(1) == ':'){ 
-        drive = path.substring(0,1);
-        posbase = poslocal = posname = 2;
-      }
-      if(zpath > posbase +1 && path.charAt(posbase) == '/'){
-        absPath = true;
-        posbase = poslocal = posname = posbase +1;
-      }
-      posname = path.lastIndexOf('/') +1;
-      if(posname < posbase){ posname = posbase; }
-      poslocal = path.indexOf(':', posbase);
-      if(poslocal >=0){
-        if(posname < poslocal){
-          posname = poslocal +1;  //':' as separator to name
-        }
-        basepath = path.substring(posbase, poslocal);
-        localdir = path.substring(poslocal+1, posname);  //may be empty
-      } else if(posname > posbase){
-        localdir = path.substring(posbase, posname-1);
-      }
-      posext = path.lastIndexOf('.');
-      if(posext <= posname){
-        posext = zpath;  //no extension.
-      }
-      name = path.substring(posname, posext);
-      ext = path.substring(posext);  //with "."
-    }
-    
-    
-    @Override public String toString() {
-      StringBuilder u = new StringBuilder();
-      if(drive!=null) { u.append(drive); }
-      if(absPath) { u.append("/"); }
-      if(basepath!=null) { u.append(basepath).append(":"); }
-      if(localdir.length()>0) { u.append(localdir).append("/"); }
-      u.append(name).append(ext);
-      return u.toString();
-    }
-  
-  }
-  
-  
-  
-  /**This class is used only temporary while processing the parse result into a instance of {@link Filepath}
-   * while running {@link ZbnfJavaOutput}. 
-   */
-  public static class ZbnfFilepath{
-    
-    /**The instance which are filled with the components content. It is used for the user's data tree. */
-    final Filepath filepath;
-    
-    
-    ZbnfFilepath(){
-      filepath = new Filepath();
-    }
-    
-    /**FromZbnf. */
-    public void set_drive(String val){ filepath.drive = val; }
-    
-    
-    /**FromZbnf. */
-    public void set_absPath(){ filepath.absPath = true; }
-    
-    /**FromZbnf. */
-    public void set_scriptVariable(String val){ filepath.scriptVariable = val; }
-    
-    
-    /**FromZbnf. */
-    public void set_envVariable(String val){ filepath.envVariable = val; }
-    
-    
-
-    
-    //public void set_someFiles(){ someFiles = true; }
-    //public void set_wildcardExt(){ wildcardExt = true; }
-    //public void set_allTree(){ allTree = true; }
-    
-    /**FromZbnf. */
-    public void set_pathbase(String val){
-      filepath.basepath = val.replace('\\', '/');   //file is empty and ext does not start with dot. It is a filename without extension.
-      filepath.allTree = val.indexOf('*')>=0;
-    }
-    
-    /**FromZbnf. */
-    public void set_path(String val){
-      filepath.localdir = val.replace('\\', '/');   //file is empty and ext does not start with dot. It is a filename without extension.
-      filepath.allTree = val.indexOf('*')>=0;
-    }
-    
-    /**FromZbnf. */
-    public void set_name(String val){
-      filepath.name = val;   //file is empty and ext does not start with dot. It is a filename without extension.
-      filepath.someFiles |= val.indexOf('*')>=0;
-    }
-    
-    /**FromZbnf. If the name is empty, it is not the extension but the name.*/
-    public void set_ext(String val){
-      if(val.equals(".") && filepath.name.equals(".")){
-        filepath.name = "..";
-        //filepath.localdir += "../";
-      }
-      else if((val.length() >0 && val.charAt(0) == '.') || filepath.name.length() >0  ){ 
-        filepath.ext = val;  // it is really the extension 
-      } else { 
-        //a file name is not given, only an extension is parsed. Use it as file name because it is not an extension!
-        filepath.name = val;   //file is empty and ext does not start with dot. It is a filename without extension.
-      }
-      filepath.someFiles |= val.indexOf('*')>=0;
-    }
-    
-
-  }
   
   
 
   public static class Zmake extends CallStatement {
 
     
-    Filepath output;
+    FilePath output;
     
     String name;
     
@@ -857,13 +703,13 @@ public class ZGenScript {
     }
     
     
-    public ZbnfFilepath new_output(){
-      return new ZbnfFilepath();
+    public FilePath.ZbnfFilepath new_output(){
+      return new FilePath.ZbnfFilepath();
     }
     
     public void set_name(String name){ this.name = name; }
     
-    public void add_output(ZbnfFilepath val){ 
+    public void add_output(FilePath.ZbnfFilepath val){ 
       output = val.filepath;
       if(name == null){
         name = output.toString();
@@ -891,11 +737,11 @@ public class ZGenScript {
     String filesetVariableName;
     
     /**The filepath for the fileset. */
-    Filepath accessPath;
+    FilePath accessPath;
     
     
     public void set_accessPath(String val){
-      accessPath = new Filepath(val);  //prepare it with its parts.
+      accessPath = new FilePath(val);  //prepare it with its parts.
     }
 
     /**From Zbnf. The first occurrence of &name is supposed as the fileset name because it is unknown yet
@@ -930,9 +776,9 @@ public class ZGenScript {
       this.filesetVariableName = val; 
     }
     
-    public ZbnfFilepath new_accessPath(){ return new ZbnfFilepath(); }
+    public FilePath.ZbnfFilepath new_accessPath(){ return new FilePath.ZbnfFilepath(); }
     
-    public void add_accessPath(ZbnfFilepath val){ accessPath = val.filepath; }
+    public void add_accessPath(FilePath.ZbnfFilepath val){ accessPath = val.filepath; }
   }
   
   

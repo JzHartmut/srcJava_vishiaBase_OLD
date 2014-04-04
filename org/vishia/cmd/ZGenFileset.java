@@ -4,6 +4,8 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.vishia.util.FilePath;
+
 /**A Fileset instance in a ZGen script especially for zmake. It is assigned to a script variable 
  * with the syntax (See {@link org.vishia.zgen.ZGenSyntax})
  * <pre>
@@ -82,7 +84,7 @@ public class ZGenFileset
   
   
   void listFilesExpanded(List<ZGenFilepath> files, ZGenFilepath accesspath, boolean expandFiles) throws NoSuchFieldException {  ////
-    for(ZGenScript.Filepath scriptFilepath: data.filesOfFileset){
+    for(FilePath scriptFilepath: data.filesOfFileset){
       ZGenFilepath filepath = new ZGenFilepath(zgenlevel, scriptFilepath);
       ZGenFilepath commonBasepath = data.commonBasepath ==null ? null : new ZGenFilepath(zgenlevel, data.commonBasepath);
       if(expandFiles && (filepath.data.someFiles || filepath.data.allTree)){
