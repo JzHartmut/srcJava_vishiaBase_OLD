@@ -4,6 +4,8 @@ import java.io.File;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.vishia.util.FilePath;
+
 /**This class describes a zmake target used in a ZGen script.
  * @author Hartmut Schorrig
  *
@@ -110,7 +112,13 @@ public class ZmakeTarget
         }
         else if(targetInputParam.accesspathFilepath !=null){
           if(expandFiles){
-            targetInputParam.accesspathFilepath.expandFiles(files, commonPathTarget, null);
+            FilePath.FilePathEnvAccess env = targetInputParam.accesspathFilepath;
+            List<FilePath> files1 = new LinkedList<FilePath>();
+            targetInputParam.accesspathFilepath.data.expandFiles(files1, commonPathTarget.data, null, env);
+            for(FilePath file: files1){
+              ZGenFilepath zgenFile = new ZGenFilepath(zgenlevel, file);
+              files.add(zgenFile);
+            }
           } else {
             ZGenFilepath targetsrc = new ZGenFilepath(zgenlevel, targetInputParam.accesspathFilepath, commonPathTarget, null);
             files.add(targetsrc);  

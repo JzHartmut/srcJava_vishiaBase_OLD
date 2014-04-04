@@ -2,6 +2,7 @@ package org.vishia.cmd;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.vishia.util.FilePath;
@@ -87,8 +88,17 @@ public class ZGenFileset
     for(FilePath scriptFilepath: data.filesOfFileset){
       ZGenFilepath filepath = new ZGenFilepath(zgenlevel, scriptFilepath);
       ZGenFilepath commonBasepath = data.commonBasepath ==null ? null : new ZGenFilepath(zgenlevel, data.commonBasepath);
+      FilePath accessFilePath = accesspath !=null ? accesspath.data : null;
       if(expandFiles && (filepath.data.someFiles || filepath.data.allTree)){
-        filepath.expandFiles(files, commonBasepath, accesspath);
+        if(files.size() >=1){
+          FilePath.FilePathEnvAccess env = files.get(0);
+          List<FilePath> files1 = new LinkedList<FilePath>();
+          filepath.data.expandFiles(files1, data.commonBasepath, accessFilePath, env);
+          for(FilePath file: files1){
+            ZGenFilepath zgenFile = new ZGenFilepath(zgenlevel, file);
+            files.add(zgenFile);
+          }
+        }
       } else {
         //clone filepath! add srcpath
         ZGenFilepath targetsrc = new ZGenFilepath(zgenlevel, filepath, commonBasepath, accesspath);
