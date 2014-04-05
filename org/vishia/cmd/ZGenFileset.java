@@ -89,15 +89,13 @@ public class ZGenFileset
       ZGenFilepath filepath = new ZGenFilepath(zgenlevel, scriptFilepath);
       ZGenFilepath commonBasepath = data.commonBasepath ==null ? null : new ZGenFilepath(zgenlevel, data.commonBasepath);
       FilePath accessFilePath = accesspath !=null ? accesspath.data : null;
+      FilePath.FilePathEnvAccess env = accesspath;
       if(expandFiles && (filepath.data.someFiles || filepath.data.allTree)){
-        if(files.size() >=1){
-          FilePath.FilePathEnvAccess env = files.get(0);
-          List<FilePath> files1 = new LinkedList<FilePath>();
-          filepath.data.expandFiles(files1, data.commonBasepath, accessFilePath, env);
-          for(FilePath file: files1){
-            ZGenFilepath zgenFile = new ZGenFilepath(zgenlevel, file);
-            files.add(zgenFile);
-          }
+        List<FilePath> files1 = new LinkedList<FilePath>();
+        filepath.data.expandFiles(files1, data.commonBasepath, accessFilePath, env);
+        for(FilePath file: files1){
+          ZGenFilepath zgenFile = new ZGenFilepath(zgenlevel, file);
+          files.add(zgenFile);
         }
       } else {
         //clone filepath! add srcpath

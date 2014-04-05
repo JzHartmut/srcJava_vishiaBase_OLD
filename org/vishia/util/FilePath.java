@@ -2,6 +2,8 @@ package org.vishia.util;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 
 
@@ -65,8 +67,6 @@ public class FilePath
   
   
   
-  FilePath data = this;
-  
   /**If given, then the basePath() starts with it. 
    */
   public String scriptVariable, envVariable;
@@ -115,68 +115,54 @@ public class FilePath
     int pos1slash = path.indexOf('/');
     int posbase;   //start of base path, ==poslocal if not given
     int poslocal;  //start of local path or whole path, after ':' or after root-/ 
+    int pos1;
     if(zpath >=1 && path.charAt(0) == '&'){ //starts with a script variable:
       int pos9 = posColon > 0 && (posColon < pos1slash || pos1slash < 0) ? posColon : pos1slash > 0 ? pos1slash : zpath;
       this.scriptVariable = path.substring(1, pos9);
       absPath = false;  //hint: it may be an absolute path depending of content of scriptVariable 
-      if(pos9 < zpath){  
-        //following content after variable:
-        posbase = pos9+1;
-        poslocal = posColon >0 ? posColon+1 : pos9+1;
+      if(pos9 == pos1slash){
+        pos1 = pos9 +1;   //rest of path starts after slash as separator. A colon may be found behind.
       } else {
-        posbase = poslocal = -1;
+        pos1 = pos9;      //rest of path starts on colon, it is an empty base path
       }
     } else if(posColon == 1){ //it means a ':' is found anywhere: check if it is a drive designation
       drive = path.substring(0,1);
       posColon = path.indexOf(':', 2);
-      int pos1;
-      if(pos1slash == 2){
-        posbase = 3;
-        absPath = true;
-      } else {
-        posbase = 2;
-        absPath = false;
-      }
-      poslocal = posColon >0 ? posColon+1 : posbase;
+      absPath = pos1slash == 2;
+      pos1 = absPath ? 3 : 2;
+    } else { //no variable, no drive
+      absPath = pos1slash == 0;
+      pos1 = absPath ? 1 : 0;
+    }
+    if(posColon >0){
+      posbase = pos1;
+      poslocal = posColon+1;
     } else {
-      if(pos1slash == 0){
-        posbase = 1;
-        absPath = true;
-      } else {
-        posbase = 0;
-        absPath = false;
-      }
-      poslocal = posColon >0 ? posColon+1 : posbase;
+      posbase = -1;
+      poslocal = pos1;
     }
     //drive, absPath is set.
     //posbase, poslocal is set.
     //
-    if(posbase < 0){ //nothing given
-      basepath = null;
-      localdir = "";
-      name = "";
-      ext = "";
-    } else {
-      int posname = path.lastIndexOf('/') +1;
-      if(posname < poslocal){ posname = poslocal; }
-      //
-      if(poslocal > posbase){  //':' found, note posbase may be -1 
-        basepath = path.substring(posbase, poslocal-1);
-      } else { 
-        basepath = null; // left empty
-      }
-      if(posname > poslocal){
-        localdir = path.substring(poslocal, posname-1);
-      } else {
-        localdir = "";
-      }
-      int posext = path.lastIndexOf('.');
-      if(posext <= posname){  //not found, or any '.' before start of name
-        posext = zpath;  //no extension.
-      }
-      name = path.substring(posname, posext);
-      ext = path.substring(posext);  //with "."
+    if(posbase >=0){
+      basepath = path.substring(posbase, poslocal-1);  //may be ""
+    } else { 
+      basepath = null; // left empty
     }
+    int posname = path.lastIndexOf('/') +1;
+    if(posname < poslocal){ posname = poslocal; }
+    //
+    if(posname > poslocal){
+      localdir = path.substring(poslocal, posname-1);
+    } else {
+      localdir = "";
+    }
+    int posext = path.lastIndexOf('.');
+    if(posext <= posname){  //not found, or any '.' before start of name
+      posext = zpath;  //no extension.
+    }
+    name = path.substring(posname, posext);
+    ext = path.substring(posext);  //with "."
   }
   
   
@@ -208,28 +194,28 @@ public class FilePath
   CharSequence driveRoot(CharSequence basepath, FilePath commonBasepath, FilePath accesspath){
     boolean isRoot = false;
     CharSequence ret = basepath;
-    if(data.absPath || commonBasepath !=null && commonBasepath.data.absPath || accesspath !=null && accesspath.data.absPath){ 
+    if(this.absPath || commonBasepath !=null && commonBasepath.absPath || accesspath !=null && accesspath.absPath){ 
       StringBuilder u = basepath instanceof StringBuilder? (StringBuilder)basepath : new StringBuilder(basepath);
       ret = u;
       u.insert(0, '/'); 
       isRoot = true; 
     }
-    if(data.drive !=null){
+    if(this.drive !=null){
       StringBuilder u = basepath instanceof StringBuilder? (StringBuilder)basepath : new StringBuilder(basepath);
       ret = u;
-      u.insert(0, data.drive).insert(1, ':'); 
+      u.insert(0, this.drive).insert(1, ':'); 
       isRoot = true;
     }
-    else if(commonBasepath !=null && commonBasepath.data.drive !=null){
+    else if(commonBasepath !=null && commonBasepath.drive !=null){
       StringBuilder u = basepath instanceof StringBuilder? (StringBuilder)basepath : new StringBuilder(basepath);
       ret = u;
-      u.insert(0, commonBasepath.data.drive).insert(1, ':'); 
+      u.insert(0, commonBasepath.drive).insert(1, ':'); 
       isRoot = true;
     }
-    else if(accesspath !=null && accesspath.data.drive !=null){
+    else if(accesspath !=null && accesspath.drive !=null){
       StringBuilder u = basepath instanceof StringBuilder? (StringBuilder)basepath : new StringBuilder(basepath);
       ret = u;
-      u.insert(0, accesspath.data.drive).insert(1, ':'); 
+      u.insert(0, accesspath.drive).insert(1, ':'); 
       isRoot = true;
     }
     return ret;
@@ -334,7 +320,7 @@ public class FilePath
    *   but only if this is not an absolute path.
    * @param accesspath a String given path which is written before the given base path if the path is not absolute in this.
    *   If null, it is ignored. If this path is absolute, the result is a absolute path of course.
-   * @param useBaseFile null or false, the return the basepath only. 
+   * @param useBaseFile null or false, then returns the basepath only. 
    *   true then returns the local path part if a base path is not given inside. This element is set to false
    *   if the element has a base path and therefore the local path part of the caller should not be added.    
    * @return the whole base path of the constellation.
@@ -351,42 +337,61 @@ public class FilePath
     //if(generalPath == null){ generalPath = emptyParent; }
     //first check singulary conditions
     ///
+    int test = 1;
     int pos;
-    FilePath varfile;
+    final FilePath varfile;
+    final CharSequence varpath;
     Object varO;
-    if((data.basepath !=null || useBaseFile !=null && useBaseFile[0]) && data.scriptVariable !=null){
+    if(this.scriptVariable !=null){
+      Object oValue = env.getValue(this.scriptVariable);
+      if(oValue == null) throw new NoSuchFieldException("FilePath.basepath - scriptVariable not found; "+ this.scriptVariable);
+      if(oValue instanceof FilePath){
+        varfile = (FilePath)oValue;
+        varpath = null;
+      } else if(oValue instanceof CharSequence){
+        varpath = (CharSequence)oValue;
+        varfile = null;
+      } else {
+        throw new  NoSuchFieldException("FilePath.basepath - scriptVariable faulty type; "+ this.scriptVariable + ";" + oValue.getClass().getSimpleName());
+      }
+    } else {
+      varfile = null; varpath = null;  //not given.
+    }
+    /*
+    if((this.basepath !=null || useBaseFile !=null && useBaseFile[0]) && this.scriptVariable !=null){
       //get the variable if a base path is given or the file may be used as base path
-      varO = env.getValue(data.scriptVariable);
+      varO = env.getValue(this.scriptVariable);
       varfile = varO instanceof FilePath ? (FilePath) varO : null;
     } else { 
       varfile = null;
       varO = null;
     }
-    if(data.absPath){
+    */
+    if(this.absPath){
       //  common    variable    this         basepath build with         : localdir build with   
       //  | base    | base abs  base abs
       //  x  x      x  x   x     1    1      /thisBase                   : thisLocal
       //  x  x      x  x   x     0    1      "/"                         : thisLocal
-      if(data.drive !=null || data.basepath !=null || uRetP !=null || varO !=null || data.envVariable !=null){
+      if(this.drive !=null || this.basepath !=null || uRetP !=null || varfile !=null || this.envVariable !=null){
         StringBuilder uRet = uRetP !=null ? uRetP : new StringBuilder();   //it is necessary.
         uRet.setLength(0);
-        if(data.drive !=null){ 
-          uRet.append(data.drive).append(":");
+        if(this.drive !=null){ 
+          uRet.append(this.drive).append(":");
         }
         uRet.append("/");
-        if(data.basepath !=null){ 
+        if(this.basepath !=null){ 
           if(useBaseFile !=null){ useBaseFile[0] = false; }  //designate it to the caller
-          uRet.append(data.basepath);
+          uRet.append(this.basepath);
         } else if(useBaseFile !=null && useBaseFile[0]) {
           addLocalName(uRet);
         }
         return uRet;
       } else {
-        assert(uRetP == null && data.basepath ==null && data.drive == null);
+        assert(uRetP == null && this.basepath ==null && this.drive == null);
         return "/";
       }
     }
-    else if(data.basepath !=null){
+    else if(this.basepath !=null){
       if(useBaseFile !=null){ useBaseFile[0] = false; }  //designate it to the caller
       //
       //  common    variable    this         basepath build with         : localdir build with   
@@ -396,7 +401,7 @@ public class FilePath
       //  1  x      1  x   0     1    0      commonFile + varFile + thisBase : thisLocal
       //  0         0            1    0      thisBase                    : thisLocal
       //  1  x      0            1    0      commonFile + thisBase       : thisLocal
-      if(commonPath !=null || accessPath !=null || varO !=null || data.envVariable !=null){
+      if(commonPath !=null || accessPath !=null || varfile !=null || this.envVariable !=null){
         //  common    variable    this         basepath build with         : localdir build with   
         //  | base    | base abs  base abs
         //  x         1  x   1     1    0      /varFile + thisBase         : thisLocal
@@ -429,7 +434,7 @@ public class FilePath
           //possible to have a variable with text or environment variable.
           prepath = uRet;
         }
-        if(data.basepath.length() >0 || varO !=null && varfile == null || data.envVariable !=null){
+        if(this.basepath.length() >0 || varfile !=null && varfile == null || this.envVariable !=null){
           //need to add somewhat, build the StringBuilder if not done.
           if(prepath instanceof StringBuilder){
             uRet = (StringBuilder)prepath;
@@ -439,11 +444,11 @@ public class FilePath
           }
         }
         final CharSequence text;
-        if(varO !=null && varfile == null){
-          text = varO.toString();
+        if(varpath !=null && varfile == null){
+          text = varpath.toString();
         }  
-        else if(data.envVariable !=null){
-          text = System.getenv(data.envVariable);
+        else if(this.envVariable !=null){
+          text = System.getenv(this.envVariable);
         } else {
           text = null;
         }
@@ -464,19 +469,19 @@ public class FilePath
           }
           uRet.append(text);
         }
-        if(data.basepath.length() ==0){
+        if(this.basepath.length() ==0){
           //it is possible to have an empty basepat, writing $variable:
           return uRet !=null ? uRet : prepath;
         } else {
           if( (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-          uRet.append(this.data.basepath);
+          uRet.append(this.basepath);
           return uRet;
         }
       } else {
         //  common    variable    this         basepath build with         : localdir build with   
         //  | base    | base abs  base abs
         //        0         0            1    0      thisBase                    : thisLocal
-        return data.basepath;
+        return this.basepath;
       }
     } else { 
       //  common    variable    this         basepath build with         : localdir build with   
@@ -495,7 +500,7 @@ public class FilePath
       //  0  x      0            0    0      ""                          : thisLocal
       //  1  0      0            0    0      commonFile                  : thisLocal
       //  1  1      0            0    0      commonBase                  : commonLocalfile + thisLocal
-      assert(data.basepath == null); //check whether other parts have a basepath
+      assert(this.basepath == null); //check whether other parts have a basepath
       //The varFile is part of the localpath, because basepath == null. Don't use here.
       //Get the basepath from the whole common or access.
       //It one of them defines a basepath only that is returned. 
@@ -503,7 +508,7 @@ public class FilePath
       boolean[] useBaseFileSub = new boolean[1];
       useBaseFileSub[0] = true;  //use the file of commonPath or accessPath as base path. 
       StringBuilder uRet = uRetP !=null ? uRetP : new StringBuilder();   //it is necessary.
-      if(varfile !=null && (varfile.data.basepath !=null || useBaseFile !=null && useBaseFile[0])){
+      if(varfile !=null && (varfile.basepath !=null || useBaseFile !=null && useBaseFile[0])){
         //use the variableFile if it is called recursively. 
         //The variable is that one from commonPath or accessPath of the caller.
         //
@@ -577,34 +582,29 @@ public class FilePath
    */
   public CharSequence localDir(StringBuilder uRet, FilePath commonPath, FilePath accessPath, FilePathEnvAccess env) throws NoSuchFieldException {
     ///
-    if(  data.basepath !=null     //if a basepath is given, then only this localpath is valid.
-      || (  (commonPath == null || commonPath.data.basepath ==null) //either no commonPath or commonPath is a basepath completely
-         && (accessPath == null || accessPath.data.basepath ==null) //either no accessPath or accessPath is a basepath completely
-         && data.scriptVariable == null  //no Varable
-         && data.envVariable == null
-      )  ){  //Then only the localdir of this is used. 
+    if(  this.basepath !=null     //if a basepath is given, then only this localpath is valid.
+      ){  //Then only the localdir of this is used. 
+      String localdir1 = this.localdir.length()==0 ? "." : this.localdir;
       if(uRet == null){
-        return data.localdir;
+        return localdir1;
       } else {
-        uRet.append(data.localdir);
+        uRet.append(localdir1);
         return uRet;
       }
     }
-    else {
-      assert(data.basepath == null);
+    else { //this does not contain a basepath, therefore the localDir can be defined in :
+      assert(this.basepath == null);
       if(uRet ==null){ uRet = new StringBuilder(); } //it is necessary. Build it if null.
-      //ZGenScript.FilesetVariable var;
-      FilePath varfile;
-      Object varO;
-      if(data.scriptVariable !=null){
-        varO = env.getValue(data.scriptVariable);
-        varfile = varO instanceof FilePath ? (FilePath) varO : null;
-      } else { 
-        varfile = null;
-        varO = null;
-      }
-      if(varfile !=null){
-        varfile.localFile(uRet, commonPath, accessPath, env);  //The full varfile.localfile should use.
+      if(this.scriptVariable !=null){
+        Object oValue = env.getValue(this.scriptVariable);
+        if(oValue instanceof FilePath){
+          FilePath valfile = (FilePath)oValue;
+          valfile.localDir(uRet, commonPath, accessPath, env); //append localDir of variable 
+        } else if(oValue instanceof CharSequence){
+          uRet.append((CharSequence)oValue);
+        } else {
+          uRet.append(oValue);
+        }
       }
       else if(commonPath !=null){
         commonPath.localFile(uRet, null, accessPath, env);
@@ -613,17 +613,9 @@ public class FilePath
         accessPath.localFile(uRet, null, null, env);
       }
       //
-      if(varfile ==null && varO != null){
-        uRet.append(varO.toString());   //another variable than a Filepath, it is used as String
-      }
-      if(data.envVariable !=null){
-        CharSequence varpath = System.getenv(data.envVariable);
-        uRet.append(varpath);
-      }
       int pos;
-      if( data.localdir.length() >0 && (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-
-      uRet.append(data.localdir);
+      if( this.localdir.length() >0 && (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
+      uRet.append(this.localdir);
       return uRet;
     }
   }
@@ -637,7 +629,7 @@ public class FilePath
     }
     int pos;
     if( (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-    uRet.append(data.name).append(data.ext);
+    uRet.append(this.name).append(this.ext);
     return uRet;
   }
   
@@ -710,11 +702,11 @@ public class FilePath
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     return localDir(uRet, null, null, env);
     /*
-    int zpath = (data.localdir == null) ? 0 : data.localdir.length();
+    int zpath = (this.localdir == null) ? 0 : this.localdir.length();
     if(zpath > 0){ //not empty
       int pos;
       if( (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-      uRet.append(data.localdir);
+      uRet.append(this.localdir);
     }
     return uRet;
     */
@@ -723,7 +715,7 @@ public class FilePath
   public CharSequence absdirW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(absdir(env)); }
   
   
-  /**Method can be called in the generation script: <*data.absname()>. 
+  /**Method can be called in the generation script: <*this.absname()>. 
    * @return the whole path with file name but without extension inclusive a given general path in a {@link UserFileSet}.
    *   Either as absolute or as relative path.
    * @throws NoSuchFieldException 
@@ -733,9 +725,9 @@ public class FilePath
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     int pos;
     if( (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-    uRet.append(data.localdir);
+    uRet.append(this.localdir);
     if( (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-    uRet.append(data.name);
+    uRet.append(this.name);
     return uRet;
   }
   
@@ -753,7 +745,7 @@ public class FilePath
     CharSequence basePath = absbasepath(env);
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     addLocalName(uRet);
-    uRet.append(data.ext);
+    uRet.append(this.ext);
     return uRet;
   }
   
@@ -770,7 +762,7 @@ public class FilePath
     CharSequence basePath = absbasepath(env);
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     addLocalName(uRet, replWildc);
-    uRet.append(data.ext);
+    uRet.append(this.ext);
     return uRet;
   }
   
@@ -797,11 +789,11 @@ public class FilePath
   public CharSequence dir(FilePathEnvAccess env) throws NoSuchFieldException{ 
     CharSequence basePath = basepath(env);
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
-    int zpath = (data.localdir == null) ? 0 : data.localdir.length();
+    int zpath = (this.localdir == null) ? 0 : this.localdir.length();
     if(zpath > 0){
       int pos;
       if( (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-      uRet.append(data.localdir);
+      uRet.append(this.localdir);
     }
     return uRet;
   }
@@ -810,7 +802,7 @@ public class FilePath
   
   public CharSequence dirW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(dir(env)); }
   
-  /**Method can be called in the generation script: <*data.pathname()>. 
+  /**Method can be called in the generation script: <*this.pathname()>. 
    * @return the whole path with file name but without extension inclusive a given general path in a {@link UserFileSet}.
    *   The path is absolute or relative like it is given.
    * @throws NoSuchFieldException 
@@ -820,9 +812,9 @@ public class FilePath
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     int pos;
     if( (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-    uRet.append(data.localdir);
+    uRet.append(this.localdir);
     if( (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-    uRet.append(data.name);
+    uRet.append(this.name);
     return uRet;
   }
   
@@ -853,13 +845,13 @@ public class FilePath
     localDir(uRet, emptyParent, accesspath, env);
     int pos;
     if( (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-    uRet.append(data.name).append(data.ext);
-    return uRet.append(data.ext);
+    uRet.append(this.name).append(this.ext);
+    return uRet.append(this.ext);
   }
   
   
   
-  /**Method can be called in the generation script: <*data.file()>. 
+  /**Method can be called in the generation script: <*this.file()>. 
    * @return the whole path with file name and extension.
    *   The path is absolute or relative like it is given.
    * @throws NoSuchFieldException 
@@ -868,14 +860,14 @@ public class FilePath
     CharSequence basePath = basepath(env);
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     addLocalName(uRet);
-    return uRet.append(data.ext);
+    return uRet.append(this.ext);
   }
   
   public CharSequence fileW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(file(env)); }
   
   
   
-  /**Method can be called in the generation script: <*data.base_localdir()>. 
+  /**Method can be called in the generation script: <*this.base_localdir()>. 
    * @return the basepath:localpath in a {@link UserFileSet} with given wildcards 
    *   inclusive a given general path. The path is absolute or relative like it is given.
    * @throws NoSuchFieldException 
@@ -884,14 +876,14 @@ public class FilePath
     CharSequence basePath = basepath(env);
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     if( uRet.length() >0){ uRet.append(":"); }
-    uRet.append(data.localdir);
+    uRet.append(this.localdir);
     return uRet;
   }
   
   public CharSequence base_localdirW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(base_localdir(env)); }
   
   
-  /**Method can be called in the generation script: <*data.base_localfile()>. 
+  /**Method can be called in the generation script: <*this.base_localfile()>. 
    * @return the basepath:localpath/name.ext in a {@link UserFileSet} with given wildcards 
    *   inclusive a given general path. The path is absolute or relative like it is given.
    * @throws NoSuchFieldException 
@@ -900,11 +892,11 @@ public class FilePath
     CharSequence basePath = basepath(env);
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     if( uRet.length() >0){ uRet.append(":"); }
-    uRet.append(this.data.localdir);
+    uRet.append(this.localdir);
     int pos;
     if( (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-    uRet.append(this.data.name);
-    uRet.append(this.data.ext);
+    uRet.append(this.name);
+    uRet.append(this.ext);
     return uRet;
   }
   
@@ -916,41 +908,46 @@ public class FilePath
   /**Method can be called in the generation script: <*path.localdir()>. 
    * @return the local path part of the directory of the file without ending slash. 
    *   If no directory is given in the local part, it returns ".". 
+   * @throws NoSuchFieldException 
    */
-  public String localdir(){
-    int length = data.localdir == null ? 0 : data.localdir.length();
-    return length == 0 ? "." : data.localdir; 
+  public CharSequence localdir(FilePathEnvAccess env) throws NoSuchFieldException{
+    return localDir(null, null, null, env);
+    //int length = this.localdir == null ? 0 : this.localdir.length();
+    //return length == 0 ? "." : this.localdir; 
   }
   
   /**Method can be called in the generation script: <*path.localDir()>. 
    * @return the local path part with file without extension.
+   * @throws NoSuchFieldException 
    */
-  public String localdirW(){ return data.localdir.replace('/', '\\'); }
+  public CharSequence localdirW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(localdir(env)); }
   
 
   
   /**Method can be called in the generation script: <*path.localname()>. 
    * @return the local path part with file without extension.
+   * @throws NoSuchFieldException 
    */
-  public CharSequence localname(){ 
+  public CharSequence localname(FilePathEnvAccess env) throws NoSuchFieldException{ 
     StringBuilder uRet = new StringBuilder();
-    return addLocalName(uRet); 
+    return addLocalName(uRet, env); 
   }
   
-  public CharSequence localnameW(){ return toWindows(localname()); }
+  public CharSequence localnameW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(localname(env)); }
 
   
   /**Method can be called in the generation script: <*path.localfile()>. 
    * @return the local path to this file inclusive name and extension of the file.
+   * @throws NoSuchFieldException 
    */
-  public CharSequence localfile(){ 
+  public CharSequence localfile(FilePathEnvAccess env) throws NoSuchFieldException{ 
     StringBuilder uRet = new StringBuilder();
-    addLocalName(uRet);
-    uRet.append(this.data.ext);
+    addLocalName(uRet, env);
+    uRet.append(this.ext);
     return uRet;
   }
 
-  public CharSequence localfileW(){ return toWindows(localfile()); }
+  public CharSequence localfileW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(localfile(env)); }
 
   
   
@@ -961,10 +958,27 @@ public class FilePath
    */
   private CharSequence addLocalName(StringBuilder uRet){ 
     int pos;
-    if( this.data.localdir.length() > 0 && (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-    uRet.append(this.data.localdir);
+    if( this.localdir.length() > 0 && (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
+    uRet.append(this.localdir);
     if( (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-    uRet.append(data.name);
+    uRet.append(this.name);
+    return uRet;
+  }
+  
+  /**Adds the local dir and the name, not the extension
+   * @param uRet
+   * @return uRet itself to concatenate.
+   * @throws NoSuchFieldException 
+   */
+  private CharSequence addLocalName(StringBuilder uRet, FilePathEnvAccess env) throws NoSuchFieldException{ 
+    int pos;
+    CharSequence localdir1 = localdir(env);
+    if(!StringFunctions.equals(localdir1, ".")){
+      if( this.localdir.length() > 0 && (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
+      uRet.append(localdir1);
+    }
+    if( (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
+    uRet.append(this.name);
     return uRet;
   }
   
@@ -975,31 +989,31 @@ public class FilePath
    */
   private CharSequence addLocalName(StringBuilder uRet, FilePath replWildc){ 
     int pos;
-    if( this.data.localdir.length() > 0 && (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-    int posW = data.localdir.indexOf('*');
-    int posW2 = data.localdir.length() > posW+1 && data.localdir.charAt(posW+1) == '*' ? posW+2 : posW+1;
+    if( this.localdir.length() > 0 && (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
+    int posW = this.localdir.indexOf('*');
+    int posW2 = this.localdir.length() > posW+1 && this.localdir.charAt(posW+1) == '*' ? posW+2 : posW+1;
     if(posW >=0){
-      uRet.append(data.localdir.substring(0,posW));
-      uRet.append(replWildc.data.localdir);
-      uRet.append(data.localdir.substring(posW2));
+      uRet.append(this.localdir.substring(0,posW));
+      uRet.append(replWildc.localdir);
+      uRet.append(this.localdir.substring(posW2));
     } else{
-      uRet.append(data.localdir);
+      uRet.append(this.localdir);
     }
     if( (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-    posW = data.name.indexOf('*');
-    posW2 = data.name.indexOf('*', posW+1);
+    posW = this.name.indexOf('*');
+    posW2 = this.name.indexOf('*', posW+1);
     if(posW >=0){
-      uRet.append(data.name.substring(0,posW));     //may be empty
-      uRet.append(replWildc.data.name);
+      uRet.append(this.name.substring(0,posW));     //may be empty
+      uRet.append(replWildc.name);
       if(posW2 >=0){
-        uRet.append(data.name.substring(posW+1, posW2));
-        if(replWildc.data.ext.length() >1){ uRet.append(replWildc.data.ext.substring(1)); }  //without leading dot
-        uRet.append(data.name.substring(posW2+1));  //may be empty
+        uRet.append(this.name.substring(posW+1, posW2));
+        if(replWildc.ext.length() >1){ uRet.append(replWildc.ext.substring(1)); }  //without leading dot
+        uRet.append(this.name.substring(posW2+1));  //may be empty
       } else {
-        uRet.append(data.name.substring(posW+1));   //may be empty
+        uRet.append(this.name.substring(posW+1));   //may be empty
       }
     } else{
-      uRet.append(data.name);
+      uRet.append(this.name);
     }
     return uRet;
   }
@@ -1008,22 +1022,22 @@ public class FilePath
   /**Method can be called in the generation script: <*path.name()>. 
    * @return the name of the file without extension.
    */
-  public CharSequence name(){ return data.name; }
+  public CharSequence name(){ return this.name; }
   
   /**Method can be called in the generation script: <*path.namext()>. 
    * @return the file name with extension.
    */
   public CharSequence namext(){ 
     StringBuilder uRet = new StringBuilder(); 
-    uRet.append(data.name);
-    uRet.append(data.ext);
+    uRet.append(this.name);
+    uRet.append(this.ext);
     return uRet;
   }
   
   /**Method can be called in the generation script: <*path.ext()>. 
    * @return the file extension.
    */
-  public CharSequence ext(){ return data.ext; }
+  public CharSequence ext(){ return this.ext; }
   
   
   static CharSequence toWindows(CharSequence inp)
@@ -1051,15 +1065,35 @@ public class FilePath
    * @throws NoSuchFieldException 
    */
   public void expandFiles(List<FilePath> listToadd, FilePath commonPath, FilePath accessPath, FilePathEnvAccess env) throws NoSuchFieldException{
+    int test = 4;
+    final String driveChildren;
+    if(this.drive !=null){ driveChildren = this.drive; }
+    else if(commonPath !=null && commonPath.drive !=null){ driveChildren = commonPath.drive; }
+    else if(accessPath !=null && accessPath.drive !=null){ driveChildren = accessPath.drive; }
+    else { driveChildren = null;
+    }
+    final boolean absPathChildren;
+    if(this.absPath){ absPathChildren = this.absPath; }
+    else if(commonPath!=null && commonPath.absPath){ absPathChildren = commonPath.absPath; }
+    else if(accessPath!=null && accessPath.absPath){ absPathChildren = accessPath.absPath; }
+    else { absPathChildren = false;
+    }
+    CharSequence basePathChildren = basepath(new StringBuilder(), commonPath, accessPath, null, env);
     List<FileSystem.FileAndBasePath> listFiles = new LinkedList<FileSystem.FileAndBasePath>();
-    final CharSequence basepath1 = this.basepath(null, commonPath, accessPath, null, env); //getPartsFromFilepath(file, null, "absBasePath").toString();
+    
+    /*
+    //get the drive letter etc. from the basepath.
+    boolean[] useAsBase = new boolean[1]; useAsBase[0] = true;
+    final CharSequence basepath1 = this.basepath(null, commonPath, accessPath, useAsBase, env); //getPartsFromFilepath(file, null, "absBasePath").toString();
     int posRoot = isRootpath(basepath1);
     final CharSequence basePathNonRoot = posRoot == 0 ? basepath1: basepath1.subSequence(posRoot, basepath1.length());
     final String basepath = basePathNonRoot.toString();  //persistent content.
     String drive = posRoot >=2 ? Character.toString(basepath1.charAt(0)) : null;
     boolean absPath = posRoot == 1 || posRoot == 3;
+    */
     
-    final CharSequence absBasepath = absbasepath(basepath1, env);
+    String sBasePathChildren = basePathChildren.toString();  //note: the basePathChildren-StringBuilder will be changed yet.
+    final CharSequence absBasepath = absbasepath(basePathChildren, env);
     
     final CharSequence localfilePath = this.localFile(null, commonPath, accessPath, env); //getPartsFromFilepath(file, null, "file").toString();
     final String sPathSearch = absBasepath + ":" + localfilePath;
@@ -1068,10 +1102,13 @@ public class FilePath
       //let it empty. Files may not be found.
     }
     for(FileSystem.FileAndBasePath file1: listFiles){
+      //Build a new instance for any found file
+      //with the same structure like the given input paths.
+      //
       FilePath filepath2 = new FilePath();  //new instance for found file.
-      filepath2.data.absPath = absPath;
-      filepath2.data.drive = drive;
-      filepath2.data.basepath = basepath;  //it is the same. Maybe null
+      filepath2.absPath = absPathChildren;
+      filepath2.drive = driveChildren;
+      filepath2.basepath = sBasePathChildren;  //it is the same. Maybe null
       int posName = file1.localPath.lastIndexOf('/') +1;  //if not found, set to 0
       int posExt = file1.localPath.lastIndexOf('.');
       final String sPath = posName >0 ? file1.localPath.substring(0, posName-1) : "";  //"" if only name
@@ -1079,10 +1116,10 @@ public class FilePath
       final String sExt;
       if(posExt < 0){ sExt = ""; sName = file1.localPath.substring(posName); }
       else { sExt = file1.localPath.substring(posExt); sName = file1.localPath.substring(posName, posExt); }
-      filepath2.data.localdir = sPath;
+      filepath2.localdir = sPath;
       assert(!sPath.endsWith("/"));
-      filepath2.data.name = sName;
-      filepath2.data.ext = sExt;
+      filepath2.name = sName;
+      filepath2.ext = sExt;
       listToadd.add(filepath2);
     }
 
@@ -1168,21 +1205,59 @@ public class FilePath
   
   @SuppressWarnings("unused")
   public static void test(){
-    FilePath p0 = new FilePath("d:/base/path:local/path/name.ext");   
-    FilePath p1 = new FilePath("name");   
-    FilePath p2 = new FilePath("name.ext");   
-    FilePath p3 = new FilePath("local/path/name");   
-    FilePath p4 = new FilePath("base/path:local/path/name.name2.ext");   
-    FilePath p5 = new FilePath("d:local/path.name");   
-    FilePath p6 = new FilePath("d:/local/path.name");   
-    FilePath p7 = new FilePath("d:base/path:local/path.name.ext");   
-    FilePath p8 = new FilePath("d:/base/path:name.ext");   
-    FilePath p9 = new FilePath("&variable");   
-    FilePath p10 = new FilePath("&variable/base/path:name.ext");   
-    FilePath p11 = new FilePath("&variable:name.ext");   
-    FilePath p12 = new FilePath("&variable/name.ext");   
-    FilePath p13 = new FilePath("&variable/base/path:local/path/name.ext");   
-    Debugutil.stop();
+    
+    FilePathEnvAccess env = new FilePathEnvAccess(){
+
+      Map<String, Object> container = new TreeMap<String, Object>();
+      { fillContainerEnv();
+      }
+      
+      void fillContainerEnv(){
+        FilePath p1 = new FilePath("d:/varbase/path:varlocal/path/");
+        container.put("d-base-local", p1);
+        p1 = new FilePath("varlocal/path/");
+        container.put("local", p1);
+      }
+      
+      @Override public Object getValue(String variable) throws NoSuchFieldException
+      { return container.get(variable); }
+      
+      @Override public CharSequence getCurrentDir(){ return "D:/test/currentdir"; }
+    };
+    try{
+      CharSequence file, basepath, localdir, localfile;
+      FilePath p0 = new FilePath("d:/base/path:local/path/name.ext");   
+      FilePath p1 = new FilePath("name");   
+      FilePath p2 = new FilePath("name.ext");   
+      FilePath p3 = new FilePath("local/path/name");   
+      FilePath p4 = new FilePath("base/path:local/path/name.name2.ext");   
+      FilePath p5 = new FilePath("d:local/path.name");   
+      FilePath p6 = new FilePath("d:/local/path.name");   
+      FilePath p7 = new FilePath("d:base/path:local/path.name.ext");   
+      FilePath p8 = new FilePath("d:/base/path:name.ext");   
+      FilePath p9 = new FilePath("&variable");   
+      FilePath p10 = new FilePath("&variable/base/path:name.ext");   
+      
+      FilePath p11 = new FilePath("&d-base-local/local/path/name.ext");
+      basepath = p11.localdir(env);
+      localdir = p11.localdir(env);
+      localfile = p11.localfile(env);
+      assert(StringFunctions.equals(localdir, "varlocal/path/local/path"));
+      
+      p11 = new FilePath("&d-base-local:local/path/name.ext");
+      localdir = p11.localdir(env);
+      assert(StringFunctions.equals(localdir, "local/path"));
+      
+      p11 = new FilePath("&d-base-local:name.ext");
+      localdir = p11.localdir(env);
+      assert(StringFunctions.equals(localdir, "."));
+      
+      FilePath p12 = new FilePath("&variable/name.ext");   
+      FilePath p13 = new FilePath("&variable/base/path:local/path/name.ext");   
+      Debugutil.stop();
+    } catch(NoSuchFieldException exc){
+      System.out.println(exc.getMessage());
+    }
   }
 
   

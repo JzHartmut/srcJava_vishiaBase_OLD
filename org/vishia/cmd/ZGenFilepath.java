@@ -363,30 +363,34 @@ public final class ZGenFilepath implements FilePath.FilePathEnvAccess {
   /**Method can be called in the generation script: <*path.localdir()>. 
    * @return the local path part of the directory of the file without ending slash. 
    *   If no directory is given in the local part, it returns ".". 
+   * @throws NoSuchFieldException 
    */
-  public String localdir(){ return data.localdir(); }
+  public CharSequence localdir() throws NoSuchFieldException{ return data.localdir(this); }
   
   /**Method can be called in the generation script: <*path.localDir()>. 
    * @return the local path part with file without extension.
+   * @throws NoSuchFieldException 
    */
-  public String localdirW(){ return data.localdirW(); }
+  public CharSequence localdirW() throws NoSuchFieldException{ return data.localdirW(this); }
   
 
   
   /**Method can be called in the generation script: <*path.localname()>. 
    * @return the local path part with file without extension.
+   * @throws NoSuchFieldException 
    */
-  public CharSequence localname(){ return data.localname(); }
+  public CharSequence localname() throws NoSuchFieldException{ return data.localname(this); }
   
-  public CharSequence localnameW(){return data.localnameW(); }
+  public CharSequence localnameW() throws NoSuchFieldException{return data.localnameW(this); }
 
   
   /**Method can be called in the generation script: <*path.localfile()>. 
    * @return the local path to this file inclusive name and extension of the file.
+   * @throws NoSuchFieldException 
    */
-  public CharSequence localfile(){ return data.localfile(); }
+  public CharSequence localfile() throws NoSuchFieldException{ return data.localfile(this); }
 
-  public CharSequence localfileW(){ return data.localfileW(); }
+  public CharSequence localfileW() throws NoSuchFieldException{ return data.localfileW(this); }
 
   
   
@@ -434,8 +438,12 @@ public final class ZGenFilepath implements FilePath.FilePathEnvAccess {
   public Object getValue(String variable) throws NoSuchFieldException
   {
     DataAccess.Variable<Object> varV = zgenlevel.localVariables.get(data.scriptVariable);
-    if(varV == null) throw new NoSuchFieldException(data.scriptVariable);
-    return varV.value();
+    if(varV == null) throw new NoSuchFieldException("ZGenFilepath.getValue() - variable not found; " + data.scriptVariable);
+    Object oValue = varV.value();
+    if(oValue instanceof ZGenFilepath){
+      return ((ZGenFilepath)oValue).data;  //the FilePath instance.
+    } else 
+    return oValue;
   }
 
 }
