@@ -7,14 +7,15 @@ import java.util.TreeMap;
 
 
 
-/**This class holds a path to a file with its parts base path, directory path, name, extension, drive letter etc
+/**This class holds a path to a file with its parts (base path, directory path, name, extension, drive letter etc)
  * and supports getting String-paths in several forms - absolute, relative, name only, extension, with slash or backslash etc.
  * It supports using of script variables too.
  * 
- * For access to the path the user should provide an implementation of the {@link FilePathEnvAccess}
+ * For building the absolute path or using script variables the user should provide an implementation 
+ * of the {@link FilePathEnvAccess}
  * which supports access to String-given variables and the current directory of the user's environment.
  * 
- * @author hartmut
+ * @author Hartmut Schorrig
  *
  */
 public class FilePath
@@ -57,11 +58,25 @@ public class FilePath
     * 
     * 
     */
-   static final public int version = 20130310;
+   static final public String sVersion = "2014-04-09";
 
+  /**An implementation of this interface should be provided by the user if absolute paths and script variables should be used. 
+   * It may be a short simple implementation if that features are unused. See the {@link FilePath#test()} method. 
+   * @author Hartmut Schorrig
+   *
+   */
   public interface FilePathEnvAccess {
+    
+    /**Returns the Object which is addressed by the name. It may be a script variable, able to find in one
+     * or more container sorted by name. 
+     * @param variable The name
+     * @return either an instance of FilePath or a CharSequence or null if the variable is not found (optional). 
+     * @throws NoSuchFieldException if the variable is not found (optional, recommended).
+     */
     Object getValue(String variable) throws NoSuchFieldException;
     
+    /**Returns the current directory of the context.
+     */
     CharSequence getCurrentDir();
   }
   
@@ -107,7 +122,36 @@ public class FilePath
   
 
   
-  /**parses the string given path. */
+  /**parses the string given path. The path is split in its parts.
+   * <pre>
+   * D:/base/path:local/path.name.ext
+   * </pre>
+   * <ul>
+   * <li>One can use '/' or '\' as path separator. Internally the '/' is stored.
+   * <li>If a ':' is found on charAt(1) the character before is the drive letter.
+   * <li>If a '/' on first position or after the second ':': it is an absolute path.
+   * <li>A ':' not on second position: The separator between base path and local path.
+   * <li>The extension is the part inclusive the last dot.
+   * <li>A simple '.' or '..' is stored as the name 
+   * </ul> 
+   * The syntax may be described in ZBNF-Form: 
+   * <pre>
+ prepFilePath::=<$NoWhiteSpaces><! *?>
+ [ $$<$?@envVariable> [\\|/|]     ##path can start with a environment variable's content
+ | $<$?@scriptVariable> [\\|/|]   ##path can start with a scriptvariable's content
+ | [<!.?@drive>:]                   ## only 1 char with followed : is the drive letter
+   [ [/|\\]<?@absPath>]           ## starting with / maybe after d: is absolute path
+ |]
+ [ <*:?@pathbase>[?:=]:]            ## all until : is pathbase, but not till a :=
+ [ <toLastChar:/\\?@path>[\\|/|]] ## all until last \ or / is path
+ [ <toLastChar:.?@name>             ## all until exclusive dot is the name
+   <*\e?@ext>                      ## from dot to end is the extension
+ | <*\e?@name>                     ## No dot is found, all is the name.
+ ] . 
+   * </pre>
+   * But the parsing is done with java basics (indexOf etc.)
+   * See the method {@link #test()} for examples.
+   * */
   public FilePath(String pathP){
     String path = pathP.replace('\\', '/');
     int zpath = path.length();
@@ -160,21 +204,34 @@ public class FilePath
     int posext = path.lastIndexOf('.');
     if(posext <= posname){  //not found, or any '.' before start of name
       posext = zpath;  //no extension.
-    }
+    } 
     name = path.substring(posname, posext);
     ext = path.substring(posext);  //with "."
+    if(posname +1 == posext && posname +2 == zpath && path.charAt(posname) == '.'){
+      //special form.
+      name = "..";
+      ext = "";
+    }
   }
   
   
+  /**An empty instance has not a localdir or basepath or name or drive.
+   * @return true if nothing is given.
+   */
   public boolean isNotEmpty(){
-    return basepath !=null || localdir.length() >0 || name.length() >0 || drive !=null;
+    return basepath !=null || localdir.length() >0 || name.length() >0 || drive !=null
+    || scriptVariable !=null;
       
   }
   
   
+  /**It should return the input String.
+   * @see java.lang.Object#toString()
+   */
   @Override public String toString() {
     StringBuilder u = new StringBuilder();
-    if(drive!=null) { u.append(drive); }
+    if(scriptVariable !=null){ u.append('&').append(scriptVariable); }
+    if(drive!=null) { u.append(drive).append(':'); }
     if(absPath) { u.append("/"); }
     if(basepath!=null) { u.append(basepath).append(":"); }
     if(localdir.length()>0) { u.append(localdir).append("/"); }
@@ -187,36 +244,36 @@ public class FilePath
   
   /**Inserts the given drive letter and the root designation on start of buffer. It does nothing if the path is relative.
    * @param u The buffer
-   * @param commonBasepath An common base path in fileset
-   * @param accesspath An access path while using a fileset
+   * @param commonBasepath An common base path in file set
+   * @param accesspath An access path while using a file set
    * @return true if it is a root path or it has a drive letter.
    */
-  CharSequence driveRoot(CharSequence basepath, FilePath commonBasepath, FilePath accesspath){
-    boolean isRoot = false;
-    CharSequence ret = basepath;
+  private CharSequence driveRoot(CharSequence basepathP, FilePath commonBasepath, FilePath accesspath){
+    boolean isRoot1 = false;
+    CharSequence ret = basepathP;
     if(this.absPath || commonBasepath !=null && commonBasepath.absPath || accesspath !=null && accesspath.absPath){ 
-      StringBuilder u = basepath instanceof StringBuilder? (StringBuilder)basepath : new StringBuilder(basepath);
+      StringBuilder u = basepathP instanceof StringBuilder? (StringBuilder)basepathP : new StringBuilder(basepathP);
       ret = u;
       u.insert(0, '/'); 
-      isRoot = true; 
+      isRoot1 = true; 
     }
     if(this.drive !=null){
-      StringBuilder u = basepath instanceof StringBuilder? (StringBuilder)basepath : new StringBuilder(basepath);
+      StringBuilder u = basepathP instanceof StringBuilder? (StringBuilder)basepathP : new StringBuilder(basepathP);
       ret = u;
       u.insert(0, this.drive).insert(1, ':'); 
-      isRoot = true;
+      isRoot1 = true;
     }
     else if(commonBasepath !=null && commonBasepath.drive !=null){
-      StringBuilder u = basepath instanceof StringBuilder? (StringBuilder)basepath : new StringBuilder(basepath);
+      StringBuilder u = basepathP instanceof StringBuilder? (StringBuilder)basepathP : new StringBuilder(basepathP);
       ret = u;
       u.insert(0, commonBasepath.drive).insert(1, ':'); 
-      isRoot = true;
+      isRoot1 = true;
     }
     else if(accesspath !=null && accesspath.drive !=null){
-      StringBuilder u = basepath instanceof StringBuilder? (StringBuilder)basepath : new StringBuilder(basepath);
+      StringBuilder u = basepathP instanceof StringBuilder? (StringBuilder)basepathP : new StringBuilder(basepathP);
       ret = u;
       u.insert(0, accesspath.drive).insert(1, ':'); 
-      isRoot = true;
+      isRoot1 = true;
     }
     return ret;
   }
@@ -260,21 +317,31 @@ public class FilePath
    * by application of a fileset in a {@link UserTarget} especially while preparing the input files or files
    * for parameter in {@link UserTarget#prepareFiles(List, boolean)}.
    * <br><br>
-   * If this file contains a basepath, all other access, common and a variable is used as full file path
-   * as prefix of this base path. If this doesn't contain a basepath, either the common and access path presents
-   * the base path, or of one of them contains a basepath, that is the basepath. This behavior is complementary 
-   * to the behavior of {@link #localDir(StringBuilder, FilePath, FilePath)}.
+   * <ul>
+   * <li>If this file contains a basepath, all other access, common and a variable is used as full file path
+   *   as prefix of this base path.
+   * <li>If this does contain a variable but does not contain a base path, the variable's base path is used as base path
+   *   and the variable's local path is the prefix for the local path.    
+   * <li>If this does not contain a basepath, a given common and access path is checked whether it contains 
+   *   a base path. Then that basepath is used.
+   * <li>If a given common or access path does not contain a basepath, the common and access path is used
+   *   as base path.
+   * <li>This behavior is complementary to the behavior of {@link #localDir(StringBuilder, FilePath, FilePath)}.
+   * </ul>
    * <br><br>
    * The following true table shows the constellation possibilities and there outputs.
    * <ul>
    * <li>common: represents the common and/or the access path.
    * <li>varfile: represents a {@link #scriptVariable} maybe with a {@link ScriptVariable#filepath}
-   *   or the textual content of a {@link #scriptVariable} or the {@link #envVariable}.
+   *   or the textual content of a {@link #scriptVariable}.
    *   Only a {@link ScriptVariable#filepath} can represent a <code>base</code>.
-   *   An environment variable can represent a <code>abs</code>, it is checked with {@link #isRootpath(CharSequence)}.
+   *   An textual variable can represent a <code>abs</code>, it is checked with {@link #isRootpath(CharSequence)}.
    * <li>The common or variable reference can be given (1) or it is null (0).
    * <li>base: The element has a basepath and a local part.
    * <li>abs: The element is given as absolute path
+   * <li>x means, it does not decide.
+   * <li>1 means, it is given.
+   * <li>0 means, it is not given.
    * </ul>
    * Results:
    * <ul>
@@ -320,9 +387,12 @@ public class FilePath
    *   but only if this is not an absolute path.
    * @param accesspath a String given path which is written before the given base path if the path is not absolute in this.
    *   If null, it is ignored. If this path is absolute, the result is a absolute path of course.
-   * @param useBaseFile null or false, then returns the basepath only. 
-   *   true then returns the local path part if a base path is not given inside. This element is set to false
-   *   if the element has a base path and therefore the local path part of the caller should not be added.    
+   * @param useBaseFile null or false, then returns the basepath really. 
+   *   true then returns the whole filepath (it is the localpath) if a base path is not given. 
+   *   or it returns the basepath. In the last case the element is set to false.
+   *   This argument is used for recursive calling to get the basepath() from a scriptVariable given
+   *   FilePath or from a accessPath or commonPath. The basepath is the whole path from such an
+   *   prefix element if the prefix has not a basepath itself. 
    * @return the whole base path of the constellation.
    *   Either as absolute or as relative path how it is given.
    *   The return instance is the given uRet if uRet is not null. 
@@ -335,7 +405,7 @@ public class FilePath
   public CharSequence basepath(StringBuilder uRetP, FilePath commonPath, FilePath accessPath, boolean[] useBaseFile, FilePathEnvAccess env) throws NoSuchFieldException 
   { 
     //if(generalPath == null){ generalPath = emptyParent; }
-    //first check singulary conditions
+    //first check singularly conditions
     ///
     int test = 1;
     int pos;
@@ -401,7 +471,9 @@ public class FilePath
       //  1  x      1  x   0     1    0      commonFile + varFile + thisBase : thisLocal
       //  0         0            1    0      thisBase                    : thisLocal
       //  1  x      0            1    0      commonFile + thisBase       : thisLocal
-      if(commonPath !=null || accessPath !=null || varfile !=null || this.envVariable !=null){
+      if(commonPath !=null || accessPath !=null || varfile !=null || varpath !=null){
+        //a StringBuilder is necessary to assemble to path:
+        //
         //  common    variable    this         basepath build with         : localdir build with   
         //  | base    | base abs  base abs
         //  x         1  x   1     1    0      /varFile + thisBase         : thisLocal
@@ -434,7 +506,7 @@ public class FilePath
           //possible to have a variable with text or environment variable.
           prepath = uRet;
         }
-        if(this.basepath.length() >0 || varfile !=null && varfile == null || this.envVariable !=null){
+        if(this.basepath.length() >0 || varfile !=null && varfile == null || varpath !=null){
           //need to add somewhat, build the StringBuilder if not done.
           if(prepath instanceof StringBuilder){
             uRet = (StringBuilder)prepath;
@@ -446,9 +518,6 @@ public class FilePath
         final CharSequence text;
         if(varpath !=null && varfile == null){
           text = varpath.toString();
-        }  
-        else if(this.envVariable !=null){
-          text = System.getenv(this.envVariable);
         } else {
           text = null;
         }
@@ -583,7 +652,7 @@ public class FilePath
   public CharSequence localDir(StringBuilder uRet, FilePath commonPath, FilePath accessPath, FilePathEnvAccess env) throws NoSuchFieldException {
     ///
     if(  this.basepath !=null     //if a basepath is given, then only this localpath is valid.
-      ){  //Then only the localdir of this is used. 
+      ){  //Then only the localdir of this is used. A scriptVariable is the prefix of the base path.
       String localdir1 = this.localdir.length()==0 ? "." : this.localdir;
       if(uRet == null){
         return localdir1;
@@ -599,7 +668,8 @@ public class FilePath
         Object oValue = env.getValue(this.scriptVariable);
         if(oValue instanceof FilePath){
           FilePath valfile = (FilePath)oValue;
-          valfile.localDir(uRet, commonPath, accessPath, env); //append localDir of variable 
+          //get the localFile from the scriptVariable, not only the localDir because it is the dir.
+          valfile.localFile(uRet, commonPath, accessPath, env); //append localDir of variable 
         } else if(oValue instanceof CharSequence){
           uRet.append((CharSequence)oValue);
         } else {
@@ -1111,6 +1181,8 @@ public class FilePath
       filepath2.basepath = sBasePathChildren;  //it is the same. Maybe null
       int posName = file1.localPath.lastIndexOf('/') +1;  //if not found, set to 0
       int posExt = file1.localPath.lastIndexOf('.');
+      if(posExt < posName){ 
+        posExt = -1; }        //no extension given.  
       final String sPath = posName >0 ? file1.localPath.substring(0, posName-1) : "";  //"" if only name
       final String sName;
       final String sExt;

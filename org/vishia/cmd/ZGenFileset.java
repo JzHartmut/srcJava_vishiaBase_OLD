@@ -84,12 +84,12 @@ public class ZGenFileset
   
   
   
-  void listFilesExpanded(List<ZGenFilepath> files, ZGenFilepath accesspath, boolean expandFiles) throws NoSuchFieldException {  ////
+  void listFilesExpanded(List<ZGenFilepath> files, ZGenFilepath zgenAccesspath, boolean expandFiles) throws NoSuchFieldException {  ////
     for(FilePath scriptFilepath: data.filesOfFileset){
       ZGenFilepath filepath = new ZGenFilepath(zgenlevel, scriptFilepath);
       ZGenFilepath commonBasepath = data.commonBasepath ==null ? null : new ZGenFilepath(zgenlevel, data.commonBasepath);
-      FilePath accessFilePath = accesspath !=null ? accesspath.data : null;
-      FilePath.FilePathEnvAccess env = accesspath;
+      FilePath accessFilePath = zgenAccesspath !=null ? zgenAccesspath.data : null;
+      FilePath.FilePathEnvAccess env = zgenAccesspath;  //implementation of environment in ZGen-accesspath
       if(expandFiles && (filepath.data.someFiles || filepath.data.allTree)){
         List<FilePath> files1 = new LinkedList<FilePath>();
         filepath.data.expandFiles(files1, data.commonBasepath, accessFilePath, env);
@@ -99,7 +99,7 @@ public class ZGenFileset
         }
       } else {
         //clone filepath! add srcpath
-        ZGenFilepath targetsrc = new ZGenFilepath(zgenlevel, filepath, commonBasepath, accesspath);
+        ZGenFilepath targetsrc = new ZGenFilepath(zgenlevel, filepath, commonBasepath, zgenAccesspath);
         files.add(targetsrc);
       }
     }

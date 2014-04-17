@@ -416,10 +416,11 @@ public final class ZGenFilepath implements FilePath.FilePathEnvAccess {
   
   @Override
   public String toString()
-  { try{ return base_localfile().toString();}
-    catch(NoSuchFieldException exc){
-      return "faulty variable";
-    }
+  { //try{ 
+    return data.toString(); //} //base_localfile().toString();}
+    //catch(NoSuchFieldException exc){
+    //  return "faulty variable";
+    //}
   }
 
 
@@ -436,13 +437,23 @@ public final class ZGenFilepath implements FilePath.FilePathEnvAccess {
 
   @Override
   public Object getValue(String variable) throws NoSuchFieldException
-  {
-    DataAccess.Variable<Object> varV = zgenlevel.localVariables.get(data.scriptVariable);
-    if(varV == null) throw new NoSuchFieldException("ZGenFilepath.getValue() - variable not found; " + data.scriptVariable);
-    Object oValue = varV.value();
-    if(oValue instanceof ZGenFilepath){
-      return ((ZGenFilepath)oValue).data;  //the FilePath instance.
-    } else 
+  { Object oValue;
+    DataAccess.Variable<Object> varV = zgenlevel.localVariables.get(variable);
+    if(varV == null){
+      if(variable.startsWith("$")){
+        oValue = System.getenv(variable.substring(1)).replace('\\', '/');  
+      } else {
+        oValue = null;
+      }
+      if(oValue == null) {
+        throw new NoSuchFieldException("ZGenFilepath.getValue() - variable not found; " + variable);
+      } 
+    } else {
+      oValue = varV.value();
+      if(oValue instanceof ZGenFilepath){
+        oValue = ((ZGenFilepath)oValue).data;  //the FilePath instance.
+      } 
+    }
     return oValue;
   }
 

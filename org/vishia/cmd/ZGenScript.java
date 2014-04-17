@@ -471,7 +471,7 @@ public class ZGenScript {
     
     public String getIdent(){ return identArgJbat; }
     
-    @Override public String toString(){
+    public String XXXtoString(){
       return identArgJbat + " = " + super.toString();
     }
  
@@ -659,7 +659,7 @@ public class ZGenScript {
     
       
     @Override
-    public String toString(){ 
+    public String XXXtoString(){ 
       StringBuilder u = new StringBuilder();
       if(commonBasepath !=null) u.append("basepath="+commonBasepath+", ");
       u.append(filesOfFileset);
@@ -1198,7 +1198,7 @@ public class ZGenScript {
     
 
     
-    @Override public String toString()
+    public String XXXtoString()
     {
       switch(elementType){
       case 't': return "text"; //textArg.toString();
@@ -1322,7 +1322,7 @@ public class ZGenScript {
       out.append(" Defvariable ").append(defVariable.toString());
     }
 
-    @Override public String toString(){ return elementType + "=" + "DefVariable " + ":"+ defVariable; }
+    public String XXXtoString(){ return elementType + "=" + "DefVariable " + ":"+ defVariable; }
     
   };
   
@@ -1377,7 +1377,7 @@ public class ZGenScript {
 
     
     
-    @Override public String toString(){ return  variable + " = " + super.toString(); }
+    public String XXXtoString(){ return  variable + " = " + super.toString(); }
   }
   
   
@@ -1881,7 +1881,7 @@ public class ZGenScript {
      */
     void setCmdError(){ elementType = '#'; }
     
-    @Override public String toString(){
+    public String XXXtoString(){
       if(elementType == '#') return "onerror " + errorLevel;
       else if(elementType == 'v') return "throwonerror " + errorLevel;
       else return "onerror " + errorType;
@@ -2474,7 +2474,7 @@ public class ZGenScript {
     }
 
     
-    @Override public String toString()
+    public String XXXtoString()
     { return "genContent name=" + cmpnName + ":" + statements;
     }
   }
