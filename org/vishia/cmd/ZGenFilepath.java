@@ -225,7 +225,7 @@ public final class ZGenFilepath implements FilePath.FilePathEnvAccess {
     data = new FilePath();  //an empty instance to hold information from sources.
     FilePath commonFilePath = commonPath !=null ? commonPath.data : null;
     FilePath accessFilePath = accessPath !=null ? accessPath.data : null;
-    CharSequence basePath = src.data.basepath(null, commonFilePath, accessFilePath, null, this);
+    CharSequence basePath = src.data.basepath(null, commonFilePath, accessFilePath, this);
     CharSequence localDir = src.data.localDir(null, commonFilePath, accessFilePath, this);
     int posbase = FilePath.isRootpath(basePath);
     data.drive = posbase >=2 ? Character.toString(basePath.charAt(0)) : null;

@@ -416,9 +416,12 @@ public class ZGenScript {
         //case 'g': u.append("<$" + path + ">";
         //case 's': u.append("call " + identArgJbat;
         case 'B': u.append(" { statementblock }"); break;
+        case 'D': u.append(" debug"); break;
         case 'I': u.append(" (?forInput?)...(/?)"); break;
-        case 'L': u.append(" (?forList "  + "?)"); break;
+        case 'L': u.append(" List"); break;
         case 'C': u.append(" <:for:Container "  + "?)"); break;
+        case 'W': u.append(" Openfile"); break;
+        case 'Z': u.append(" zmake"); break;
         case 'f': u.append(" if "); break;
         case 'F': u.append(" Filepath "); break;
         case 'G': u.append(" Fileset "); break;

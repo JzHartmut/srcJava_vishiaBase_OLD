@@ -39,6 +39,7 @@ public class StringPartFromFileLines extends StringPartScan
   /**Version, history and license.
    * list of changes:
    * <ul>
+   * <li>2014-04-22 Hartmut chg: improved line numbers 
    * <li>2012-12-22 Hartmut chg: close() the file in constructor if the whole file was read.
    * <li>2010-02-11 Hartmut new: The ctor StringPartFromFileLines(File fromFile) is added, 
    *   it is compatible to StringPartFromFile now.
@@ -154,7 +155,8 @@ public class StringPartFromFileLines extends StringPartScan
     { buffer = new StringBuilder((int)(nMaxBytes));  //buffer size appropriate to the file size.
     }
     else buffer = new StringBuilder(maxBuffer);  //to large file
-    
+    linePositions.set(0, 0);  //start entry: Before position 0 is line 0  
+
     
     if(sEncodingDetect != null)
     { //test the first line to detect a charset, maybe the charset exceptions.
@@ -223,13 +225,14 @@ public class StringPartFromFileLines extends StringPartScan
   { {
       boolean bBufferFull = false;
       while(!bEof && !bBufferFull)
-      { int nRestBytes = buffer.capacity() - buffer.length();
+      { int zBuffer = buffer.length();  //length before add the line. Start with 0
+        int nRestBytes = buffer.capacity() - zBuffer;
         if(nRestBytes >= nLine)
         { if(sLine != null) //only null on start
           { //stores position in Buffer to the line number. Pre-increment, maxIxLinePosition is the line number
-            linePositions.set(++maxIxLinePosition, buffer.length());  
             if(nLine > 0){ buffer.append(sLine.substring(0, nLine)); }
             buffer.append('\n');
+            linePositions.set(++maxIxLinePosition, buffer.length());  
           }
           //read the next lines and try to fill in
           sLine = readIn.readLine();
