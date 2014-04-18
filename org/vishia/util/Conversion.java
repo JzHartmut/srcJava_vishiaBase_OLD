@@ -12,7 +12,7 @@ public class Conversion
 {
   /**Version, history and license.
    * <ul>
-   * <li>2014-02-21 created. Used especially in ZGen
+   * <li>2014-02-21 created. Used especially in JZcmd
    * </ul>
    * 
    * <b>Copyright/Copyleft</b>:

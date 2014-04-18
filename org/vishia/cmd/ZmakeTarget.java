@@ -6,7 +6,7 @@ import java.util.List;
 
 import org.vishia.util.FilePath;
 
-/**This class describes a zmake target used in a ZGen script.
+/**This class describes a zmake target used in a JZcmd script.
  * @author Hartmut Schorrig
  *
  */
@@ -47,30 +47,30 @@ public class ZmakeTarget
   static final public String sVersion = "2014-03-07";
 
   public static class Input {
-    ZGenFileset fileset;
-    ZGenFilepath accesspathFilepath;
+    JZcmdFileset fileset;
+    JZcmdFilepath accesspathFilepath;
   }
   
  
   
   List<Input> inputs;
   
-  /**The output file of the target in the ready-to-use form in a ZGen Script.
+  /**The output file of the target in the ready-to-use form in a JZcmd Script.
    * One can invoke for example 'target.output.absdirW()' to get the absolute directory path with backslash.
    */
-  public ZGenFilepath output;
+  public JZcmdFilepath output;
   
   public final String name;
   
-  private final ZGenExecuter.ExecuteLevel zgenlevel;
+  private final JZcmdExecuter.ExecuteLevel zgenlevel;
   
   
-  public ZmakeTarget(ZGenExecuter.ExecuteLevel zgenlevel, String name){
+  public ZmakeTarget(JZcmdExecuter.ExecuteLevel zgenlevel, String name){
     this.zgenlevel = zgenlevel;
     this.name = name;
   }
   
-  public List<ZGenFilepath> allInputFiles() throws NoSuchFieldException{
+  public List<JZcmdFilepath> allInputFiles() throws NoSuchFieldException{
     return prepareFiles(inputs, false);
   }
   
@@ -83,11 +83,11 @@ public class ZmakeTarget
    * ...target(..., fileset,...)
    * </pre>
    * All files and members of a fileset of this parameter are combined in one List 
-   * which can be used as container for ZGen script.
-   * @return A list of {@link ZGenFilepath} independent of a {@link ZGenFileset}.
+   * which can be used as container for JZcmd script.
+   * @return A list of {@link JZcmdFilepath} independent of a {@link JZcmdFileset}.
    * @throws NoSuchFieldException If a Filepath uses a variable and this variable is not found.
    */
-  public List<ZGenFilepath> allInputFilesExpanded() throws NoSuchFieldException{
+  public List<JZcmdFilepath> allInputFilesExpanded() throws NoSuchFieldException{
     return prepareFiles(inputs, true);
   }
 
@@ -98,11 +98,11 @@ public class ZmakeTarget
    * @return A list of files.
    * @throws NoSuchFieldException If a Filepath has a variable, and that is not found. 
    */
-  private List<ZGenFilepath> prepareFiles( List<Input> filesOrFilesets, boolean expandFiles) throws NoSuchFieldException {
+  private List<JZcmdFilepath> prepareFiles( List<Input> filesOrFilesets, boolean expandFiles) throws NoSuchFieldException {
     //
     //check whether the target has a parameter srcpath=... or commonpath = ....
-    ZGenFilepath commonPathTarget = null;
-    List<ZGenFilepath> files = new LinkedList<ZGenFilepath>();
+    JZcmdFilepath commonPathTarget = null;
+    List<JZcmdFilepath> files = new LinkedList<JZcmdFilepath>();
     //UserFileset inputfileset = null; 
     for(Input targetInputParam: filesOrFilesets){
       { //expand file or fileset:
@@ -116,11 +116,11 @@ public class ZmakeTarget
             List<FilePath> files1 = new LinkedList<FilePath>();
             targetInputParam.accesspathFilepath.data.expandFiles(files1, commonPathTarget.data, null, env);
             for(FilePath file: files1){
-              ZGenFilepath zgenFile = new ZGenFilepath(zgenlevel, file);
+              JZcmdFilepath zgenFile = new JZcmdFilepath(zgenlevel, file);
               files.add(zgenFile);
             }
           } else {
-            ZGenFilepath targetsrc = new ZGenFilepath(zgenlevel, targetInputParam.accesspathFilepath, commonPathTarget, null);
+            JZcmdFilepath targetsrc = new JZcmdFilepath(zgenlevel, targetInputParam.accesspathFilepath, commonPathTarget, null);
             files.add(targetsrc);  
           }
         } else { 

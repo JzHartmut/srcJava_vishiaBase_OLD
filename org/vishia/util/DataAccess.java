@@ -63,8 +63,8 @@ public class DataAccess {
    * <ul>
    * <li>2014-03-08 Hartmut new: {@link #debugIdent(String)} sets an identifier on which debug() was called, to set manual breakpoint while debugging. 
    * <li>2014-01-26 Hartmut chg: The element <code>fnArgsExpr</code> of {@link DatapathElement} is removed from here. 
-   *   It is now located in {@link org.vishia.cmd.ZGenScript.ZGenDatapathElement} because it is necessary
-   *   only for the ZGen usage. This class is more simple in its functionality.
+   *   It is now located in {@link org.vishia.cmd.JZcmdScript.JZcmdDatapathElement} because it is necessary
+   *   only for the JZcmd usage. This class is more simple in its functionality.
    * <li>2014-01-25 Hartmut chg: some methods of {@link DataAccessSet} are final now. Nobody overrides.  
    * <li>2013-12-26 Hartmut chg: {@link #createOrReplaceVariable(Map, String, char, Object, boolean)} instead setVariable(...)
    *   with type argument.
@@ -73,11 +73,11 @@ public class DataAccess {
    * <li>2013-11-03 Hartmut chg: rename getData(...) to {@link #access(List, Object, Map, boolean, boolean, boolean, Dst)},
    *   return value Dst for setting. The {@link #storeValue(List, Map, Object, boolean)} may be obsolte now.
    * <li>2013-11-03 Hartmut chg: Handling of variable in {@link #getData(List, Object, Map, boolean, boolean, boolean)}
-   * <li>2013-10-27 Hartmut chg: Definition of a String name [= value] in ZGen is handled like assign. Stored with 
+   * <li>2013-10-27 Hartmut chg: Definition of a String name [= value] in JZcmd is handled like assign. Stored with 
    *   {@link DataAccess#storeValue(List, Map, Object, boolean)} with special designation in {@link DataAccess.DatapathElement#whatisit}
    *   with 'new Variable' designation.
    * <li>2013-10-20 Hartmut new/chg: The start-variables are all of type {@link Variable} up to now. This concept is changed
-   *   in {@link org.vishia.cmd.ZGenExecuter} originally. Any other application of this class have to wrapped its data
+   *   in {@link org.vishia.cmd.JZcmdExecuter} originally. Any other application of this class have to wrapped its data
    *   in such an instance {@link Variable}, it is a low-cost effort. 
    * <li>2013-10-09 Hartmut new: {@link #storeValue(List, Map, Object, boolean)} put in a map, replaces the value.
    * <li>2013-09-14 Hartmut new: support of null as Argument.
@@ -1703,10 +1703,10 @@ public class DataAccess {
   
   /**This class wraps any Object which is used for a variable. A variable is member of a 
    * container <code>Map< String, DataAccess.Variabel></code> which is used to access in the {@link DataAccess}
-   * class and which is used especially for variables in the {@link org.vishia.cmd.ZGenExecuter#setScriptVariable(String, Object)}
-   * and {@link org.vishia.cmd.ZGenExecuter.ExecuteLevel#setLocalVariable(String, Object)}
+   * class and which is used especially for variables in the {@link org.vishia.cmd.JZcmdExecuter#setScriptVariable(String, Object)}
+   * and {@link org.vishia.cmd.JZcmdExecuter.ExecuteLevel#setLocalVariable(String, Object)}
    * which are accessed with the {@link DataAccess} class while setting and evaluating.
-   * A user can build a datapool independently of the ZGen approach writing the code:
+   * A user can build a datapool independently of the JZcmd approach writing the code:
    * <pre>
    *   Map< String, DataAccess.Variable> datapool = new TreeMap< String, DataAccess.Variable>();
    *   String name = "thename";

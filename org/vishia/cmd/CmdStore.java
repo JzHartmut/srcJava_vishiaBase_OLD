@@ -32,10 +32,10 @@ public class CmdStore
 
   /**Version, history and license.
    * <ul>
-   * <li>2013-09-08 Hartmut chg: {@link #addSubOfZgenclass(org.vishia.cmd.ZGenScript.ZGenClass, int)} now public
+   * <li>2013-09-08 Hartmut chg: {@link #addSubOfZgenclass(org.vishia.cmd.JZcmdScript.JZcmdClass, int)} now public
    *   because readCmdCfg(...) removed to {@link org.vishia.commander.FcmdExecuter}. It has dependencies
-   *   to the Zbnf package {@link org.vishia.zgen.ZGen} which is not visible in this component by standalone compilation.
-   *   The problem is: The {@link ZGenScript} is visible here, but the used translator for the ZGenScript needs ZBNF 
+   *   to the Zbnf package {@link org.vishia.zcmd.JZcmd} which is not visible in this component by standalone compilation.
+   *   The problem is: The {@link JZcmdScript} is visible here, but the used translator for the JZcmdScript needs ZBNF 
    * <li>2013-09-08 Hartmut new: {@link CmdBlock#zgenSub} may replace the {@link CmdBlock#listBlockCmds}
    *   and may replace the {@link PrepareCmd} in future, first test. 
    * <li>2012-02-19 Hartmut chg: {@link #readCmdCfg(File)} accepts $ENV, comment lines with // and #
@@ -88,8 +88,8 @@ public class CmdStore
     /**Some commands of this block. */
     public final List<PrepareCmd> listBlockCmds = new LinkedList<PrepareCmd>();
 
-    /**Any ZGen subroutine which should be invoked instead of the {@link #listBlockCmds}. */
-    protected final ZGenScript.Subroutine zgenSub;
+    /**Any JZcmd subroutine which should be invoked instead of the {@link #listBlockCmds}. */
+    protected final JZcmdScript.Subroutine zgenSub;
     
     
     /**Contains all commands read from the configuration file in the read order. */
@@ -101,14 +101,14 @@ public class CmdStore
       this.level = 1;
     }
     
-    public CmdBlock(ZGenScript.Subroutine jbatSub, int level){
+    public CmdBlock(JZcmdScript.Subroutine jbatSub, int level){
       this.zgenSub = jbatSub;
       this.level = level;
       this.name = jbatSub.name;
     }
     
-    /**Assembles the arguments for ZGen subroutine call.
-     * The arguments are determined by the {@link ZGenScript.Argument#identArgJbat}
+    /**Assembles the arguments for JZcmd subroutine call.
+     * The arguments are determined by the {@link JZcmdScript.Argument#identArgJbat}
      * @param getterFiles Access to given files.
      * @return Variable container with the requeste arguments.
      * @throws IllegalAccessException 
@@ -118,7 +118,7 @@ public class CmdStore
         getterFiles.prepareFileSelection();
         Map<String, DataAccess.Variable<Object>> args = new TreeMap<String, DataAccess.Variable<Object>>();
         try{
-          for(ZGenScript.DefVariable arg :zgenSub.formalArgs){
+          for(JZcmdScript.DefVariable arg :zgenSub.formalArgs){
             String name1 = arg.getVariableIdent();
             if(name1.equals("file1")){ DataAccess.createOrReplaceVariable(args, "file1", 'O', getterFiles.getFile1(), true); }
             else if(name1.equals("file2")){ DataAccess.createOrReplaceVariable(args, "file2", 'O', getterFiles.getFile2(), true); }
@@ -180,8 +180,8 @@ public class CmdStore
   
   
   
-  public void addSubOfZgenclass(ZGenScript.ZGenClass zgenClass, int level){
-    if(zgenClass.classes !=null) for(ZGenScript.ZGenClass zgenClassSub : zgenClass.classes){
+  public void addSubOfZgenclass(JZcmdScript.JZcmdClass zgenClass, int level){
+    if(zgenClass.classes !=null) for(JZcmdScript.JZcmdClass zgenClassSub : zgenClass.classes){
       CmdBlock cmdBlock = new CmdBlock();
       listCmds.add(cmdBlock); 
       cmdBlock.name = zgenClassSub.cmpnName;
@@ -189,8 +189,8 @@ public class CmdStore
       //addSubOfZgenclass(cmdBlock.listSubCmds, zgenClassSub, level+1);
       addSubOfZgenclass(zgenClassSub, level+1);
     }
-    if(zgenClass.subroutines !=null) for(Map.Entry<String, ZGenScript.Subroutine> e: zgenClass.subroutines.entrySet()){
-      ZGenScript.Subroutine subRoutine = e.getValue();
+    if(zgenClass.subroutines !=null) for(Map.Entry<String, JZcmdScript.Subroutine> e: zgenClass.subroutines.entrySet()){
+      JZcmdScript.Subroutine subRoutine = e.getValue();
       CmdBlock cmdBlock = new CmdBlock(subRoutine, level);
       listCmds.add(cmdBlock); 
       idxCmd.put(cmdBlock.name, cmdBlock);

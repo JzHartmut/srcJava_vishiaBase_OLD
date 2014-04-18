@@ -7,7 +7,7 @@ import java.util.Map;
 
 import org.vishia.util.StringFunctions;
 
-public class ZGenTester
+public class JZcmdTester
 {
 
 

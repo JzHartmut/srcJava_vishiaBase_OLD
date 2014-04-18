@@ -7,8 +7,8 @@ import java.util.List;
 
 import org.vishia.util.FilePath;
 
-/**A Fileset instance in a ZGen script especially for zmake. It is assigned to a script variable 
- * with the syntax (See {@link org.vishia.zgen.ZGenSyntax})
+/**A Fileset instance in a JZcmd script especially for zmake. It is assigned to a script variable 
+ * with the syntax (See {@link org.vishia.zcmd.JZcmdSyntax})
  * <pre>
  * Fileset myFileset = ( filepath1, filepath2 );
  * </pre>
@@ -38,7 +38,7 @@ import org.vishia.util.FilePath;
  * </pre>
  * 
  */
-public class ZGenFileset
+public class JZcmdFileset
 {
   
   /**Version, history and license.
@@ -74,45 +74,45 @@ public class ZGenFileset
   //@SuppressWarnings("hiding")
   static final public String sVersion = "2014-03-07";
 
-  final ZGenExecuter.ExecuteLevel zgenlevel;
-  final ZGenScript.UserFileset data;
+  final JZcmdExecuter.ExecuteLevel zgenlevel;
+  final JZcmdScript.UserFileset data;
   
-  public ZGenFileset(ZGenExecuter.ExecuteLevel zgenlevel, ZGenScript.UserFileset data){
+  public JZcmdFileset(JZcmdExecuter.ExecuteLevel zgenlevel, JZcmdScript.UserFileset data){
     this.zgenlevel = zgenlevel;
     this.data = data;
   }
   
   
   
-  void listFilesExpanded(List<ZGenFilepath> files, ZGenFilepath zgenAccesspath, boolean expandFiles) throws NoSuchFieldException {  ////
+  void listFilesExpanded(List<JZcmdFilepath> files, JZcmdFilepath zgenAccesspath, boolean expandFiles) throws NoSuchFieldException {  ////
     for(FilePath scriptFilepath: data.filesOfFileset){
-      ZGenFilepath filepath = new ZGenFilepath(zgenlevel, scriptFilepath);
-      ZGenFilepath commonBasepath = data.commonBasepath ==null ? null : new ZGenFilepath(zgenlevel, data.commonBasepath);
+      JZcmdFilepath filepath = new JZcmdFilepath(zgenlevel, scriptFilepath);
+      JZcmdFilepath commonBasepath = data.commonBasepath ==null ? null : new JZcmdFilepath(zgenlevel, data.commonBasepath);
       FilePath accessFilePath = zgenAccesspath !=null ? zgenAccesspath.data : null;
-      FilePath.FilePathEnvAccess env = zgenAccesspath;  //implementation of environment in ZGen-accesspath
+      FilePath.FilePathEnvAccess env = zgenAccesspath;  //implementation of environment in JZcmd-accesspath
       if(expandFiles && (filepath.data.someFiles || filepath.data.allTree)){
         List<FilePath> files1 = new LinkedList<FilePath>();
         filepath.data.expandFiles(files1, data.commonBasepath, accessFilePath, env);
         for(FilePath file: files1){
-          ZGenFilepath zgenFile = new ZGenFilepath(zgenlevel, file);
+          JZcmdFilepath zgenFile = new JZcmdFilepath(zgenlevel, file);
           files.add(zgenFile);
         }
       } else {
         //clone filepath! add srcpath
-        ZGenFilepath targetsrc = new ZGenFilepath(zgenlevel, filepath, commonBasepath, zgenAccesspath);
+        JZcmdFilepath targetsrc = new JZcmdFilepath(zgenlevel, filepath, commonBasepath, zgenAccesspath);
         files.add(targetsrc);
       }
     }
   }
 
-  public List<ZGenFilepath> listFilesExpanded(ZGenFilepath accesspath, boolean expandFiles) throws NoSuchFieldException { 
-    List<ZGenFilepath> files = new ArrayList<ZGenFilepath>();
+  public List<JZcmdFilepath> listFilesExpanded(JZcmdFilepath accesspath, boolean expandFiles) throws NoSuchFieldException { 
+    List<JZcmdFilepath> files = new ArrayList<JZcmdFilepath>();
     listFilesExpanded(files, accesspath, expandFiles);
     return files;
   }
   
   
-  public List<ZGenFilepath> listFilesExpanded() throws NoSuchFieldException { return listFilesExpanded(null, true); }
+  public List<JZcmdFilepath> listFilesExpanded() throws NoSuchFieldException { return listFilesExpanded(null, true); }
 
     
     

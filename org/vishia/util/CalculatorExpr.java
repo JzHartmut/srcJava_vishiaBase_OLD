@@ -42,18 +42,18 @@ public class CalculatorExpr
    * <ul>
    * <li>2014-02-22 Hartmut chg: now string >= string2 tests 'startswith' instead alphabetiv comparison. 
    * <li>2014-02-22 Hartmut new: {@link #calcDataAccess(Map, Object...)} accepts {@link Value} as return of dataAccess.
-   *   A Value is stored for Num variables in ZGen especially.
+   *   A Value is stored for Num variables in JZcmd especially.
    * <li>2014-01-26 Hartmut bugfix: and-expression with !val && val did not work.  
    * <li>2014-01-26 Hartmut chg: To add a datapath now {@link SetExpr#new_datapath()} is offered, all details of a datapath
    *   are handled in {@link DataAccess.DataAccessSet}. To support more complex {@link DataAccess.DatapathElement} especially
    *   with expressions or datapath as arguments, the method {@link SetExpr#newDataAccessSet()} supports overriding
-   *   in a derived class of {@link SetExpr}, see {@link org.vishia.cmd.ZGenScript.ZGenCalculatorExpr}. 
+   *   in a derived class of {@link SetExpr}, see {@link org.vishia.cmd.JZcmdScript.JZcmdCalculatorExpr}. 
    * <li>2013-10-19 Hartmut new: {@link SetExpr} should know all possibilities of {@link DataAccess.DataAccessSet}
    *   too because an expression may be an DataAccess only. Yet only {@link SetExpr#new_newJavaClass()} realized.
    * <li>2013-10-19 Hartmut new: The CalculatorExpr gets the capability to generate String expressions
-   *   using the {@link ZGenExecuter} class. This is because some arguments of methods may be a String.
+   *   using the {@link JZcmdExecuter} class. This is because some arguments of methods may be a String.
    *   If the {@link #genString} is set, the CalculatorExpr is a String expression.
-   *   Now this class, the {@link DataAccess} and the {@link ZGenExecuter} are one cluster of functionality.
+   *   Now this class, the {@link DataAccess} and the {@link JZcmdExecuter} are one cluster of functionality.
    * <li>2013-09-02 Hartmut new: {@link CalculatorExpr.SetExpr} to set from a ZbnfParseResult using {@link org.vishia.zbnf.ZbnfJavaOutput}.
    *   This class can be invoked without ZbnfParser too, it is independent of it. But it isn't practicable. 
    * <li>2013-09-02 Hartmut new: CalculatorExpr: now supports unary ( expression in parenthesis ). 
@@ -1706,9 +1706,9 @@ public class CalculatorExpr
   
   /**Calculates the expression with possible access to any stored object data with access via reflection.
    * <ul>
-   * <li>If the expression's reference {@link #genString} is set, the {@link ZGenExecuter.ExecuteLevel#executeNewlevel(org.vishia.cmd.ZGenScript.StatementList, Appendable, boolean)}
+   * <li>If the expression's reference {@link #genString} is set, the {@link JZcmdExecuter.ExecuteLevel#executeNewlevel(org.vishia.cmd.JZcmdScript.StatementList, Appendable, boolean)}
    *   is used to generate that String variable. It is not a native capability of this class but a CalculatorExpr
-   *   should have the capablity of text generation too. It uses the {@link ZGenExecuter} for that.
+   *   should have the capablity of text generation too. It uses the {@link JZcmdExecuter} for that.
    * <li>An value can contain a {@link DataAccess#datapath} which describe any class's field or method
    *   which were found via a reflection access. The datapath is build calling {@link #setExpr(String)}
    *   or {@link #setExpr(String, String[])} using the form "$var.reflectionpath"

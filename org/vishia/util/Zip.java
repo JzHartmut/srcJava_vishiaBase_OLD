@@ -141,7 +141,7 @@ public class Zip {
     try {
       ZipOutputStream outZip = new ZipOutputStream(new FileOutputStream(dst));
       
-      outZip.setComment(comment);
+      //outZip.setComment(comment);
       outZip.setLevel(compressionLevel);
       
       
@@ -152,15 +152,22 @@ public class Zip {
         FileSystem.addFilesWithBasePath (src.dir, src.path, listFiles);
         
         for(FileSystem.FileAndBasePath filentry: listFiles){
-          ZipEntry zipEntry = new ZipEntry(filentry.localPath);
-          outZip.putNextEntry(zipEntry);
-          InputStream in = new FileInputStream(filentry.file);
-          int bytes;
-          while( (bytes = in.read(buffer))>0){
-            outZip.write(buffer, 0, bytes);
+          ZipEntry zipEntry = null;
+          InputStream in = null;
+          try{
+            zipEntry = new ZipEntry(filentry.localPath);
+            outZip.putNextEntry(zipEntry);
+            in = new FileInputStream(filentry.file);
+            int bytes;
+            while( (bytes = in.read(buffer))>0){
+              outZip.write(buffer, 0, bytes);
+            }
+          } catch(IOException exc){
+            System.err.println("vishia.util.Zip.writeZip - entry; " + exc.getMessage());
+          } finally {
+            if(in !=null) { in.close(); }
+            if(zipEntry !=null) { outZip.closeEntry(); }
           }
-          in.close();
-          outZip.closeEntry();
         }
       }  
       outZip.close();
@@ -299,7 +306,7 @@ public class Zip {
   
   public static void test2(){
     String err;
-    if( (err = zipfiles(new File("testzip.zip"), null, "./.:org/**/*", 9, "zip comment")) !=null){
+    if( (err = zipfiles(new File("testzip.zip"), null, "./.:*", 9, "zip comment")) !=null){
       System.err.println(err);
     }
   }

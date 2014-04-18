@@ -70,7 +70,7 @@ public class CmdQueue implements Closeable
     //public final List<PrepareCmd> listCmds;
     public final PrepareCmd cmd;
     
-    public final ZGenScript.Subroutine jbat;
+    public final JZcmdScript.Subroutine jbat;
     
     final File[] files;
     final Map<String, DataAccess.Variable<Object>> args;
@@ -100,7 +100,7 @@ public class CmdQueue implements Closeable
      *   should be referenced.CmdGetFileArgs_ifc
      * @param currentDir
      */
-    public PendingCmd(ZGenScript.Subroutine cmd, Map<String, DataAccess.Variable<Object>> args, File currentDir)
+    public PendingCmd(JZcmdScript.Subroutine cmd, Map<String, DataAccess.Variable<Object>> args, File currentDir)
     { this.cmd = null;
       this.jbat = cmd;
       this.files = null;
@@ -127,7 +127,7 @@ public class CmdQueue implements Closeable
   
   private final CmdExecuter executer = new CmdExecuter();
   
-  private final ZGenExecuter zgenExecuter;
+  private final JZcmdExecuter zgenExecuter;
   
   //private final MainCmd_ifc mainCmd;
 
@@ -145,7 +145,7 @@ public class CmdQueue implements Closeable
   {
     this.log = log;
     MainCmdLoggingStream logMainCmd = new MainCmdLoggingStream(log, MainCmdLogging_ifc.info);
-    zgenExecuter = new ZGenExecuter(logMainCmd);
+    zgenExecuter = new JZcmdExecuter(logMainCmd);
   }
   
 
@@ -163,7 +163,7 @@ public class CmdQueue implements Closeable
   
   
   
-  public void initExecuter(ZGenScript script, String sCurrdir) throws IllegalAccessException{
+  public void initExecuter(JZcmdScript script, String sCurrdir) throws IllegalAccessException{
     try{ 
       zgenExecuter.initialize(script, false, sCurrdir);
     }catch(IOException exc){

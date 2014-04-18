@@ -9,13 +9,13 @@ import org.vishia.util.DataAccess;
 import org.vishia.util.FilePath;
 import org.vishia.util.FileSystem;
 
-/**This class describes a file entity in a executer level of ZGen. The file entity can contain wild cards.
+/**This class describes a file entity in a executer level of JZcmd. The file entity can contain wild cards.
  * It can refer to a variable which contains the base path.
  * It may be a absolute or a relative path. It can have a base path and a local path part.
- * This class contains only the reference to the {@link ZGenExecuter.ExecuteLevel} where this variable is located
- * and a reference to the {@link ZGenScript.Filepath}. The last one contains all information about the
+ * This class contains only the reference to the {@link JZcmdExecuter.ExecuteLevel} where this variable is located
+ * and a reference to the {@link JZcmdScript.Filepath}. The last one contains all information about the
  * file entity. This class is used to get all presentation possibilities of the file. Therefore the current directory
- * should be known which is given in the ZGen executer level. 
+ * should be known which is given in the JZcmd executer level. 
  * <ul>
  * <li><b>localpath</b>:
  *   If you write <code>anyPath/path:localPath/path/file.ext</code> then it describes a path which part 
@@ -112,7 +112,7 @@ prepFilePath::=<$NoWhiteSpaces><! *?>
 ] .
  * </pre>
  */
-public final class ZGenFilepath implements FilePath.FilePathEnvAccess {
+public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
 
   
   
@@ -121,11 +121,11 @@ public final class ZGenFilepath implements FilePath.FilePathEnvAccess {
    * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined here. Only one concept!
    *   This file was copied from srcJava_Zbnf/org/vishia/zmake/Userfilepath.
    *   The data of a file are referenced with {@link #data}. The original fields are contained in
-   *   {@link ZGenScript.Filepath}. Both are separated because the parts in ZGenScript are set completely
+   *   {@link JZcmdScript.Filepath}. Both are separated because the parts in JZcmdScript are set completely
    *   by parsing the script. This class contains the access methods which uses the reference {@link #zgenlevel}.
    * <li>2013-03-10 Hartmut new: {@link FileSystem#normalizePath(CharSequence)} called in {@link #absbasepath(CharSequence)}
    *   offers the normalize path for all absolute file paths. 
-   * <li>2013-03-10 Hartmut new: Replace wildcards: {@link #absfile(ZGenFilepath)} (TODO for some more access methods)
+   * <li>2013-03-10 Hartmut new: Replace wildcards: {@link #absfile(JZcmdFilepath)} (TODO for some more access methods)
    * <li>2013-02-12 Hartmut chg: dissolved from inner class in {@link ZmakeUserScript}
    * </ul>
    * <b>Copyright/Copyleft</b>:
@@ -168,16 +168,16 @@ public final class ZGenFilepath implements FilePath.FilePathEnvAccess {
    */
   //private final UserFileset itsFileset;
   
-  private final ZGenExecuter.ExecuteLevel zgenlevel;
+  private final JZcmdExecuter.ExecuteLevel zgenlevel;
   
 
   final FilePath data;
   
   /**An empty file path which is used as argument if a common base path is not given. */
-  static ZGenFilepath emptyParent = new ZGenFilepath();
+  static JZcmdFilepath emptyParent = new JZcmdFilepath();
   
   /**Only for {@link #emptyParent}. */
-  private ZGenFilepath(){
+  private JZcmdFilepath(){
     this.zgenlevel = null;
     data = new FilePath(); //with empty elements. 
   }
@@ -188,7 +188,7 @@ public final class ZGenFilepath implements FilePath.FilePathEnvAccess {
   /**Creates an empty instance with empty data which can be filled.
    * @param zgenlevel
    */
-  ZGenFilepath(ZGenExecuter.ExecuteLevel zgenlevel){
+  JZcmdFilepath(JZcmdExecuter.ExecuteLevel zgenlevel){
     this.zgenlevel = zgenlevel;
     this.data = new FilePath(); //with empty elements.
   }
@@ -197,7 +197,7 @@ public final class ZGenFilepath implements FilePath.FilePathEnvAccess {
    * @param zgenlevel
    * @param filepath given data
    */
-  ZGenFilepath(ZGenExecuter.ExecuteLevel zgenlevel, FilePath filepath){
+  JZcmdFilepath(JZcmdExecuter.ExecuteLevel zgenlevel, FilePath filepath){
     this.zgenlevel = zgenlevel;
     this.data = filepath;
   }
@@ -206,12 +206,12 @@ public final class ZGenFilepath implements FilePath.FilePathEnvAccess {
    * @param zgenlevel
    * @param filepath given data
    */
-  ZGenFilepath(ZGenExecuter.ExecuteLevel zgenlevel, String filepath){
+  JZcmdFilepath(JZcmdExecuter.ExecuteLevel zgenlevel, String filepath){
     this.zgenlevel = zgenlevel;
     this.data = new FilePath(filepath);
   }
   
-  /**Creates a ZGenFilepath entry with an additonal pathbase.
+  /**Creates a JZcmdFilepath entry with an additonal pathbase.
    * if the basepath of src is given and the pathbase0 is given, both are joined: pathbase0/src.pathbase.
    * @param zgenlevel  Reference to the zgenlevel, necessary for the current directory
    * @param src The source (clone source)
@@ -220,7 +220,7 @@ public final class ZGenFilepath implements FilePath.FilePathEnvAccess {
    * @throws NoSuchFieldException 
    *  
    */
-  ZGenFilepath(ZGenExecuter.ExecuteLevel zgenlevel, ZGenFilepath src, ZGenFilepath commonPath, ZGenFilepath accessPath) throws NoSuchFieldException {
+  JZcmdFilepath(JZcmdExecuter.ExecuteLevel zgenlevel, JZcmdFilepath src, JZcmdFilepath commonPath, JZcmdFilepath accessPath) throws NoSuchFieldException {
     this.zgenlevel = zgenlevel;
     data = new FilePath();  //an empty instance to hold information from sources.
     FilePath commonFilePath = commonPath !=null ? commonPath.data : null;
@@ -446,12 +446,12 @@ public final class ZGenFilepath implements FilePath.FilePathEnvAccess {
         oValue = null;
       }
       if(oValue == null) {
-        throw new NoSuchFieldException("ZGenFilepath.getValue() - variable not found; " + variable);
+        throw new NoSuchFieldException("JZcmdFilepath.getValue() - variable not found; " + variable);
       } 
     } else {
       oValue = varV.value();
-      if(oValue instanceof ZGenFilepath){
-        oValue = ((ZGenFilepath)oValue).data;  //the FilePath instance.
+      if(oValue instanceof JZcmdFilepath){
+        oValue = ((JZcmdFilepath)oValue).data;  //the FilePath instance.
       } 
     }
     return oValue;

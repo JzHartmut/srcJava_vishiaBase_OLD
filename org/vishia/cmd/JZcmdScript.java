@@ -16,8 +16,8 @@ import org.vishia.util.FilePath;
 import org.vishia.util.StringFunctions;
 
 
-/**This class contains the internal representation of a ZGen script. 
- * The translator is contained in {@link org.vishia.zgen.ZGen} in the srcJava_Zbnf source package. 
+/**This class contains the internal representation of a JZcmd script. 
+ * The translator is contained in {@link org.vishia.zcmd.JZcmd} in the srcJava_Zbnf source package. 
  * This class is independent of ZBNF. It is used for working in srcJava_vishiaBase environment.
  * It means, without the srcJava_Zbnf source package all sources of that are able to compile, but
  * this class have not data, respectively it is not instantiated. It may be possible to instantiate
@@ -27,17 +27,17 @@ import org.vishia.util.StringFunctions;
  * @author Hartmut Schorrig
  *
  */
-public class ZGenScript {
+public class JZcmdScript {
   /**Version, history and license.
    * <ul>
    * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined here. Only one concept!
    * <li>2014-02-22 Hartmut new: Bool and Num as variable types.
    * <li>2014-02-16 Hartmut: new {@link #fileScript} stored here. 
-   * <li>2014-01-01 Hartmut re-engineering: {@link ZGenitem} has one of 4 active associations for its content.
+   * <li>2014-01-01 Hartmut re-engineering: {@link JZcmditem} has one of 4 active associations for its content.
    * <li>2013-12-26 Hartmut re-engineering: Now the Statement class is obsolete. Instead all statements have the base class
-   *   {@link ZGenitem}. That class contains only elements which are necessary for all statements. Some special statements
+   *   {@link JZcmditem}. That class contains only elements which are necessary for all statements. Some special statements
    *   have its own class with some more elements, especially for the ZBNF parse result. Compare it with the syntax
-   *   in {@link org.vishia.zgen.ZGenSyntax}.    
+   *   in {@link org.vishia.zcmd.JZcmdSyntax}.    
    * <li>2013-07-30 Hartmut chg {@link #translateAndSetGenCtrl(File)} returns void.
    * <li>2013-07-20 Hartmut chg Some syntactical changes.
    * <li>2013-07-14 Hartmut tree traverse enable because {@link Argument#parentList} and {@link StatementList#parentStatement}
@@ -116,8 +116,8 @@ public class ZGenScript {
    * The script variables can contain inputs of other variables which are defined before.
    * Therefore the order is important.
    * This list is stored firstly in the {@link StatementList#statements} in an instance of 
-   * {@link ZbnfZGenScript} and then transferred from all includes and from the main script 
-   * to this container because the {@link ZbnfZGenScript} is only temporary and a ensemble of all
+   * {@link ZbnfJZcmdScript} and then transferred from all includes and from the main script 
+   * to this container because the {@link ZbnfJZcmdScript} is only temporary and a ensemble of all
    * Statements should be present from all included files. The statements do not contain
    * any other type of statement than script variables because only ScriptVariables are admissible
    * in the syntax. Outside of subroutines and main there should only exist variable definitions. 
@@ -128,14 +128,14 @@ public class ZGenScript {
    */
   Subroutine mainRoutine;
   
-  protected ZGenitem checkZGenFile;
+  protected JZcmditem checkJZcmdFile;
   
   /**The class which presents the script level. */
-  ZGenClass scriptClass;
+  JZcmdClass scriptClass;
   
   //public String scriptclassMain;
 
-  public ZGenScript(MainCmdLogging_ifc console, File fileScript)
+  public JZcmdScript(MainCmdLogging_ifc console, File fileScript)
   { this.console = console;
     this.fileScript = fileScript;
 
@@ -146,16 +146,16 @@ public class ZGenScript {
     this.mainRoutine = mainRoutine;
   }
   
-  public ZGenClass scriptClass(){ return scriptClass; }
+  public JZcmdClass scriptClass(){ return scriptClass; }
   
   
-  public void XXXsetFromIncludedScript(ZbnfZGenScript includedScript){
+  public void XXXsetFromIncludedScript(ZbnfJZcmdScript includedScript){
     if(includedScript.scriptfile.getMainRoutine() !=null){
       //use the last found main, also from a included script but firstly from main.
       mainRoutine = includedScript.scriptfile.getMainRoutine();   
     }
     if(includedScript.outer.scriptClass.statements !=null){
-      for(ZGenitem item: includedScript.outer.scriptClass.statements){
+      for(JZcmditem item: includedScript.outer.scriptClass.statements){
         scriptClass.statements.add(item);
         if(item instanceof DefVariable){
           //listScriptVariables.add((DefVariable)item);
@@ -183,13 +183,13 @@ public class ZGenScript {
 
 
   
-  /**Common Superclass for a ZGen script item.
+  /**Common Superclass for a JZcmd script item.
    * A script item is either a statement maybe with sub statements, or an expression, or an access to data
    * or a constant text. Therefore only one of the associations {@link #statementlist}, {@link #dataAccess},
    * {@link #expression} or {@link #textArg} is set.
    *
    */
-  public static class ZGenitem
+  public static class JZcmditem
   {
     /**Designation what presents the element.
      * 
@@ -254,7 +254,7 @@ public class ZGenScript {
     public String textArg; 
     
     
-    ZGenitem(StatementList parentList, char whatisit){
+    JZcmditem(StatementList parentList, char whatisit){
       if(parentList == null)
         Assert.stop();
       this.parentList = parentList;
@@ -274,12 +274,12 @@ public class ZGenScript {
     
     
     
-    public ZGenDataAccess new_dataAccess() { 
+    public JZcmdDataAccess new_dataAccess() { 
       assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
-      return new ZGenDataAccess(); 
+      return new JZcmdDataAccess(); 
     }
     
-    public void add_dataAccess(ZGenDataAccess val){ 
+    public void add_dataAccess(JZcmdDataAccess val){ 
       dataAccess = val;
     }
     
@@ -322,12 +322,12 @@ public class ZGenScript {
     
     public void add_textExpr(StatementList val){}
 
-    public ZGenCalculatorExpr new_numExpr() { 
+    public JZcmdCalculatorExpr new_numExpr() { 
       assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
-      return new ZGenCalculatorExpr(this); 
+      return new JZcmdCalculatorExpr(this); 
     }
 
-    public void add_numExpr(ZGenCalculatorExpr val){ 
+    public void add_numExpr(JZcmdCalculatorExpr val){ 
       DataAccess dataAccess = val.onlyDataAccess();
       if(dataAccess !=null){
         this.dataAccess = dataAccess;
@@ -338,12 +338,12 @@ public class ZGenScript {
     }
     
     
-    public ZGenCalculatorExpr new_boolExpr() { 
+    public JZcmdCalculatorExpr new_boolExpr() { 
       assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
-      return new ZGenCalculatorExpr(this); 
+      return new JZcmdCalculatorExpr(this); 
     }
 
-    public void add_boolExpr(ZGenCalculatorExpr val){ 
+    public void add_boolExpr(JZcmdCalculatorExpr val){ 
       DataAccess dataAccess = val.onlyDataAccess();
       if(dataAccess !=null){
         this.dataAccess = dataAccess;
@@ -378,7 +378,7 @@ public class ZGenScript {
       }
       out.append("\n");
       if(statementlist !=null){
-        for(ZGenitem item: statementlist.statements){
+        for(JZcmditem item: statementlist.statements){
           item.writeStruct(indent+1, out);
         }
       }
@@ -393,7 +393,7 @@ public class ZGenScript {
     void writeStructAdd(int indent, Appendable out) throws IOException{  }
     
     
-    /**Prepares the information about the ZGenitem in one line. A newline is not appended here! 
+    /**Prepares the information about the JZcmditem in one line. A newline is not appended here! 
      * This routine is called in {@link #toString()} and in {@link #writeStruct(int, Appendable)}.
      * It should be called in all overridden routines with super.writeStructLine
      * for the derived statement types. 
@@ -458,12 +458,12 @@ public class ZGenScript {
   /**Argument for a subroutine. It has a name. 
    *
    */
-  public static class Argument extends ZGenitem  { //CalculatorExpr.Datapath{
+  public static class Argument extends JZcmditem  { //CalculatorExpr.Datapath{
     
     /**Name of the argument. It is the key to assign calling argument values. */
     public String identArgJbat;
     
-    /**Set whether the argument is a filepath. The the references of ZGenitem are null.*/
+    /**Set whether the argument is a filepath. The the references of JZcmditem are null.*/
     protected FilePath filepath;
    
     public Argument(StatementList parentList){
@@ -491,14 +491,14 @@ public class ZGenScript {
  
 
   
-  public static class ZGenDataAccess extends DataAccess.DataAccessSet {
+  public static class JZcmdDataAccess extends DataAccess.DataAccessSet {
 
     
-    public ZGenDataAccess(){ super(); }
+    public JZcmdDataAccess(){ super(); }
     
-    @Override public final ZGenDatapathElement new_datapathElement(){ return new ZGenDatapathElement(); }
+    @Override public final JZcmdDatapathElement new_datapathElement(){ return new JZcmdDatapathElement(); }
 
-    public final void add_datapathElement(ZGenDatapathElement val){ 
+    public final void add_datapathElement(JZcmdDatapathElement val){ 
       super.add_datapathElement(val); 
     }
     
@@ -508,25 +508,25 @@ public class ZGenScript {
   
   
   
-  public static class ZGenDatapathElement extends DataAccess.SetDatapathElement {
+  public static class JZcmdDatapathElement extends DataAccess.SetDatapathElement {
 
     
     /**Expressions to calculate the {@link #fnArgs}.
      * The arguments of a subroutine can be given directly, then the expression is not necessary
      * and this reference is null.
      */
-    protected List<ZGenitem> fnArgsExpr;
+    protected List<JZcmditem> fnArgsExpr;
 
-    public ZGenDatapathElement(){ super(); }
+    public JZcmdDatapathElement(){ super(); }
     
     /**Creates a new Expression Set instance to add any properties of an expression.
      * This method is used especially by {@link org.vishia.zbnf.ZbnfJavaOutput} to set
      * results from the parser. This method may be overridden for enhanced capabilities.
      * @return
      */
-    public ZGenitem new_argument(){
+    public JZcmditem new_argument(){
       //ObjExpr actualArgument = new ObjExpr(new_CaluclatorExpr());
-      ZGenitem actualArgument = new ZGenitem(null, '+');
+      JZcmditem actualArgument = new JZcmditem(null, '+');
       //ScriptElement actualArgument = new ScriptElement('e', null);
       //ZbnfDataPathElement actualArgument = new ZbnfDataPathElement();
       return actualArgument;
@@ -538,8 +538,8 @@ public class ZGenScript {
      * See {@link #add_datapathElement(org.vishia.util.DataAccess.DatapathElement)}.
      * @param val The Scriptelement which describes how to get the value.
      */
-    public void add_argument(ZGenitem val){ 
-      if(fnArgsExpr == null){ fnArgsExpr = new ArrayList<ZGenitem>(); }
+    public void add_argument(JZcmditem val){ 
+      if(fnArgsExpr == null){ fnArgsExpr = new ArrayList<JZcmditem>(); }
       fnArgsExpr.add(val);
     } 
 
@@ -548,7 +548,7 @@ public class ZGenScript {
       out.append(ident).append(':').append(whatisit);
       if(fnArgsExpr!=null){
         String sep = "(";
-        for(ZGenitem arg: fnArgsExpr){
+        for(JZcmditem arg: fnArgsExpr){
           arg.writeStruct(indent+1, out);
         }
       }
@@ -556,20 +556,20 @@ public class ZGenScript {
   }
   
   
-  public static class ZGenCalculatorExpr extends CalculatorExpr.SetExpr {
+  public static class JZcmdCalculatorExpr extends CalculatorExpr.SetExpr {
     
-    ZGenCalculatorExpr(Object dbgParent){ super(true, dbgParent); }
+    JZcmdCalculatorExpr(Object dbgParent){ super(true, dbgParent); }
     
-    /**It creates an {@link ZGenDataAccess} because overridden {@link #newDataAccessSet()}
+    /**It creates an {@link JZcmdDataAccess} because overridden {@link #newDataAccessSet()}
      * of {@link CalculatorExpr.SetExpr#newDataAccessSet()} 
      */
-    @Override public ZGenDataAccess new_dataAccess(){ 
-      return (ZGenDataAccess)super.new_dataAccess();  
+    @Override public JZcmdDataAccess new_dataAccess(){ 
+      return (JZcmdDataAccess)super.new_dataAccess();  
     }
 
-    public void add_dataAccess(ZGenDataAccess val){ }
+    public void add_dataAccess(JZcmdDataAccess val){ }
 
-    @Override protected ZGenDataAccess newDataAccessSet(){ return new ZGenDataAccess(); }
+    @Override protected JZcmdDataAccess newDataAccessSet(){ return new JZcmdDataAccess(); }
     
     
   }
@@ -608,7 +608,7 @@ public class ZGenScript {
   public static class UserFileset extends DefVariable
   {
     
-    final ZGenScript script;
+    final JZcmdScript script;
     
     /**From ZBNF basepath = <""?!prepSrcpath>. It is a part of the base path anyway. It may be absolute, but usually relative. 
      * If null then unused. */
@@ -621,7 +621,7 @@ public class ZGenScript {
     /**All entries of the file set how it is given in the users script. */
     List<FilePath> filesOfFileset = new LinkedList<FilePath>();
     
-    UserFileset(StatementList parentList, ZGenScript script){
+    UserFileset(StatementList parentList, JZcmdScript script){
       super(parentList, 'G');
       this.script = script;
     }
@@ -799,7 +799,7 @@ public class ZGenScript {
    * 
    * </pre> 
    */
-  public static class XXXXXXStatement extends ZGenitem //Argument
+  public static class XXXXXXStatement extends JZcmditem //Argument
   {
     
     /**Any variable given by name or java instance  which is used to assign to it.
@@ -996,9 +996,9 @@ public class ZGenScript {
     
     /**From Zbnf: [{ <dataAccess?-assign> = }] 
      */
-    public ZGenDataAccess new_assign(){ return new ZGenDataAccess(); }
+    public JZcmdDataAccess new_assign(){ return new JZcmdDataAccess(); }
     
-    public void add_assign(ZGenDataAccess val){ 
+    public void add_assign(JZcmdDataAccess val){ 
       if(variable == null){ variable = val; }
       else {
         if(assignObjs == null){ assignObjs = new LinkedList<DataAccess>(); }
@@ -1009,9 +1009,9 @@ public class ZGenScript {
     
     /**From Zbnf: < variable?defVariable> 
      */
-    public ZGenDataAccess new_defVariable(){ return new ZGenDataAccess(); }
+    public JZcmdDataAccess new_defVariable(){ return new JZcmdDataAccess(); }
     
-    public void add_defVariable(ZGenDataAccess val){   
+    public void add_defVariable(JZcmdDataAccess val){   
       int whichStatement = "SPULJW".indexOf(elementType);
       char whichVariableType = "SPULOA".charAt(whichStatement);
       val.setTypeToLastElement(whichVariableType);
@@ -1038,16 +1038,16 @@ public class ZGenScript {
     
     public void set_append(){
       if(elementType == '='){ elementType = '+'; }
-      else throw new IllegalArgumentException("ZGenScript - unexpected set_append");
+      else throw new IllegalArgumentException("JZcmdScript - unexpected set_append");
     }
     
     
-    public ZGenitem new_debug()
+    public JZcmditem new_debug()
     { if(statementlist == null) { statementlist = new StatementList(this); }
       return statementlist.new_debug();
     }
     
-    public void add_debug(ZGenitem val){statementlist.add_debug(val); }
+    public void add_debug(JZcmditem val){statementlist.add_debug(val); }
 
     
     
@@ -1061,7 +1061,7 @@ public class ZGenScript {
       statementlist.statements.add(val);
       /*
       if(statementlist.onerrorAccu == null){ statementlist.onerrorAccu = new LinkedList<Onerror>(); }
-      for( ZGenitem previousStatement: statementlist.withoutOnerror){
+      for( JZcmditem previousStatement: statementlist.withoutOnerror){
         previousStatement.onerror = onerror;  
         //use the same onerror list for all previous statements without error designation.
       }
@@ -1105,13 +1105,13 @@ public class ZGenScript {
 
     
 
-    public ZGenitem new_cd()
+    public JZcmditem new_cd()
     { if(statementlist == null){ statementlist = new StatementList(this); }
       return statementlist.new_cd();
     }
     
     
-    public void add_cd(ZGenitem val)
+    public void add_cd(JZcmditem val)
     { statementlist.add_cd(val);
     }
     
@@ -1245,7 +1245,7 @@ public class ZGenScript {
   
   /**In ZBNF: <*dataAccess:formatString>
    */
-  public static class DataText extends ZGenitem
+  public static class DataText extends JZcmditem
   {
     public DataText(StatementList parentList)
     { super(parentList, 'e');
@@ -1263,7 +1263,7 @@ public class ZGenScript {
   
   
   
-  public static class DefVariable extends ZGenitem
+  public static class DefVariable extends JZcmditem
   {
     
     /**The variable which should be created. 
@@ -1284,9 +1284,9 @@ public class ZGenScript {
     
     /**From Zbnf: < variable?defVariable> inside a DefVariable::=...
      */
-    public ZGenDataAccess new_defVariable(){ return new ZGenDataAccess(); }
+    public JZcmdDataAccess new_defVariable(){ return new JZcmdDataAccess(); }
     
-    public void add_defVariable(ZGenDataAccess val){   
+    public void add_defVariable(JZcmdDataAccess val){   
       int whichStatement = "SPULJKQWMCFG".indexOf(elementType);
       char whichVariableType = "SPULOKQAMOFG".charAt(whichStatement);  //from elementType to variable type.
       if(bConst){
@@ -1332,17 +1332,17 @@ public class ZGenScript {
   
   
   
-  public static class AssignExpr extends ZGenitem
+  public static class AssignExpr extends JZcmditem
   {
 
     /**Any variable given by name or java instance  which is used to assign to it.
      * A variable is given by the start element of the data path. An instance is given by any more complex datapath
      * null if not used. */
-    public List<ZGenDataAccess> assignObjs;
+    public List<JZcmdDataAccess> assignObjs;
     
     
     /**The variable which should be created or to which a value is assigned to. */
-    public ZGenDataAccess variable;
+    public JZcmdDataAccess variable;
     
     AssignExpr(StatementList parentList, char elementType)
     { super(parentList, elementType);
@@ -1350,12 +1350,12 @@ public class ZGenScript {
     
     /**From Zbnf: [{ <dataAccess?-assign> = }] 
      */
-    public ZGenDataAccess new_assign(){ return new ZGenDataAccess(); }
+    public JZcmdDataAccess new_assign(){ return new JZcmdDataAccess(); }
     
-    public void add_assign(ZGenDataAccess val){ 
+    public void add_assign(JZcmdDataAccess val){ 
       if(variable == null){ variable = val; }
       else {
-        if(assignObjs == null){ assignObjs = new LinkedList<ZGenDataAccess>(); }
+        if(assignObjs == null){ assignObjs = new LinkedList<JZcmdDataAccess>(); }
         assignObjs.add(val); 
       }
     }
@@ -1363,7 +1363,7 @@ public class ZGenScript {
     
     public void set_append(){
       if(elementType == '='){ elementType = '+'; }
-      else throw new IllegalArgumentException("ZGenScript - unexpected set_append");
+      else throw new IllegalArgumentException("JZcmdScript - unexpected set_append");
     }
     
     
@@ -1384,11 +1384,11 @@ public class ZGenScript {
   }
   
   
-  public static class TextOut extends ZGenitem
+  public static class TextOut extends JZcmditem
   {
 
     /**The variable which should be created or to which a value is assigned to. */
-    public ZGenDataAccess variable;
+    public JZcmdDataAccess variable;
     
     int indent;
     
@@ -1402,27 +1402,27 @@ public class ZGenScript {
     
     /**From Zbnf: [{ <dataAccess?-assign> = }] 
      */
-    public ZGenDataAccess new_assign(){ return new ZGenDataAccess(); }
+    public JZcmdDataAccess new_assign(){ return new JZcmdDataAccess(); }
     
-    public void add_assign(ZGenDataAccess val){ 
+    public void add_assign(JZcmdDataAccess val){ 
       variable = val; 
     }
 
     public void set_newline(){
       if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.statements.add(new ZGenitem(parentList, 'n'));  
+      statementlist.statements.add(new JZcmditem(parentList, 'n'));  
     }
 
     
     public void XXXXset_transscription(String val){
       if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.statements.add(new ZGenitem(parentList, 'n'));  
+      statementlist.statements.add(new JZcmditem(parentList, 'n'));  
     }
   }
   
   
   
-  public static class TextColumn extends ZGenitem
+  public static class TextColumn extends JZcmditem
   {
     /**The column where the current position is to be set. */
     final int column;
@@ -1446,7 +1446,7 @@ public class ZGenScript {
   
   
   
-  public static class IfStatement extends ZGenitem
+  public static class IfStatement extends JZcmditem
   {
 
     IfStatement(StatementList parentList, char whatisit)
@@ -1467,7 +1467,7 @@ public class ZGenScript {
 
 
     public StatementList new_elseBlock()
-    { ZGenitem statement = new ZGenitem(parentList, 'E');
+    { JZcmditem statement = new JZcmditem(parentList, 'E');
       statement.statementlist = new StatementList(this);  //The statement contains a genContent. 
       statementlist.statements.add(statement);
       statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
@@ -1484,10 +1484,10 @@ public class ZGenScript {
   
   
   
-  public static class CondStatement extends ZGenitem
+  public static class CondStatement extends JZcmditem
   {
     
-    public ZGenitem condition;
+    public JZcmditem condition;
 
     //DataAccess conditionValue;
     
@@ -1497,12 +1497,12 @@ public class ZGenScript {
 
     /**From Zbnf: < condition>. A condition is an expression. It is the same like {@link #new_numExpr()}
      */
-    public ZGenCalculatorExpr new_condition(){  
-      condition = new ZGenitem(statementlist, '.');
+    public JZcmdCalculatorExpr new_condition(){  
+      condition = new JZcmditem(statementlist, '.');
       return condition.new_numExpr();
     }
     
-    public void add_condition(ZGenCalculatorExpr val){ 
+    public void add_condition(JZcmdCalculatorExpr val){ 
       condition.add_numExpr(val);
     }
     
@@ -1542,11 +1542,11 @@ public class ZGenScript {
     public void set_forVariable(String name){ this.forVariable = name; }
 
     
-    public ZGenDataAccess new_forContainer() { 
-      return new ZGenDataAccess(); 
+    public JZcmdDataAccess new_forContainer() { 
+      return new JZcmdDataAccess(); 
     }
     
-    public void add_forContainer(ZGenDataAccess val){ 
+    public void add_forContainer(JZcmdDataAccess val){ 
       forContainer = val;
     }
     
@@ -1558,7 +1558,7 @@ public class ZGenScript {
   
   
   
-  public static class Subroutine extends ZGenitem
+  public static class Subroutine extends JZcmditem
   {
     public String name;
     
@@ -1694,7 +1694,7 @@ public class ZGenScript {
   public static class CallStatement extends AssignExpr
   {
     
-    public ZGenitem callName;
+    public JZcmditem callName;
     
     /**Argument list either actual or formal if this is a subtext call or subtext definition. 
      * Maybe null if the subtext has not argument. It is null if it is not a subtext call or definition. */
@@ -1706,9 +1706,9 @@ public class ZGenScript {
       super(parentList, elementType);
     }
     
-    public ZGenitem new_callName(){ return callName = new Argument(parentList); }
+    public JZcmditem new_callName(){ return callName = new Argument(parentList); }
     
-    public void set_callName(ZGenitem val){}
+    public void set_callName(JZcmditem val){}
     
     
     /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
@@ -1746,7 +1746,7 @@ public class ZGenScript {
 
     /**Argument list either actual or formal if this is a subtext call or subtext definition. 
      * Maybe null if the subtext has not argument. It is null if it is not a subtext call or definition. */
-    public List<ZGenitem> cmdArgs;
+    public List<JZcmditem> cmdArgs;
     
     /**Any variable given by name or java instance  which is used to assign to it.
      * A variable is given by the start element of the data path. An instance is given by any more complex datapath
@@ -1770,11 +1770,11 @@ public class ZGenScript {
     }
     
      /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
-    public ZGenitem new_actualArgument(){ return new ZGenitem(parentList, '.'); }
+    public JZcmditem new_actualArgument(){ return new JZcmditem(parentList, '.'); }
      
     /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
-    public void add_actualArgument(ZGenitem val){ 
-      if(cmdArgs == null){ cmdArgs = new ArrayList<ZGenitem>(); }
+    public void add_actualArgument(JZcmditem val){ 
+      if(cmdArgs == null){ cmdArgs = new ArrayList<JZcmditem>(); }
       cmdArgs.add(val); 
     }
     
@@ -1785,7 +1785,7 @@ public class ZGenScript {
   
   
   
-  public static class ExitStatement extends ZGenitem
+  public static class ExitStatement extends JZcmditem
   {
     
     int exitValue;
@@ -1798,7 +1798,7 @@ public class ZGenScript {
   
   
   
-  public static class ThreadBlock extends ZGenitem
+  public static class ThreadBlock extends JZcmditem
   {
     
     String XXXthreadName;    
@@ -1814,11 +1814,11 @@ public class ZGenScript {
 
     /**From Zbnf: [{ Thread <dataAccess?defThreadVar> = }] 
      */
-    public ZGenDataAccess new_defThreadVar(){ 
-      return new ZGenDataAccess(); 
+    public JZcmdDataAccess new_defThreadVar(){ 
+      return new JZcmdDataAccess(); 
     }
     
-    public void add_defThreadVar(ZGenDataAccess val){ 
+    public void add_defThreadVar(JZcmdDataAccess val){ 
       val.setTypeToLastElement('T');
       threadVariable = val;
       //identArgJbat = "N";  //Marker for a new Variable.
@@ -1827,11 +1827,11 @@ public class ZGenScript {
     
     /**From Zbnf: [{ Thread <dataAccess?assignThreadVar> = }] 
      */
-    public ZGenDataAccess new_assignThreadVar(){ 
-      return new ZGenDataAccess(); 
+    public JZcmdDataAccess new_assignThreadVar(){ 
+      return new JZcmdDataAccess(); 
     }
     
-    public void add_assignThreadVar(ZGenDataAccess val){ 
+    public void add_assignThreadVar(JZcmdDataAccess val){ 
       threadVariable = val;
     }
 
@@ -1853,7 +1853,7 @@ public class ZGenScript {
    * the iferror-Block can contain an iferror too.
    * 
  */
-  public final static class Onerror extends ZGenitem
+  public final static class Onerror extends JZcmditem
   {
     /**From ZBNF. If not changed then it is not a cmd error type.*/
     public int errorLevel = Integer.MIN_VALUE;
@@ -1879,7 +1879,7 @@ public class ZGenScript {
     }
     
     /**Sets the statement to a cmd error execution.
-     * See {@link ZGenExecuter.ExecuteLevel#execCmdError(Onerror)}.
+     * See {@link JZcmdExecuter.ExecuteLevel#execCmdError(Onerror)}.
      * This method is called in {@link StatementList#add_onerror(Onerror)}.
      */
     void setCmdError(){ elementType = '#'; }
@@ -1901,19 +1901,19 @@ public class ZGenScript {
    */
   public static class StatementList
   {
-    ZGenitem currStatement;
+    JZcmditem currStatement;
     
     /**Hint to the source of this parsed argument or statement. */
     String srcFile = "srcFile-yet-unknown";
     
-    final ZGenitem parentStatement;
+    final JZcmditem parentStatement;
     
     /**True if < genContent> is called for any input, (?:forInput?) */
     //public final boolean XXXisContentForInput;
     
     public String cmpnName;
     
-    public final List<ZGenitem> statements = new ArrayList<ZGenitem>();
+    public final List<JZcmditem> statements = new ArrayList<JZcmditem>();
     
 
     /**List of currently onerror statements.
@@ -1925,7 +1925,7 @@ public class ZGenScript {
     List<Onerror> onerrorAccu;
 
     
-    List<ZGenitem> withoutOnerror = new LinkedList<ZGenitem>();
+    List<JZcmditem> withoutOnerror = new LinkedList<JZcmditem>();
     
     
     /**True if the block {@link Argument#statementlist} contains at least one variable definition.
@@ -1952,7 +1952,7 @@ public class ZGenScript {
       //this.isContentForInput = false;
     }
         
-    public StatementList(ZGenitem parentStatement)
+    public StatementList(JZcmditem parentStatement)
     { this.parentStatement = parentStatement;
       //this.isContentForInput = false;
     }
@@ -1970,7 +1970,7 @@ public class ZGenScript {
 
     
     public StatementList new_statementBlock(){
-      ZGenitem statement = new ZGenitem(this, 'B');
+      JZcmditem statement = new JZcmditem(this, 'B');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement.statementlist = new StatementList(statement);
@@ -1985,21 +1985,21 @@ public class ZGenScript {
     /**Defines or changes an environment variable with value. set NAME = TEXT;
      * Handle in the same kind like a String variable
      */
-    public ZGenitem new_debug(){
-      return new ZGenitem(this, 'D'); 
+    public JZcmditem new_debug(){
+      return new JZcmditem(this, 'D'); 
     } 
 
     /**Defines or changes an environment variable with value. set NAME = TEXT;
      * Handle in the same kind like a String variable but appends a '$' to the first name.
      */
-    public void add_debug(ZGenitem val){ 
+    public void add_debug(JZcmditem val){ 
       statements.add(val); 
       onerrorAccu = null; withoutOnerror.add(val);
     } 
     
     
     public void set_debug(){
-      statements.add(new ZGenitem(this, 'D'));
+      statements.add(new JZcmditem(this, 'D'));
     }
     
     /**Gathers a text which is assigned to any variable or output. <+ name>text<.+>
@@ -2186,7 +2186,7 @@ public class ZGenScript {
       } else {
         cText = text;
       }
-      ZGenitem statement = new ZGenitem(this, 't');
+      JZcmditem statement = new JZcmditem(this, 't');
       statement.textArg = text;
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
@@ -2217,7 +2217,7 @@ public class ZGenScript {
     
     
     public void set_transcription(String val){
-      ZGenitem statement = new ZGenitem(this, '\\');
+      JZcmditem statement = new JZcmditem(this, '\\');
       char cc = val.charAt(0);
       switch(cc){
         case 'n': statement.textArg = "\n"; break;
@@ -2230,7 +2230,7 @@ public class ZGenScript {
     }
     
     public void set_newline(){
-      ZGenitem statement = new ZGenitem(this, 'n');
+      JZcmditem statement = new JZcmditem(this, 'n');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
     }
@@ -2248,11 +2248,11 @@ public class ZGenScript {
     
     
     
-    public ZGenitem new_throw(){ 
-      return new ZGenitem(this, 'r'); 
+    public JZcmditem new_throw(){ 
+      return new JZcmditem(this, 'r'); 
     } 
 
-    public void add_throw(ZGenitem val){ 
+    public void add_throw(JZcmditem val){ 
       statements.add(val);  
       onerrorAccu = null; 
       withoutOnerror.add(val);
@@ -2279,7 +2279,7 @@ public class ZGenScript {
       statements.add(val);
       /*
       if(statementlist.onerrorAccu == null){ statementlist.onerrorAccu = new LinkedList<Onerror>(); }
-      for( ZGenitem previousStatement: statementlist.withoutOnerror){
+      for( JZcmditem previousStatement: statementlist.withoutOnerror){
         previousStatement.onerror = onerror;  
         //use the same onerror list for all previous statements without error designation.
       }
@@ -2300,7 +2300,7 @@ public class ZGenScript {
 
 
     public void set_breakBlock(){ 
-      ZGenitem statement = new ZGenitem(this, 'b');
+      JZcmditem statement = new JZcmditem(this, 'b');
       statements.add(statement);
     }
     
@@ -2325,14 +2325,14 @@ public class ZGenScript {
 
     
     
-    public ZGenitem new_hasNext()
-    { ZGenitem statement = new ZGenitem(this, 'N');
+    public JZcmditem new_hasNext()
+    { JZcmditem statement = new JZcmditem(this, 'N');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;
     }
     
-    public void add_hasNext(ZGenitem val){}
+    public void add_hasNext(JZcmditem val){}
     
     
 
@@ -2441,22 +2441,22 @@ public class ZGenScript {
 
     /*
     public void set_cd(String val)
-    { ZGenitem statement = new ZGenitem(this, 'd');
+    { JZcmditem statement = new JZcmditem(this, 'd');
       statement.textArg = StringSeq.create(val);
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
     }
     */
     
-    public ZGenitem new_cd(){
-      ZGenitem statement = new ZGenitem(this, 'd');
+    public JZcmditem new_cd(){
+      JZcmditem statement = new JZcmditem(this, 'd');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;
     }
     
     
-    public void add_cd(ZGenitem val){}
+    public void add_cd(JZcmditem val){}
     
     
     
@@ -2485,30 +2485,30 @@ public class ZGenScript {
 
   
   
-  /**A class in the ZGen syntax.
+  /**A class in the JZcmd syntax.
    * The class can contain statements, which are variable definitions of the class variable. 
    * Therefore this class extends the StatementList.
    */
-  public class ZGenClass extends StatementList
+  public class JZcmdClass extends StatementList
   {
     
     /**Sub classes of this class. */
-    List<ZGenClass> classes;
+    List<JZcmdClass> classes;
     
     /**All subroutines of this class. */
-    final Map<String, ZGenScript.Subroutine> subroutines = new TreeMap<String, ZGenScript.Subroutine>();
+    final Map<String, JZcmdScript.Subroutine> subroutines = new TreeMap<String, JZcmdScript.Subroutine>();
     
-    protected ZGenClass(){}
+    protected JZcmdClass(){}
     
     
-    public final List<ZGenClass> classes(){ return classes; }
+    public final List<JZcmdClass> classes(){ return classes; }
     
-    public final Map<String, ZGenScript.Subroutine> subroutines(){ return subroutines; }
+    public final Map<String, JZcmdScript.Subroutine> subroutines(){ return subroutines; }
     
-    public ZGenClass new_subClass(){ return new ZGenClass(); }
+    public JZcmdClass new_subClass(){ return new JZcmdClass(); }
     
-    public void add_subClass(ZGenClass val){ 
-      if(classes == null){ classes = new ArrayList<ZGenClass>(); }
+    public void add_subClass(JZcmdClass val){ 
+      if(classes == null){ classes = new ArrayList<JZcmdClass>(); }
       classes.add(val); 
     }
     
@@ -2529,7 +2529,7 @@ public class ZGenScript {
     public void writeStruct(int indent, Appendable out) throws IOException{
       
       if(statements !=null){
-        for(ZGenitem item: statements){
+        for(JZcmditem item: statements){
           item.writeStruct(indent+1, out);
         }
       }
@@ -2537,9 +2537,9 @@ public class ZGenScript {
         Subroutine sub = entry.getValue();
         sub.writeStruct(0, out);
       }
-      //for(Map.Entry<String, ZGenClass> entry: classes.entrySet()){
+      //for(Map.Entry<String, JZcmdClass> entry: classes.entrySet()){
       if(classes !=null){
-        for(ZGenClass class1: classes){
+        for(JZcmdClass class1: classes){
           class1.writeStruct(indent+1, out);
         }
       }
@@ -2562,17 +2562,17 @@ public class ZGenScript {
    * ZmakeGenctrl::= { <target> } \e.
    * </pre>
    */
-  public final static class ZbnfZGenScript extends ZGenClass
+  public final static class ZbnfJZcmdScript extends JZcmdClass
   {
 
-    protected final ZGenScript outer;
+    protected final JZcmdScript outer;
     
     public Scriptfile scriptfile;    
     
-    public ZbnfZGenScript(ZGenScript outer){
-      outer.super();   //ZGenClass is non-static, enclosing is outer.
+    public ZbnfJZcmdScript(JZcmdScript outer){
+      outer.super();   //JZcmdClass is non-static, enclosing is outer.
       this.outer = outer;
-      outer.scriptClass = this; //outer.new ZGenClass();
+      outer.scriptClass = this; //outer.new JZcmdClass();
     }
     
     public void set_include(String val){ 
@@ -2594,7 +2594,7 @@ public class ZGenScript {
     
     
     /**Any script file gets its own mainRoutine because the {@link #scriptfile} is one instance per parsed script file.
-     * The lastly valid {@link ZGenScript#scriptFile} is set from the last processes file.
+     * The lastly valid {@link JZcmdScript#scriptFile} is set from the last processes file.
      * @return
      */
     public StatementList new_mainRoutine(){ 
@@ -2607,9 +2607,9 @@ public class ZGenScript {
     
     
     
-    public ZGenitem new_checkZGen(){ return new ZGenitem(this, '\0'); } 
+    public JZcmditem new_checkJZcmd(){ return new JZcmditem(this, '\0'); } 
 
-    public void add_checkZGen(ZGenitem val){ outer.checkZGenFile = val; }
+    public void add_checkJZcmd(JZcmditem val){ outer.checkJZcmdFile = val; }
 
   }
   

@@ -22,15 +22,15 @@ public class FilePath
 {
   /**Version, history and license.
    * <ul>   
-   * <li>2014-04-05 Hartmut create from org/vishia/cmd/ZGenFilepath, usage more universal.     
+   * <li>2014-04-05 Hartmut create from org/vishia/cmd/JZcmdFilepath, usage more universal.     
    * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined here. Only one concept!
    *   This file was copied from srcJava_Zbnf/org/vishia/zmake/Userfilepath.
    *   The data of a file are referenced with {@link #data}. The original fields are contained in
-   *   {@link ZGenScript.Filepath}. Both are separated because the parts in ZGenScript are set completely
+   *   {@link JZcmdScript.Filepath}. Both are separated because the parts in JZcmdScript are set completely
    *   by parsing the script. This class contains the access methods which uses the reference {@link #zgenlevel}.
    * <li>2013-03-10 Hartmut new: {@link FileSystem#normalizePath(CharSequence)} called in {@link #absbasepath(CharSequence)}
    *   offers the normalize path for all absolute file paths. 
-   * <li>2013-03-10 Hartmut new: Replace wildcards: {@link #absfile(ZGenFilepath)} (TODO for some more access methods)
+   * <li>2013-03-10 Hartmut new: Replace wildcards: {@link #absfile(JZcmdFilepath)} (TODO for some more access methods)
    * <li>2013-02-12 Hartmut chg: dissolved from inner class in {@link ZmakeUserScript}
    * </ul>
    * <b>Copyright/Copyleft</b>:
