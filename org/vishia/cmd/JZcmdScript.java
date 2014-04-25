@@ -317,7 +317,7 @@ public class JZcmdScript {
     /**From Zbnf, a part <:>...<.> */
     public StatementList new_textExpr() { 
       assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
-      return this.statementlist = new StatementList(); 
+      return this.statementlist = new StatementList(this); 
     }
     
     public void add_textExpr(StatementList val){}
@@ -1384,7 +1384,7 @@ public class JZcmdScript {
   }
   
   
-  public static class TextOut extends JZcmditem
+  public static class TextAppend extends JZcmditem
   {
 
     /**The variable which should be created or to which a value is assigned to. */
@@ -1392,7 +1392,7 @@ public class JZcmdScript {
     
     int indent;
     
-    TextOut(StatementList parentList, char elementType)
+    TextAppend(StatementList parentList, char elementType)
     { super(parentList, elementType);
     }
     
@@ -2004,12 +2004,17 @@ public class JZcmdScript {
     
     /**Gathers a text which is assigned to any variable or output. <+ name>text<.+>
      */
-    public TextOut new_textOut(){ return new TextOut(this, 'T'); }
+    public TextAppend new_textAppend(){ return new TextAppend(this, 'T'); }
 
-    public void add_textOut(TextOut val){ 
+    public void add_textAppend(TextAppend val){ 
       statements.add(val); 
     } 
     
+    public TextAppend new_textOut() { return new TextAppend(this, 'T'); }
+    
+    public void add_textOut(TextAppend val){ 
+      statements.add(val); 
+    } 
     
     /**Defines a variable with initial value. <= <variableAssign?textVariable> \<\.=\>
      */

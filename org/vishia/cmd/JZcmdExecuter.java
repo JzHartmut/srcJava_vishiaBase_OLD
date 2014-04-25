@@ -50,8 +50,11 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
-   * <li>2014-03-05 Hartmut new: {@link ThreadData#uText} and {@link ThreadData#out} will only be created
-   *   on demand if it need. Save calculation time for fast threads. 
+   * <li>2014-04-24 Hartmut chg: {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)} 
+   *   returns nothing, No confusion between argument out and return value! If out is not given,
+   *   then <:>text<.> is not possible. It causes an NullPointerException which may be thrown.
+   * <li>2014-04-24 Hartmut new: {@link #textout} the same for all threads, used synchronized.
+   * <li>2014-04-25 Hartmut new: {@link NextNr#start()} etc. more capability.
    * <li>2014-03-08 Hartmut new: debug_dataAccessArgument() able to call from outside, to force breakpoint.
    * <li>2014-03-08 Hartmut new: Filepath as type of a named argument regarded on call, see syntax
    * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined here. Only one concept!
@@ -158,6 +161,10 @@ public class JZcmdExecuter {
   
   protected final MainCmdLogging_ifc log;
   
+  /**The text file output, the same for all threads. */
+  StringFormatter textout;
+
+  
   /**The java prepared generation script. */
   JZcmdScript genScript;
   
@@ -236,7 +243,7 @@ public class JZcmdExecuter {
   
   /**Generates script-global variables.
    * 
-   * @param genScript It should be the same how used on {@link #genContent(JZcmdScript, Object, boolean, Appendable)}
+   * @param genScriptPar It should be the same how used on {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)}
    *   but it may be another one for special cases.
    * @param userData Used userdata for content of scriptvariables. It should be the same how used on 
    *   {@link #genContent(JZcmdScript, Object, boolean, Appendable)} but it may be another one for special cases.
@@ -256,8 +263,6 @@ public class JZcmdExecuter {
   ) 
   throws IOException, IllegalAccessException
   {
-    this.genScript = genScriptPar;
-    //this.data = userData;
     this.bAccessPrivate = accessPrivate;
     if(srcVariables !=null){
       for(Map.Entry<String, DataAccess.Variable<Object>> entry: srcVariables.entrySet()){
@@ -268,17 +273,18 @@ public class JZcmdExecuter {
     //do not replace variables which are set from outside.
     //if(scriptLevel.localVariables.get("error") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "error", 'A', accessError, true); }
     if(scriptLevel.localVariables.get("console") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "console", 'O', log, true); }
-    if(scriptLevel.localVariables.get("nextNr") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextNr", 'O', nextNr, true); }
+    if(scriptLevel.localVariables.get("nextNr") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextNr", 'O', new NextNr(), true); }
     //DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nrElementInContainer", 'O', null);
     if(scriptLevel.localVariables.get("out") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "out", 'A', System.out, true); }
     if(scriptLevel.localVariables.get("err") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "err", 'A', System.err, true); }
     if(scriptLevel.localVariables.get("null") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
     if(scriptLevel.localVariables.get("jbat") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jbat", 'O', this, true); }
     if(scriptLevel.localVariables.get("zgen") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "zgen", 'O', this, true); }
+    if(scriptLevel.localVariables.get("jzcmd") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jzcmd", 'O', this, true); }
     if(scriptLevel.localVariables.get("file") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "file", 'O', new FileSystem(), true); }
     if(scriptLevel.localVariables.get("test") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new JZcmdTester(), true); }
     if(scriptLevel.localVariables.get("conv") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "conv", 'O', new Conversion(), true); }
-    File filescript = genScript.fileScript;
+    File filescript = genScriptPar.fileScript;
     if(scriptLevel.localVariables.get("scriptfile") == null && filescript !=null) { 
       String scriptfile = filescript.getName();
       DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "scriptfile", 'S', scriptfile, true);
@@ -289,7 +295,7 @@ public class JZcmdExecuter {
     //
     //generate all variables in this script:
     try{
-      scriptLevel.execute(genScript.scriptClass, null, 0, false, -1);
+      scriptLevel.execute(genScriptPar.scriptClass, null, 0, false, -1);
     } catch(Exception exc){
       System.out.println("JZcmd.genScriptVariables - Scriptvariable faulty; " + exc.getMessage() );
     }
@@ -380,41 +386,35 @@ public class JZcmdExecuter {
    * {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable)}
    * with one of the subroutines in the given script.
    * 
-   * @param genScript Generation script in java-prepared form. It contains the building prescript
+   * @param genScriptPar Generation script in java-prepared form. It contains the building prescript
    *   for the script variables.
    * @param accessPrivate decision whether private and protected members from Java instances can be accessed.   
    * @throws IOException only if out.append throws it.
    * @throws IllegalAccessException if a const scriptVariable are attempt to modify.
    */
-  public void initialize(@SuppressWarnings("hiding") JZcmdScript genScript, boolean accessPrivate, String sCurrdir) 
+  public void initialize(JZcmdScript genScriptPar, boolean accessPrivate, String sCurrdir) 
   throws IOException, IllegalAccessException
   {
     this.scriptLevel.localVariables.clear();
     this.bAccessPrivate = accessPrivate;
-    this.genScript = genScript;
-    genScriptVariables(genScript, accessPrivate, null, sCurrdir);
+    this.genScript = genScriptPar;
+    genScriptVariables(genScriptPar, accessPrivate, null, sCurrdir);
   }
 
   
-  /**Generates an output with the given script.
-   * @param genScript Generation script in java-prepared form. 
-   * @param out Any output. It is used for direct text output and it is stored as variable "text"
-   *   to write "<+text>...<.+>" to output to it.
-   * @return If null, it is okay. Elsewhere a readable error message.
-   * @throws IOException only if out.append throws it.
-   */
-  /**
-   * @param genScript The script
-   * @param accessPrivate
+  /**Executes the given script.
+   * @param genScriptP The script. It sets the {@link #genScript} internal variable which is used
+   *   to search sub routines. 
+   * @param accessPrivate 
    * @param bWaitForThreads should set to true if it is a command line invocation of Java,
    *   the exit should wait for all threads. May set to false if calling inside a long running application.
-   * @param out Text output of <+text>....<.+>
-   * @return exit level? 0
-   * @throws IOException
+   * @param out Any output. It is used for direct text output <:>text<.> and it is stored as variable "text"
+   *   to write "<+text>...<.+>" to output to it.
+   * @throws IOException only if out.append throws it.
    * @throws IllegalAccessException if a const scriptVariable are attempt to modify.
    */
-  public CharSequence execute(
-      JZcmdScript genScript
+  public void execute(
+      JZcmdScript genScriptP
     , boolean accessPrivate
     , boolean bWaitForThreads
     , Appendable out
@@ -423,7 +423,7 @@ public class JZcmdExecuter {
   throws Exception, IllegalAccessException
   { this.bAccessPrivate = accessPrivate;
     //this.data = userData;
-    this.genScript = genScript;
+    this.genScript = genScriptP;
 
     if(!bScriptVariableGenerated){
       genScriptVariables(genScript, accessPrivate, null, sCurrdir);
@@ -437,8 +437,27 @@ public class JZcmdExecuter {
       genScript.writeStruct(writer);
       writer.close();
     }
-    JZcmdScript.Subroutine contentScript = genScript.getMain();
-    return execute(execFile, contentScript, true);
+    JZcmdScript.Subroutine mainRoutine = genScript.getMain();
+    //return execute(execFile, contentScript, true);
+    startmilli = System.currentTimeMillis();
+    startnano = System.nanoTime();
+    StringFormatter outFormatter = new StringFormatter(out, "\n", 200);
+    textout = outFormatter;
+    execFile.execute(mainRoutine.statementlist, outFormatter, 0, false, -1);
+    outFormatter.close();
+    if(bWaitForThreads){
+      boolean bWait = true;
+      while(bWait){
+        synchronized(threads){
+          bWait = threads.size() !=0;
+          if(bWait){
+            try{ threads.wait(1000); }
+            catch(InterruptedException exc){}
+          }
+        }
+      }
+
+    }
   }
 
   
@@ -477,31 +496,6 @@ public class JZcmdExecuter {
   
   
   
-  private CharSequence execute(ExecuteLevel execSub, JZcmdScript.Subroutine statement, boolean bWaitForThreads)
-  throws Exception {
-    startmilli = System.currentTimeMillis();
-    startnano = System.nanoTime();
-    execSub.execute(statement.statementlist, null, 0, false, -1);
-    if(execSub.threadData.out !=null){
-      execSub.threadData.out.close();
-    }
-    if(bWaitForThreads){
-      boolean bWait = true;
-      while(bWait){
-        synchronized(threads){
-          bWait = threads.size() !=0;
-          if(bWait){
-            try{ threads.wait(1000); }
-            catch(InterruptedException exc){}
-          }
-        }
-      }
-
-    }
-    return execSub.threadData.uText;  //may be null if a text is not produced.
-  }
-  
-  
   
   
   
@@ -531,7 +525,7 @@ public class JZcmdExecuter {
   
   public void runThread(ExecuteLevel executeLevel, JZcmdScript.ThreadBlock statement, ThreadData threadVar){
     try{
-      executeLevel.execute(statement.statementlist, null, 0, false, -1);
+      executeLevel.execute(statement.statementlist, textout, 0, false, -1);
     } 
     catch(Exception exc){
       threadVar.exception = exc;
@@ -698,15 +692,16 @@ public class JZcmdExecuter {
      * @param contentScript 
      * @param out The current output. Either it is a special output channel for <+channel>...<.+>
      *   or it is the threadData.out or it is null if threadData.out is not initialized yet.
-     * @param indentOut The indentation in the script.
+     * @param indentOutArg The indentation in the script.
      * @param bContainerHasNext Especially for <:for:element:container>SCRIPT<.for> to implement <:hasNext>
      * @return
      * @throws Exception
      */
-    private int execute(JZcmdScript.StatementList contentScript, final StringFormatter out, int indentOut, boolean bContainerHasNext, int nDebugP) 
+    private int execute(JZcmdScript.StatementList contentScript, final StringFormatter out, int indentOutArg, boolean bContainerHasNext, int nDebugP) 
     throws Exception 
     {
       //Generate direct requested output. It is especially on inner content-scripts.
+      int indentOut = indentOutArg;
       int ixStatement = -1;
       int ret = 0;
       //Note: don't use an Iterator, use ixStatement because it will be incremented onError.
@@ -732,9 +727,9 @@ public class JZcmdExecuter {
           switch(statement.elementType()){
           case 't': executeText(statement, out, indentOut);break; //<:>...textexpression <.>
           case '@': execSetColumn((JZcmdScript.TextColumn)statement, out);break; //<:@23>
-          case 'n': execAppendText(newline, out);  break;   //<.n+>
-          case '\\': execAppendText(statement.textArg, out);  break;   //<:n> transcription
-          case 'T': textAppendToVarOrOut((JZcmdScript.TextOut)statement, out, --nDebug1); break; //<+text>...<.+> 
+          case 'n': out.append(newline);  break;   //<.n+>
+          case '\\': out.append(statement.textArg);  break;   //<:n> transcription
+          case 'T': textAppendToVarOrOut((JZcmdScript.TextAppend)statement, out, --nDebug1); break; //<+text>...<.+> 
           case 'U': defineExpr((JZcmdScript.DefVariable)statement); break; //setStringVariable(statement); break; 
           case 'S': defineExpr((JZcmdScript.DefVariable)statement); break; //setStringVariable(statement); break; 
           case 'P': { //create a new local variable as pipe
@@ -866,7 +861,7 @@ public class JZcmdExecuter {
     
     
     
-    void executeText(JZcmdScript.JZcmditem statement, Appendable outP, int indentOut) throws IOException{
+    void executeText(JZcmdScript.JZcmditem statement, Appendable out, int indentOut) throws IOException{
       int posLine = 0;
       int posEnd1, posEnd2;
       if(statement.textArg.startsWith("  "))
@@ -879,12 +874,6 @@ public class JZcmdExecuter {
         if(posEnd2 >= 0 && (posEnd2 < posEnd1 || posEnd1 <0)){
           posEnd1 = posEnd2;  // \r found before \n
           cEnd = '\r';
-        }
-        Appendable out;
-        if(outP == null){ 
-          out = threadData.out();  //not a <+channel>, if out not given use threadData, maybe created it.
-        } else {
-          out = outP;
         }
         if(posEnd1 >= 0){ 
           out.append(statement.textArg.substring(posLine, posEnd1));   
@@ -907,8 +896,7 @@ public class JZcmdExecuter {
     }
     
     
-    void execSetColumn(JZcmdScript.TextColumn statement, StringFormatter outP) throws IOException{
-      StringFormatter out = outP !=null ? outP : threadData.out();
+    void execSetColumn(JZcmdScript.TextColumn statement, StringFormatter out) throws IOException{
       out.pos(statement.column, statement.minChars);
     }
     
@@ -1119,7 +1107,7 @@ public class JZcmdExecuter {
      * @param statement the statement
      * @throws Exception 
      */
-    void textAppendToVarOrOut(JZcmdScript.TextOut statement, StringFormatter out, int nDebug) throws Exception
+    void textAppendToVarOrOut(JZcmdScript.TextAppend statement, StringFormatter out, int nDebug) throws Exception
     { StringFormatter out1;
       boolean bShouldClose;
       if(statement.variable !=null){
@@ -1155,12 +1143,16 @@ public class JZcmdExecuter {
       }
       if(statement.statementlist !=null){
         //executes the statement, use the Appendable to output immediately
-        execute(statement.statementlist, out1, statement.indent, false, nDebug);
+        synchronized(out1){
+          execute(statement.statementlist, out1, statement.indent, false, nDebug);
+        }
       } else {
         //Any other text expression
         CharSequence text = evalString(statement);
         if(text !=null){
-          out1.append(text);
+          synchronized(out1){
+            out1.append(text);
+          }
         }
       }
       if(bShouldClose){
@@ -1344,13 +1336,8 @@ public class JZcmdExecuter {
     { final ThreadData result;
       if(statement.threadVariable !=null){
         try{
-          //if(statement.threadName != null){  //marker for a new ThreadVariable
-            result = new ThreadData();
-            storeValue(statement.threadVariable, localVariables, result, bAccessPrivate);
-          //} else { 
-            //use existing thread variable, Exception if not found.
-          //  result = (JZcmdThreadResult)statement.threadVariable.getDataObj(localVariables, bAccessPrivate, false);
-          //}
+          result = new ThreadData();
+          storeValue(statement.threadVariable, localVariables, result, bAccessPrivate);
         } catch(Exception exc){
           throw new IllegalArgumentException("JbatchExecuter - thread assign failure; path=" + statement.threadVariable.toString());
         }
@@ -1539,17 +1526,6 @@ public class JZcmdExecuter {
      
     
     
-    private void execAppendText(CharSequence text, Appendable outP) throws IOException{
-      Appendable out;
-      if(outP == null){ 
-        out = threadData.out();  //not a <+channel>, if out not given use threadData, maybe created it.
-      } else {
-        out = outP;
-      }
-      out.append(text); 
-    }
-    
-    
     
     
     
@@ -1559,7 +1535,7 @@ public class JZcmdExecuter {
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    private void executeDatatext(JZcmdScript.DataText statement, Appendable outP)  //<*datatext>
+    private void executeDatatext(JZcmdScript.DataText statement, Appendable out)  //<*datatext>
     throws IllegalArgumentException, Exception
     {
       CharSequence text = "??";
@@ -1582,7 +1558,7 @@ public class JZcmdExecuter {
       } catch(Exception exc){
         text = textError(exc, statement);  //throws
       }
-      execAppendText(text, outP);
+      out.append(text);
     }
 
     
@@ -2097,14 +2073,8 @@ public class JZcmdExecuter {
      * @return false to assign to an ok variable.
      * @throws IOException
      */
-    boolean writeError(String sError, Appendable outP) throws IOException{
+    boolean writeError(String sError, Appendable out) throws IOException{
       if(bWriteErrorInOutput){
-        Appendable out;
-        if(outP == null){ 
-          out = threadData.out();  //not a <+channel>, if out not given use threadData, maybe created it.
-        } else {
-          out = outP;
-        }
         out.append(sError);
       } else {
         throw new IllegalArgumentException(sError); 
@@ -2141,15 +2111,23 @@ public class JZcmdExecuter {
       throw new IllegalArgumentException(u.toString());
     }
     
-  }    
-  /**Small class instance to build a next number. 
-   * Note: It is anonymous to encapsulate the current number value. 
-   * The only one access method is Object.toString(). It returns a countered number.
+  }  
+  
+  
+  /**Simple class to build a countered number. 
+   * toString() increments and returns the number.
    */
-  private final Object nextNr = new Object(){
-    int nr = 0;
-    @Override
-    public String toString(){
+  public class NextNr {
+    private int nr = 0;
+    
+    /**Start method, next access returns 1. */
+    void start(){ nr = 0; }
+    
+    /**Set method, next access returns value. */
+    void set(int value){ nr = value -1; }  //NOTE: pre-increment.
+    
+    /**Increments and returns the number. */
+    @Override public String toString(){
       return "" + ++nr;
     }
   };
@@ -2169,14 +2147,9 @@ public class JZcmdExecuter {
   /**State variable of a running thread or finished thread.
    * This instance will be notified if any waits (join operation)
    */
-  protected static class ThreadData implements CharSequence
+  protected static class ThreadData //implements CharSequence
   {
-    StringBuilder uText;
-    
-    StringFormatter out; //textLine;
-    
-    int indentOut;
-    
+
     /**Exception text. If not null then an exception is thrown and maybe thrown for the next level.
      * This text can be gotten by the "error" variable.
      */
@@ -2202,17 +2175,6 @@ public class JZcmdExecuter {
     
     
     
-    protected StringFormatter out(){
-      if(uText == null){
-        uText = new StringBuilder();
-      }
-      if(out == null){
-        out = new StringFormatter(uText, "\n", 200);
-      }
-      return out;
-    }
-    
-    
     public boolean join(int time){
       synchronized(this){
         try {
@@ -2222,11 +2184,11 @@ public class JZcmdExecuter {
       return state == 'y';
     }
     
-    @Override public char charAt(int index){ return uText.charAt(index); }
+    //@Override public char charAt(int index){ return uText.charAt(index); }
 
-    @Override public int length(){ return uText.length(); }
+    //@Override public int length(){ return uText.length(); }
 
-    @Override public CharSequence subSequence(int start, int end){ return uText.subSequence(start, end); }
+    //@Override public CharSequence subSequence(int start, int end){ return uText.subSequence(start, end); }
   
   }
   

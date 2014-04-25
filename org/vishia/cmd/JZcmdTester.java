@@ -11,7 +11,7 @@ public class JZcmdTester
 {
 
 
-  /**Returns a information about the given obj:
+  /**Returns an information about the given obj:
    * It returns the "Type=< clazz.getCanonicalType()>; toString=< toStringValue>;"
    * @param obj Any object
    * @return the information string.

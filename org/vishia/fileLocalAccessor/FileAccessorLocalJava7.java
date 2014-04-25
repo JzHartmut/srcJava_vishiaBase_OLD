@@ -295,7 +295,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
     try{ 
       Files.walkFileTree(pathdir, options, depth, visitor);  
     } catch(IOException exc){
-      
+      System.err.println("FileAccessorLocalData.walkFileTree - unexpected IOException; " + exc.getMessage() );
     }
     callback.finished();
   }
