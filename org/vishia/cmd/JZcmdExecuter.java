@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Queue;
@@ -179,7 +180,7 @@ public class JZcmdExecuter {
   
   final ExecuteLevel scriptLevel;
   
-  final ThreadData scriptThread;
+  final JZcmdThread scriptThread;
   
   /**Generated content of all script environment variables. The script variables are present in all routines 
    * in their local variables pool. The value is either a String, CharSequence or any Object pointer.  */
@@ -199,6 +200,13 @@ public class JZcmdExecuter {
   /**The newline char sequence. */
   String newline = "\r\n";
   
+  /**Used for formatting Numbers. 
+   * Problem in Germany: The numbers are written with , instead with a decimal point. 
+   * Using Locale.ENGLISH produces the well used decimal point.
+   * Numbers with comma are used only in the german banking sector, not in engineering.
+   */
+  protected Locale locale = Locale.ENGLISH;
+  
 
   /**Creates a JZcmdExecuter with possible writing exceptions in the output text.
    * 
@@ -207,7 +215,7 @@ public class JZcmdExecuter {
   public JZcmdExecuter(MainCmdLogging_ifc log){
     this.log = log;
     bWriteErrorInOutput = false;
-    scriptThread = new ThreadData();
+    scriptThread = new JZcmdThread();
     scriptLevel = new ExecuteLevel(scriptThread);
   }
   
@@ -221,7 +229,7 @@ public class JZcmdExecuter {
   public JZcmdExecuter(MainCmdLogging_ifc log, boolean bWriteErrorInOutput){
     this.log = log;
     this.bWriteErrorInOutput = bWriteErrorInOutput;
-    scriptThread = new ThreadData();
+    scriptThread = new JZcmdThread();
     scriptLevel = new ExecuteLevel(scriptThread);
   }
   
@@ -279,8 +287,8 @@ public class JZcmdExecuter {
     if(scriptLevel.localVariables.get("out") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "out", 'A', System.out, true); }
     if(scriptLevel.localVariables.get("err") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "err", 'A', System.err, true); }
     if(scriptLevel.localVariables.get("null") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
-    if(scriptLevel.localVariables.get("jbat") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jbat", 'O', this, true); }
-    if(scriptLevel.localVariables.get("zgen") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "zgen", 'O', this, true); }
+    //if(scriptLevel.localVariables.get("jbat") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jbat", 'O', this, true); }
+    //if(scriptLevel.localVariables.get("zgen") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "zgen", 'O', this, true); }
     if(scriptLevel.localVariables.get("jzcmd") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jzcmd", 'O', this, true); }
     if(scriptLevel.localVariables.get("file") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "file", 'O', new FileSystem(), true); }
     if(scriptLevel.localVariables.get("test") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new JZcmdTester(), true); }
@@ -524,23 +532,10 @@ public class JZcmdExecuter {
   }
   
   
-  public void runThread(ExecuteLevel executeLevel, JZcmdScript.ThreadBlock statement, ThreadData threadVar){
-    try{
-      executeLevel.execute(statement.statementlist, textout, 0, false, -1);
-    } 
-    catch(Exception exc){
-      threadVar.exception = exc;
-      //finishes the thread.
-    }
-  }
   
-
-  
-
-  
-  CharSequence textError(Exception exc, JZcmdScript.JZcmditem zgenitem){
+  CharSequence textError(Exception exc, JZcmdScript.JZcmditem jzcmditem){
     StringBuilder text = new StringBuilder(100); 
-    text.append(exc).append( " @").append(zgenitem.parentList.srcFile).append(":").append(zgenitem.srcLine).append(",").append(zgenitem.srcColumn);
+    text.append(exc).append( " @").append(jzcmditem.parentList.srcFile).append(":").append(jzcmditem.srcLine).append(",").append(jzcmditem.srcColumn);
     if(bWriteErrorInOutput){
       Throwable excCause = exc, excText = exc;
       int catastrophicalcount = 10;
@@ -567,7 +562,7 @@ public class JZcmdExecuter {
     public final ExecuteLevel parent;
     
     
-    final ThreadData threadData;
+    final JZcmdThread threadData;
     
     /**Generated content of local variables in this nested level including the {@link ZbatchExecuter#scriptLevel.localVariables}.
      * The variables are type invariant on language level. The type is checked and therefore 
@@ -591,7 +586,7 @@ public class JZcmdExecuter {
      *   local variables of its calling routine! This argument is only set if nested statement blocks
      *   are to execute. 
      */
-    protected ExecuteLevel(ThreadData threadData, ExecuteLevel parent, Map<String, DataAccess.Variable<Object>> parentVariables)
+    protected ExecuteLevel(JZcmdThread threadData, ExecuteLevel parent, Map<String, DataAccess.Variable<Object>> parentVariables)
     { this.parent = parent;
       this.threadData = threadData;
       localVariables = new_Variables();
@@ -599,7 +594,7 @@ public class JZcmdExecuter {
         for(Map.Entry<String, DataAccess.Variable<Object>> e: scriptLevel.localVariables.entrySet()){
           DataAccess.Variable<Object> var = e.getValue();
           String key = e.getKey();
-          if(key.equals("zgensub")){
+          if(key.equals("jzcmdsub")){
             
           }
           else if(var.isConst()){
@@ -614,7 +609,7 @@ public class JZcmdExecuter {
         localVariables.putAll(parentVariables);  //use the same if it is not a subText, only a 
       }
       try{ 
-        DataAccess.createOrReplaceVariable(localVariables,  "zgensub", 'O', this, true);
+        DataAccess.createOrReplaceVariable(localVariables,  "jzcmdsub", 'O', this, true);
         localVariables.add("error", threadData.error);
       } catch(IllegalAccessException exc){ throw new IllegalArgumentException(exc); }
     }
@@ -623,7 +618,7 @@ public class JZcmdExecuter {
     
     /**Constructs data for the script execution level.
      */
-    protected ExecuteLevel(ThreadData threadData)
+    protected ExecuteLevel(JZcmdThread threadData)
     { this.parent = null;
       this.threadData = threadData;
       localVariables = new_Variables();
@@ -1361,24 +1356,25 @@ public class JZcmdExecuter {
      */
     private void executeThread(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.ThreadBlock statement) 
     throws Exception
-    { final ThreadData result;
+    { final JZcmdThread thread;
+      final String name;
       if(statement.threadVariable !=null){
         try{
-          result = new ThreadData();
-          storeValue(statement.threadVariable, newVariables, result, bAccessPrivate);
+          thread = new JZcmdThread();
+          name = statement.threadVariable.idents().toString();
+          storeValue(statement.threadVariable, newVariables, thread, bAccessPrivate);
         } catch(Exception exc){
           throw new IllegalArgumentException("JbatchExecuter - thread assign failure; path=" + statement.threadVariable.toString());
         }
       } else {
-        result = new ThreadData();  //without assignment to a variable.
+        thread = new JZcmdThread();  //without assignment to a variable.
+        name = "JZcmd";
       }
-      ExecuteLevel threadLevel = new ExecuteLevel(result, this, localVariables);
-      JZcmdThread thread = new JZcmdThread(threadLevel, statement, result);
+      ExecuteLevel threadLevel = new ExecuteLevel(thread, this, localVariables);
       synchronized(threads){
         threads.add(thread);
       }
-      Thread threadmng = new Thread(thread, "JZcmd");
-      threadmng.start();  
+      thread.startThread(name, threadLevel, statement);
       //it does not wait on finishing this thread.
     }
 
@@ -1576,7 +1572,8 @@ public class JZcmdExecuter {
               //converted to boxed numeric if numeric.
               //boxed numeric is necessary for format
             }
-            text = String.format(statement.format, obj);
+            
+            text = String.format(JZcmdExecuter.this.locale,  statement.format, obj);
         } else if(obj==null){ 
           text = "null"; 
         } else if (obj instanceof CharSequence){
@@ -1962,16 +1959,16 @@ public class JZcmdExecuter {
       for(DataAccess.DatapathElement dataElement : dataAccess.datapath()){  //loop over all elements of the path with or without arguments.
         //check all datapath elements whether they have method calls with arguments:
         if(dataElement instanceof JZcmdScript.JZcmdDatapathElement){
-          JZcmdScript.JZcmdDatapathElement zgenDataElement = (JZcmdScript.JZcmdDatapathElement)dataElement;
-          if(zgenDataElement.fnArgsExpr !=null){
-            int nrofArgs = zgenDataElement.fnArgsExpr.size();
+          JZcmdScript.JZcmdDatapathElement jzcmdDataElement = (JZcmdScript.JZcmdDatapathElement)dataElement;
+          if(jzcmdDataElement.fnArgsExpr !=null){
+            int nrofArgs = jzcmdDataElement.fnArgsExpr.size();
             Object[] args = new Object[nrofArgs];
             int iArgs = -1;
-            for(JZcmdScript.JZcmditem expr: zgenDataElement.fnArgsExpr){
+            for(JZcmdScript.JZcmditem expr: jzcmdDataElement.fnArgsExpr){
               Object arg = evalObject(expr, false);
               args[++iArgs] = arg;
             }
-            zgenDataElement.setActualArgumentArray(args);
+            jzcmdDataElement.setActualArgumentArray(args);
           }
         }
       }
@@ -2007,7 +2004,7 @@ public class JZcmdExecuter {
           level.execute(arg.statementlist, null, 0, false, newVariables, -1);
           obj = newVariables;
         } else {
-          assert(arg.elementType == 'A');
+          //assert(arg.elementType == 'A');
           StringFormatter u = new StringFormatter();
           executeNewlevel(arg.statementlist, u, arg.statementlist.indentText, false, -1);
           obj = u.toString();
@@ -2099,7 +2096,34 @@ public class JZcmdExecuter {
       
     }
     
+
     
+    protected void runThread(ExecuteLevel executeLevel, JZcmdScript.ThreadBlock statement, JZcmdThread threadVar){
+      try{
+        executeLevel.execute(statement.statementlist, JZcmdExecuter.this.textout, 0, false, -1);
+      } 
+      catch(Exception exc){
+        threadVar.exception = exc;
+        //finishes the thread.
+      }
+    }
+    
+
+    protected void finishThread(JZcmdThread thread){
+      synchronized(thread){
+        thread.notifyAll();   //any other thread may wait for join
+      }
+      synchronized(JZcmdExecuter.this.threads){  //remove this thread from the list of threads.
+        boolean bOk = threads.remove(thread);
+        assert(bOk);
+        if(JZcmdExecuter.this.threads.size() == 0){
+          JZcmdExecuter.this.threads.notify();    //notify the waiting main thread to finish.
+        }
+      }
+
+    }
+
+
     
     boolean isBreak(){ return isBreak; }
     
@@ -2181,122 +2205,9 @@ public class JZcmdExecuter {
 
   
   
-  /**State variable of a running thread or finished thread.
-   * This instance will be notified if any waits (join operation)
-   */
-  protected static class ThreadData //implements CharSequence
-  {
-
-    /**Exception text. If not null then an exception is thrown and maybe thrown for the next level.
-     * This text can be gotten by the "error" variable.
-     */
-    DataAccess.Variable<Object> error = new DataAccess.Variable<Object>('S', "error", null);
-    
-    Throwable exception;
-    
-    /**State of thread execution. */
-    char state = 'i';
-
-    
-    private MessageQueue<Object> msg1, cmd1;
-    
-    ThreadData(){}
-    
-    protected void clear(){
-      state = 'i';
-    }
-    
-    
-    /**State of thread execution. 
-     * <ul>
-     * <li>i: init
-     * <li>r: runs
-     * <li>y: finished
-     * </ul>
-     */
-    public char state(){ return state; }
-    
-    
-    public void sendcmd(Object data){
-      if(cmd1 == null){ cmd1 = new MessageQueue<Object>(); }
-      cmd1.put(data);
-    }
-    
-    public Object awaitcmd(int timeout){
-      if(cmd1 == null){ cmd1 = new MessageQueue<Object>(); }
-      return cmd1.await(timeout);
-    }
-    
-    public void sendmsg(Object data){
-      if(msg1 == null){ msg1 = new MessageQueue<Object>(); }
-      msg1.put(data);
-    }
-    
-    public Object awaitmsg(int timeout){
-      if(msg1 == null){ msg1 = new MessageQueue<Object>(); }
-      return msg1.await(timeout);
-    }
-    
-    /**Waits for finishing the thread.
-     * @param time timeout for waiting
-     * @return true if the thread is finished, false on timeout.
-     */
-    public boolean join(int time){
-      synchronized(this){
-        if(state =='r'){
-          try {
-            wait(time);
-          } catch (InterruptedException e) { }
-        }
-      }
-      return state == 'y';
-    }
-    
-    //@Override public char charAt(int index){ return uText.charAt(index); }
-
-    //@Override public int length(){ return uText.length(); }
-
-    //@Override public CharSequence subSequence(int start, int end){ return uText.subSequence(start, end); }
-  
-  }
-  
-  
-  
   /**A thread instance of JZcmd.
    */
-  protected class JZcmdThread implements Runnable
-  {
-    final ExecuteLevel executeLevel;
-
-    final JZcmdScript.ThreadBlock statement;
-
-    final ThreadData result;
-    
-    public JZcmdThread(ExecuteLevel executeLevel, JZcmdScript.ThreadBlock statement, ThreadData result)
-    {
-      this.executeLevel = executeLevel;
-      this.statement = statement;
-      this.result = result;
-    }
-
-    @Override public void run(){ 
-      result.state = 'r';
-      runThread(executeLevel, statement, result); 
-      result.state = 'y';
-      synchronized(result){
-        result.notifyAll();   //any other thread may wait for join
-      }
-      synchronized(threads){  //remove this thread from the list of threads.
-        boolean bOk = threads.remove(this);
-        assert(bOk);
-        if(threads.size() == 0){
-          threads.notify();    //notify the waiting main thread to finish.
-        }
-      }
-    }
-    
-  }
-  
+ // protected class JZcmdThread  
   
   public static class CmdErrorLevelException extends Exception
   {

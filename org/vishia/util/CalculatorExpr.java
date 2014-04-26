@@ -896,6 +896,13 @@ public class CalculatorExpr
     }
     
     
+    public void set_doubleValue(double val){
+      if(value == null){ value = new Value(); }
+      value.type = 'D';
+      value.doubleVal = val;
+    }
+    
+    
     public void set_charValue(char val){
       if(value == null){ value = new Value(); }
       value.type = 'C';
@@ -1222,6 +1229,16 @@ public class CalculatorExpr
     public void set_intValue(int val){
       if(actOperation == null){ actOperation = new CalculatorExpr.Operation(); }
       actOperation.set_intValue(val);
+    }
+    
+    
+    
+    /**Sets a value to the current operation. 
+     * @param val
+     */
+    public void set_doubleValue(double val){
+      if(actOperation == null){ actOperation = new CalculatorExpr.Operation(); }
+      actOperation.set_doubleValue(val);
     }
     
     

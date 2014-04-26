@@ -762,7 +762,7 @@ public class DataAccess {
   ) throws InvocationTargetException, NoSuchMethodException, Exception {
     Object data1 = null;
     Class<?> clazz = obj instanceof Class<?> ? (Class<?>)obj : obj.getClass();
-    if(element.ident.equals("exec"))
+    if(element.ident.equals("execX"))
       Assert.stop();
     boolean bOk = false;
     do{
@@ -1376,6 +1376,22 @@ public class DataAccess {
    * @see java.lang.Object#toString()
    */
   @Override public String toString(){ return datapath !=null ? datapath.toString() : "emtpy DataAccess"; }
+  
+  /**Returns a CharSequence with the idents of the path separated with "."
+   * @return null if datapath is empty.
+   */
+  public CharSequence idents(){
+    int zDatapath = datapath == null ? 0 : datapath.size();
+    if(zDatapath == 0 ) return null;
+    else if(zDatapath == 1) return datapath.get(0).ident;
+    else {
+      StringBuilder u = new StringBuilder();
+      for(DataAccess.DatapathElement item : datapath){
+        u.append(item.ident).append(".");
+      }
+      return u;
+    }
+  }
   
   
   /**A debug helper: Set this ident to any String, which is expected for access.
