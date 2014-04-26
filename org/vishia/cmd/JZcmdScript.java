@@ -304,6 +304,16 @@ public class JZcmdScript {
       //statementlist.set_text(text);
     }
     
+    public StatementList new_dataStruct(){
+      assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
+      statementlist = new StatementList(this);
+      elementType = 'X';
+      return statementlist;
+    }
+    
+    public void add_dataStruct(StatementList val){ }
+    
+    
     public StatementList new_statementBlock(){
       assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
       statementlist = new StatementList(this);
@@ -406,7 +416,7 @@ public class JZcmdScript {
         case 't': u.append(" text \"").append(textArg).append("\""); break;
         /*
         case 'S': u.append("String " + identArgJbat;
-        case 'J': u.append("Obj " + identArgJbat;
+        case 'O': u.append("Obj " + identArgJbat;
         case 'P': u.append("Pipe " + identArgJbat;
         case 'U': u.append("Buffer " + identArgJbat;
         case 'o': u.append("(?outp." + textArg + "?)";
@@ -419,10 +429,9 @@ public class JZcmdScript {
         case 'D': u.append(" debug"); break;
         case 'I': u.append(" (?forInput?)...(/?)"); break;
         case 'L': u.append(" List"); break;
-        case 'C': u.append(" <:for:Container "  + "?)"); break;
         case 'W': u.append(" Openfile"); break;
         case 'Z': u.append(" zmake"); break;
-        case 'f': u.append(" if "); break;
+        case 'i': u.append(" if "); break;
         case 'F': u.append(" Filepath "); break;
         case 'G': u.append(" Fileset "); break;
         case 'g': u.append(" elsif "); break;
@@ -526,7 +535,7 @@ public class JZcmdScript {
      */
     public JZcmditem new_argument(){
       //ObjExpr actualArgument = new ObjExpr(new_CaluclatorExpr());
-      JZcmditem actualArgument = new JZcmditem(null, '+');
+      JZcmditem actualArgument = new JZcmditem(null, 'A');
       //ScriptElement actualArgument = new ScriptElement('e', null);
       //ZbnfDataPathElement actualArgument = new ZbnfDataPathElement();
       return actualArgument;
@@ -949,7 +958,7 @@ public class JZcmdScript {
     public DefVariable new_objVariable(){ 
       if(statementlist == null){ statementlist = new StatementList(this); }
       statementlist.bContainsVariableDef = true; 
-      return new DefVariable(parentList, 'J'); 
+      return new DefVariable(parentList, 'O'); 
     } 
 
     public void add_objVariable(DefVariable val){ statementlist.statements.add(val); statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
@@ -1207,7 +1216,7 @@ public class JZcmdScript {
       case 't': return "text"; //textArg.toString();
       /*
       case 'S': return "String " + identArgJbat;
-      case 'J': return "Obj " + identArgJbat;
+      case 'O': return "Obj " + identArgJbat;
       case 'P': return "Pipe " + identArgJbat;
       case 'U': return "Buffer " + identArgJbat;
       case 'o': return "(?outp." + textArg + "?)";
@@ -1221,7 +1230,7 @@ public class JZcmdScript {
       case 'I': return "(?forInput?)...(/?)";
       case 'L': return "(?forList "  + "?)";
       case 'C': return "<:for:Container "  + "?)";
-      case 'f': return "if";
+      case 'i': return "if";
       case 'g': return "elsif";
       case 'N': return "<:hasNext> content <.hasNext>";
       case 'E': return "else";
@@ -1287,8 +1296,8 @@ public class JZcmdScript {
     public JZcmdDataAccess new_defVariable(){ return new JZcmdDataAccess(); }
     
     public void add_defVariable(JZcmdDataAccess val){   
-      int whichStatement = "SPULJKQWMCFG".indexOf(elementType);
-      char whichVariableType = "SPULOKQAMOFG".charAt(whichStatement);  //from elementType to variable type.
+      int whichStatement =     "SPULOKQWMCFG".indexOf(elementType);
+      char whichVariableType = "SPULOKQAMCFG".charAt(whichStatement);  //from elementType to variable type.
       if(bConst){
         whichVariableType = Character.toLowerCase(whichVariableType);  //see DataAccess.access
       }
@@ -1384,20 +1393,25 @@ public class JZcmdScript {
   }
   
   
-  public static class TextAppend extends JZcmditem
+  public static class TextOut extends JZcmditem
   {
 
-    /**The variable which should be created or to which a value is assigned to. */
+    /**The variable which should be created or to which a value is assigned to. 
+     * If it is left null, then the text will be output to the current channel, the output file on main level. */
     public JZcmdDataAccess variable;
     
     int indent;
     
-    TextAppend(StatementList parentList, char elementType)
+    TextOut(StatementList parentList, char elementType)
     { super(parentList, elementType);
     }
     
     
     
+    /**Sets the column where the syntax component TextOut has its start in the source.
+     * See {@link org.vishia.zbnf.ZbnfJavaOutput}, it is a special feature of them.
+     * @param col countered from 1 as first character in line.
+     */
     public void set_inputColumn_(int col){ this.indent = col; } 
     
     /**From Zbnf: [{ <dataAccess?-assign> = }] 
@@ -1413,15 +1427,13 @@ public class JZcmdScript {
       statementlist.statements.add(new JZcmditem(parentList, 'n'));  
     }
 
-    
-    public void XXXXset_transscription(String val){
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.statements.add(new JZcmditem(parentList, 'n'));  
-    }
   }
   
   
   
+  /**JZcmditem which contain a column for text positioning.
+   * Created on < @pos> statement. 
+   */
   public static class TextColumn extends JZcmditem
   {
     /**The column where the current position is to be set. */
@@ -1574,24 +1586,25 @@ public class JZcmdScript {
     public void set_name(String name){ this.name = name; }
 
     
-    public void XXXset_type(String val){
-      type = val.charAt(0);
-      if(type == 'S' && val.length() > 6){ type = 'U'; } //StringBuffer
-      else if(type == 'O' && val.length()!=3){ type = 'A'; }  //Openfile
-    }
-    
-    
-    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
     public Subroutine new_formalArgument(){ return this; } //new Argument(parentList); }
     
     /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
     public void add_formalArgument(Subroutine val){}
     
     public DefVariable new_DefObjVar(){
-      return new DefVariable(parentList, 'J'); 
+      return new DefVariable(parentList, 'O'); 
     }
     
     public void add_DefObjVar(DefVariable val) {
+      if(formalArgs == null){ formalArgs = new ArrayList<DefVariable>(); }
+      formalArgs.add(val);
+    }
+
+    public DefVariable new_ClassObjVar(){
+      return new DefVariable(parentList, 'C'); 
+    }
+    
+    public void add_DefClassVar(DefVariable val) {
       if(formalArgs == null){ formalArgs = new ArrayList<DefVariable>(); }
       formalArgs.add(val);
     }
@@ -2004,15 +2017,9 @@ public class JZcmdScript {
     
     /**Gathers a text which is assigned to any variable or output. <+ name>text<.+>
      */
-    public TextAppend new_textAppend(){ return new TextAppend(this, 'T'); }
+    public TextOut new_textOut(){ return new TextOut(this, 'T'); }
 
-    public void add_textAppend(TextAppend val){ 
-      statements.add(val); 
-    } 
-    
-    public TextAppend new_textOut() { return new TextAppend(this, 'T'); }
-    
-    public void add_textOut(TextAppend val){ 
+    public void add_textOut(TextOut val){ 
       statements.add(val); 
     } 
     
@@ -2118,10 +2125,18 @@ public class JZcmdScript {
      */
     public DefVariable new_DefObjVar(){ 
       bContainsVariableDef = true; 
-      return new DefVariable(this, 'J'); 
+      return new DefVariable(this, 'O'); 
     } 
 
     public void add_DefObjVar(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);}
+    
+    
+    public DefVariable new_DefClassVar(){ 
+      bContainsVariableDef = true; 
+      return new DefVariable(this, 'C'); 
+    } 
+
+    public void add_DefClassVar(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);}
     
     
     public DefVariable new_DefNumVar(){ 
@@ -2315,7 +2330,7 @@ public class JZcmdScript {
     
     public IfStatement new_ifCtrl(){
       StatementList subGenContent = new StatementList(parentStatement);
-      IfStatement statement = new IfStatement(this, 'f');
+      IfStatement statement = new IfStatement(this, 'i');
       statement.statementlist = subGenContent;  //The statement contains a genContent. 
       return statement;
 
@@ -2349,7 +2364,7 @@ public class JZcmdScript {
      * @return 
      */
     public ForStatement new_forCtrl()
-    { ForStatement statement = new ForStatement(this, 'C');
+    { ForStatement statement = new ForStatement(this, 'f');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;

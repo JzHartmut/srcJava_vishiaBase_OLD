@@ -278,7 +278,7 @@ public abstract class StateCompositeBase
 
   /**Sets the state of the composite state.
    * This method should be called
-   * @param state Only states of the own composite are advisable. It is checked in compile time
+   * @param stateSimple Only states of the own composite are advisable. It is checked in compile time
    *   with the strong type check with the generic type of state. 
    * @return true if it is in state.
    */
@@ -292,7 +292,7 @@ public abstract class StateCompositeBase
 
   /**Sets the state of the composite state.
    * This method should be called
-   * @param state Only states of the own composite are advisable. It is checked in compile time
+   * @param stateSimple Only states of the own composite are advisable. It is checked in compile time
    *   with the strong type check with the generic type of state. 
    * @return true if it is in state.
    */

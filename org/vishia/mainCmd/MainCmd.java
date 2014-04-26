@@ -217,6 +217,7 @@ public abstract class MainCmd implements MainCmd_ifc
   /**Version, able to read as hex yyyymmdd.
    * Changes:
    * <ul>
+   * <li>2014-01-08 Hartmut new: {@link #getLogging_ifc()}, usage MainCmd in any Java class without forwarded argument.
    * <li>2014-01-08 Hartmut bugfix: {@link #sendMsgTimeToAppendableDst(Appendable, int, int, OS_TimeStamp, String, Object...)}
    *   catches a IllegalFormatException 
    * <li>2013-12-30 Hartmut chg: {@link #testArgument(String, int)} emptyArg supported, was commented.
@@ -309,6 +310,14 @@ public abstract class MainCmd implements MainCmd_ifc
   
   protected final List<MainCmd.Argument> argList = new ArrayList<MainCmd.Argument>();
   
+  
+  /**Because this class is used as superclass for a command line Java invocation,
+   * it is possible to store the only one instance for a static getter method.
+   * In this kind any Java routine which is attempt to use the {@link MainCmdLogging_ifc}
+   * or {@link MainCmd_ifc} it can use this instance without a forwarded argument. 
+   */
+  private static MainCmd singleton;
+  
   /** The report file. This attribute is set to null, if no report is desired by missing the argument -r REPORTFILE
   */
   public FileWrite fReport;
@@ -381,7 +390,8 @@ public abstract class MainCmd implements MainCmd_ifc
    * 
    */
   protected MainCmd()
-  { outConsole = outCmdline = System.out;
+  { MainCmd.singleton = this;
+    outConsole = outCmdline = System.out;
     errConsole = errCmdline = System.err;
     this.redirectLogMessage = logMessageImplReport;
   }
@@ -395,9 +405,7 @@ public abstract class MainCmd implements MainCmd_ifc
 
 
   protected MainCmd(Argument[] argList)
-  { outConsole = outCmdline = System.out;
-    errConsole = errCmdline = System.err;
-    this.redirectLogMessage = logMessageImplReport;
+  { this();
     for(Argument arg: argList){
       this.argList.add(arg);
     }
@@ -1741,7 +1749,13 @@ public abstract class MainCmd implements MainCmd_ifc
   
   @Override public LogMessage getLogMessageOutputFile(){ return logMessageFile; }
 
-  
+  /**Gets the singleton MainCmd instance as Logging interface or returns a {@link MainCmdLoggingStream}
+   * instance if this class is not instanciated.
+   */
+  public static MainCmdLogging_ifc getLogging_ifc(){ 
+    if(singleton !=null) return singleton; 
+    else return new MainCmdLoggingStream(System.out);
+  }
   
   
   /**Its a helper to set a breakpoint for assert
