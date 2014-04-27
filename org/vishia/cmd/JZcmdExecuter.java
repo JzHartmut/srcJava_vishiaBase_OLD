@@ -141,7 +141,7 @@ public class JZcmdExecuter {
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String sVersion = "2014-03-07";
+  static final public String sVersion = "2014-04-30";
 
   /**Variable for any exception while accessing any java resources. It is the $error variable of the script. */
   protected String accessError = null;
