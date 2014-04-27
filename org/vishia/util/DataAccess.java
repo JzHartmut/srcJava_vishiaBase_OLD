@@ -61,6 +61,10 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2014-04-25 Hartmut chg: {@link #invokeMethod(DatapathElement, Class, Object, boolean, boolean)} with Class as parameter.
+   *   {@link #access(List, Object, Map, boolean, boolean, boolean, Dst)} checks whether the obj is stored in an {@link Variable}
+   *   with type 'C' and value instanceof Class. Then the static method of this Class type is searched and invoked.
+   *   That feature is used in conclusion with <code>JZcmd Class myClass = package.path.Class;</code> 
    * <li>2014-03-08 Hartmut new: {@link #debugIdent(String)} sets an identifier on which debug() was called, to set manual breakpoint while debugging. 
    * <li>2014-01-26 Hartmut chg: The element <code>fnArgsExpr</code> of {@link DatapathElement} is removed from here. 
    *   It is now located in {@link org.vishia.cmd.JZcmdScript.JZcmdDatapathElement} because it is necessary
@@ -598,9 +602,13 @@ public class DataAccess {
       if(element.ident.equals(debugIdent)){
         debug();
       }
+      boolean bStatic;
       if(data1 instanceof Variable<?>){
         @SuppressWarnings("unchecked") Variable<Object> var = (Variable<Object>)data1;
+        bStatic = var.type == 'C';
         data1 = var.value;  //take the content of a variable!
+      } else {
+        bStatic = false;
       }
       //
       final char whatisit;
@@ -635,7 +643,8 @@ public class DataAccess {
           } break;
           case '(': {
             if(data1 !=null){
-              data1 = invokeMethod(element, data1, accessPrivate); 
+              Class<?> clazz = bStatic && data1 instanceof Class<?> ? (Class<?>)data1: data1.getClass();
+              data1 = invokeMethod(element, clazz, data1, accessPrivate, false); 
             }
             //else: let data1=null, return null
           } break;
@@ -728,26 +737,18 @@ public class DataAccess {
   
   
   
-  /**Invokes the method which is described with the element.
-   * @param element its {@link DatapathElement#whatisit} == '('.
-   *   The {@link DatapathElement#identArgJbat} should contain the "methodname" inside the class of datapool.
-   * @param obj The instance which is the instance of the method.
-   * @return the return value of the method
-   * @throws InvocationTargetException 
-   * @throws NoSuchMethodException 
-   */
-  public static Object invokeMethod(      
-      DatapathElement element
-    , Object obj
-    , boolean accessPrivate
-    ) throws InvocationTargetException, NoSuchMethodException, Exception {
-    return invokeMethod(element, obj, accessPrivate, false);
-  }  
+  
+  
   
   /**Invokes the method which is described with the element.
    * @param element its {@link DatapathElement#whatisit} == '('.
-   *   The {@link DatapathElement#identArgJbat} should contain the "methodname" inside the class of datapool.
-   * @param obj The instance which is the instance of the method.
+   *   The {@link DatapathElement#ident} is the "methodname".
+   * @param clazz the Class instance where the method should be found. 
+   *   For non-static methods the relation obj instanceof clazz should be valid, 
+   *   elsewhere an exception is thrown.
+   * @param obj The instance which is the instance of the method. The obj
+   *   is used as first argument of {@link Method#invoke(Object, Object...)}.
+   *   For static methods obj is not used. It may be null. 
    * @param bNoExceptionifNotFound if the then does not a NochSuchMethodException if the method was not found.
    *   This is a special flag if the method is optional.
    * @return the return value of the method
@@ -756,12 +757,13 @@ public class DataAccess {
    */
   public static Object invokeMethod(      
     DatapathElement element
+  , Class<?> clazz  
   , Object obj
   , boolean accessPrivate
   , boolean bNoExceptionifNotFound
   ) throws InvocationTargetException, NoSuchMethodException, Exception {
     Object data1 = null;
-    Class<?> clazz = obj instanceof Class<?> ? (Class<?>)obj : obj.getClass();
+    //Class<?> clazz = obj instanceof Class<?> ? (Class<?>)obj : obj.getClass();
     if(element.ident.equals("execX"))
       Assert.stop();
     boolean bOk = false;
@@ -1734,7 +1736,7 @@ public class DataAccess {
   public final static class Variable<T>{
     
     /**Type of the variable: S-String, A-Appendable, P-Pipe, L-List-container, F-Openfile,
-     * O-Any object, E-Environment variable V - container for variables.
+     * O-Any object, E-Environment variable V - container for variables C - Class.
      */
     protected char type;
     
@@ -1754,7 +1756,7 @@ public class DataAccess {
     }
     
     /**Creates a variable which's value is const or not.
-     * @param type One of 
+     * @param type One of "SAPLFOEVC" see {@link #type()}
      * @param name
      * @param value
      * @param isConst true then the value is const.
@@ -1777,6 +1779,9 @@ public class DataAccess {
     
     public T value(){ return value; }
     
+    /**Returns the type of the variable: S-String, A-Appendable, P-Pipe, L-List-container, F-Openfile,
+     * O-Any object, E-Environment variable V - container for variables C - Class.
+     */
     public char type(){ return type; }
     
     public boolean isConst(){ return isConst; }
