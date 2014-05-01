@@ -2570,7 +2570,12 @@ public class JZcmdScript {
   }
   
   
-  
+  public final static class JZcmdInclude
+  {
+    public String path;
+    public String envVar;
+    
+  }
   
   
   
@@ -2595,8 +2600,15 @@ public class JZcmdScript {
       outer.scriptClass = this; //outer.new JZcmdClass();
     }
     
-    public void set_include(String val){ 
-      if(scriptfile.includes ==null){ scriptfile.includes = new ArrayList<String>(); }
+    public void XXXset_include(String val){ 
+      if(scriptfile.includes ==null){ scriptfile.includes = new ArrayList<JZcmdInclude>(); }
+      //scriptfile.includes.add(val); 
+    }
+    
+    public JZcmdInclude new_include(){ return new JZcmdInclude(); }
+    
+    public void add_include(JZcmdInclude val){
+      if(scriptfile.includes ==null){ scriptfile.includes = new ArrayList<JZcmdInclude>(); }
       scriptfile.includes.add(val); 
     }
     
@@ -2638,7 +2650,7 @@ public class JZcmdScript {
   /**For one scriptfile, on include use extra instance per include.
    */
   public static class Scriptfile {
-    public List<String> includes;
+    public List<JZcmdInclude> includes;
     
     /**The script element for the whole file of this script. 
      * It is possible that it is from a included script.

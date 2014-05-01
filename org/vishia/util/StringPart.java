@@ -1042,6 +1042,15 @@ that is a liststring and his part The associated String
   public StringPart seek(String sSeek){ return seek(sSeek, seekNormal); }
   
   
+  /**Seeks to the given String, start position is after the string.
+   * Use {@link #found()} to check whether it is found.
+   * @param sSeek
+   * @return this
+   */
+  @Java4C.inline
+  public StringPart seekEnd(String sSeek){ return seek(sSeek, seekEnd); }
+  
+  
 
 /** Searchs the given String inside the valid part, posits the begin of the part to the begin of the searched string.
 *  The end of the part is not affected.<br>

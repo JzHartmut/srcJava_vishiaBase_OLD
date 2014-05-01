@@ -31,9 +31,9 @@ if "%NOPAUSE%"=="" pause
 if not exist ..\img goto :noImg
   echo copy %DSTDIR%%DST%\img
 	if not exist %DSTDIR%%DST%\img mkdir %DSTDIR%%DST%\img
-	copy ..\img %DSTDIR%%DST% >NUL
+	copy ..\img\* %DSTDIR%%DST%\img\* >NUL
 	if not exist %DSTDIR%%DST_priv%\img mkdir %DSTDIR%%DST_priv%\img
-	copy ..\img %DSTDIR%%DST_priv% >NUL
+	copy ..\img\* %DSTDIR%%DST_priv%\img\* >NUL
 :noImg
 
 
