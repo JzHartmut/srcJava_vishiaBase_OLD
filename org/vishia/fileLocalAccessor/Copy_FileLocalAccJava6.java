@@ -24,7 +24,7 @@ import org.vishia.util.FileSystem;
 import org.vishia.util.StringFunctions;
 
 
-public class Copy_FileLocalAcc
+public class Copy_FileLocalAccJava6
 {
 
   /**Version, history and license.
@@ -106,12 +106,12 @@ public class Copy_FileLocalAcc
      * and the {@link FileRemoteAccessorLocalFile#singleThreadForCommission}
      * because the event should be send to that.
      */
-    EventCpy(FileRemoteAccessorLocalFile accessor){
+    EventCpy(FileAccessorLocalJava6 accessor){
       super(null, accessor.executerCommission, accessor.singleThreadForCommission, new EventCpy(accessor,true));
     }
     
     /**Creates a simple event as opponent. */
-    EventCpy(FileRemoteAccessorLocalFile accessor, boolean second){
+    EventCpy(FileAccessorLocalJava6 accessor, boolean second){
       super(null, accessor.executerCommission, accessor.singleThreadForCommission, null);
     }
     
@@ -187,7 +187,7 @@ public class Copy_FileLocalAcc
 
   
   
-  final FileRemoteAccessorLocalFile outer;
+  final FileAccessorLocalJava6 outer;
   
   /**Main state. */
   //EStateCopy stateCopy = EStateCopy.Null;
@@ -230,7 +230,7 @@ public class Copy_FileLocalAcc
   private long zBytesAllCheck, zBytesAllCopied;
   
   /**Buffer for copy. It is allocated static. 
-   * Only used in this thread {@link FileRemoteAccessorLocalFile#runCommissions}. 
+   * Only used in this thread {@link FileAccessorLocalJava6#runCommissions}. 
    * The size of 1 MByte may be enough for fast copy. 16 kByte is too less. It should be approximately
    * at least the size of 1 record of the file system. */
   byte[] buffer = new byte[0x100000];  //1 MByte 16 kByte buffer
@@ -282,7 +282,7 @@ public class Copy_FileLocalAcc
   private int ctWorkingId = 0;
 
   
-  Copy_FileLocalAcc(FileRemoteAccessorLocalFile accessor){
+  Copy_FileLocalAccJava6(FileAccessorLocalJava6 accessor){
     this.outer = accessor;
     evCpy = new EventCpy(accessor);
     stateCopy = new StateCopyTop(accessor.singleThreadForCommission, null);
@@ -402,7 +402,7 @@ public class Copy_FileLocalAcc
       }
       if(filedst == null){
         cmd = FileRemote.CallbackCmd.error;  
-        System.err.println("FileRemoteAccessorLocalFile - forbidden move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
+        System.err.println("FileAccessorLocalJava6 - forbidden move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
       } else {
         bOk =  co.filesrc.renameTo(filedst);
       }
@@ -410,10 +410,10 @@ public class Copy_FileLocalAcc
     }
     if(bOk){
       cmd = FileRemote.CallbackCmd.done ; 
-      System.out.println("FileRemoteAccessorLocalFile - move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
+      System.out.println("FileAccessorLocalJava6 - move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
     } else {
       cmd = FileRemote.CallbackCmd.error ; 
-      System.err.println("FileRemoteAccessorLocalFile - error move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
+      System.err.println("FileAccessorLocalJava6 - error move file;" + co.filesrc + "; to "+ co.filedst + "; success=" + cmd);
     }
     evback.occupy(outer.evSrc, true);
     evback.sendEvent(cmd);
@@ -640,7 +640,7 @@ public class Copy_FileLocalAcc
           
       } catch(Exception exc){
         //bContCopy = false;
-        System.err.printf("FileRemoteAccessorLocalFile - Copy error; %s\n", exc.getMessage());
+        System.err.printf("FileAccessorLocalJava6 - Copy error; %s\n", exc.getMessage());
         sendEventAsk(actData.dst, FileRemote.CallbackCmd.askErrorCopy );
         bCont = false;
       }
@@ -655,7 +655,7 @@ public class Copy_FileLocalAcc
     if(backCmd != FileRemote.CallbackCmd.free){
       if(evBackInfo.occupyRecall(outer.evSrc, false)){
         
-        evBackInfo.promilleCopiedBytes = (int)(((float)(Copy_FileLocalAcc.this.zBytesFileCopied) / Copy_FileLocalAcc.this.zBytesFile) * 1000);  //number between 0...1000
+        evBackInfo.promilleCopiedBytes = (int)(((float)(Copy_FileLocalAccJava6.this.zBytesFileCopied) / Copy_FileLocalAccJava6.this.zBytesFile) * 1000);  //number between 0...1000
         if(zBytesAllCheck >0){
           evBackInfo.promilleCopiedFiles = (int)(((float)(zBytesAllCopied) / zBytesAllCheck) * 1000);  //number between 0...1000
         } else {
@@ -750,7 +750,7 @@ public class Copy_FileLocalAcc
         
       }
     } catch(Exception exc){
-      System.err.println("Copy_FileLocalAcc.abort() - Exception; " + exc.getMessage());
+      System.err.println("Copy_FileLocalAccJava6.abort() - Exception; " + exc.getMessage());
     }
     actData = null;
   }
@@ -786,7 +786,7 @@ public class Copy_FileLocalAcc
         cmdFile = ev.getCmd();
         if(cmdFile == FileRemote.Cmd.copyChecked || cmdFile == FileRemote.Cmd.delChecked || cmdFile == FileRemote.Cmd.moveChecked ){
           //gets and store data from the event:
-          Copy_FileLocalAcc.this.modeCopyOper = ev.modeCopyOper;
+          Copy_FileLocalAccJava6.this.modeCopyOper = ev.modeCopyOper;
           dirDst = ev.filedst;
           actData = getNextCopyData();
           //newDataSetCopy(ev.filesrc, ev.filedst);
@@ -1071,7 +1071,7 @@ public class Copy_FileLocalAcc
               return exitState.stateAsk.entry(null); 
             }
           }
-          else if((Copy_FileLocalAcc.this.modeCopyOper & FileRemote.modeCopyExistMask) == FileRemote.modeCopyExistSkip){
+          else if((Copy_FileLocalAccJava6.this.modeCopyOper & FileRemote.modeCopyExistMask) == FileRemote.modeCopyExistSkip){
             //generally don't overwrite existing files:
             return exitState.stateNextFile.entry(null); 
           }
@@ -1080,7 +1080,7 @@ public class Copy_FileLocalAcc
             long timeSrc = actData.src.lastModified();
             long timeDst = actData.dst.lastModified();
             //The destination file exists and it is writeable. Check:
-            switch(Copy_FileLocalAcc.this.modeCopyOper & FileRemote.modeCopyExistMask){
+            switch(Copy_FileLocalAccJava6.this.modeCopyOper & FileRemote.modeCopyExistMask){
               case FileRemote.modeCopyExistAsk: 
                 sendEventAsk(actData.dst, FileRemote.CallbackCmd.askDstOverwr );
                 return exitState.stateAsk.entry(null); 
@@ -1095,7 +1095,7 @@ public class Copy_FileLocalAcc
             }
           } else {  //can not write, readonly
             //The destination file exists and it is readonly. Check:
-            switch(Copy_FileLocalAcc.this.modeCopyOper & FileRemote.modeCopyReadOnlyMask){
+            switch(Copy_FileLocalAccJava6.this.modeCopyOper & FileRemote.modeCopyReadOnlyMask){
               case FileRemote.modeCopyReadOnlyAks: 
                 sendEventAsk(actData.dst, FileRemote.CallbackCmd.askDstReadonly );
                 return exitState.stateAsk.entry(null); 
@@ -1112,17 +1112,17 @@ public class Copy_FileLocalAcc
             
           }
         }
-        Copy_FileLocalAcc.this.zBytesFile = actData.src.length();
-        Copy_FileLocalAcc.this.zBytesFileCopied = 0;
+        Copy_FileLocalAccJava6.this.zBytesFile = actData.src.length();
+        Copy_FileLocalAccJava6.this.zBytesFileCopied = 0;
         try{ 
           FileSystem.mkDirPath(actData.dst);
-          Copy_FileLocalAcc.this.out = new FileOutputStream(actData.dst);
+          Copy_FileLocalAccJava6.this.out = new FileOutputStream(actData.dst);
         } catch(IOException exc){
           sendEventAsk(actData.dst, FileRemote.CallbackCmd.askErrorDstCreate );
           return exitState.stateAsk.entry(null);
         }
 
-        try{ Copy_FileLocalAcc.this.in = new FileInputStream(actData.src);
+        try{ Copy_FileLocalAccJava6.this.in = new FileInputStream(actData.src);
         } catch(IOException exc){
           sendEventAsk(actData.src, FileRemote.CallbackCmd.askErrorSrcOpen );
           return exitState.stateAsk.entry(null);
@@ -1251,11 +1251,11 @@ public class Copy_FileLocalAcc
         newState = -1;   //it set, then the loop should terminated
         do {
           try{
-            int zBytes = Copy_FileLocalAcc.this.in.read(buffer);
+            int zBytes = Copy_FileLocalAccJava6.this.in.read(buffer);
             if(zBytes > 0){
-              Copy_FileLocalAcc.this.zBytesFileCopied += zBytes;
+              Copy_FileLocalAccJava6.this.zBytesFileCopied += zBytes;
               zBytesAllCopied += zBytes;
-              Copy_FileLocalAcc.this.out.write(buffer, 0, zBytes);
+              Copy_FileLocalAccJava6.this.out.write(buffer, 0, zBytes);
               //synchronized(this){ try{ wait(50);} catch(InterruptedException exc){} } //only test.
               long time = System.currentTimeMillis();
               //
@@ -1264,7 +1264,7 @@ public class Copy_FileLocalAcc
                 timestart = time;
                 if(evBackInfo.occupyRecall(outer.evSrc, false)){
                     
-                  evBackInfo.promilleCopiedBytes = (int)(((float)(Copy_FileLocalAcc.this.zBytesFileCopied) / Copy_FileLocalAcc.this.zBytesFile) * 1000);  //number between 0...1000
+                  evBackInfo.promilleCopiedBytes = (int)(((float)(Copy_FileLocalAccJava6.this.zBytesFileCopied) / Copy_FileLocalAccJava6.this.zBytesFile) * 1000);  //number between 0...1000
                   if(zBytesAllCheck >0){
                     evBackInfo.promilleCopiedFiles = (int)(((float)(zBytesAllCopied) / zBytesAllCheck) * 1000);  //number between 0...1000
                   } else {
@@ -1295,7 +1295,7 @@ public class Copy_FileLocalAcc
             }
           } catch(IOException exc){
             //bContCopy = false;
-            System.err.printf("FileRemoteAccessorLocalFile - Copy error; %s\n", exc.getMessage());
+            System.err.printf("FileAccessorLocalJava6 - Copy error; %s\n", exc.getMessage());
             sendEventAsk(actData.dst, FileRemote.CallbackCmd.askErrorCopy );
             newState = exit().stateAsk.entry(evP);
           }
@@ -1312,18 +1312,18 @@ public class Copy_FileLocalAcc
     
     @Override protected void exitAction(){
       try{
-        if(Copy_FileLocalAcc.this.in!=null){ 
+        if(Copy_FileLocalAccJava6.this.in!=null){ 
           zFilesCopied +=1;
-          Copy_FileLocalAcc.this.in.close(); 
+          Copy_FileLocalAccJava6.this.in.close(); 
           actData.src.resetMarked(1);
         }
-        Copy_FileLocalAcc.this.in = null;
-        if(Copy_FileLocalAcc.this.out!=null){ Copy_FileLocalAcc.this.out.close(); }
-        Copy_FileLocalAcc.this.out = null;
+        Copy_FileLocalAccJava6.this.in = null;
+        if(Copy_FileLocalAccJava6.this.out!=null){ Copy_FileLocalAccJava6.this.out.close(); }
+        Copy_FileLocalAccJava6.this.out = null;
         if(actData !=null && actData.dst !=null){
           if(!bCopyFinished){ ///
             if(!actData.dst.delete()) {
-              System.err.println("FileRemoteAccessorLocalFile - Problem delete after abort; " + actData.dst.getAbsolutePath());
+              System.err.println("FileAccessorLocalJava6 - Problem delete after abort; " + actData.dst.getAbsolutePath());
             }
           } else {
             long date = actData.src.lastModified();
@@ -1331,7 +1331,7 @@ public class Copy_FileLocalAcc
           }
         }
       } catch(IOException exc){
-        System.err.printf("FileRemoteAccessorLocalFile - Problem close; %s\n", actData.dst.getAbsolutePath());
+        System.err.printf("FileAccessorLocalJava6 - Problem close; %s\n", actData.dst.getAbsolutePath());
       }
     }
   }
@@ -1363,20 +1363,20 @@ public class Copy_FileLocalAcc
       boolean bCont;
       //close currently file if this state is entered from stateAsk. The regular close() is executed on exit of stateCopyFile.
       actData.src.resetMarked(1); ///
-      if(Copy_FileLocalAcc.this.in !=null){
+      if(Copy_FileLocalAccJava6.this.in !=null){
         zFilesCopied +=1;
-        try{ Copy_FileLocalAcc.this.in.close();
+        try{ Copy_FileLocalAccJava6.this.in.close();
         } catch(IOException exc){
-          System.err.printf("FileRemoteAccessorLocalFile -Copy close src while abort, unexpected error; %s\n", exc.getMessage());
+          System.err.printf("FileAccessorLocalJava6 -Copy close src while abort, unexpected error; %s\n", exc.getMessage());
         }
-        Copy_FileLocalAcc.this.in = null;
+        Copy_FileLocalAccJava6.this.in = null;
       }
-      if(Copy_FileLocalAcc.this.out !=null){
-        try{ Copy_FileLocalAcc.this.out.close();
+      if(Copy_FileLocalAccJava6.this.out !=null){
+        try{ Copy_FileLocalAccJava6.this.out.close();
         } catch(IOException exc){
-          System.err.printf("FileRemoteAccessorLocalFile -Copy close dst while abort, unexpected error; %s\n", exc.getMessage());
+          System.err.printf("FileAccessorLocalJava6 -Copy close dst while abort, unexpected error; %s\n", exc.getMessage());
         }
-        Copy_FileLocalAcc.this.out = null;
+        Copy_FileLocalAccJava6.this.out = null;
       }
       do{
         if(actData == null || actData.parent ==null) {
@@ -1461,16 +1461,16 @@ public class Copy_FileLocalAcc
         FileRemote.Cmd cmd = ev.getCmd();
         //
         if(cmd == FileRemote.Cmd.overwr){
-          Copy_FileLocalAcc.this.modeCopyOper = ev.modeCopyOper;
+          Copy_FileLocalAccJava6.this.modeCopyOper = ev.modeCopyOper;
           bOverwrfile = true;
           return exit().stateDirOrFile.entry(ev);
         } 
         else if(cmd == FileRemote.Cmd.abortCopyFile){   //it is the skip file.
-          Copy_FileLocalAcc.this.modeCopyOper = ev.modeCopyOper;
+          Copy_FileLocalAccJava6.this.modeCopyOper = ev.modeCopyOper;
           return exit().stateNextFile.entry(ev);
         } 
         else if(cmd == FileRemote.Cmd.abortCopyDir){
-          Copy_FileLocalAcc.this.modeCopyOper = ev.modeCopyOper;
+          Copy_FileLocalAccJava6.this.modeCopyOper = ev.modeCopyOper;
           bAbortDirectory = true;
           return exit().stateNextFile.entry(ev);
         } 

@@ -17,7 +17,7 @@ import org.vishia.event.Event;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventThread;
-import org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile;
+import org.vishia.fileLocalAccessor.FileAccessorLocalJava7;
 import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
@@ -180,7 +180,7 @@ public class FileRemote extends File implements MarkMask_ifc
    *   <li>new interface {@link FileRemoteAccessorSelector} and {@link #setAccessorSelector(FileRemoteAccessorSelector)}.
    *     The user can have any algorithm to select a {@link FileRemoteAccessor} depending on the
    *     path of the file. A prefix String may determine how the file is to access. If that routine
-   *     is not called, the {@link FileRemoteAccessorLocalFile#selectLocalFileAlways}.
+   *     is not called, the {@link FileAccessorLocalJava7#selectLocalFileAlways}.
    *   <li>{@link #FileRemote(FileRemoteAccessor, FileRemote, String, String, long, long, int, Object)}
    *     has the parent as parameter. The parameter oFileP is stored now. It is any data to access the file object.
    *   <li>The constructor had access the file if length=-1 was given. But that is not the convention.
@@ -214,7 +214,7 @@ public class FileRemote extends File implements MarkMask_ifc
    *     {@link #refreshPropertiesAndChildren(CallbackEvent)}, it is empty.           
    *   </ul>
    * <li>2012-07-21 Hartmut new: {@link #delete(String, boolean, Event)} with given mask. TODO: It should done in 
-   *   {@link org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile} in an extra thread.
+   *   {@link org.vishia.fileLocalAccessor.FileAccessorLocalJava7} in an extra thread.
    * <li>2012-03-10 Hartmut new: {@link #chgProps(String, int, int, long, CallbackEvent)}, {@link #countAllFileLength(CallbackEvent)}.
    *   Enhancements.
    * <li>2012-02-02 Hartmut chg: Now the {@link #sFile} (renamed from name) is empty if this describes
@@ -333,7 +333,7 @@ public class FileRemote extends File implements MarkMask_ifc
   public final FileCluster itsCluster;
   
   /**The device which manages the physical files. For the local file system the 
-   * {@link org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile} is used. */
+   * {@link org.vishia.fileLocalAccessor.FileAccessorLocalJava7} is used. */
   protected FileRemoteAccessor device;
   
   /**A mark and count instance for this file. It is null if it is not necessary. */
@@ -580,7 +580,7 @@ public class FileRemote extends File implements MarkMask_ifc
   
   static FileRemoteAccessorSelector getAccessorSelector(){
     if(accessorSelector == null){
-      accessorSelector = FileRemoteAccessorLocalFile.selectLocalFileAlways;
+      accessorSelector = FileAccessorLocalJava7.selectLocalFileAlways;
       // accessorSelector = FileAccessorLocalJava7.selectLocalFileAlways;
     }
     return accessorSelector;
@@ -1691,7 +1691,7 @@ public class FileRemote extends File implements MarkMask_ifc
   /**Moves this file or some files in this directory to another file(s) maybe in a remote device.
    * If the devices are the same, it sends a commission only to the device. 
    * The action is done in the other device respectively in another thread for local files
-   * in {@link org.vishia.fileLocalAccessor.FileRemoteAccessorLocalFile#executerCommission}.
+   * in {@link org.vishia.fileLocalAccessor.FileAccessorLocalJava7#executerCommission}.
    * <br><br>
    * Depending on the file system the moving may be a copy with deleting the source. 
    * But if this and dst are at the same partition, then it is a lightweight operation. 

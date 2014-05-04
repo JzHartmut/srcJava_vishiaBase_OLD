@@ -29,7 +29,7 @@ import org.vishia.util.FileSystem;
 
 /**Implementation for a standard local file.
  */
-public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
+public class FileAccessorLocalJava6 implements FileRemoteAccessor
 {
   
   /**Version, history and license.
@@ -118,7 +118,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
    */
   EventConsumer executerCommission = new EventConsumer(){
     @Override public int processEvent(Event ev) {
-      if(ev instanceof Copy_FileLocalAcc.EventCpy){ //internal Event
+      if(ev instanceof Copy_FileLocalAccJava6.EventCpy){ //internal Event
         copy.stateCopy.processEvent(ev);
         return 1;
       } else if(ev instanceof FileRemote.CmdEvent){  //event from extern
@@ -138,11 +138,11 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
    * Note: the {@link Copy#Copy(FileRemoteAccessorLocalFile)} needs initialized references
    * of {@link #singleThreadForCommission} and {@link #executerCommission}.
    */
-  private final Copy_FileLocalAcc copy = new Copy_FileLocalAcc(this);  
+  private final Copy_FileLocalAccJava6 copy = new Copy_FileLocalAccJava6(this);  
   
   private FileRemote workingDir;
   
-  public FileRemoteAccessorLocalFile() {
+  public FileAccessorLocalJava6() {
     //singleThreadForCommission.startThread();
   }
   
@@ -162,7 +162,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
           (Class<? extends FileRemoteAccessor>)classLoader.loadClass("org.vishia.fileLocalAccessor.FileAccessorLocalJava7");
           instance = clazz.newInstance(); //new FileAccessorLocalJava7();
       } catch(Exception exc){
-        instance = new FileRemoteAccessorLocalFile();  //use fallback strategy
+        instance = new FileAccessorLocalJava6();  //use fallback strategy
       }
     }
     return instance;
@@ -680,11 +680,11 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
         //fileRemote.flags |= FileRemote.mChildrenGotten;
         if(fileLocal.exists()){
           long time1 = System.currentTimeMillis();
-          System.out.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - start listFiles; dt=" + (time1 - time));
+          System.out.println("FileAccessorLocalJava6.refreshFilePropertiesAndChildren - start listFiles; dt=" + (time1 - time));
           
           File[] files = fileLocal.listFiles();
           time1 = System.currentTimeMillis();
-          System.out.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - ok listFiles; dt=" + (time1 - time));
+          System.out.println("FileAccessorLocalJava6.refreshFilePropertiesAndChildren - ok listFiles; dt=" + (time1 - time));
           if(files !=null){
             if(useFileChildren){
               //fileRemote.children = files;
@@ -710,7 +710,7 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
                 fileRemote.internalAccess().putNewChild(child);
               }
               //oldChildren contains yet removed files.
-              System.out.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - ok refresh; " + files.length + " files; dt=" + (System.currentTimeMillis() - time));
+              System.out.println("FileAccessorLocalJava6.refreshFilePropertiesAndChildren - ok refresh; " + files.length + " files; dt=" + (System.currentTimeMillis() - time));
             }
           }
         }
@@ -718,15 +718,15 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
         if(callback !=null){
           callback.occupy(evSrc, true);
           long time1 = System.currentTimeMillis();
-          System.out.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - callback listFiles; dt=" + (time1 - time));
+          System.out.println("FileAccessorLocalJava6.refreshFilePropertiesAndChildren - callback listFiles; dt=" + (time1 - time));
           callback.sendEvent(FileRemote.CallbackCmd.done);
           time1 = System.currentTimeMillis();
-          System.out.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - finish listFiles; dt=" + (time1 - time));
+          System.out.println("FileAccessorLocalJava6.refreshFilePropertiesAndChildren - finish listFiles; dt=" + (time1 - time));
         }
         fileRemote.internalAccess().clrFlagBit(FileRemote.mThreadIsRunning);
       }
       catch(Exception exc){
-        System.err.println("FileRemoteAccessorLocalFile.refreshFilePropertiesAndChildren - Thread Excpetion;" + exc.getMessage());
+        System.err.println("FileAccessorLocalJava6.refreshFilePropertiesAndChildren - Thread Excpetion;" + exc.getMessage());
       }
     }
   }
@@ -735,13 +735,13 @@ public class FileRemoteAccessorLocalFile implements FileRemoteAccessor
   
   
   
-  /**Access selector which uses {@link FileRemoteAccessorLocalFile} for any path.
+  /**Access selector which uses {@link FileAccessorLocalJava6} for any path.
    * It is the standard for normal PC programs.
    * 
    */
   public static FileRemote.FileRemoteAccessorSelector selectLocalFileAlways = new FileRemote.FileRemoteAccessorSelector() {
     @Override public FileRemoteAccessor selectFileRemoteAccessor(String sPath) {
-      return FileRemoteAccessorLocalFile.getInstance();
+      return FileAccessorLocalJava6.getInstance();
     }
   };
 

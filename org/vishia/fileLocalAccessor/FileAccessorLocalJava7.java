@@ -154,7 +154,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
       try{ classLoader.loadClass("java.nio.file.Files");
         instance = new FileAccessorLocalJava7();
       } catch(ClassNotFoundException exc){
-        instance = new FileRemoteAccessorLocalFile();  //use fallback strategy
+        instance = new FileAccessorLocalJava6();  //use fallback strategy
       }
     }
     return instance;
