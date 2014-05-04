@@ -1,53 +1,3 @@
-/****************************************************************************
- * Copyright/Copyleft: 
- * 
- * For this source the LGPL Lesser General Public License, 
- * published by the Free Software Foundation is valid.
- * It means:
- * 1) You can use this source without any restriction for any desired purpose.
- * 2) You can redistribute copies of this source to everybody.
- * 3) Every user of this source, also the user of redistribute copies 
- *    with or without payment, must accept this license for further using.
- * 4) But the LPGL ist not appropriate for a whole software product,
- *    if this source is only a part of them. It means, the user 
- *    must publish this part of source,
- *    but don't need to publish the whole source of the own product.
- * 5) You can study and modify (improve) this source 
- *    for own using or for redistribution, but you have to license the
- *    modified sources likewise under this LGPL Lesser General Public License.
- *    You mustn't delete this Copyright/Copyleft inscription in this source file.    
- *
- * @author www.vishia.de/Java
- * @version 2006-06-15  (year-month-day)
- * list of changes: 
- * 2006-05-00 JcHartmut: creation
- *
- ****************************************************************************/
-/****************************************************************************/
-/* Copyright/Copyleft:
- *
- * For this source the LGPL Lesser General Public License,
- * published by the Free Software Foundation is valid.
- * It means:
- * 1) You can use this source without any restriction for any desired purpose.
- * 2) You can redistribute copies of this source to everybody.
- * 3) Every user of this source, also the user of redistribute copies
- *    with or without payment, must accept this license for further using.
- * 4) But the LPGL ist not appropriate for a whole software product,
- *    if this source is only a part of them. It means, the user
- *    must publish this part of source,
- *    but don't need to publish the whole source of the own product.
- * 5) You can study and modify (improve) this source
- *    for own using or for redistribution, but you have to license the
- *    modified sources likewise under this LGPL Lesser General Public License.
- *    You mustn't delete this Copyright/Copyleft inscription in this source file.
- *
- * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
- * @version 2009-06-15  (year-month-day)
- * list of changes:
- * 2009-12-31: Hartmut corr: Creation of a directory of output path. 
- * 2005 Hartmut created
- */
 package org.vishia.xml;
 
 import java.io.*;
@@ -55,7 +5,7 @@ import java.io.*;
 import org.vishia.mainCmd.*;
 import org.vishia.util.FileSystem;
 
-/** Class for conversion of text files, at example XML Files, into a browser visible HTML-format.</br>
+/** Class for conversion of any plain text files, source codes etc. into a browser visible HTML-format.</br>
     The problem is: Some browsers shows files with xml content and with the extension txt
     yet in form of xml files with hardheaded interpretation. If the content of the file
     will be shown only in text format, all things of xml like scripting should be hided,
@@ -64,6 +14,40 @@ import org.vishia.util.FileSystem;
 
 public class Textfile2Html extends MainCmd
 {
+  
+  /**Version, history and license.
+   * <ul>
+   * <li>2014-05-03 Hartmut bugfix: if a line cannot wrapped on space, a character was missed.
+   * <li>2009-12-31: Hartmut corr: Creation of a directory of output path. 
+   * <li>2005-06-00 Hartmut Created.                  
+   * </ul>
+   * <br><br>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL is not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   */
+  public static final String sVersion = "2014-05-03";
+
 
   /**Cmdline-argument, set on -i option. Inputpath.*/
   String sPathIn = null;
@@ -167,6 +151,7 @@ public class Textfile2Html extends MainCmd
               false if the argument doesn't match. The parseArgument method in MainCmd throws an exception,
               the application should be aborted.
   */
+  @Override
   public boolean testArgument(String arg, int nArg)
   { boolean bOk = true;  //set to false if the argc is not passed
 
@@ -188,6 +173,7 @@ public class Textfile2Html extends MainCmd
      If there is an inconsistents, a message should be written. It may be also a warning.
      @return true if successfull, false if failed.
   */
+  @Override
   protected boolean checkArguments()
   { boolean bOk = true;
 
@@ -248,10 +234,10 @@ public class Textfile2Html extends MainCmd
       int maxLength = maxLineSize - indentWrapped;
       while(sLine.length() > maxLength)
       { int posLast=sLine.lastIndexOf(' ', maxLength);
-        if(posLast < 0) posLast = maxLength; //cutting it at pos 80
+        int posNext = posLast +1; //continue AFTER space, otherwise an infinite loop may occure!!!
+        if(posLast < 0){ posNext = posLast = maxLength; } //cutting it at max Length, continue direct.
         printLine( sIndent.substring(0, indentWrapped) + sLine.substring(0, posLast));
-        //continue AFTER space, otherwise an infinite loop occurs!!!
-        sLine = sLine.substring(posLast +1);
+        sLine = sLine.substring(posNext);
         indentWrapped = indent +2;  //next wrapped lines with higher indent.
         maxLength = maxLineSize - indentWrapped;
       }

@@ -682,6 +682,8 @@ public class JZcmdScript {
   
 
   
+  /**A Filepath variable. Note that the {@link Filepath} is defined in org.vishia.util independent of JZcmd.
+   * It is aggreagated here. */
   public static class DefFilepath extends DefVariable
   {
     FilePath filepath;
@@ -1656,7 +1658,17 @@ public class JZcmdScript {
       formalArgs.add(val);
     }
     
+    public UserFileset new_DefFileset(){
+      return new UserFileset(this.parentList); 
+    } 
+
+    public void add_DefFileset(UserFileset val){ 
+      if(formalArgs == null){ formalArgs = new ArrayList<DefVariable>(); }
+      formalArgs.add(val);
+    }
     
+    
+
 
     
     /**Defines or changes an environment variable with value. set NAME = TEXT;

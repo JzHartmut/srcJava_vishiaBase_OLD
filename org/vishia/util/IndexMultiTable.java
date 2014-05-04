@@ -1237,7 +1237,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    *   null if the value for this key is null.
    *   null if exact = true and the key is not found.
    */
-  @SuppressWarnings( "unchecked")
+  //@SuppressWarnings( "unchecked")
   private  IndexMultiTable<Key, Type> searchInTables(Key key1, boolean exact, IndexBox ixFound)
   { IndexMultiTable<Key, Type> table = this;
     //place object with same key after the last object with the same key.

@@ -693,7 +693,7 @@ public class JZcmdExecuter {
      * @return
      * @throws Exception
      */
-    private int execute(JZcmdScript.StatementList contentScript, final StringFormatter out, int indentOutArg, boolean bContainerHasNext, int nDebugP) 
+    protected int execute(JZcmdScript.StatementList contentScript, final StringFormatter out, int indentOutArg, boolean bContainerHasNext, int nDebugP) 
     throws Exception 
     { return execute(contentScript, out, indentOutArg, bContainerHasNext, localVariables, nDebugP);
     }
@@ -1473,8 +1473,9 @@ public class JZcmdExecuter {
       while(cont && iter.hasNext()){
         DataAccess.Variable<Object> variable = iter.next();
         String name = variable.name();
-        String value = variable.value().toString();
-        if(name.startsWith("$")){
+        Object oValue = variable.value(); 
+        if(name.startsWith("$") && oValue !=null){
+          String value = oValue.toString();
           env.put(name.substring(1), value);
         } else {
           cont = false;
