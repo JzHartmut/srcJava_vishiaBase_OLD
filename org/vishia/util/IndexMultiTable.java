@@ -1594,7 +1594,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       return "\uffff\uffff\uffff\uffff\uffff\uffff\uffff\uffff\uffff"; 
     }
 
-    @Override public String getMinSortKey(){ return " "; }
+    @Override public String getMinSortKey(){ return ""; }
   };
   
 
