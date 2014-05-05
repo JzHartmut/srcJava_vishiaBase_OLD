@@ -1171,22 +1171,25 @@ return this;
 
  
   
+  /**Returns the position of some chars in the current part. 
+   * @param sq given CharSequence 
+   * @param sChars Some chars to search in sq
+   *   If sChars contains a EOT character (code 03, {@link #cEndOfText}) then the search stops at this character 
+   *   or it is continued to the end of the range in sq. Then the length of the text range is returned
+   *   if another character in sChars is not found. 
+   *   It means: The end of the text range is adequate to an EOT-character. Note that EOT is not unicode,
+   *   but it is an ASCII control character.  
+   * @param fromWhere start position in current part, often 0
+   * @param maxToTest maybe {@link java.lang.Integer#MAX_VALUE}.
+   * @return -1 if not found, elsewhere position in the current part, >=fromWhere.
+   */
   public final int indexOfAnyChar(String sChars, final int fromWhere, final int maxToTest)
   {
     int pos = begin + fromWhere;
     int max = (end - pos) < maxToTest ? end : pos + maxToTest;
-    char cc;
-    while(pos < max && sChars.indexOf(cc = content.charAt(pos)) < 0){  //end char not found:
-      pos += 1;
-    }
-    int nChars = pos - begin;
-    if(pos < max 
-      || (pos == max && sChars.indexOf(cEndOfText) >= 0)
-      )
-    { nChars = pos - begin;
-    }
-    else { nChars = -1; }
-    return nChars;
+    int found = StringFunctions.indexOfAnyChar(content, pos, max, sChars); 
+    if(found <0) return found;
+    else return found + fromWhere;  //
   }
   
   /**Returns the position of one of the chars in sChars within the part, started inside the part with fromIndex,

@@ -14,6 +14,7 @@ import org.vishia.util.CalculatorExpr;
 import org.vishia.util.DataAccess;
 import org.vishia.util.FilePath;
 import org.vishia.util.StringFunctions;
+import org.vishia.util.StringPart;
 
 
 /**This class contains the internal representation of a JZcmd script. 
@@ -474,6 +475,8 @@ public class JZcmdScript {
     
     /**Set whether the argument is a filepath. The the references of JZcmditem are null.*/
     protected FilePath filepath;
+    
+    protected ZmakeInput accessFileset;
    
     public Argument(StatementList parentList){
       super(parentList, '.');
@@ -491,7 +494,11 @@ public class JZcmdScript {
     /**From ZBNF: The argument is given with <code>Filepath name = "a path"</code>. */
     public FilePath.ZbnfFilepath new_Filepath(){ return new FilePath.ZbnfFilepath(); }
     
-    public void add_Filepath(FilePath.ZbnfFilepath valz){ filepath =valz.filepath; }
+    public void add_Filepath(FilePath.ZbnfFilepath val){ filepath =val.filepath; }
+    
+    public ZmakeInput new_zmakeInput(){ return new ZmakeInput(); }
+    
+    public void add_zmakeInput(ZmakeInput val){ accessFileset = val; };
     
 
     
@@ -742,11 +749,6 @@ public class JZcmdScript {
   
   public static class ZmakeInput {
     
-    /**From Zbnf, either a fileset or a filepath variable for the fileset.*/
-    String accessPathVariableName;
-    
-    boolean accessPathEnvironmentVar;
-    
     /**From Zbnf, if null then {@link #zmakeFilepathName} may be the fileset. */
     String filesetVariableName;
     
@@ -764,29 +766,20 @@ public class JZcmdScript {
      * @param val
      */
     public void set_accessPathOrFilesetVariable(String val){ 
-      this.filesetVariableName = val; //unknown yet whether a zmakeFileset follows. Assume it is it. 
+      if(val.startsWith("&") && StringFunctions.indexOfAnyChar(val, 0, val.length(), "\\/:") <0){
+        //contains only &name
+        filesetVariableName = val;
+      } else {
+        accessPath = new FilePath(val);  //prepare it with its parts.
+      }
     }
 
     
-    /**From Zbnf. The access path from an environment variable.
-     * The environment variable should contain an absolute path 
-     * or a relative path from the operation systems's current directory. 
-     * @param val without $
-     */
-    public void set_accessPathEnvirVariable(String val){
-      this.accessPathVariableName = val;
-      this.accessPathEnvironmentVar = true;
-    }
-    
     /**From Zbnf. The second occurrence of &name is supposed as the fileset anyway.
-     * If a fileset name is stored already, it is the {@link #accessPathVariable}.
+     * An accessPath is really an accessPath.
      * @param val
      */
     public void set_zmakeFilesetVariable(String val){
-      if(this.filesetVariableName !=null){
-        assert(accessPath == null);  //it is an alternative option in syntax.
-        this.accessPathVariableName = this.filesetVariableName;  //it is the file path
-      }
       this.filesetVariableName = val; 
     }
     

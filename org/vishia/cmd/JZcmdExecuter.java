@@ -1310,27 +1310,7 @@ public class JZcmdExecuter {
         zinput.fileset = (JZcmdFileset) filesetO;
         if(input.accessPath !=null){
           zinput.accesspathFilepath = new JZcmdFilepath(this, input.accessPath);
-          assert(input.accessPathVariableName == null);  //it is only an alternative
-        } else if(input.accessPathVariableName !=null){
-          if(input.accessPathEnvironmentVar){
-            DataAccess.Variable<Object> filepathV = localVariables.get("$" + input.accessPathVariableName);
-            String accesspathString;
-            if(filepathV !=null){
-              accesspathString = filepathV.name().toString();
-            } else {
-              accesspathString = System.getenv(input.accessPathVariableName);
-            }
-            if(accesspathString == null)throw new NoSuchFieldException("JZcmd.execZmake - accesspath-environment variable not found; " + input.accessPathVariableName);
-            Assert.check(false);
-          } else {
-            DataAccess.Variable<Object> filepathV = localVariables.get(input.accessPathVariableName);
-            if(filepathV == null) throw new NoSuchFieldException("JZcmd.execZmake - accesspath-variable not found; " + input.accessPathVariableName);
-            Object filepathO = filepathV.value();
-            if(!(filepathO instanceof JZcmdFilepath))  throw new NoSuchFieldException("JZcmd.execZmake - filepath faulty type, should be a Filepath;" + input.filesetVariableName);
-            zinput.accesspathFilepath = (JZcmdFilepath)filepathO;
-          }
         }
-
         if(target.inputs ==null){ target.inputs = new ArrayList<ZmakeTarget.Input>(); }
         target.inputs.add(zinput);
       }
@@ -2017,6 +1997,8 @@ public class JZcmdExecuter {
         JZcmdScript.Argument arg1 = (JZcmdScript.Argument) arg;
         if(arg1.filepath !=null){
           obj = new JZcmdFilepath(this, arg1.filepath);
+        } else if(arg1.accessFileset !=null){
+          obj = null;
         } else {
           obj = null;
         }

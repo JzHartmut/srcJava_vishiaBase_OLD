@@ -13,6 +13,11 @@ public class StringFunctions {
 
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-04 Hartmut new: {@link #indexOfAnyChar(CharSequence, int, int, String)}: Algorithm transfered from 
+   *   {@link StringPart#indexOfAnyChar(String, int, int, char, char, char)} to this class for common usage,
+   *   called in StringPart. TODO do it with all that algoritm.
+   * <li>2014-05-04 Hartmut new {@link #cEndOfText} now defined here, parallel to {@link StringPart#cEndOfText}.
+   *   Note: that char is ASCII but not UTF.   
    * <li>2014-03-11 Hartmut new: {@link #indent2(int)}
    * <li>2013-09-07 Hartmut new: {@link #parseFloat(String, int, int, char, int[])} with choiceable separator (123,45, german decimal point)
    * <li>2013-09-07 Hartmut new: {@link #convertTranscription(CharSequence, char)} used form {@link SpecialCharStrings#resolveCircumScription(String)}
@@ -61,6 +66,12 @@ public class StringFunctions {
    */
   public final static int version = 20130810; 
   
+  
+  /** The char used to code end of text. It is defined in ASCII as EOT. 
+   * In Unicode it is the same like {@value Character#TITLECASE_LETTER}, another meaning. */  
+  public static final char cEndOfText = (char)(0x3);
+
+
   /**Returns the position of the end of an identifier.
    * @param src The input string
    * @param start at this position the identifier starts.
@@ -615,6 +626,34 @@ public class StringFunctions {
   public static int indexOf(CharSequence sq, CharSequence str, int fromIndex){
     return indexOf(sq, fromIndex, Integer.MAX_VALUE, str);
   }
+  
+  
+  /**Searches any char inside sChars in the given Charsequence
+   * @param begin start position to search in sq
+   * @param end length of sq or end position to test
+   * @param sChars Some chars to search in sq
+   *   If sChars contains a EOT character (code 03, {@link #cEndOfText}) then the search stops at this character 
+   *   or it is continued to the end of the range in sq. Then the length of the text range is returned
+   *   if another character in sChars is not found. 
+   *   It means: The end of the text range is adequate to an EOT-character. Note that EOT is not unicode,
+   *   but it is an ASCII control character.  
+   * @return The first position of one of the character in sChars or -1 if not found in the given range.
+   */
+  public static int indexOfAnyChar(CharSequence sq, int begin, int end, String sChars)
+  { int pos = begin;
+    while(pos < end && sChars.indexOf(sq.charAt(pos)) < 0){  //while any of char in sChars not found:
+      pos += 1;
+    }
+    int nChars = pos - begin;
+    if(pos < end 
+      || (pos == end && sChars.indexOf(cEndOfText) >= 0)
+      )
+    { nChars = pos - begin;
+    }
+    else { nChars = -1; }
+    return nChars;
+  }
+
   
   /**Checks whether the given CharSequence contains the other given CharSequence.
    * It is the adequate functionality like {@link java.lang.String#lastIndexOf(String, int)}. 
