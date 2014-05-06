@@ -84,7 +84,7 @@ public class JZcmdFileset
   
   
   
-  void listFilesExpanded(List<JZcmdFilepath> files, JZcmdFilepath zgenAccesspath, boolean expandFiles) throws NoSuchFieldException {  ////
+  void listFiles(List<JZcmdFilepath> files, JZcmdFilepath zgenAccesspath, boolean expandFiles) throws NoSuchFieldException {  ////
     for(FilePath scriptFilepath: data.filesOfFileset){
       JZcmdFilepath filepath = new JZcmdFilepath(zgenlevel, scriptFilepath);
       JZcmdFilepath commonBasepath = data.commonBasepath ==null ? null : new JZcmdFilepath(zgenlevel, data.commonBasepath);
@@ -105,14 +105,28 @@ public class JZcmdFileset
     }
   }
 
-  public List<JZcmdFilepath> listFilesExpanded(JZcmdFilepath accesspath, boolean expandFiles) throws NoSuchFieldException { 
+  /**Returns a new list of all {@link JZcmdFilepath} with all files which are found in the file system
+   *   in the given environment. The base path and local path is build from the members of the fileset
+   *   and the {@link #accesspath} in that kind, that the shortest given local path is valid.
+   * @param accesspath The access path to the members of this fileset.
+   * @param expandFiles true then 
+   * @return
+   * @throws NoSuchFieldException
+   */
+  public List<JZcmdFilepath> listFiles(JZcmdFilepath accesspath, boolean expandFiles) throws NoSuchFieldException { 
     List<JZcmdFilepath> files = new ArrayList<JZcmdFilepath>();
-    listFilesExpanded(files, accesspath, expandFiles);
+    listFiles(files, accesspath, expandFiles);
     return files;
   }
   
   
-  public List<JZcmdFilepath> listFilesExpanded() throws NoSuchFieldException { return listFilesExpanded(null, true); }
+  /**Returns a new list of all {@link JZcmdFilepath} with all files which are found in the file system
+   *   in the given environment. The base path and local path is build from the members of the fileset
+   *   in that kind, that the shortest given local path is valid.
+   * @return
+   * @throws NoSuchFieldException
+   */
+  public List<JZcmdFilepath> listFilesExpanded() throws NoSuchFieldException { return listFiles(null, true); }
 
     
     

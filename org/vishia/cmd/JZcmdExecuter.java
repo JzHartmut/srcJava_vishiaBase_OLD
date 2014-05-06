@@ -28,6 +28,7 @@ import org.vishia.util.CalculatorExpr;
 import org.vishia.util.Conversion;
 import org.vishia.util.DataAccess;
 import org.vishia.util.Debugutil;
+import org.vishia.util.FilePath;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.MessageQueue;
@@ -1299,19 +1300,9 @@ public class JZcmdExecuter {
     throws IllegalArgumentException, Exception {
       ZmakeTarget target = new ZmakeTarget(this, statement.name);
       target.output = new JZcmdFilepath(this, statement.output);  //prepare to ready-to-use form.
-      for(JZcmdScript.ZmakeInput input: statement.input){
-        //search the named file set. It is stored in a ready-to-use form in any variable.
-        DataAccess.Variable<Object> filesetV = localVariables.get(input.filesetVariableName);
-        if(filesetV == null) throw new NoSuchFieldException("JZcmd.execZmake - fileset not found;" + input.filesetVariableName);
-        Object filesetO = filesetV.value();
-        if(!(filesetO instanceof JZcmdFileset)) throw new NoSuchFieldException("JZcmd.execZmake - fileset faulty type;" + input.filesetVariableName);
-        //store the file set and the path before:
-        ZmakeTarget.Input zinput = new ZmakeTarget.Input();
-        zinput.fileset = (JZcmdFileset) filesetO;
-        if(input.accessPath !=null){
-          zinput.accesspathFilepath = new JZcmdFilepath(this, input.accessPath);
-        }
-        if(target.inputs ==null){ target.inputs = new ArrayList<ZmakeTarget.Input>(); }
+      for(JZcmdScript.AccessFilesetname input: statement.input){
+        JZcmdAccessFileset zinput = new JZcmdAccessFileset(input.accessPath, input.filesetVariableName, this);
+        if(target.inputs ==null){ target.inputs = new ArrayList<JZcmdAccessFileset>(); }
         target.inputs.add(zinput);
       }
       //Build a temporary list only with the 'target=target' as additionalArgs for the subroutine call
@@ -1964,11 +1955,17 @@ public class JZcmdExecuter {
      * <li>Object from {@link JZcmdScript.JZcmditem#dataAccess}
      * <li>Object from {@link JZcmdScript.JZcmditem#statementlist}
      * <li>Object from {@link JZcmdScript.JZcmditem#expression}
-     * <li>
+     * <li>If the arg is instanceof {@link JZcmdScript.Argument} - an argument of a call subroutine, then
+     *   <ul>
+     *   <li>If the {@link JZcmdScript.Argument#filepath} is set, then that {@link FilePath} is transfered
+     *     to a {@link JZcmdFilepath} and returned. 
+     *     A {@link JZcmdFilepath} contains the reference to this execution level.
+     *   <li>If the {@link JZcmdScript.Argument#accessFileset} is set, then that {@link JZcmdScript.AccessFilesetname}
+     *     is transfered to an instance of {@link JZcmdAccessFileset} and that instance is returned.   
      * </ul>
      * @param arg
-     * @return
-     * @throws Exception
+     * @return Object adequate the arg, maybe null
+     * @throws Exception any Exception while evaluating.
      */
     public Object evalObject(JZcmdScript.JZcmditem arg, boolean bContainer) throws Exception{
       Object obj;
@@ -1998,7 +1995,7 @@ public class JZcmdExecuter {
         if(arg1.filepath !=null){
           obj = new JZcmdFilepath(this, arg1.filepath);
         } else if(arg1.accessFileset !=null){
-          obj = null;
+          obj = new JZcmdAccessFileset(arg1.accessFileset.accessPath, arg1.accessFileset.filesetVariableName, this);
         } else {
           obj = null;
         }

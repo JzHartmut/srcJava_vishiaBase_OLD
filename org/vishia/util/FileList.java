@@ -254,7 +254,7 @@ public class FileList
       } else {
         long lastModify = file.lastModified();
         if(file.length() == listlen){
-          if(Math.abs(listtime - lastModify) > 4000){
+          if(Math.abs(listtime - lastModify) > 6000){ //round effect of seconds to 10!
             //check crc
             crcCalculator.reset();
             InputStream inp = new FileInputStream(file);

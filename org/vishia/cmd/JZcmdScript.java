@@ -476,7 +476,7 @@ public class JZcmdScript {
     /**Set whether the argument is a filepath. The the references of JZcmditem are null.*/
     protected FilePath filepath;
     
-    protected ZmakeInput accessFileset;
+    protected AccessFilesetname accessFileset;
    
     public Argument(StatementList parentList){
       super(parentList, '.');
@@ -496,9 +496,9 @@ public class JZcmdScript {
     
     public void add_Filepath(FilePath.ZbnfFilepath val){ filepath =val.filepath; }
     
-    public ZmakeInput new_zmakeInput(){ return new ZmakeInput(); }
+    public AccessFilesetname new_zmakeInput(){ return new AccessFilesetname(); }
     
-    public void add_zmakeInput(ZmakeInput val){ accessFileset = val; };
+    public void add_zmakeInput(AccessFilesetname val){ accessFileset = val; };
     
 
     
@@ -717,7 +717,7 @@ public class JZcmdScript {
     
     String name;
     
-    List<ZmakeInput> input = new ArrayList<ZmakeInput>();
+    List<AccessFilesetname> input = new ArrayList<AccessFilesetname>();
     
     Zmake(StatementList parentList)
     { super(parentList, 'Z');
@@ -738,16 +738,24 @@ public class JZcmdScript {
     }
     
     
-    public ZmakeInput new_zmakeInput(){ return new ZmakeInput(); }
+    public AccessFilesetname new_zmakeInput(){ return new AccessFilesetname(); }
     
-    public void add_zmakeInput(ZmakeInput val){ input.add(val); };
+    public void add_zmakeInput(AccessFilesetname val){ input.add(val); };
     
     
   }
   
   
   
-  public static class ZmakeInput {
+  /**This class contains the fileset-variable name and maybe an FilePath as accessPath.
+   * The class is similar like {@link JZcmdAccessFileset} but this class 
+   * contains the name of the fileset instead the fileset-reference itself
+   * and it contains a {@link FilePath} instead a {@link JZcmdFilepath}. 
+   * It is the form which is gotten from a textual script by translating the script.
+   * The {@link JZcmdAccessFileset} is build on running time in the adequate execution level 
+   * of the @link {@link JZcmdExecuter.ExecuteLevel}
+   */
+  public static class AccessFilesetname {
     
     /**From Zbnf, if null then {@link #zmakeFilepathName} may be the fileset. */
     String filesetVariableName;

@@ -46,14 +46,10 @@ public class ZmakeTarget
   //@SuppressWarnings("hiding")
   static final public String sVersion = "2014-03-07";
 
-  public static class Input {
-    JZcmdFileset fileset;
-    JZcmdFilepath accesspathFilepath;
-  }
   
  
   
-  List<Input> inputs;
+  List<JZcmdAccessFileset> inputs;
   
   /**The output file of the target in the ready-to-use form in a JZcmd Script.
    * One can invoke for example 'target.output.absdirW()' to get the absolute directory path with backslash.
@@ -98,33 +94,16 @@ public class ZmakeTarget
    * @return A list of files.
    * @throws NoSuchFieldException If a Filepath has a variable, and that is not found. 
    */
-  private List<JZcmdFilepath> prepareFiles( List<Input> filesOrFilesets, boolean expandFiles) throws NoSuchFieldException {
+  private List<JZcmdFilepath> prepareFiles( List<JZcmdAccessFileset> filesOrFilesets, boolean expandFiles) throws NoSuchFieldException {
     //
     //check whether the target has a parameter srcpath=... or commonpath = ....
-    JZcmdFilepath commonPathTarget = null;
+    //JZcmdFilepath commonPathTarget = null;
     List<JZcmdFilepath> files = new LinkedList<JZcmdFilepath>();
     //UserFileset inputfileset = null; 
-    for(Input targetInputParam: filesOrFilesets){
+    for(JZcmdAccessFileset targetInputParam: filesOrFilesets){
       { //expand file or fileset:
         //
-        if(targetInputParam.fileset !=null){
-          targetInputParam.fileset.listFilesExpanded(files, targetInputParam.accesspathFilepath, expandFiles);
-        }
-        else if(targetInputParam.accesspathFilepath !=null){
-          if(expandFiles){
-            FilePath.FilePathEnvAccess env = targetInputParam.accesspathFilepath;
-            List<FilePath> files1 = new LinkedList<FilePath>();
-            targetInputParam.accesspathFilepath.data.expandFiles(files1, commonPathTarget.data, null, env);
-            for(FilePath file: files1){
-              JZcmdFilepath zgenFile = new JZcmdFilepath(zgenlevel, file);
-              files.add(zgenFile);
-            }
-          } else {
-            JZcmdFilepath targetsrc = new JZcmdFilepath(zgenlevel, targetInputParam.accesspathFilepath, commonPathTarget, null);
-            files.add(targetsrc);  
-          }
-        } else { 
-        }
+        targetInputParam.listFiles(files, zgenlevel, expandFiles);
       }
     }
     return files;
