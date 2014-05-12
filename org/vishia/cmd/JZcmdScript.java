@@ -445,6 +445,9 @@ public class JZcmdScript {
         case 'x': u.append(" thread "); break;
         case 'y': u.append(" copy "); break;
         case 'z': u.append(" exit "); break;
+        case 'n': u.append(" newline "); break;
+        case '!': u.append(" flush "); break;
+        case '_': u.append(" close "); break;
         //case 'X': u.append(" call " + identArgJbat ;
         default: //do nothing. Fo in overridden method.
       }
@@ -1430,6 +1433,16 @@ public class JZcmdScript {
       statementlist.statements.add(new JZcmditem(parentList, 'n'));  
     }
 
+    public void set_flush(){
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.statements.add(new JZcmditem(parentList, '!'));  
+    }
+
+    public void set_close(){
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.statements.add(new JZcmditem(parentList, '_'));  
+    }
+
   }
   
   
@@ -1795,7 +1808,7 @@ public class JZcmdScript {
     { super(parentList, elementType);
     }
     
-     /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
+    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
     public JZcmditem new_actualArgument(){ return new JZcmditem(parentList, '.'); }
      
     /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
@@ -1803,6 +1816,24 @@ public class JZcmdScript {
       if(cmdArgs == null){ cmdArgs = new ArrayList<JZcmditem>(); }
       cmdArgs.add(val); 
     }
+    
+    
+    /**Set from ZBNF: */
+    public JZcmdDataAccess new_argList(){ 
+      JZcmditem statement = new JZcmditem(parentList, 'L');
+      JZcmdDataAccess dataAccess1 = new JZcmdDataAccess(); 
+      statement.dataAccess = dataAccess1; 
+      if(cmdArgs == null){ cmdArgs = new ArrayList<JZcmditem>(); }
+      cmdArgs.add(statement); 
+      return dataAccess1;
+    }
+ 
+    
+
+    
+    public void add_argList(JZcmdDataAccess val){ 
+    }
+    
     
     
     public void set_argsCheck(){ bCmdCheck = true; }
@@ -2256,7 +2287,7 @@ public class JZcmdScript {
         case 'n': statement.textArg = "\n"; break;
         case 'r': statement.textArg = "\r"; break;
         case 't': statement.textArg = "\t"; break;
-        case '<': statement.textArg = "<"; break;
+        case '<': case '\"': case '#': statement.textArg = val; break;
       }
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
@@ -2470,6 +2501,16 @@ public class JZcmdScript {
     }
     
     public void add_copy(CallStatement val){}
+
+
+    public CallStatement new_del()
+    { CallStatement statement = new CallStatement(this, 'l');
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
+    }
+    
+    public void add_del(CallStatement val){}
 
 
     /*

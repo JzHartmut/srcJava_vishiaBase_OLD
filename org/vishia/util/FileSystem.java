@@ -75,6 +75,7 @@ public class FileSystem
   /**Version, history and license.
    * Changes:
    * <ul>
+   * <li>2014-05-10 Hartmut new: {@link #delete(String)} 
    * <li>2013-10-27 Hartmut chg: {@link #normalizePath(CharSequence)} now uses a given StringBuilder to adjust the path
    *   inside itself. normalizePath(myStringBuilder) does not need the return value. 
    *   But normalizePath(myStringBuilder.toString()) normalizes in a new StringBuilder.
@@ -493,6 +494,31 @@ public class FileSystem
     else return new File(".");  //the current directory is the current one.
   }
 
+  
+  
+  public static boolean delete(String path){
+    boolean bOk;
+    if(path.indexOf('*')<0){
+      File fileSrc = new File(path);
+      if(fileSrc.isDirectory()){
+        bOk = FileSystem.rmdir(fileSrc);
+      } else {
+        bOk = fileSrc.delete();
+      }
+    } else {
+      //contains wildcards
+      List<File> files = new LinkedList<File>();
+      bOk = addFileToList(path, files);
+      if(bOk){
+        for(File file: files){
+          boolean bFileOk = file.delete();
+          if(!bFileOk){ bOk = false; }
+        }
+      }
+    }
+    return bOk;
+  }
+  
   
   
   /**Removes all files inside the directory and all sub directories with its files.

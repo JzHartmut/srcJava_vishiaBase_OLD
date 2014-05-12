@@ -80,7 +80,7 @@ public class ZmakeTarget
    * </pre>
    * All files and members of a fileset of this parameter are combined in one List 
    * which can be used as container for JZcmd script.
-   * @return A list of {@link JZcmdFilepath} independent of a {@link JZcmdFileset}.
+   * @return A list of {@link JZcmdFilepath} independent of a special {@link JZcmdFileset}.
    * @throws NoSuchFieldException If a Filepath uses a variable and this variable is not found.
    */
   public List<JZcmdFilepath> allInputFilesExpanded() throws NoSuchFieldException{

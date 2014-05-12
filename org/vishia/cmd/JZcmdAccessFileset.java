@@ -69,7 +69,7 @@ public class JZcmdAccessFileset
   {
     //search the named file set. It is stored in a ready-to-use form in any variable.
     DataAccess.Variable<Object> filesetV = jzlevel.localVariables.get(sFilesetVariable);
-    if(filesetV == null) throw new NoSuchFieldException("JZcmd.execZmake - fileset not found;" + sFilesetVariable);
+    if(filesetV == null) throw new NoSuchFieldException("JZcmdAccessFileset - fileset not found;" + sFilesetVariable);
     Object filesetO = filesetV.value();
     if(!(filesetO instanceof JZcmdFileset)) throw new NoSuchFieldException("JZcmd.execZmake - fileset faulty type;" + sFilesetVariable);
     //store the file set and the path before:
@@ -94,6 +94,13 @@ public class JZcmdAccessFileset
 
   
   
+  /**Appends the files of this set to the list.
+   * @param files Given list of files.
+   * @param zgenlevel
+   * @param expandFiles true then show to the file storage medium and get all existent files proper to wildcards.
+   *   false then return a FilePath with wildcards.
+   * @throws NoSuchFieldException If a variable is not found.
+   */
   public void listFiles(List<JZcmdFilepath> files, final JZcmdExecuter.ExecuteLevel zgenlevel, boolean expandFiles) 
   throws NoSuchFieldException{
     if(this.fileset !=null){

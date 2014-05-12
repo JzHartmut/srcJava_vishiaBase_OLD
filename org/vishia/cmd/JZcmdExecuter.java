@@ -1,6 +1,7 @@
 package org.vishia.cmd;
 
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
@@ -244,6 +245,9 @@ public class JZcmdExecuter {
   
   public ExecuteLevel scriptLevel(){ return scriptLevel; }
   
+  
+  public long calctime(){ return System.currentTimeMillis() - startmilli; }
+  
   public void setScriptVariable(String name, char type, Object content, boolean bConst) 
   throws IllegalAccessException{
     DataAccess.createOrReplaceVariable(scriptLevel.localVariables, name, type, content, bConst);
@@ -451,7 +455,7 @@ public class JZcmdExecuter {
     //return execute(execFile, contentScript, true);
     startmilli = System.currentTimeMillis();
     startnano = System.nanoTime();
-    StringFormatter outFormatter = new StringFormatter(out, "\n", 200);
+    StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
     textout = outFormatter;
     execFile.execute(mainRoutine.statementlist, outFormatter, 0, false, -1);
     outFormatter.close();
@@ -497,7 +501,7 @@ public class JZcmdExecuter {
     //Executes the statements of the sub routine:
     startmilli = System.currentTimeMillis();
     startnano = System.nanoTime();
-    StringFormatter outLines = new StringFormatter(out, "\n", 200);
+    StringFormatter outLines = new StringFormatter(out, out instanceof Closeable, "\n", 200);
     level.execute(statement.statementlist, outLines, 0, false, -1);
     outLines.close();
     //return sError1;
@@ -712,7 +716,7 @@ public class JZcmdExecuter {
      * @return
      * @throws Exception
      */
-    private int execute(JZcmdScript.StatementList statementList, final StringFormatter out, int indentOutArg
+    private int execute(JZcmdScript.StatementList statementList, StringFormatter out, int indentOutArg
         , boolean bContainerHasNext, Map<String, DataAccess.Variable<Object>> newVariables, int nDebugP) 
     throws Exception 
     {
@@ -745,6 +749,8 @@ public class JZcmdExecuter {
           case 't': executeText(statement, out, indentOut);break; //<:>...textexpression <.>
           case '@': execSetColumn((JZcmdScript.TextColumn)statement, out);break; //<:@23>
           case 'n': out.append(newline);  break;   //<.n+>
+          case '!': out.flush();  break;   //<.n+>
+          case '_': out.close();  out = null; break;   //<.n+>
           case '\\': out.append(statement.textArg);  break;   //<:n> transcription
           case 'T': textAppendToVarOrOut((JZcmdScript.TextOut)statement, out, --nDebug1); break; //<+text>...<.+> 
           case 'A': break;  //used for Argument
@@ -789,6 +795,7 @@ public class JZcmdExecuter {
           case 'x': executeThread(newVariables, (JZcmdScript.ThreadBlock)statement); break;             //thread
           case 'm': executeMove((JZcmdScript.CallStatement)statement); break;             //move
           case 'y': executeCopy((JZcmdScript.CallStatement)statement); break;             //copy
+          case 'l': executeDelete((JZcmdScript.CallStatement)statement); break;             //copy
           case 'c': execCmdline((JZcmdScript.CmdInvoke)statement); break;              //cmd
           case 'd': executeChangeCurrDir(statement); break;                              //cd
           case 'f': ret = execForContainer((JZcmdScript.ForStatement)statement, out, indentOut, --nDebug1); break;  //for
@@ -810,7 +817,7 @@ public class JZcmdExecuter {
           case 'Z': execZmake((JZcmdScript.Zmake) statement, out, indentOut, --nDebug1); break;
           case 'D': break; // a second debug statement one after another or debug on end is ignored.
           default: 
-            writeError("JZcmdExecute - unknown statement; '" + statement.elementType() + "' :ERROR=== ", out);
+            writeError("JZcmd.execute - unknown statement; ", statement, out);
           }//switch
           
         } catch(Exception exc){
@@ -854,14 +861,14 @@ public class JZcmdExecuter {
             //a kBreak, kReturn etc. is used in the calling level.
             threadData.error.setValue(null);  //clear for next usage.
           } else {
-            CharSequence sExc = Assert.exceptionInfo("JZcmd - execute-exception;", exc1, 0, 20);
+            CharSequence sExc = Assert.exceptionInfo("JZcmd.execute - exception at;" + statement.toString() + ";", exc1, 0, 20);
             if(threadData.error.value()==null){
               threadData.error.setValue(sExc);
             }
-            if(exc1 instanceof Exception){
-              throw (Exception)exc1; 
+            if(exc1 instanceof ForwardException){
+              throw (ForwardException)exc1; 
             } else {
-              new RuntimeException(exc1);
+              throw new ForwardException(sExc.toString());
             }
             //sError = exc.getMessage();
             //System.err.println("JZcmd - execute-exception; " + exc.getMessage());
@@ -962,7 +969,7 @@ public class JZcmdExecuter {
       boolean cond = true;
       int cont = kSuccess;
       if(container instanceof String && ((String)container).startsWith("<?")){
-        writeError((String)container, out);
+        writeError("JZcmd.execFor - faulty container type;" + (String)container, statement, out);
       }
       else if(container !=null && container instanceof Iterable<?>){
         Iterator<?> iter = ((Iterable<?>)container).iterator();
@@ -1049,7 +1056,7 @@ public class JZcmdExecuter {
             cont = execute(statement.statementlist, out, indentOut, false, nDebug);
           } break;
           default:{
-            writeError("JZcmdExecuter.executeIf - unknown statement; " + statement.elementType(), out);
+            writeError("JZcmd.execIf - unknown statement; " + statement.elementType(), ifStatement, out);
           }
         }//switch
       }//for
@@ -1133,7 +1140,7 @@ public class JZcmdExecuter {
      */
     void textAppendToVarOrOut(JZcmdScript.TextOut statement, StringFormatter out, int nDebug) throws Exception
     { StringFormatter out1;
-      boolean bShouldClose;
+      //boolean bShouldClose;
       if(statement.variable !=null){
         Object chn;
         //Object oVar = DataAccess.access(statement.variable.datapath(), null, localVariables, bAccessPrivate, false, true, null);
@@ -1152,18 +1159,18 @@ public class JZcmdExecuter {
         }
         if(chn instanceof StringFormatter){
           out1 = (StringFormatter)chn;
-          bShouldClose = false;
+          //bShouldClose = false;
         } else if((chn instanceof Appendable)) {
-          out1 = new StringFormatter((Appendable)chn, "\n", 200);  //append, it may be a StringPartAppend.
-          bShouldClose = true;
+          out1 = new StringFormatter((Appendable)chn, chn instanceof Closeable, "\n", 200);  //append, it may be a StringPartAppend.
+          //bShouldClose = true;
         } else {
           throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
           out1 = new StringFormatter();  //NOTE: it is a dummy because the statement above throws.
-          bShouldClose = false;
+          //bShouldClose = false;
         }
       } else {
         out1 = out;
-        bShouldClose = false;
+        //bShouldClose = false;
       }
       if(statement.statementlist !=null){
         //executes the statement, use the Appendable to output immediately
@@ -1179,9 +1186,9 @@ public class JZcmdExecuter {
           }
         }
       }
-      if(bShouldClose){
-        out1.close();
-      }
+      //if(bShouldClose){
+      //  out1.close();
+      //}
     }
     
     
@@ -1229,7 +1236,7 @@ public class JZcmdExecuter {
               ref = evalObject(actualArg, false);
               JZcmdScript.DefVariable checkArg = check.remove(actualArg.getIdent());      //is it a requested argument (per name)?
               if(checkArg == null){
-                ok = writeError("JZcmd.execCall - unexpected argument;" + nameSubtext + ": " + actualArg.identArgJbat, out);
+                ok = writeError("JZcmd.execCall - unexpected argument; "  + actualArg.identArgJbat + ": in call " + nameSubtext, callStatement, out);
               } else {
                 char cType = checkArg.elementType();
                 //creates the argument variable with given actual value and the requested type in the sub level.
@@ -1245,7 +1252,7 @@ public class JZcmdExecuter {
               String name = arg.name();
               JZcmdScript.DefVariable checkArg = check.remove(name);      //is it a requested argument (per name)?
               if(checkArg == null){
-                ok = writeError("JZcmd.execCall - unexpected argument;" + nameSubtext + ": " + name, out);
+                ok = writeError("JZcmd.execCall - unexpected argument;" + name + "; for " + nameSubtext, callStatement, out);
               } else {
                 char cType = checkArg.elementType();
                 //creates the argument variable with given actual value and the requested type in the sub level.
@@ -1265,7 +1272,7 @@ public class JZcmdExecuter {
             DataAccess.createOrReplaceVariable(sublevel.localVariables, name, cType, ref, false);
           }
         } else if(callStatement.actualArgs !=null){
-          ok = writeError("??: call" + nameSubtext + " called with arguments, it has not one.??", out);
+          ok = writeError("JZcmd.execCall - not expected arguments for;" + nameSubtext, callStatement, out);
         }
         if(ok){
           success = sublevel.execute(subtextScript.statementlist, out, indentOut, false, nDebug);
@@ -1392,18 +1399,28 @@ public class JZcmdExecuter {
       } else {
         sCmd = statement.textArg;
       }
-      String[] args;
+      List<String> args = new ArrayList<String>();
+      args.add(sCmd.toString());
       if(statement.cmdArgs !=null){
-        args = new String[statement.cmdArgs.size() +1];
         int iArg = 1;
         for(JZcmdScript.JZcmditem arg: statement.cmdArgs){
-          String sArg = evalString(arg).toString(); //XXXascertainText(arg.expression, localVariables);
-          args[iArg++] = sArg;
+          if(arg.elementType == 'L'){
+            Object oVal = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
+            if(oVal instanceof List<?>){
+              @SuppressWarnings("unchecked")
+              List<Object> arglist = (List<Object>)oVal;
+              for(Object oArg: arglist){
+                args.add( oArg.toString());
+              }
+            } else {
+              
+            }
+          } else {
+            String sArg = evalString(arg).toString(); //XXXascertainText(arg.expression, localVariables);
+            args.add(sArg);
+          }
         }
-      } else { 
-        args = new String[1]; 
       }
-      args[0] = sCmd.toString();
       if(statement.bCmdCheck){
         setLocalVariable("argsCheck", 'L', args, true);
       }
@@ -1460,7 +1477,9 @@ public class JZcmdExecuter {
       //
       //execute, run other process on operation system. With or without wait.
       //
-      this.cmdErrorlevel = cmdExecuter.execute(args, statement.bShouldNotWait, null, outCmd, null);
+      String[] sArgs = new String[args.size()]; 
+      args.toArray(sArgs);
+      this.cmdErrorlevel = cmdExecuter.execute(sArgs, statement.bShouldNotWait, null, outCmd, null);
       //
       //close
       //
@@ -1581,6 +1600,14 @@ public class JZcmdExecuter {
       File fileDst = new File(s2.toString());
       int nrofBytes = FileSystem.copyFile(fileSrc, fileDst);
       if(nrofBytes <0) throw new FileNotFoundException("JbatchExecuter - copy src not found; " + fileSrc.getAbsolutePath() + " to " + fileDst.getAbsolutePath());;
+    }
+    
+    void executeDelete(JZcmdScript.CallStatement statement) 
+    throws Exception
+    {
+      CharSequence s1 = evalString(statement.actualArgs.get(0));
+      boolean isDeleted = FileSystem.delete(s1.toString());
+      if(!isDeleted) throw new FileNotFoundException("JbatchExecuter - del not possible; " + s1);;
     }
     
     /**Creates a new FileWriter with the given name {@link #evalString(org.vishia.cmd.JZcmdScript.Argument)}
@@ -2114,11 +2141,11 @@ public class JZcmdExecuter {
      * @return false to assign to an ok variable.
      * @throws IOException
      */
-    boolean writeError(String sError, Appendable out) throws IOException{
+    boolean writeError(String sError, JZcmdScript.JZcmditem statement, Appendable out) throws IOException{
       if(bWriteErrorInOutput){
-        out.append(sError);
+        out.append("<??? " + sError + "; in statement; " +statement.toString() + " ???>");
       } else {
-        throw new IllegalArgumentException(sError); 
+        throw new IllegalArgumentException(sError + "; in statement; " + statement.toString()); 
       }
       return false;
 
@@ -2210,6 +2237,18 @@ public class JZcmdExecuter {
     
     public ExitException(int exitLevel){
       this.exitLevel = exitLevel;
+    }
+  }
+  
+  
+  public static class ForwardException extends Exception
+  {
+    private static final long serialVersionUID = 1L;
+    
+    public int exitLevel;
+    
+    public ForwardException(String msg){
+      super(msg);
     }
   }
   

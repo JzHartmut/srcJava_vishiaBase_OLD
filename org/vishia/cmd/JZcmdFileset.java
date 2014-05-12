@@ -36,7 +36,8 @@ import org.vishia.util.FilePath;
  *                                                        -someFiles: boolean
  *                                                        -ext
  * </pre>
- * 
+ * @see {@link JZcmdAccessFileset}. That class refers this and contains an access path, used as argument in a zmake call
+ *   or as Argument build with <code>call ...( name = Fileset accesspath&FilesetVariable)</code> in a JZcmd script.
  */
 public class JZcmdFileset
 {

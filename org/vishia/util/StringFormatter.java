@@ -31,6 +31,7 @@ import java.io.Closeable;
 import java.io.Flushable;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.io.Writer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -54,11 +55,14 @@ import java.util.Date;
  * Every {@link pos(int)}-operation is successfully. If the buffer in shorter as the required position, spaces will be filled
  * onto the required position. So a buffer content can also be filled first right, than left.
  */
-public class StringFormatter implements Appendable, Closeable
+public class StringFormatter implements Appendable, Closeable, Flushable
 {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-10: Hartmut new: implements Closeable, {@link #close()}, 
+   *   ctor {@link #StringFormatter(Appendable, boolean, String, int)} to close the aggregated appendable.
+   *   Need for JZcmd 
    * <li>2014-03-13: Hartmut new {@link #pos(int, int)} 
    * <li>2013-03-31: Hartmut new {@link #convertTimestampToday(long)}
    * <li>2013-01-19: Hartmut new: {@link #addReplaceLinefeed(CharSequence, CharSequence, int)}.
@@ -132,7 +136,9 @@ public class StringFormatter implements Appendable, Closeable
   /**Destination to output a full line.
    * If not null, then the line will be written if a \n character is in the buffer.
    */
-  protected final Appendable lineout;
+  protected Appendable lineout;
+  
+  private final boolean bShouldLineoutClose;
   
   /**The last written Character on {@link #append(char)}.
    * If it is a '\r' a following '\n' does not force a newline. 
@@ -173,6 +179,7 @@ public class StringFormatter implements Appendable, Closeable
   public StringFormatter()
   { buffer = new StringBuilder();
     lineout = null;
+    bShouldLineoutClose = false;
   }
 
 
@@ -183,24 +190,28 @@ public class StringFormatter implements Appendable, Closeable
    * It means the internal buffer contains only the current line. This current line
    * can be formatted in the known kind.
    * @param lineout Any appendable (Writer)
+   * @param shouldClose if true then closes the lineout if this is closed. If true lineout have to be instanceof Closeable.
    * @param newlineString usual "\n", "\r\n" or "\r" 
    * @param defaultBufferLength usual about 100..200 for the length of line. The buffer will be increased 
    *   if a longer line is necessary.
    */
-  public StringFormatter(Appendable lineout, String newlineString, int defaultBufferLength)
+  public StringFormatter(Appendable lineout, boolean shouldClose, String newlineString, int defaultBufferLength)
   { buffer = new StringBuilder(defaultBufferLength);
     this.sNewline = newlineString;
     this.lineout = lineout;
+    if(shouldClose){ assert(lineout instanceof Closeable); }
+    bShouldLineoutClose = shouldClose;
   }
 
 
   
   /**Constructs an instance with a StringBuffer of the given length.
-   * @param length lenngth of the internal StringBuffer.
+   * @param length length of the internal StringBuffer.
    */
   public StringFormatter(int length)
   { buffer = new StringBuilder(length);
     lineout = null;
+    bShouldLineoutClose = false;
   }
 
 
@@ -211,6 +222,7 @@ public class StringFormatter implements Appendable, Closeable
   public StringFormatter(String str)
   { buffer = new StringBuilder(str);
     lineout = null;
+    bShouldLineoutClose = false;
   }
 
 
@@ -222,6 +234,7 @@ public class StringFormatter implements Appendable, Closeable
   public StringFormatter(StringBuilder buffer)
   { this.buffer = buffer;
     lineout = null;
+    bShouldLineoutClose = false;
   }
 
 
@@ -1120,10 +1133,29 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
 
 
   @Override
+  public void flush() throws IOException
+  {
+    if(lineout !=null){
+      lineout.append(buffer);
+      if(lineout instanceof Flushable){
+        ((Flushable)lineout).flush();
+      }
+    }
+    reset();
+  }
+
+
+
+   
+  @Override
   public void close() throws IOException
   {
     if(lineout !=null){
       lineout.append(buffer);
+      if(bShouldLineoutClose){
+        ((Closeable)lineout).close();
+        lineout = null;
+      }
     }
     reset();
   }
