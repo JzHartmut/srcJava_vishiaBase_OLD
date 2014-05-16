@@ -54,6 +54,9 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-10 Hartmut new: File: supported as conversion with currdir. See {@link JZcmdScript.JZcmdDataAccess#filepath}.
+   * <li>2014-05-10 Hartmut new: {@link ExecuteLevel#cmdExecuter} instantiated in a whole subroutine. It is more faster
+   *   instead creating a new instance for any cmd invocation.
    * <li>2014-04-24 Hartmut chg: {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)} 
    *   returns nothing, No confusion between argument out and return value! If out is not given,
    *   then <:>text<.> is not possible. It causes an NullPointerException which may be thrown.
@@ -354,7 +357,8 @@ public class JZcmdExecuter {
       if(sCurrdirArg ==null){
         //sCurrdirScript contains a relative path or "." per default.
         //create from the operation systems current directory of this process with the maybe given relative path.
-        currdir = new File(sCurrdirScript.toString()).getCanonicalFile().getParentFile();
+        File currfile = new File(sCurrdirScript.toString()).getCanonicalFile();
+        currdir = currfile.isDirectory() ? currfile : currfile.getParentFile();
       } else {
         File currdirArg;
         if(FileSystem.isAbsolutePath(sCurrdirArg)){
@@ -566,6 +570,9 @@ public class JZcmdExecuter {
     /**Not used yet. Only for debug! */
     public final ExecuteLevel parent;
     
+    /**Counts nesting of {@link #execute(org.vishia.cmd.JZcmdScript.StatementList, StringFormatter, int, boolean, Map, int)}
+     * 1->0: leaf execution of this level, close {@link #cmdExecuter}    */
+    int ctNesting = 0;
     
     final JZcmdThread threadData;
     
@@ -574,6 +581,11 @@ public class JZcmdExecuter {
      * errors are detected on runtime only. */
     public final IndexMultiTable<String, DataAccess.Variable<Object>> localVariables;
     
+    
+    /**Initialize firstly on demand. Don't close to speed up following cmd invocations.
+     */
+    public CmdExecuter cmdExecuter;
+
     /**Set on break statement. Used only in a for-container execution to break the loop over the elements. */
     private boolean isBreak;
     
@@ -582,7 +594,7 @@ public class JZcmdExecuter {
     /**The error level which is returned from an operation system cmd invocation.
      * It is used for the {@link #execCmdError(org.vishia.cmd.JZcmdScript.Onerror)}.
      */
-    private int cmdErrorlevel = 0;
+    public int cmdErrorlevel = 0;
     
     /**Constructs data for a local execution level.
      * @param parentVariables if given this variable are copied to the local ones.
@@ -644,7 +656,7 @@ public class JZcmdExecuter {
      * @return a StringBuilder instance which is not referenced elsewhere.
      */
     public CharSequence sCurrdir(){
-      CharSequence ret = FileSystem.normalizePath((File)localVariables.get("currdir").value());
+      CharSequence ret = FileSystem.normalizePath(currdir());
       if(!(ret instanceof StringBuilder)){
         ret = new StringBuilder(ret);
       }
@@ -720,7 +732,7 @@ public class JZcmdExecuter {
         , boolean bContainerHasNext, Map<String, DataAccess.Variable<Object>> newVariables, int nDebugP) 
     throws Exception 
     {
-
+      this.ctNesting +=1;
       //Generate direct requested output. It is especially on inner content-scripts.
       int indentOut = indentOutArg;
       int ixStatement = -1;
@@ -887,6 +899,14 @@ public class JZcmdExecuter {
       }
       else { return null; }
       */
+      if(--ctNesting <=0){
+        assert(ctNesting ==0);
+        //close this level.
+        if(cmdExecuter !=null){
+          cmdExecuter.close();
+          cmdExecuter = null;
+        }
+      }
       return ret;
     }
     
@@ -958,7 +978,7 @@ public class JZcmdExecuter {
     throws Exception
     {
       JZcmdScript.StatementList subContent = statement.statementlist();  //The same sub content is used for all container elements.
-      ExecuteLevel forExecuter = new ExecuteLevel(threadData, this, localVariables);
+      ExecuteLevel forExecuter = this; //new ExecuteLevel(threadData, this, localVariables);
       //creates the for-variable in the executer level.
       DataAccess.Variable<Object> forVariable = DataAccess.createOrReplaceVariable(forExecuter.localVariables, statement.forVariable, 'O', null, false);
       //a new level for the for... statements. It contains the foreachData and maybe some more variables.
@@ -1438,7 +1458,7 @@ public class JZcmdExecuter {
         } else { throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
         }
         if(statement.assignObjs !=null){
-          for(DataAccess assignObj1 : statement.assignObjs){
+          for(JZcmdScript.JZcmdDataAccess assignObj1 : statement.assignObjs){
             oOutCmd = dataAccess(assignObj1, localVariables, bAccessPrivate, false, false, null);
             //oOutCmd = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
             if(oOutCmd instanceof Appendable){
@@ -1450,30 +1470,32 @@ public class JZcmdExecuter {
         outCmd = null;
       }
       
-      CmdExecuter cmdExecuter = new CmdExecuter();
-      
-      Map<String,String> env = cmdExecuter.environment();
-      Iterator<DataAccess.Variable<Object>> iter = localVariables.iterator("$");
-      boolean cont = true;
-      //
-      //gather all variables starting with "$" as environment variable. 
-      //
-      while(cont && iter.hasNext()){
-        DataAccess.Variable<Object> variable = iter.next();
-        String name = variable.name();
-        Object oValue = variable.value(); 
-        if(name.startsWith("$") && oValue !=null){
-          String value = oValue.toString();
-          env.put(name.substring(1), value);
-        } else {
-          cont = false;
+      if(cmdExecuter == null){ 
+        cmdExecuter = new CmdExecuter(); 
+        Map<String,String> env = cmdExecuter.environment();
+        Iterator<DataAccess.Variable<Object>> iter = localVariables.iterator("$");
+        boolean cont = true;
+        //
+        //gather all variables starting with "$" as environment variable. 
+        //
+        while(cont && iter.hasNext()){
+          DataAccess.Variable<Object> variable = iter.next();
+          String name = variable.name();
+          Object oValue = variable.value(); 
+          if(name.startsWith("$") && oValue !=null){
+            String value = oValue.toString();
+            env.put(name.substring(1), value);
+          } else {
+            cont = false;
+          }
         }
+        File currdir = currdir();;
+        cmdExecuter.setCurrentDir(currdir);
       }
+      
       //
       //currdir
       //
-      File currdir = (File)localVariables.get("currdir").value();
-      cmdExecuter.setCurrentDir(currdir);
       //
       //execute, run other process on operation system. With or without wait.
       //
@@ -1483,8 +1505,6 @@ public class JZcmdExecuter {
       //
       //close
       //
-      cmdExecuter.close();
-      setLocalVariable("cmdErrorlevel", 'N', new CalculatorExpr.Value(cmdErrorlevel), true);
     }
     
 
@@ -1501,13 +1521,20 @@ public class JZcmdExecuter {
     void executeChangeCurrDir(JZcmdScript.JZcmditem statement)
     throws Exception
     {
-      CharSequence arg = evalString(statement);
-      changeCurrDir(arg, localVariables); 
+      /*if(statement.dataAccess !=null){
+        Object oDir = dataAccess(statement.dataAccess, localVariables, bAccessPrivate, false, false, null);
+        if(oDir instanceof File){
+          
+        }
+      } else */{
+        CharSequence arg = evalString(statement);
+        changeCurrDir(arg, localVariables); 
+      }
     }
 
     
     /**Executes the cd command: changes the directory in this execution level.
-     * @param arg maybe a relative path.
+     * @param arg maybe a relative path. If it is a StringBuilder, it will be changed on normalizePath.
      * @throws NoSuchFieldException if "currdir" is not found, unexpected.
      * @throws IllegalAccessException
      */
@@ -1519,7 +1546,8 @@ public class JZcmdExecuter {
       File cdnew;
       if(absPath){
         //Change the content of the currdir to the absolute directory.
-        cdnew = new File(arg.toString());
+        arg1 = FileSystem.normalizePath(arg);
+        cdnew = new File(arg1.toString());
         if(!cdnew.exists() || !cdnew.isDirectory()){
           throw new IllegalArgumentException("JZcmdExecuter - cd, dir not exists; " + arg);
         }
@@ -1628,7 +1656,7 @@ public class JZcmdExecuter {
         //build an absolute filename with $CD, the current directory of the file system is not proper to use.
         
         @SuppressWarnings("unused")
-        File cd = (File)localVariables.get("currdir").value();
+        File cd = currdir(); //(File)localVariables.get("currdir").value();
         //sFilename = cd + "/" + sFilename;
         File fWriter = new File(cd, sFilename);
         writer = new FileWriter(fWriter);
@@ -1788,7 +1816,12 @@ public class JZcmdExecuter {
         localVariables.add("return", ret);
       }
       storeValue(statement.defVariable, newVariables, val, bAccessPrivate);
-      
+      if(cmdExecuter !=null){
+        String name = statement.defVariable.datapath().get(0).ident();
+        if(name.startsWith("$")){
+          //an environment variable
+          cmdExecuter.environment().put(name,val.toString());
+      } }
     }
     
     
@@ -1802,7 +1835,7 @@ public class JZcmdExecuter {
     throws IllegalArgumentException, Exception
     {
       Object val = evalObject(statement, false);
-      DataAccess assignObj1 = statement.variable;
+      JZcmdScript.JZcmdDataAccess assignObj1 = statement.variable;
       Iterator<JZcmdScript.JZcmdDataAccess> iter1 = statement.assignObjs == null ? null : statement.assignObjs.iterator();
       while(assignObj1 !=null) {
         Object dst = dataAccess(assignObj1, localVariables, bAccessPrivate, false, false, null);
@@ -1912,15 +1945,24 @@ public class JZcmdExecuter {
      * @return
      * @throws Exception
      */
-    Object dataAccess(DataAccess dataAccess
+    Object dataAccess(JZcmdScript.JZcmdDataAccess dataAccess
     , Map<String, DataAccess.Variable<Object>> dataPool
     , boolean accessPrivate
     , boolean bContainer
     , boolean bVariable
     , DataAccess.Dst dst
     ) throws Exception {
-      calculateArguments(dataAccess);
-      return DataAccess.access(dataAccess.datapath(), null, dataPool, accessPrivate, bContainer, bVariable, dst);
+      if(dataAccess.filepath !=null){
+        //Special case in JZcmd: a File.
+        if(FileSystem.isAbsolutePath(dataAccess.filepath)){
+          return new File(dataAccess.filepath);
+        } else {
+          return new File(currdir(), dataAccess.filepath);
+        }
+      } else {
+        calculateArguments(dataAccess);
+        return DataAccess.access(dataAccess.datapath(), null, dataPool, accessPrivate, bContainer, bVariable, dst);
+      }
     }
       
     

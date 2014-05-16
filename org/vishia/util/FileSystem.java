@@ -290,11 +290,11 @@ public class FileSystem
    */
   public static String readFile(File file)
   { String sContent;
-    int sizeFile = (int) file.length();
-    char[] content = new char[sizeFile];
     try
     { Reader reader = new FileReader(file);
       BufferedReader bReader = new BufferedReader(reader);
+      int sizeFile = (int) file.length();
+      char[] content = new char[sizeFile];
       bReader.read(content);
       sContent = new String(content);
     }

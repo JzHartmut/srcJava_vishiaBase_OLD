@@ -553,11 +553,38 @@ public class StringFunctions {
   }
   
   
+
+  
+  /**Searches any char inside sChars in the given Charsequence
+   * @param begin start position to search in sq
+   * @param end length of sq or end position to test
+   * @param sChars Some chars to search in sq
+   *   If sChars contains a EOT character (code 03, {@link #cEndOfText}) then the search stops at this character 
+   *   or it is continued to the end of the range in sq. Then the length of the text range is returned
+   *   if another character in sChars is not found. 
+   *   It means: The end of the text range is adequate to an EOT-character. Note that EOT is not unicode,
+   *   but it is an ASCII control character.  
+   * @return The first position in sq of one of the character in sChars or -1 if not found in the given range.
+   */
+  public static int indexOfAnyChar(CharSequence sq, int begin, int end, String sChars)
+  { int pos = begin-1;  //pre-increment
+    while(++pos < end && sChars.indexOf(sq.charAt(pos)) < 0){ }  //while any of char in sChars not found:
+    if(pos < end 
+      || (pos == end && sChars.indexOf(cEndOfText) >= 0)
+      )
+    { return pos;
+    }
+    else  return -1;
+  }
+
+  
+
+  
   /**Searches the last occurrence of the given char in a CharSequence.
    * It is the adequate functionality like {@link java.lang.String#lastIndexOf(char, fromEnd)}. 
    * @param sq Any sequence
-   * @param fromIndex range, it starts comparison on to - str.lengt()
-   * @param to if > sq.length() uses sq.length()
+   * @param from range, it ends searching on from
+   * @param to if > sq.length() uses sq.length(), it starts searching on to-1
    * @param ch to search
    * @return -1 if not found, elsewhere the position inside sq, >=fromIndex and < to 
    */
@@ -582,6 +609,27 @@ public class StringFunctions {
   public static int lastIndexOf(CharSequence sq, char ch){
     return lastIndexOf(sq, 0, Integer.MAX_VALUE, ch);
   }
+
+  /**Searches the last occurrence of the given char in a CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#lastIndexOf(char, fromEnd)}. 
+   * @param sq Any sequence
+   * @param from range, it ends searching on from
+   *   if from < 0 it throws IndexOutOfBoundsException
+   * @param to if > sq.length() uses sq.length(), it starts searching on to-1
+   *   if to < from then returns -1 always.
+   *   if to < 0 then returns 
+   * @param chars to search
+   * @return -1 if not found, elsewhere the position inside sq, >=fromIndex and < to 
+   * @throws IndexOutOfBoundsException if from < 0 or to < 0
+   */
+  public static int lastIndexOfAnyChar(CharSequence sq, int from, int to, String chars){
+    int zsq = sq.length();
+    int ii = to > zsq ? zsq : to;
+    if(from <0) throw new IndexOutOfBoundsException("StringFunctions.lastIndexOfAnyChar - form <0; " + from);
+    while(--ii >= from && chars.indexOf(sq.charAt(ii))<0) {} //pre-decrement.
+    return ii >= from? ii+1 : -1;  //not found;
+  }
+  
 
   /**Checks whether the given CharSequence contains the other given CharSequence.
    * It is the adequate functionality like {@link java.lang.String#indexOf(String, int)}. 
@@ -628,38 +676,11 @@ public class StringFunctions {
   }
   
   
-  /**Searches any char inside sChars in the given Charsequence
-   * @param begin start position to search in sq
-   * @param end length of sq or end position to test
-   * @param sChars Some chars to search in sq
-   *   If sChars contains a EOT character (code 03, {@link #cEndOfText}) then the search stops at this character 
-   *   or it is continued to the end of the range in sq. Then the length of the text range is returned
-   *   if another character in sChars is not found. 
-   *   It means: The end of the text range is adequate to an EOT-character. Note that EOT is not unicode,
-   *   but it is an ASCII control character.  
-   * @return The first position of one of the character in sChars or -1 if not found in the given range.
-   */
-  public static int indexOfAnyChar(CharSequence sq, int begin, int end, String sChars)
-  { int pos = begin;
-    while(pos < end && sChars.indexOf(sq.charAt(pos)) < 0){  //while any of char in sChars not found:
-      pos += 1;
-    }
-    int nChars = pos - begin;
-    if(pos < end 
-      || (pos == end && sChars.indexOf(cEndOfText) >= 0)
-      )
-    { nChars = pos - begin;
-    }
-    else { nChars = -1; }
-    return nChars;
-  }
-
-  
   /**Checks whether the given CharSequence contains the other given CharSequence.
    * It is the adequate functionality like {@link java.lang.String#lastIndexOf(String, int)}. 
    * @param sq Any sequence where to search in
-   * @param fromIndex range, it starts comparison on to - str.lengt()
-   * @param to if > sq.length() uses sq.length()
+   * @param from range, it ends searching on from
+   * @param to if > sq.length() uses sq.length(), it starts searching on to-str.lsength()
    * @param str comparison sequence, check whether contained fully.
    * @return -1 if not found, elsewhere the position inside sq >=fromIndex and <= to - str.length()
    */

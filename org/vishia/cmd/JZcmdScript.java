@@ -12,6 +12,7 @@ import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.Assert;
 import org.vishia.util.CalculatorExpr;
 import org.vishia.util.DataAccess;
+import org.vishia.util.Debugutil;
 import org.vishia.util.FilePath;
 import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPart;
@@ -246,7 +247,7 @@ public class JZcmdScript {
     
     /**Any access to an Object, maybe content of a variable, maybe access to any Java data,
      * maybe invocation of a Java routine. */
-    public DataAccess dataAccess;
+    public JZcmdDataAccess dataAccess;
   
     /**Any calculation of data. */
     public CalculatorExpr expression;
@@ -339,9 +340,9 @@ public class JZcmdScript {
     }
 
     public void add_numExpr(JZcmdCalculatorExpr val){ 
-      DataAccess dataAccess = val.onlyDataAccess();
-      if(dataAccess !=null){
-        this.dataAccess = dataAccess;
+      DataAccess dataAccess1 = val.onlyDataAccess();
+      if(dataAccess1 !=null){
+        this.dataAccess = (JZcmdDataAccess)dataAccess1;
       } else {
         val.closeExprPreparation();
         this.expression = val.expr; 
@@ -355,9 +356,9 @@ public class JZcmdScript {
     }
 
     public void add_boolExpr(JZcmdCalculatorExpr val){ 
-      DataAccess dataAccess = val.onlyDataAccess();
-      if(dataAccess !=null){
-        this.dataAccess = dataAccess;
+      DataAccess dataAccess1 = val.onlyDataAccess();
+      if(dataAccess1 !=null){
+        this.dataAccess = (JZcmdDataAccess)dataAccess1;
       } else {
         val.closeExprPreparation();
         this.expression = val.expr; 
@@ -512,8 +513,14 @@ public class JZcmdScript {
   
   public static class JZcmdDataAccess extends DataAccess.DataAccessSet {
 
+    protected String filepath;
     
     public JZcmdDataAccess(){ super(); }
+    
+    public void set_file(String text){
+      Debugutil.stop();
+      filepath = text;
+    }
     
     @Override public final JZcmdDatapathElement new_datapathElement(){ return new JZcmdDatapathElement(); }
 
@@ -653,7 +660,7 @@ public class JZcmdScript {
     
     
     public void set_name(String name){
-      DataAccess.DataAccessSet dataAccess1 = new DataAccess.DataAccessSet();
+      JZcmdDataAccess dataAccess1 = new JZcmdDataAccess();
       this.dataAccess = dataAccess1;
       dataAccess1.set_startVariable(name);
     }
@@ -1560,7 +1567,7 @@ public class JZcmdScript {
     String forVariable;
     
     
-    DataAccess forContainer;
+    JZcmdDataAccess forContainer;
     
     ForStatement(StatementList parentList, char type){
       super(parentList, type);

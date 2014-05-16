@@ -102,6 +102,7 @@ public class StringPart implements CharSequence, Comparable<CharSequence>, Close
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-10 Hartmut new: {@link #line()} 
    * <li>2014-01-12 Hartmut new: {@link #setParttoMax()} usefully for new view to content.
    * <li>2013-12-29 Hartmut bugfix in {@link Part#Part(int, int)}   
    * <li>2013-10-26 Hartmut chg: Does not use substring yet, some gardening, renaming. 
@@ -816,6 +817,25 @@ public final char charAt(int index){
   
   
   
+  /**Sets the current Part from the current position to exactly one line.
+   * The start position of the current part will be set backward to the start of the line or to the start of the maximal part.
+   * The end position of the current part will be set to the end of the one line or the end of the maximal part
+   *   independent from the end of the current part before.
+   * The functionality of #found() is not influenced. It may be the return value from a seek before.   
+   * @return this
+   */
+  public StringPart line(){
+    int posStart = StringFunctions.lastIndexOfAnyChar(content, begiMin, begin, "\r\n");
+    if(posStart < 0){ posStart = begiMin; }
+    int posEnd = StringFunctions.indexOfAnyChar(content, begin, endMax, "\r\n");
+    if(posEnd <0){ posEnd = endMax; }
+    begin = posStart;
+    end = posEnd;
+    return this;
+  }
+  
+  
+  
   /** Displaces the start of the part for some chars to left or to right.
   If the seek operation would exceeds the maximal part borders, a StringIndexOutOfBoundsException is thrown.
 
@@ -1189,7 +1209,7 @@ return this;
     int max = (end - pos) < maxToTest ? end : pos + maxToTest;
     int found = StringFunctions.indexOfAnyChar(content, pos, max, sChars); 
     if(found <0) return found;
-    else return found + fromWhere;  //
+    else return found - begin;  //
   }
   
   /**Returns the position of one of the chars in sChars within the part, started inside the part with fromIndex,

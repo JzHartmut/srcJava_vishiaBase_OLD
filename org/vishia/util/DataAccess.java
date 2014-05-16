@@ -1451,6 +1451,15 @@ public class DataAccess {
     }
     
     
+    public SetDatapathElement new_startDatapath(){ return new SetDatapathElement(); }
+
+    public final void add_startDatapath(SetDatapathElement val){ 
+      if(val.ident.length()==0)
+        Debugutil.stop();
+      super.add_datapathElement(val); //Note: super does not get a SetDatapathElement but only its superclass.
+    }
+    
+    
     public final void set_envVariable(String ident){
       if(datapath == null){
         datapath = new ArrayList<DataAccess.DatapathElement>();
