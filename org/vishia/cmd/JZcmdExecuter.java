@@ -6,10 +6,12 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Reader;
 import java.io.Writer;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -20,6 +22,9 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import javax.script.Bindings;
+import javax.script.ScriptContext;
 
 
 
@@ -39,6 +44,7 @@ import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPartAppend;
 import org.vishia.util.StringSeq;
 import org.vishia.util.CalculatorExpr.Value;
+import org.vishia.util.IndexMultiTable.Provide;
 
 
 /**This class is the executer of JZcmd. With it both statements can be executed and texts from any Java-stored data 
@@ -55,6 +61,7 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-18 Hartmut new: try to implement javax.script interfaces, not ready yet
    * <li>2014-05-18 Hartmut chg: {@link ExecuteLevel#execSubroutine(org.vishia.cmd.JZcmdScript.Subroutine, Map, StringFormatter, int)}
    *   called from {@link org.vishia.zcmd.JZcmd#execSub(File, String, Map, ExecuteLevel)} for a sub routine in a new translated script.
    * <li>2014-05-18 Hartmut chg: Handling of {@link ExecuteLevel#currdir}   
@@ -528,7 +535,7 @@ public class JZcmdExecuter {
    * to generate an expression independent of an environment.
    *
    */
-  public final class ExecuteLevel
+  public final class ExecuteLevel implements ScriptContext
   {
     /**Not used yet. Only for debug! */
     public final ExecuteLevel parent;
@@ -2215,6 +2222,136 @@ public class JZcmdExecuter {
       u.append(", line ").append(statement.srcLine).append(" col ").append(statement.srcColumn);
       throw new IllegalArgumentException(u.toString());
     }
+
+
+
+    @Override
+    public Object getAttribute(String name)
+    { DataAccess.Variable<Object> var = localVariables.get(name);
+      if(var == null) return null;
+      else return var.value();
+    }
+
+
+
+    @Override
+    public Object getAttribute(String name, int scope)
+    { switch(scope){
+        case ScriptContext.ENGINE_SCOPE: return getAttribute(name); 
+        case ScriptContext.GLOBAL_SCOPE: return scriptLevel.getAttribute(name); 
+        default: throw new IllegalArgumentException("JZcmdExecuter.getAttribute - failed scope;" + scope);
+      } //switch
+    }
+
+
+
+    @Override
+    public int getAttributesScope(String name)
+    {
+      // TODO
+      return ScriptContext.ENGINE_SCOPE;
+    }
+
+
+
+    @Override
+    public Bindings getBindings(int scope)
+    { switch(scope){
+      case ScriptContext.ENGINE_SCOPE: return new JZcmdBindings(localVariables); 
+      case ScriptContext.GLOBAL_SCOPE: return new JZcmdBindings(scriptLevel.localVariables); 
+      default: throw new IllegalArgumentException("JZcmdExecuter.getBindings - failed scope;" + scope);
+    } //switch
+  }
+
+
+
+    @Override
+    public Writer getErrorWriter()
+    {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+
+
+    @Override
+    public Reader getReader()
+    {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+
+
+    @Override
+    public List<Integer> getScopes()
+    {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+
+
+    @Override
+    public Writer getWriter()
+    {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+
+
+    @Override
+    public Object removeAttribute(String name, int scope)
+    {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+
+
+    @Override
+    public void setAttribute(String name, Object value, int scope)
+    {
+      // TODO Auto-generated method stub
+      
+    }
+
+
+
+    @Override
+    public void setBindings(Bindings bindings, int scope)
+    {
+      // TODO Auto-generated method stub
+      
+    }
+
+
+
+    @Override
+    public void setErrorWriter(Writer writer)
+    {
+      // TODO Auto-generated method stub
+      
+    }
+
+
+
+    @Override
+    public void setReader(Reader reader)
+    {
+      // TODO Auto-generated method stub
+      
+    }
+
+
+
+    @Override
+    public void setWriter(Writer writer)
+    {
+      // TODO Auto-generated method stub
+      
+    }
     
   }  
   
@@ -2290,6 +2427,99 @@ public class JZcmdExecuter {
   }
   
   
+  /**
+  *
+  */
+ protected static class JZcmdBindings implements Bindings 
+ { 
+   private final IndexMultiTable<String, DataAccess.Variable<Object>> vars;
+
+   public JZcmdBindings(IndexMultiTable<String, DataAccess.Variable<Object>> vars)
+   { this.vars = vars;
+   }
+
+   @Override
+   public Object put(String name, Object value)
+   {
+     DataAccess.Variable<Object> var = new DataAccess.Variable<Object>('O', name, value, false);
+     return vars.put(name, var);
+   }
+
+    @Override
+    public boolean containsKey(Object key){ return vars.containsKey(key); }
+  
+    @Override
+    public Object get(Object key)
+    { DataAccess.Variable<Object> var = vars.get(key);
+      return var == null ? null : var.value();
+    }
+  
+    @Override
+    public void putAll(Map<? extends String, ? extends Object> toMerge)
+    {
+      // TODO Auto-generated method stub
+      
+    }
+  
+    @Override
+    public Object remove(Object key)
+    {
+      // TODO Auto-generated method stub
+      return null;
+    }
+  
+    @Override
+    public void clear()
+    {
+      // TODO Auto-generated method stub
+      
+    }
+  
+    @Override
+    public boolean containsValue(Object value)
+    {
+      // TODO Auto-generated method stub
+      return false;
+    }
+  
+    @Override
+    public Set<java.util.Map.Entry<String, Object>> entrySet()
+    {
+      // TODO Auto-generated method stub
+      return null;
+    }
+  
+    @Override
+    public boolean isEmpty()
+    {
+      // TODO Auto-generated method stub
+      return false;
+    }
+  
+    @Override
+    public Set<String> keySet()
+    {
+      // TODO Auto-generated method stub
+      return null;
+    }
+  
+    @Override
+    public int size()
+    {
+      // TODO Auto-generated method stub
+      return 0;
+    }
+  
+    @Override
+    public Collection<Object> values()
+    {
+      // TODO Auto-generated method stub
+      return null;
+    }
+     
+  }
+ 
+ 
   
   
   

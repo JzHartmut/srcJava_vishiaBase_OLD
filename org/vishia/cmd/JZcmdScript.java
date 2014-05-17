@@ -8,6 +8,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import javax.script.CompiledScript;
+import javax.script.ScriptContext;
+import javax.script.ScriptEngine;
+import javax.script.ScriptException;
+
 import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.Assert;
 import org.vishia.util.CalculatorExpr;
@@ -29,9 +34,11 @@ import org.vishia.util.StringPart;
  * @author Hartmut Schorrig
  *
  */
-public class JZcmdScript {
+public class JZcmdScript extends CompiledScript 
+{
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-18 Hartmut new: try to implement javax.script interfaces, not ready yet
    * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined here. Only one concept!
    * <li>2014-02-22 Hartmut new: Bool and Num as variable types.
    * <li>2014-02-16 Hartmut: new {@link #fileScript} stored here. 
@@ -152,30 +159,36 @@ public class JZcmdScript {
     this.fileScript = fileScript;
 
   }
-
   
-  public void setMainRoutine(Subroutine mainRoutine){
-    this.mainRoutine = mainRoutine;
+  
+  @Override
+  public Object eval(ScriptContext context) throws ScriptException
+  {
+    if(context instanceof JZcmdExecuter.ExecuteLevel){
+      JZcmdExecuter.ExecuteLevel level = (JZcmdExecuter.ExecuteLevel) context;
+      Subroutine main = getMain();
+      try{ level.execSubroutine(main, null, null, 0);
+      } catch(Exception exc){ throw new ScriptException(exc); }
+    } else {
+      
+    }
+    return null;
   }
+
+
+  @Override
+  public ScriptEngine getEngine()
+  {
+    // TODO Auto-generated method stub
+    return null;
+  }
+  
+  
+
   
   public JZcmdClass scriptClass(){ return scriptClass; }
   
   
-  public void XXXsetFromIncludedScript(ZbnfJZcmdScript includedScript){
-    if(includedScript.scriptfile.getMainRoutine() !=null){
-      //use the last found main, also from a included script but firstly from main.
-      mainRoutine = includedScript.scriptfile.getMainRoutine();   
-    }
-    if(includedScript.outer.scriptClass.statements !=null){
-      for(JZcmditem item: includedScript.outer.scriptClass.statements){
-        scriptClass.statements.add(item);
-        if(item instanceof DefVariable){
-          //listScriptVariables.add((DefVariable)item);
-        }
-      }
-    }
-
-  }
   
   public final Subroutine getMain(){ return mainRoutine; }
   
@@ -2661,14 +2674,14 @@ public class JZcmdScript {
   public final static class ZbnfJZcmdScript extends JZcmdClass
   {
 
-    protected final JZcmdScript outer;
+    private final JZcmdScript compiledScript;
     
     public Scriptfile scriptfile;    
     
-    public ZbnfJZcmdScript(JZcmdScript outer){
-      outer.super();   //JZcmdClass is non-static, enclosing is outer.
-      this.outer = outer;
-      outer.scriptClass = this; //outer.new JZcmdClass();
+    public ZbnfJZcmdScript(JZcmdScript compiledScript){
+      compiledScript.super();   //JZcmdClass is non-static, enclosing is outer.
+      this.compiledScript = compiledScript;
+      compiledScript.scriptClass = this; //outer.new JZcmdClass();
     }
     
     public void XXXset_include(String val){ 
@@ -2701,7 +2714,7 @@ public class JZcmdScript {
      * @return
      */
     public StatementList new_mainRoutine(){ 
-      scriptfile.mainRoutine = new Subroutine(outer.scriptClass); 
+      scriptfile.mainRoutine = new Subroutine(compiledScript.scriptClass); 
       scriptfile.mainRoutine.statementlist = new StatementList(null);
       return scriptfile.mainRoutine.statementlist;
     }
@@ -2712,8 +2725,15 @@ public class JZcmdScript {
     
     public JZcmditem new_checkJZcmd(){ return new JZcmditem(this, '\0'); } 
 
-    public void add_checkJZcmd(JZcmditem val){ outer.checkJZcmdFile = val; }
+    public void add_checkJZcmd(JZcmditem val){ compiledScript.checkJZcmdFile = val; }
 
+    
+    public void setMainRoutine(Subroutine mainRoutine){
+      compiledScript.mainRoutine = mainRoutine;
+    }
+    
+
+    
   }
   
 
@@ -2735,7 +2755,8 @@ public class JZcmdScript {
     
     
   }
-  
-  
+
+
+
 
 }

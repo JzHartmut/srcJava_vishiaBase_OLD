@@ -1791,8 +1791,9 @@ public final StringPart len0end()
    * @java2c=return-this.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
-  final StringPart trim()
-  { return seekNoChar(" \t\n\r").lenBacktoNoChar(" \t\n\r");
+  public final StringPart trim()
+  { return seekNoChar(" \t\n\r")   //start position increased
+      .lenBacktoNoChar(" \t\n\r");  //end position decreased
   }
 
 
