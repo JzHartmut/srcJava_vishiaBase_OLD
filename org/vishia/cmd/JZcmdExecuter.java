@@ -8,6 +8,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -54,6 +55,9 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-18 Hartmut chg: {@link ExecuteLevel#execSubroutine(org.vishia.cmd.JZcmdScript.Subroutine, Map, StringFormatter, int)}
+   *   called from {@link org.vishia.zcmd.JZcmd#execSub(File, String, Map, ExecuteLevel)} for a sub routine in a new translated script.
+   * <li>2014-05-18 Hartmut chg: Handling of {@link ExecuteLevel#currdir}   
    * <li>2014-05-10 Hartmut new: File: supported as conversion with currdir. See {@link JZcmdScript.JZcmdDataAccess#filepath}.
    * <li>2014-05-10 Hartmut new: {@link ExecuteLevel#cmdExecuter} instantiated in a whole subroutine. It is more faster
    *   instead creating a new instance for any cmd invocation.
@@ -205,6 +209,8 @@ public class JZcmdExecuter {
   /**The newline char sequence. */
   String newline = "\r\n";
   
+  int nextNr_ = 0;
+  
   /**Used for formatting Numbers. 
    * Problem in Germany: The numbers are written with , instead with a decimal point. 
    * Using Locale.ENGLISH produces the well used decimal point.
@@ -270,6 +276,9 @@ public class JZcmdExecuter {
    *   Especially it is used for {@link org.vishia.zmake.Zmake to set the currDir.} 
    * @throws IOException
    * @throws IllegalAccessException 
+   * @throws SecurityException 
+   * @throws NoSuchMethodException 
+   * @throws NoSuchFieldException 
    */
   public Map<String, DataAccess.Variable<Object>> genScriptVariables(
       JZcmdScript genScriptPar
@@ -278,9 +287,15 @@ public class JZcmdExecuter {
     , DataAccess.Variable<Object>> srcVariables
     , CharSequence sCurrdirArg
   ) 
-  throws IOException, IllegalAccessException
+  throws IOException, IllegalAccessException //, NoSuchMethodException, SecurityException, NoSuchFieldException
   {
     this.bAccessPrivate = accessPrivate;
+    if(sCurrdirArg == null && scriptLevel.currdir == null){
+      //get from the JVM environment respecitvely from the operation system.
+      scriptLevel.currdir = new File("").getAbsoluteFile();  
+    } else if(sCurrdirArg !=null) {
+      scriptLevel.changeCurrDir(sCurrdirArg);
+    }
     if(srcVariables !=null){
       for(Map.Entry<String, DataAccess.Variable<Object>> entry: srcVariables.entrySet()){
         DataAccess.Variable<Object> var = entry.getValue();
@@ -290,7 +305,6 @@ public class JZcmdExecuter {
     //do not replace variables which are set from outside.
     //if(scriptLevel.localVariables.get("error") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "error", 'A', accessError, true); }
     if(scriptLevel.localVariables.get("console") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "console", 'O', log, true); }
-    if(scriptLevel.localVariables.get("nextNr") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextNr", 'O', new NextNr(), true); }
     //DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nrElementInContainer", 'O', null);
     if(scriptLevel.localVariables.get("out") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "out", 'A', System.out, true); }
     if(scriptLevel.localVariables.get("err") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "err", 'A', System.err, true); }
@@ -309,6 +323,12 @@ public class JZcmdExecuter {
       //File dirscript = FileSystem.getDirectory(filescript).getCanonicalFile();
       DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "scriptdir", 'S', scriptdir, true);
     }
+    if(scriptLevel.localVariables.get("nextNr") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextNr", 'O', new NextNr(), true); }
+    try{ 
+      Method mCurrdir = getClass().getMethod("nextNr");
+      DataAccess.ObjMethod objMethod = new DataAccess.ObjMethod(mCurrdir, this);
+      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextnr", 'M', objMethod, true);
+    } catch(Exception exc){}
     //
     //generate all variables in this script:
     try{
@@ -316,74 +336,15 @@ public class JZcmdExecuter {
     } catch(Exception exc){
       System.out.println("JZcmd.genScriptVariables - Scriptvariable faulty; " + exc.getMessage() );
     }
-    setCurrdirScript(sCurrdirArg);
+    //setCurrdirScript(sCurrdirArg);
     bScriptVariableGenerated = true;
     return scriptLevel.localVariables;
   }
   
 
   
-  /**Sets or replaces the script variable <code>currdir</code> with that File, which is described by
-   * the sCurrdirArg and the maybe relative path of value of currdir.
-   * @param sCurrdirArg maybe null, then the system's current directory is used.
-   * @throws IllegalAccessException if any exception of {@link DataAccess#createOrReplaceVariable(Map, String, char, Object, boolean)}. 
-   * @throws IOException 
-   * @throws IllegalArgumentException Checks the existence of currdir.
-   */
-  private void setCurrdirScript(CharSequence sCurrdirArg) throws IllegalAccessException, IOException
-  {
-    final File currdir;
-    CharSequence sCurrdirScript = ".";
-    Object oCurrdirScript = null;
-    try{ 
-      //currdir may be a String or CharSequence if the script contains a text expression.
-      //it may be a File object too especially in secondary called scripts.
-      //set sCurrdirScript with it.
-      oCurrdirScript = DataAccess.getData("currdir", scriptLevel.localVariables, false, false, false, null);
-      //assignment currdir exists.
-      if(oCurrdirScript instanceof CharSequence){ sCurrdirScript = (CharSequence)oCurrdirScript; }
-      else { sCurrdirScript = oCurrdirScript.toString(); }
-    } catch(NoSuchFieldException exc){} //currdir is not found, don't use it.
-    //
-    if(FileSystem.isAbsolutePath(sCurrdirScript)){
-      if(oCurrdirScript instanceof File){
-        currdir = (File)oCurrdirScript;
-      } else {
-        currdir = new File(sCurrdirScript.toString()).getCanonicalFile();
-      }
-    }
-    else { 
-      //not determined by an absolute currdir = scriptvalue
-      if(sCurrdirArg ==null){
-        //sCurrdirScript contains a relative path or "." per default.
-        //create from the operation systems current directory of this process with the maybe given relative path.
-        File currfile = new File(sCurrdirScript.toString()).getCanonicalFile();
-        currdir = currfile.isDirectory() ? currfile : currfile.getParentFile();
-      } else {
-        File currdirArg;
-        if(FileSystem.isAbsolutePath(sCurrdirArg)){
-          currdirArg = new File(sCurrdirArg.toString()).getCanonicalFile();
-        } else {
-          currdirArg = new File(sCurrdirArg.toString()).getAbsoluteFile().getCanonicalFile();
-        }
-        if(currdirArg.isFile()){ 
-          currdirArg = currdirArg.getParentFile().getCanonicalFile();
-        }
-        if(StringFunctions.equals(sCurrdirScript, ".")){
-          currdir = currdirArg.getCanonicalFile();
-        } else {
-          currdir = (new File(currdirArg, sCurrdirScript.toString())).getCanonicalFile();
-        }
-      }
-    }
-    if(!currdir.exists()){
-      throw new IllegalArgumentException("JZcmdExecuter - currdir does not exists; " 
-          + currdir.getPath() + "; arg=" + sCurrdirArg + "; script=" + sCurrdirScript);
-    }
-    DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "currdir", 'O', currdir, false);
-  }
 
-
+  public CharSequence currdir(){ return scriptLevel.currdir(); }
   
   /**Initializes without any script variables, clears the instance.
    * 
@@ -409,6 +370,8 @@ public class JZcmdExecuter {
    * @param accessPrivate decision whether private and protected members from Java instances can be accessed.   
    * @throws IOException only if out.append throws it.
    * @throws IllegalAccessException if a const scriptVariable are attempt to modify.
+   * @throws SecurityException not expected
+   * @throws NoSuchMethodException not expected 
    */
   public void initialize(JZcmdScript genScriptPar, boolean accessPrivate, String sCurrdir) 
   throws IOException, IllegalAccessException
@@ -447,7 +410,7 @@ public class JZcmdExecuter {
       genScriptVariables(genScript, accessPrivate, null, sCurrdir);
     }
     setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
-    ExecuteLevel execFile = new ExecuteLevel(scriptThread, null, null);
+    ExecuteLevel execFile = new ExecuteLevel(scriptThread, scriptLevel, null);
     if(genScript.checkJZcmdFile !=null){
       CharSequence sFilecheck = execFile.evalString(genScript.checkJZcmdFile);
       File filecheck = new File(sFilecheck.toString());
@@ -499,7 +462,7 @@ public class JZcmdExecuter {
     //The args should be added to the localVariables of the subroutines level:
     level.localVariables.putAll(args);
     if(currdir !=null){
-      DataAccess.createOrReplaceVariable(level.localVariables, "currdir", 'O', currdir, false);
+      level.changeCurrDir(currdir.getPath());
     }
     setScriptVariable("text", 'A', out, true);
     //Executes the statements of the sub routine:
@@ -530,11 +493,6 @@ public class JZcmdExecuter {
   
   
 
-  protected Map<String, DataAccess.Variable> xnew_Variables(){
-    return new TreeMap<String, DataAccess.Variable>();
-    
-  }
-  
 
   protected IndexMultiTable<String, DataAccess.Variable<Object>> new_Variables(){
     return new IndexMultiTable<String, DataAccess.Variable<Object>>(IndexMultiTable.providerString);
@@ -558,7 +516,12 @@ public class JZcmdExecuter {
     return text;
   }
   
+  public String nextNr(){
+    return Integer.toString(++nextNr_); 
+  }
   
+  
+
   
   /**Wrapper to generate a script with specified localVariables.
    * A new Wrapper is created on any subroutine level. It is used in a {@link CalculatorExpr#calcDataAccess(Map, Object...)} 
@@ -575,6 +538,11 @@ public class JZcmdExecuter {
     int ctNesting = 0;
     
     final JZcmdThread threadData;
+    
+    
+    /**The current directory of this level. It is an absolute normalized but not Unix-canonical path. 
+     * Note that a canonical path resolved symbolic links. */
+    File currdir;
     
     /**Generated content of local variables in this nested level including the {@link ZbatchExecuter#scriptLevel.localVariables}.
      * The variables are type invariant on language level. The type is checked and therefore 
@@ -603,11 +571,17 @@ public class JZcmdExecuter {
      *   local variables of its calling routine! This argument is only set if nested statement blocks
      *   are to execute. 
      */
-    protected ExecuteLevel(JZcmdThread threadData, ExecuteLevel parent, Map<String, DataAccess.Variable<Object>> parentVariables)
+    protected ExecuteLevel(JZcmdThread threadData, ExecuteLevel parent
+        , Map<String, DataAccess.Variable<Object>> parentVariables)
     { this.parent = parent;
       this.threadData = threadData;
+      if(parent !=null) {
+        this.currdir = parent.currdir;
+      }
       localVariables = new_Variables();
-      if(parentVariables == null){
+      if(parentVariables != null) {
+        localVariables.putAll(parentVariables);  //use the same if it is not a subText, only a 
+      } else if(scriptLevel !=null) {
         for(Map.Entry<String, DataAccess.Variable<Object>> e: scriptLevel.localVariables.entrySet()){
           DataAccess.Variable<Object> var = e.getValue();
           String key = e.getKey();
@@ -622,8 +596,6 @@ public class JZcmdExecuter {
             localVariables.put(key, var2);
           }
         }
-      } else {
-        localVariables.putAll(parentVariables);  //use the same if it is not a subText, only a 
       }
       try{ 
         DataAccess.createOrReplaceVariable(localVariables,  "jzcmdsub", 'O', this, true);
@@ -636,9 +608,7 @@ public class JZcmdExecuter {
     /**Constructs data for the script execution level.
      */
     protected ExecuteLevel(JZcmdThread threadData)
-    { this.parent = null;
-      this.threadData = threadData;
-      localVariables = new_Variables();
+    { this(threadData, null, null);
     }
 
     
@@ -647,22 +617,6 @@ public class JZcmdExecuter {
     public MainCmdLogging_ifc log(){ return log; }
     
     
-    
-    public File currdir(){
-      return (File)localVariables.get("currdir").value();
-    }
-    
-    /**Returns the current directory with slash on end.
-     * @return a StringBuilder instance which is not referenced elsewhere.
-     */
-    public CharSequence sCurrdir(){
-      CharSequence ret = FileSystem.normalizePath(currdir());
-      if(!(ret instanceof StringBuilder)){
-        ret = new StringBuilder(ret);
-      }
-      ((StringBuilder)ret).append('/');
-      return ret;
-    }
     
     public void setLocalVariable(String name, char type, Object content, boolean isConst) 
     throws IllegalAccessException {
@@ -877,6 +831,7 @@ public class JZcmdExecuter {
             if(threadData.error.value()==null){
               threadData.error.setValue(sExc);
             }
+            endExecution();  //closes the ExecuteLevel because it is leaved with throw
             if(exc1 instanceof ForwardException){
               throw (ForwardException)exc1; 
             } else {
@@ -899,6 +854,13 @@ public class JZcmdExecuter {
       }
       else { return null; }
       */
+      endExecution();
+      return ret;
+    }
+    
+    
+    
+    private void endExecution(){
       if(--ctNesting <=0){
         assert(ctNesting ==0);
         //close this level.
@@ -907,9 +869,7 @@ public class JZcmdExecuter {
           cmdExecuter = null;
         }
       }
-      return ret;
     }
-    
     
     
     void executeText(JZcmdScript.JZcmditem statement, Appendable out, int indentOut) throws IOException{
@@ -1222,7 +1182,6 @@ public class JZcmdExecuter {
         , StringFormatter out, int indentOut, int nDebug) 
     throws IllegalArgumentException, Exception
     { int success = kSuccess;
-      boolean ok = true;
       final CharSequence nameSubtext;
       /*
       if(statement.name == null){
@@ -1233,85 +1192,128 @@ public class JZcmdExecuter {
         nameSubtext = statement.name;
       }*/
       nameSubtext = evalString(callStatement.callName); 
-      JZcmdScript.Subroutine subtextScript = genScript.getSubtextScript(nameSubtext);  //the subtext script to call
+      JZcmdScript.Subroutine subtextScript = genScript.getSubroutine(nameSubtext);  //the subtext script to call
       if(subtextScript == null){
         throw new NoSuchElementException("JbatExecuter - subroutine not found; " + nameSubtext);
       } else {
         ExecuteLevel sublevel = new ExecuteLevel(threadData, this, null);
-        if(subtextScript.formalArgs !=null){
-          //
-          //build a Map temporary to check which arguments are used:
-          //
-          TreeMap<String, JZcmdScript.DefVariable> check = new TreeMap<String, JZcmdScript.DefVariable>();
-          for(JZcmdScript.DefVariable formalArg: subtextScript.formalArgs) {
-            check.put(formalArg.getVariableIdent(), formalArg);
-          }
-          //
-          //process all actual arguments:
-          //
-          List<JZcmdScript.Argument> actualArgs = callStatement.actualArgs;
-          if(actualArgs !=null){
-            for( JZcmdScript.Argument actualArg: actualArgs){  //process all actual arguments
-              Object ref;
-              ref = evalObject(actualArg, false);
-              JZcmdScript.DefVariable checkArg = check.remove(actualArg.getIdent());      //is it a requested argument (per name)?
-              if(checkArg == null){
-                ok = writeError("JZcmd.execCall - unexpected argument; "  + actualArg.identArgJbat + ": in call " + nameSubtext, callStatement, out);
-              } else {
-                char cType = checkArg.elementType();
-                //creates the argument variable with given actual value and the requested type in the sub level.
-                DataAccess.createOrReplaceVariable(sublevel.localVariables, actualArg.identArgJbat, cType, ref, false);
-              }
-            }
-          }
-          //
-          //process additional arguments
-          //
-          if(additionalArgs !=null){
-            for(DataAccess.Variable<Object> arg: additionalArgs){
-              String name = arg.name();
-              JZcmdScript.DefVariable checkArg = check.remove(name);      //is it a requested argument (per name)?
-              if(checkArg == null){
-                ok = writeError("JZcmd.execCall - unexpected argument;" + name + "; for " + nameSubtext, callStatement, out);
-              } else {
-                char cType = checkArg.elementType();
-                //creates the argument variable with given actual value and the requested type in the sub level.
-                DataAccess.createOrReplaceVariable(sublevel.localVariables, name, cType, arg.value(), false);
-              }
-            }
-          }
-          //check whether all formal arguments are given with actual args or get its default values.
-          //if not all variables are correct, write error.
-          for(Map.Entry<String, JZcmdScript.DefVariable> checkArg : check.entrySet()){
-            JZcmdScript.DefVariable arg = checkArg.getValue();
-            //Generate on scriptLevel (classLevel) because the formal parameter list should not know things of the calling environment.
-            Object ref = scriptLevel.evalObject(arg, false);
-            String name = arg.getVariableIdent();
-            char cType = arg.elementType();
-            //creates the argument variable with given default value and the requested type.
-            DataAccess.createOrReplaceVariable(sublevel.localVariables, name, cType, ref, false);
-          }
-        } else if(callStatement.actualArgs !=null){
-          ok = writeError("JZcmd.execCall - not expected arguments for;" + nameSubtext, callStatement, out);
-        }
-        if(ok){
-          success = sublevel.execute(subtextScript.statementlist, out, indentOut, false, nDebug);
-          if(success == kBreak || success == kReturn){
-            success = kSuccess;  //break or return in subroutine ignored on calling level!
-          }
+        String error = execSubroutine(subtextScript, sublevel, callStatement.actualArgs, additionalArgs, out, indentOut, nDebug);
+        if(error !=null){
+          writeError("JZcmd.execCall - " + error + "; in call " + nameSubtext, callStatement, out);
+
+        } else {
           if(callStatement.variable !=null || callStatement.assignObjs !=null){
             DataAccess.Variable<Object> retVar = sublevel.localVariables.get("return");
             Object value = retVar !=null ? retVar.value() : null;
             assignObj(callStatement, value, false);
           }
+          
         }
       }
       return success;
     }
     
-   
+
+    
+    /**Executes a subroutine invoked from outside of this class
+     * @param substatement Statement of the subroutine
+     * @param args Any given arguments in form of a ma.
+     * @param out output
+     * @param indentOut
+     * @return null on success, an error message on parameter error
+     * @throws Exception
+     */
+    public String execSubroutine(JZcmdScript.Subroutine substatement
+        , Map<String, DataAccess.Variable<Object>> args
+        , StringFormatter out, int indentOut
+    ) throws Exception 
+    {
+      ExecuteLevel sublevel = new ExecuteLevel(threadData, this, null);
+      final List<DataAccess.Variable<Object>> arglist;
+      if(args !=null){
+        arglist = new LinkedList<DataAccess.Variable<Object>>();
+        for(Map.Entry<String, DataAccess.Variable<Object>> entry: args.entrySet()){
+          arglist.add(entry.getValue());
+        }
+      } else {
+        arglist = null;
+      }
+      return execSubroutine(substatement, sublevel, null, arglist, out, indentOut, -1);
+    }
     
     
+    private String execSubroutine(JZcmdScript.Subroutine subtextScript
+        , ExecuteLevel sublevel
+        , List<JZcmdScript.Argument> actualArgs
+        , List<DataAccess.Variable<Object>> additionalArgs
+        , StringFormatter out, int indentOut, int nDebug
+    ) throws Exception
+    {
+      String error = null;
+      int success = kSuccess;
+      if(subtextScript.formalArgs !=null){
+        //
+        //build a Map temporary to check which arguments are used:
+        //
+        TreeMap<String, JZcmdScript.DefVariable> check = new TreeMap<String, JZcmdScript.DefVariable>();
+        for(JZcmdScript.DefVariable formalArg: subtextScript.formalArgs) {
+          check.put(formalArg.getVariableIdent(), formalArg);
+        }
+        //
+        //process all actual arguments:
+        //
+        if(actualArgs !=null){
+          for( JZcmdScript.Argument actualArg: actualArgs){  //process all actual arguments
+            Object ref;
+            ref = evalObject(actualArg, false);
+            JZcmdScript.DefVariable checkArg = check.remove(actualArg.getIdent());      //is it a requested argument (per name)?
+            if(checkArg == null){
+              error = "unexpected argument; "  + actualArg.identArgJbat;
+            } else {
+              char cType = checkArg.elementType();
+              //creates the argument variable with given actual value and the requested type in the sub level.
+              DataAccess.createOrReplaceVariable(sublevel.localVariables, actualArg.identArgJbat, cType, ref, false);
+            }
+          }
+        }
+        //
+        //process additional arguments
+        //
+        if(additionalArgs !=null){
+          for(DataAccess.Variable<Object> arg: additionalArgs){
+            String name = arg.name();
+            JZcmdScript.DefVariable checkArg = check.remove(name);      //is it a requested argument (per name)?
+            if(checkArg == null){
+              error = "unexpected additional argument;" + name;
+            } else {
+              char cType = checkArg.elementType();
+              //creates the argument variable with given actual value and the requested type in the sub level.
+              DataAccess.createOrReplaceVariable(sublevel.localVariables, name, cType, arg.value(), false);
+            }
+          }
+        }
+        //check whether all formal arguments are given with actual args or get its default values.
+        //if not all variables are correct, write error.
+        for(Map.Entry<String, JZcmdScript.DefVariable> checkArg : check.entrySet()){
+          JZcmdScript.DefVariable arg = checkArg.getValue();
+          //Generate on scriptLevel (classLevel) because the formal parameter list should not know things of the calling environment.
+          Object ref = scriptLevel.evalObject(arg, false);
+          String name = arg.getVariableIdent();
+          char cType = arg.elementType();
+          //creates the argument variable with given default value and the requested type.
+          DataAccess.createOrReplaceVariable(sublevel.localVariables, name, cType, ref, false);
+        }
+      } else if(actualArgs !=null){
+        error = "not expected arguments";
+      }
+      if(error == null){
+        success = sublevel.execute(subtextScript.statementlist, out, indentOut, false, nDebug);
+        if(success == kBreak || success == kReturn){
+          success = kSuccess;  //break or return in subroutine ignored on calling level!
+        }
+      }
+      return error;
+    }
     
     
     
@@ -1489,7 +1491,6 @@ public class JZcmdExecuter {
             cont = false;
           }
         }
-        File currdir = currdir();;
         cmdExecuter.setCurrentDir(currdir);
       }
       
@@ -1528,41 +1529,34 @@ public class JZcmdExecuter {
         }
       } else */{
         CharSequence arg = evalString(statement);
-        changeCurrDir(arg, localVariables); 
+        changeCurrDir(arg); 
       }
     }
 
     
     /**Executes the cd command: changes the directory in this execution level.
      * @param arg maybe a relative path. If it is a StringBuilder, it will be changed on normalizePath.
-     * @throws NoSuchFieldException if "currdir" is not found, unexpected.
-     * @throws IllegalAccessException
      */
-    protected void changeCurrDir(CharSequence arg, Map<String, DataAccess.Variable<Object>> variables) 
-    throws NoSuchFieldException, IllegalAccessException{
-      //String sCurrDir;
+    protected void changeCurrDir(CharSequence arg) 
+    {
       final CharSequence arg1;
       boolean absPath = FileSystem.isAbsolutePathOrDrive(arg);
-      File cdnew;
       if(absPath){
         //Change the content of the currdir to the absolute directory.
         arg1 = FileSystem.normalizePath(arg);
-        cdnew = new File(arg1.toString());
-        if(!cdnew.exists() || !cdnew.isDirectory()){
-          throw new IllegalArgumentException("JZcmdExecuter - cd, dir not exists; " + arg);
-        }
       } else {
-        File cdcurr = (File)DataAccess.getVariable(variables,"currdir", true).value();
-        cdnew = new File(cdcurr, arg.toString());
-        if(!cdnew.exists() || !cdnew.isDirectory()){
-          throw new IllegalArgumentException("JZcmdExecuter - cd, dir not exists; " + arg + "; abs=" + cdnew.getAbsolutePath());
+        if(this.currdir == null){
+          //only on startup, start with operation system's current directory.
+          this.currdir = new File("").getAbsoluteFile();
         }
-        String sPath = FileSystem.getCanonicalPath(cdnew);
-        cdnew = new File(sPath);
+        StringBuilder sCurrdir = new StringBuilder();
+        sCurrdir.append(currdir.getPath()).append(arg);
+        arg1 = FileSystem.normalizePath(sCurrdir);
       }
-      DataAccess.createOrReplaceVariable(variables,"currdir", 'L', cdnew, true);
-      //FileSystem.normalizePath(u);   //resolve "xxx/../xxx"
-      //sCurrDir = u.toString();
+      this.currdir = new File(arg1.toString());
+      if(!currdir.exists() || !currdir.isDirectory()){
+        throw new IllegalArgumentException("JZcmdExecuter - cd, dir not exists; " + arg);
+      }
       
     }
     
@@ -1656,9 +1650,8 @@ public class JZcmdExecuter {
         //build an absolute filename with $CD, the current directory of the file system is not proper to use.
         
         @SuppressWarnings("unused")
-        File cd = currdir(); //(File)localVariables.get("currdir").value();
         //sFilename = cd + "/" + sFilename;
-        File fWriter = new File(cd, sFilename);
+        File fWriter = new File(currdir, sFilename);
         writer = new FileWriter(fWriter);
       } else {
         writer = new FileWriter(sFilename);  //given absolute path
@@ -1957,7 +1950,7 @@ public class JZcmdExecuter {
         if(FileSystem.isAbsolutePath(dataAccess.filepath)){
           return new File(dataAccess.filepath);
         } else {
-          return new File(currdir(), dataAccess.filepath);
+          return new File(currdir, dataAccess.filepath);
         }
       } else {
         calculateArguments(dataAccess);
@@ -2195,6 +2188,8 @@ public class JZcmdExecuter {
     
     
 
+    
+    public CharSequence currdir(){ return currdir.getPath().replace('\\', '/'); }
     
     
     int debug(JZcmdScript.JZcmditem statement) throws Exception{

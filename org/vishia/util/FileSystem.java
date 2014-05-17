@@ -809,8 +809,9 @@ public class FileSystem
    * @param inp Any path which may contain /./ or /../, with backslash or slash-separator.
    *   If the inp is instanceof StringBuilder, it is used directly for correction and returned in any case.
    *   Elsewhere a new StringBuilder will be created if necessary.
-   * @return The originally inp if inp doesn't contain /./ or /../ or backslash, elsewhere a new StringBuilder
-   *   which presents the normalized form of the path. It does not contain backslash but slash as separator.
+   * @return The originally inp if inp doesn't contain /./ or /../ or backslash or inp is a Stringbuilder, 
+   *   elsewhere a new StringBuilder which presents the normalized form of the path. 
+   *   It does not contain backslash but slash as separator.
    *   It does not contain any "/./" or "//" or "/../". 
    *   It does contain "../" only at start if it is necessary for a relative given path.
    */

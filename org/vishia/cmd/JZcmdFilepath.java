@@ -429,7 +429,7 @@ public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
   @Override
   public CharSequence getCurrentDir()
   {
-    return zgenlevel.sCurrdir();
+    return zgenlevel.currdir();
   }
 
 

@@ -107,6 +107,9 @@ public class JZcmdScript {
 
   final MainCmdLogging_ifc console;
 
+  /**The file which has contained the script. It is used only to provide the variables
+   * 'scriptdir' and 'scriptfile' for execution. The file is not evaluated. It means, it does not need
+   * to exist. */
   final File fileScript;
   
   
@@ -137,6 +140,13 @@ public class JZcmdScript {
   
   //public String scriptclassMain;
 
+  /**Creates.
+   * @param console
+   * @param fileScript The file which has contained the script. It is used only to provide the variables
+   *   'scriptdir' and 'scriptfile' for execution. The file is not evaluated. It means, it does not need
+   *   to exist.
+
+   */
   public JZcmdScript(MainCmdLogging_ifc console, File fileScript)
   { this.console = console;
     this.fileScript = fileScript;
@@ -170,7 +180,7 @@ public class JZcmdScript {
   public final Subroutine getMain(){ return mainRoutine; }
   
   
-  public Subroutine getSubtextScript(CharSequence name){ return subroutinesAll.get(name.toString()); }
+  public Subroutine getSubroutine(CharSequence name){ return subroutinesAll.get(name.toString()); }
   
   
   public void writeStruct(Appendable out) throws IOException{

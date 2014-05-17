@@ -61,6 +61,8 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-18 Hartmut new: {@link ObjMethod} for invocation of an method described with reflection,
+   *   not used yet but prepared. 
    * <li>2014-04-25 Hartmut chg: {@link #invokeMethod(DatapathElement, Class, Object, boolean, boolean)} with Class as parameter.
    *   {@link #access(List, Object, Map, boolean, boolean, boolean, Dst)} checks whether the obj is stored in an {@link Variable}
    *   with type 'C' and value instanceof Class. Then the static method of this Class type is searched and invoked.
@@ -1697,13 +1699,25 @@ public class DataAccess {
     }
   }
 
+ 
+  
+  public static final class ObjMethod
+  { public final Method method;
+    public final Object obj;
+
+    public ObjMethod(Method method, Object obj)
+    { this.method = method;
+      this.obj = obj;
+    }
+  }
+  
   
   
   
   /**Result of an {@link DataAccess#access(List, Object, Map, boolean, boolean, boolean, Dst)}
    * to store a value.
    */
-  public static class Dst
+  public static final class Dst
   {
     protected Field field;
     
