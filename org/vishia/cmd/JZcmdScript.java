@@ -38,6 +38,9 @@ public class JZcmdScript extends CompiledScript
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-18 Hartmut chg: DefFilepath now uses a textValue and divides the path to its components
+   *   at runtime, doesn't use the prepFilePath in ZBNF. Reason: More flexibility. The path can be assmebled
+   *   on runtime.  
    * <li>2014-05-18 Hartmut new: try to implement javax.script interfaces, not ready yet
    * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined here. Only one concept!
    * <li>2014-02-22 Hartmut new: Bool and Num as variable types.
@@ -544,7 +547,9 @@ public class JZcmdScript extends CompiledScript
       Debugutil.stop();
       filepath = text;
     }
-    
+
+    @Override public SetDatapathElement new_startDatapath(){ return new JZcmdDatapathElement(); }
+
     @Override public final JZcmdDatapathElement new_datapathElement(){ return new JZcmdDatapathElement(); }
 
     public final void add_datapathElement(JZcmdDatapathElement val){ 
@@ -566,6 +571,10 @@ public class JZcmdScript extends CompiledScript
      */
     protected List<JZcmditem> fnArgsExpr;
 
+    /**A datapath which accesses to identifier for this element.
+     * The identifier is indirect (referenced). */
+    protected JZcmdDataAccess indirectDatapath;
+    
     public JZcmdDatapathElement(){ super(); }
     
     /**Creates a new Expression Set instance to add any properties of an expression.
@@ -592,6 +601,15 @@ public class JZcmdScript extends CompiledScript
       fnArgsExpr.add(val);
     } 
 
+    
+    public JZcmdDataAccess new_dataPath(){
+      return new JZcmdDataAccess();
+    }
+
+    
+    public void add_dataPath(JZcmdDataAccess val){
+      indirectDatapath = val;
+    }
     
     public void writeStruct(int indent, Appendable out) throws IOException {
       out.append(ident).append(':').append(whatisit);
@@ -732,6 +750,13 @@ public class JZcmdScript extends CompiledScript
       super(parentList, 'F');
     }
   
+    /**From Zbnf, set the string given path
+     * @param path
+    public void set_filepath(String path){
+      filepath = new FilePath(path);
+    }
+     */
+    
     public FilePath.ZbnfFilepath new_Filepath(){ return new FilePath.ZbnfFilepath(); } 
     
     public void add_Filepath(FilePath.ZbnfFilepath val){ filepath = val.filepath; } 
@@ -1695,9 +1720,9 @@ public class JZcmdScript extends CompiledScript
     }
 
     
-    public DefFilepath new_DefFilepath(){ return new DefFilepath(this.parentList); } 
+    public DefVariable new_DefFilepath(){ return new DefVariable(this.parentList, 'F'); } 
 
-    public void add_DefFilepath(DefFilepath val){ 
+    public void add_DefFilepath(DefVariable val){ 
       if(formalArgs == null){ formalArgs = new ArrayList<DefVariable>(); }
       formalArgs.add(val);
     }
@@ -2159,12 +2184,12 @@ public class JZcmdScript extends CompiledScript
       withoutOnerror.add(val);
     }
     
-    public DefFilepath new_DefFilepath(){
+    public DefVariable new_DefFilepath(){
       bContainsVariableDef = true; 
-      return new DefFilepath(this); 
+      return new DefVariable(this, 'F'); 
     } 
 
-    public void add_DefFilepath(DefFilepath val){ 
+    public void add_DefFilepath(DefVariable val){ 
       statements.add(val);  
       onerrorAccu = null; 
       withoutOnerror.add(val);
@@ -2698,14 +2723,14 @@ public class JZcmdScript extends CompiledScript
     
     /**Defines a variable with initial value. <= <variableAssign?textVariable> \<\.=\>
      */
-    public DefVariable new_scriptCurrdir(){
+    public DefVariable XXXnew_scriptCurrdir(){
       bContainsVariableDef = true; 
       DefVariable variable = new DefVariable(this, 'S'); 
       variable.defVariable = new DataAccess("@currdir", 'S');
       return variable;
     } 
 
-    public void add_scriptCurrdir(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);} 
+    public void XXXadd_scriptCurrdir(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);} 
     
     
     

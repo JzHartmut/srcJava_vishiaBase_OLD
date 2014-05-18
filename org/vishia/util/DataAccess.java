@@ -61,6 +61,9 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-18 Hartmut new: {@link #expandElements(String, char)} for String-given elements. The first only one element
+   *   of {@link #access(List, Object, Map, boolean, boolean, boolean, Dst)} can contain "path.subpath..."
+   *   {@link #access(CharSequence, Object, Map, boolean, boolean, boolean, Dst)} for String given elements.
    * <li>2014-05-18 Hartmut new: {@link ObjMethod} for invocation of an method described with reflection,
    *   not used yet but prepared. 
    * <li>2014-04-25 Hartmut chg: {@link #invokeMethod(DatapathElement, Class, Object, boolean, boolean)} with Class as parameter.
@@ -444,6 +447,76 @@ public class DataAccess {
   }
   
   
+  /**Splits a String given path to elements.
+   * @param path If starts with "&@$" it is the type. 
+   * @param whatisit only used if path does not start with type.
+   * @return list.
+   */
+  public static List<DatapathElement> expandElements(CharSequence path, char whatisit){
+    List<DatapathElement> list = new LinkedList<DatapathElement>();
+    int pos;
+    char type = path.charAt(0);
+    if("&@$".indexOf(type)>=0){
+      pos = 0;
+    } else {
+      pos = -1;
+      type = whatisit;
+    }
+    int length = path.length();
+    do{
+      int end = StringFunctions.indexOf(path, '.', pos+1);
+      if(end < 0){ end = length; }
+      String se = path.subSequence(pos+1, end).toString();
+      DatapathElement e = new DatapathElement(se);
+      e.whatisit = type;
+      type = '.';
+      list.add(e);
+      pos = end;
+    } while(pos < length);
+    return list;
+  }
+  
+
+  
+  
+  
+  /**Accesses data with a String given path. The path can contain more elements
+   * separated with dot. A first char can define from what to read: For example
+   * <ul>
+   * <li>"$ENV": From an environment variable
+   * <li>"@variable.element": Read start instance form dataPool 
+   * <li>"%java.package.Class()": invokes a static method.
+   * <li>"element": read from dataRoot 
+   * <li>"reference.element": read from dataRoot, referenced instance. 
+   * </ul>
+   * @param datapathArg 
+   * @param dataRoot maybe null, then read first member always from dataPool
+   * @param dataPool maybe null for access to a defined instance dataRoot.
+   * @param accessPrivate
+   * @param bContainer
+   * @param bVariable
+   * @param dst
+   * @return
+   * @throws Exception
+   */
+  public static Object access(
+      CharSequence datapathArg
+      , Object dataRoot
+      , Map<String, DataAccess.Variable<Object>> dataPool
+      , boolean accessPrivate
+      , boolean bContainer
+      , boolean bVariable
+      , Dst dst
+  ) 
+  throws Exception 
+  {
+    List<DatapathElement> list = expandElements(datapathArg, '.');
+    return access(list, dataRoot, dataPool, accessPrivate, bContainer, bVariable, dst);
+  }
+
+  
+  
+  
   
   /**Universal method to accesses data. 
    * The argument path contains elements, which describes the access path.
@@ -545,7 +618,7 @@ public class DataAccess {
    *  as hint which part does not match.
    */
   public static Object access(
-      List<DatapathElement> datapath
+      List<DatapathElement> datapathArg
       , Object dataRoot
       , Map<String, DataAccess.Variable<Object>> dataPool
       , boolean accessPrivate
@@ -555,7 +628,13 @@ public class DataAccess {
   ) 
   //throws ReflectiveOperationException  //only Java7
   throws Exception
-  {
+  { final List<DatapathElement> datapath;
+    DatapathElement element1 =  datapathArg.get(0);
+    if("+%".indexOf(element1.whatisit) <0 && element1.ident.contains(".")){
+      datapath = expandElements(element1.ident, element1.whatisit);
+    } else {
+      datapath = datapathArg;
+    }
     Object data1 = null;  //the currently instance of each element.
     Iterator<DatapathElement> iter = datapath.iterator();
     DatapathElement element = iter.next();
@@ -1456,8 +1535,6 @@ public class DataAccess {
     public SetDatapathElement new_startDatapath(){ return new SetDatapathElement(); }
 
     public final void add_startDatapath(SetDatapathElement val){ 
-      if(val.ident.length()==0)
-        Debugutil.stop();
       super.add_datapathElement(val); //Note: super does not get a SetDatapathElement but only its superclass.
     }
     
@@ -1551,7 +1628,6 @@ public class DataAccess {
     
     public void set_javapath(String text){ this.ident = text; }
     
-
 
   }
   

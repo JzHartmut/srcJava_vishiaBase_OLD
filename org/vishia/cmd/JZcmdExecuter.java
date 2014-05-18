@@ -61,6 +61,9 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-18 Hartmut chg: DefFilepath now uses a textValue and divides the path to its components
+   *   at runtime, doesn't use the prepFilePath in ZBNF. Reason: More flexibility. The path can be assmebled
+   *   on runtime.  
    * <li>2014-05-18 Hartmut new: try to implement javax.script interfaces, not ready yet
    * <li>2014-05-18 Hartmut chg: {@link ExecuteLevel#execSubroutine(org.vishia.cmd.JZcmdScript.Subroutine, Map, StringFormatter, int)}
    *   called from {@link org.vishia.zcmd.JZcmd#execSub(File, String, Map, ExecuteLevel)} for a sub routine in a new translated script.
@@ -785,7 +788,7 @@ public class JZcmdExecuter {
           case 'v': execThrowonerror((JZcmdScript.Onerror)statement); break;
           case 'b': isBreak = true; ret = JZcmdExecuter.kBreak; break;
           case '#': ret = execCmdError((JZcmdScript.Onerror)statement, out, indentOut); break;
-          case 'F': createFilepath(newVariables, (JZcmdScript.DefFilepath) statement); break;
+          case 'F': createFilepath(newVariables, (JZcmdScript.DefVariable) statement); break;
           case 'G': createFileSet(newVariables, (JZcmdScript.UserFileset) statement); break;
           case 'Z': execZmake((JZcmdScript.Zmake) statement, out, indentOut, --nDebug1); break;
           case 'D': break; // a second debug statement one after another or debug on end is ignored.
@@ -929,8 +932,9 @@ public class JZcmdExecuter {
 
     
     
-    void createFilepath(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.DefFilepath statement) throws Exception {
-      JZcmdFilepath filepath = new JZcmdFilepath(this, statement.filepath);
+    void createFilepath(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.DefVariable statement) throws Exception {
+      CharSequence sPath = evalString(statement);
+      JZcmdFilepath filepath = new JZcmdFilepath(this, sPath.toString());
       storeValue(statement.defVariable, newVariables, filepath, false);
     }
     
@@ -2001,6 +2005,10 @@ public class JZcmdExecuter {
         //check all datapath elements whether they have method calls with arguments:
         if(dataElement instanceof JZcmdScript.JZcmdDatapathElement){
           JZcmdScript.JZcmdDatapathElement jzcmdDataElement = (JZcmdScript.JZcmdDatapathElement)dataElement;
+          if(jzcmdDataElement.indirectDatapath !=null){
+            Object oIdent = dataAccess(jzcmdDataElement.indirectDatapath, localVariables, bAccessPrivate, false, false, null);
+            dataElement.setIdent(oIdent.toString());
+          }
           if(jzcmdDataElement.fnArgsExpr !=null){
             int nrofArgs = jzcmdDataElement.fnArgsExpr.size();
             Object[] args = new Object[nrofArgs];
