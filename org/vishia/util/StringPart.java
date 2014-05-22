@@ -102,6 +102,7 @@ public class StringPart implements CharSequence, Comparable<CharSequence>, Close
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-22 Hartmut new: {@link #setInputfile(String)}, {@link #getInputfile()} 
    * <li>2014-05-10 Hartmut new: {@link #line()} 
    * <li>2014-01-12 Hartmut new: {@link #setParttoMax()} usefully for new view to content.
    * <li>2013-12-29 Hartmut bugfix in {@link Part#Part(int, int)}   
@@ -228,7 +229,7 @@ abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
    public static final int seekNormal = 0;
 
 
-  /** Some mode bits */
+  /** Some mode bits. See all static final int xxx_mode. */
   protected int bitMode = 0;
   
    /** Bit in mode. If this bit ist set, all whitespace are overreaded
@@ -246,6 +247,15 @@ abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
     */
    protected static final int mSkipOverCommentToEol_mode = 0x4;
 
+   /**Bit in mode. Only if this bit is set, the method {@link #getCurrentColumn()} calculates the column.
+    * If the bit is not set, that method returns -1 if it is called. For save calculation time.
+    */
+   protected static final int mGetColumn_mode = 0x8;
+   
+   
+   /**The file from which the StringPart was build. See {@link #getInputfile()} and setInputFile. */
+   String sFile;
+   
    /** The string defined the start of comment inside a text.*/
    String sCommentStart = "/*";
    
@@ -301,7 +311,10 @@ abcdefghijklmnopqrstuvwxyz  The associated String
   }
   
   
-  
+  /**Sets the input file for information {@link #getInputfile()}
+   * @param file
+   */
+  public final void setInputfile(String file){ this.sFile = file; }
 
   
   /** Sets the content to the given string, forgets the old content. Initialy the whole string is valid.
@@ -2012,10 +2025,19 @@ public final StringPart len0end()
    * @return Position of the actual char from begin of line, leftest position is 0.
    */
   public final int getCurrentColumn()
-  { int pos = StringFunctions.lastIndexOf(content, 0, begin, '\n');
-    if(pos < 0) return begin;  //first line, no \n before
-    else return begin - pos -1;
+  { if((bitMode & mGetColumn_mode)==0){ return -1; }
+    else {
+      int pos = StringFunctions.lastIndexOf(content, 0, begin, '\n');
+      if(pos < 0) return begin;  //first line, no \n before
+      else return begin - pos -1;
+    }
   }
+  
+  /**This method may be overridden to return the file which is used to build this Stringpart.
+   * @return null in this implementation, no file available.
+   */
+  public final String getInputfile(){ return sFile; }
+  
   
   /** Returns the actual part of the string.
    * 

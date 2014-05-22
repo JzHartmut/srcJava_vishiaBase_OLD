@@ -157,6 +157,9 @@ public class VariableAccessWithBitmask implements VariableAccess_ifc
   }
   
 
+  @Override public boolean isRefreshed(){ return variable.isRefreshed(); }
+  
+
   
   @Override
   public double setDouble(double value)

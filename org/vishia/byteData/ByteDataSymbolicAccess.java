@@ -326,6 +326,7 @@ public class ByteDataSymbolicAccess {
       return timeNew >0;
     }
     
+    @Override public boolean isRefreshed(){ return (timeSetNewValue - timeRequestNewValue ) >0; }
 
     @Override public long getLastRefreshTime(){ return ByteDataSymbolicAccess.this.timeSetNewValue; }
 
@@ -425,6 +426,7 @@ public class ByteDataSymbolicAccess {
    *   {@link #assignData(byte[], int, int)}.
    */
   public long isRequestedNewData(){ return timeRequestNewValue; }
+  
   
   
   /**Searches a variable by name and returns it.

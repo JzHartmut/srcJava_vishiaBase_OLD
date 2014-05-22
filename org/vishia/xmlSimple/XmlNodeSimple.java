@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import org.vishia.util.Assert;
 import org.vishia.util.TreeNodeBase;
 
 
@@ -15,6 +14,7 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
 { 
   /**Version, history and license.
    * <ul>
+   * <li>2013-03-21 Hartmut bugfix: store data in {@link XmlNodeSimple#XmlNodeSimple(String, Object)} if given.
    * <li>2013-03-21 Hartmut chg: {@link XmlNodeSimple#XmlNodeSimple(String, Object)} etc. If "namespace:name" is given as parameter name
    *   the namespace is used.
    * <li>2012-12-26 Hartmut chg: {@link #toString()} returns the pure text if the node contains only text or it is an attribute.
@@ -94,7 +94,7 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
    * @param data Additional data stored in the {@link TreeNodeBase#data}
    */
   public XmlNodeSimple(String name, UserData data)
-  { this(name, null, (UserData)null);
+  { this(name, null, data);
   }
   
   

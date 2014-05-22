@@ -39,6 +39,7 @@ public class StringPartFromFileLines extends StringPartScan
   /**Version, history and license.
    * list of changes:
    * <ul>
+   * <li>2014-05-22 Hartmut new: {@link #setInputfile(String)} invoked with input file 
    * <li>2014-04-22 Hartmut chg: improved line numbers 
    * <li>2012-12-22 Hartmut chg: close() the file in constructor if the whole file was read.
    * <li>2010-02-11 Hartmut new: The ctor StringPartFromFileLines(File fromFile) is added, 
@@ -149,6 +150,7 @@ public class StringPartFromFileLines extends StringPartScan
   public StringPartFromFileLines(File fromFile, int maxBuffer, String sEncodingDetect, Charset charset)
   throws FileNotFoundException, IOException, IllegalCharsetNameException, UnsupportedCharsetException
   { super();
+    setInputfile(fromFile.getPath());
     bEof = false;
     long nMaxBytes = fromFile.length();
     if(maxBuffer <= 0 || nMaxBytes < (maxBuffer -10))

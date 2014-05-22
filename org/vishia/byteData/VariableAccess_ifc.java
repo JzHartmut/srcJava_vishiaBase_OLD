@@ -45,6 +45,7 @@ public interface VariableAccess_ifc
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-22 Hartmut new: {@link #isRefreshed()}, implemented in all implementors.  
    * <li>2014-01-10 Hartmut new  enhancement of {@link #requestValue(long, Runnable) with Runnable.
    * <li>2013-12-10 Hartmut new Separate {@link VariableAccessArray_ifc} and this interface.
    *   All simple accesses and especially {@link VariableAccessWithIdx} need this interface.
@@ -176,6 +177,11 @@ public interface VariableAccess_ifc
   boolean isRequestedValue(boolean retryFaultyVariables);
   //boolean requestValueFromTarget(long timeRequested, boolean retryDisabledVariable);  
 
+  /**Returns true if the variable was refresed after it was requested.
+   * false if the variable was never requested or it was requested and not refreshed after them.
+   */
+  boolean isRefreshed();
+  
   public void setRefreshed(long time);
   /**Gets the time stamp when this variable was refreshed lastly.
    * @return -1 if this function is not supported, 0 if this variable was never set.

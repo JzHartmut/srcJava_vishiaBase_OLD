@@ -179,6 +179,7 @@ public class VariableAccessWithIdx implements VariableAccess_ifc
     return variable.isRequestedValue(retryFaultyVariables);
   }
   
+  @Override public boolean isRefreshed(){ return variable.isRefreshed(); }
 
   
   @Override

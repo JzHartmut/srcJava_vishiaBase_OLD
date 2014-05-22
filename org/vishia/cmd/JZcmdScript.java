@@ -262,6 +262,8 @@ public class JZcmdScript extends CompiledScript
     /**Hint to the source of this parsed argument or statement. */
     int srcLine, srcColumn;
     
+    String srcFile = "";
+    
     /**Necessary for throwing exceptions with the {@link StatementList#srcFile} in its text. */
     final StatementList parentList;
     
@@ -298,7 +300,12 @@ public class JZcmdScript extends CompiledScript
      * See {@link org.vishia.zbnf.ZbnfJavaOutput}
      * @param line
      */
-    public void set_inputLine_(int line){ srcLine = line; }
+    public JZcmditem set_inputInfo_(int line, int column, String sFile){ 
+      srcLine = line;
+      srcColumn = column;
+      srcFile = sFile;
+      return this;
+    }
     
     
     
@@ -439,7 +446,7 @@ public class JZcmdScript extends CompiledScript
      * @throws IOException
      */
     void writeStructLine(Appendable u) throws IOException {
-      u.append(" @").append(Integer.toString(srcLine)).append(",").append(Integer.toString(srcColumn)).append(':').append(elementType);
+      u.append(" @").append(srcFile).append(':').append(Integer.toString(srcLine)).append(",").append(Integer.toString(srcColumn)).append("; ").append(elementType);
       switch(elementType){
         case 't': u.append(" text \"").append(textArg).append("\""); break;
         /*

@@ -178,7 +178,10 @@ public class JZcmdExecuter {
   
   
   
-  protected boolean bAccessPrivate;
+  /**Set it to true if private and protected fields and methods should be used
+   * by data access.
+   */
+  public boolean bAccessPrivate;
   
   protected final MainCmdLogging_ifc log;
   
@@ -325,7 +328,14 @@ public class JZcmdExecuter {
     if(scriptLevel.localVariables.get("file") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "file", 'O', new FileSystem(), true); }
     if(scriptLevel.localVariables.get("test") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new JZcmdTester(), true); }
     if(scriptLevel.localVariables.get("conv") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "conv", 'O', new Conversion(), true); }
-    File filescript = genScriptPar.fileScript;
+    try{
+      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "System", 'C', Class.forName("java.lang.System"), true);
+      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "FileSystem", 'C', Class.forName("org.vishia.util.FileSystem"), true);
+      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "StringFunctions", 'C', Class.forName("org.vishia.util.StringFunctions"), true);
+    } catch (Exception exc) {
+      throw new RuntimeException(exc);
+    }
+      File filescript = genScriptPar.fileScript;
     if(scriptLevel.localVariables.get("scriptfile") == null && filescript !=null) { 
       String scriptfile = filescript.getName();
       DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "scriptfile", 'S', scriptfile, true);
@@ -816,12 +826,14 @@ public class JZcmdExecuter {
           else { excType = 'i'; }
           //Search the block of onerror after this statement.
           //Maybe use an index in any statement, to prevent search time.
-          while(++ixStatement < statementList.statements.size() && (statement = statementList.statements.get(ixStatement)).elementType() != '?');
+          JZcmdScript.JZcmditem onerrorStatement = null;
+          while(++ixStatement < statementList.statements.size() && (onerrorStatement = statementList.statements.get(ixStatement)).elementType() != '?');
           if(ixStatement < statementList.statements.size()){
+            assert(onerrorStatement !=null);  //because it is found in while above.
             //onerror-block found.
             do { //search the appropriate error type:
               char onerrorType;
-              JZcmdScript.Onerror errorStatement = (JZcmdScript.Onerror)statement;
+              JZcmdScript.Onerror errorStatement = (JZcmdScript.Onerror)onerrorStatement;
               if( ((onerrorType = errorStatement.errorType) == excType
                 || (onerrorType == '?' && excType != 'e')   //common onerror is valid for all excluding exit 
                 )  ){
@@ -829,11 +841,14 @@ public class JZcmdExecuter {
               }
             } while(!found && ++ixStatement < statementList.statements.size() && (statement = statementList.statements.get(ixStatement)).elementType() == '?');
           }
-          if(found){
+          if(found){ //onerror found:
+            assert(onerrorStatement !=null);  //because it is found in while above.
             String sError1 = exc1.getMessage();
-            threadData.error.setValue(sError1);
+            String sError2 = exc1.toString();
+            String sError3 = statement.toString(); //statement which has thrown
+            threadData.error.setValue(sError2 + "; in statement; " + sError3);
             threadData.exception = exc1;
-            ret = execute(statement.statementlist, out, indentOut, false, -1);  //executes the onerror block
+            ret = execute(onerrorStatement.statementlist, out, indentOut, false, -1);  //executes the onerror block
             //a kBreak, kReturn etc. is used in the calling level.
             threadData.error.setValue(null);  //clear for next usage.
           } else {
