@@ -19,6 +19,7 @@ import org.vishia.util.CalculatorExpr;
 import org.vishia.util.DataAccess;
 import org.vishia.util.Debugutil;
 import org.vishia.util.FilePath;
+import org.vishia.util.SetLineColumn_ifc;
 import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPart;
 
@@ -217,7 +218,7 @@ public class JZcmdScript extends CompiledScript
    * {@link #expression} or {@link #textArg} is set.
    *
    */
-  public static class JZcmditem
+  public static class JZcmditem implements SetLineColumn_ifc
   {
     /**Designation what presents the element.
      * 
@@ -291,6 +292,19 @@ public class JZcmdScript extends CompiledScript
       this.elementType = whatisit;
     }
     
+    
+    @Override public void setLineColumnFile(int line, int column, String sFile){
+      srcLine = line; srcColumn = column; srcFile = sFile; 
+    }
+
+    /**Returns wheter only the line or only the column should be set.
+     * It can save calculation time if one of the components are not necessary.
+     * @return 'c' if only column, 'l' if only line, any other: set both.
+     */
+    @Override public int setLineColumnFileMode(){ return mLine | mColumn | mFile; }
+
+    
+    
     /*package private*/ char elementType(){ return elementType; }
     
     public StatementList statementlist(){ return statementlist; }
@@ -300,7 +314,7 @@ public class JZcmdScript extends CompiledScript
      * See {@link org.vishia.zbnf.ZbnfJavaOutput}
      * @param line
      */
-    public JZcmditem set_inputInfo_(int line, int column, String sFile){ 
+    public JZcmditem XXXset_inputInfo_(int line, int column, String sFile){ 
       srcLine = line;
       srcColumn = column;
       srcFile = sFile;
@@ -1468,7 +1482,7 @@ public class JZcmdScript extends CompiledScript
      * If it is left null, then the text will be output to the current channel, the output file on main level. */
     public JZcmdDataAccess variable;
     
-    int indent;
+    //int indent;
     
     TextOut(StatementList parentList, char elementType)
     { super(parentList, elementType);
@@ -1480,7 +1494,7 @@ public class JZcmdScript extends CompiledScript
      * See {@link org.vishia.zbnf.ZbnfJavaOutput}, it is a special feature of them.
      * @param col countered from 1 as first character in line.
      */
-    public void set_inputColumn_(int col){ this.indent = col; } 
+    //public void set_inputColumn_(int col){ this.indent = col; } 
     
     /**From Zbnf: [{ <dataAccess?-assign> = }] 
      */
@@ -2018,12 +2032,14 @@ public class JZcmdScript extends CompiledScript
   /**Organization class for a list of script elements inside another Scriptelement.
    *
    */
-  public static class StatementList
+  public static class StatementList implements SetLineColumn_ifc
   {
     JZcmditem currStatement;
     
     /**Hint to the source of this parsed argument or statement. */
     String srcFile = "srcFile-yet-unknown";
+    
+    int srcLine;
     
     final JZcmditem parentStatement;
     
@@ -2084,8 +2100,18 @@ public class JZcmdScript extends CompiledScript
     */
         
     
-    public void set_inputColumn_(int col){ this.indentText = col; } 
+    public void XXXset_inputColumn_(int col){ this.indentText = col; } 
     
+    @Override public void setLineColumnFile(int line, int column, String sFile){
+      srcLine = line; indentText = column; srcFile = sFile; 
+    }
+
+    /**Returns wheter only the line or only the column should be set.
+     * It can save calculation time if one of the components are not necessary.
+     * @return 'c' if only column, 'l' if only line, any other: set both.
+     */
+    @Override public int setLineColumnFileMode(){ return mLine | mColumn | mFile; }
+
 
     
     public StatementList new_statementBlock(){

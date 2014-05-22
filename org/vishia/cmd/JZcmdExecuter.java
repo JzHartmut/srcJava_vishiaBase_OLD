@@ -1181,7 +1181,7 @@ public class JZcmdExecuter {
       if(statement.statementlist !=null){
         //executes the statement, use the Appendable to output immediately
         synchronized(out1){
-          execute(statement.statementlist, out1, statement.indent, false, nDebug);
+          execute(statement.statementlist, out1, statement.srcColumn, false, nDebug);
         }
       } else {
         //Any other text expression
