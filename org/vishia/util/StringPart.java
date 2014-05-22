@@ -102,6 +102,8 @@ public class StringPart implements CharSequence, Comparable<CharSequence>, Close
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-23 Hartmut new: {@link #getLineAndColumn(int[])} instead getLineCt() because it determines the column
+   *   in one function instead extra call off {@link StringPart#getCurrentColumn()}. It is faster.   
    * <li>2014-05-22 Hartmut new: {@link #setInputfile(String)}, {@link #getInputfile()} 
    * <li>2014-05-10 Hartmut new: {@link #line()} 
    * <li>2014-01-12 Hartmut new: {@link #setParttoMax()} usefully for new view to content.
@@ -250,7 +252,7 @@ abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
    /**Bit in mode. Only if this bit is set, the method {@link #getCurrentColumn()} calculates the column.
     * If the bit is not set, that method returns -1 if it is called. For save calculation time.
     */
-   protected static final int mGetColumn_mode = 0x8;
+   //protected static final int mGetColumn_mode = 0x8;
    
    
    /**The file from which the StringPart was build. See {@link #getInputfile()} and setInputFile. */
@@ -577,13 +579,6 @@ abcdefghijklmnopqrstuvwxyz  The associated String
   }
 
   
-  
-  /** get the Line ct. Note: it returns null in this class, may be overridden.
-  @return Number of last read line.
-*/
-public int getLineCt(){ return 0; }
-
-
   
 
 /* (non-Javadoc)
@@ -2019,18 +2014,33 @@ public final StringPart len0end()
     else return '\0'; ///**@java2c=StringBuilderInThreadCxt.*/ throw new IndexOutOfBoundsException("end of StringPartBase:" + begin); // return cEndOfText;
   }
  
+  /** get the Line ct. Note: it returns null in this class, may be overridden.
+  @return Number of last read line.
+  */
+  public int XXXgetLineCt(){ return 0; }
+
   
+  
+  /**Get the Line number and the column of the begin position. 
+   * Note: it returns null in this class, may be overridden.
+   * @param column if given, it should be an int[1]. Then the column is written into.
+   * @return Number of last read line.
+   */
+  public int getLineAndColumn(int[] column){ return 0; }
+
+  
+
   /** Gets the current position in line (column of the text).
    * It is the number of chars from the last '\n' or from beginning to the actual char.
    * @return Position of the actual char from begin of line, leftest position is 0.
    */
   public final int getCurrentColumn()
-  { if((bitMode & mGetColumn_mode)==0){ return -1; }
-    else {
+  { //if((bitMode & mGetColumn_mode)==0){ return -1; }
+    //else {
       int pos = StringFunctions.lastIndexOf(content, 0, begin, '\n');
       if(pos < 0) return begin;  //first line, no \n before
       else return begin - pos -1;
-    }
+    //}
   }
   
   /**This method may be overridden to return the file which is used to build this Stringpart.

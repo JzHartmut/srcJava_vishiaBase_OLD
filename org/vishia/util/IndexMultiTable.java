@@ -1490,13 +1490,16 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
   
   
-  /**Binaray search of the element, which is the first with the given key.
-   * The algorithm is copied from {@link java.util.Arrays}.binarySearch0(Object[], int, int, key) and modified.
-   * @param a
-   * @param fromIndex
-   * @param toIndex
-   * @param key
-   * @return
+  /**Binary search of the element, which is the first with the given key.
+   * The algorithm is modified from the known algorithm (for example in copied from Arrays.binarySearch0(...))
+   * The modification is done because more as one entry with the same key can be existing.
+   * The algorithm searches the first occurrence of it. 
+   * @param a The array
+   * @param fromIndex start index, first position
+   * @param toIndex end index. exclusive last position in a
+   * @param key search key
+   * @return index in a where the key is found exactly the first time (lessest index)
+   *   or negative number: insertion point index is (-return -1)
    */
   int binarySearchFirstKey(Comparable<Key>[] a, int fromIndex, int toIndex, Key key) 
   {
@@ -1508,22 +1511,15 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     {
       mid = (low + high) >> 1;
       Comparable<Key> midVal = a[mid];
-      //Comparable<Key> midValLeft = mid >fromIndex ? a[mid-1] : minKey__;  
       int cmp = compare(midVal, key);
       if ( cmp < 0)
       { low = mid + 1;
         //equal = false;
       }
-      else { // if(cmp >=0){
+      else { // dont check : if(cmp >0) because search always to left to found the leftest position
         high = mid - 1;   //search in left part also if key before mid is equal
         equal = equal || cmp ==0;  //one time equal set, it remain set.
       }
-      /*
-      else
-      { { return mid;  //midValLeft is lesser, than it is the first element with key!
-        }
-      }
-      */
     }
     if(equal) return low > mid ? low : mid;  //one time found, then it is low or mid 
     else return -(low + 1);  // key not found.

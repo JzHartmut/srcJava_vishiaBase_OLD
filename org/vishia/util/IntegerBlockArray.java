@@ -16,6 +16,8 @@ public class IntegerBlockArray
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-23 Hartmut bugfix {@link #binarySearch(int, int)}, new {@link #binarySearchFirstKey(int, int)}.
+   *   It was a mix before with a faulty algorithm.
    * <li>2013-12-31 Hartmut created. 
    * </ul>
    * 
@@ -126,27 +128,51 @@ public class IntegerBlockArray
   public int binarySearch(int val, int max){
     int low = 0;
     int high = max - 1;
-
     while (low <= high) 
     {
       int mid = (low + high) >> 1;
       int midVal = get(mid);
-      int midValLeft = mid >0 ? get(mid-1) : Integer.MIN_VALUE;  
-      
       if (midVal < val)
       { low = mid + 1;
       }
-      else 
-      { if(midValLeft >= val)
-        { high = mid - 1;  //search in left part also if key before mid is equal
-        }
-        else
-        { return mid;  //midValLeft is lesser, than it is the first element with key!
-        }
+      else if(midVal > val)
+      { high = mid - 1;  
+      }
+      else  //exact found.
+      { return mid;  
       }
     }
     return -(low + 1);  // key not found.
+  }
 
+
+
+  /**Searches the value in the arrays and returns the index of the first occurence of that value, which is equal
+   * or near lesser than the requested one. It assumes that all values are stored in ascending order,
+   * but it is possible to have one value more as one time.
+   * @param val
+   * @param max
+   * @return
+   */
+  public int binarySearchFirstKey(int val, int max){
+    int low = 0;
+    int high = max - 1;
+    int mid = 0;
+    boolean equal = false;
+    while (low <= high) 
+    {
+      mid = (low + high) >> 1;
+      int midVal = get(mid);
+      if (midVal < val)
+      { low = mid + 1;
+      }
+      else  // dont check : if(midVal > val) because search always to left to found the leftest position
+      { high = mid - 1;  
+        equal = equal || midVal > val;  //one time equal set, it remain set.
+      }
+    }
+    if(equal) return low > mid ? low : mid;  //one time found, then it is low or mid 
+    return -(low + 1);  // key not found.
   }
 
 

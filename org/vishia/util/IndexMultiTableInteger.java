@@ -1084,37 +1084,44 @@ public class IndexMultiTableInteger<Type> implements Map<Integer,Type>, Iterable
 
   
   
-  /**Binaray search of the element, which is the first with the given key.
-   * The algorithm is copied from Arrays.binarySearch0(...) and modified.
-   * @param a
-   * @param fromIndex
-   * @param toIndex
-   * @param key
-   * @return
+  /**Binary search of the element, which is the first with the given key.
+   * The algorithm is modified from the known algorithm (for example in copied from Arrays.binarySearch0(...))
+   * The modification is done because more as one entry with the same key can be existing.
+   * The algorithm searches the first occurrence of it. 
+   * @param a The array
+   * @param fromIndex start index, first position
+   * @param toIndex end index. exclusive last position in a
+   * @param key search key
+   * @return index in a where the key is found exactly the first time (lessest index)
+   *   or negative number: insertion point index is (-return -1)
    */
   private static int binarySearchFirstKey(int[] a, int fromIndex, int toIndex, int key) 
   {
     int low = fromIndex;
     int high = toIndex - 1;
+    boolean equal = false;
+    int mid =0;
 
     while (low <= high) 
     {
-      int mid = (low + high) >> 1;
+      mid = (low + high) >> 1;
       int midVal = a[mid];
-      int midValLeft = mid >fromIndex ? a[mid-1] : Integer.MIN_VALUE;  
+      //int midValLeft = mid >fromIndex ? a[mid-1] : Integer.MIN_VALUE;  
       
       if (midVal < key)
       { low = mid + 1;
       }
-      else 
-      { if(midValLeft >= key)
+      else // if(cmp >0){  //don't stop if equal, because search the first equal element. 
+      { //if(midValLeft >= key)
         { high = mid - 1;  //search in left part also if key before mid is equal
+          equal = equal || midVal ==key;  //one time equal set, it remain set.
         }
-        else
-        { return mid;  //midValLeft is lesser, than it is the first element with key!
-        }
+        //else
+        //{ return mid;  //midValLeft is lesser, than it is the first element with key!
+        //}
       }
     }
+    if(equal) return low > mid ? low : mid;  //one time found, then it is low or mid 
     return -(low + 1);  // key not found.
   }
   

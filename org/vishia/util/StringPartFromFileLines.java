@@ -157,7 +157,7 @@ public class StringPartFromFileLines extends StringPartScan
     { buffer = new StringBuilder((int)(nMaxBytes));  //buffer size appropriate to the file size.
     }
     else buffer = new StringBuilder(maxBuffer);  //to large file
-    linePositions.set(0, 0);  //start entry: Before position 0 is line 0  
+    linePositions.set(++maxIxLinePosition, 0);  //start entry: After position 0 is line 1  
 
     
     if(sEncodingDetect != null)
@@ -214,9 +214,25 @@ public class StringPartFromFileLines extends StringPartScan
     }
   }
 
-  @Override public int getLineCt(){ 
+  @Override public int XXXgetLineCt(){ 
     int line = linePositions.binarySearch(this.begin, maxIxLinePosition); 
     if(line <0){ line = -line; }
+    return line;
+  }
+
+  
+  @Override public int getLineAndColumn(int[] column){ 
+    int line = linePositions.binarySearch(this.begin, maxIxLinePosition); 
+    if(line <0){ 
+      //usual negative if not found exactly.
+      //The binarySearch returns the 'insertion point', it is the next line start position.
+      //But the line is the previous one.
+      line = -line -2; 
+    } 
+    if(column !=null){
+      int posLineStart = linePositions.get(line);
+      column[0] = this.begin - posLineStart; 
+    }
     return line;
   }
 
