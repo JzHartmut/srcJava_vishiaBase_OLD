@@ -75,6 +75,8 @@ public class JZcmdThread implements Runnable
   /**The exception with them the thread was finished or null. */
   Throwable exception;
   
+  JZcmdScript.JZcmditem excStatement;
+  
   /**State of thread execution. i-init, r-run, y-finished.*/
   char state = 'i';
 

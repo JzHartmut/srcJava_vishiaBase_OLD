@@ -165,8 +165,6 @@ public class JZcmdExecuter {
   /**Variable for any exception while accessing any java resources. It is the $error variable of the script. */
   protected String accessError = null;
   
-  public final boolean bWriteErrorInOutput;
-  
   public static final int kBreak = -1;
   
   public static final int kReturn = -2;
@@ -238,24 +236,10 @@ public class JZcmdExecuter {
    */
   public JZcmdExecuter(MainCmdLogging_ifc log){
     this.log = log;
-    bWriteErrorInOutput = false;
     scriptThread = new JZcmdThread();
     scriptLevel = new ExecuteLevel(scriptThread);
   }
   
-  
-  /**Creates a JZcmdExecuter with possible writing exceptions in the output text.
-   * The advantage of that is: The script runs to its end. It does not break on first exception.
-   * The cause is able to read.
-   * @param log maybe null
-   * @param bWriteErrorInOutput If true then does not throw but writes the exception in the current output.
-   */
-  public JZcmdExecuter(MainCmdLogging_ifc log, boolean bWriteErrorInOutput){
-    this.log = log;
-    this.bWriteErrorInOutput = bWriteErrorInOutput;
-    scriptThread = new JZcmdThread();
-    scriptLevel = new ExecuteLevel(scriptThread);
-  }
   
   
   
@@ -520,21 +504,6 @@ public class JZcmdExecuter {
   
   
   
-  CharSequence textError(Exception exc, JZcmdScript.JZcmditem jzcmditem){
-    StringBuilder text = new StringBuilder(100); 
-    text.append(exc).append( " @").append(jzcmditem.parentList.srcFile).append(":").append(jzcmditem.srcLine).append(",").append(jzcmditem.srcColumn);
-    if(bWriteErrorInOutput){
-      Throwable excCause = exc, excText = exc;
-      int catastrophicalcount = 10;
-      while( --catastrophicalcount >=0 && (excCause = excCause.getCause()) !=null){
-        excText = excCause;  //if !=null
-      }
-      text.append(excText.getMessage());
-    } else {
-      throw new IllegalArgumentException(text.toString());  //forwarding
-    }
-    return text;
-  }
   
   public String nextNr(){
     return Integer.toString(++nextNr_); 
@@ -564,6 +533,10 @@ public class JZcmdExecuter {
      * Note that a canonical path resolved symbolic links. */
     File currdir;
     
+    /**Flag, write error in the current output if set to true. */
+    public boolean bWriteErrorInOutput;
+    
+
     /**Generated content of local variables in this nested level including the {@link ZbatchExecuter#scriptLevel.localVariables}.
      * The variables are type invariant on language level. The type is checked and therefore 
      * errors are detected on runtime only. */
@@ -620,7 +593,7 @@ public class JZcmdExecuter {
       try{ 
         DataAccess.createOrReplaceVariable(localVariables,  "jzcmdsub", 'O', this, true);
         localVariables.add("error", threadData.error);
-      } catch(IllegalAccessException exc){ throw new IllegalArgumentException(exc); }
+      } catch(IllegalAccessException exc){ throw new RuntimeException(exc); }
     }
 
     
@@ -796,77 +769,90 @@ public class JZcmdExecuter {
           case 'z': throw new JZcmdExecuter.ExitException(((JZcmdScript.ExitStatement)statement).exitValue);  
           case 'r': execThrow(statement); break;
           case 'v': execThrowonerror((JZcmdScript.Onerror)statement); break;
+          case ',': bWriteErrorInOutput = statement.textArg !=null; break;
           case 'b': isBreak = true; ret = JZcmdExecuter.kBreak; break;
           case '#': ret = execCmdError((JZcmdScript.Onerror)statement, out, indentOut); break;
           case 'F': createFilepath(newVariables, (JZcmdScript.DefVariable) statement); break;
           case 'G': createFileSet(newVariables, (JZcmdScript.UserFileset) statement); break;
           case 'Z': execZmake((JZcmdScript.Zmake) statement, out, indentOut, --nDebug1); break;
           case 'D': break; // a second debug statement one after another or debug on end is ignored.
-          default: 
-            writeError("JZcmd.execute - unknown statement; ", statement, out);
+          default: throw new IllegalArgumentException("JZcmd.execute - unknown statement; ");
           }//switch
           
         } catch(Exception exc){
           //any statement has thrown an exception.
-          //check onerror with proper error type anywhere after this statement, it is stored in the statement.
-          //continue there.
-          boolean found = false;
-          char excType;   //NOTE: the errortype in an onerror statement is the first letter of error keyword in syntax; notfound, file, internal, exit
-          int errLevel = 0;
-          final Throwable exc1;
-          if(exc instanceof InvocationTargetException){
-            exc1 = exc.getCause();
+          
+          CharSequence errortext;
+          if(exc instanceof JZcmdForwardException){
+            errortext = exc.getMessage();
           } else {
-            exc1 = exc;
-          }
-          if(exc1 instanceof ExitException){ excType = 'e'; errLevel = ((ExitException)exc).exitLevel; }
-          else if(exc1 instanceof IOException){ excType = 'f'; }
-          else if(exc1 instanceof CmdErrorLevelException){ excType = 'c'; }
-          else if(exc1 instanceof NoSuchFieldException || exc1 instanceof NoSuchMethodException){ excType = 'n'; }
-          else { excType = 'i'; }
-          //Search the block of onerror after this statement.
-          //Maybe use an index in any statement, to prevent search time.
-          JZcmdScript.JZcmditem onerrorStatement = null;
-          while(++ixStatement < statementList.statements.size() && (onerrorStatement = statementList.statements.get(ixStatement)).elementType() != '?');
-          if(ixStatement < statementList.statements.size()){
-            assert(onerrorStatement !=null);  //because it is found in while above.
-            //onerror-block found.
-            do { //search the appropriate error type:
-              char onerrorType;
-              JZcmdScript.Onerror errorStatement = (JZcmdScript.Onerror)onerrorStatement;
-              if( ((onerrorType = errorStatement.errorType) == excType
-                || (onerrorType == '?' && excType != 'e')   //common onerror is valid for all excluding exit 
-                )  ){
-                found = excType != 'e' || errLevel >= errorStatement.errorLevel;  //if exit exception, then check errlevel
-              }
-            } while(!found && ++ixStatement < statementList.statements.size() && (statement = statementList.statements.get(ixStatement)).elementType() == '?');
-          }
-          if(found){ //onerror found:
-            assert(onerrorStatement !=null);  //because it is found in while above.
-            String sError1 = exc1.getMessage();
-            String sError2 = exc1.toString();
-            String sError3 = statement.toString(); //statement which has thrown
-            threadData.error.setValue(sError2 + "; in statement; " + sError3);
-            threadData.exception = exc1;
-            ret = execute(onerrorStatement.statementlist, out, indentOut, false, -1);  //executes the onerror block
-            //a kBreak, kReturn etc. is used in the calling level.
-            threadData.error.setValue(null);  //clear for next usage.
-          } else {
-            CharSequence sExc = Assert.exceptionInfo("JZcmd.execute - exception at;" + statement.toString() + ";", exc1, 0, 20);
-            if(threadData.error.value()==null){
-              threadData.error.setValue(sExc);
-            }
-            endExecution();  //closes the ExecuteLevel because it is leaved with throw
-            if(exc1 instanceof ForwardException){
-              throw (ForwardException)exc1; 
+            if(exc instanceof InvocationTargetException){
+              threadData.exception = exc.getCause();
             } else {
-              throw new ForwardException(sExc.toString());
+              threadData.exception = exc;
             }
-            //sError = exc.getMessage();
-            //System.err.println("JZcmd - execute-exception; " + exc.getMessage());
-            //exc.printStackTrace();
-            //throw exc;
-            //throw new IllegalArgumentException (exc.getMessage());
+            threadData.excStatement = statement;
+            StringBuilder u = new StringBuilder(1000); 
+            u.append(threadData.exception.toString()).append("; in statement: ");
+            statement.writeStructLine(u);
+            threadData.error.setValue(u);
+            errortext = u;
+          }
+          if(bWriteErrorInOutput){
+            out.append("<?? ").append(errortext).append(" ??>");
+            threadData.error.setValue(null);  //clear for next usage.
+            threadData.exception = null;
+            threadData.excStatement = null;
+          } else {
+            CharSequence testException = excStacktraceinfo();
+            //check onerror with proper error type anywhere after this statement, it is stored in the statement.
+            //continue there.
+            boolean found = false;
+            char excType;   //NOTE: the errortype in an onerror statement is the first letter of error keyword in syntax; notfound, file, internal, exit
+            int errLevel = 0;
+            final Throwable exc1 = threadData.exception;
+            if(exc1 instanceof ExitException){ excType = 'e'; errLevel = ((ExitException)exc).exitLevel; }
+            else if(exc1 instanceof IOException){ excType = 'f'; }
+            else if(exc1 instanceof CmdErrorLevelException){ excType = 'c'; }
+            else if(exc1 instanceof NoSuchFieldException || exc1 instanceof NoSuchMethodException){ excType = 'n'; }
+            else { excType = 'i'; }
+            //Search the block of onerror after this statement.
+            //Maybe use an index in any statement, to prevent search time.
+            JZcmdScript.JZcmditem onerrorStatement = null;
+            while(++ixStatement < statementList.statements.size() && (onerrorStatement = statementList.statements.get(ixStatement)).elementType() != '?');
+            if(ixStatement < statementList.statements.size()){
+              assert(onerrorStatement !=null);  //because it is found in while above.
+              //onerror-block found.
+              do { //search the appropriate error type:
+                char onerrorType;
+                JZcmdScript.Onerror errorStatement = (JZcmdScript.Onerror)onerrorStatement;
+                if( ((onerrorType = errorStatement.errorType) == excType
+                  || (onerrorType == '?' && excType != 'e')   //common onerror is valid for all excluding exit 
+                  )  ){
+                  found = excType != 'e' || errLevel >= errorStatement.errorLevel;  //if exit exception, then check errlevel
+                }
+              } while(!found && ++ixStatement < statementList.statements.size() && (statement = statementList.statements.get(ixStatement)).elementType() == '?');
+            }
+            if(found){ //onerror found:
+              assert(onerrorStatement !=null);  //because it is found in while above.
+              ret = execute(onerrorStatement.statementlist, out, indentOut, false, -1);  //executes the onerror block
+              //a kBreak, kReturn etc. is used in the calling level.
+              threadData.error.setValue(null);  //clear for next usage.
+              threadData.exception = null;
+              threadData.excStatement = null;
+            } else {
+              endExecution();  //closes the ExecuteLevel because it is leaved with throw
+              if(exc1 instanceof JZcmdForwardException){
+                throw (JZcmdForwardException)exc1; 
+              } else {
+                throw new JZcmdForwardException(errortext.toString());
+              }
+              //sError = exc.getMessage();
+              //System.err.println("JZcmd - execute-exception; " + exc.getMessage());
+              //exc.printStackTrace();
+              //throw exc;
+              //throw new IllegalArgumentException (exc.getMessage());
+            }
           }
         }
       }//while
@@ -975,7 +961,7 @@ public class JZcmdExecuter {
       boolean cond = true;
       int cont = kSuccess;
       if(container instanceof String && ((String)container).startsWith("<?")){
-        writeError("JZcmd.execFor - faulty container type;" + (String)container, statement, out);
+        throw new IllegalArgumentException("JZcmd.execFor - faulty container type;" + (String)container);
       }
       else if(container !=null && container instanceof Iterable<?>){
         Iterator<?> iter = ((Iterable<?>)container).iterator();
@@ -1062,7 +1048,7 @@ public class JZcmdExecuter {
             cont = execute(statement.statementlist, out, indentOut, false, nDebug);
           } break;
           default:{
-            writeError("JZcmd.execIf - unknown statement; " + statement.elementType(), ifStatement, out);
+            throw new IllegalArgumentException("JZcmd.execIf - unknown statement; " + statement.elementType());
           }
         }//switch
       }//for
@@ -1225,7 +1211,7 @@ public class JZcmdExecuter {
         ExecuteLevel sublevel = new ExecuteLevel(threadData, this, null);
         String error = execSubroutine(subtextScript, sublevel, callStatement.actualArgs, additionalArgs, out, indentOut, nDebug);
         if(error !=null){
-          writeError("JZcmd.execCall - " + error + "; in call " + nameSubtext, callStatement, out);
+          //writeError("JZcmd.execCall - " + error + "; in call " + nameSubtext, callStatement, out);
 
         } else {
           if(callStatement.variable !=null || callStatement.assignObjs !=null){
@@ -1390,7 +1376,7 @@ public class JZcmdExecuter {
           name = statement.threadVariable.idents().toString();
           storeValue(statement.threadVariable, newVariables, thread, bAccessPrivate);
         } catch(Exception exc){
-          throw new IllegalArgumentException("JbatchExecuter - thread assign failure; path=" + statement.threadVariable.toString());
+          throw new IllegalArgumentException("JZcmd - thread assign failure; path=" + statement.threadVariable.toString());
         }
       } else {
         thread = new JZcmdThread();  //without assignment to a variable.
@@ -1602,26 +1588,22 @@ public class JZcmdExecuter {
     throws IllegalArgumentException, Exception
     {
       CharSequence text = "??";
-      try{
-        Object obj = dataAccess(statement.dataAccess, localVariables, bAccessPrivate, false, false, null);
-        //Object obj = statement.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
-        if(statement.format !=null){ //it is a format string:
-            if(obj instanceof CalculatorExpr.Value){
-              obj = ((CalculatorExpr.Value)obj).objValue();  
-              //converted to boxed numeric if numeric.
-              //boxed numeric is necessary for format
-            }
-            
-            text = String.format(JZcmdExecuter.this.locale,  statement.format, obj);
-        } else if(obj==null){ 
-          text = "null"; 
-        } else if (obj instanceof CharSequence){
-          text = (CharSequence)obj;
-        } else {
-          text = obj.toString();
-        }
-      } catch(Exception exc){
-        text = textError(exc, statement);  //throws
+      Object obj = dataAccess(statement.dataAccess, localVariables, bAccessPrivate, false, false, null);
+      //Object obj = statement.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
+      if(statement.format !=null){ //it is a format string:
+          if(obj instanceof CalculatorExpr.Value){
+            obj = ((CalculatorExpr.Value)obj).objValue();  
+            //converted to boxed numeric if numeric.
+            //boxed numeric is necessary for format
+          }
+          
+          text = String.format(JZcmdExecuter.this.locale,  statement.format, obj);
+      } else if(obj==null){ 
+        text = "null"; 
+      } else if (obj instanceof CharSequence){
+        text = (CharSequence)obj;
+      } else {
+        text = obj.toString();
       }
       out.append(text);
     }
@@ -1924,7 +1906,7 @@ public class JZcmdExecuter {
         CalculatorExpr.Value value = calculateExpression(arg.expression); //.calcDataAccess(localVariables);
         if(value.isObjValue()){ return value.objValue(); }
         else return value;
-      } else throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
+      } else throw new IllegalArgumentException("JZcmd - unexpected, faulty syntax");
     }
     
     
@@ -1949,7 +1931,7 @@ public class JZcmdExecuter {
         CalculatorExpr.Value value = calculateExpression(arg.expression); //.calcDataAccess(localVariables);
         return value.stringValue();
       } else return null;  //it is admissible.
-      //} else throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
+      //} else throw new IllegalArgumentException("JZcmd - unexpected, faulty syntax");
     }
     
     
@@ -2091,7 +2073,7 @@ public class JZcmdExecuter {
         } else {
           obj = null;
         }
-      } else obj = null;  //throw new IllegalArgumentException("JbatExecuter - unexpected, faulty syntax");
+      } else obj = null;  //throw new IllegalArgumentException("JZcmd - unexpected, faulty syntax");
       return obj;
     }
     
@@ -2200,23 +2182,6 @@ public class JZcmdExecuter {
     boolean isBreak(){ return isBreak; }
     
     
-    /**
-     * @param sError
-     * @param out
-     * @return false to assign to an ok variable.
-     * @throws IOException
-     */
-    boolean writeError(String sError, JZcmdScript.JZcmditem statement, Appendable out) throws IOException{
-      if(bWriteErrorInOutput){
-        out.append("<??? " + sError + "; in statement; " +statement.toString() + " ???>");
-      } else {
-        throw new IllegalArgumentException(sError + "; in statement; " + statement.toString()); 
-      }
-      return false;
-
-    }
-    
-    
 
     
     public CharSequence currdir(){ return currdir.getPath().replace('\\', '/'); }
@@ -2235,6 +2200,16 @@ public class JZcmdExecuter {
     void debug(){
       Assert.stop();
     }
+    
+
+    
+    /**Returns a one-line-information about the last Exception with Stacktrace information (max 20 levels).
+     */
+    public CharSequence excStacktraceinfo(){    
+      CharSequence sExc = Assert.exceptionInfo("JZcmd.execute - exception at;" + threadData.excStatement.toString() + ";", threadData.exception, 0, 20);
+      return sExc;
+    }
+    
     
     void throwIllegalDstArgument(CharSequence text, DataAccess dst, JZcmdScript.JZcmditem statement)
     throws IllegalArgumentException
@@ -2438,13 +2413,15 @@ public class JZcmdExecuter {
   }
   
   
-  public static class ForwardException extends Exception
+  /**Exception type wraps an exception which is not catched in the current level.
+   */
+  public static class JZcmdForwardException extends Exception
   {
     private static final long serialVersionUID = 1L;
     
     public int exitLevel;
     
-    public ForwardException(String msg){
+    public JZcmdForwardException(String msg){
       super(msg);
     }
   }

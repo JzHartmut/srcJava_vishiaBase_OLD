@@ -496,6 +496,7 @@ public class JZcmdScript extends CompiledScript
         case 'n': u.append(" newline "); break;
         case '!': u.append(" flush "); break;
         case '_': u.append(" close "); break;
+        case ',': u.append(" errortoOutput "); if(textArg == null){ u.append("off "); } break;
         //case 'X': u.append(" call " + identArgJbat ;
         default: //do nothing. Fo in overridden method.
       }
@@ -2417,6 +2418,12 @@ public class JZcmdScript extends CompiledScript
       statements.add(statement);
     } 
 
+    
+    public void set_errorToOutput(String val){
+      JZcmditem statement = new JZcmditem(this, ',');
+      if(val.equals("1")){ statement.textArg = val; }
+      statements.add(statement);
+    }
     
     
     public Onerror new_onerror(){
