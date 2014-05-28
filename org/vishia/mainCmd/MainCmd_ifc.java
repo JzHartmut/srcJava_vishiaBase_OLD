@@ -166,5 +166,19 @@ public interface MainCmd_ifc extends Report
    */
   int switchToWindowOrStartCmdline(ProcessBuilder processBuilder, String sCmd, String sWindowTitle);
   
-  
+  /**Returns a local valid current directory.
+   * It should be an existing valid normalized absolute path but it is not guaranteed.
+   */ 
+   String currdir();
+
+   /**Sets the Property {@link #currdir()} for this instance.
+    * @param newDir any String which should contain an absolute normalized valid path to an existing directory.
+    *   The path is not tested here, it should be tested in the user's application because it may be depending
+    *   on any user's condition. 
+    *   Note: Use {@link java.io.File#exists()} and then 
+    *   {@link java.io.File#getAbsoluteFile()} + {@link org.vishia.util.FileSystem#normalizePath(CharSequence)}
+    *   to check and convert the parameter.
+    * @return The old value of {@link #currdir()}.
+    */
+   String setcurrdir(String newdir);
 }

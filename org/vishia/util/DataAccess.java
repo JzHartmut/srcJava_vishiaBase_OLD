@@ -61,6 +61,9 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-28 Hartmut new: some conversions added, especially for main(String[] args): compatible with 
+   *   some CharSequence arguments. Automatic conversion from String to File removed.
+   * <li>2014-05-25 Hartmut new: access(...): gets static data. It is essential for example for Math.PI 
    * <li>2014-05-18 Hartmut new: {@link #expandElements(String, char)} for String-given elements. The first only one element
    *   of {@link #access(List, Object, Map, boolean, boolean, boolean, Dst)} can contain "path.subpath..."
    *   {@link #access(CharSequence, Object, Map, boolean, boolean, boolean, Dst)} for String given elements.
@@ -178,77 +181,199 @@ public class DataAccess {
     boolean canConvert(Object src); 
   }
   
+
   
-  protected static Conversion long2int = new Conversion(){
-    @Override public Object convert(Object src){
-      return new Integer(((Long)src).intValue());
-    }
-    @Override public boolean canConvert(Object src){
-      long val = ((Long)src).longValue();
-      return  val <= 0x7fffffffL && val >= 0xFFFFFFFF80000000L;
-    }
-    @Override public String toString(){ return "long:int"; }
-  };
+  /**This inner class contains all possible automatic special conversions.
+   * <ul>
+   * <li>Note that conversions from an derived type to a reference of a basic type
+   *   are detected automatically. Therefore a {@link #number2char} is sufficient for
+   *   integer2char, short2char etc.
+   * <li>Note that all simple types are boxed into there Wrapper types, both for input and output.
+   * <li>Note that a {@link java.lang.Integer} is based on {@link java.lang.Number} etc.
+   * </ul>
+   */
+  protected static class Conversions {
+    
+    /**{@link CalculatorExpr.Value} to Integer. */
+    protected static Conversion calcValue2int = new Conversion(){
+      @Override public Object convert(Object src){
+        return new Integer(((CalculatorExpr.Value)src).intValue());
+      }
+      @Override public boolean canConvert(Object src){ return true; }
+      @Override public String toString(){ return "calcValue:int"; }
+    };
+    
+    /**Long to Integer. */
+    protected static Conversion long2int = new Conversion(){
+      @Override public Object convert(Object src){
+        return new Integer(((Long)src).intValue());
+      }
+      @Override public boolean canConvert(Object src){
+        long val = ((Long)src).longValue();
+        return  val <= 0x7fffffffL && val >= 0xFFFFFFFF80000000L;
+      }
+      @Override public String toString(){ return "long:int"; }
+    };
+    
+    /**Integer to Character. Adequate to Number to Boolean, but a tick faster because the superclass should not be tested. */
+    protected static Conversion int2char = new Conversion(){
+      @Override public Object convert(Object src){
+        return new Character((char)((Integer)src).intValue());
+      }
+      @Override public boolean canConvert(Object src){ 
+        return true;
+      }
+      @Override public String toString(){ return "int:double"; }
+    };
+    
+    /**Integer to Boolean. Adequate to Number to Boolean, but a tick faster because the superclass should not be tested. */
+    protected static Conversion int2bool = new Conversion(){
+      @Override public Object convert(Object src){
+        return new Boolean(((Integer)src).intValue()!=0);
+      }
+      @Override public boolean canConvert(Object src){ return true;}
+      @Override public String toString(){ return "int:long"; }
+    };
+    
+    /**Integer to Byte. */
+    protected static Conversion int2byte = new Conversion(){
+      @Override public Object convert(Object src){
+        return new Byte((byte)((Integer)src).intValue());
+      }
+      @Override public boolean canConvert(Object src){ 
+        int val = ((Integer)src).intValue();
+        return  val <= 0x7f && val >= 0xFFFFFF80;
+      }
+      @Override public String toString(){ return "int:long"; }
+    };
+    
+    /**Integer to Short. */
+    protected static Conversion int2short = new Conversion(){
+      @Override public Object convert(Object src){
+        return new Short((byte)((Integer)src).intValue());
+      }
+      @Override public boolean canConvert(Object src){ 
+        int val = ((Integer)src).intValue();
+        return  val <= 0x7fff && val >= 0xFFFF8000;
+      }
+      @Override public String toString(){ return "int:long"; }
+    };
+    
+    /**Integer to Long. */
+    protected static Conversion int2long = new Conversion(){
+      @Override public Object convert(Object src){
+        return new Long(((Integer)src).intValue());
+      }
+      @Override public boolean canConvert(Object src){ return true;}
+      @Override public String toString(){ return "int:long"; }
+    };
+    
+    /**Integer to Float. */
+    protected static Conversion int2float = new Conversion(){
+      @Override public Object convert(Object src){
+        return new Float(((Integer)src).intValue());
+      }
+      @Override public boolean canConvert(Object src){ return true;}
+      @Override public String toString(){ return "int:float"; }
+    };
+    
+    /**Integer to Double. */
+    protected static Conversion int2double = new Conversion(){
+      @Override public Object convert(Object src){
+        return new Double(((Integer)src).intValue());
+      }
+      @Override public boolean canConvert(Object src){ return true;}
+      @Override public String toString(){ return "int:double"; }
+    };
+    
+    /**Number to Character. */
+    protected static Conversion number2char = new Conversion(){
+      @Override public Object convert(Object src){
+        return new Character((char)((Number)src).longValue());
+      }
+      @Override public boolean canConvert(Object src){ 
+        return true;
+      }
+      @Override public String toString(){ return "int:double"; }
+    };
+    
+    /**Double to Float. */
+    protected static Conversion double2float = new Conversion(){
+      @Override public Object convert(Object src){
+        return new Float(((Double)src).floatValue());
+      }
+      @Override public boolean canConvert(Object src){ return true;}
+      @Override public String toString(){ return "double:float"; }
+    };
+    
+    /**Float to Double*/
+    protected static Conversion float2double = new Conversion(){
+      @Override public Object convert(Object src){
+        return new Double(((Float)src).floatValue());
+      }
+      @Override public boolean canConvert(Object src){ return true;}
+      @Override public String toString(){ return "float:double"; }
+    };
+    
+    /**Number to Boolean. Note that Byte, Short, Integer, Long are Number. */
+    protected static Conversion number2bool = new Conversion(){
+      @Override public Object convert(Object src){
+        return new Boolean(((Number)src).longValue() !=0);
+      }
+      @Override public boolean canConvert(Object src){
+        return true;
+      }
+      @Override public String toString(){ return "number:bool"; }
+    };
+    
+    /**Any Object to Boolean. It tests obj != null. */
+    protected static Conversion obj2bool = new Conversion(){
+      @Override public Object convert(Object src){
+        return new Boolean(src != null);
+      }
+      @Override public boolean canConvert(Object src){
+        return true;
+      }
+      @Override public String toString(){ return "obj:bool"; }
+    };
+    
+    
+    /**CharSequence to String. It uses src.toString(); */
+    protected static Conversion charSequence2String = new Conversion(){
+      @Override public Object convert(Object src){
+        return src.toString();
+      }
+      @Override public boolean canConvert(Object src){
+        return true;
+      }
+      @Override public String toString(){ return "CharSequence:String"; }
+    };
+    
+    
+    /**CharSequence to Character. It matches only if the CharSequence contains exactly 1 character. */
+    protected static Conversion charSeq2char = new Conversion(){
+      @Override public Object convert(Object src){
+        return new Character(((CharSequence)src).charAt(0));
+      }
+      @Override public boolean canConvert(Object src){
+        return ((CharSequence)src).length() ==1;
+      }
+      @Override public String toString(){ return "CharSequence:char"; }
+    };
+    
+    
+    /**Without conversion, returns src. */  
+    protected static Conversion obj2obj = new Conversion(){
+      @Override public Object convert(Object src){
+        return src;
+      }
+      @Override public boolean canConvert(Object src){
+        return true;
+      }
+      @Override public String toString(){ return "obj:obj"; }
+    };
+  }
   
-  protected static Conversion int2long = new Conversion(){
-    @Override public Object convert(Object src){
-      return new Long(((Integer)src).intValue());
-    }
-    @Override public boolean canConvert(Object src){ return true;}
-    @Override public String toString(){ return "int:long"; }
-  };
-  
-  protected static Conversion number2bool = new Conversion(){
-    @Override public Object convert(Object src){
-      return new Boolean(((Number)src).longValue() !=0);
-    }
-    @Override public boolean canConvert(Object src){
-      return true;
-    }
-    @Override public String toString(){ return "number:bool"; }
-  };
-  
-  
-  protected static Conversion obj2bool = new Conversion(){
-    @Override public Object convert(Object src){
-      return new Boolean(src != null);
-    }
-    @Override public boolean canConvert(Object src){
-      return true;
-    }
-    @Override public String toString(){ return "obj:bool"; }
-  };
-  
-  
-  protected static Conversion obj2String = new Conversion(){
-    @Override public Object convert(Object src){
-      return src.toString();
-    }
-    @Override public boolean canConvert(Object src){
-      return true;
-    }
-    @Override public String toString(){ return "obj:String"; }
-  };
-  
-  protected static Conversion charSeq2File = new Conversion(){
-    @Override public Object convert(Object src){
-      return new File(src.toString());
-    }
-    @Override public boolean canConvert(Object src){
-      return true;
-    }
-    @Override public String toString(){ return "CharSequence:File"; }
-  };
-  
-  protected static Conversion obj2obj = new Conversion(){
-    @Override public Object convert(Object src){
-      return src;
-    }
-    @Override public boolean canConvert(Object src){
-      return true;
-    }
-    @Override public String toString(){ return "obj:obj"; }
-  };
   
   private static Map<String, Conversion> idxConversions = initConversion();
   
@@ -423,16 +548,25 @@ public class DataAccess {
    */
   public static Map<String, Conversion> initConversion(){
     Map<String, Conversion> conversion1 = new TreeMap<String, Conversion>();
-    conversion1.put("java.lang.Long:int", long2int);
-    conversion1.put("java.lang.Integer:int", obj2obj);
-    conversion1.put("java.lang.Integer:long", int2long);
-    conversion1.put("java.lang.Float:float", obj2obj);
-    conversion1.put("java.lang.Double:double", obj2obj);
-    conversion1.put("java.lang.Number:boolean", number2bool);
-    conversion1.put("java.lang.Object:boolean", obj2bool);
-    conversion1.put("java.lang.CharSequence:java.io.File", charSeq2File);
-    conversion1.put("java.lang.CharSequence:java.lang.String", obj2String);
-    conversion1.put("java.lang.Object:java.lang.String", obj2String);
+    conversion1.put("org.vishia.util.CalculatorExpr$Value:int", Conversions.calcValue2int);
+    conversion1.put("java.lang.Long:int", Conversions.long2int);
+    conversion1.put("java.lang.Integer:boolean", Conversions.int2bool);
+    conversion1.put("java.lang.Integer:byte", Conversions.int2byte);
+    conversion1.put("java.lang.Integer:short", Conversions.int2short);
+    conversion1.put("java.lang.Integer:int", Conversions.obj2obj);
+    conversion1.put("java.lang.Integer:long", Conversions.int2long);
+    conversion1.put("java.lang.Integer:float", Conversions.int2float);
+    conversion1.put("java.lang.Integer:double", Conversions.int2double);
+    conversion1.put("java.lang.Integer:char", Conversions.int2char);
+    conversion1.put("java.lang.Float:float", Conversions.obj2obj);
+    conversion1.put("java.lang.Float:double", Conversions.float2double);
+    conversion1.put("java.lang.Double:double", Conversions.obj2obj);
+    conversion1.put("java.lang.Double:float", Conversions.double2float);
+    conversion1.put("java.lang.Number:boolean", Conversions.number2bool);
+    conversion1.put("java.lang.Number:char", Conversions.number2char);
+    conversion1.put("java.lang.Object:boolean", Conversions.obj2bool);
+    conversion1.put("java.lang.CharSequence:char", Conversions.charSeq2char);
+    conversion1.put("java.lang.CharSequence:java.lang.String", Conversions.charSequence2String);
     return conversion1;
   }
   
@@ -731,8 +865,12 @@ public class DataAccess {
           } break;
           case '%': data1 = invokeStaticMethod(element); break;
           default:
-            if(data1 !=null){
-              data1 = getData(element.ident, data1, accessPrivate, bContainer, bVariable, dst);
+            if(bStatic){
+              data1 = getDataFromField(element.ident, null, accessPrivate, (Class<?>)data1, dst, 0); 
+            } else {
+              if(data1 !=null){
+                data1 = getData(element.ident, data1, accessPrivate, bContainer, bVariable, dst);
+              }
             }
             //else: let data1=null, return null
         }//switch
@@ -859,7 +997,6 @@ public class DataAccess {
             }
             method.setAccessible(accessPrivate);
             Class<?>[] paramTypes = method.getParameterTypes();
-            
             Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
             if(actArgs !=null){
               bOk = true;
@@ -950,7 +1087,8 @@ public class DataAccess {
    * Converts the arguments if possible and necessary:
    * <ul>
    * <li>same type of providedArg and argType: use providedArg without conversion
-   * <li>
+   * <li>argType is String[]: check providedArgs. If all of them are CharSequence, return String[] of this CharSequences.
+   *   Convert the CharSequences toString().
    * <li>provideArg instanceof  -> argType: conversion
    * <li>{@link java.lang.CharSequence} -> {@link java.lang.CharSequence}: arg
    * <li>{@link java.lang.CharSequence} -> {@link java.lang.String}: arg.toString()
@@ -964,113 +1102,135 @@ public class DataAccess {
    *   The array have to be created with the size proper to 
    */
   protected static Object[] checkAndConvertArgTypes(Object[] providedArgs, Class<?>[] argTypes){
-    Object[] actArgs;
-    if(argTypes.length == 0 && providedArgs == null){
-      actArgs = new Object[0]; //matches, but no args.
-    }
-    else if(providedArgs !=null 
-      && (  argTypes.length == providedArgs.length
-         || argTypes.length > 0 && argTypes.length < providedArgs.length && argTypes[argTypes.length -1].isArray()  
-      )  ){
-      //check it
-      boolean bOk = true;
-      int iParam = 0;  //iterator-index in argTypes, maybe less then ix
-      //check the matching of parameter types inclusive convertibility.
-      Class<?> argType = null;
-      Conversion[] conversions = new Conversion[providedArgs.length];
-      int ix = -1;    //iterator-index in actTypes
-      //Iterator<Object> iter = providedArgs.iterator();
-      int iProvideArgs = -1;
-      while(bOk && ++iProvideArgs < providedArgs.length) {                        
-        Object actValue = providedArgs[iProvideArgs];              //iterate through provided arguments
-        bOk = false;   //check for this arg
-        ix +=1;
-        if(actValue == null){
-          bOk = true;  //may be compatible with all ones.
-          conversions[ix] = obj2obj;
-        } else {
-          Class<?> actType = actValue.getClass();
-          if(iParam == argTypes.length-1 && providedArgs.length > iParam+1 && argTypes[iParam].isArray()){
-            //There are more given arguments and the last one is an array or a variable argument list.
-            //store the rest in lastArrayArg instead.
-            argType = argTypes[iParam].getComponentType();
-          } else {
-            argType = argTypes[iParam];
-          }
-          //check super classes and all interface types.
-          Conversion conv = checkArgTypes(argType, actType, actValue);
-          if(conv != null){ 
-            conversions[ix] = conv; 
-            bOk = true; 
-          }  //check first, fast variant.
-          if(!bOk) { break; }
-        }
-        if(iParam < argTypes.length-1) { iParam +=1; }
-      } //for, terminated with some breaks.
-      if(bOk){
-        //the last or only one Argument as array
-        Object[] lastArrayArg;
-        if(argTypes.length < providedArgs.length){
-          Class<?> lastType = argTypes[argTypes.length-1].getComponentType();
-          //create the appropriate array type:
-          if(lastType == String.class){ 
-            //A String is typical especially for invocation of a static main(String[] args)
-            lastArrayArg = new String[providedArgs.length - argTypes.length +1]; }
-          else {
-            //TODO what else
-            lastArrayArg = new String[providedArgs.length - argTypes.length +1]; }
-        } else {
-          lastArrayArg = null;
-        }
-        actArgs = new Object[argTypes.length];
-        Object[] dstArgs = actArgs;
-        iParam = 0;  //now convert instances:
-        ix = -1;
+    Object[] actArgs = null;
+    if(argTypes.length==1 && argTypes[0].isArray() && argTypes[0].getName().equals("[Ljava.lang.String;")){
+      //especially for main(String[] args)
+      //check whether the element.fnArgs are matching to a String array 
+      if(providedArgs == null){ 
+        actArgs = new Object[1];
+        actArgs[0] = new String[0];
+      } else {
+        actArgs = new Object[1];
+        String[] actArgs1 = new String[providedArgs.length];
+        actArgs[0] = actArgs1;
+        int ix = -1;
         for(Object arg: providedArgs){
+          if(arg instanceof CharSequence){
+            actArgs1[++ix] = ((CharSequence)arg).toString();
+          } else {
+            actArgs = null; break;  //do not match
+          }
+        }
+      }
+    }
+    if(actArgs ==null){
+      if(argTypes.length == 0 && providedArgs == null){
+        actArgs = new Object[0]; //matches, but no args.
+      }
+      else if(providedArgs !=null 
+        && (  argTypes.length == providedArgs.length
+           || argTypes.length > 0 && argTypes.length < providedArgs.length && argTypes[argTypes.length -1].isArray()  
+        )  ){
+        //check it
+        boolean bOk = true;
+        int iParam = 0;  //iterator-index in argTypes, maybe less then ix
+        //check the matching of parameter types inclusive convertibility.
+        Class<?> argType = null;
+        Conversion[] conversions = new Conversion[providedArgs.length];
+        int ix = -1;    //iterator-index in actTypes
+        //Iterator<Object> iter = providedArgs.iterator();
+        int iProvideArgs = -1;
+        while(bOk && ++iProvideArgs < providedArgs.length) {                        
+          Object actValue = providedArgs[iProvideArgs];              //iterate through provided arguments
+          bOk = false;   //check for this arg
           ix +=1;
-          if(dstArgs == actArgs){
-            if(iParam >= argTypes.length-1 && lastArrayArg !=null){
-              //The last arg is ready to fill, but there are more given arguments and the last one is an array or a variable argument list.
+          if(actValue == null){
+            bOk = true;  //may be compatible with all ones.
+            conversions[ix] = Conversions.obj2obj;
+          } else {
+            Class<?> actType = actValue.getClass();
+            if(iParam == argTypes.length-1 && providedArgs.length > iParam+1 && argTypes[iParam].isArray()){
+              //There are more given arguments and the last one is an array or a variable argument list.
               //store the rest in lastArrayArg instead.
-              actArgs[iParam] = lastArrayArg;
-              dstArgs = lastArrayArg;
-              iParam = 0;
               argType = argTypes[iParam].getComponentType();
             } else {
               argType = argTypes[iParam];
             }
-          } //else: it fills the last array of variable argument list. remain argType unchanged.
-          Object actArg;
-          assert(conversions[ix] !=null);
-          //if(conversions[ix] !=null){
-            actArg = conversions[ix].convert(arg);
-          //}
-          /*
-          else if(arg instanceof CharSequence){
-            if(argType == File.class){ actArg = new File(((CharSequence)arg).toString()); }
-            else if(argType == String.class){ actArg = ((CharSequence)arg).toString(); }
+            //check super classes and all interface types.
+            Conversion conv = checkArgTypes(argType, actType, actValue);
+            if(conv != null){ 
+              conversions[ix] = conv; 
+              bOk = true; 
+            }  //check first, fast variant.
+            if(!bOk) { break; }
+          }
+          if(iParam < argTypes.length-1) { iParam +=1; }
+        } //for, terminated with some breaks.
+        if(bOk){
+          //the last or only one Argument as array
+          Object[] lastArrayArg;
+          if(argTypes.length < providedArgs.length){
+            Class<?> lastType = argTypes[argTypes.length-1].getComponentType();
+            //create the appropriate array type:
+            if(lastType == String.class){ 
+              //A String is typical especially for invocation of a static main(String[] args)
+              lastArrayArg = new String[providedArgs.length - argTypes.length +1]; }
             else {
+              //TODO what else
+              lastArrayArg = new String[providedArgs.length - argTypes.length +1]; }
+          } else {
+            lastArrayArg = null;
+          }
+          actArgs = new Object[argTypes.length];
+          Object[] dstArgs = actArgs;
+          iParam = 0;  //now convert instances:
+          ix = -1;
+          for(Object arg: providedArgs){
+            ix +=1;
+            if(dstArgs == actArgs){
+              if(iParam >= argTypes.length-1 && lastArrayArg !=null){
+                //The last arg is ready to fill, but there are more given arguments and the last one is an array or a variable argument list.
+                //store the rest in lastArrayArg instead.
+                actArgs[iParam] = lastArrayArg;
+                dstArgs = lastArrayArg;
+                iParam = 0;
+                argType = argTypes[iParam].getComponentType();
+              } else {
+                argType = argTypes[iParam];
+              }
+            } //else: it fills the last array of variable argument list. remain argType unchanged.
+            Object actArg;
+            assert(conversions[ix] !=null);
+            //if(conversions[ix] !=null){
+              actArg = conversions[ix].convert(arg);
+            //}
+            /*
+            else if(arg instanceof CharSequence){
+              if(argType == File.class){ actArg = new File(((CharSequence)arg).toString()); }
+              else if(argType == String.class){ actArg = ((CharSequence)arg).toString(); }
+              else {
+                actArg = arg;
+              }
+            } else if( (typeName = argType.getName()).equals("Z") || typeName.equals("boolean")){
+              if(arg instanceof Boolean){ actArg = ((Boolean)arg).booleanValue(); }
+              if(arg instanceof Byte){ actArg = ((Byte)arg).byteValue() == 0 ? false : true; }
+              if(arg instanceof Short){ actArg = ((Short)arg).shortValue() == 0 ? false : true; }
+              if(arg instanceof Integer){ actArg = ((Integer)arg).intValue() == 0 ? false : true; }
+              if(arg instanceof Long){ actArg = ((Long)arg).longValue() == 0 ? false : true; }
+              else { actArg = arg == null ? false: true; }
+            } else {
               actArg = arg;
             }
-          } else if( (typeName = argType.getName()).equals("Z") || typeName.equals("boolean")){
-            if(arg instanceof Boolean){ actArg = ((Boolean)arg).booleanValue(); }
-            if(arg instanceof Byte){ actArg = ((Byte)arg).byteValue() == 0 ? false : true; }
-            if(arg instanceof Short){ actArg = ((Short)arg).shortValue() == 0 ? false : true; }
-            if(arg instanceof Integer){ actArg = ((Integer)arg).intValue() == 0 ? false : true; }
-            if(arg instanceof Long){ actArg = ((Long)arg).longValue() == 0 ? false : true; }
-            else { actArg = arg == null ? false: true; }
-          } else {
-            actArg = arg;
-          }
-          */
-          dstArgs[iParam] = actArg;
-          iParam +=1;
-        } //for, terminated with some breaks.
-      } else {
+            */
+            dstArgs[iParam] = actArg;
+            iParam +=1;
+          } //for, terminated with some breaks.
+        } else {
+          actArgs = null;
+        }
+      } else { //faulty number of arguments
         actArgs = null;
       }
-    } else { //faulty number of arguments
-      actArgs = null;
     }
     return actArgs;
   }
@@ -1132,7 +1292,7 @@ public class DataAccess {
    * @return null if conversion is not possible, elsewhere the conversion.
    */
   public static Conversion checkTypes(Class<?> argType, Class<?> actType, Object arg){
-    if(argType == actType){ return obj2obj; }
+    if(argType == actType){ return Conversions.obj2obj; }
     else {
       String conversion2 = actType.getName() + ":" + argType.getName(); //forex "Long:int"
       Conversion conv = idxConversions.get(conversion2); //search the conversion

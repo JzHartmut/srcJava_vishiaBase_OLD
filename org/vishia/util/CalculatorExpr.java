@@ -171,6 +171,21 @@ public class CalculatorExpr
       }//switch
     }
     
+    public int intValue()
+    { switch(type){
+        case 'I': return intVal;
+        case 'C': return intVal;
+        case 'J': return (int)longVal;
+        case 'D': return (int)doubleVal;
+        case 'F': return (int)floatVal;
+        case 'Z': return boolVal ? 1 : 0;
+        case 't': return Integer.parseInt(stringVal.toString());
+        case 'o': throw new IllegalArgumentException("Double expected, object given.");
+        case '?': return 7777777; //TODO throw new IllegalArgumentException("the type is not determined while operation.");
+        default: throw new IllegalArgumentException("unknown type char: " + type);
+      }//switch
+    }
+    
     public double doubleValue()
     { switch(type){
         case 'I': return intVal;

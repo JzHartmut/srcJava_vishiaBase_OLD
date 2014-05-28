@@ -238,7 +238,7 @@ public interface MainCmdLogging_ifc extends LogMessage
    *     
    *     void processAnything()
    *     { report.reportln( myReportLevel1, "InfoText"); //It depends on the report level settings 
-   *       report.reportln( myReportLevel2, "DebugText");//wether it is outputted or not. 
+   *       report.reportln( myReportLevel2, "DebugText");//whether it is outputed or not. 
    *     }  
    * </pre>    
    * 
@@ -271,5 +271,4 @@ public interface MainCmdLogging_ifc extends LogMessage
   void setOutputChannels(Appendable outP, Appendable errP);
   
 
-  
 }

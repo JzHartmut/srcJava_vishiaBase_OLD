@@ -306,6 +306,7 @@ public class JZcmdExecuter {
     if(scriptLevel.localVariables.get("out") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "out", 'A', System.out, true); }
     if(scriptLevel.localVariables.get("err") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "err", 'A', System.err, true); }
     if(scriptLevel.localVariables.get("null") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
+    //if(scriptLevel.localVariables.get("") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
     //if(scriptLevel.localVariables.get("jbat") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jbat", 'O', this, true); }
     //if(scriptLevel.localVariables.get("zgen") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "zgen", 'O', this, true); }
     if(scriptLevel.localVariables.get("jzcmd") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jzcmd", 'O', this, true); }
@@ -313,6 +314,7 @@ public class JZcmdExecuter {
     if(scriptLevel.localVariables.get("test") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new JZcmdTester(), true); }
     if(scriptLevel.localVariables.get("conv") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "conv", 'O', new Conversion(), true); }
     try{
+      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "Math", 'C', Class.forName("java.lang.Math"), true);
       DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "System", 'C', Class.forName("java.lang.System"), true);
       DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "FileSystem", 'C', Class.forName("org.vishia.util.FileSystem"), true);
       DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "StringFunctions", 'C', Class.forName("org.vishia.util.StringFunctions"), true);
@@ -804,7 +806,6 @@ public class JZcmdExecuter {
             threadData.exception = null;
             threadData.excStatement = null;
           } else {
-            CharSequence testException = excStacktraceinfo();
             //check onerror with proper error type anywhere after this statement, it is stored in the statement.
             //continue there.
             boolean found = false;
@@ -1548,8 +1549,9 @@ public class JZcmdExecuter {
     
     /**Executes the cd command: changes the directory in this execution level.
      * @param arg maybe a relative path. If it is a StringBuilder, it will be changed on normalizePath.
+     * @throws IllegalAccessException 
      */
-    protected void changeCurrDir(CharSequence arg) 
+    protected void changeCurrDir(CharSequence arg) throws IllegalAccessException 
     {
       final CharSequence arg1;
       boolean absPath = FileSystem.isAbsolutePathOrDrive(arg);
@@ -1569,6 +1571,10 @@ public class JZcmdExecuter {
       if(!currdir.exists() || !currdir.isDirectory()){
         throw new IllegalArgumentException("JZcmdExecuter - cd, dir not exists; " + arg);
       }
+      setLocalVariable("currdir", 'O', currdir, true);
+      //NOTE: don't do so, because it is global for the JVM (not desired!) but does not affect the operation system.
+      //it has not any sense.
+      //String sOldDir = System.setProperty("user.dir", currdir.getAbsolutePath());
       
     }
     
@@ -1871,7 +1877,7 @@ public class JZcmdExecuter {
     
     void execThrow(JZcmdScript.JZcmditem statement) throws Exception {
       CharSequence msg = evalString(statement);
-      throw new IllegalArgumentException(msg.toString());
+      throw new JZcmdThrow(msg.toString());
     }
     
     
@@ -1954,7 +1960,7 @@ public class JZcmdExecuter {
     , DataAccess.Dst dst
     ) throws Exception {
       if(dataAccess.filepath !=null){
-        //Special case in JZcmd: a File.
+        //Special case in JZcmd: a "File: "
         if(FileSystem.isAbsolutePath(dataAccess.filepath)){
           return new File(dataAccess.filepath);
         } else {
@@ -2397,6 +2403,16 @@ public class JZcmdExecuter {
     public CmdErrorLevelException(int errorLevel){
       super("cmd error level = " + errorLevel);
       this.errorLevel = errorLevel;
+    }
+  }
+  
+  
+  public static class JZcmdThrow extends Exception
+  {
+    private static final long serialVersionUID = 1L;
+
+    public JZcmdThrow(String text){
+      super(text);
     }
   }
   

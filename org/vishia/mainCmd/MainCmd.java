@@ -217,6 +217,10 @@ public abstract class MainCmd implements MainCmd_ifc
   /**Version, able to read as hex yyyymmdd.
    * Changes:
    * <ul>
+   * <li>2014-05-28 Hartmut new: {@link #currdir()} and {@link #currdir}. It can be used by an application.
+   *   Note that the System.setProperty("user.dir", value) affects the whole JVM. A MainCmd may be invoked 
+   *   only as a part of an Java application. Therefore the currdir is local valid. Note that the currdir
+   *   and the System.setProperty("user.dir",...) both don't affects the operation system.   
    * <li>2014-01-08 Hartmut new: {@link #getLogging_ifc()}, usage MainCmd in any Java class without forwarded argument.
    * <li>2014-01-08 Hartmut bugfix: {@link #sendMsgTimeToAppendableDst(Appendable, int, int, OS_TimeStamp, String, Object...)}
    *   catches a IllegalFormatException 
@@ -326,6 +330,8 @@ public abstract class MainCmd implements MainCmd_ifc
   public int nReportLevel = Report.info;  //default: reports errors, warnings and info, but no debug
 
   private String sFileReport = "report.txt";
+  
+  public String currdir = System.getProperty("user.dir"); 
 
   /** All reports with a level less than or equal this level will be written on display.
    *  Note: using {@link Report#writeInfo(String)} etc. writes to display also if this attribute is 0.
@@ -451,6 +457,7 @@ public abstract class MainCmd implements MainCmd_ifc
   /** Adds the help info for standard arguments. The text is the followed:<pre>
     addHelpInfo("--about show the help infos");
     addHelpInfo("--help  show the help infos");
+    addHelpInfo("--currdir=PATH Set the currdir variable.");
     addHelpInfo("--report=FILE  write the report (log) into the given file, create or clear the file.");
     addHelpInfo("--report+=FILE add to the end of given file or create the report file.");
     addHelpInfo("--rlevel=R     set the level of report, R is number from 1 to 6.");
@@ -464,6 +471,7 @@ public abstract class MainCmd implements MainCmd_ifc
     addHelpInfo("--help  show the help infos");
     addHelpInfo("---arg ignore this argument");
     addHelpInfo("--@file use file for further arguments, one argument per line.");
+    addHelpInfo("--currdir=PATH Set the currdir variable.");
     addHelpInfo("--report=FILE  write the report (log) into the given file, create or clear the file.");
     addHelpInfo("--report+=FILE add to the end of given file or create the report file.");
     addHelpInfo("--rlevel=R     set the level of report, R is number from 1 to 6.");
@@ -562,6 +570,7 @@ public abstract class MainCmd implements MainCmd_ifc
    * <ul>
    * <li>--about show the help infos
    * <li>--help  show the help infos");
+   * <li>--currdir=PATH Set the currdir variable.
    * <li>--report=FILE  write the report (log) into the given file, create or clear the file.");
    * <li>--report+=FILE add to the end of given file or create the report file.");
    * <li>--rlevel=R     set the level of report, R is number from 1 to 6.");
@@ -633,6 +642,8 @@ public abstract class MainCmd implements MainCmd_ifc
           main.nReportLevelDisplay   = (level / 10) % 10;  //0: no report on display.
           main.nLevelDisplayToReport = (level / 100) % 10;  //0: no display to report.
         }
+        else if(cmdLineArgs[iArgs].startsWith("--currdir=")) { currdir = getArgument(10); }
+        else if(cmdLineArgs[iArgs].startsWith("--currdir:")) { currdir = getArgument(10); }
         else if(cmdLineArgs[iArgs].startsWith("--report+=")) { sFileReport = getArgument(10); bAppendReport = true; }
         else if(cmdLineArgs[iArgs].startsWith("--report:")) { sFileReport = getArgument(9); }
         else if(cmdLineArgs[iArgs].startsWith("--report=")) { sFileReport = getArgument(9); }
@@ -715,7 +726,7 @@ public abstract class MainCmd implements MainCmd_ifc
   throws ParseException
   { writeAboutInfo();
     writeHelpInfo();
-    throw new ParseException("no cmdline Arguments", 0);
+    //throw new ParseException("no cmdline Arguments", 0);
   }
 
   /** Returns the argument contents. The user should invoke this method in his testArgument()-method.
@@ -813,8 +824,48 @@ public abstract class MainCmd implements MainCmd_ifc
 
 
 
+  /**Returns that current directory which is given by argument "--currdir=value" or which was {@link #setcurrdir(String)}. 
+   * Note that the currdir is not checked whether it is valid and existing.
+   * It should be an existing valid normalized absolute path. The application should check it
+   * because the path may be existing and removed than. There is no guarantee possible.
+   * <br><br>
+   * Use that currdir to create File instances independent of the operation system's current dir
+   * which is present on command line by start the application:
+   * <pre>
+   *   File myFile = new File(currdir(), "relative/path");
+   * </pre>  
+   * Note that the
+   * <pre>
+   *   System.setProperty("user.dir", currdir);
+   * </pre>
+   * has a global effect for the running JVM, but it has no effect to the operation system. It means
+   * <pre>
+   *   System.setProperty("user.dir", "/My/Workingplace");
+   *   File myFile = new File("relative.path");
+   *   String abspath = myFile.getAbsolutePath();
+   * </pre>
+   * Does not work proper! If the relative File is used to open anything, the open process is done on the
+   * operation system level. But the operation system does not know anything about a changed current dir.
+   * But the <code> File.getAbsolutePath() </code> works with the JVM-global setting of "user.dir". That is confusion,
+   * which depends on the history and technique.
+   * <br><br>
+   * Therefore the only one way to work with changed current directories is: Handle it in the application.
+   * This routine is a helper of that.    
+   * */
+  @Override public String currdir(){ return currdir; }
 
-
+  
+  /**Sets the Property {@link #currdir()} for this instance.
+   * @param newDir any String which should contain an absolute normalized valid path to an existing directory.
+   *   The path is not tested here, it should be tested in the user's application because it may be depending
+   *   on any user's condition. 
+   * @return The old value of {@link #currdir()}.
+   */
+  public String setcurrdir(String newDir){
+    String ret = currdir;
+    currdir = newDir;
+    return currdir;
+  }
 
 
   /*--------------------------------------------------------------------------------------------------------*/

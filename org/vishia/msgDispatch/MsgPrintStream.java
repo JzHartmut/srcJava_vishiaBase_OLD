@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.vishia.util.StringFunctions;
+
 /**This class adapts an PrintStream such as System.err to the LogMessage-System.
  * The first part of the message string till a semicolon or colon is used to build a number, 
  * whereby a number range (group) is determined by the left division
@@ -51,6 +53,9 @@ public class MsgPrintStream implements MsgPrintStream_ifc
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-05-29 Hartmut chg: override {@link PrintStreamAdapter#append(CharSequence)} because it is invoked 
+   *   in the {@link java.io.PrintStream} and should overridden to output the text. Note that one of the core
+   *   methods of PrintStream is write(...) but that is private. 
    * <li>2013-09-14 Hartmut chg: override println(Object) without them the superclass calls print(Object.toString) + "\n".
    *   The newline buffer mechanism had not worked without them.
    * <li>2013-09-14 Hartmut chg: The {@link PrintStreamAdapter#print(String)} does not dispatch the text directly
@@ -279,14 +284,14 @@ public class MsgPrintStream implements MsgPrintStream_ifc
   
   
   
-  protected void convertToMsg(String pre, String identString, Object... args) {
+  protected void convertToMsg(String pre, CharSequence identString, Object... args) {
     if(identString == null) return;
-    int posSemicolon = identString.indexOf(';');
-    int posColon = identString.indexOf(':');
+    int posSemicolon = StringFunctions.indexOf(identString,';',0);
+    int posColon = StringFunctions.indexOf(identString,':',0);
     int posSep = posColon < 0 || posSemicolon < posColon ? posSemicolon : posColon;  //more left char of ; :
     final String sIdent;
-    if(posSep >0){ sIdent = identString.substring(0, posSep).trim(); }
-    else { sIdent = identString.trim(); }
+    if(posSep >0){ sIdent = identString.subSequence(0, posSep).toString().trim(); }
+    else { sIdent = identString.toString().trim(); }
     String sPreIdent = null;
     Integer nIdent = idxIdent.get(sIdent);  //check whether the sIdent is known already by configuration. 
     if(nIdent == null){
@@ -324,7 +329,7 @@ public class MsgPrintStream implements MsgPrintStream_ifc
       nIdent = new Integer(nIdent1);
       idxIdent.put(sPreIdent, nIdent);
     } //nIdent == null
-    logOut.sendMsg(nIdent.intValue(), identString, args);
+    logOut.sendMsg(nIdent.intValue(), identString.toString(), args);
   }
 
   
@@ -356,25 +361,38 @@ public class MsgPrintStream implements MsgPrintStream_ifc
     }
     
     
+    @Override public void print(String str){
+      append(str);
+    }
+    
+    @Override
+    public PrintStream append(CharSequence csq, int start, int end) {
+      CharSequence cs = (csq == null ? "null" : csq);
+      append(cs.subSequence(start, end).toString());
+      return this;
+    }
+
+    
     /**This method is called if {@link java.io.OutputStream#append} was invoked
      * @see java.io.PrintStream#print(java.lang.String)
      */
-    @Override public void print(String s) { 
-      int posLf = s.indexOf('\n');
+    @Override public PrintStream append(CharSequence s) { 
+      int posLf = StringFunctions.indexOf(s,'\n',0);
       if(posLf >=0){
         if(uLine.length() == 0){
-          convertToMsg(pre, s.substring(0, posLf +1));  //full line in is
+          convertToMsg(pre, s.subSequence(0, posLf +1));  //full line in is
         } else {
-          uLine.append(s.substring(0, posLf +1));  //append till \n and output
+          uLine.append(s.subSequence(0, posLf +1));  //append till \n and output
           convertToMsg(pre, uLine.toString());
           uLine.setLength(0);
         }
         if(posLf < s.length() -1){  //there is someone after \n. Two \n where not accepted yet.
-          uLine.append(s.substring(posLf +1));
+          uLine.append(s.subSequence(posLf +1, s.length()));
         }
       } else { //s without newline, append it only.
         uLine.append(s);
       }
+      return this;
     }
     
     /**The println method is used usually. 
