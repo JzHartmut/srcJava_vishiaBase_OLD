@@ -150,7 +150,7 @@ public class StringPartFromFileLines extends StringPartScan
   public StringPartFromFileLines(File fromFile, int maxBuffer, String sEncodingDetect, Charset charset)
   throws FileNotFoundException, IOException, IllegalCharsetNameException, UnsupportedCharsetException
   { super();
-    setInputfile(fromFile.getPath());
+    setInputfile(FileSystem.normalizePath(fromFile).toString());
     bEof = false;
     long nMaxBytes = fromFile.length();
     if(maxBuffer <= 0 || nMaxBytes < (maxBuffer -10))

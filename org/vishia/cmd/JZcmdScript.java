@@ -19,9 +19,12 @@ import org.vishia.util.CalculatorExpr;
 import org.vishia.util.DataAccess;
 import org.vishia.util.Debugutil;
 import org.vishia.util.FilePath;
+import org.vishia.util.FileSystem;
 import org.vishia.util.SetLineColumn_ifc;
 import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPart;
+
+import com.sun.org.apache.bcel.internal.generic.IXOR;
 
 
 /**This class contains the internal representation of a JZcmd script. 
@@ -548,9 +551,9 @@ public class JZcmdScript extends CompiledScript
     
     public void add_Filepath(FilePath.ZbnfFilepath val){ filepath =val.filepath; }
     
-    public AccessFilesetname new_zmakeInput(){ return new AccessFilesetname(); }
+    public AccessFilesetname new_filesetAccess(){ return new AccessFilesetname(); }
     
-    public void add_zmakeInput(AccessFilesetname val){ accessFileset = val; };
+    public void add_filesetAccess(AccessFilesetname val){ accessFileset = val; };
     
 
     
@@ -818,9 +821,9 @@ public class JZcmdScript extends CompiledScript
     }
     
     
-    public AccessFilesetname new_zmakeInput(){ return new AccessFilesetname(); }
+    public AccessFilesetname new_filesetAccess(){ return new AccessFilesetname(); }
     
-    public void add_zmakeInput(AccessFilesetname val){ input.add(val); };
+    public void add_filesetAccess(AccessFilesetname val){ input.add(val); };
     
     
   }
@@ -1379,8 +1382,8 @@ public class JZcmdScript extends CompiledScript
     public JZcmdDataAccess new_defVariable(){ return new JZcmdDataAccess(); }
     
     public void add_defVariable(JZcmdDataAccess val){   
-      int whichStatement =     "SPULOKQWMCFG".indexOf(elementType);
-      char whichVariableType = "SPULOKQAMCFG".charAt(whichStatement);  //from elementType to variable type.
+      int whichStatement =     "SPULOKQWMCJFG".indexOf(elementType);
+      char whichVariableType = "SPULOKQAMCJFG".charAt(whichStatement);  //from elementType to variable type.
       if(bConst){
         whichVariableType = Character.toLowerCase(whichVariableType);  //see DataAccess.access
       }
@@ -1420,6 +1423,30 @@ public class JZcmdScript extends CompiledScript
     public String XXXtoString(){ return elementType + "=" + "DefVariable " + ":"+ defVariable; }
     
   };
+  
+  
+  
+  
+  public static class DefClasspathVariable extends DefVariable
+  {
+    
+    List<AccessFilesetname> jarpaths = new ArrayList<AccessFilesetname>();
+
+    
+    DefClasspathVariable(StatementList parentList)
+    {
+      super(parentList, 'J');
+    }
+    
+    
+    public AccessFilesetname new_filesetAccess(){ return new AccessFilesetname(); }
+    
+    public void add_filesetAccess(AccessFilesetname val){ jarpaths.add(val); };
+    
+
+    
+  }
+  
   
   
   
@@ -2148,6 +2175,14 @@ public class JZcmdScript extends CompiledScript
       statements.add(new JZcmditem(this, 'D'));
     }
     
+    public void set_scriptdir(){
+      JZcmditem textOut = new TextOut(this, 't');
+      int posscriptdir = srcFile.lastIndexOf('/');
+      textOut.textArg = srcFile.substring(0, posscriptdir);
+      statements.add(textOut);
+    }
+    
+    
     /**Gathers a text which is assigned to any variable or output. <+ name>text<.+>
      */
     public TextOut new_textOut(){ return new TextOut(this, 'T'); }
@@ -2262,6 +2297,14 @@ public class JZcmdScript extends CompiledScript
     } 
 
     public void add_DefObjVar(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);}
+    
+    
+    public DefClasspathVariable new_DefClasspath(){ 
+      bContainsVariableDef = true; 
+      return new DefClasspathVariable(this); 
+    } 
+
+    public void add_DefClasspath(DefClasspathVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);}
     
     
     public DefVariable new_DefClassVar(){ 

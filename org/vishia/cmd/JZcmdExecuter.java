@@ -10,6 +10,10 @@ import java.io.Reader;
 import java.io.Writer;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -47,8 +51,18 @@ import org.vishia.util.CalculatorExpr.Value;
 import org.vishia.util.IndexMultiTable.Provide;
 
 
-/**This class is the executer of JZcmd. With it both statements can be executed and texts from any Java-stored data 
- * can be generated controlled with the content of {@link JZcmdScript}. 
+/**This class is the executer of JZcmd. The translated JZscript is contained in an instance of {@link JZcmdScript}. 
+ * It can be executed:
+ * <ul>
+ * <li>{@link #execute(JZcmdScript, boolean, boolean, Appendable, String)} executes a given translated script.
+ * <li>{@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)} executes one subroutine
+ *   from a translated script. It is possible to translate a script one time, and then invoke any subroutine 
+ *   from a java context on demand.
+ * <li>{@link #initialize(JZcmdScript, boolean, Map, String)} cleans the instance and generates all script variables.
+ *   It prepares usage for {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)}.
+ * <li>{@link #reset()} cleans the instance. The scriptvariables will be generate 
+ *   by first call of {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)}
+ * </ul> 
  * An instance of this class is used while {@link #execute(JZcmdScript, boolean, boolean, Appendable))} is running.
  * You should not use the instance concurrently in more as one thread. But you can use this instance
  * for one after another call of {@link #execute(JZcmdScript, boolean, boolean, Appendable)}.
@@ -280,8 +294,7 @@ public class JZcmdExecuter {
   public Map<String, DataAccess.Variable<Object>> genScriptVariables(
       JZcmdScript genScriptPar
     , boolean accessPrivate
-    , Map<String
-    , DataAccess.Variable<Object>> srcVariables
+    , Map<String, DataAccess.Variable<Object>> srcVariables
     , CharSequence sCurrdirArg
   ) 
   throws IOException, IllegalAccessException //, NoSuchMethodException, SecurityException, NoSuchFieldException
@@ -353,7 +366,7 @@ public class JZcmdExecuter {
   public CharSequence currdir(){ return scriptLevel.currdir(); }
   
   /**Initializes without any script variables, clears the instance.
-   * 
+   * The first call of {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)} will be generate the script variables.
    */
   public void reset(){
     bScriptVariableGenerated = false;
@@ -379,13 +392,18 @@ public class JZcmdExecuter {
    * @throws SecurityException not expected
    * @throws NoSuchMethodException not expected 
    */
-  public void initialize(JZcmdScript genScriptPar, boolean accessPrivate, String sCurrdir) 
+  public void initialize
+      ( JZcmdScript genScriptPar
+      , boolean accessPrivate
+      , Map<String, DataAccess.Variable<Object>> srcVariables
+      , String sCurrdir
+      ) 
   throws IOException, IllegalAccessException
   {
     this.scriptLevel.localVariables.clear();
     this.bAccessPrivate = accessPrivate;
     this.genScript = genScriptPar;
-    genScriptVariables(genScriptPar, accessPrivate, null, sCurrdir);
+    genScriptVariables(genScriptPar, accessPrivate, srcVariables, sCurrdir);
   }
 
   
@@ -739,6 +757,7 @@ public class JZcmdExecuter {
             Class<?> clazz = Class.forName(value.toString()); 
             executeDefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'C', clazz, false);
           } break;
+          case 'J': addClassLoader((JZcmdScript.DefClasspathVariable)statement, newVariables); break;
           case 'O': {
             Object value = evalObject(statement, false);
             executeDefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'O', value, false);
@@ -2157,6 +2176,39 @@ public class JZcmdExecuter {
     }
     
 
+    
+    protected void addClassLoader(JZcmdScript.DefClasspathVariable statement, Map<String, DataAccess.Variable<Object>> newVariables) 
+    throws Exception {
+      List<File> filesjar = new LinkedList<File>();
+      for(JZcmdScript.AccessFilesetname fileset: statement.jarpaths){
+        if(fileset.filesetVariableName !=null){
+          JZcmdAccessFileset zjars = new JZcmdAccessFileset(fileset.accessPath, fileset.filesetVariableName, this);
+          List<JZcmdFilepath> jars = zjars.listFilesExpanded();
+          for(JZcmdFilepath jfilejar: jars){
+            File filejar = new File(jfilejar.absfile().toString());
+            filesjar.add(filejar);
+          }
+        } else {
+          JZcmdFilepath jfilejar = new JZcmdFilepath(this, fileset.accessPath);
+          File filejar = new File(jfilejar.absfile().toString());
+          filesjar.add(filejar);
+        }
+      }
+      URL[] urls = new URL[filesjar.size()];
+      int ixurl = -1;
+      for(File filejar: filesjar){
+        URI uri = filejar.toURI();
+        urls[++ixurl] = uri.toURL();
+          
+      }
+      ClassLoader parentLoader = this.getClass().getClassLoader(); //classLoader from this class
+      URLClassLoader loader = new URLClassLoader(urls, parentLoader);
+      executeDefVariable(newVariables, statement, 'J', loader, true);
+    }
+    
+    
+    
+    
     
     protected void runThread(ExecuteLevel executeLevel, JZcmdScript.ThreadBlock statement, JZcmdThread threadVar){
       try{
