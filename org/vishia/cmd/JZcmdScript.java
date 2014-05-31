@@ -577,6 +577,8 @@ public class JZcmdScript extends CompiledScript
 
     @Override public final JZcmdDatapathElement new_datapathElement(){ return new JZcmdDatapathElement(); }
 
+    @Override public final JZcmdDatapathElementClass new_datapathElementClass(){ return new JZcmdDatapathElementClass(); }
+
     public final void add_datapathElement(JZcmdDatapathElement val){ 
       super.add_datapathElement(val); 
     }
@@ -590,43 +592,37 @@ public class JZcmdScript extends CompiledScript
   public static class JZcmdDatapathElement extends DataAccess.SetDatapathElement {
 
     
-    /**Expressions to calculate the {@link #fnArgs}.
-     * The arguments of a subroutine can be given directly, then the expression is not necessary
-     * and this reference is null.
+    /**For ZbnfJavaOutput: Expressions to calculate the {@link #fnArgs} for a method or constructor arguments.
+     * Maybe null if not arguments are necessary.
      */
     protected List<JZcmditem> fnArgsExpr;
 
-    /**A datapath which accesses to identifier for this element.
+    /**For ZbnfJavaOutput: A datapath which accesses the identifier for this element.
      * The identifier is indirect (referenced). */
     protected JZcmdDataAccess indirectDatapath;
     
     public JZcmdDatapathElement(){ super(); }
     
-    /**Creates a new Expression Set instance to add any properties of an expression.
-     * This method is used especially by {@link org.vishia.zbnf.ZbnfJavaOutput} to set
-     * results from the parser. This method may be overridden for enhanced capabilities.
-     * @return
-     */
-    public JZcmditem new_argument(){
-      //ObjExpr actualArgument = new ObjExpr(new_CaluclatorExpr());
-      JZcmditem actualArgument = new JZcmditem(null, 'A');
-      //ScriptElement actualArgument = new ScriptElement('e', null);
-      //ZbnfDataPathElement actualArgument = new ZbnfDataPathElement();
-      return actualArgument;
-    }
+    /**For ZbnfJavaOutput: Creates a new item for an argument of a method or constructor. */
+    public JZcmditem new_argument(){ return new JZcmditem(null, 'A'); }
     
-    /**From Zbnf.
-     * The Arguments of type {@link Statement} have to be resolved by evaluating its value in the data context. 
-     * The value is stored in {@link DataAccess.DatapathElement#addActualArgument(Object)}.
-     * See {@link #add_datapathElement(org.vishia.util.DataAccess.DatapathElement)}.
-     * @param val The Scriptelement which describes how to get the value.
-     */
+    /**For ZbnfJavaOutput: Adds argument to {@link #fnArgsExpr}. */
     public void add_argument(JZcmditem val){ 
       if(fnArgsExpr == null){ fnArgsExpr = new ArrayList<JZcmditem>(); }
       fnArgsExpr.add(val);
     } 
 
     
+    /**For ZbnfJavaOutput: Creates a datapath which accesses the identifier for this element.
+     * The identifier may be indirect (referenced). The syntax is:
+     * <pre>
+     *   startDatapath::= [ & ( <dataPath> ) | <$-?ident> ] ....
+     * </pre>
+     * Write 
+     * <pre>
+     * 
+     * </pre>
+     * */
     public JZcmdDataAccess new_dataPath(){
       return new JZcmdDataAccess();
     }
@@ -646,6 +642,41 @@ public class JZcmdScript extends CompiledScript
       }
     }
   }
+  
+
+  
+  
+  public static class JZcmdDatapathElementClass extends DataAccess.DatapathElementClass {
+
+    /**The name of that variable which is used as Loader for classes. null if not used (it is optional). */
+    JZcmdDataAccess dpathLoader;
+    
+    /**For ZbnfJavaOutput: Expressions to calculate the {@link #fnArgs} for a method or constructor arguments.
+     * Maybe null if not arguments are necessary.
+     */
+    protected List<JZcmditem> fnArgsExpr;
+
+
+    
+    /**For ZbnfJavaOutput: Creates a datapath for a specific ClassLoader. */
+    public JZcmdDataAccess new_loader(){ return new JZcmdDataAccess(); }
+    
+    /**For ZbnfJavaOutput: Sets the datapath for a specific ClassLoader. */
+    public void add_loader(JZcmdDataAccess val){ dpathLoader = val; }
+    
+    /**For ZbnfJavaOutput: Creates a new item for an argument of a method or constructor. */
+    public JZcmditem new_argument(){ return new JZcmditem(null, 'A'); }
+    
+    /**For ZbnfJavaOutput: Adds argument to {@link #fnArgsExpr}. */
+    public void add_argument(JZcmditem val){ 
+      if(fnArgsExpr == null){ fnArgsExpr = new ArrayList<JZcmditem>(); }
+      fnArgsExpr.add(val);
+    } 
+
+    
+
+  }
+  
   
   
   public static class JZcmdCalculatorExpr extends CalculatorExpr.SetExpr {

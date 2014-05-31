@@ -33,34 +33,60 @@ import org.vishia.util.TreeNodeBase;
  * <li>Access to referred instance in one method.
  * <li>access to container with a name as key similar to fields.
  * <li>Support a datapool using variables
+ * <li>Invocation of methods and creation of instances (Constructor)
+ * <li>Working with additional ClassLoader
  * </ul>
  * public static methods:
  * <ul>
- * <li>{@link #getDataFromField(String, Object, boolean)}: Data from one instance, also from super and enclosing
+ * <li>{@link #getDataFromField(String, Object, boolean)}: Data from one instance, also from super and enclosing.
+ *   Enhances {@link java.lang.Class#getField(String)} and {@link java.lang.reflect.Field#get(Object)}
  * <li>{@link #getData(String, Object, boolean, boolean)}: Data from one instance. If the instance is a {@link java.util.Map}
  *   it accessed to an element of this container. Elsewhere it tries to get from a field. 
  *   Invokes {@link #getDataFromField(String, Object, boolean)}. 
- * <li>{@link #getData(List, Object, Map, boolean, boolean)} Data from a complex referenced instance
- *   maybe with method invocations. It uses a <code>List< {@link DatapathElement}></code> to access,
+ * <li>{@link #invokeNew(DatapathElement)} creates an instance by symbolic name maybe with parameters, maybe with 
+ *   another ClassLoader (from additional jar files etc.). 
+ *   Enhances {@link java.lang.Class#newInstance()} and {@link java.lang.reflect.Constructor#newInstance(java.lang.Object...)}. 
+ * <li>{@link #invokeMethod(DatapathElement, Class, Object, boolean, boolean)} invokes a static method by symbolic name 
+ *   maybe with parameters, maybe with another ClassLoader (from additional jar files etc.). 
+ *   Enhances {@link java.lang.Class#getMethod(String, Class...)} and {@link java.lang.reflect.Method#invoke(Object, Object...)}. 
+ * <li>{@link #access(List, Object, Map, boolean, boolean, boolean, Dst)} Data from a complex referenced instance
+ *   maybe with method invocations and creation of instances. 
+ *   It uses a <code>List< {@link DatapathElement}></code> to access,
  *   it uses method arguments. Static methods and creation of instances can invoked too. See {@link DatapathElement}.
- * <li>{@link #create(String, Object...)} creates an instance by symbolic name.
+ * <li>{@link #access(CharSequence, Object, Map, boolean, boolean, boolean, Dst)}: Path String given.
  * <li>{@link #storeValue(List, Map, Object, boolean)} stores instead accesses
  * <li>{@link #setVariable(Map, String, Object)}, {@link #getVariable(Map, String, boolean)}: Deal with variables.
  * <li>{@link #getEnclosingInstance(Object)}: Gets the enclosing instance
  * <li>{@link #getStringFromObject(Object, String)}, {@link #getInt(Object)}, {@link #getFloat(Object)}: access to simple data,
  *  conversions.
  * <li>{@link #setBit(int, int, boolean)} Helper to deal with bits
+ * <li>{@link #getInt(Object)}, {@link #getFloat(Object)} etc. 
  * <li>      
  * </ul>
  * This class can hold a datapath, see {@link #add_datapathElement(DatapathElement)} and can access with this path
- * using the non-static method {@link #getDataObj(Map, boolean, boolean)}.
+ * using the non-static method {@link #access(Map, boolean, boolean)}.
  * <br><br> 
+ * Datapath elements are stored in {@link DatapathElement} and {@link DatapathElementClass}.
+ * <br><br> 
+ * A {@link Variable} is a wrapper for any Object which is used and regarded. Sometimes the Variable is returned
+ * which's content can be changed: {@link Variable#setValue(Object)}. A Variable is helpfully if the content
+ * of referenced instances should be changed without changing all references:
+ * <pre>
+ *      any_instance---------------->|
+ *      other_instance-------------->|
+ *                              Variable
+ *                                   |--value------->references_somewhat
+ *                                       ^   \
+ *                                       |    ------>other_reference
+ *                                     is changed:  
+ * </pre>                                   
  * @author Hartmut Schorrig
  *
  */
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2014-06-01 Hartmut new: {@link DatapathElementClass#loader}: static Methods with an special {@link java.lang.ClassLoader}.
    * <li>2014-05-28 Hartmut new: some conversions added, especially for main(String[] args): compatible with 
    *   some CharSequence arguments. Automatic conversion from String to File removed.
    * <li>2014-05-25 Hartmut new: access(...): gets static data. It is essential for example for Math.PI 
@@ -468,7 +494,7 @@ public class DataAccess {
    * @return Maybe null only if the last reference refers null. 
    * @throws Exception on any not found or etc.
    */
-  public Object getDataObj( Map<String, DataAccess.Variable<Object>> localVariables , boolean accessPrivate, boolean bContainer) 
+  public Object access( Map<String, DataAccess.Variable<Object>> localVariables , boolean accessPrivate, boolean bContainer) 
   throws Exception{
     return access(datapath, null, localVariables, accessPrivate, bContainer, false, null);
   }
@@ -1041,13 +1067,15 @@ public class DataAccess {
    */
   protected static Object invokeStaticMethod( DatapathElement element ) 
   throws Exception
-  { Object data1 = null;
+  { ClassLoader classloader = getClassLoader(element);
+    Object data1 = null;
     if(element.ident.contains("xml.Xslt"))
       Assert.stop();
     int posClass = element.ident.lastIndexOf('.');
     String sClass = element.ident.substring(0, posClass);
     String sMethod = element.ident.substring(posClass +1);
-    Class<?> clazz = Class.forName(sClass);
+    Class<?> clazz = classloader.loadClass(sClass);
+    //Class<?> clazz = Class.forName(sClass);
     Method[] methods = clazz.getMethods();
     boolean bOk = false;
     for(Method method: methods){
@@ -1079,6 +1107,21 @@ public class DataAccess {
     //} catch 
     return data1;    
   }
+  
+ 
+  
+  
+  private static ClassLoader getClassLoader(DatapathElement element){
+    ClassLoader classloader = element.getClass().getClassLoader();
+    if(element instanceof DatapathElementClass){
+      DatapathElementClass elementClass = (DatapathElementClass) element;
+      if(elementClass.loader !=null){
+        classloader = elementClass.loader;
+      }
+    }
+    return classloader;
+  }
+  
   
   
   
@@ -1692,6 +1735,13 @@ public class DataAccess {
     }
     
     
+    public DatapathElementClass new_datapathElementClass(){ return new DatapathElementClass(); }
+
+    public final void add_datapathElementClass(DatapathElementClass val){ 
+      super.add_datapathElement(val); //Note: super does not get a DatapathElementClass but only its superclass.
+    }
+    
+    
     public SetDatapathElement new_startDatapath(){ return new SetDatapathElement(); }
 
     public final void add_startDatapath(SetDatapathElement val){ 
@@ -1721,19 +1771,19 @@ public class DataAccess {
     }
     
     
-    public final SetDatapathElement new_newJavaClass()
-    { SetDatapathElement value = new_datapathElement();
+    public final DatapathElementClass new_newJavaClass()
+    { DatapathElementClass value = new_datapathElementClass();
       value.whatisit = '+';
       //ScriptElement contentElement = new ScriptElement('J', null); ///
       //subContent.content.add(contentElement);
       return value;
     }
     
-    public final void add_newJavaClass(SetDatapathElement val) { add_datapathElement(val); }
+    public final void add_newJavaClass(DatapathElementClass val) { add_datapathElement(val); }
 
 
-    public final SetDatapathElement new_staticJavaMethod()
-    { SetDatapathElement value = new_datapathElement();
+    public final DatapathElementClass new_staticJavaMethod()
+    { DatapathElementClass value = new_datapathElementClass();
       value.whatisit = '%';
       return value;
       //ScriptElement contentElement = new ScriptElement('j', null); ///
@@ -1741,7 +1791,7 @@ public class DataAccess {
       //return contentElement;
     }
     
-    public final void add_staticJavaMethod(SetDatapathElement val) { add_datapathElement(val); }
+    public final void add_staticJavaMethod(DatapathElementClass val) { add_datapathElement(val); }
 
 
     /**This routine have to be invoked as last one to set the type. */
@@ -1781,10 +1831,6 @@ public class DataAccess {
     
     public SetDatapathElement(){ this.dbgParent = null; }
     
-    
-    public void set_ident(String text){ this.ident = text; }
-    
-    public void set_whatisit(String text){ this.whatisit = text.charAt(0); }
     
     public void set_javapath(String text){ this.ident = text; }
     
@@ -1890,7 +1936,11 @@ public class DataAccess {
     }
 
     
+    public void set_ident(String text){ this.ident = text; }
     
+    public void set_whatisit(String text){ this.whatisit = text.charAt(0); }
+    
+
     public String ident(){ return ident; }
     
     public void setIdent(String ident){ this.ident = ident; }
@@ -1935,6 +1985,20 @@ public class DataAccess {
     }
   }
 
+  
+  
+  
+  /**Variant of a DatapathElement which contains a ClassLoader for a new Java class or a static method invocation.
+   */
+  public static class DatapathElementClass extends DatapathElement
+  {
+    ClassLoader loader;
+
+    public void set_javapath(String text){ this.ident = text; }
+    
+    public void set_loader(ClassLoader loaderArg){ this.loader = loaderArg; } 
+    
+  }
  
   
   public static final class ObjMethod
@@ -1978,8 +2042,23 @@ public class DataAccess {
   
   
   
-  /**This class wraps any Object which is used for a variable. A variable is member of a 
-   * container <code>Map< String, DataAccess.Variabel></code> which is used to access in the {@link DataAccess}
+  /**This class wraps any Object which is used for a variable. 
+   * A Variable is helpfully if the content
+   * of referenced instances should be changed without changing all references:
+   * <pre>
+   *      any_instance---------------->|
+   *      other_instance-------------->|
+   *                              Variable
+   *                                   |--value------->references_somewhat
+   *                                       ^   \
+   *                                       |    ------>other_reference
+   *                                     is changed:  
+   *                                   
+   * </pre>                                   
+   * 
+   * <br><br>
+   * A variable is member of a 
+   * container <code>Map< String, DataAccess.Variable></code> which is used to access in the {@link DataAccess}
    * class and which is used especially for variables in the {@link org.vishia.cmd.JZcmdExecuter#setScriptVariable(String, Object)}
    * and {@link org.vishia.cmd.JZcmdExecuter.ExecuteLevel#setLocalVariable(String, Object)}
    * which are accessed with the {@link DataAccess} class while setting and evaluating.

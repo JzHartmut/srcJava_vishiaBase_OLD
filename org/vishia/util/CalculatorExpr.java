@@ -1774,7 +1774,7 @@ public class CalculatorExpr
           //oval2 = null;
         }
         else if(oper.datapath !=null){
-          oval2 = oper.datapath.getDataObj(javaVariables, true, false);
+          oval2 = oper.datapath.access(javaVariables, true, false);
         }
         else {
           oval2 = oper.value;              //immediate value.

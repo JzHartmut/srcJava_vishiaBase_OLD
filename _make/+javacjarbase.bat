@@ -82,8 +82,7 @@ REM  Store the actual directory to submit restoring on end
 set ENTRYDIR=%CD%
 cd %TMP_JAVAC%\bin
 echo === SUCCESS compiling, generate jar: %ENTRYDIR%\%OUTDIR_JAVAC%\%JAR_JAVAC%
-
-echo off
+echo TMP_JAVAC=%CD%
 
 %JAVA_JDK%\bin\jar -cvfm %ENTRYDIR%\%OUTDIR_JAVAC%\%JAR_JAVAC% %ENTRYDIR%\%MANIFEST_JAVAC% *  1>..\jar_ok.txt 2>..\jar_error.txt
 
@@ -94,12 +93,12 @@ if errorlevel 1 (
   echo === ERROR jar
   echo see %OUTDIR_JAVAC%\%JAR_JAVAC%.compile_error.log
 	call edit.bat %OUTDIR_JAVAC%\%JAR_JAVAC%.compile_error.log
-  cd %ENTRYDIR%
+  cd /D %ENTRYDIR%
   exit /B 1
 )
 
 REM  Restore current dir: %ENTRYDIR%
-cd %ENTRYDIR%
+cd /D %ENTRYDIR%
 echo === SUCCESS making %JAR_JAVAC% in %OUTDIR_JAVAC%.
 
 if "%NOPAUSE%" == "" pause

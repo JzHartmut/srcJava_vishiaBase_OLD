@@ -1914,7 +1914,7 @@ public class JZcmdExecuter {
     
     /**Checks either the {@link JZcmdScript.Argument#dataAccess} or, if it is null,
      * the {@link JZcmdScript.Argument#expression}. Returns either the Object which is gotten
-     * by the {@link DataAccess#getDataObj(Map, boolean, boolean)} or which is calculated
+     * by the {@link DataAccess#access(Map, boolean, boolean)} or which is calculated
      * by the expression. Returns an instance of {@link CalculatorExpr.Value} if it is 
      * a result by an expression.
      * @param arg
@@ -2025,22 +2025,34 @@ public class JZcmdExecuter {
       }
       for(DataAccess.DatapathElement dataElement : dataAccess.datapath()){  //loop over all elements of the path with or without arguments.
         //check all datapath elements whether they have method calls with arguments:
-        if(dataElement instanceof JZcmdScript.JZcmdDatapathElement){
+        List<JZcmdScript.JZcmditem> fnArgsExpr = null;
+
+        if(  dataElement instanceof JZcmdScript.JZcmdDatapathElementClass){
+          JZcmdScript.JZcmdDatapathElementClass jzcmdDataElement = (JZcmdScript.JZcmdDatapathElementClass)dataElement;
+          if(jzcmdDataElement.dpathLoader !=null){
+            Object oLoader = dataAccess(jzcmdDataElement.dpathLoader, localVariables, bAccessPrivate, false, false, null);
+            assert(oLoader instanceof ClassLoader);
+            jzcmdDataElement.set_loader((ClassLoader)oLoader);
+          }
+          fnArgsExpr = jzcmdDataElement.fnArgsExpr;
+        }
+        if(  dataElement instanceof JZcmdScript.JZcmdDatapathElement ){
           JZcmdScript.JZcmdDatapathElement jzcmdDataElement = (JZcmdScript.JZcmdDatapathElement)dataElement;
           if(jzcmdDataElement.indirectDatapath !=null){
             Object oIdent = dataAccess(jzcmdDataElement.indirectDatapath, localVariables, bAccessPrivate, false, false, null);
             dataElement.setIdent(oIdent.toString());
           }
-          if(jzcmdDataElement.fnArgsExpr !=null){
-            int nrofArgs = jzcmdDataElement.fnArgsExpr.size();
-            Object[] args = new Object[nrofArgs];
-            int iArgs = -1;
-            for(JZcmdScript.JZcmditem expr: jzcmdDataElement.fnArgsExpr){
-              Object arg = evalObject(expr, false);
-              args[++iArgs] = arg;
-            }
-            jzcmdDataElement.setActualArgumentArray(args);
+          fnArgsExpr = jzcmdDataElement.fnArgsExpr;
+        }
+        if(fnArgsExpr !=null) {
+          int nrofArgs = fnArgsExpr.size();
+          Object[] args = new Object[nrofArgs];
+          int iArgs = -1;
+          for(JZcmdScript.JZcmditem expr: fnArgsExpr){
+            Object arg = evalObject(expr, false);
+            args[++iArgs] = arg;
           }
+          dataElement.setActualArgumentArray(args);
         }
       }
 
