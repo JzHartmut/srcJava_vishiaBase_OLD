@@ -297,7 +297,7 @@ public class CmdQueue implements Closeable
             
           }
         }
-      } catch(Exception exc){ System.out.println("Exception " + exc.getMessage()); }
+      } catch(Throwable exc){ System.out.println("Exception " + exc.getMessage()); }
     }
     busy = false;
     if(someExecute && outStatus !=null){
