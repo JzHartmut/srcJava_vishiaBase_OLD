@@ -80,6 +80,7 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-06-01 Hartmut chg: "File :" as conversion type for any objExpr, not in a dataPath.TODO: Do the same for Filepath, Fileset with accessPath
    * <li>2014-06-01 Hartmut chg: uses {@value #kException} as return value of all called 
    *   {@link ExecuteLevel#execute(org.vishia.cmd.JZcmdScript.StatementList, StringFormatter, int, boolean, Map, int)}
    *   instead a new ForwardException. Reason: Stacktrace of Exception is not disturbed.
@@ -2056,14 +2057,14 @@ public class JZcmdExecuter {
     , boolean bVariable
     , DataAccess.Dst dst
     ) throws Exception {
-      if(dataAccess.filepath !=null){
+      /*if(dataAccess.filepath !=null){
         //Special case in JZcmd: a "File: "
         if(FileSystem.isAbsolutePath(dataAccess.filepath)){
           return new File(dataAccess.filepath);
         } else {
           return new File(currdir, dataAccess.filepath);
         }
-      } else {
+      } else */{
         calculateArguments(dataAccess);
         return DataAccess.access(dataAccess.datapath(), null, dataPool, accessPrivate, bContainer, bVariable, dst);
       }
@@ -2159,7 +2160,7 @@ public class JZcmdExecuter {
     public Object evalObject(JZcmdScript.JZcmditem arg, boolean bContainer) throws Exception{
       Object obj;
       short ret = 0;
-      if(arg.textArg !=null) return arg.textArg;
+      if(arg.textArg !=null) obj = arg.textArg;
       else if(arg.dataAccess !=null){
         //calculate arguments firstly:
         obj = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
@@ -2190,6 +2191,19 @@ public class JZcmdExecuter {
           obj = null;
         }
       } else obj = null;  //throw new IllegalArgumentException("JZcmd - unexpected, faulty syntax");
+      if(obj !=null && ret != kException && arg.conversion !=0){
+        switch(arg.conversion){
+          case 'E': {
+            String value = obj.toString();
+            if(FileSystem.isAbsolutePath(value)){
+              obj = new File(value);
+            } else {
+              obj = new File(currdir, value);
+            }
+          } break;
+          default: assert(false);
+        }
+      }
       return obj;
     }
     

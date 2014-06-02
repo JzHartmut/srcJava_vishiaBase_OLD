@@ -39,6 +39,7 @@ public class JZcmdScript extends CompiledScript
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-06-01 Hartmut chg: "File :" as conversion type for any objExpr, not in a dataPath.TODO: Do the same for Filepath, Fileset with accessPath
    * <li>2014-05-18 Hartmut chg: DefFilepath now uses a textValue and divides the path to its components
    *   at runtime, doesn't use the prepFilePath in ZBNF. Reason: More flexibility. The path can be assmebled
    *   on runtime.  
@@ -248,6 +249,14 @@ public class JZcmdScript extends CompiledScript
      */
     protected char elementType;    
     
+    
+    /**Designation of a conversion from given value to a destination instance.
+     * 'E' to java.io.File
+     * 'F' to {@link FilePath}
+     * 'G' to {@link UserFileset}
+     */
+    protected char conversion = 0;
+    
     /**Hint to the source of this parsed argument or statement. */
     int srcLine, srcColumn;
     
@@ -402,6 +411,18 @@ public class JZcmdScript extends CompiledScript
     }
     
     
+    /**For ZbnfJavaOutput: An < objExpr> is designated as "File : < textValue?File>"
+     * @return this, the conversion is set.
+     */
+    public JZcmditem new_File(){ 
+      conversion = 'E';
+      return this;
+    }
+    
+    public void add_File(JZcmditem val){} //do nothing. 
+    
+    
+    
     static String sindentA = "                                                                               "; 
     
     /**Writes a complete readable information about this item with all nested information.
@@ -546,13 +567,13 @@ public class JZcmdScript extends CompiledScript
   
   public static class JZcmdDataAccess extends DataAccess.DataAccessSet {
 
-    protected String filepath;
+    //protected String filepath;
     
     public JZcmdDataAccess(){ super(); }
     
-    public void set_file(String text){
+    public void XXXset_file(String text){
       Debugutil.stop();
-      filepath = text;
+      //filepath = text;
     }
 
     @Override public SetDatapathElement new_startDatapath(){ return new JZcmdDatapathElement(); }
@@ -856,32 +877,36 @@ public class JZcmdScript extends CompiledScript
       accessPath = new FilePath(val);  //prepare it with its parts.
     }
 
-    /**From Zbnf. The first occurrence of &name is supposed as the fileset name because it is unknown yet
-     * whether a second &name is given. But if a second &name is given, {@link #set_zmakeFilesetVariable(String)}
-     * is called which assigns this val to {@link #accessPathVariable} 
-     * @param val
+    /**For ZbnfJavaOutput: The first occurrence of &name is checked whether it is a accesspath or a fileset.
      */
     public void set_accessPathOrFilesetVariable(String val){ 
       if(val.startsWith("&") && StringFunctions.indexOfAnyChar(val, 0, val.length(), "\\/:") <0){
         //contains only &name
-        filesetVariableName = val;
+        filesetVariableName = val.substring(1);
       } else {
         accessPath = new FilePath(val);  //prepare it with its parts.
       }
     }
 
     
-    /**From Zbnf. The second occurrence of &name is supposed as the fileset anyway.
-     * An accessPath is really an accessPath.
+    /**For ZbnfJavaOutput. The second occurrence of &name is supposed as the fileset anyway.
+     * An accessPath is really an accessPath. If the {@link #filesetVariableName} is set already,
+     * it is an accessPath with a variable.
      * @param val
      */
     public void set_zmakeFilesetVariable(String val){
+      if(filesetVariableName !=null){
+        assert(accessPath == null);
+        //a simple accessPath "&name" was recognized as the filesetVariablebame,
+        //but it is an accessPath really.
+        accessPath = new FilePath("&" + filesetVariableName);  //create afterward.
+      }
       this.filesetVariableName = val; 
     }
     
-    public FilePath.ZbnfFilepath new_accessPath(){ return new FilePath.ZbnfFilepath(); }
+    public FilePath.ZbnfFilepath XXXnew_accessPath(){ return new FilePath.ZbnfFilepath(); }
     
-    public void add_accessPath(FilePath.ZbnfFilepath val){ accessPath = val.filepath; }
+    public void XXXadd_accessPath(FilePath.ZbnfFilepath val){ accessPath = val.filepath; }
   }
   
   
