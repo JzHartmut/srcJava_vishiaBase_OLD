@@ -19,12 +19,9 @@ import org.vishia.util.CalculatorExpr;
 import org.vishia.util.DataAccess;
 import org.vishia.util.Debugutil;
 import org.vishia.util.FilePath;
-import org.vishia.util.FileSystem;
 import org.vishia.util.SetLineColumn_ifc;
 import org.vishia.util.StringFunctions;
-import org.vishia.util.StringPart;
 
-import com.sun.org.apache.bcel.internal.generic.IXOR;
 
 
 /**This class contains the internal representation of a JZcmd script. 
@@ -131,18 +128,6 @@ public class JZcmdScript extends CompiledScript
   
   
   
-  /**List of the script variables in order of creation in the jbat script file and all includes.
-   * The script variables can contain inputs of other variables which are defined before.
-   * Therefore the order is important.
-   * This list is stored firstly in the {@link StatementList#statements} in an instance of 
-   * {@link ZbnfJZcmdScript} and then transferred from all includes and from the main script 
-   * to this container because the {@link ZbnfJZcmdScript} is only temporary and a ensemble of all
-   * Statements should be present from all included files. The statements do not contain
-   * any other type of statement than script variables because only ScriptVariables are admissible
-   * in the syntax. Outside of subroutines and main there should only exist variable definitions. 
-   */
-  private final List<DefVariable> XXXlistScriptVariables = new ArrayList<DefVariable>();
-
   /**The script element for the whole file. It shall contain calling of <code><*subtext:name:...></code> 
    */
   Subroutine mainRoutine;
@@ -168,16 +153,21 @@ public class JZcmdScript extends CompiledScript
   }
   
   
+  /**Executes the main routine of the script. Before that the script variables will be created.
+   * @see javax.script.CompiledScript#eval(javax.script.ScriptContext)
+   */
   @Override
   public Object eval(ScriptContext context) throws ScriptException
   {
     if(context instanceof JZcmdExecuter.ExecuteLevel){
       JZcmdExecuter.ExecuteLevel level = (JZcmdExecuter.ExecuteLevel) context;
-      Subroutine main = getMain();
-      try{ level.execSubroutine(main, null, null, 0);
+      try{ 
+        level.executer().initialize(this, false, null, null);
+        Subroutine main = getMain();
+        level.execSubroutine(main, null, null, 0);
       } catch(Exception exc){ throw new ScriptException(exc); }
     } else {
-      
+      throw new ScriptException("faulty context");
     }
     return null;
   }
@@ -186,8 +176,7 @@ public class JZcmdScript extends CompiledScript
   @Override
   public ScriptEngine getEngine()
   {
-    // TODO Auto-generated method stub
-    return null;
+    return null;  //TODO return JZcmd, store it here.
   }
   
   
@@ -209,10 +198,6 @@ public class JZcmdScript extends CompiledScript
   }
   
   
-  public List<DefVariable> XXXgetListScriptVariables(){ return XXXlistScriptVariables; }
-
-
-
 
   
   /**Common Superclass for a JZcmd script item.
@@ -313,18 +298,6 @@ public class JZcmdScript extends CompiledScript
     public StatementList statementlist(){ return statementlist; }
 
     
-    /**From ZBNF. If this method was found, the line will be stored.
-     * See {@link org.vishia.zbnf.ZbnfJavaOutput}
-     * @param line
-     */
-    public JZcmditem XXXset_inputInfo_(int line, int column, String sFile){ 
-      srcLine = line;
-      srcColumn = column;
-      srcFile = sFile;
-      return this;
-    }
-    
-    
     
     public JZcmdDataAccess new_dataAccess() { 
       assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
@@ -356,6 +329,12 @@ public class JZcmdScript extends CompiledScript
       //statementlist.set_text(text);
     }
     
+    /**For ZbnfJavaOutput: Creates a statementlist for a dataStruct.
+     * <pre>
+     * objExpr::= \\{ <dataStruct> \\} | <\"\"?text> | ....
+     * dataStruct::= { <DefVariable?> ; }.\n"
+     * </pre>
+     */
     public StatementList new_dataStruct(){
       assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
       statementlist = new StatementList(this);
@@ -366,6 +345,13 @@ public class JZcmdScript extends CompiledScript
     public void add_dataStruct(StatementList val){ }
     
     
+    /**For ZbnfJavaOutput: All block statements in if, while etc.
+     * <pre>
+     * ifBlock::= ( <condition> ) \\{ <statementBlock> \\} .
+     * ...
+     * statementBlock::= { <statement?> }."
+     * </pre>
+     */
     public StatementList new_statementBlock(){
       assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
       statementlist = new StatementList(this);
@@ -541,10 +527,6 @@ public class JZcmdScript extends CompiledScript
     
     public String getIdent(){ return identArgJbat; }
     
-    public String XXXtoString(){
-      return identArgJbat + " = " + super.toString();
-    }
- 
     
     /**From ZBNF: The argument is given with <code>Filepath name = "a path"</code>. */
     public FilePath.ZbnfFilepath new_Filepath(){ return new FilePath.ZbnfFilepath(); }
@@ -783,14 +765,6 @@ public class JZcmdScript extends CompiledScript
     }
     
     
-      
-    @Override
-    public String XXXtoString(){ 
-      StringBuilder u = new StringBuilder();
-      if(commonBasepath !=null) u.append("basepath="+commonBasepath+", ");
-      u.append(filesOfFileset);
-      return u.toString();
-    }
   }
   
   
@@ -912,463 +886,6 @@ public class JZcmdScript extends CompiledScript
   
   
   
-  /**An element of the script, maybe a simple text, an condition etc.
-   * It may have sub statements , see aggregation {@link #statementlist}. 
-   * <br>
-   * UML-Notation see {@link org.vishia.util.Docu_UML_simpleNotation}:
-   * <pre>
-   *   Statement                 Statements          Statement
-   *        |                         |              !The sub statements
-   *        |-----statementlist------>|                  |
-   *        |                         |                  |
-   *                                  |----statements--*>|
-   * 
-   * </pre> 
-   */
-  public static class XXXXXXStatement extends JZcmditem //Argument
-  {
-    
-    /**Any variable given by name or java instance  which is used to assign to it.
-     * A variable is given by the start element of the data path. An instance is given by any more complex dataAccess
-     * null if not used. */
-    public List<DataAccess> assignObjs;
-    
-    
-    /**The variable which should be created or to which a value is assigned to. */
-    public DataAccess variable;
-    
-    //public String value;
-    
-    //public List<String> path;
-    
-    
-    /**Argument list either actual or formal if this is a subtext call or subtext definition. 
-     * Maybe null if the subtext has not argument. It is null if it is not a subtext call or definition. */
-    public List<Argument> arguments;
-    
-    /**The statements in this sub-ScriptElement were executed if an exception throws
-     * or if a command line invocation returns an error level greater or equal the {@link Iferror#errorLevel}.
-     * If it is null, no exception handling is done.
-     * <br><br>
-     * This block can contain any statements as error replacement. If they fails too,
-     * the iferror-Block can contain an iferror too.
-     * 
-     */
-    public List<Onerror> onerror;
-    
-    
-
-    
-    public XXXXXXStatement(StatementList parentList, char whatisit) //, StringSeq text)
-    { super(parentList, whatisit);
-      //this.textArg = text;
-      if("BNXYZvl".indexOf(whatisit)>=0){
-        statementlist = new StatementList(this);
-      }
-      else if("IVL".indexOf(whatisit)>=0){
-        statementlist = new StatementList(this);
-      }
-    }
-    
-    public List<Argument> getReferenceDataSettings(){ return arguments; }
-    
-    public StatementList getSubContent(){ return statementlist; }
-    
-    //public void set_name(String name){ this.identArgJbat = name; }
-    
-    
-    
-    /**Sets the nonEmptyText From ZBNF. invokes {@link #set_textReplLf(String)} if the text contains
-     * other characters as white spaces. 
-     */
-    public void XXXXset_plainText(String text){
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.set_plainText(text);      
-    }
-
-    
-    
-    /**Gathers a text which is assigned to any variable or output. <+ name>text<.+>
-     */
-    public XXXXXXStatement new_textOut(){ return new XXXXXXStatement(parentList, 'T'); }
-
-    public void add_textOut(XXXXXXStatement val){ 
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.statements.add(val); 
-    } 
-    
-    
-    public void XXXXXset_newline(){
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.statements.add(new XXXXXXStatement(parentList, 'n'));   /// 
-    }
-    
-    
-    
-    public DefVariable new_setEnvVar(){ 
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      return statementlist.new_setEnvVar(); 
-    }
-
-    public void add_setEnvVar(DefVariable val){ statementlist.add_setEnvVar(val); } 
-    
-    
-    /**Defines a variable with initial value. <= <variableAssign?textVariable> \<\.=\>
-     */
-    public DefVariable new_textVariable(){
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.bContainsVariableDef = true; 
-      return new DefVariable(parentList, 'S'); 
-    } 
-
-    public void add_textVariable(DefVariable val){ statementlist.statements.add(val); statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);} 
-    
-    
-    /**Defines a variable which is able to use as pipe.
-     */
-    public DefVariable new_Pipe(){
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.bContainsVariableDef = true; 
-      return new DefVariable(parentList, 'P'); 
-    } 
-
-    public void add_Pipe(DefVariable val){ statementlist.statements.add(val); statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val); }
-    
-    /**Defines a variable which is able to use as String buffer.
-     */
-    public DefVariable new_Stringjar(){
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.bContainsVariableDef = true; 
-      return new DefVariable(parentList, 'U'); 
-    } 
-
-    public void add_Stringjar(DefVariable val){ statementlist.statements.add(val);  statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
-    
-        
-    /**Defines a variable which is able to use as container.
-     */
-    public DefVariable new_List(){ 
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.bContainsVariableDef = true; 
-      return new DefVariable(parentList, 'L'); 
-    } 
-
-    public void add_List(DefVariable val){ statementlist.statements.add(val);  statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
-    
-    /**Defines a variable which is able to use as Appendable, it is a Writer.
-     */
-    public DefVariable new_Openfile(){
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.bContainsVariableDef = true; 
-      return new DefVariable(parentList, 'W'); 
-    } 
-
-    public void add_Openfile(DefVariable val){ 
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.statements.add(val);  
-      statementlist.onerrorAccu = null; 
-      statementlist.withoutOnerror.add(val);
-    }
-    
-    /**Defines a variable with initial value. <= <$name> : <obj>> \<\.=\>
-     */
-    public DefVariable new_objVariable(){ 
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.bContainsVariableDef = true; 
-      return new DefVariable(parentList, 'O'); 
-    } 
-
-    public void add_objVariable(DefVariable val){ statementlist.statements.add(val); statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(val);}
-    
-    
-        
-    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
-    public Argument new_p1(){ return new Argument(parentList); }
-    
-    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
-    public void add_p1(Argument val){ 
-      if(arguments == null){ arguments = new ArrayList<Argument>(); }
-      if(arguments.size() >=1){
-        arguments.set(0,val);
-      } else {  //size is 0
-        arguments.add(val);
-      }
-    }
-    
-    
-    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
-    public Argument new_p2(){ return new Argument(parentList); }
-    
-    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
-    public void add_p2(Argument val){ 
-      if(arguments == null){ arguments = new ArrayList<Argument>(); }
-      if(arguments.size() >=2){
-        arguments.set(1,val);
-      } else {
-        while(arguments.size() < 1){ arguments.add(null); }  //empty
-        arguments.add(val);
-      }
-    }
-    
-    
-    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
-    public Argument new_actualArgument(){ return new Argument(parentList); }
-    
-    /**Set from ZBNF:  \<*subtext:name: { <namedArgument> ?,} \> */
-    public void add_actualArgument(Argument val){ 
-      if(arguments == null){ arguments = new ArrayList<Argument>(); }
-      arguments.add(val); }
-    
-    
-    /**From Zbnf: [{ <dataAccess?-assign> = }] 
-     */
-    public JZcmdDataAccess new_assign(){ return new JZcmdDataAccess(); }
-    
-    public void add_assign(JZcmdDataAccess val){ 
-      if(variable == null){ variable = val; }
-      else {
-        if(assignObjs == null){ assignObjs = new LinkedList<DataAccess>(); }
-        assignObjs.add(val); 
-      }
-    }
-
-    
-    /**From Zbnf: < variable?defVariable> 
-     */
-    public JZcmdDataAccess new_defVariable(){ return new JZcmdDataAccess(); }
-    
-    public void add_defVariable(JZcmdDataAccess val){   
-      int whichStatement = "SPULJW".indexOf(elementType);
-      char whichVariableType = "SPULOA".charAt(whichStatement);
-      val.setTypeToLastElement(whichVariableType);
-      //don't use the dataPath, it may be the path to the initial data.
-      variable = val;
-      //if(assignObjs == null){ assignObjs = new LinkedList<DataAccess>(); }
-      //assignObjs.add(val); 
-    }
-
-     
-    public XXXXXXStatement new_assignExpr(){ 
-      return new XXXXXXStatement(parentList, '='); 
-    } 
-
-    public void add_assignExpr(XXXXXXStatement val){ 
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.statements.add(val);  
-      statementlist.onerrorAccu = null; 
-      statementlist.withoutOnerror.add(val);
-    }
-    
-    
-    
-    
-    public void set_append(){
-      if(elementType == '='){ elementType = '+'; }
-      else throw new IllegalArgumentException("JZcmdScript - unexpected set_append");
-    }
-    
-    
-    public JZcmditem new_debug()
-    { if(statementlist == null) { statementlist = new StatementList(this); }
-      return statementlist.new_debug();
-    }
-    
-    public void add_debug(JZcmditem val){statementlist.add_debug(val); }
-
-    
-    
-    public Onerror new_onerror(){
-      return new Onerror(parentList);
-    }
-    
-
-    public void add_onerror(Onerror val){
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.statements.add(val);
-      /*
-      if(statementlist.onerrorAccu == null){ statementlist.onerrorAccu = new LinkedList<Onerror>(); }
-      for( JZcmditem previousStatement: statementlist.withoutOnerror){
-        previousStatement.onerror = onerror;  
-        //use the same onerror list for all previous statements without error designation.
-      }
-      */
-      statementlist.withoutOnerror.clear();  //remove all entries, they are processed.
-    }
-
-    
-    public void set_breakBlock(){ 
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      XXXXXXStatement statement = new XXXXXXStatement(parentList, 'b');
-      statementlist.statements.add(statement);
-    }
-    
-    
-    public void add_hasNext(XXXXXXStatement val){}
-
-    public XXXXXXStatement new_elseBlock()
-    { StatementList subGenContent = new StatementList(this);
-      XXXXXXStatement statement = new XXXXXXStatement(parentList, 'E');
-      statement.statementlist = subGenContent;  //The statement contains a genContent. 
-      statementlist.statements.add(statement);
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
-      return statement;
-    }
-    
-    public void add_elseBlock(XXXXXXStatement val){}
-
-    
-    
-    
-    public ThreadBlock new_threadBlock()
-    { if(statementlist == null){ statementlist = new StatementList(this); }
-      return statementlist.new_threadBlock();
-    }
-    
-    public void add_threadBlock(ThreadBlock val){statementlist.add_threadBlock(val);}
-
-    
-    
-
-    
-
-    public JZcmditem new_cd()
-    { if(statementlist == null){ statementlist = new StatementList(this); }
-      return statementlist.new_cd();
-    }
-    
-    
-    public void add_cd(JZcmditem val)
-    { statementlist.add_cd(val);
-    }
-    
-    
-
-    
-    
-    /**Set from ZBNF:  (\?*<$?forElement>\?)
-    public void set_fnEmpty(String val){ 
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      Statement statement = new Statement(parentList, 'f', StringSeq.create(val));
-      statementlist.statements.add(statement);
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
-    }
-    
-    public void set_outputValue(String text){ 
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      Statement statement = new Statement(parentList, 'o', StringSeq.create(text));
-      statementlist.statements.add(statement); 
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
-    }
-    
-    public void set_inputValue(String text){ 
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      Statement statement = new Statement(parentList, 'i', StringSeq.create(text));
-      statementlist.statements.add(statement); 
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
-    }
-    
-    //public void set_variableValue(String text){ subContent.content.add(new ScriptElement('v', text)); }
-    
-    public Statement new_forInputContent()
-    { if(statementlist == null){ statementlist = new StatementList(this); }
-      Statement statement = new Statement(parentList, 'I');
-      statementlist.statements.add(statement);
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
-      return statement;
-    }
-    
-    public void add_forInputContent(Statement val){}
-
-    
-    public Statement xxxnew_forVariable()
-    { if(statementlist == null){ statementlist = new StatementList(this); }
-      Statement statement = new Statement(parentList, 'V');
-      statementlist.statements.add(statement);
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
-      return statement;
-    }
-    
-    public void xxxadd_forVariable(Statement val){} //empty, it is added in new_forList()
-*/
-
-    
-    
-    public XXXXXXStatement new_forList()
-    { if(statementlist == null){ statementlist = new StatementList(this); }
-      XXXXXXStatement statement = new XXXXXXStatement(parentList, 'L');
-      statementlist.statements.add(statement);
-      statementlist.onerrorAccu = null; statementlist.withoutOnerror.add(statement);
-      return statement;
-    }
-    
-    public void add_forList(XXXXXXStatement val){} //empty, it is added in new_forList()
-
-    
-    public XXXXXXStatement new_addToList(){ 
-      XXXXXXStatement subGenContent = new XXXXXXStatement(parentList, 'l');
-      statementlist.addToList.add(subGenContent.statementlist);
-      return subGenContent;
-    }
-   
-    
-    public void add_addToList(XXXXXXStatement val)
-    {
-    }
-
-    
-    public void set_exitScript(int val){
-      if(statementlist == null){ statementlist = new StatementList(this); }
-      statementlist.set_exitScript(val);
-    }
-    
-    
-    /**Set from ZBNF:  (\?*<$?forElement>\?) */
-    public void axxxdd_fnEmpty(XXXXXXStatement val){  }
-    
-
-    
-    public String XXXtoString()
-    {
-      switch(elementType){
-      case 't': return "text"; //textArg.toString();
-      /*
-      case 'S': return "String " + identArgJbat;
-      case 'O': return "Obj " + identArgJbat;
-      case 'P': return "Pipe " + identArgJbat;
-      case 'U': return "Buffer " + identArgJbat;
-      case 'o': return "(?outp." + textArg + "?)";
-      case 'i': return "(?inp." + textArg + "?)";
-      */
-      case 'e': return "<*" +   ">";  //expressions.get(0).dataAccess
-      //case 'g': return "<$" + path + ">";
-      //case 's': return "call " + identArgJbat;
-      case 'B': return "{ statementblock }";
-      case '?': return "onerror";
-      case 'I': return "(?forInput?)...(/?)";
-      case 'L': return "(?forList "  + "?)";
-      case 'C': return "<:for:Container "  + "?)";
-      case 'i': return "if";
-      case 'g': return "elsif";
-      case 'N': return "<:hasNext> content <.hasNext>";
-      case 'E': return "else";
-      case 'Y': return "<:file>";
-      case 'b': return "break;";
-      case 'c': return "cmd;";
-      case 'm': return "move;";
-      case 'x': return "thread";
-      case 'y': return "copy";
-      case 'z': return "exit";
-      case '=': return "assignExpr";
-      case '+': return "appendExpr";
-      //case 'X': return "call " + identArgJbat ;
-      default: return "(??" + elementType + " " + "?)";
-      }
-    }
-    
-    
-  }
-
-  
   /**In ZBNF: <*dataAccess:formatString>
    */
   public static class DataText extends JZcmditem
@@ -1450,8 +967,6 @@ public class JZcmdScript extends CompiledScript
       super.writeStructLine(out);
       out.append(" Defvariable ").append(defVariable.toString());
     }
-
-    public String XXXtoString(){ return elementType + "=" + "DefVariable " + ":"+ defVariable; }
     
   };
   
@@ -1529,8 +1044,6 @@ public class JZcmdScript extends CompiledScript
     }
 
     
-    
-    public String XXXtoString(){ return  variable + " = " + super.toString(); }
   }
   
   
@@ -1993,8 +1506,6 @@ public class JZcmdScript extends CompiledScript
   public static class ThreadBlock extends JZcmditem
   {
     
-    String XXXthreadName;    
-    
     DataAccess threadVariable;
     
     ThreadBlock(StatementList parentList){
@@ -2002,8 +1513,6 @@ public class JZcmdScript extends CompiledScript
     }
 
     
-    public void XXXset_name(String name){ this.XXXthreadName = name; }
-
     /**From Zbnf: [{ Thread <dataAccess?defThreadVar> = }] 
      */
     public JZcmdDataAccess new_defThreadVar(){ 
@@ -2076,12 +1585,6 @@ public class JZcmdScript extends CompiledScript
      */
     void setCmdError(){ elementType = '#'; }
     
-    public String XXXtoString(){
-      if(elementType == '#') return "onerror " + errorLevel;
-      else if(elementType == 'v') return "throwonerror " + errorLevel;
-      else return "onerror " + errorType;
-    }
-    
  }
   
   
@@ -2090,6 +1593,17 @@ public class JZcmdScript extends CompiledScript
   
   /**Organization class for a list of script elements inside another Scriptelement.
    *
+   * A statement, an element of the script, maybe a simple text, an condition etc.
+   * A statement may have sub statements , see aggregation {@link JZcmditem#statementlist}. 
+   * <br>
+   * UML-Notation see {@link org.vishia.util.Docu_UML_simpleNotation}:
+   * <pre>
+   *  StatementList         JZcmditem
+   *       |              !The statement           StatementList
+   *       |                  |                    !Sub statements
+   *       |----statements--*>|                         |
+   *                          |-----statementlist------>|
+   * </pre> 
    */
   public static class StatementList implements SetLineColumn_ifc
   {
@@ -2098,12 +1612,11 @@ public class JZcmdScript extends CompiledScript
     /**Hint to the source of this parsed argument or statement. */
     String srcFile = "srcFile-yet-unknown";
     
+    /**For debug and error message, set by compiler. */
     int srcLine;
     
+    /**Only used for debug, to see which is the parent. */
     final JZcmditem parentStatement;
-    
-    /**True if < genContent> is called for any input, (?:forInput?) */
-    //public final boolean XXXisContentForInput;
     
     public String cmpnName;
     
@@ -2151,15 +1664,7 @@ public class JZcmdScript extends CompiledScript
       //this.isContentForInput = false;
     }
         
-    /*
-    public StatementList(Argument parentStatement, boolean isContentForInput)
-    { this.parentStatement = parentStatement;
-      //this.isContentForInput = isContentForInput;
-    }
-    */
-        
-    
-    public void XXXset_inputColumn_(int col){ this.indentText = col; } 
+
     
     @Override public void setLineColumnFile(int line, int column, String sFile){
       srcLine = line; indentText = column; srcFile = sFile; 
@@ -2402,21 +1907,6 @@ public class JZcmdScript extends CompiledScript
      * @param text
      */
     public void set_textReplLf(String text){
-      CharSequence cText;
-      if(text.contains("\nXXXX=")){
-        StringBuilder u = new StringBuilder(text);
-        cText = u;
-        int pos = 0;
-        while( (pos = u.indexOf("\nXXXX=",pos))>=0){
-          u.replace(pos+1, pos+2, "");
-        }
-      } else {
-        cText = text;
-      }
-      JZcmditem statement = new JZcmditem(this, 't');
-      statement.textArg = text;
-      statements.add(statement);
-      onerrorAccu = null; withoutOnerror.add(statement);
     }
     
     
@@ -2437,9 +1927,10 @@ public class JZcmdScript extends CompiledScript
      * other characters as white spaces. 
      */
     public void set_plainText(String text){
-      //if(!StringFunctions.isEmptyOrOnlyWhitespaces(text)){
-        set_textReplLf(text);
-      //}
+      JZcmditem statement = new JZcmditem(this, 't');
+      statement.textArg = text;
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
     }
     
     
@@ -2713,16 +2204,6 @@ public class JZcmdScript extends CompiledScript
       statements.add(statement);
     }  
     
-    
-    public void XXXadd_dataAccess(String val)
-    {
-      //dataAccess.add(val);
-    }
-
-    
-    public String XXXtoString()
-    { return "genContent name=" + cmpnName + ":" + statements;
-    }
   }
   
 
@@ -2823,10 +2304,6 @@ public class JZcmdScript extends CompiledScript
       compiledScript.scriptClass = this; //outer.new JZcmdClass();
     }
     
-    public void XXXset_include(String val){ 
-      if(scriptfile.includes ==null){ scriptfile.includes = new ArrayList<JZcmdInclude>(); }
-      //scriptfile.includes.add(val); 
-    }
     
     public JZcmdInclude new_include(){ return new JZcmdInclude(); }
     
@@ -2834,17 +2311,6 @@ public class JZcmdScript extends CompiledScript
       if(scriptfile.includes ==null){ scriptfile.includes = new ArrayList<JZcmdInclude>(); }
       scriptfile.includes.add(val); 
     }
-    
-    /**Defines a variable with initial value. <= <variableAssign?textVariable> \<\.=\>
-     */
-    public DefVariable XXXnew_scriptCurrdir(){
-      bContainsVariableDef = true; 
-      DefVariable variable = new DefVariable(this, 'S'); 
-      variable.defVariable = new DataAccess("@currdir", 'S');
-      return variable;
-    } 
-
-    public void XXXadd_scriptCurrdir(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);} 
     
     
     

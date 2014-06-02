@@ -10,7 +10,6 @@ import java.io.Reader;
 import java.io.Writer;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -33,6 +32,8 @@ import javax.script.ScriptContext;
 
 
 import org.vishia.cmd.CmdExecuter;
+import org.vishia.mainCmd.MainCmd;
+import org.vishia.mainCmd.MainCmdLoggingStream;
 import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.Assert;
 import org.vishia.util.CalculatorExpr;
@@ -52,7 +53,7 @@ import org.vishia.util.IndexMultiTable.Provide;
 
 
 /**This class is the executer of JZcmd. The translated JZscript is contained in an instance of {@link JZcmdScript}. 
- * It can be executed:
+ * It can be executed with a given script:
  * <ul>
  * <li>{@link #execute(JZcmdScript, boolean, boolean, Appendable, String)} executes a given translated script.
  * <li>{@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)} executes one subroutine
@@ -62,10 +63,14 @@ import org.vishia.util.IndexMultiTable.Provide;
  *   It prepares usage for {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)}.
  * <li>{@link #reset()} cleans the instance. The scriptvariables will be generate 
  *   by first call of {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)}
- * </ul> 
+ * </ul>
+ * To use the Java platform's {@link javax.script.CompiledScript} eval method start {@link JZcmdScript#eval(ScriptContext)}
+ * with an instance of {@link #scriptLevel()}.
+ * <br><br> 
  * An instance of this class is used while {@link #execute(JZcmdScript, boolean, boolean, Appendable))} is running.
  * You should not use the instance concurrently in more as one thread. But you can use this instance
  * for one after another call of {@link #execute(JZcmdScript, boolean, boolean, Appendable)}.
+ * Note that Threads can be created in the script.
  * <br><br>
  * @author Hartmut Schorrig
  *
@@ -270,6 +275,19 @@ public class JZcmdExecuter {
   }
   
   
+  /**Creates a JZcmdExecuter with possible writing exceptions in the output text.
+   */
+  public JZcmdExecuter(){
+    MainCmdLogging_ifc log = MainCmd.getLogging_ifc();  //maybe started with MainCmd
+    if(log == null){
+      log = new MainCmdLoggingStream(System.out);
+    }
+    this.log = log;
+    scriptThread = new JZcmdThread();
+    scriptLevel = new ExecuteLevel(scriptThread);
+  }
+  
+  
   
   
   /**Returns the association to all script variables. The script variables can be changed
@@ -409,7 +427,7 @@ public class JZcmdExecuter {
    * @throws NoSuchMethodException not expected 
    */
   public void initialize
-      ( JZcmdScript genScriptPar
+      ( JZcmdScript genScriptArg
       , boolean accessPrivate
       , Map<String, DataAccess.Variable<Object>> srcVariables
       , String sCurrdir
@@ -418,8 +436,8 @@ public class JZcmdExecuter {
   {
     this.scriptLevel.localVariables.clear();
     this.bAccessPrivate = accessPrivate;
-    this.genScript = genScriptPar;
-    genScriptVariables(genScriptPar, accessPrivate, srcVariables, sCurrdir);
+    this.genScript = genScriptArg;
+    genScriptVariables(genScriptArg, accessPrivate, srcVariables, sCurrdir);
   }
 
   
@@ -650,10 +668,10 @@ public class JZcmdExecuter {
     { this(threadData, null, null);
     }
 
-    
+    public JZcmdExecuter executer(){ return JZcmdExecuter.this; }
     
     /**Returns the log interface from the environment class. */
-    public MainCmdLogging_ifc log(){ return log; }
+    public MainCmdLogging_ifc log(){ return JZcmdExecuter.this.log; }
     
     
     
@@ -841,21 +859,17 @@ public class JZcmdExecuter {
           //any statement has thrown an exception.
           
           CharSequence errortext;
-          if(exc instanceof XXXJZcmdForwardException){
-            errortext = exc.getMessage();
+          if(exc instanceof InvocationTargetException){
+            threadData.exception = exc.getCause();
           } else {
-            if(exc instanceof InvocationTargetException){
-              threadData.exception = exc.getCause();
-            } else {
-              threadData.exception = exc;
-            }
-            threadData.excStatement = statement;
-            StringBuilder u = new StringBuilder(1000); 
-            u.append(threadData.exception.toString()).append("; in statement: ");
-            statement.writeStructLine(u);
-            threadData.error.setValue(u);
-            errortext = u;
+            threadData.exception = exc;
           }
+          threadData.excStatement = statement;
+          StringBuilder u = new StringBuilder(1000); 
+          u.append(threadData.exception.toString()).append("; in statement: ");
+          statement.writeStructLine(u);
+          threadData.error.setValue(u);
+          errortext = u;
           if(bWriteErrorInOutput){
             out.append("<?? ").append(errortext).append(" ??>");
             threadData.error.setValue(null);  //clear for next usage.
@@ -865,6 +879,9 @@ public class JZcmdExecuter {
             ret = kException;
           }
         } //catch
+        //
+        //handle onerror
+        //
         if(ret == kException){
           //check onerror with proper error type anywhere after this statement, it is stored in the statement.
           //continue there.
@@ -1503,7 +1520,7 @@ public class JZcmdExecuter {
               
             }
           } else {
-            String sArg = evalString(arg).toString(); //XXXascertainText(arg.expression, localVariables);
+            String sArg = evalString(arg).toString(); 
             args.add(sArg);
           }
         }
@@ -2552,20 +2569,6 @@ public class JZcmdExecuter {
     
     public ExitException(int exitLevel){
       this.exitLevel = exitLevel;
-    }
-  }
-  
-  
-  /**Exception type wraps an exception which is not catched in the current level.
-   */
-  public static class XXXJZcmdForwardException extends Exception
-  {
-    private static final long serialVersionUID = 1L;
-    
-    public int exitLevel;
-    
-    public XXXJZcmdForwardException(String msg){
-      super(msg);
     }
   }
   
