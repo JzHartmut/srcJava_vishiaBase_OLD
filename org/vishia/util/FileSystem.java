@@ -75,6 +75,8 @@ public class FileSystem
   /**Version, history and license.
    * Changes:
    * <ul>
+   * <li>2014-06-03 Hartmut bugfix in {@link #normalizePath(CharSequence)}: it has not deleted
+   *   <code>path/folder/folder/../../ because faulty following start search position. 
    * <li>2014-05-10 Hartmut new: {@link #delete(String)} 
    * <li>2013-10-27 Hartmut chg: {@link #normalizePath(CharSequence)} now uses a given StringBuilder to adjust the path
    *   inside itself. normalizePath(myStringBuilder) does not need the return value. 
@@ -847,7 +849,7 @@ public class FileSystem
       int posStart = uPath.lastIndexOf("/", pos-1);
       //remove "folder/../"
       uPath.delete(posStart+1, pos+4);  //delete from 0 in case of "folder/../somemore"
-      posNext = pos+1;  //search from pos, it may be found "folder/../folder/../follow"
+      posNext = posStart;  //search from posStart, it may be found "path/folder/folder/../../folder/../follow"
     }
     int posEnd = test.length();
     while( StringFunctions.endsWith(test, "/..")){

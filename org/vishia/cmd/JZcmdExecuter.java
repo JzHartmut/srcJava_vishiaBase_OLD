@@ -833,7 +833,7 @@ public class JZcmdExecuter {
           case 'y': executeCopy((JZcmdScript.CallStatement)statement); break;             //copy
           case 'l': executeDelete((JZcmdScript.CallStatement)statement); break;             //copy
           case 'c': execCmdline((JZcmdScript.CmdInvoke)statement); break;              //cmd
-          case 'd': executeChangeCurrDir(statement); break;                              //cd
+          case 'd': ret = executeChangeCurrDir(statement); break;                              //cd
           case 'f': ret = execForContainer((JZcmdScript.ForStatement)statement, out, indentOut, --nDebug1); break;  //for
           case 'B': ret = execNestedLevel(statement, out, indentOut, --nDebug1); break;              //statementBlock
           case 'i': ret = executeIfStatement((JZcmdScript.IfStatement)statement, out, indentOut, --nDebug1); break;
@@ -1602,7 +1602,7 @@ public class JZcmdExecuter {
 
 
 
-    void executeChangeCurrDir(JZcmdScript.JZcmditem statement)
+    short executeChangeCurrDir(JZcmdScript.JZcmditem statement)
     throws Exception
     {
       /*if(statement.dataAccess !=null){
@@ -1612,7 +1612,11 @@ public class JZcmdExecuter {
         }
       } else */{
         CharSequence arg = evalString(statement);
-        changeCurrDir(arg); 
+        if(arg == JZcmdExecuter.retException){ return kException; }
+        else {
+          changeCurrDir(arg); 
+          return kSuccess;
+        }
       }
     }
 
@@ -2186,7 +2190,7 @@ public class JZcmdExecuter {
         if(arg1.filepath !=null){
           obj = new JZcmdFilepath(this, arg1.filepath);
         } else if(arg1.accessFileset !=null){
-          obj = new JZcmdAccessFileset(arg1.accessFileset.accessPath, arg1.accessFileset.filesetVariableName, this);
+          obj = new JZcmdAccessFileset(arg1.accessFileset.accessPath, arg1.accessFileset.textArg, this);
         } else {
           obj = null;
         }
@@ -2286,16 +2290,25 @@ public class JZcmdExecuter {
     throws Exception {
       List<File> filesjar = new LinkedList<File>();
       for(JZcmdScript.AccessFilesetname fileset: statement.jarpaths){
-        if(fileset.filesetVariableName !=null){
-          JZcmdAccessFileset zjars = new JZcmdAccessFileset(fileset.accessPath, fileset.filesetVariableName, this);
+        CharSequence sAccesspath = evalString(fileset);
+        final FilePath accessPath;
+        if(sAccesspath !=null){
+          accessPath = new FilePath(sAccesspath.toString());
+        } else {
+          accessPath = fileset.accessPath;
+        }
+        if(fileset.filesetVariableName !=null){  //fileset variable
+          JZcmdAccessFileset zjars = new JZcmdAccessFileset(accessPath, fileset.filesetVariableName, this);
           List<JZcmdFilepath> jars = zjars.listFilesExpanded();
           for(JZcmdFilepath jfilejar: jars){
             File filejar = new File(jfilejar.absfile().toString());
+            if(!filejar.exists()) throw new IllegalArgumentException("JZcmd.addClasspath - file does not exist; " + filejar.getAbsolutePath());
             filesjar.add(filejar);
           }
         } else {
-          JZcmdFilepath jfilejar = new JZcmdFilepath(this, fileset.accessPath);
+          JZcmdFilepath jfilejar = new JZcmdFilepath(this, accessPath);
           File filejar = new File(jfilejar.absfile().toString());
+          if(!filejar.exists()) throw new IllegalArgumentException("JZcmd.addClasspath - file does not exist; " + filejar.getAbsolutePath());
           filesjar.add(filejar);
         }
       }

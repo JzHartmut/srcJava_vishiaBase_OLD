@@ -554,7 +554,7 @@ public class JZcmdScript extends CompiledScript
     
     public void add_Filepath(FilePath.ZbnfFilepath val){ filepath =val.filepath; }
     
-    public AccessFilesetname new_filesetAccess(){ return new AccessFilesetname(); }
+    public AccessFilesetname new_filesetAccess(){ return new AccessFilesetname(parentList); }
     
     public void add_filesetAccess(AccessFilesetname val){ accessFileset = val; };
     
@@ -847,7 +847,7 @@ public class JZcmdScript extends CompiledScript
     }
     
     
-    public AccessFilesetname new_filesetAccess(){ return new AccessFilesetname(); }
+    public AccessFilesetname new_filesetAccess(){ return new AccessFilesetname(parentList); }
     
     public void add_filesetAccess(AccessFilesetname val){ input.add(val); };
     
@@ -864,7 +864,7 @@ public class JZcmdScript extends CompiledScript
    * The {@link JZcmdAccessFileset} is build on running time in the adequate execution level 
    * of the @link {@link JZcmdExecuter.ExecuteLevel}
    */
-  public static class AccessFilesetname {
+  public static class AccessFilesetname extends JZcmditem{
     
     /**From Zbnf, if null then {@link #zmakeFilepathName} may be the fileset. */
     String filesetVariableName;
@@ -872,6 +872,9 @@ public class JZcmdScript extends CompiledScript
     /**The filepath for the fileset. */
     FilePath accessPath;
     
+    public AccessFilesetname(StatementList list){
+      super(list, 'G');
+    }
     
     public void set_accessPath(String val){
       accessPath = new FilePath(val);  //prepare it with its parts.
@@ -886,6 +889,12 @@ public class JZcmdScript extends CompiledScript
       } else {
         accessPath = new FilePath(val);  //prepare it with its parts.
       }
+      
+      
+      
+      
+      
+      
     }
 
     
@@ -1003,6 +1012,9 @@ public class JZcmdScript extends CompiledScript
     
     List<AccessFilesetname> jarpaths = new ArrayList<AccessFilesetname>();
 
+    /**Name of the Classpath variable which refers the possible parent ClassLoader.
+     * If null, then the ClassLoader from JZcmdExecuter is used. */
+    String nameParentClasspath;
     
     DefClasspathVariable(StatementList parentList)
     {
@@ -1010,11 +1022,14 @@ public class JZcmdScript extends CompiledScript
     }
     
     
-    public AccessFilesetname new_filesetAccess(){ return new AccessFilesetname(); }
+    public AccessFilesetname new_filesetAccess(){ return new AccessFilesetname(parentList); }
     
     public void add_filesetAccess(AccessFilesetname val){ jarpaths.add(val); };
     
 
+    public void set_parentClasspath(String val){
+      nameParentClasspath = val;
+    }
     
   }
   
