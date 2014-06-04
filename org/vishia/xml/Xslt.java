@@ -8,7 +8,7 @@
  * 2) You can redistribute copies of this source to everybody.
  * 3) Every user of this source, also the user of redistribute copies 
  *    with or without payment, must accept this license for further using.
- * 4) But the LPGL ist not appropriate for a whole software product,
+ * 4) But the LPGL is not appropriate for a whole software product,
  *    if this source is only a part of them. It means, the user 
  *    must publish this part of source,
  *    but don't need to publish the whole source of the own product.
@@ -18,15 +18,6 @@
  *    You mustn't delete this Copyright/Copyleft inscription in this source file.    
  *
  * @author Hartmut Schorrig, Germany, Pinzberg
- * @version 2009-03-31  (year-month-day)
- * list of changes: 
- * 2013-06-30 Hartmut new: exec() for calling from inside Java
- * 2009-12-29 Hartmut new: The transformer class is now able to define via param -xslt:, so the SAXON isn't compiled fix.
- * 2009-12-29 Hartmut new: A Xslp-file is translated to the xsl-format, param -p:, the xsl is stored if param -t: is given.^
- * 2009-12-29 Hartmut new: params for translation may be defined, using name=value as param of invocation.
- * 2009-12-29 Hartmut new: The output format isn't fixed to XML, at may be text too. Depending on entry in XSL-File.
- * 2009-31-03 Hartmut: Cmd line argument separator : possible, outputs for help improved.
- * 2006-05-00 Hartmut: creation
  *
  ****************************************************************************/
 package org.vishia.xml;
@@ -125,6 +116,50 @@ import org.vishia.xmlSimple.Xsltpre;
 
 public class Xslt
 {
+  
+  
+  /**Version, history and license.
+   * <ul>
+   * <li>2014-06-01 Hartmut new {@link Xslt#Xslt(ClassLoader, String, String)} and {@link #transform()}
+   *   to invoke from Java context with a different ClassLoader, used in JZcmd 
+   * <li>2013-06-30 Hartmut new: exec() for calling from inside Java
+   * <li>2009-12-29 Hartmut new: The transformer class is now able to define via param -xslt:, so the SAXON isn't compiled fix.
+   * <li>2009-12-29 Hartmut new: A Xslp-file is translated to the xsl-format, param -p:, the xsl is stored if param -t: is given.^
+   * <li>2009-12-29 Hartmut new: params for translation may be defined, using name=value as param of invocation.
+   * <li>2009-12-29 Hartmut new: The output format isn't fixed to XML, at may be text too. Depending on entry in XSL-File.
+   * <li>2009-31-03 Hartmut: Cmd line argument separator : possible, outputs for help improved.
+   * <li>2006-05-00 Hartmut: creation
+   * </ul>
+   * 
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL is not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   * 
+   */
+  //@SuppressWarnings("hiding")
+  static final public String sVersion = "2014-06-01";
+
+
 
   /**Cmdline-argument, set on -y option. Outputfile to output something.*/
   protected String sFileOut = null;

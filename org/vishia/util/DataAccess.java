@@ -86,7 +86,9 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
-   * <li>2014-06-01 Hartmut new: {@link DatapathElementClass#loader}: static Methods with an special {@link java.lang.ClassLoader}.
+   * <li>2014-06-01 Hartmut new: {@link DatapathElementClass#loader}: static Methods 
+   *   and {@link #invokeMethod(DatapathElement, Class, Object, boolean, boolean)}
+   *   with an special {@link java.lang.ClassLoader}.
    * <li>2014-05-28 Hartmut new: some conversions added, especially for main(String[] args): compatible with 
    *   some CharSequence arguments. Automatic conversion from String to File removed.
    * <li>2014-05-25 Hartmut new: access(...): gets static data. It is essential for example for Math.PI 
@@ -934,16 +936,13 @@ public class DataAccess {
    * @return the return value of the method
    * @throws NoSuchMethodException 
    */
-  protected static Object invokeNew(      
-      DatapathElement element
-    ) throws Exception //throws ClassNotFoundException{
-  { Object data1 = null;
-    if(element.ident.equals("java.io.FileOutputStream"))
-      Assert.stop();
-    //int posClass = element.ident.lastIndexOf('.');
-    //String sClass = element.ident.substring(0, posClass);
-    //String sMethod = element.ident.substring(posClass +1);
-    Class<?> clazz = Class.forName(element.ident);
+  protected static Object invokeNew( DatapathElement element) throws Exception 
+  { ClassLoader classloader = getClassLoader(element);
+    Object data1 = null;
+    String sClass = element.ident;
+    if(sClass.equals(debugIdent))
+      debug();
+    Class<?> clazz = classloader.loadClass(sClass);
     Constructor<?>[] methods = clazz.getConstructors();
     boolean bOk = false;
     if(methods.length==0 && element.fnArgs ==null){
