@@ -55,6 +55,8 @@ import javax.xml.transform.stream.StreamSource;
 //import com.sun.xml.internal.stream.XMLOutputFactoryImpl;
 
 import org.vishia.mainCmd.MainCmd;
+import org.vishia.mainCmd.MainCmdLoggingStream;
+import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.mainCmd.Report;
 import org.vishia.mainCmd.MainCmd_ifc;
 import org.vishia.xmlSimple.XmlException;
@@ -170,7 +172,7 @@ public class Xslt
    */ 
   protected XmlMReader xmlMReader;
 
-
+  private TransformerFactory tfactory;
   
   /*---------------------------------------------------------------------------------------------*/
   /** main started from java.
@@ -226,7 +228,13 @@ public class Xslt
     { /** The execution class knows the Xslt Main class in form of the MainCmd super class
           to hold the contact to the command line execution.
       */
-      try{ main.execute(); }
+      try{ 
+        main.console.reportln(Report.fineInfo, "vishia-XSLT with " + main.sTransformer);
+        System.setProperty("javax.xml.transform.TransformerFactory", main.sTransformer);
+        //The SAXON TransformerFactory is instantiated because above System.setProperty()
+        main.tfactory   = TransformerFactory.newInstance();
+        main.transform(); 
+      }
       catch(Exception exception)
       { //catch the last level of error. No error is reported direct on command line!
         main.console.report("Uncatched Exception on main level:", exception);
@@ -358,10 +366,82 @@ public class Xslt
   }//class CmdLine
   
   /** Aggregation to the Console implementation class.*/
-  MainCmd_ifc console;
+  MainCmdLogging_ifc console;
 
+  
+  
+  
+  /**Used in {@link #main(String[])}
+   * 
+   */
+  private Xslt(){}
+  
+  
+  
+  
+  /**Instantiation for Using in a Java/JZcmd-context.
+   * It allows to use a special reader for multi xml files and any XSL translator.
+   * The translator is a standard Java XSLT transformer wich's interfaces are defined in ,,javax.xml.transform,,.
+   * @param javacp The Loader where the reader and translator should be found, 
+   *   null if they are in the same Java classpath as this.
+   * @param sXmlReader "package.path.Class" of instanceof {@link XmlMReader}. That is a multi XML reader. 
+   * @param sXmlTranslator "package.path.Class" of instanceof {@link TransformerFactory}.
+   * @throws ClassNotFoundException 
+   * @throws IllegalAccessException 
+   * @throws InstantiationException 
+   */
+  public Xslt(ClassLoader javacpArg, String sXmlReader, String sXmlTranslator) throws ClassNotFoundException, InstantiationException, IllegalAccessException{
+    final ClassLoader javacp = javacpArg == null ? this.getClass().getClassLoader() : javacpArg; 
+    @SuppressWarnings("unchecked")
+    Class<XmlMReader> classReader = (Class<XmlMReader>) javacp.loadClass(sXmlReader);
+    xmlMReader = classReader.newInstance();
+    tfactory = TransformerFactory.newInstance(sXmlTranslator, javacp);
+    console = MainCmd.getLogging_ifc();
+    if(console == null){
+      console = new MainCmdLoggingStream(System.out, 3);
+    }
+  }
+  
+  
+  
+  /**Adds an input file with standard handling.
+   * @param sFile
+   */
+  public void addInputfile(String sFile){ xmlMReader.addInputFile(sFile); }
+  
+  /**Adds an input file wich's white spaces are replaced by 1 space.
+   * @param sFile
+   */
+  public void addInputfileReplaceWith1Space(String sFile){
+    xmlMReader.addInputFile(sFile,XmlMReader.mReplaceWhiteSpaceWith1Space); 
+  }
 
-  /** Executes the task of this class.
+  /**Adds an input file wich's content is expand as Wikiformat if the tag TODO.
+   * @param sFile
+   */
+  public void addInputfileExpandWikiformat(String sFile){
+    xmlMReader.addInputFile(sFile,XmlMReader.mExpandWikiFormat); 
+  }
+
+  
+  public void setXsltfile(String sFile) { sFileXslt = sFile; }
+
+  
+  public void setXslpfile(String sFile) { sFileXslp = sFile; }
+  
+  public void setOutputfile(String sFile) { sFileOut = sFile; }
+  
+  
+  
+  
+  
+  /**Reads the input files and executes the transformation.
+   * If it is called outside of the main, 
+   * <ul>
+   * <li>the input files should be set with {@link #addInputfile(String)}, 
+   * <li>the transformation file should be set either with {@link #setXsltfile(String)} or {@link #setXslpfile(String)}
+   * <li>and the output file should be set with {@link #setOutfile(String)}.
+   * </ul>
    * @throws ParserConfigurationException 
    * @throws IOException 
    * @throws SAXException 
@@ -369,13 +449,9 @@ public class Xslt
    * @throws TransformerException 
    * @throws XmlException 
   */
-  private void execute() 
+  public void transform() 
   throws ParserConfigurationException, FileNotFoundException, IOException, TransformerException, XmlException
-  { console.reportln(Report.fineInfo, "vishia-XSLT with " + sTransformer);
-    System.setProperty("javax.xml.transform.TransformerFactory", sTransformer);
-    //The SAXON TransformerFactory is instanciated because above System.setProperty()
-    TransformerFactory     tfactory   = TransformerFactory.newInstance();
-
+  { 
     //net.sf.saxon.om.DocumentInfo doc;
     final Source doc;
 

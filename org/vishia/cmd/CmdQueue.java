@@ -163,13 +163,8 @@ public class CmdQueue implements Closeable
   
   
   
-  public void initExecuter(JZcmdScript script, String sCurrdir) throws IllegalAccessException{
-    try{ 
-      zgenExecuter.initialize(script, false, null, sCurrdir);
-    }catch(IOException exc){
-      Assert.stop();
-      //System.err
-    }
+  public void initExecuter(JZcmdScript script, String sCurrdir) throws Throwable{
+    zgenExecuter.initialize(script, false, null, sCurrdir);
   }
   
   

@@ -86,7 +86,7 @@ import org.vishia.msgDispatch.MsgRedirectConsole;
  *   three levels.
  *   This information is written to the console output anyway.
  *   It depends on the 3. position 'W' of the <code>--relevl=WDR</code> whether this output is written in the report file.
- * <li>To output an exception message one can use {@link #writeError(String, Exception)}.  
+ * <li>To output an exception message one can use {@link #writeError(String, Throwable)}.  
  * </ul>
  * This is the older system to output something. The interface {@link MainCmdLogging_ifc} (older version {@link Report})
  * supports this system. 
@@ -217,6 +217,7 @@ public abstract class MainCmd implements MainCmd_ifc
   /**Version, able to read as hex yyyymmdd.
    * Changes:
    * <ul>
+   * <li>2014-05-31 Hartmut chg: {@link #writeError(String, Throwable)} instead Exception etc.
    * <li>2014-05-28 Hartmut new: {@link #currdir()} and {@link #currdir}. It can be used by an application.
    *   Note that the System.setProperty("user.dir", value) affects the whole JVM. A MainCmd may be invoked 
    *   only as a part of an Java application. Therefore the currdir is local valid. Note that the currdir
@@ -1242,7 +1243,7 @@ public abstract class MainCmd implements MainCmd_ifc
       The info is written also to report depended on command line arguments --rlevel.
       If the user will overwrite the kind of output, overwrite writeErrorDirectly, it is called here.
   */
-  public final void writeError(String sInfo, Exception exception)
+  public final void writeError(String sInfo, Throwable exception)
   { writeErrorDirectly(sInfo, exception);
     if(nLevelDisplayToReport >= Report.error)
     { report(sInfo, exception, true );
@@ -1332,7 +1333,7 @@ public abstract class MainCmd implements MainCmd_ifc
       @param sInfo Text to write in the new line after "EXCEPTION: ".
       @param exception Its getMessage will be written.
   */
-  public void writeErrorDirectly(String sInfo, Exception exception)
+  public void writeErrorDirectly(String sInfo, Throwable exception)
   {
     System.err.println("");
     System.err.println( "EXCEPTION: " + sInfo); // + exception.getMessage());
@@ -1396,7 +1397,7 @@ public abstract class MainCmd implements MainCmd_ifc
       @param sInfo Text to write in the new line after "EXCEPTION: ".
       @param exception Exception info to write
   */
-  public void report(String sInfo, Exception exception)
+  public void report(String sInfo, Throwable exception)
   {
     report(sInfo, exception, false); //not written on display yet.
   }
@@ -1408,7 +1409,7 @@ public abstract class MainCmd implements MainCmd_ifc
    * @param exception Exception info to write
    * @param bWrittenOnDisplay true, than the writing to display is always done.
    */
-  private void report(String sInfo, Exception exception, boolean bWrittenOnDisplay)
+  private void report(String sInfo, Throwable exception, boolean bWrittenOnDisplay)
   { if(fReport == null){
       if( !bWrittenOnDisplay){
         writeErrorDirectly(sInfo, exception);

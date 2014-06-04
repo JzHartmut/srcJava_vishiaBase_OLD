@@ -168,7 +168,7 @@ public interface MainCmdLogging_ifc extends LogMessage
       @param exception The catched Exception. The getMessage()-part of the exception is written after sError.
              The stacktrace of the exception is written to report.      
   */
-  public void writeError(String sError, Exception exception);
+  public void writeError(String sError, Throwable exception);
 
   
   void writeStackTrace(Exception exc);
@@ -201,7 +201,7 @@ public interface MainCmdLogging_ifc extends LogMessage
   //void reportWarning(String string);
   
   /** report of a excpetion (in a new line)*/
-  void report(String sText, Exception exception);
+  void report(String sText, Throwable exception);
   
   /** access to the level of report. With the knowledge of the maximal reportlevel
    * the user can decide on some actions in context of report.

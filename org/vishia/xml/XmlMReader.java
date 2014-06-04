@@ -39,6 +39,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamSource;
 
 
+import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.mainCmd.Report;
 import org.vishia.xmlSimple.XmlException;
 
@@ -60,7 +61,7 @@ public abstract class XmlMReader
 
   public static final int mReplaceWhiteSpaceWith1Space = 0x0001;
   public static final int mExpandWikiFormat            = 0x0002;
-  protected Report console;
+  protected MainCmdLogging_ifc console;
   
   XmlMReader(Report console)
   { this.console = console;
@@ -71,7 +72,7 @@ public abstract class XmlMReader
   { this.console = null;
   }
   
-  public void setReport(Report console)
+  public void setReport(MainCmdLogging_ifc console)
   { this.console = console;
   }
   

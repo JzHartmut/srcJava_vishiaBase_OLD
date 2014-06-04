@@ -22,7 +22,7 @@ set INPUT_JAVAC=%INPUT_JAVAC% ../org/vishia/mainCmd/*.java
 set INPUT_JAVAC=%INPUT_JAVAC% ../org/vishia/util/*.java
 set INPUT_JAVAC=%INPUT_JAVAC% ../org/vishia/msgDispatch/*.java
 set INPUT_JAVAC=%INPUT_JAVAC% ../org/vishia/stateMachine/*.java
-set INPUT_JAVAC=%INPUT_JAVAC% ../org/vishia/xml/*.java
+::set INPUT_JAVAC=%INPUT_JAVAC% ../org/vishia/xml/*.java
 set INPUT_JAVAC=%INPUT_JAVAC% ../org/vishia/xmlSimple/*.java
 
 

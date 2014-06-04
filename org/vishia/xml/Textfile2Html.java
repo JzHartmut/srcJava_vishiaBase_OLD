@@ -94,7 +94,7 @@ public class Textfile2Html extends MainCmd
   { boolean bOk = true;
     try{ super.parseArguments(); }
     catch(Exception exception)
-    { setExitErrorLevel(MainCmd_ifc.exitWithArgumentError);
+    { setExitErrorLevel(MainCmdLogging_ifc.exitWithArgumentError);
       bOk = false;
     }
 
@@ -109,7 +109,7 @@ public class Textfile2Html extends MainCmd
       catch(Exception exception)
       { //catch the last level of error. No error is reported direct on command line!
         report("Abort the routine:", exception);
-        setExitErrorLevel(MainCmd_ifc.exitWithErrors);
+        setExitErrorLevel(MainCmdLogging_ifc.exitWithErrors);
       }
     }
     //note: exit the command line application in static main()
@@ -253,9 +253,9 @@ public class Textfile2Html extends MainCmd
   void printLine(String sLine) 
   throws IOException
   { { //the main task: replace all < with the named periphrases.
-      sLine = sLine.replaceAll("&", "&amp;");
-      sLine = sLine.replaceAll("<", "&lt;");
-      sLine = sLine.replaceAll(">", "&gt;");
+      String sLine1 = sLine.replaceAll("&", "&amp;");
+      sLine1 = sLine1.replaceAll("<", "&lt;");
+      sLine1 = sLine1.replaceAll(">", "&gt;");
       writer.write(sLine);
       writer.write("\n");
     }

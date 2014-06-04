@@ -119,7 +119,7 @@ public class MainCmdLoggingStream implements MainCmdLogging_ifc
   
   
   @Override
-  public void report(String sText, Exception exception)
+  public void report(String sText, Throwable exception)
   { CharSequence ctext = Assert.exceptionInfo(sText, exception, 0, 20);
     writeln(MainCmdLogging_ifc.error, 0, ctext);
   }
@@ -163,7 +163,7 @@ public class MainCmdLoggingStream implements MainCmdLogging_ifc
   }
 
   @Override
-  public void writeError(String sError, Exception exception)
+  public void writeError(String sError, Throwable exception)
   { report(sError, exception); 
   }
 

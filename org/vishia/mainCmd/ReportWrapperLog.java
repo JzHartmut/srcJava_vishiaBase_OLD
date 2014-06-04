@@ -82,7 +82,7 @@ public class ReportWrapperLog implements Report
   }
 
   @Override
-  public void report(String sText, Exception exception)
+  public void report(String sText, Throwable exception)
   {
     log.sendMsg(0, sText + exception.getMessage());
     
@@ -124,7 +124,7 @@ public class ReportWrapperLog implements Report
   }
 
   @Override
-  public void writeError(String sError, Exception exception)
+  public void writeError(String sError, Throwable exception)
   {
     // TODO Auto-generated method stub
     

@@ -166,7 +166,13 @@ public class JZcmdScript extends CompiledScript
         level.executer().initialize(this, false, null, null);
         Subroutine main = getMain();
         level.execSubroutine(main, null, null, 0);
-      } catch(Exception exc){ throw new ScriptException(exc); }
+      } catch(Throwable exc){ 
+        if(exc instanceof Exception){
+          throw new ScriptException((Exception)exc); 
+        } else {
+          throw new RuntimeException("JZcmdScript.eval - unexpected Throwable", exc);
+        }
+      }
     } else {
       throw new ScriptException("faulty context");
     }

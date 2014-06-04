@@ -80,6 +80,8 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-06-01 Hartmut chg: {@link #genScriptVariables(JZcmdScript, boolean, Map, CharSequence)} and
+   *   {@link #initialize(JZcmdScript, boolean, Map, String)} throws on any error.
    * <li>2014-06-01 Hartmut chg: "File :" as conversion type for any objExpr, not in a dataPath.TODO: Do the same for Filepath, Fileset with accessPath
    * <li>2014-06-01 Hartmut chg: uses {@value #kException} as return value of all called 
    *   {@link ExecuteLevel#execute(org.vishia.cmd.JZcmdScript.StatementList, StringFormatter, int, boolean, Map, int)}
@@ -319,8 +321,7 @@ public class JZcmdExecuter {
    * @return The built script variables. 
    *   One can evaluate some script variables before running {@link #genContent(JZcmdScript, Object, boolean, Appendable)}.
    *   Especially it is used for {@link org.vishia.zmake.Zmake to set the currDir.} 
-   * @throws IOException
-   * @throws IllegalAccessException 
+   * @throws Throwable 
    * @throws SecurityException 
    * @throws NoSuchMethodException 
    * @throws NoSuchFieldException 
@@ -331,7 +332,7 @@ public class JZcmdExecuter {
     , Map<String, DataAccess.Variable<Object>> srcVariables
     , CharSequence sCurrdirArg
   ) 
-  throws IOException, IllegalAccessException //, NoSuchMethodException, SecurityException, NoSuchFieldException
+  throws Throwable
   {
     this.bAccessPrivate = accessPrivate;
     if(sCurrdirArg == null && scriptLevel.currdir == null){
@@ -385,10 +386,9 @@ public class JZcmdExecuter {
     //
     //generate all variables in this script:
     short ret;
-    try{
-      ret = scriptLevel.execute(genScriptPar.scriptClass, null, 0, false, -1);
-    } catch(Exception exc){
-      System.out.println("JZcmd.genScriptVariables - Scriptvariable faulty; " + exc.getMessage() );
+    ret = scriptLevel.execute(genScriptPar.scriptClass, null, 0, false, -1);
+    if(ret == kException){
+      throw scriptLevel.threadData.exception;
     }
     //setCurrdirScript(sCurrdirArg);
     bScriptVariableGenerated = true;
@@ -422,8 +422,7 @@ public class JZcmdExecuter {
    * @param genScriptPar Generation script in java-prepared form. It contains the building prescript
    *   for the script variables.
    * @param accessPrivate decision whether private and protected members from Java instances can be accessed.   
-   * @throws IOException only if out.append throws it.
-   * @throws IllegalAccessException if a const scriptVariable are attempt to modify.
+   * @throws Throwable 
    * @throws SecurityException not expected
    * @throws NoSuchMethodException not expected 
    */
@@ -433,7 +432,7 @@ public class JZcmdExecuter {
       , Map<String, DataAccess.Variable<Object>> srcVariables
       , String sCurrdir
       ) 
-  throws IOException, IllegalAccessException
+  throws Throwable
   {
     this.scriptLevel.localVariables.clear();
     this.bAccessPrivate = accessPrivate;
