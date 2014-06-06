@@ -39,6 +39,11 @@ public class JZcmdScript extends CompiledScript
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-06-07 Hartmut new: {@link DefClassVariable} with {@link DefClassVariable#loader}:
+   *   Syntax: Class var = :loader: package.path.Class; with a loader. 
+   * <li>2014-06-07 Hartmut new: {@link JZcmdDatapathElementClass#dpathClass}: 
+   *   Using a Class variable instead constant package.path.Class possible. 
+   *   Syntax: new &datapath.Classvar:(args) and java &datapath.Classvar:method(args):
    * <li>2014-06-01 Hartmut chg: "File :" as conversion type for any objExpr, not in a dataPath.TODO: Do the same for Filepath, Fileset with accessPath
    * <li>2014-05-18 Hartmut chg: DefFilepath now uses a textValue and divides the path to its components
    *   at runtime, doesn't use the prepFilePath in ZBNF. Reason: More flexibility. The path can be assmebled
@@ -115,7 +120,7 @@ public class JZcmdScript extends CompiledScript
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public int version = 20130310;
+  static final public String sVersion = "2014-07-07";
 
   final MainCmdLogging_ifc console;
 
@@ -584,14 +589,27 @@ public class JZcmdScript extends CompiledScript
 
     @Override public SetDatapathElement new_startDatapath(){ return new JZcmdDatapathElement(); }
 
+    /**Returns the derived instance of {@link DataAccess.DatapathElement} which supports JZcmd.
+     * It is invoked by semantic datapathElement.
+     * @see org.vishia.util.DataAccess.DataAccessSet#new_datapathElement()
+     */
     @Override public final JZcmdDatapathElement new_datapathElement(){ return new JZcmdDatapathElement(); }
 
-    @Override public final JZcmdDatapathElementClass new_datapathElementClass(){ return new JZcmdDatapathElementClass(); }
-
+    /**For ZbnfJavaOutput: It should add a type JZcmdDatapathElement 
+     *   instead {@link DataAccess.DataAccessSet#add_datapathElement(DatapathElement)}.
+     * @param val
+     */
     public final void add_datapathElement(JZcmdDatapathElement val){ 
       super.add_datapathElement(val); 
     }
     
+    /**Returns the derived instance of {@link DataAccess.DatapathElementClass} which supports JZcmd.
+     * It is invoked by semantic newJavaClass and staticJavaMethod,
+     * see {@link DataAccess.DataAccessSet#new_newJavaClass()}, {@link DataAccess.DataAccessSet#new_staticJavaMethod()}. 
+     * @see org.vishia.util.DataAccess.DataAccessSet#new_datapathElementClass()
+     */
+    @Override public final JZcmdDatapathElementClass newDatapathElementClass(){ return new JZcmdDatapathElementClass(); }
+
     
   }
   
@@ -657,7 +675,8 @@ public class JZcmdScript extends CompiledScript
   
   public static class JZcmdDatapathElementClass extends DataAccess.DatapathElementClass {
 
-    /**The name of that variable which is used as Loader for classes. null if not used (it is optional). */
+    /**The name of that variable which is used as Loader for classes. null if not used (it is optional). 
+     * It should refer instanceof {@link java.lang.Classloader}*/
     JZcmdDataAccess dpathLoader;
     
     /**For ZbnfJavaOutput: Expressions to calculate the {@link #fnArgs} for a method or constructor arguments.
@@ -665,7 +684,9 @@ public class JZcmdScript extends CompiledScript
      */
     protected List<JZcmditem> fnArgsExpr;
 
-
+    /**Access to data which describes the class. null if not used. 
+     * It should refer instanceof {@link java.lang.Class}. */
+    protected JZcmdDataAccess dpathClass;
     
     /**For ZbnfJavaOutput: Creates a datapath for a specific ClassLoader. */
     public JZcmdDataAccess new_loader(){ return new JZcmdDataAccess(); }
@@ -682,6 +703,10 @@ public class JZcmdScript extends CompiledScript
       fnArgsExpr.add(val);
     } 
 
+    
+    public JZcmdDataAccess new_classVar(){ return new JZcmdDataAccess(); }
+    
+    public void add_classVar(JZcmdDataAccess val){ dpathClass = val; }
     
 
   }
@@ -1005,10 +1030,32 @@ public class JZcmdScript extends CompiledScript
     
     @Override void writeStructLine(Appendable out) throws IOException {
       super.writeStructLine(out);
-      out.append(" Defvariable ").append(defVariable.toString());
+      out.append(" Defvariable ").append(defVariable !=null ? defVariable.toString(): "no_Variable");
     }
     
   };
+  
+  
+  
+  
+  public static class DefClassVariable extends DefVariable
+  {
+    
+    JZcmdDataAccess loader;
+    
+    DefClassVariable(StatementList parentList)
+    {
+      super(parentList, 'C');
+    }
+    
+    
+    public JZcmdDataAccess new_loader(){ return new JZcmdDataAccess(); }
+    
+    public void add_loader(JZcmdDataAccess val){ loader = val; };
+    
+    
+  }
+  
   
   
   
@@ -1889,12 +1936,12 @@ public class JZcmdScript extends CompiledScript
     public void add_DefClasspath(DefClasspathVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);}
     
     
-    public DefVariable new_DefClassVar(){ 
+    public DefClassVariable new_DefClassVar(){ 
       bContainsVariableDef = true; 
-      return new DefVariable(this, 'C'); 
+      return new DefClassVariable(this); 
     } 
 
-    public void add_DefClassVar(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);}
+    public void add_DefClassVar(DefClassVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);}
     
     
     public DefVariable new_DefNumVar(){ 

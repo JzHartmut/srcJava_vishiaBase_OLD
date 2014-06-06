@@ -86,6 +86,8 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2014-06-01 Hartmut new: {@link DatapathElementClass#clazz} with a given class. Used on 
+   *   {@link #invokeNew(DatapathElement)} and {@link #invokeStaticMethod(DatapathElement)} 
    * <li>2014-06-01 Hartmut new: {@link DatapathElementClass#loader}: static Methods 
    *   and {@link #invokeMethod(DatapathElement, Class, Object, boolean, boolean)}
    *   with an special {@link java.lang.ClassLoader}.
@@ -185,7 +187,7 @@ public class DataAccess {
    * 
    * 
    */
-  static final public int version = 0x20140101;
+  static final public String sVersion = "2014-06-07";
 
 
   static final Class<?> ifcMainCmdLogging_ifc = getClass("org.vishia.mainCmd.MainCmdLogging_ifc");
@@ -805,7 +807,7 @@ public class DataAccess {
     //  element = null;  //no more following
     //}
     //else 
-    if(element.ident.equals(debugIdent)){
+    if(debugIdent !=null && element.ident !=null && element.ident.equals(debugIdent)){
       debug();
     }
     //get the start instance:
@@ -842,7 +844,7 @@ public class DataAccess {
     while(element !=null){
       //has a next element
       //
-      if(element.ident.equals(debugIdent)){
+      if(debugIdent !=null && element.ident !=null && element.ident.equals(debugIdent)){
         debug();
       }
       boolean bStatic;
@@ -937,14 +939,19 @@ public class DataAccess {
    * @throws NoSuchMethodException 
    */
   protected static Object invokeNew( DatapathElement element) throws Exception 
-  { ClassLoader classloader = getClassLoader(element);
-    Object data1 = null;
-    String sClass = element.ident;
-    if(sClass.equals(debugIdent))
-      debug();
-    Class<?> clazz = classloader.loadClass(sClass);
+  { final Class<?> clazz;
+    if(element instanceof DatapathElementClass && ((DatapathElementClass)element).clazz !=null){
+      clazz = ((DatapathElementClass)element).clazz;
+    } else {
+      String sClass = element.ident;
+      if(debugIdent !=null && sClass.equals(debugIdent))
+        debug();
+      ClassLoader classloader = getClassLoader(element);
+      clazz = classloader.loadClass(sClass);
+    }
     Constructor<?>[] methods = clazz.getConstructors();
     boolean bOk = false;
+    Object data1 = null;
     if(methods.length==0 && element.fnArgs ==null){
       //only a default constructor, it is requested
       data1 = clazz.newInstance();
@@ -1066,17 +1073,21 @@ public class DataAccess {
    */
   protected static Object invokeStaticMethod( DatapathElement element ) 
   throws Exception
-  { ClassLoader classloader = getClassLoader(element);
-    Object data1 = null;
-    if(element.ident.contains("xml.Xslt"))
-      Assert.stop();
-    int posClass = element.ident.lastIndexOf('.');
-    String sClass = element.ident.substring(0, posClass);
-    String sMethod = element.ident.substring(posClass +1);
-    Class<?> clazz = classloader.loadClass(sClass);
-    //Class<?> clazz = Class.forName(sClass);
+  { final Class<?> clazz; 
+    final String sMethod;
+    if(element instanceof DatapathElementClass && ((DatapathElementClass)element).clazz !=null){
+      clazz = ((DatapathElementClass)element).clazz;
+      sMethod = element.ident;
+    } else {
+      int posClass = element.ident.lastIndexOf('.');
+      String sClass = element.ident.substring(0, posClass);
+      sMethod = element.ident.substring(posClass +1);
+      ClassLoader classloader = getClassLoader(element);
+      clazz = classloader.loadClass(sClass);
+    }
     Method[] methods = clazz.getMethods();
     boolean bOk = false;
+    Object data1 = null;
     for(Method method: methods){
       bOk = false;
       String sMethodName = method.getName();
@@ -1727,6 +1738,7 @@ public class DataAccess {
     /**Invoked if an access to an existing variable is stored. */
     public DataAccessSet(){ super(); }
     
+    /**This method may be overridden if a derived instance is necessary. */
     public SetDatapathElement new_datapathElement(){ return new SetDatapathElement(); }
 
     public final void add_datapathElement(SetDatapathElement val){ 
@@ -1734,7 +1746,8 @@ public class DataAccess {
     }
     
     
-    public DatapathElementClass new_datapathElementClass(){ return new DatapathElementClass(); }
+    /**This method may be overridden if a derived instance is necessary. */
+    public DatapathElementClass newDatapathElementClass(){ return new DatapathElementClass(); }
 
     public final void add_datapathElementClass(DatapathElementClass val){ 
       super.add_datapathElement(val); //Note: super does not get a DatapathElementClass but only its superclass.
@@ -1771,7 +1784,7 @@ public class DataAccess {
     
     
     public final DatapathElementClass new_newJavaClass()
-    { DatapathElementClass value = new_datapathElementClass();
+    { DatapathElementClass value = newDatapathElementClass();
       value.whatisit = '+';
       //ScriptElement contentElement = new ScriptElement('J', null); ///
       //subContent.content.add(contentElement);
@@ -1782,7 +1795,7 @@ public class DataAccess {
 
 
     public final DatapathElementClass new_staticJavaMethod()
-    { DatapathElementClass value = new_datapathElementClass();
+    { DatapathElementClass value = newDatapathElementClass();
       value.whatisit = '%';
       return value;
       //ScriptElement contentElement = new ScriptElement('j', null); ///
@@ -1987,15 +2000,22 @@ public class DataAccess {
   
   
   
-  /**Variant of a DatapathElement which contains a ClassLoader for a new Java class or a static method invocation.
+  /**Variant of a DatapathElement which can contain a ClassLoader for a new Java class or a static method invocation
+   * or a Class which's field, method or constructor should access.
+   * The {@link DatapathElement#ident} contains the method or field name if a class is given.
+   * Elsewhere it contains the package.path.Class.element
    */
   public static class DatapathElementClass extends DatapathElement
   {
     ClassLoader loader;
+    
+    Class<?> clazz;
 
     public void set_javapath(String text){ this.ident = text; }
     
-    public void set_loader(ClassLoader loaderArg){ this.loader = loaderArg; } 
+    public void set_loader(ClassLoader arg){ this.loader = arg; } 
+    
+    public void set_Class(Class<?> arg){ this.clazz = arg; } 
     
   }
  

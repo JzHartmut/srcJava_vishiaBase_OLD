@@ -798,11 +798,7 @@ public class JZcmdExecuter {
           } break;
           case 'M': executeDefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'M', new TreeMap<String, Object>(), true); break; 
           case 'W': ret = executeOpenfile(newVariables, (JZcmdScript.DefVariable)statement); break;
-          case 'C': { //Class name = java.path
-            CharSequence value = evalString(statement);
-            Class<?> clazz = Class.forName(value.toString()); 
-            executeDefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'C', clazz, false);
-          } break;
+          case 'C': ret = exec_DefClassVariable((JZcmdScript.DefClassVariable) statement, newVariables); break; 
           case 'J': ret = addClassLoader((JZcmdScript.DefClasspathVariable)statement, newVariables); break;
           case 'O': {
             Object value = evalObject(statement, false);
@@ -2116,6 +2112,11 @@ public class JZcmdExecuter {
             assert(oLoader instanceof ClassLoader);
             jzcmdDataElement.set_loader((ClassLoader)oLoader);
           }
+          if(jzcmdDataElement.dpathClass !=null){
+            Object o = dataAccess(jzcmdDataElement.dpathClass, localVariables, bAccessPrivate, false, false, null);
+            assert(o instanceof Class<?>);
+            jzcmdDataElement.set_Class((Class<?>)o);
+          }
           fnArgsExpr = jzcmdDataElement.fnArgsExpr;
         }
         if(  dataElement instanceof JZcmdScript.JZcmdDatapathElement ){
@@ -2284,6 +2285,29 @@ public class JZcmdExecuter {
     }
     
 
+    
+    
+    protected short exec_DefClassVariable(JZcmdScript.DefClassVariable statement, Map<String, DataAccess.Variable<Object>> newVariables) 
+    throws Exception   
+    { //Class name = java.path
+      short ret = kSuccess;
+      CharSequence value = evalString(statement);
+      Class<?> clazz;
+      if(statement.loader !=null){
+        Object oLoader = dataAccess(statement.loader, localVariables, bAccessPrivate, false, false, null);  //get the loader
+        if(!(oLoader instanceof ClassLoader)) throw new IllegalArgumentException("JZcmd.exec_DefClassVariable - faulty ClassLoader");
+        ClassLoader loader = (ClassLoader)oLoader;
+        clazz = loader.loadClass(value.toString());
+      } else {
+        clazz = Class.forName(value.toString()); 
+      }
+      executeDefVariable(newVariables, statement, 'C', clazz, false);
+      return ret; 
+    }
+
+    
+    
+    
     
     protected short addClassLoader(JZcmdScript.DefClasspathVariable statement, Map<String, DataAccess.Variable<Object>> newVariables) 
     throws Exception {
