@@ -1894,7 +1894,7 @@ public class JZcmdExecuter {
             }
           } break;
           case 'S':{
-            if(init == null || init instanceof String || init instanceof StringSeq && ((StringSeq)init).isUnmated()){
+            if(init == null || init instanceof String /*|| init instanceof StringSeq && ((StringSeq)init).isUnmated()*/){
               val = init;
             } else {
               val = init.toString();
@@ -2147,8 +2147,10 @@ public class JZcmdExecuter {
      * <ul>
      * <li>String from {@link JZcmdScript.JZcmditem#textArg}
      * <li>Object from {@link JZcmdScript.JZcmditem#dataAccess}
-     * <li>Object from {@link JZcmdScript.JZcmditem#statementlist}
-     * <li>Object from {@link JZcmdScript.JZcmditem#expression}
+     * <li>String from {@link JZcmdScript.JZcmditem#statementlist} if not 'X'
+     * <li>Map<String, Object> from statementlist if the arg.{@link JZcmdScript.JZcmditem#elementType} == 'X'.
+     *   it is d 'dataStruct'. 
+     * <li>Object from {@link JZcmdScript.JZcmditem#expression}.
      * <li>If the arg is instanceof {@link JZcmdScript.Argument} - an argument of a call subroutine, then
      *   <ul>
      *   <li>If the {@link JZcmdScript.Argument#filepath} is set, then that {@link FilePath} is transfered
@@ -2170,14 +2172,17 @@ public class JZcmdExecuter {
         obj = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
         //obj = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
       } else if(arg.statementlist !=null){
-        if(arg.elementType == 'X'){
+        if(arg.elementType == 'X') {  
+          //a dataStruct
           final ExecuteLevel level = new ExecuteLevel(threadData, this, localVariables);
           IndexMultiTable<String, DataAccess.Variable<Object>> newVariables = 
             new IndexMultiTable<String, DataAccess.Variable<Object>>(IndexMultiTable.providerString); 
+          //fill the dataStruct with its values:
           ret = level.execute(arg.statementlist, null, 0, false, newVariables, -1);
           obj = ret == kException ? JZcmdExecuter.retException: newVariables;
         } else {
-          //assert(arg.elementType == 'A');
+          //A statementlist as object can be only a text expression.
+          //its value is returned as String.
           StringFormatter u = new StringFormatter();
           ret = executeNewlevel(arg.statementlist, u, arg.statementlist.indentText, false, -1);
           obj = ret == kException ? JZcmdExecuter.retException:  u.toString();

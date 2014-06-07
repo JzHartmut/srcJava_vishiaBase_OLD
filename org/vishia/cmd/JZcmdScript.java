@@ -518,7 +518,7 @@ public class JZcmdScript extends CompiledScript
         case '!': u.append(" flush "); break;
         case '_': u.append(" close "); break;
         case ',': u.append(" errortoOutput "); if(textArg == null){ u.append("off "); } break;
-        //case 'X': u.append(" call " + identArgJbat ;
+        case 'X': u.append(" dataStruct "); break;
         default: //do nothing. Fo in overridden method.
       }
 
