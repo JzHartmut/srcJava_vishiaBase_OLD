@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import javax.script.Bindings;
 import javax.script.ScriptContext;
+import javax.script.ScriptException;
 
 
 
@@ -80,6 +81,7 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-06-10 Hartmut chg: improved Exception handling of the script.
    * <li>2014-06-01 Hartmut chg: {@link #genScriptVariables(JZcmdScript, boolean, Map, CharSequence)} and
    *   {@link #initialize(JZcmdScript, boolean, Map, String)} throws on any error.
    * <li>2014-06-01 Hartmut chg: "File :" as conversion type for any objExpr, not in a dataPath.TODO: Do the same for Filepath, Fileset with accessPath
@@ -221,7 +223,7 @@ public class JZcmdExecuter {
 
   
   /**The java prepared generation script. */
-  JZcmdScript genScript;
+  JZcmdScript jzcmdScript;
   
   /**Instance for the main script part. */
   //Gen_Content genFile;
@@ -299,6 +301,11 @@ public class JZcmdExecuter {
    */
   public Map<String, DataAccess.Variable<Object>> scriptVariables(){ return scriptLevel.localVariables; }
   
+  /**Returns the script level instance. This instance is created with the constructor of this class (a composite).
+   * The {@link ExecuteLevel#localVariables} of the script level are the script variables. 
+   * They are filled with the given script on call of {@link #initialize(JZcmdScript, boolean, Map, String)}
+   * or if {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)} was called.
+   */
   public ExecuteLevel scriptLevel(){ return scriptLevel; }
   
   
@@ -332,7 +339,7 @@ public class JZcmdExecuter {
     , Map<String, DataAccess.Variable<Object>> srcVariables
     , CharSequence sCurrdirArg
   ) 
-  throws Throwable
+  throws Exception //Throwable
   {
     this.bAccessPrivate = accessPrivate;
     if(sCurrdirArg == null && scriptLevel.currdir == null){
@@ -388,7 +395,7 @@ public class JZcmdExecuter {
     short ret;
     ret = scriptLevel.execute(genScriptPar.scriptClass, null, 0, false, -1);
     if(ret == kException){
-      throw scriptLevel.threadData.exception;
+      throw new RuntimeException(scriptLevel.threadData.exception);
     }
     //setCurrdirScript(sCurrdirArg);
     bScriptVariableGenerated = true;
@@ -406,7 +413,7 @@ public class JZcmdExecuter {
   public void reset(){
     bScriptVariableGenerated = false;
     scriptLevel.localVariables.clear();
-    this.genScript = null;
+    this.jzcmdScript = null;
   }
   
   
@@ -436,13 +443,13 @@ public class JZcmdExecuter {
   {
     this.scriptLevel.localVariables.clear();
     this.bAccessPrivate = accessPrivate;
-    this.genScript = genScriptArg;
+    this.jzcmdScript = genScriptArg;
     genScriptVariables(genScriptArg, accessPrivate, srcVariables, sCurrdir);
   }
 
   
   /**Executes the given script.
-   * @param genScriptP The script. It sets the {@link #genScript} internal variable which is used
+   * @param genScriptP The script. It sets the {@link #jzcmdScript} internal variable which is used
    *   to search sub routines. 
    * @param accessPrivate 
    * @param bWaitForThreads should set to true if it is a command line invocation of Java,
@@ -459,46 +466,51 @@ public class JZcmdExecuter {
     , Appendable out
     , String sCurrdir
     ) 
-  throws Exception, IllegalAccessException, Throwable
+  throws ScriptException //Exception, IllegalAccessException, Throwable
   { this.bAccessPrivate = accessPrivate;
     //this.data = userData;
-    this.genScript = genScriptP;
-
-    if(!bScriptVariableGenerated){
-      genScriptVariables(genScript, accessPrivate, null, sCurrdir);
-    }
-    setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
-    ExecuteLevel execFile = new ExecuteLevel(scriptThread, scriptLevel, null);
-    if(genScript.checkJZcmdFile !=null){
-      CharSequence sFilecheck = execFile.evalString(genScript.checkJZcmdFile);
-      File filecheck = new File(sFilecheck.toString());
-      Writer writer = new FileWriter(filecheck);
-      genScript.writeStruct(writer);
-      writer.close();
-    }
-    JZcmdScript.Subroutine mainRoutine = genScript.getMain();
-    //return execute(execFile, contentScript, true);
-    startmilli = System.currentTimeMillis();
-    startnano = System.nanoTime();
-    StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
-    textout = outFormatter;
-    short ret = execFile.execute(mainRoutine.statementlist, outFormatter, 0, false, -1);
-    outFormatter.close();
-    if(bWaitForThreads){
-      boolean bWait = true;
-      while(bWait){
-        synchronized(threads){
-          bWait = threads.size() !=0;
-          if(bWait){
-            try{ threads.wait(1000); }
-            catch(InterruptedException exc){}
+    this.jzcmdScript = genScriptP;
+    short ret;
+    try{
+      if(!bScriptVariableGenerated){
+        genScriptVariables(jzcmdScript, accessPrivate, null, sCurrdir);
+      }
+      setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
+      ExecuteLevel execFile = new ExecuteLevel(scriptThread, scriptLevel, null);
+      if(jzcmdScript.checkJZcmdFile !=null){
+        CharSequence sFilecheck = execFile.evalString(jzcmdScript.checkJZcmdFile);
+        File filecheck = new File(sFilecheck.toString());
+        Writer writer = new FileWriter(filecheck);
+        jzcmdScript.writeStruct(writer);
+        writer.close();
+      }
+      JZcmdScript.Subroutine mainRoutine = jzcmdScript.getMain();
+      //return execute(execFile, contentScript, true);
+      startmilli = System.currentTimeMillis();
+      startnano = System.nanoTime();
+      StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
+      textout = outFormatter;
+      ret = execFile.execute(mainRoutine.statementlist, outFormatter, 0, false, -1);
+      outFormatter.close();
+      if(bWaitForThreads){
+        boolean bWait = true;
+        while(bWait){
+          synchronized(threads){
+            bWait = threads.size() !=0;
+            if(bWait){
+              try{ threads.wait(1000); }
+              catch(InterruptedException exc){}
+            }
           }
         }
+  
       }
-
+    }
+    catch(Exception exc){
+      ret = kException;
     }
     if(ret == kException){
-      throw scriptThread.exception;
+      throw new ScriptException(scriptThread.exception.getMessage(), scriptThread.excSrcfile, scriptThread.excLine, scriptThread.excColumn);
     }
     return null;
   }
@@ -670,6 +682,10 @@ public class JZcmdExecuter {
 
     public JZcmdExecuter executer(){ return JZcmdExecuter.this; }
     
+    
+    public JZcmdEngine scriptEngine(){ return jzcmdScript.getEngine(); }
+    
+    
     /**Returns the log interface from the environment class. */
     public MainCmdLogging_ifc log(){ return JZcmdExecuter.this.log; }
     
@@ -722,7 +738,7 @@ public class JZcmdExecuter {
      * @throws Exception
      */
     protected short execute(JZcmdScript.StatementList contentScript, final StringFormatter out, int indentOutArg, boolean bContainerHasNext, int nDebugP) 
-    throws Exception 
+    //throws Exception 
     { return execute(contentScript, out, indentOutArg, bContainerHasNext, localVariables, nDebugP);
     }
 
@@ -741,7 +757,7 @@ public class JZcmdExecuter {
      */
     private short execute(JZcmdScript.StatementList statementList, StringFormatter out, int indentOutArg
         , boolean bContainerHasNext, Map<String, DataAccess.Variable<Object>> newVariables, int nDebugP) 
-    throws Exception 
+    //throws Exception 
     {
       this.ctNesting +=1;
       //Generate direct requested output. It is especially on inner content-scripts.
@@ -861,13 +877,17 @@ public class JZcmdExecuter {
             threadData.exception = exc;
           }
           threadData.excStatement = statement;
+          threadData.excLine = statement.srcLine;
+          threadData.excColumn = statement.srcColumn;
+          threadData.excSrcfile = statement.srcFile;
           StringBuilder u = new StringBuilder(1000); 
           u.append(threadData.exception.toString()).append("; in statement: ");
           statement.writeStructLine(u);
           threadData.error.setValue(u);
           errortext = u;
           if(bWriteErrorInOutput){
-            out.append("<?? ").append(errortext).append(" ??>");
+            try{ out.append("<?? ").append(errortext).append(" ??>");
+            } catch(IOException exc1){ throw new RuntimeException(exc1); }
             threadData.error.setValue(null);  //clear for next usage.
             threadData.exception = null;
             threadData.excStatement = null;
@@ -1277,7 +1297,7 @@ public class JZcmdExecuter {
         nameSubtext = statement.name;
       }*/
       nameSubtext = evalString(callStatement.callName); 
-      JZcmdScript.Subroutine subtextScript = genScript.getSubroutine(nameSubtext);  //the subtext script to call
+      JZcmdScript.Subroutine subtextScript = jzcmdScript.getSubroutine(nameSubtext);  //the subtext script to call
       if(subtextScript == null){
         throw new NoSuchElementException("JbatExecuter - subroutine not found; " + nameSubtext);
       } else {
@@ -1297,6 +1317,28 @@ public class JZcmdExecuter {
     
 
     
+    
+    public Object evalSubroutine(JZcmdScript.Subroutine substatement
+        , Map<String, DataAccess.Variable<Object>> args
+        , StringFormatter out, int indentOut
+    ) throws ScriptException 
+    {
+      short ok;
+      try { 
+        ok = execSubroutine(substatement, args, null, -1);
+        //executer.execute(genScript, true, bWaitForThreads, null, null);
+        //zgenExecuteLevel.execute(genScript.getMain().subContent, u, false);
+      } catch (Exception exc) {
+        throw new ScriptException(exc);
+      }
+      if(ok != JZcmdExecuter.kSuccess){
+        throw new ScriptException(threadData.exception.getMessage(), threadData.excSrcfile, threadData.excLine, threadData.excColumn);
+      }
+      return null;
+    }    
+    
+    
+    
     /**Executes a subroutine invoked from outside of this class
      * @param substatement Statement of the subroutine
      * @param args Any given arguments in form of a ma.
@@ -1308,7 +1350,7 @@ public class JZcmdExecuter {
     public short execSubroutine(JZcmdScript.Subroutine substatement
         , Map<String, DataAccess.Variable<Object>> args
         , StringFormatter out, int indentOut
-    ) throws Exception 
+    )  
     {
       ExecuteLevel sublevel = new ExecuteLevel(threadData, this, null);
       final List<DataAccess.Variable<Object>> arglist;
@@ -1320,7 +1362,13 @@ public class JZcmdExecuter {
       } else {
         arglist = null;
       }
-      return execSubroutine(substatement, sublevel, null, arglist, out, indentOut, -1);
+      short success;
+      try{
+        success = execSubroutine(substatement, sublevel, null, arglist, out, indentOut, -1);
+      } catch(Exception exc){
+        success = kException;
+      }
+      return success;
     }
     
     
@@ -1394,7 +1442,7 @@ public class JZcmdExecuter {
     
     
     
-    /**Executes a Zmake subroutine call. Additional to {@link #execSubroutine(org.vishia.cmd.JZcmdScript.CallStatement, ExecuteLevel, Appendable, int)}
+    /**Executes a Zmake subroutine call. Additional to {@link #execCall(org.vishia.cmd.JZcmdScript.CallStatement, List, StringFormatter, int, int)}
      * a {@link ZmakeTarget} will be prepared and stored as 'target' in the localVariables of the sublevel.
      * @param statement
      * @param out
@@ -2392,8 +2440,13 @@ public class JZcmdExecuter {
     public CharSequence currdir(){ return currdir.getPath().replace('\\', '/'); }
     
     
-    int debug(JZcmdScript.JZcmditem statement) throws Exception{
-      CharSequence text = evalString(statement);
+    int debug(JZcmdScript.JZcmditem statement) //throws Exception
+    {
+      try{ CharSequence text = evalString(statement);
+      
+      } catch(Exception exc){
+        //unexpected
+      }
       Assert.stop();
       return 1;
     }

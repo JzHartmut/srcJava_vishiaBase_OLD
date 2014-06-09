@@ -16,13 +16,13 @@ if exist %DSTDIR%%DST_priv% rmdir /Q /S %DSTDIR%%DST_priv% >NUL
 if not exist %DSTDIR%%DST% mkdir %DSTDIR%%DST%
 if not exist %DSTDIR%%DST_priv% mkdir %DSTDIR%%DST_priv%
 
-echo javadoc -d %DSTDIR%%DST% -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH%
-%JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST% -protected -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST%\javadoc.rpt 2>%DSTDIR%%DST%\javadoc.err
+echo javadoc -d %DSTDIR%%DST% -linksource -notimestamp %LINKPATH% %CLASSPATH% -sourcepath %SRCPATH%
+%JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST% -protected -linksource -notimestamp %LINKPATH% %CLASSPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST%\javadoc.rpt 2>%DSTDIR%%DST%\javadoc.err
 if errorlevel 1 goto :error
 copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DSTDIR%%DST%\stylesheet.css >NUL
 
-echo javadoc -d %DSTDIR%%DST_priv% -private -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH%
-%JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST_priv% -private -linksource -notimestamp %LINKPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST_priv%\javadoc.rpt 2>%DSTDIR%%DST_priv%\javadoc.err
+echo javadoc -d %DSTDIR%%DST_priv% -private -linksource -notimestamp %LINKPATH% %CLASSPATH% -sourcepath %SRCPATH%
+%JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST_priv% -private -linksource -notimestamp %LINKPATH% %CLASSPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST_priv%\javadoc.rpt 2>%DSTDIR%%DST_priv%\javadoc.err
 if errorlevel 1 goto :error
 copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DSTDIR%%DST_priv%\stylesheet.css >NUL
 
@@ -45,7 +45,7 @@ set PWD1=%CD%
 cd %DSTDIR%
 if exist %DST%.zip del %DST%.zip >NUL
 echo zip %CD%\%DST%.zip
-pkzipc.exe -add -Directories %DST%.zip %DST%\* %DST_priv%\* >NUL
+pkzipc.exe -add -Directories %DST%.zip %DST%\* %DST_priv%\*
 cd %PWD1%
 echo off
 if errorlevel 1 goto :error
@@ -56,6 +56,7 @@ if "%NOPAUSE%"=="" pause
 goto :ende
 
 :error
+echo ===ERROR===
 pause
 :ende
 

@@ -129,6 +129,10 @@ public class JZcmdScript extends CompiledScript
    * to exist. */
   final File fileScript;
   
+  /**The JSR-223-conform engine for this script. 
+   * It is used for {@link #getEngine()}. */
+  final JZcmdEngine scriptEngine;
+  
   
   final Map<String, Subroutine> subroutinesAll = new TreeMap<String, Subroutine>();
   
@@ -152,10 +156,10 @@ public class JZcmdScript extends CompiledScript
    *   to exist.
 
    */
-  public JZcmdScript(MainCmdLogging_ifc console, File fileScript)
+  public JZcmdScript(MainCmdLogging_ifc console, File fileScript, JZcmdEngine scriptEngine)
   { this.console = console;
     this.fileScript = fileScript;
-
+    this.scriptEngine = scriptEngine;
   }
   
   
@@ -185,11 +189,10 @@ public class JZcmdScript extends CompiledScript
   }
 
 
-  @Override
-  public ScriptEngine getEngine()
-  {
-    return null;  //TODO return JZcmd, store it here.
-  }
+  /* (non-Javadoc)
+   * @see javax.script.CompiledScript#getEngine()
+   */
+  @Override public JZcmdEngine getEngine() { return scriptEngine; }
   
   
 
@@ -480,54 +483,57 @@ public class JZcmdScript extends CompiledScript
      * @param u 
      * @throws IOException
      */
-    void writeStructLine(Appendable u) throws IOException {
-      u.append(" @").append(srcFile).append(':').append(Integer.toString(srcLine)).append(",").append(Integer.toString(srcColumn)).append("; ").append(elementType);
-      switch(elementType){
-        case 't': u.append(" text \"").append(textArg).append("\""); break;
-        /*
-        case 'S': u.append("String " + identArgJbat;
-        case 'O': u.append("Obj " + identArgJbat;
-        case 'P': u.append("Pipe " + identArgJbat;
-        case 'U': u.append("Buffer " + identArgJbat;
-        case 'o': u.append("(?outp." + textArg + "?)";
-        case 'i': u.append("(?inp." + textArg + "?)";
-        */
-        case 'e': u.append(" <*)"); break;  //expressions.get(0).dataAccess
-        //case 'g': u.append("<$" + path + ">";
-        //case 's': u.append("call " + identArgJbat;
-        case 'B': u.append(" { statementblock }"); break;
-        case 'D': u.append(" debug"); break;
-        case 'I': u.append(" (?forInput?)...(/?)"); break;
-        case 'L': u.append(" List"); break;
-        case 'W': u.append(" Openfile"); break;
-        case 'Z': u.append(" zmake"); break;
-        case 'i': u.append(" if "); break;
-        case 'F': u.append(" Filepath "); break;
-        case 'G': u.append(" Fileset "); break;
-        case 'g': u.append(" elsif "); break;
-        case 'N': u.append(" <:hasNext> content <.hasNext>"); break;
-        case 'E': u.append(" else "); break;
-        case 'Y': u.append(" <:file> "); break;
-        case 'b': u.append(" break; "); break;
-        case 'c': u.append(" cmd "); break;
-        case 'm': u.append(" move "); break;
-        case 'x': u.append(" thread "); break;
-        case 'y': u.append(" copy "); break;
-        case 'z': u.append(" exit "); break;
-        case 'n': u.append(" newline "); break;
-        case '!': u.append(" flush "); break;
-        case '_': u.append(" close "); break;
-        case ',': u.append(" errortoOutput "); if(textArg == null){ u.append("off "); } break;
-        case 'X': u.append(" dataStruct "); break;
-        default: //do nothing. Fo in overridden method.
+    void writeStructLine(Appendable u) {
+      try{
+        u.append(" @").append(srcFile).append(':').append(Integer.toString(srcLine)).append(",").append(Integer.toString(srcColumn)).append("; ").append(elementType);
+        switch(elementType){
+          case 't': u.append(" text \"").append(textArg).append("\""); break;
+          /*
+          case 'S': u.append("String " + identArgJbat;
+          case 'O': u.append("Obj " + identArgJbat;
+          case 'P': u.append("Pipe " + identArgJbat;
+          case 'U': u.append("Buffer " + identArgJbat;
+          case 'o': u.append("(?outp." + textArg + "?)";
+          case 'i': u.append("(?inp." + textArg + "?)";
+          */
+          case 'e': u.append(" <*)"); break;  //expressions.get(0).dataAccess
+          //case 'g': u.append("<$" + path + ">";
+          //case 's': u.append("call " + identArgJbat;
+          case 'B': u.append(" { statementblock }"); break;
+          case 'D': u.append(" debug"); break;
+          case 'I': u.append(" (?forInput?)...(/?)"); break;
+          case 'L': u.append(" List"); break;
+          case 'W': u.append(" Openfile"); break;
+          case 'Z': u.append(" zmake"); break;
+          case 'i': u.append(" if "); break;
+          case 'F': u.append(" Filepath "); break;
+          case 'G': u.append(" Fileset "); break;
+          case 'g': u.append(" elsif "); break;
+          case 'N': u.append(" <:hasNext> content <.hasNext>"); break;
+          case 'E': u.append(" else "); break;
+          case 'Y': u.append(" <:file> "); break;
+          case 'b': u.append(" break; "); break;
+          case 'c': u.append(" cmd "); break;
+          case 'm': u.append(" move "); break;
+          case 'x': u.append(" thread "); break;
+          case 'y': u.append(" copy "); break;
+          case 'z': u.append(" exit "); break;
+          case 'n': u.append(" newline "); break;
+          case '!': u.append(" flush "); break;
+          case '_': u.append(" close "); break;
+          case ',': u.append(" errortoOutput "); if(textArg == null){ u.append("off "); } break;
+          case 'X': u.append(" dataStruct "); break;
+          default: //do nothing. Fo in overridden method.
+        }
+      } catch(IOException exc){
+        throw new RuntimeException(exc); //unexpected.
       }
-
     }
     
     
     @Override public String toString(){
       StringBuilder u = new StringBuilder();
-      try{ writeStructLine(u); } catch(IOException exc){} //append on StringBuilder has not a IOException!
+      writeStructLine(u); //append on StringBuilder has not a IOException!
       return u.toString();
     }
 
@@ -1028,9 +1034,11 @@ public class JZcmdScript extends CompiledScript
     }
     
     
-    @Override void writeStructLine(Appendable out) throws IOException {
+    @Override void writeStructLine(Appendable out) {
       super.writeStructLine(out);
-      out.append(" Defvariable ").append(defVariable !=null ? defVariable.toString(): "no_Variable");
+      try{ out.append(" Defvariable ").append(defVariable !=null ? defVariable.toString(): "no_Variable");
+      
+      }catch(IOException exc){ throw new RuntimeException(exc); }  //unexpected
     }
     
   };
@@ -1125,15 +1133,17 @@ public class JZcmdScript extends CompiledScript
     }
     
     
-    @Override void writeStructLine(Appendable out) throws IOException {
+    @Override void writeStructLine(Appendable out) {
       super.writeStructLine(out);
-      if(variable !=null){
-        out.append(" assign ");
-        variable.writeStruct(out);
-        out.append(" = ");        
-      } else {
-        out.append(" invoke ");
-      }
+      try{
+        if(variable !=null){
+          out.append(" assign ");
+          variable.writeStruct(out);
+          out.append(" = ");        
+        } else {
+          out.append(" invoke ");
+        }
+      }catch(IOException exc){ throw new RuntimeException(exc); }  //unexpected
     }
 
     
@@ -1457,13 +1467,15 @@ public class JZcmdScript extends CompiledScript
     }
     
     
-    @Override void writeStructLine(Appendable out) throws IOException {
+    @Override void writeStructLine(Appendable out) {
       super.writeStructLine(out);
-      if(name==null){
-        out.append(" main(");
-      } else {
-        out.append(" sub ").append(name).append("(");
-      }
+      try{ 
+        if(name==null){
+          out.append(" main(");
+        } else {
+          out.append(" sub ").append(name).append("(");
+        }
+      }catch(IOException exc){ throw new RuntimeException(exc); }  //unexpected
     }
 
     

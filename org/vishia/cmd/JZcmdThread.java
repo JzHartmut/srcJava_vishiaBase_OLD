@@ -77,6 +77,10 @@ public class JZcmdThread implements Runnable
   
   JZcmdScript.JZcmditem excStatement;
   
+  int excLine, excColumn;
+  
+  String excSrcfile;
+  
   /**State of thread execution. i-init, r-run, y-finished.*/
   char state = 'i';
 
