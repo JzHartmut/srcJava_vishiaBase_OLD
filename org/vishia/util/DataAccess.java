@@ -3,6 +3,7 @@ package org.vishia.util;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -86,6 +87,9 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2014-06-10 Hartmut new: {@link Conversions#list2array}: If a List is provided as argument
+   *   and an array is expected and the first element matches, it is used. It is assumed that all arguments matches.
+   *   TODO special handling for main(String[]) with List argument is not necessary then. 
    * <li>2014-06-01 Hartmut new: {@link DatapathElementClass#clazz} with a given class. Used on 
    *   {@link #invokeNew(DatapathElement)} and {@link #invokeStaticMethod(DatapathElement)} 
    * <li>2014-06-01 Hartmut new: {@link DatapathElementClass#loader}: static Methods 
@@ -391,6 +395,28 @@ public class DataAccess {
       @Override public String toString(){ return "CharSequence:char"; }
     };
     
+    
+    /**List container to appropriate array. */  
+    protected static Conversion list2array = new Conversion(){
+      @Override public Object convert(Object src){
+        List<?> items = (List<?>)src;
+        
+        Object item = items.get(0);
+        int size = items.size();
+        Class<?> itemClass = item.getClass();
+        Object[] ret = (Object[]) Array.newInstance(itemClass, size);
+        int ix = -1;
+        for(Object item1: items){
+          ret[++ix] = item1;
+        }
+        return ret;
+      }
+      @Override public boolean canConvert(Object src){
+        return true;
+      }
+      @Override public String toString(){ return "obj:obj"; }
+    };
+
     
     /**Without conversion, returns src. */  
     protected static Conversion obj2obj = new Conversion(){
@@ -1092,6 +1118,9 @@ public class DataAccess {
       bOk = false;
       String sMethodName = method.getName();
       if(sMethodName.equals(sMethod)){
+        if(debugMethod !=null && debugMethod.equals(element.ident)){
+          debug();
+        }
         Class<?>[] paramTypes = method.getParameterTypes();
         
         Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
@@ -1193,6 +1222,9 @@ public class DataAccess {
         int ix = -1;    //iterator-index in actTypes
         //Iterator<Object> iter = providedArgs.iterator();
         int iProvideArgs = -1;
+        //
+        //first check all types, do not convert, see next loop
+        //
         while(bOk && ++iProvideArgs < providedArgs.length) {                        
           Object actValue = providedArgs[iProvideArgs];              //iterate through provided arguments
           bOk = false;   //check for this arg
@@ -1201,8 +1233,12 @@ public class DataAccess {
             bOk = true;  //may be compatible with all ones.
             conversions[ix] = Conversions.obj2obj;
           } else {
+            Conversion conv = null;
             Class<?> actType = actValue.getClass();
-            if(iParam == argTypes.length-1 && providedArgs.length > iParam+1 && argTypes[iParam].isArray()){
+            if(argTypes[iParam].isArray() && (actValue instanceof List<?>)
+                &&  istypeof(((List<?>)actValue).get(0), argTypes[iParam].getComponentType()) ){ 
+              conv = Conversions.list2array; 
+            }else if(iParam == argTypes.length-1 && providedArgs.length > iParam+1 && argTypes[iParam].isArray()){
               //There are more given arguments and the last one is an array or a variable argument list.
               //store the rest in lastArrayArg instead.
               argType = argTypes[iParam].getComponentType();
@@ -1210,7 +1246,9 @@ public class DataAccess {
               argType = argTypes[iParam];
             }
             //check super classes and all interface types.
-            Conversion conv = checkArgTypes(argType, actType, actValue);
+            if(conv == null){
+              conv = checkArgTypes(argType, actType, actValue);
+            }
             if(conv != null){ 
               conversions[ix] = conv; 
               bOk = true; 
@@ -1220,6 +1258,8 @@ public class DataAccess {
           if(iParam < argTypes.length-1) { iParam +=1; }
         } //for, terminated with some breaks.
         if(bOk){
+          //conversion matches:
+          //
           //the last or only one Argument as array
           Object[] lastArrayArg;
           if(argTypes.length < providedArgs.length){
@@ -1357,7 +1397,18 @@ public class DataAccess {
   }
   
   
-  
+  public static final boolean istypeof(Object obj, Class type){
+    if(obj == null) return false;
+    else {
+      Class<?> objClazz = obj.getClass();
+      do {
+        if(objClazz == type) return true;
+        objClazz = objClazz.getSuperclass();
+        //TODO check interfaces
+      } while(objClazz != Object.class);
+      return false;
+    }
+  }
 
   /**Gets data from a field or from an indexed container.
    *    

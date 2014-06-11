@@ -1,7 +1,7 @@
 ::echo off
 REM Task: Compilation javac and call jar
 if "%INPUT_JAVAC%" =="" (
-  echo == javacjar.sh ==
+  echo == +javacjar.bat ==
   echo script to organize javac compilation and build the jar.
   echo The environment variables should be exported as Input for this script:
   echo ---------------------------------------------------------------------------------------------
@@ -25,32 +25,18 @@ REM  Environment variables set from zbnfjax:
 REM  The java-copiler may be located at a user-specified position.
 REM  Set the environment variable JAVA_JDK, where bin/javac will be found.
 ::call +findJAVA_JDK.bat
-REM  The java-copiler may be located at a user-specified position.
+REM  The java-copiler may be located on a user-specified position.
 REM  Set the environment variable JAVA_JDK, where bin/javac will be found.
+REM  The setJAVA_JDK.bat may be existing in the user's path.
 if "" == "%JAVA_JDK%" call setJAVA_JDK.bat
 if not "" == "%JAVA_JDK%" goto :JavaOK
 
-set JAVA_JDK=D:\Programs\JAVA\jdk1.6.0_21
-if exist "%JAVA_JDK%" goto :JavaOk
-set JAVA_JDK=D:\Progs\JAVA\jdk1.6.0_21
-if exist "%JAVA_JDK%" goto :JavaOk
-set JAVA_JDK=D:\Programme\JAVA\jdk1.6.0_21
-if exist "%JAVA_JDK%" goto :JavaOk
-set JAVA_JDK=C:\Progs\JAVA\jdk1.6.0_21
-if exist "%JAVA_JDK%" goto :JavaOk
-set JAVA_JDK=D:\Progs\JAVA\jdk1.6.0_21
-if exist "%JAVA_JDK%" goto :JavaOk
-set JAVA_JDK=D:\Progs\JAVA\jdk1.6.0_21
-if exist "%JAVA_JDK%" goto :JavaOk
-set JAVA_JDK=D:\Progs\JAVA\jdk1.6.0_21
-if exist "%JAVA_JDK%" goto :JavaOk
-echo JAVA_JDK never found, please check content of srcJava_vishiaBase/+findJAVA_JDK.bat
+REM if setJAVA_JDK.bat is not found:
+echo JAVA_JDK not found. If javac is not able to find in the System's PATH
+echo read the srcJava_vishiaBase/_make/readme_javac.txt
+
 pause
-exit
 :JavaOk
-
-echo JAVA_JDK=%JAVA_JDK%
-
 
 if not exist %OUTDIR_JAVAC% mkdir %OUTDIR_JAVAC%
 
@@ -60,6 +46,7 @@ mkdir %TMP_JAVAC%\bin
 
 REM  Delete the result jar-file
 del /F/Q %OUTDIR_JAVAC%\%JAR_JAVAC%
+del /F/Q %OUTDIR_JAVAC%\%JAR_JAVAC%.jar.log
 del /F/Q %OUTDIR_JAVAC%\%JAR_JAVAC%.compile.log
 del /F/Q %OUTDIR_JAVAC%\%JAR_JAVAC%.compile_error.log
 
@@ -80,14 +67,14 @@ if ERRORLEVEL 1 (
 REM  The jar works only correct, if the current directory contains the classfile tree:
 REM  Store the actual directory to submit restoring on end
 set ENTRYDIR=%CD%
-cd %TMP_JAVAC%\bin
+cd /D %TMP_JAVAC%\bin
 echo === SUCCESS compiling, generate jar: %ENTRYDIR%\%OUTDIR_JAVAC%\%JAR_JAVAC%
 echo TMP_JAVAC=%CD%
 
-%JAVA_JDK%\bin\jar -cvfm %ENTRYDIR%\%OUTDIR_JAVAC%\%JAR_JAVAC% %ENTRYDIR%\%MANIFEST_JAVAC% *  1>..\jar_ok.txt 2>..\jar_error.txt
+%JAVA_JDK%\bin\jar -cvfm %ENTRYDIR%\%OUTDIR_JAVAC%\%JAR_JAVAC% %ENTRYDIR%\%MANIFEST_JAVAC% *  1>%ENTRYDIR%\%OUTDIR_JAVAC%\%JAR_JAVAC%.jar.log 2>..\jar_error.txt
 
-type ..\jar_error.txt >%ENTRYDIR%\%OUTDIR_JAVAC%\%JAR_JAVAC%.compile.log
-type ..\jar_ok.txt >%ENTRYDIR%\%OUTDIR_JAVAC%\%JAR_JAVAC%.compile.log
+REM join jar_error.txt and compile_error.log to one file to view it after this script.
+type ..\jar_error.txt >%ENTRYDIR%\%OUTDIR_JAVAC%\%JAR_JAVAC%.compile_error.log
 
 if errorlevel 1 (
   echo === ERROR jar

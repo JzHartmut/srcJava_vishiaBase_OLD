@@ -862,7 +862,7 @@ public class JZcmdExecuter {
           case '#': ret = execCmdError((JZcmdScript.Onerror)statement, out, indentOut); break;
           case 'F': ret = createFilepath(newVariables, (JZcmdScript.DefVariable) statement); break;
           case 'G': ret = createFileSet(newVariables, (JZcmdScript.UserFileset) statement); break;
-          case 'Z': ret = execZmake((JZcmdScript.Zmake) statement, out, indentOut, --nDebug1); break;
+          case 'Z': ret = exec_zmake((JZcmdScript.Zmake) statement, out, indentOut, --nDebug1); break;
           case 'D': break; // a second debug statement one after another or debug on end is ignored.
           default: throw new IllegalArgumentException("JZcmd.execute - unknown statement; ");
           }//switch
@@ -1450,7 +1450,7 @@ public class JZcmdExecuter {
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    private short execZmake(JZcmdScript.Zmake statement, StringFormatter out, int indentOut, int nDebug) 
+    private short exec_zmake(JZcmdScript.Zmake statement, StringFormatter out, int indentOut, int nDebug) 
     throws IllegalArgumentException, Exception {
       ZmakeTarget target = new ZmakeTarget(this, statement.name);
       target.output = new JZcmdFilepath(this, statement.output);  //prepare to ready-to-use form.

@@ -39,6 +39,7 @@ public class JZcmdScript extends CompiledScript
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-06-12 Hartmut new: {@link JZcmditem#scriptException(String)} 
    * <li>2014-06-07 Hartmut new: {@link DefClassVariable} with {@link DefClassVariable#loader}:
    *   Syntax: Class var = :loader: package.path.Class; with a loader. 
    * <li>2014-06-07 Hartmut new: {@link JZcmdDatapathElementClass#dpathClass}: 
@@ -438,6 +439,14 @@ public class JZcmdScript extends CompiledScript
     
     
     static String sindentA = "                                                                               "; 
+    
+    
+    /**Builds a ScriptException with the given text and the srcFile, line, column of this item. 
+     * @param text message of the ScriptException
+     */
+    public ScriptException scriptException(String text) {
+      return new ScriptException(text, srcFile, srcLine, srcColumn);
+    }
     
     /**Writes a complete readable information about this item with all nested information.
      * @param indent
@@ -2379,8 +2388,12 @@ public class JZcmdScript extends CompiledScript
   }
   
   
-  public final static class JZcmdInclude
+  public final static class JZcmdInclude extends JZcmditem
   {
+    JZcmdInclude(StatementList parentList)
+    {
+      super(parentList, '.');
+    }
     public String path;
     public String envVar;
     
@@ -2410,7 +2423,7 @@ public class JZcmdScript extends CompiledScript
     }
     
     
-    public JZcmdInclude new_include(){ return new JZcmdInclude(); }
+    public JZcmdInclude new_include(){ return new JZcmdInclude(this); }
     
     public void add_include(JZcmdInclude val){
       if(scriptfile.includes ==null){ scriptfile.includes = new ArrayList<JZcmdInclude>(); }
