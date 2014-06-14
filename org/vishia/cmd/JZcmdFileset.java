@@ -44,6 +44,9 @@ public class JZcmdFileset
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-06-14 Hartmut chg: {@link ExecuteLevel} implements {@link FilePath.FilePathEnvAccess} now,
+   *   therewith a {@link #listFiles(List, JZcmdFilepath, boolean, org.vishia.util.FilePath.FilePathEnvAccess)}
+   *   does not need an accessPath, it may be empty respectively null.
    * <li>2014-03-07 created. From srcJava_Zbnf/org/vishia/zmake/ZmakeUserScript.UserFileset.
    * </ul>
    * 
@@ -90,10 +93,9 @@ public class JZcmdFileset
       JZcmdFilepath filepath = new JZcmdFilepath(zgenlevel, scriptFilepath);
       JZcmdFilepath commonBasepath = data.commonBasepath ==null ? null : new JZcmdFilepath(zgenlevel, data.commonBasepath);
       FilePath accessFilePath = zgenAccesspath !=null ? zgenAccesspath.data : null;
-      FilePath.FilePathEnvAccess env = zgenAccesspath;  //implementation of environment in JZcmd-accesspath
       if(expandFiles && (filepath.data.someFiles || filepath.data.allTree)){
         List<FilePath> files1 = new LinkedList<FilePath>();
-        filepath.data.expandFiles(files1, data.commonBasepath, accessFilePath, env);
+        filepath.data.expandFiles(files1, data.commonBasepath, accessFilePath, zgenlevel);
         for(FilePath file: files1){
           JZcmdFilepath zgenFile = new JZcmdFilepath(zgenlevel, file);
           files.add(zgenFile);

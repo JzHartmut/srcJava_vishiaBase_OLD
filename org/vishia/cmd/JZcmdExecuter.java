@@ -81,6 +81,13 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-06-15 Hartmut chg: improved {@link ExecuteLevel#exec_zmake(org.vishia.cmd.JZcmdScript.Zmake, StringFormatter, int, int)}:
+   *   works with a Filepath for output.
+   * <li>2014-06-15 Hartmut chg: improved {@link ExecuteLevel#executeCopy(org.vishia.cmd.JZcmdScript.CallStatement)}:
+   *   works with a Filepath. TODO for execMove!
+   * <li>2014-06-14 Hartmut chg: {@link ExecuteLevel} implements {@link FilePath.FilePathEnvAccess} now,
+   *   therewith a {@link JZcmdFileset#listFiles(List, JZcmdFilepath, boolean, org.vishia.util.FilePath.FilePathEnvAccess)}
+   *   does not need an accessPath, it may be empty respectively null.
    * <li>2014-06-10 Hartmut chg: improved Exception handling of the script.
    * <li>2014-06-01 Hartmut chg: {@link #genScriptVariables(JZcmdScript, boolean, Map, CharSequence)} and
    *   {@link #initialize(JZcmdScript, boolean, Map, String)} throws on any error.
@@ -592,7 +599,7 @@ public class JZcmdExecuter {
    * to generate an expression independent of an environment.
    *
    */
-  public final class ExecuteLevel implements ScriptContext
+  public final class ExecuteLevel implements ScriptContext, FilePath.FilePathEnvAccess
   {
     /**Not used yet. Only for debug! */
     public final ExecuteLevel parent;
@@ -843,7 +850,7 @@ public class JZcmdExecuter {
           case 'm': executeMove((JZcmdScript.CallStatement)statement); break;             //move
           case 'y': executeCopy((JZcmdScript.CallStatement)statement); break;             //copy
           case 'l': executeDelete((JZcmdScript.CallStatement)statement); break;             //copy
-          case 'c': execCmdline((JZcmdScript.CmdInvoke)statement); break;              //cmd
+          case 'c': exec_cmdline((JZcmdScript.CmdInvoke)statement); break;              //cmd
           case 'd': ret = executeChangeCurrDir(statement); break;                              //cd
           case 'f': ret = execForContainer((JZcmdScript.ForStatement)statement, out, indentOut, --nDebug1); break;  //for
           case 'B': ret = execNestedLevel(statement, out, indentOut, --nDebug1); break;              //statementBlock
@@ -1009,6 +1016,9 @@ public class JZcmdExecuter {
 
     void executeDefVariable(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.DefVariable statement, char type, Object value, boolean isConst) 
     throws Exception {
+      if(statement.typeVariable !=null){
+        Debugutil.stop();
+      }
       storeValue(statement.defVariable, newVariables, value, bAccessPrivate);
       //setLocalVariable(statement.name, type, value, isConst);
        
@@ -1453,7 +1463,14 @@ public class JZcmdExecuter {
     private short exec_zmake(JZcmdScript.Zmake statement, StringFormatter out, int indentOut, int nDebug) 
     throws IllegalArgumentException, Exception {
       ZmakeTarget target = new ZmakeTarget(this, statement.name);
-      target.output = new JZcmdFilepath(this, statement.output);  //prepare to ready-to-use form.
+      Object oOutput = evalObject(statement.jzoutput, false);
+      if(oOutput instanceof JZcmdFilepath){
+        target.output = (JZcmdFilepath)oOutput;
+      } else {
+        String sOutput = oOutput.toString();
+        target.output = new JZcmdFilepath(this, new FilePath(sOutput));
+      }
+      //target.output = new JZcmdFilepath(this, statement.output);  //prepare to ready-to-use form.
       for(JZcmdScript.AccessFilesetname input: statement.input){
         JZcmdAccessFileset zinput = new JZcmdAccessFileset(input.accessPath, input.filesetVariableName, this);
         if(target.inputs ==null){ target.inputs = new ArrayList<JZcmdAccessFileset>(); }
@@ -1536,7 +1553,7 @@ public class JZcmdExecuter {
 
     
     
-    private void execCmdline(JZcmdScript.CmdInvoke statement) 
+    private void exec_cmdline(JZcmdScript.CmdInvoke statement) 
     throws IllegalArgumentException, Exception
     {
       boolean ok = true;
@@ -1751,11 +1768,23 @@ public class JZcmdExecuter {
     
     void executeCopy(JZcmdScript.CallStatement statement) 
     throws Exception
-    {
-      CharSequence s1 = evalString(statement.actualArgs.get(0));
-      CharSequence s2 = evalString(statement.actualArgs.get(1));
-      File fileSrc = new File(s1.toString());
-      File fileDst = new File(s2.toString());
+    { String src, dst;
+      Object osrc = evalObject(statement.actualArgs.get(0), false);
+      if(osrc instanceof JZcmdFilepath){
+        src = ((JZcmdFilepath)osrc).absfile().toString();
+      } else {
+        src = osrc.toString();
+      }
+      Object odst = evalObject(statement.actualArgs.get(1), false);
+      if(odst instanceof JZcmdFilepath){
+        dst = ((JZcmdFilepath)odst).absfile().toString();
+      } else {
+        dst = odst.toString();
+      }
+      //CharSequence s1 = evalString(statement.actualArgs.get(0));
+      //CharSequence s2 = evalString(statement.actualArgs.get(1));
+      File fileSrc = new File(src);
+      File fileDst = new File(dst);
       int nrofBytes = FileSystem.copyFile(fileSrc, fileDst);
       if(nrofBytes <0) throw new FileNotFoundException("JbatchExecuter - copy src not found; " + fileSrc.getAbsolutePath() + " to " + fileDst.getAbsolutePath());;
     }
@@ -2608,6 +2637,44 @@ public class JZcmdExecuter {
       // TODO Auto-generated method stub
       
     }
+    
+    
+    /* (non-Javadoc)
+     * @see org.vishia.util.FilePath.FilePathEnvAccess#getCurrentDir()
+     */
+    @Override public CharSequence getCurrentDir()
+    {
+      return currdir();
+    }
+
+
+
+
+    /* (non-Javadoc)
+     * @see org.vishia.util.FilePath.FilePathEnvAccess#getValue(java.lang.String)
+     */
+    @Override public Object getValue(String variable) throws NoSuchFieldException
+    { Object oValue;
+      DataAccess.Variable<Object> varV = localVariables.get(variable);
+      if(varV == null){
+        if(variable.startsWith("$")){
+          oValue = System.getenv(variable.substring(1)).replace('\\', '/');  
+        } else {
+          oValue = null;
+        }
+        if(oValue == null) {
+          throw new NoSuchFieldException("JZcmdFilepath.getValue() - variable not found; " + variable);
+        } 
+      } else {
+        oValue = varV.value();
+        if(oValue instanceof JZcmdFilepath){
+          oValue = ((JZcmdFilepath)oValue).data;  //the FilePath instance.
+        } 
+      }
+      return oValue;
+    }
+
+
     
   }  
   

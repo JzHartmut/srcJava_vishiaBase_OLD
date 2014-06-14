@@ -50,6 +50,16 @@ import java.io.Closeable;
  * For example {@link StringBuilder#append(CharSequence)} uses a non-persistent character sequence and adds it to its own buffer.
  * <br><br>
  * 
+ * 
+ * <b>Access as CharSequence</b>:<br>
+ * This class is a {@link java.lang.CharSequence}. The sequence of chars is represented by the {@link #getCurrentPart()}.
+ * The method {@link #length()} returns the length of the current part. The method {@link #charAt(int)}
+ * returns the characters from {@link #beginLast}. The method {@link #subSequence(int, int)} builds a {@link Part}
+ * which refers the sub sequence inside the {@link #content}.
+ * 
+ * 
+ * <br><br>
+ * 
  *  
  * <b>Principles of operation</b>:<br>
  * The StringPart class is associated to any CharSequence. Additionally 4 Parameters determine the actual part of the String
@@ -581,7 +591,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
   
   
 
-/* (non-Javadoc)
+/**This method returns the characters of the current part.
  * @see java.lang.CharSequence#charAt(int)
  */
 @Override

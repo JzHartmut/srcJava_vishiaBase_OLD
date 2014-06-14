@@ -454,6 +454,7 @@ public class FileSystem
   /**checks if a path exists or execute mkdir for all not existing directory levels.
   *  If the file should be a directory but it doesn't exists, the parent directory is created.
   *  That is because it is not able to detect whether a non-existing directory path is a directory.
+  *  Use {@link #mkDirPath(String)} with "/" on end to create a directory.
   * @param file Either any file or any directory with given path. 
   * @throws IOException If the path is not makeable.
   */

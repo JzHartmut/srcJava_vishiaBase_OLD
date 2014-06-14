@@ -2,7 +2,6 @@ package org.vishia.util;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -10,14 +9,19 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.jar.Attributes;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.vishia.mainCmd.MainCmd;
+import org.vishia.mainCmd.MainCmdLogging_ifc;
 
 //import org.apache.tools.zip.ZipEntry;
 
-/**This class supports working with zip files using the standard java zip methods.
+/**This class supports creating a jar file and working with zip files using the standard java zip methods.
  * This class supports a base path and wildcards like described 
  * in {@link org.vishia.util.FileSystem#addFilesWithBasePath(File, String, List)}.
  * <br><br>
@@ -40,6 +44,7 @@ public class Zip {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-06-15 Hartmut new: Supports jar 
    * <li>2013-02-09 Hartmut chg: {@link Cmdline#argList} now handled in {@link MainCmd#setArguments(org.vishia.mainCmd.MainCmd.Argument[])}.
    * <li>2013-01-20 Hartmut creation: New idea to use the zip facility of Java.
    * </ul>
@@ -78,6 +83,13 @@ public class Zip {
   }
   
   private final List<Src> listSrc;
+  
+  
+  /**A manifest file. If it is set then a jar file will be created instead zip.
+   * 
+   */
+  private Manifest manifest;
+  
   
   
   /**Creates an empty instance for Zip.
@@ -129,18 +141,56 @@ public class Zip {
   
 
   
-  /**Executes the zip with the given source files to a dst file.
+  /**Sets a manifest information from a given file.
+   * If this routine are invoked before {@link #exec(File, int, String)}, a jar file will be created
+   * with this manifest. If the fileManifest does not contain a version info, the {@link Attributes.Name#MANIFEST_VERSION}
+   * with the value "1.0" will be written.
+   * 
+   * @param fileManifest a textual manifest file.
+   * 
+   * @throws IOException file not found, any file error.
+   */
+  public void setManifest(File fileManifest) 
+  throws IOException
+  { 
+    manifest = new Manifest();
+    //manifest.  
+    InputStream in = new FileInputStream(fileManifest);
+    manifest.read(in);
+    //String vername = Attributes.Name.MANIFEST_VERSION.toString();
+    Attributes attr = manifest.getMainAttributes();  //read from file
+    String version1 = attr.getValue(Attributes.Name.MANIFEST_VERSION);
+    if(version1 == null){
+      attr.put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    }
+  }
+  
+  
+  
+  /**Executes the creation of zip or jar with the given source files to a dst file.
+   * If {@link #setManifest(File)} was invoked before, a jar file will be created.
+   * All source files should be set with {@link #addSource(File, String)} or {@link #addSource(String)}.
+   * 
    * @param dst The destination file.
    * @param compressionLevel Level from 0..9 for compression
    * @param comment in the zip file.
-   * @return an error hint or null if successful.
+   * @throws IOException on any file error. 
+   *   Note: If a given source file was not found, it was ignored but write as return hint.
+   * @return an error hint of file errors or null if successful.
    */
-  public String exec(File dst, int compressionLevel, String comment){
-    String ret;
+  public String exec(File fileZip, int compressionLevel, String comment)
+  throws IOException
+  { StringBuilder errorFiles = null;
     final byte[] buffer = new byte[0x4000];
+    ZipOutputStream outZip = null;
+    FileOutputStream outstream = null;
     try {
-      ZipOutputStream outZip = new ZipOutputStream(new FileOutputStream(dst));
-      
+      outstream = new FileOutputStream(fileZip);
+      if(this.manifest != null){
+        outZip = new JarOutputStream(outstream, manifest); 
+      } else {
+        outZip = new ZipOutputStream(outstream);
+      }
       //outZip.setComment(comment);
       outZip.setLevel(compressionLevel);
       
@@ -152,36 +202,50 @@ public class Zip {
         FileSystem.addFilesWithBasePath (src.dir, src.path, listFiles);
         
         for(FileSystem.FileAndBasePath filentry: listFiles){
-          ZipEntry zipEntry = null;
-          InputStream in = null;
-          try{
-            zipEntry = new ZipEntry(filentry.localPath);
-            outZip.putNextEntry(zipEntry);
-            in = new FileInputStream(filentry.file);
-            int bytes;
-            while( (bytes = in.read(buffer))>0){
-              outZip.write(buffer, 0, bytes);
+          if(filentry.file.isFile()){
+            ZipEntry zipEntry = null;
+            InputStream in = null;
+            String sPath = filentry.localPath;
+            if(sPath.startsWith("/")){    //The entries in zip/jar must not start with /
+              sPath = sPath.substring(1);
             }
-          } catch(IOException exc){
-            System.err.println("vishia.util.Zip.writeZip - entry; " + exc.getMessage());
-          } finally {
-            if(in !=null) { in.close(); }
-            if(zipEntry !=null) { outZip.closeEntry(); }
+            try{
+              if(manifest !=null){
+                zipEntry = new JarEntry(sPath);
+              } else {
+                zipEntry = new ZipEntry(sPath);
+              }
+              zipEntry.setTime(filentry.file.lastModified());
+              outZip.putNextEntry(zipEntry);
+              in = new FileInputStream(filentry.file);
+              int bytes;
+              while( (bytes = in.read(buffer))>0){
+                outZip.write(buffer, 0, bytes);
+              }
+            } catch(IOException exc){
+              if(errorFiles == null) { errorFiles = new StringBuilder(); }
+              errorFiles.append(exc.getMessage()).append("\n");
+            } finally {
+              if(in !=null) { in.close(); }
+              if(zipEntry !=null) { outZip.closeEntry(); }
+            }
+          } else {
+            //directory is written in zip already by filentry.localPath
           }
         }
       }  
       outZip.close();
       
-      ret = null;
+    } finally {
+      try{ if(outZip !=null) outZip.close();
+      } catch(IOException exc){ throw new RuntimeException("Archiver.createJar - unexpected IOException"); }
+      try{ if(outstream !=null) outstream.close();
+      } catch(IOException exc){ throw new RuntimeException("Archiver.createJar - unexpected IOException"); }
       
-    } catch (FileNotFoundException e) {
-      ret = "<?? vishia.zip.Zip - File not found: "+ e.getMessage() + "??>";
-    } catch (IOException e) {
-      ret = "<?? vishia.zip.Zip - Any file writing problem: "+ e.getMessage() + "??>";
     }
     listSrc.clear();
-    return ret;
-    
+    if(errorFiles == null) return null;
+    else return errorFiles.toString();
   }
   
   
@@ -198,8 +262,9 @@ public class Zip {
    * zip.exec(args);
    * @param args
    * @return
+   * @throws IOException 
    */
-  public String exec(Args args){
+  public String exec(Args args) throws IOException{
     listSrc.addAll(args.listSrc);
     return exec(args.fOut, args.compress, args.comment);
   }
@@ -213,11 +278,12 @@ public class Zip {
    * @param compressionLevel Level from 0..9 for compression
    * @param comment in the zip file.
    * @return an error hint or null if successful.
+   * @throws IOException 
    */
-  public static String zipfiles(File dst, File srcdir, String sPath, int compressionLevel, String comment){
+  public static String zipfiles(File dst, File srcdir, String sPath, int compressionLevel, String comment) throws IOException{
     Zip zip = new Zip();
     zip.addSource(sPath);
-    return zip.exec(dst, compressionLevel, comment);
+    return zip.exec(dst, compressionLevel, comment); 
   }
 
   
@@ -227,11 +293,15 @@ public class Zip {
     Cmdline cmd = new Cmdline(argData);
     try{ cmd.parseArguments(args);
     } catch(ParseException exc){
-      cmd.setExitErrorLevel(MainCmd.exitWithArgumentError);
+      cmd.setExitErrorLevel(MainCmdLogging_ifc.exitWithArgumentError);
       cmd.exit();
     }
     Zip zip = new Zip();
-    zip.exec(argData);
+    try{ 
+      zip.exec(argData);
+    } catch(IOException exc){
+      System.err.println(exc.getMessage());
+    }
   }
   
   
@@ -294,7 +364,7 @@ public class Zip {
     Cmdline(Args args){
       this.args = args;
       super.addAboutInfo("Zip routine from Java");
-      super.addAboutInfo("made by HSchorrig, 2013-02-09");
+      super.addAboutInfo("made by HSchorrig, 2013-02-09 - 2014-06-15");
       super.addHelpInfo("args: -compress:# -o:ZIP.zip { INPUT}");  //[-w[+|-|0]]
       super.addArgument(argList);
       super.addStandardHelpInfo();
@@ -304,12 +374,6 @@ public class Zip {
   
   
   
-  public static void test2(){
-    String err;
-    if( (err = zipfiles(new File("testzip.zip"), null, "./.:*", 9, "zip comment")) !=null){
-      System.err.println(err);
-    }
-  }
   
   
 }

@@ -87,6 +87,8 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2014-06-15 Hartmut new: {@link Variable#type()} to check whether the type of value is correct.
+   *   It is not ready yet. Idea: Parameter Class<?> on creation of variables. JZcmd feature.
    * <li>2014-06-10 Hartmut new: {@link Conversions#list2array}: If a List is provided as argument
    *   and an array is expected and the first element matches, it is used. It is assumed that all arguments matches.
    *   TODO special handling for main(String[]) with List argument is not necessary then. 
@@ -529,6 +531,13 @@ public class DataAccess {
     return access(datapath, null, localVariables, accessPrivate, bContainer, false, null);
   }
 
+  
+  
+  
+  
+  
+  
+  
   
   /**Stores the given value in the element determined by the data path, maybe create a new Variable therewith.
    * 
@@ -1018,6 +1027,7 @@ public class DataAccess {
   
   
   /**Invokes the method which is described with the element.
+   * TODO use same algorithm for {@link #invokeStaticMethod(DatapathElement)}
    * @param element its {@link DatapathElement#whatisit} == '('.
    *   The {@link DatapathElement#ident} is the "methodname".
    * @param clazz the Class instance where the method should be found. 
@@ -1040,19 +1050,21 @@ public class DataAccess {
   , boolean bNoExceptionifNotFound
   ) throws InvocationTargetException, NoSuchMethodException, Exception {
     Object data1 = null;
-    //Class<?> clazz = obj instanceof Class<?> ? (Class<?>)obj : obj.getClass();
+    Class<?> clazz1 = clazz;
     if(element.ident.equals("execX"))
       Assert.stop();
     boolean bOk = false;
+    boolean methodFound = false;
     do{
-      if(accessPrivate || (clazz.getModifiers() & Modifier.PUBLIC) !=0){
-        Method[] methods = accessPrivate ? clazz.getDeclaredMethods() : clazz.getMethods();
+      if(accessPrivate || (clazz1.getModifiers() & Modifier.PUBLIC) !=0){
+        Method[] methods = accessPrivate ? clazz1.getDeclaredMethods() : clazz1.getMethods();
         for(Method method: methods){
           bOk = false;
           if(method.getName().equals(element.ident)){
             if(debugMethod !=null && debugMethod.equals(element.ident)){
               debug();
             }
+            methodFound = true;
             method.setAccessible(accessPrivate);
             Class<?>[] paramTypes = method.getParameterTypes();
             Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
@@ -1062,7 +1074,7 @@ public class DataAccess {
                 data1 = method.invoke(obj, actArgs);
               } catch(IllegalAccessException exc){
                 CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
-                throw new NoSuchMethodException("DataAccess - method access problem: " + clazz.getName() + "." + element.ident + "(...)" + stackInfo);
+                throw new NoSuchMethodException("DataAccess - method access problem: " + clazz1.getName() + "." + element.ident + "(...)" + stackInfo);
               } catch(InvocationTargetException exc){
                 Assert.stop();
                 throw exc;
@@ -1075,11 +1087,17 @@ public class DataAccess {
           }
         }
       }
-    } while(!bOk && (clazz = clazz.getSuperclass()) !=null);
+    } while(!bOk && (clazz1 = clazz1.getSuperclass()) !=null);
     if(!bOk && !bNoExceptionifNotFound) {
       StringBuilder msg = new StringBuilder(1000);
-      msg.append("DataAccess - method not found: ")
-         .append(obj.getClass().getName()).append(".") .append(element.ident) .append("(...)");
+      if(methodFound){
+        msg.append("DataAccess - method parameters don't match: ");
+      } else {
+        msg.append("DataAccess - method not found: ");
+      }
+      //msg.append(obj.getClass().getName());
+      msg.append(clazz.getName());
+      msg.append(".") .append(element.ident) .append("(...)");
       CharSequence stackInfo = Assert.stackInfo(msg, 3, 5);
       throw new NoSuchMethodException(stackInfo.toString());
     }
@@ -1118,13 +1136,16 @@ public class DataAccess {
       bOk = false;
       String sMethodName = method.getName();
       if(sMethodName.equals(sMethod)){
-        if(debugMethod !=null && debugMethod.equals(element.ident)){
+        if(debugMethod !=null && debugMethod.equals(sMethod)){
           debug();
         }
         Class<?>[] paramTypes = method.getParameterTypes();
         
         Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
         if(actArgs !=null){
+          if((method.getModifiers() & Modifier.STATIC) ==0) { 
+            throw new IllegalArgumentException("DataAccess.invokeStateMethod - method is not static");
+          }
           bOk = true;
           try{ 
             data1 = method.invoke(null, actArgs);
@@ -2143,10 +2164,11 @@ public class DataAccess {
    */
   public final static class Variable<T>{
     
-    /**Type of the variable: S-String, A-Appendable, P-Pipe, L-List-container, F-Openfile,
-     * O-Any object, E-Environment variable V - container for variables C - Class.
-     */
+    /**Type of the variable. Type designations see {@link #type()}. */
     protected char type;
+    
+    /**A Class which should be base class of the value. */
+    protected Class<? extends T> clazz;
     
     /**Property whether this variable should be non-changeable (true) or changeable (false). 
      * It should be tested and realized on runtime. */
@@ -2161,6 +2183,11 @@ public class DataAccess {
     
     public Variable(char type, String name, T value){
       this.type = type; this.name = name; this.value = value;
+      if(value !=null){ 
+        @SuppressWarnings("unchecked")
+        Class<? extends T>clazz1 = (Class<? extends T>) value.getClass(); 
+        clazz = clazz1;
+      }
     }
     
     /**Creates a variable which's value is const or not.
@@ -2170,7 +2197,7 @@ public class DataAccess {
      * @param isConst true then the value is const.
      */
     public Variable(char type, String name, T value, boolean isConst){
-      this.type = type; this.name = name; this.value = value;
+      this(type, name, value);
       this.isConst = isConst;
     }
     
@@ -2179,6 +2206,7 @@ public class DataAccess {
      */
     public Variable(Variable<T> src){
       this.type = src.type; this.name = src.name; this.isConst = src.isConst;
+      this.clazz = src.clazz;
       if(src.value instanceof Appendable && src.value instanceof CharSequence){ this.value = /*new StringBuilder((CharSequence)*/src.value; }
       else{ this.value = src.value; }
     }

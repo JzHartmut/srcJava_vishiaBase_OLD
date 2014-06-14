@@ -17,16 +17,17 @@ public class JZcmdTester
    * @return the information string.
    */
   public CharSequence info(Object obj){
-    
-    //Build an information string about the object:
-    StringBuilder u = new StringBuilder();
-    Class<?> clazz = obj.getClass();
-    u.append("Type=");
-    u.append(clazz.getCanonicalName());
-    u.append("; toString=").append(obj.toString());
-    u.append("; ");
-    return u;
-
+    if(obj == null) return "null-reference";
+    else {
+      //Build an information string about the object:
+      StringBuilder u = new StringBuilder();
+      Class<?> clazz = obj.getClass();
+      u.append("Type=");
+      u.append(clazz.getCanonicalName());
+      u.append("; toString=").append(obj.toString());
+      u.append("; ");
+      return u;
+    }
   }
 
   
@@ -36,16 +37,18 @@ public class JZcmdTester
    * @return the information string.
    */
   public CharSequence infoln(CharSequence start, Object obj){
-    //Build an information string about the object:
-    StringBuilder u = new StringBuilder();
-    u.append(start);
-    Class<?> clazz = obj.getClass();
-    u.append("Type=");
-    u.append(clazz.getCanonicalName());
-    u.append("; toString=").append(obj.toString());
-    u.append(";\n");
-    return u;
-    
+    if(obj == null) return start + ": null-reference";
+    else {
+      //Build an information string about the object:
+      StringBuilder u = new StringBuilder();
+      u.append(start);
+      Class<?> clazz = obj.getClass();
+      u.append("Type=");
+      u.append(clazz.getCanonicalName());
+      u.append("; toString=").append(obj.toString());
+      u.append(";\n");
+      return u;
+    }    
   }
 
   

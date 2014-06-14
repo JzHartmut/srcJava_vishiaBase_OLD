@@ -1,6 +1,7 @@
 package org.vishia.util;
 
 import java.io.IOException;
+import java.io.OutputStream;
 
 /**This class combines an Appendable with the capability of {@link StringPartScan}.
  * All append methods sets the endMax of the StringPart to the new length. The current part end
@@ -13,6 +14,9 @@ public class StringPartAppend extends StringPartScan implements Appendable
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-01-13 Hartmut new: {@link #outputStream()}, able to use as {@link OutputStream} 
+   *   especially for {@link javax.tools.Tool#run(java.io.InputStream, OutputStream, OutputStream, String...)}
+   *   or such other. 
    * <li>2014-01-13 Hartmut created: It is the idea to combine the StringPart to analyze Strings
    *   with an Appendable, especially a StringBuilder.   
    * </ul>
@@ -45,6 +49,9 @@ public class StringPartAppend extends StringPartScan implements Appendable
   //@SuppressWarnings("hiding")
   static final public String sVersion = "2014-01-12";
 
+  
+  private OutputStream outputStream;
+  
   
   /**Creates an String jar with 1000 character (default size). Not that the size of the internal used
    * {@link java.lang.StringBuilder} will be increased if necessary. */
@@ -81,6 +88,9 @@ public class StringPartAppend extends StringPartScan implements Appendable
     assign(content); //assigns the own content to set all positions to 0.
   }
 
+  
+  
+  
   @Override public Appendable append(CharSequence csq) throws IOException
   { ((StringBuilder)content).append(csq);
     if(end == endMax){
@@ -91,6 +101,9 @@ public class StringPartAppend extends StringPartScan implements Appendable
     return this;
   }
 
+  
+  
+  
   @Override public Appendable append(char c) throws IOException
   { ((StringBuilder)content).append(c);
     if(end == endMax){
@@ -101,6 +114,9 @@ public class StringPartAppend extends StringPartScan implements Appendable
     return this;
   }
 
+  
+  
+  
   @Override public Appendable append(CharSequence csq, int from, int to) throws IOException
   { ((StringBuilder)content).append(csq, from, to);
     if(end == endMax){
@@ -111,7 +127,47 @@ public class StringPartAppend extends StringPartScan implements Appendable
     return this;
   }
 
+
   
+  
+  /**Creates or returns an instance which handles this class as OutputStream.
+   * The first call creates the managing instance. Any second call returns the reference to it.
+   * It is only an adaption instance without own data.
+   * @return Access to this as OutputStream.
+   */
+  public OutputStream outputStream(){ 
+    if(outputStream == null) { outputStream = new OutputStream_StringPartAppend(); }
+    return outputStream;
+  }
+  
+  
+  
+  
+  private class OutputStream_StringPartAppend extends OutputStream
+  {
+
+    @Override public void write(byte b[], int off, int len) throws IOException {
+      String out = new String(b, off, len);
+      StringPartAppend.this.append(out);
+    }
+    
+    
+    
+    @Override public void write(int b) throws IOException
+    {
+      //TODO works correct only with ASCII
+      StringPartAppend.this.append((char)b);
+    }
+    
+    @Override public void flush() throws IOException {
+    }
+
+    @Override public void close() throws IOException {
+    }
+
+    
+  }
+
   
   
 }

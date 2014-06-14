@@ -868,7 +868,9 @@ public class JZcmdScript extends CompiledScript
   public static class Zmake extends CallStatement {
 
     
-    FilePath output;
+    FilePath xxxoutput;
+    
+    JZcmditem jzoutput;
     
     String name;
     
@@ -886,12 +888,17 @@ public class JZcmdScript extends CompiledScript
     public void set_name(String name){ this.name = name; }
     
     public void add_output(FilePath.ZbnfFilepath val){ 
-      output = val.filepath;
+      xxxoutput = val.filepath;
       if(name == null){
-        name = output.toString();
+        name = xxxoutput.toString();
       }
     }
     
+    
+    
+    public JZcmditem new_zmakeOutput(){ return new JZcmditem(parentList, '.'); }
+    
+    public void add_zmakeOutput(JZcmditem val){ jzoutput = val; }
     
     public AccessFilesetname new_filesetAccess(){ return new AccessFilesetname(parentList); }
     
@@ -995,6 +1002,8 @@ public class JZcmdScript extends CompiledScript
      */
     public DataAccess defVariable;
     
+    String typeVariable;
+    
     boolean bConst;
     
     DefVariable(StatementList parentList, char type){
@@ -1004,6 +1013,10 @@ public class JZcmdScript extends CompiledScript
     
     /**From Zbnf: [ const <?const>] */
     public void set_const(){ bConst = true; } 
+    
+    
+    public void set_type(String val){ typeVariable = val; }
+    
     
     /**From Zbnf: < variable?defVariable> inside a DefVariable::=...
      */

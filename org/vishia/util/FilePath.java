@@ -708,8 +708,8 @@ public class FilePath
   /**Builds the absolute path with given basepath maybe absolute or not, maybe with drive letter or not. 
    * @return the whole path inclusive a given general path in a {@link UserFileSet} as absolute path.
    */
-  private CharSequence absbasepath(CharSequence basepath, FilePathEnvAccess env){ 
-    CharSequence ret = basepath;
+  private CharSequence absbasepath(CharSequence sBasepath, FilePathEnvAccess env){ 
+    CharSequence ret = sBasepath;
     if(isRootpath(ret) ==0){ //a relative path: insert the currdir of the script only if it is not a root directory already:
       if(ret.length() >0){      //only if ret is not ""
         StringBuilder uRet;
@@ -723,6 +723,7 @@ public class FilePath
           //a drive is present but it is not a root path
           if(sCurrDir.length()>=2 && sCurrDir.charAt(1)==':' && uRet.charAt(0) == sCurrDir.charAt(0)){
             //Same drive letter like sCurrDir: replace the absolute path.
+            uRet.insert(2, '/'); //will stay after sCurrDir
             uRet.replace(0, 2, sCurrDir.toString());
           }
           else {
@@ -731,6 +732,7 @@ public class FilePath
           }
         }
         else {  //a drive is not present.
+          uRet.insert(0, '/'); //will stay after sCurrDir
           uRet.insert(0, sCurrDir);
         }
       }
@@ -749,9 +751,8 @@ public class FilePath
    *  
    */
   public CharSequence absbasepath(FilePathEnvAccess env) throws NoSuchFieldException { 
-    CharSequence basepath = basepath(null, emptyParent, null, env);
-    //basepath = driveRoot(basepath, emptyParent,null);
-    return absbasepath(basepath, env);
+    CharSequence sBasepath = basepath(null, emptyParent, null, env);
+    return absbasepath(sBasepath, env);
   }
   
   public CharSequence absbasepathW(FilePathEnvAccess env) throws NoSuchFieldException { return toWindows(absbasepath(env)); }

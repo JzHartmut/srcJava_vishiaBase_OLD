@@ -112,12 +112,15 @@ prepFilePath::=<$NoWhiteSpaces><! *?>
 ] .
  * </pre>
  */
-public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
+public final class JZcmdFilepath {
 
   
   
   /**Version, history and license.
    * <ul>   
+   * <li>2014-06-10 Hartmut chg: {@link ExecuteLevel} implements {@link FilePath.FilePathEnvAccess} now
+   *   instead this, therewith a {@link JZcmdFileset#listFiles(List, JZcmdFilepath, boolean, org.vishia.util.FilePath.FilePathEnvAccess)}
+   *   does not need an accessPath, it may be empty respectively null.
    * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined here. Only one concept!
    *   This file was copied from srcJava_Zbnf/org/vishia/zmake/Userfilepath.
    *   The data of a file are referenced with {@link #data}. The original fields are contained in
@@ -225,8 +228,8 @@ public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
     data = new FilePath();  //an empty instance to hold information from sources.
     FilePath commonFilePath = commonPath !=null ? commonPath.data : null;
     FilePath accessFilePath = accessPath !=null ? accessPath.data : null;
-    CharSequence basePath = src.data.basepath(null, commonFilePath, accessFilePath, this);
-    CharSequence localDir = src.data.localDir(null, commonFilePath, accessFilePath, this);
+    CharSequence basePath = src.data.basepath(null, commonFilePath, accessFilePath, zgenlevel);
+    CharSequence localDir = src.data.localDir(null, commonFilePath, accessFilePath, zgenlevel);
     int posbase = FilePath.isRootpath(basePath);
     data.drive = posbase >=2 ? Character.toString(basePath.charAt(0)) : null;
     data.absPath = posbase == 1 || posbase == 3;
@@ -252,9 +255,9 @@ public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
    * @throws NoSuchFieldException 
    *  
    */
-  public CharSequence absbasepath() throws NoSuchFieldException { return data.absbasepath(this); }
+  public CharSequence absbasepath() throws NoSuchFieldException { return data.absbasepath(zgenlevel); }
   
-  public CharSequence absbasepathW() throws NoSuchFieldException { return data.absbasepathW(this); }
+  public CharSequence absbasepathW() throws NoSuchFieldException { return data.absbasepathW(zgenlevel); }
   
 
   
@@ -264,9 +267,9 @@ public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
    * @throws NoSuchFieldException 
    *   
    */
-  public CharSequence absdir() throws NoSuchFieldException  { return data.absdir(this); } 
+  public CharSequence absdir() throws NoSuchFieldException  { return data.absdir(zgenlevel); } 
   
-  public CharSequence absdirW() throws NoSuchFieldException{ return data.absdirW(this); }
+  public CharSequence absdirW() throws NoSuchFieldException{ return data.absdirW(zgenlevel); }
   
   
   /**Method can be called in the generation script: <*data.absname()>. 
@@ -274,9 +277,9 @@ public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
    *   Either as absolute or as relative path.
    * @throws NoSuchFieldException 
    */
-  public CharSequence absname() throws NoSuchFieldException{ return data.absname(this); }
+  public CharSequence absname() throws NoSuchFieldException{ return data.absname(zgenlevel); }
   
-  public CharSequence absnameW() throws NoSuchFieldException{ return data.absnameW(this); }
+  public CharSequence absnameW() throws NoSuchFieldException{ return data.absnameW(zgenlevel); }
   
 
 
@@ -286,9 +289,9 @@ public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
    *   The path is absolute. If it is given as relative path, the general current directory of the script is used.
    * @throws NoSuchFieldException 
    */
-  public CharSequence absfile() throws NoSuchFieldException{ return data.absfile(this); }
+  public CharSequence absfile() throws NoSuchFieldException{ return data.absfile(zgenlevel); }
   
-  public CharSequence absfileW() throws NoSuchFieldException{ return data.absfileW(this); }
+  public CharSequence absfileW() throws NoSuchFieldException{ return data.absfileW(zgenlevel); }
   
   
   
@@ -298,12 +301,12 @@ public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
    *   Either as absolute or as relative path how it is given.
    * @throws NoSuchFieldException 
    */
-  public CharSequence basepath() throws NoSuchFieldException{ return data.basepath(this); }
+  public CharSequence basepath() throws NoSuchFieldException{ return data.basepath(zgenlevel); }
    
   
 
   
-  public CharSequence basepathW() throws NoSuchFieldException{ return data.basepathW(this); }
+  public CharSequence basepathW() throws NoSuchFieldException{ return data.basepathW(zgenlevel); }
   
   
   
@@ -312,19 +315,19 @@ public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
    *   The path is absolute or relative like it is given.
    * @throws NoSuchFieldException 
    */
-  public CharSequence dir() throws NoSuchFieldException{ return data.dir(this); } 
+  public CharSequence dir() throws NoSuchFieldException{ return data.dir(zgenlevel); } 
   
   
-  public CharSequence dirW() throws NoSuchFieldException{ return data.dirW(this); }
+  public CharSequence dirW() throws NoSuchFieldException{ return data.dirW(zgenlevel); }
   
   /**Method can be called in the generation script: <*data.pathname()>. 
    * @return the whole path with file name but without extension inclusive a given general path in a {@link UserFileSet}.
    *   The path is absolute or relative like it is given.
    * @throws NoSuchFieldException 
    */
-  public CharSequence pathname() throws NoSuchFieldException{ return data.pathname(this); }
+  public CharSequence pathname() throws NoSuchFieldException{ return data.pathname(zgenlevel); }
   
-  public CharSequence pathnameW() throws NoSuchFieldException{ return data.pathnameW(this); }
+  public CharSequence pathnameW() throws NoSuchFieldException{ return data.pathnameW(zgenlevel); }
   
 
   /**Method can be called in the generation script: <*data.file()>. 
@@ -332,9 +335,9 @@ public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
    *   The path is absolute or relative like it is given.
    * @throws NoSuchFieldException 
    */
-  public CharSequence file() throws NoSuchFieldException{ return data.file(this); } 
+  public CharSequence file() throws NoSuchFieldException{ return data.file(zgenlevel); } 
   
-  public CharSequence fileW() throws NoSuchFieldException{ return data.fileW(this); }
+  public CharSequence fileW() throws NoSuchFieldException{ return data.fileW(zgenlevel); }
   
   
   
@@ -343,9 +346,9 @@ public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
    *   inclusive a given general path. The path is absolute or relative like it is given.
    * @throws NoSuchFieldException 
    */
-  public CharSequence base_localdir() throws NoSuchFieldException{ return data.base_localdir(this); } 
+  public CharSequence base_localdir() throws NoSuchFieldException{ return data.base_localdir(zgenlevel); } 
   
-  public CharSequence base_localdirW() throws NoSuchFieldException{ return data.base_localdirW(this); }
+  public CharSequence base_localdirW() throws NoSuchFieldException{ return data.base_localdirW(zgenlevel); }
   
   
   /**Method can be called in the generation script: <*data.base_localfile()>. 
@@ -353,9 +356,9 @@ public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
    *   inclusive a given general path. The path is absolute or relative like it is given.
    * @throws NoSuchFieldException 
    */
-  public CharSequence base_localfile() throws NoSuchFieldException{ return data.base_localfile(this); }
+  public CharSequence base_localfile() throws NoSuchFieldException{ return data.base_localfile(zgenlevel); }
   
-  public CharSequence base_localfileW() throws NoSuchFieldException{ return data.base_localfileW(this); }
+  public CharSequence base_localfileW() throws NoSuchFieldException{ return data.base_localfileW(zgenlevel); }
   
   
   
@@ -365,13 +368,13 @@ public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
    *   If no directory is given in the local part, it returns ".". 
    * @throws NoSuchFieldException 
    */
-  public CharSequence localdir() throws NoSuchFieldException{ return data.localdir(this); }
+  public CharSequence localdir() throws NoSuchFieldException{ return data.localdir(zgenlevel); }
   
   /**Method can be called in the generation script: <*path.localDir()>. 
    * @return the local path part with file without extension.
    * @throws NoSuchFieldException 
    */
-  public CharSequence localdirW() throws NoSuchFieldException{ return data.localdirW(this); }
+  public CharSequence localdirW() throws NoSuchFieldException{ return data.localdirW(zgenlevel); }
   
 
   
@@ -379,18 +382,18 @@ public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
    * @return the local path part with file without extension.
    * @throws NoSuchFieldException 
    */
-  public CharSequence localname() throws NoSuchFieldException{ return data.localname(this); }
+  public CharSequence localname() throws NoSuchFieldException{ return data.localname(zgenlevel); }
   
-  public CharSequence localnameW() throws NoSuchFieldException{return data.localnameW(this); }
+  public CharSequence localnameW() throws NoSuchFieldException{return data.localnameW(zgenlevel); }
 
   
   /**Method can be called in the generation script: <*path.localfile()>. 
    * @return the local path to this file inclusive name and extension of the file.
    * @throws NoSuchFieldException 
    */
-  public CharSequence localfile() throws NoSuchFieldException{ return data.localfile(this); }
+  public CharSequence localfile() throws NoSuchFieldException{ return data.localfile(zgenlevel); }
 
-  public CharSequence localfileW() throws NoSuchFieldException{ return data.localfileW(this); }
+  public CharSequence localfileW() throws NoSuchFieldException{ return data.localfileW(zgenlevel); }
 
   
   
@@ -425,36 +428,5 @@ public final class JZcmdFilepath implements FilePath.FilePathEnvAccess {
 
 
 
-
-  @Override
-  public CharSequence getCurrentDir()
-  {
-    return zgenlevel.currdir();
-  }
-
-
-
-
-  @Override
-  public Object getValue(String variable) throws NoSuchFieldException
-  { Object oValue;
-    DataAccess.Variable<Object> varV = zgenlevel.localVariables.get(variable);
-    if(varV == null){
-      if(variable.startsWith("$")){
-        oValue = System.getenv(variable.substring(1)).replace('\\', '/');  
-      } else {
-        oValue = null;
-      }
-      if(oValue == null) {
-        throw new NoSuchFieldException("JZcmdFilepath.getValue() - variable not found; " + variable);
-      } 
-    } else {
-      oValue = varV.value();
-      if(oValue instanceof JZcmdFilepath){
-        oValue = ((JZcmdFilepath)oValue).data;  //the FilePath instance.
-      } 
-    }
-    return oValue;
-  }
 
 }

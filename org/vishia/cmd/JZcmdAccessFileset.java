@@ -108,9 +108,8 @@ public class JZcmdAccessFileset
     }
     else if(this.accesspath !=null){ //fileset is null, only this one file.
       if(expandFiles){
-        FilePath.FilePathEnvAccess env = this.accesspath;
         List<FilePath> files1 = new LinkedList<FilePath>();
-        this.accesspath.data.expandFiles(files1, null, null, env);
+        this.accesspath.data.expandFiles(files1, null, null, zgenlevel);
         for(FilePath file: files1){
           JZcmdFilepath zgenFile = new JZcmdFilepath(zgenlevel, file);
           files.add(zgenFile);
