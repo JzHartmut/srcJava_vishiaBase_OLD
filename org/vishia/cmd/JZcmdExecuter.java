@@ -2142,7 +2142,7 @@ public class JZcmdExecuter {
         }
       } else */{
         calculateArguments(dataAccess);
-        return DataAccess.access(dataAccess.datapath(), null, dataPool, accessPrivate, bContainer, bVariable, dst);
+        return DataAccess.access(dataAccess.datapath(), dataPool, accessPrivate, bContainer, bVariable, dst);
       }
     }
       

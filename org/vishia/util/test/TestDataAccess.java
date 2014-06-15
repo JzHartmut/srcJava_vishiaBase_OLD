@@ -138,7 +138,7 @@ public class TestDataAccess
     path.add(new DataAccess.DatapathElement("testint"));
     //
     DataAccess.Dst field = new DataAccess.Dst();
-    ovalue = DataAccess.access(path, dataRoot, null, true, false, false, field);
+    ovalue = DataAccess.access(path, dataRoot, true, false, false, field);
     ivalue = DataAccess.getInt(ovalue);
     assert(ivalue == 7890);
   }
@@ -159,7 +159,7 @@ public class TestDataAccess
     path.add(new DataAccess.DatapathElement("testint"));
     //
     DataAccess.Dst field = new DataAccess.Dst();
-    ovalue = DataAccess.access(path, null, datapool, true, false, false, field);
+    ovalue = DataAccess.access(path, datapool, true, false, false, field);
     ivalue = DataAccess.getInt(ovalue);
     assert(ivalue == 7890);
   }

@@ -87,6 +87,9 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2014-06-15 Hartmut chg: {@link #access(List, Object, boolean, boolean, boolean, Dst)} 
+   *   and {@link #access(CharSequence, Object, boolean, boolean, boolean, Dst)} now with only one dataRoot.
+   *   Not differenced between a Map<String,?) dataPool and a then non necessary dataRoot.
    * <li>2014-06-15 Hartmut new: {@link Variable#type()} to check whether the type of value is correct.
    *   It is not ready yet. Idea: Parameter Class<?> on creation of variables. JZcmd feature.
    * <li>2014-06-10 Hartmut new: {@link Conversions#list2array}: If a List is provided as argument
@@ -193,16 +196,16 @@ public class DataAccess {
    * 
    * 
    */
-  static final public String sVersion = "2014-06-07";
+  static final public String sVersion = "2014-06-16";
 
 
-  static final Class<?> ifcMainCmdLogging_ifc = getClass("org.vishia.mainCmd.MainCmdLogging_ifc");
+  private static final Class<?> ifcMainCmdLogging_ifc = getClass("org.vishia.mainCmd.MainCmdLogging_ifc");
   
   
   
   /**Interface to convert between data.
    */
-  public static interface Conversion
+  private static interface Conversion
   {
     /**Executes the conversion
      * @param src the source data
@@ -228,7 +231,7 @@ public class DataAccess {
    * <li>Note that a {@link java.lang.Integer} is based on {@link java.lang.Number} etc.
    * </ul>
    */
-  protected static class Conversions {
+  private static class Conversions {
     
     /**{@link CalculatorExpr.Value} to Integer. */
     protected static Conversion calcValue2int = new Conversion(){
@@ -505,13 +508,26 @@ public class DataAccess {
   }
   
   
+  
+  
+  /**Empty constructor. Use {@link #add_datapathElement(DatapathElement)} to determine the datapath. */
   public DataAccess(){}
   
   
   
+  
+  /**Returns the datapath of this access to check details. */
   public final List<DataAccess.DatapathElement> datapath(){ return datapath; }
   
-  public void add_datapathElement(DataAccess.DatapathElement item){ 
+  
+  
+  
+  /**Sets the datapath while adding one element after another.
+   * More elements are necessary if the datapath has references.
+   * @param item
+   * @see {@link DatapathElement}
+   */
+  public void add_datapathElement(DatapathElement item){ 
     if(datapath == null){
       datapath = new ArrayList<DataAccess.DatapathElement>();
     }
@@ -519,16 +535,18 @@ public class DataAccess {
   }
 
 
+  
 
   /**Searches the Object maybe invoking some methods which is referred with this instances, {@link #datapath}. 
-   * @param localVariables All Java variables of the environment.
+   * @param dataRoot Either a Map<String, ?> or any other Object which is the root for access.
+   *  it is the object where the path starts from. A Map<?,?> which's key is not a String is not admissible. 
    * @param bContainer true then returns a found container or build one.
    * @return Maybe null only if the last reference refers null. 
    * @throws Exception on any not found or etc.
    */
-  public Object access( Map<String, DataAccess.Variable<Object>> localVariables , boolean accessPrivate, boolean bContainer) 
+  public Object access( Object dataRoot , boolean accessPrivate, boolean bContainer) 
   throws Exception{
-    return access(datapath, null, localVariables, accessPrivate, bContainer, false, null);
+    return access(datapath, dataRoot, accessPrivate, bContainer, false, null);
   }
 
   
@@ -563,19 +581,20 @@ public class DataAccess {
    * </ul>
    * 
    * @param path
-   * @param variables
+   * @param dataRoot Either a Map<String, ?> or any other Object which is the root for access.
+   *  it is the object where the path starts from. A Map<?,?> which's key is not a String is not admissible. 
    * @param value
    * @throws IllegalAccessException
    * @throws IOException if append fails.
    * @throws IllegalAccessException if a field exists but can't access. Note that private members can be accessed.
    */
-  public static void storeValue(List<DatapathElement> path, Map<String, Variable<Object>> variables, Object value, boolean bAccessPrivate) 
+  public static void storeValue(List<DatapathElement> path, Object dataRoot, Object value, boolean bAccessPrivate) 
   throws Exception {
     Dst dst = new Dst();
     //accesses the data object with given path. 
     //If it is a Variable, return the Variable, not its content.
     //If it is not a Variable, the dst contains the Field.
-    Object o = DataAccess.access(path, null, variables, bAccessPrivate, false, true, dst);
+    Object o = access(path, dataRoot, bAccessPrivate, false, true, dst);
     if(o instanceof Variable<?>){
       @SuppressWarnings("unchecked")
       Variable<Object> var = (Variable<Object>)(o); 
@@ -587,15 +606,16 @@ public class DataAccess {
 
   
   /**Stores the value in the given path. See {@link #storeValue(List, Map, Object, boolean)}.
-   * @param variables
+   * @param dataRoot Either a Map<String, ?> or any other Object which is the root for access.
+   *  it is the object where the path starts from. A Map<?,?> which's key is not a String is not admissible. 
    * @param value
    * @param bAccessPrivate
    * @throws Exception
    */
-  public void storeValue( Map<String, Variable<Object>> variables, Object value, boolean bAccessPrivate) 
+  public void storeValue( Object dataRoot, Object value, boolean bAccessPrivate) 
   throws Exception
   {
-    storeValue(datapath, variables, value, bAccessPrivate);
+    storeValue(datapath, dataRoot, value, bAccessPrivate);
   }
   
   
@@ -611,7 +631,7 @@ public class DataAccess {
    * The keys in the map describe possible conversions <code>fromType:toType</code>.
    * @return An index for conversion. Used internal.
    */
-  public static Map<String, Conversion> initConversion(){
+  private static Map<String, Conversion> initConversion(){
     Map<String, Conversion> conversion1 = new TreeMap<String, Conversion>();
     conversion1.put("org.vishia.util.CalculatorExpr$Value:int", Conversions.calcValue2int);
     conversion1.put("java.lang.Long:int", Conversions.long2int);
@@ -685,12 +705,12 @@ public class DataAccess {
    * <li>"$ENV": From an environment variable
    * <li>"@variable.element": Read start instance form dataPool 
    * <li>"%java.package.Class()": invokes a static method.
-   * <li>"element": read from dataRoot 
+   * <li>"element": read from dataRoot. Read via get(element) if dataRoot is a Map<String, ?>  
    * <li>"reference.element": read from dataRoot, referenced instance. 
    * </ul>
    * @param datapathArg 
-   * @param dataRoot maybe null, then read first member always from dataPool
-   * @param dataPool maybe null for access to a defined instance dataRoot.
+   * @param dataRoot Either a Map<String, ?> or any other Object which is the root for access.
+   *  it is the object where the path starts from. A Map<?,?> which's key is not a String is not admissible. 
    * @param accessPrivate
    * @param bContainer
    * @param bVariable
@@ -701,7 +721,7 @@ public class DataAccess {
   public static Object access(
       CharSequence datapathArg
       , Object dataRoot
-      , Map<String, DataAccess.Variable<Object>> dataPool
+      //, Map<String, DataAccess.Variable<Object>> dataPool
       , boolean accessPrivate
       , boolean bContainer
       , boolean bVariable
@@ -710,7 +730,7 @@ public class DataAccess {
   throws Exception 
   {
     List<DatapathElement> list = expandElements(datapathArg, '.');
-    return access(list, dataRoot, dataPool, accessPrivate, bContainer, bVariable, dst);
+    return access(list, dataRoot, accessPrivate, bContainer, bVariable, dst);
   }
 
   
@@ -729,9 +749,7 @@ public class DataAccess {
    *   variable is searched in the environment variables of the operation system. Its String representation is returned.
    *   If the environment variable is not found, null is returned. 
    *   The datapath should contain only this one element. Only this first element of the datapath is used. 
-   * <li><code>@</code>: The datapath can start with an optional ,,startVariable,, as {@link DatapathElement#whatisit} == '@'. 
-   *   Then the identifier is searched in the dataPool. The param dataPool should provide additional data references, 
-   *   which are addressed by the  {@link DatapathElement#ident} of the first element.
+   * <li><code>@</code>: Now not necessary, deprecated.
    * <li><code>A..Z a..z</code>: If the only one first element or the last element is designated with {@link DatapathElement#whatisit} == 'A' .. 'Z'
    *   or 'a' ...'z' a new Variable will be created in the given datapool. 
    *   The character 'A'...'Z' describes the type. If lower case is written then the variable is created as const.  
@@ -741,8 +759,6 @@ public class DataAccess {
    *   in {@link DatapathElement#fnArgs}
    * <li><code>(</code>: An element with {@link DatapathElement#whatisit} == '(' is a method invocation maybe with or without arguments.
    *   in {@link DatapathElement#fnArgs}
-   * <li>The first element which is not designated with one of the special characters expected "(" 
-   *   is searched in the given dataRoot object. 
    * <li>The elements of datapath describe the access to data. Any element before supplies a reference for the path 
    *   of the next element.
    * <li>Any element expected the special first elements which is not designated with "(" is searched as a 
@@ -784,19 +800,16 @@ public class DataAccess {
    * whether they match to the {@link DatapathElement#fnArgs}. The number of args should match and the types should be compatibel.
    * See {@link #checkAndConvertArgTypes(List, Class[])}.
    * 
-   * @param datapath The path, elements in any list element.
-   * @param dataRoot maybe null. The object where the path starts from if an access to the dataPool is not given
-   *   or a static method should be accessed or a new instance should be created.
-   * @param dataPool some root instances which are contained in this container. It can be null, if not used in datapath.
+   * @param dataRoot Either a Map<String, ?> or any other Object which is the root for access.
+   *  it is the object where the path starts from. A Map<?,?> which's key is not a String is not admissible. 
    * @param accessPrivate if true then private data are accessed too. The accessing of private data may be helpfully
    *  for debugging. It is not recommended for general purpose! The access mechanism is given with 
    *  {@link java.lang.reflect.Field#setAccessible(boolean)}.
-   * @param bVariable if true then return the {@link Variable} and not its content. If false the return
+   * @param bVariable if true then return the found {@link Variable} and not its content. If false then return
    *   the {@link Variable#value()} if a variable is the last element.
    * @param bContainer If the element is a container, returns it. Elsewhere build a List
-   *    to return a container for iteration. A container is any object implementing java.util.Map or java.util.Iterable
-   *    If a Container with more as one element per key is addressed and bContainer = false, the first found element
-   *    is returned. If bContainer = true then a sub container with all elements with this key are returned.
+   *    to return a container for iteration with only the found element.
+   *    A container is any object implementing java.util.Map or java.util.Iterable or an Array.
    * @param dst If not null then fill the last {@link Field} and the associated Object in the dst.
    *   It can be used to set the field with a new value.    
    * @return Any data object addressed by the path. Returns null if the last datapath element refers null.
@@ -819,7 +832,7 @@ public class DataAccess {
   public static Object access(
       List<DatapathElement> datapathArg
       , Object dataRoot
-      , Map<String, DataAccess.Variable<Object>> dataPool
+      //, Map<String, DataAccess.Variable<Object>> dataPool
       , boolean accessPrivate
       , boolean bContainer
       , boolean bVariable
@@ -827,55 +840,18 @@ public class DataAccess {
   ) 
   //throws ReflectiveOperationException  //only Java7
   throws Exception
-  { final List<DatapathElement> datapath;
-    DatapathElement element1 =  datapathArg.get(0);
-    if("+%".indexOf(element1.whatisit) <0 && element1.ident.contains(".")){
-      datapath = expandElements(element1.ident, element1.whatisit);
-    } else {
-      datapath = datapathArg;
-    }
-    Object data1 = null;  //the currently instance of each element.
-    Iterator<DatapathElement> iter = datapath.iterator();
+  { //final List<DatapathElement> datapath;
+    Iterator<DatapathElement> iter = datapathArg.iterator();
     DatapathElement element = iter.next();
-    //if(element.constValue !=null){
-    //  data1 = element.constValue;
-    //  element = null;  //no more following
-    //}
-    //else 
-    if(debugIdent !=null && element.ident !=null && element.ident.equals(debugIdent)){
-      debug();
-    }
-    //get the start instance:
-    if(element.whatisit == '$'){
-      if(dataPool !=null){
-        data1 = dataPool.get("$" + element.ident);
-      }
-      if(data1 == null){
-        data1 = System.getenv(element.ident);
-      }
-      if(data1 == null) {
-        data1 = System.getProperty(element.ident);  //read from Java system property
-      }
-      if(data1 == null) throw new NoSuchElementException("DataAccess - environment variable not found; " + element.ident);
-      if(iter.hasNext()) throw new IllegalArgumentException("DataAccess - environment variable with sub elements is faulty");
-      element = null;  //no next elements expected.
-    }
-    else if(element.whatisit == '@'){
-      if(dataPool ==null){
-        throw new NoSuchFieldException("DataAccess.getData - missing-datapool;");
-      }
-      data1 = dataPool.get(element.ident);  //maybe null if the value of the key is null.
-      if(data1 == null ){
-        throw new NoSuchFieldException("DataAccess.getData - not found in  datapool; " + element.ident + "; datapool contains; " + dataPool.toString() );
-      }
-      element = iter.hasNext() ? iter.next() : null;
-    } else if(element.whatisit >='A' && element.whatisit <='Z'){
-      data1 = dataPool;  //add to the data pool
-    } else if(element.whatisit >='a' && element.whatisit <='z'){
-      data1 = dataPool;  //add to the data pool
+    if("+%".indexOf(element.whatisit) <0 && element.ident.contains(".")){ //new and static needs . in datapath
+      final List<DatapathElement> datapath = expandElements(element.ident, element.whatisit);
+      iter = datapath.iterator();  //use that. ignore all other elements of dataPathArg, they should not any.
+      element = iter.next();
     } else {
-      data1 = dataRoot;
+      //datapath = datapathArg;
     }
+    
+    Object data1 = dataRoot;  //the currently instance of each element.
     while(element !=null){
       //has a next element
       //
@@ -885,63 +861,85 @@ public class DataAccess {
       boolean bStatic;
       if(data1 instanceof Variable<?>){
         @SuppressWarnings("unchecked") Variable<Object> var = (Variable<Object>)data1;
-        bStatic = var.type == 'C';
+        if(var.type == 'C'){
+          bStatic = true;
+        } else {
+          bStatic = false;
+        }
         data1 = var.value;  //take the content of a variable!
       } else {
         bStatic = false;
       }
       //
-      final char whatisit;
-      final boolean bConst;
-      //
-      //check sonst variable
-      if(element.whatisit >='a' && element.whatisit <='z'){
-        whatisit = Character.toUpperCase(element.whatisit);
-        bConst = true;
-      } else {
-        whatisit = element.whatisit;
-        bConst = false;  //maybe unused.
-      }
-      //
-      //check variable
-      if(whatisit >='A' && whatisit <='Z'){
-        //It is a new defined variable. 
-        if(data1 instanceof Map<?,?>){ //unable to check generic type.
-          //it should be a variable container!
-          @SuppressWarnings("unchecked")
-          Map<String, DataAccess.Variable> varContainer = (Map<String, DataAccess.Variable>)data1;
-          Variable<Object> newVariable = new DataAccess.Variable<Object>(whatisit, element.ident, null, bConst);
-          varContainer.put(element.ident, newVariable);
-          data1 = newVariable;
-        } else {
-          throw new IllegalArgumentException("DataAccess.storeValue - destination should be Map<String, DataAccess.Variable>; " + dst);
-        }
-     } else {
-        switch(whatisit) {
-          case '+': {  //create a new instance, call constructor
-            data1 = invokeNew(element);
-          } break;
-          case '(': {
+      switch(element.whatisit) {
+        case '@': case '.': {
+          if(bStatic){
+            data1 = getDataFromField(element.ident, null, accessPrivate, (Class<?>)data1, dst, 0); 
+          } else {
             if(data1 !=null){
-              Class<?> clazz = bStatic && data1 instanceof Class<?> ? (Class<?>)data1: data1.getClass();
-              data1 = invokeMethod(element, clazz, data1, accessPrivate, false); 
+              //retain a Variable.
+              data1 = getData(element.ident, data1, accessPrivate, bContainer, true /*bVariable*/, dst);
             }
-            //else: let data1=null, return null
-          } break;
-          case '%': data1 = invokeStaticMethod(element); break;
-          default:
-            if(bStatic){
-              data1 = getDataFromField(element.ident, null, accessPrivate, (Class<?>)data1, dst, 0); 
+          }
+        } break;
+        case '+': {  //create a new instance, call constructor
+          data1 = invokeNew(element);
+        } break;
+        case '(': {
+          if(data1 !=null){
+            Class<?> clazz = bStatic && data1 instanceof Class<?> ? (Class<?>)data1: data1.getClass();
+            data1 = invokeMethod(element, clazz, data1, accessPrivate, false); 
+          }
+          //else: let data1=null, return null
+        } break;
+        case '%': { data1 = invokeStaticMethod(element); } break;
+        case '$': {
+          if((dataRoot instanceof Map<?,?>)){  //should be Map<String, Variable>
+            @SuppressWarnings("unchecked")
+            Map<String, DataAccess.Variable<Object>> dataPool = (Map<String, DataAccess.Variable<Object>>)dataRoot;
+            data1 = dataPool.get("$" + element.ident);
+          }
+          if(data1 == null){
+            data1 = System.getenv(element.ident);
+          }
+          if(data1 == null) {
+            data1 = System.getProperty(element.ident);  //read from Java system property
+          }
+          if(data1 == null) throw new NoSuchElementException("DataAccess - environment variable not found; " + element.ident);
+        } break;
+        default: {
+          final boolean bConstNewVariable;
+          char whatisit = element.whatisit;
+          if(element.whatisit >='a' && element.whatisit <='z'){
+            bConstNewVariable = true;
+            whatisit -= ('a' - 'A');
+          } else {
+            bConstNewVariable = false;
+          }
+          if(whatisit >='A' && whatisit <='Z') {
+            //It is a new defined variable. 
+            if(data1 instanceof Map<?,?>){ //unable to check generic type.
+              //it should be a variable container!
+              @SuppressWarnings("unchecked")
+              Map<String, DataAccess.Variable> varContainer = (Map<String, DataAccess.Variable>)data1;
+              Variable<Object> newVariable = new DataAccess.Variable<Object>(element.whatisit, element.ident, null, bConstNewVariable);
+              varContainer.put(element.ident, newVariable);
+              data1 = newVariable;
             } else {
-              if(data1 !=null){
-                data1 = getData(element.ident, data1, accessPrivate, bContainer, bVariable, dst);
-              }
+              throw new IllegalArgumentException("DataAccess.storeValue - destination should be Map<String, DataAccess.Variable>; " + dst);
             }
-            //else: let data1=null, return null
-        }//switch
-      }
+          } 
+          else if(bStatic){
+            data1 = getDataFromField(element.ident, null, accessPrivate, (Class<?>)data1, dst, 0); 
+          } else {
+            if(data1 !=null){
+              data1 = getData(element.ident, data1, accessPrivate, bContainer, bVariable, dst);
+            }
+          }
+        }//default
+      }//switch
       element = iter.hasNext() ? iter.next() : null;
-    }
+    }//while
     //return
     if(data1 instanceof Variable<?> && !bVariable){  //use the value of the variable.
       @SuppressWarnings("unchecked") Variable<Object> var = (Variable<Object>)data1;
@@ -1506,7 +1504,7 @@ public class DataAccess {
         } else throw exc;
       }
     }
-    if(data1 instanceof Variable<?> && !bVariable){
+    if(bVariable==false && data1 instanceof Variable<?>){
       @SuppressWarnings("unchecked") Variable<Object> var = (Variable<Object>)data1;
       data1 = var.value;  
     }
