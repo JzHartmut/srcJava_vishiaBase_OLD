@@ -209,8 +209,8 @@ public class SampleCmdLine
      *
      */
     @Override protected void callWithoutArguments() throws ParseException
-    { writeAboutInfo();
-      writeHelpInfo();
+    { writeAboutInfo(null);
+      writeHelpInfo(null);
       //throw new ParseException("no cmdline Arguments", 0);
     }
   

@@ -6,7 +6,6 @@ package org.vishia.msgDispatch;
 */
 
 import org.vishia.bridgeC.OS_TimeStamp;
-import org.vishia.bridgeC.VaArgBuffer;
 import org.vishia.bridgeC.Va_list;
 
 //import java.util.Date;
@@ -59,6 +58,43 @@ import org.vishia.bridgeC.Va_list;
  */
 public interface LogMessage
 {
+  /**Version, history and license.
+   * <ul>
+   * <li>2014-06-17 Hartmut chg: meaning of return value of {@link #sendMsg(int, String, Object...)} described.
+   *   It was not defined and maybe not used in the last 8 years.
+   * <li>2008-02-03 Hartmut new: method isOnline
+   * <li>2006- created. Concept in Java and C/C++ especially for debug on runtime.
+   * </ul>
+   * 
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL ist not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   * 
+   */
+  //@SuppressWarnings("hiding")
+  static final public String sVersion = "2014-06-17";
+
+  
   /**Sends a message. The timestamp of the message is build with the system time. 
    * All other parameter are identically see {@link #sendMsg(int, OS_TimeStamp, String, Object...)}.
    * @param identNumber of the message. If it is negative, it is the same message as positive number,
@@ -67,11 +103,9 @@ public interface LogMessage
    *             @pjava2c=zeroTermString. Java2C: No conversion necessary.
    * @param args 0, 1 or more arguments of any type. 
    *             The interpretation of the arguments is controlled by param text.
-   * @return TODO
+   * @return true if the message will be dispatched, false if it is suppressed
    */  
   public boolean sendMsg(int identNumber, String text, Object... args);
-  //{ return sendMsgVaList(identNumber, OS_TimeStamp.os_getDateTime(), text, VaArgBuffer.represent(args).get_va_list());
-  //}
 
   /**Sends a message.
    * 
@@ -82,11 +116,9 @@ public interface LogMessage
    *             @pjava2c=zeroTermString.
    * @param args 0, 1 or more arguments of any type. 
    *             The interpretation of the arguments is controlled by param text.
-   * @return TODO
+   * @return true if the message will be dispatched, false if it is suppressed
    */
   public boolean sendMsgTime(int identNumber, OS_TimeStamp creationTime, String text, Object... args);
-  //{ return sendMsgVaList(identNumber, creationTime, text, VaArgBuffer.represent(args).get_va_list());
-  //}
   
 
   

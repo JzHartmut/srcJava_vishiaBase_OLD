@@ -18,13 +18,6 @@
  *    You mustn't delete this Copyright/Copyleft inscription in this source file.
  *
  * @author JcHartmut = hartmut.schorrig@vishia.de
- * @version 2006-06-15  (year-month-day)
- * list of changes:
- * 2009-12-15: Hartmut chg: public of some variables for report because a using class has 2 instances, correct it later.
- * 2009-03-08: Hartmut new: openReportfile() as new protected method, used internally, but the report file is able to change.
- * 2009-03-08: Hartmut new: executeCmdLine() is now deprecated, use new executeCmdLine(..., ProcessBuilder,..).  
- * 2008-04-02: JcHartmut some changes
- * 2006-05-00: JcHartmut www.vishia.de creation
  *
  ****************************************************************************/
 
@@ -214,9 +207,12 @@ import org.vishia.msgDispatch.MsgRedirectConsole;
 public abstract class MainCmd implements MainCmd_ifc
 {
 
-  /**Version, able to read as hex yyyymmdd.
+  /**Version, history and license.
    * Changes:
    * <ul>
+   * <li>2014-05-31 Hartmut new: option --help:outfile 
+   * <li>2014-05-31 Hartmut chg: default value for nReportLevel = 0, only output if --rlevel= is given. 
+   *   Do not create unnecessary files. 
    * <li>2014-05-31 Hartmut chg: {@link #writeError(String, Throwable)} instead Exception etc.
    * <li>2014-05-28 Hartmut new: {@link #currdir()} and {@link #currdir}. It can be used by an application.
    *   Note that the System.setProperty("user.dir", value) affects the whole JVM. A MainCmd may be invoked 
@@ -251,8 +247,30 @@ public abstract class MainCmd implements MainCmd_ifc
    * <li>2006-01-21 JcHartmut  bugfix callWithoutArguments() should be protected, not package private.
    * <li>2004-06-00 JcHartmut  initial revision
    * </ul>
+   * Copyright/Copyleft:
+   *
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * 1) You can use this source without any restriction for any desired purpose.
+   * 2) You can redistribute copies of this source to everybody.
+   * 3) Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * 4) But the LPGL is not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * 5) You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   *
+   * @author JcHartmut = hartmut.schorrig@vishia.de
    */
-  public static int version = 0x20131215;
+  public static String sVersion = "2014-06-17";
+  
+  
+  
   
   /**Interface for implementation of setting arguments.
    * The implementation can be written with an anonymous implementation with the simple form:
@@ -328,9 +346,9 @@ public abstract class MainCmd implements MainCmd_ifc
   public FileWrite fReport;
 
   /** All reports with a level less than or equal this level will be reported. Other report calls has non effect.*/
-  public int nReportLevel = Report.info;  //default: reports errors, warnings and info, but no debug
+  public int nLogLevel = 0; //MainCmdLogging_ifc.error;  //default: reports only errors, old: warnings and info, but no debug
 
-  private String sFileReport = "report.txt";
+  private String sFileLog = "report.txt";
   
   public String currdir = System.getProperty("user.dir"); 
 
@@ -340,7 +358,7 @@ public abstract class MainCmd implements MainCmd_ifc
   public int nReportLevelDisplay = 0;   //default: don't write reports to display
 
   /** writeError(), writeWarning(), writeInfo()  are also reported if the level is equal or greater than 1,2,3*/
-  public int nLevelDisplayToReport = Report.info;
+  public int nLevelDisplayToReport = MainCmdLogging_ifc.info;
 
   /** List of strings contents help Info in form of lines. The list should be filled with method addHelpInfo(String);*/
   public List<String> listHelpInfo = new LinkedList<String>();
@@ -349,7 +367,7 @@ public abstract class MainCmd implements MainCmd_ifc
   public List<String> listAboutInfo = new LinkedList<String>();
 
   /** The maximum of the value given with setExitErrorLevel */
-  private int nMaxErrorLevel = MainCmd_ifc.exitSuccessfull;
+  private int nMaxErrorLevel = MainCmdLogging_ifc.exitSuccessfull;
 
 
   /** array of arguments from command line*/
@@ -358,6 +376,8 @@ public abstract class MainCmd implements MainCmd_ifc
   /** number of the argument is parsing*/
   private int iArgs;
 
+  protected boolean bHelpIswritten;
+  
   /** access to some spaces via Report.spaces.substring(0,n)*/
   private static final String report_spaces = "                                                                                ";
 
@@ -455,50 +475,51 @@ public abstract class MainCmd implements MainCmd_ifc
     }
   }
 
-  /** Adds the help info for standard arguments. The text is the followed:<pre>
-    addHelpInfo("--about show the help infos");
-    addHelpInfo("--help  show the help infos");
-    addHelpInfo("--currdir=PATH Set the currdir variable.");
-    addHelpInfo("--report=FILE  write the report (log) into the given file, create or clear the file.");
-    addHelpInfo("--report+=FILE add to the end of given file or create the report file.");
-    addHelpInfo("--rlevel=R     set the level of report, R is number from 1 to 6.");
-    addHelpInfo("--rlevel=DR    also write reports upto level D on display, sample: ..-rlevel:24");
-    addHelpInfo("--rlevel=WDR   write output also in report, W is nr from 1 to 3 (error, warning, info");
+  /**Adds the help info for standard arguments. The text is the followed:<pre>
+    addHelpInfo("--about          show the about info");
+    addHelpInfo("--help[=helpfile]  show the help info");
+    addHelpInfo("--currdir=PATH   Set the currdir variable.");
+    addHelpInfo("--log=FILE       write the report (log) into the given file, create or clear the file.");
+    addHelpInfo("-+log=FILE      add to the end of given file or create the report file.");
+    addHelpInfo("--loglevel=R     set the level of report, R is number from 1 to 6.");
+    addHelpInfo("--loglevel=DR    also write reports upto level D on display, sample: ..-rlevel:24");
+    addHelpInfo("--loglevel=WDR   write output also in report, W is nr from 1 to 3 (error, warning, info");
     </pre>
   */
   protected void addStandardHelpInfo()
   {
-    addHelpInfo("--about show the help infos");
-    addHelpInfo("--help  show the help infos");
-    addHelpInfo("---arg ignore this argument");
-    addHelpInfo("--@file use file for further arguments, one argument per line.");
+    addHelpInfo("--arg:value    Use = or : as separator between arg and its value. Don't use space!");
+    addHelpInfo("--about        show the help info");
+    addHelpInfo("--help[=helpfile]  show the help info");
+    addHelpInfo("---arg         ignore this argument");
+    addHelpInfo("--@file        use file for further arguments, one argument per line.");
     addHelpInfo("--currdir=PATH Set the currdir variable.");
-    addHelpInfo("--report=FILE  write the report (log) into the given file, create or clear the file.");
-    addHelpInfo("--report+=FILE add to the end of given file or create the report file.");
-    addHelpInfo("--rlevel=R     set the level of report, R is number from 1 to 6.");
-    addHelpInfo("--rlevel=DR    also write reports upto level D on display, sample: ..-rlevel:24");
-    addHelpInfo("--rlevel=WDR   write output also in report, W is nr from 1 to 3 (error, warning, info");
+    addHelpInfo("--log=FILE     write the log (report) into the given file, create or clear the file.");
+    addHelpInfo("-+log=FILE     add to the end of given file or create the log file.");
+    addHelpInfo("--loglevel=R   set the level of log, R is number from 1 to 6.");
+    addHelpInfo("--loglevel=DR  also write logs up to level D on display, sample: ..-rlevel:24");
+    addHelpInfo("--loglevel=WDR write output also in log, W is nr from 1 to 3 (error, warning, info");
   }
 
 
 
 
 
-  /** Addes a helpinfo-line to the internal list. This method should be called from the user on startup to set the
-      help infos. The help info is used by <a href="#writeHelpInfo()"><code>writeHelpInfo()</code>
+  /** Adds a help info-line to the internal list. This method should be called from the user on startup to set the
+      help info. The help info is used by <a href="#writeHelpInfo()"><code>writeHelpInfo()</code>
       called if the argument --help is given or without arguments. </a>.
       @param info String contains 1 line of a help Info.
   */
-  protected void addHelpInfo(String info)
-  { listHelpInfo.add(info);
+  protected void addHelpInfo(String sInfo)
+  { listHelpInfo.add(sInfo);
   }
 
-  /** Addes a helpinfo-line to the internal list. This method should be called from the user on startup to set the
-  help infos. The help info is used by evaluating command line arguments.
+  /** Adds a about info-line to the internal list. This method should be called from the user on startup to set the
+  about info. 
   @param info String contains 1 line of a help Info.
   */
-  protected void addAboutInfo(String info)
-  { listAboutInfo.add(info);
+  protected void addAboutInfo(String sInfo)
+  { listAboutInfo.add(sInfo);
   }
 
   
@@ -507,26 +528,49 @@ public abstract class MainCmd implements MainCmd_ifc
 
   /** prints the help info to the console output. This Method may be overloaded in MainCmdWin to show the contents in a window.
   */
-  public void writeHelpInfo()
-  { writeAboutInfo();
-    Iterator<String> iHelpInfo = listHelpInfo.iterator();
-    while(iHelpInfo.hasNext())
-    {
-      System.out.println((iHelpInfo.next()));
+  public void writeHelpInfo(File outfile)
+  { Appendable out;
+    boolean shouldClose = outfile !=null;
+    if(outfile !=null){
+      try{ out = new FileWriter(outfile);
+      
+      } catch(IOException exc){
+        out = System.out;
+        shouldClose = false;
+        try{ out.append("MainCmd.writeHelpInfo - ERROR cannot open help output file; " + outfile.getAbsolutePath());
+        }catch(IOException exc2){ System.err.println("MainCmd.writeHelpInfo - ERROR unexpected IOException; "); }
+      }
+    } else {
+      out = System.out;
     }
+    writeAboutInfo(out);
+    Iterator<String> iInfo = listHelpInfo.iterator();
+    try{
+      while(iInfo.hasNext())
+      {
+        out.append((iInfo.next())).append('\n');
+      }
+    }catch(IOException exc){ System.err.println("MainCmd.writeAboutInfo - ERROR unexpected IOException; "); }
+    if(shouldClose){
+      try{ ((Writer)out).close();
+      }catch(IOException exc){ System.err.println("MainCmd.writeAboutInfo - ERROR unexpected IOException; "); }
+    }
+    bHelpIswritten = true;
   }
 
 
 
   /** prints the help info to the console output. This Method may be overloaded in MainCmdWin to show the contents in a window.
   */
-  public void writeAboutInfo()
-  {
+  public void writeAboutInfo(Appendable out)
+  { 
     Iterator<String> iInfo = listAboutInfo.iterator();
-    while(iInfo.hasNext())
-    {
-      System.out.println((iInfo.next()));
-    }
+    try{
+      while(iInfo.hasNext())
+      {
+        out.append((iInfo.next())).append('\n');
+      }
+    }catch(IOException exc){ System.err.println("MainCmd.writeAboutInfo - ERROR unexpected IOException; "); }
   }
 
 
@@ -535,10 +579,10 @@ public abstract class MainCmd implements MainCmd_ifc
    * 
    * @throws ParseException
    */
-  public final void parseArguments()
+  public final boolean parseArguments()
   throws ParseException
   {
-    parseArguments(cmdLineArgs);
+    return parseArguments(cmdLineArgs);
   }
 
   /**Parses the cmdLine-arguments. The user should invoked this method in his static main method
@@ -547,13 +591,17 @@ public abstract class MainCmd implements MainCmd_ifc
   public static void main(String[] args){
     Args argData = new Args();
     Cmdline cmd = new Cmdline(argData);
-    try{ cmd.parseArguments(args);
+    boolean bOk;
+    try{ bOk = cmd.parseArguments(args);
     } catch(ParseException exc){
       cmd.setExitErrorLevel(MainCmd.exitWithArgumentError);
-      cmd.exit();
+      bOk = false;
     }
-    UserClass main = new UserClass(argData.x, argData.y);
-    main.exec(argData.z);
+    if(bOk) {
+      UserClass main = new UserClass(argData.x, argData.y);
+      main.exec(argData.z);
+    }
+    cmd.exit();
   }
    * </pre>
    * Within this pattern the parsing of the arguments is independent of the user class. 
@@ -570,13 +618,13 @@ public abstract class MainCmd implements MainCmd_ifc
    * See {@link #addStandardHelpInfo()}.
    * <ul>
    * <li>--about show the help infos
-   * <li>--help  show the help infos");
+   * <li>--help[=helpfile]  show the help infos");
    * <li>--currdir=PATH Set the currdir variable.
-   * <li>--report=FILE  write the report (log) into the given file, create or clear the file.");
-   * <li>--report+=FILE add to the end of given file or create the report file.");
-   * <li>--rlevel=R     set the level of report, R is number from 1 to 6.");
-   * <li>--rlevel=DR    also write reports upto level D on display, sample: ..-rlevel:24");
-   * <li>--rlevel=WDR   write output also in report, W is nr from 1 to 3 (error, warning, info");
+   * <li>--log=FILE  write the report (log) into the given file, create or clear the file.");
+   * <li>--log+=FILE add to the end of given file or create the report file.");
+   * <li>--loglevel=R     set the level of report, R is number from 1 to 6.");
+   * <li>--loglevel=DR    also write reports upto level D on display, sample: ..-rlevel:24");
+   * <li>--loglevel=WDR   write output also in report, W is nr from 1 to 3 (error, warning, info");
    * <li>--@ARGFiLE     The ARGFILE contains one argument per line. Especially it is possible to use spaces 
    *   in the argument values without "".
    *   For example a cmd line invocation <code>>cmd -a arg1 --@file -x argx</code> results in the followed arguments:<br/>
@@ -589,13 +637,19 @@ public abstract class MainCmd implements MainCmd_ifc
    * a {@link #writeError(String)} with a matched text is called and a ParseException("", N) ist thrown, N is the
    * number of the argument.
    * Standard arguments are parsed here, see <a href="#addStandardHelpInfo()"><code> addStandardHelpInfo()</code></a>.
-   * On end the methode <code>checkArguments()</code> is called.
+   * On end the method {@link #checkArguments()} is called if other then standard arguments are given.
    * If it returns false, an ParseException("", 0) is thrown.
    * The user should had write an output message with writeError() inside its <code>checkArguments()</code><br/>
+   * 
+   * @see #addArgument(Argument[])
+   * @param arg The given arguments from command line invocation.
+   * @return true if other then the standard arguments are given. Only then {@link #checkArguments()} was called.
+   *  
    */
-  public final void parseArguments(String [] args)
+  public final boolean parseArguments(String [] args)
   throws ParseException
   { cmdLineArgs = args;
+    boolean hasArguments = false;
     MainCmd main = this;
         if(cmdLineArgs.length == 0)
     { //call without parameters:
@@ -609,6 +663,7 @@ public abstract class MainCmd implements MainCmd_ifc
           File fileArg = new File(sArgFile);
           List<String> listArgs = new LinkedList<String>();
           try{
+            @SuppressWarnings("unused")
             int lenFile = (int)fileArg.length();
             BufferedReader inp = new BufferedReader(new FileReader(fileArg));
             while(inp.ready()){
@@ -633,28 +688,47 @@ public abstract class MainCmd implements MainCmd_ifc
           catch(IOException exc){ throw new ParseException("argfile read error: " + fileArg.getAbsolutePath(),0); }
           
         }
+        else if (cmdLineArgs[iArgs].startsWith("--loglevel"))
+        { int level;
+          try{ level = Integer.parseInt(getArgument(11)); } //;cmdLineArgs[iArgs].substring(7,8)); }
+          catch(Exception e)
+          { throw new ParseException("ERROR on argument --rlevel=" + cmdLineArgs[iArgs], iArgs);
+          }
+          main.nLogLevel          = level % 10;
+          main.nReportLevelDisplay   = (level / 10) % 10;  //0: no report on display.
+          main.nLevelDisplayToReport = (level / 100) % 10;  //0: no display to report.
+        }
         else if (cmdLineArgs[iArgs].startsWith("--rlevel"))
         { int level;
           try{ level = Integer.parseInt(getArgument(9)); } //;cmdLineArgs[iArgs].substring(7,8)); }
           catch(Exception e)
           { throw new ParseException("ERROR on argument --rlevel=" + cmdLineArgs[iArgs], iArgs);
           }
-          main.nReportLevel          = level % 10;
+          main.nLogLevel          = level % 10;
           main.nReportLevelDisplay   = (level / 10) % 10;  //0: no report on display.
           main.nLevelDisplayToReport = (level / 100) % 10;  //0: no display to report.
         }
         else if(cmdLineArgs[iArgs].startsWith("--currdir=")) { currdir = getArgument(10); }
         else if(cmdLineArgs[iArgs].startsWith("--currdir:")) { currdir = getArgument(10); }
-        else if(cmdLineArgs[iArgs].startsWith("--report+=")) { sFileReport = getArgument(10); bAppendReport = true; }
-        else if(cmdLineArgs[iArgs].startsWith("--report:")) { sFileReport = getArgument(9); }
-        else if(cmdLineArgs[iArgs].startsWith("--report=")) { sFileReport = getArgument(9); }
-        else if(cmdLineArgs[iArgs].startsWith("--about")) { writeAboutInfo(); }
-        else if(cmdLineArgs[iArgs].startsWith("--help")) { writeHelpInfo(); }
+        else if(cmdLineArgs[iArgs].startsWith("--log:")) { sFileLog = getArgument(6); }
+        else if(cmdLineArgs[iArgs].startsWith("--log=")) { sFileLog = getArgument(6); }
+        else if(cmdLineArgs[iArgs].startsWith("-+log:")) { sFileLog = getArgument(6); bAppendReport = true; }
+        else if(cmdLineArgs[iArgs].startsWith("-+log=")) { sFileLog = getArgument(6); bAppendReport = true; }
+        else if(cmdLineArgs[iArgs].startsWith("--log+=")) { sFileLog = getArgument(7); bAppendReport = true; }
+        else if(cmdLineArgs[iArgs].startsWith("--report+=")) { sFileLog = getArgument(10); bAppendReport = true; }
+        else if(cmdLineArgs[iArgs].startsWith("--report:")) { sFileLog = getArgument(9); }
+        else if(cmdLineArgs[iArgs].startsWith("--report=")) { sFileLog = getArgument(9); }
+        else if(cmdLineArgs[iArgs].startsWith("--about")) { writeAboutInfo(null); }
+        else if(cmdLineArgs[iArgs].startsWith("--help:")) { writeHelpInfo(new File(getArgument(7))); }
+        else if(cmdLineArgs[iArgs].startsWith("--help=")) { writeHelpInfo(new File(getArgument(7))); }
+        else if(cmdLineArgs[iArgs].startsWith("--help")) { writeHelpInfo(null); }
         else if(cmdLineArgs[iArgs].startsWith("--msgcfg:")) { addMsgConfig(cmdLineArgs[iArgs].substring(9)); }
         else if(cmdLineArgs[iArgs].startsWith("--msgcfg=")) { addMsgConfig(cmdLineArgs[iArgs].substring(9)); }
         else if(cmdLineArgs[iArgs].startsWith("---")) { /*ignore it*/ }
         else
-        { if(!main.testArgument(cmdLineArgs[iArgs], iArgs))
+        { if(main.testArgument(cmdLineArgs[iArgs], iArgs)){
+            hasArguments = true;
+          } else 
           { main.writeError("failed argument: " + cmdLineArgs[iArgs]);
             throw new ParseException("failed argument:" + cmdLineArgs[iArgs], iArgs);  //ParseException used from java.text
           }
@@ -664,20 +738,21 @@ public abstract class MainCmd implements MainCmd_ifc
     }
     //debug System.out.println("report level=" + main.nReportLevel + " file:" + sFileReport);
     /** open reportfile: */
-    if(nReportLevel > 0)
-    { try{ openReportfile(sFileReport, bAppendReport); }
+    if(nLogLevel > 0)
+    { try{ openReportfile(sFileLog, bAppendReport); }
       catch(FileNotFoundException exc)
-      { writeError("ERROR creating reportfile-path: " +sFileReport);
-        throw new ParseException("ERROR creating reportfile-path: " +sFileReport, 0);
+      { writeError("ERROR creating reportfile-path: " +sFileLog);
+        throw new ParseException("ERROR creating reportfile-path: " +sFileLog, 0);
       /*if a requested reportfile is not createable, the programm can't be run. The normal problem reporting fails.
         That's why the program is aborted here.
       */
       }
     }
-    if(!checkArguments())
+    if(hasArguments && !checkArguments())
     {
       throw new ParseException("arguments not consistent", 0);  //ParseException used from java.text
     }
+    return hasArguments;
   }
 
 
@@ -687,7 +762,7 @@ public abstract class MainCmd implements MainCmd_ifc
   throws FileNotFoundException
   { 
     boolean bMkdir= false; 
-    this.sFileReport = sFileReport;
+    this.sFileLog = sFileReport;
     if(fReport != null)
     { try{ fReport.close(); } catch(IOException exc){}
     }
@@ -725,8 +800,7 @@ public abstract class MainCmd implements MainCmd_ifc
    */
   protected void callWithoutArguments()
   throws ParseException
-  { writeAboutInfo();
-    writeHelpInfo();
+  { writeHelpInfo(null);
     //throw new ParseException("no cmdline Arguments", 0);
   }
 
@@ -865,7 +939,7 @@ public abstract class MainCmd implements MainCmd_ifc
   public String setcurrdir(String newDir){
     String ret = currdir;
     currdir = newDir;
-    return currdir;
+    return ret;
   }
 
 
@@ -951,14 +1025,14 @@ public abstract class MainCmd implements MainCmd_ifc
 
 
   /** Execute a command invoke a cmdline call, implements MainCmd_Ifc.
-      The call must not be needed any input (:TODO:?).
+      The call must not be needed any input.
       The output is written with a separate thread, using the internal (private) class ShowCmdOutput.
       This class use the method writeInfoln() from here. The writeInfoln-Method writes to console for MainCmd,
       but it may be overloaded, to example for MainCmdWin it may be writed to a box in the GUI.
       @deprecated: since Java 1.5 a ProcessBuilder is available. 
       The new form {@link #executeCmdLine(String[], ProcessBuilder, int, Appendable, String)} use it.
   */
-  public int executeCmdLine(String[] cmd, int nReportLevel, Appendable output, String input)
+  @Deprecated public int executeCmdLine(String[] cmd, int nReportLevel, Appendable output, String input)
   {
     int exitErrorLevel; // = 0;  //default unused, only because throw
     { StringBuilder sOut = new StringBuilder();
@@ -968,7 +1042,7 @@ public abstract class MainCmd implements MainCmd_ifc
         sOut.append(" ");
       }
       sOut.append(":");
-      reportln(Report.debug, "MainCmd.executeCmdLine():" + sOut);
+      reportln(MainCmdLogging_ifc.debug, "MainCmd.executeCmdLine():" + sOut);
       writeInfoln("execute>" + sOut.toString());
     }
     try
@@ -980,7 +1054,7 @@ public abstract class MainCmd implements MainCmd_ifc
       Thread threadOutput = new Thread(cmdOutput,"cmdline-out");
       threadOutput.start();  //the thread reads the processOutput and disposes it to the infoln
 
-      Runnable cmdError = new ShowCmdOutput(null, nReportLevel < 0 ? -Report.error: Report.error, new BufferedReader(new InputStreamReader(processError) ));
+      Runnable cmdError = new ShowCmdOutput(null, nReportLevel < 0 ? -MainCmdLogging_ifc.error: MainCmdLogging_ifc.error, new BufferedReader(new InputStreamReader(processError) ));
       Thread threadError = new Thread(cmdError,"cmdline-error");
       threadError.start();   //the thread reads the processError and disposes it to the infoln
       writeInfoln("process ...");
@@ -1002,7 +1076,7 @@ public abstract class MainCmd implements MainCmd_ifc
   
   
   /**Execute a command invoke a cmdline call, implements MainCmd_Ifc.
-    The call must not be needed any input (:TODO:?).
+    The call must not be needed any input.
     The output is written with a separate thread, using the internal (private) class ShowCmdOutput.
     This class use the method writeInfoln() from here. The writeInfoln-Method writes to console for MainCmd,
     but it may be overloaded, to example for MainCmdWin it may be writed to a box in the GUI.
@@ -1051,7 +1125,7 @@ public abstract class MainCmd implements MainCmd_ifc
    *   The method {@link #splitArgs(String)} is used.
    * @param input Any pipe-input. It may be null.
    * @param nReportLevel The report level which is used for output. 
-   *        If it is 0, then the output isn't written TODO
+   *        If it is 0, then the output isn't written
    * @param output The output pipe.
    * @param error The error pipe. If it is null, then errors are written in the output pipe.
    * @return
@@ -1062,11 +1136,11 @@ public abstract class MainCmd implements MainCmd_ifc
       , String input
       , int nReportLevel
       , Appendable output
-      , Appendable error
+      , Appendable errOut
   ){
     String[] cmdArray = CmdExecuter.splitArgs(cmd);  //split arguments in the array form
     
-    return executeCmdLine(processBuilder, cmdArray, input, nReportLevel, output, error);
+    return executeCmdLine(processBuilder, cmdArray, input, nReportLevel, output, errOut);
 
   }
 
@@ -1078,7 +1152,7 @@ public abstract class MainCmd implements MainCmd_ifc
    * @param cmd The cmd and arguments. If it is null, the command assigend to the processBuilder is used.
    * @param input Any pipe-input. It may be null.
    * @param nReportLevel The report level which is used for output. 
-   *        If it is 0, then the output isn't written TODO
+   *        If it is 0, then the output isn't written
    * @param output The output pipe.
    * @param error The error pipe. If it is null, then errors are written in the output pipe.
    * @return
@@ -1089,7 +1163,7 @@ public abstract class MainCmd implements MainCmd_ifc
       , String input
       , int nReportLevel
       , Appendable output
-      , Appendable error
+      , Appendable errOut
   )
   { int exitErrorLevel;
   try
@@ -1103,7 +1177,7 @@ public abstract class MainCmd implements MainCmd_ifc
     Thread threadOutput = new Thread(cmdOutput,"cmdline-out");
     threadOutput.start();  //the thread reads the processOutput and disposes it to the infoln
 
-    Runnable cmdError = new ShowCmdOutput(null, nReportLevel, new BufferedReader(new InputStreamReader(processError) ));
+    Runnable cmdError = new ShowCmdOutput(errOut, nReportLevel, new BufferedReader(new InputStreamReader(processError) ));
     Thread threadError = new Thread(cmdError,"cmdline-error");
     threadError.start();   //the thread reads the processError and disposes it to the infoln
     //boolean bCont = true;
@@ -1172,6 +1246,7 @@ public abstract class MainCmd implements MainCmd_ifc
     try
     {
       processBuilder.command(cmd);
+      @SuppressWarnings("unused")
       Process process = processBuilder.start();
     
     }
@@ -1199,8 +1274,8 @@ public abstract class MainCmd implements MainCmd_ifc
   */
   public final void writeInfo(String sInfo)
   { writeDirectly(sInfo, kInfo_writeInfoDirectly);
-    if(nLevelDisplayToReport >= Report.info)
-    { report(Report.info | Report.mNeverOutputToDisplay, sInfo );
+    if(nLevelDisplayToReport >= MainCmdLogging_ifc.info)
+    { report(MainCmdLogging_ifc.info | MainCmdLogging_ifc.mNeverOutputToDisplay, sInfo );
     }
   }
 
@@ -1210,8 +1285,8 @@ public abstract class MainCmd implements MainCmd_ifc
   */
   public final void writeInfoln(String sInfo)  //##a
   { writeDirectly(sInfo, kInfoln_writeInfoDirectly);
-    if(nLevelDisplayToReport >= Report.info)
-    { reportln(Report.info | Report.mNeverOutputToDisplay, sInfo );
+    if(nLevelDisplayToReport >= MainCmdLogging_ifc.info)
+    { reportln(MainCmdLogging_ifc.info | MainCmdLogging_ifc.mNeverOutputToDisplay, sInfo );
     }
   }
 
@@ -1222,8 +1297,8 @@ public abstract class MainCmd implements MainCmd_ifc
   */
   public final void writeWarning(String sInfo)
   { writeDirectly(sInfo, kWarning_writeInfoDirectly);
-    if(nLevelDisplayToReport >= Report.warning)
-    { reportln(Report.warning | Report.mNeverOutputToDisplay, "WARNING:" + sInfo );
+    if(nLevelDisplayToReport >= MainCmdLogging_ifc.warning)
+    { reportln(MainCmdLogging_ifc.warning | MainCmdLogging_ifc.mNeverOutputToDisplay, "WARNING:" + sInfo );
     }
   }
 
@@ -1233,8 +1308,8 @@ public abstract class MainCmd implements MainCmd_ifc
   */
   public final void writeError(String sInfo)
   { writeDirectly(sInfo, kError_writeInfoDirectly);
-    if(nLevelDisplayToReport >= Report.error)
-    { reportln(Report.error | Report.mNeverOutputToDisplay, "ERROR:" + sInfo );
+    if(nLevelDisplayToReport >= MainCmdLogging_ifc.error)
+    { reportln(MainCmdLogging_ifc.error | MainCmdLogging_ifc.mNeverOutputToDisplay, "ERROR:" + sInfo );
     }
   }
 
@@ -1245,7 +1320,7 @@ public abstract class MainCmd implements MainCmd_ifc
   */
   public final void writeError(String sInfo, Throwable exception)
   { writeErrorDirectly(sInfo, exception);
-    if(nLevelDisplayToReport >= Report.error)
+    if(nLevelDisplayToReport >= MainCmdLogging_ifc.error)
     { report(sInfo, exception, true );
     }
   }
@@ -1353,9 +1428,9 @@ public abstract class MainCmd implements MainCmd_ifc
     * @param ss String to write.
   */
   public void report(int nLevel, String ss)
-  { if( (nLevel & mReportLevel) <= nReportLevel && fReport != null)
+  { if( (nLevel & mReportLevel) <= nLogLevel && fReport != null)
     { int posStart = 0;
-      int posEol;
+      //int posEol;
       /*
       while( posStart < ss.length() && (posEol = ss.indexOf('\n', posStart)) >=0)
       { fReport.write(ss.substring(posStart, posEol) + "|");
@@ -1377,23 +1452,24 @@ public abstract class MainCmd implements MainCmd_ifc
     * @param ss String to write.
   */
   public void reportln(int nLevel, int nLeftMargin, String ss)
-  { if( (nLevel & Report.mReportLevel) <= nReportLevel && fReport != null)
+  { if( (nLevel & MainCmdLogging_ifc.mReportLevel) <= nLogLevel && fReport != null)
     { fReport.writeln("");
-      if(nLeftMargin > report_spaces.length()/2) nLeftMargin = report_spaces.length()/2;
-      fReport.write("*" + (nLevel & Report.mReportLevel) + ":" + report_spaces.substring(0, 2*nLeftMargin));
+      int nLeftMargin1 = nLeftMargin;
+      if(nLeftMargin > report_spaces.length()/2){ nLeftMargin1 = report_spaces.length()/2; }
+      fReport.write("*" + (nLevel & MainCmdLogging_ifc.mReportLevel) + ":" + report_spaces.substring(0, 2*nLeftMargin1));
     }
-    if((nLevel & Report.mReportLevel) <= nReportLevelDisplay && (nLevel & Report.mNeverOutputToDisplay) == 0 )
+    if((nLevel & MainCmdLogging_ifc.mReportLevel) <= nReportLevelDisplay && (nLevel & MainCmdLogging_ifc.mNeverOutputToDisplay) == 0 )
     { //writes also an error as info on display.
       writeDirectly(ss, kInfoln_writeInfoDirectly);
     }
-    report((nLevel | Report.mNeverOutputToDisplay), ss);
+    report((nLevel | MainCmdLogging_ifc.mNeverOutputToDisplay), ss);
   }
 
   public void reportln(int nLevel, String ss){ reportln(nLevel, 0, ss); }
 
 
-  /** Reports an exception. This report is written unconditional, like Report.error.
-      On Display, this report is only written if display output is enabled for the level Report.error.
+  /** Reports an exception. This report is written unconditional, like MainCmdLogging_ifc.error.
+      On Display, this report is only written if display output is enabled for the level MainCmdLogging_ifc.error.
       @param sInfo Text to write in the new line after "EXCEPTION: ".
       @param exception Exception info to write
   */
@@ -1418,7 +1494,7 @@ public abstract class MainCmd implements MainCmd_ifc
     } else { 
       fReport.writeln("\nEXCEPTION: " + sInfo + "  " + exception.getMessage());
       exception.printStackTrace(new PrintStream(fReport, true));
-      if(Report.error <= nReportLevelDisplay && !bWrittenOnDisplay)
+      if(MainCmdLogging_ifc.error <= nReportLevelDisplay && !bWrittenOnDisplay)
       { //writes also an error as info on display.
         writeErrorDirectly(sInfo, exception);
       }
@@ -1428,16 +1504,16 @@ public abstract class MainCmd implements MainCmd_ifc
 
   /** Test wether the report is in the level.
   */
-  public int getReportLevel(){ return nReportLevel; }
+  public int getReportLevel(){ return nLogLevel; }
   
   /** Set another level inside programming. It is advisable to restore the old level
    * after the designated operation.
-   * @param newLevel The level to be set, use one of the defines Report.info to Report.fineDebug
+   * @param newLevel The level to be set, use one of the defines MainCmdLogging_ifc.info to MainCmdLogging_ifc.fineDebug
    * @return the current level, usefull to restore it.
    */
   public int setReportLevel(int newLevel)
-  { int oldLevel = nReportLevel;
-    nReportLevel = newLevel;
+  { int oldLevel = nLogLevel;
+    nLogLevel = newLevel;
     return oldLevel;
   }
 
@@ -1461,7 +1537,7 @@ public abstract class MainCmd implements MainCmd_ifc
   
   
   public int getReportLevelFromIdent(int ident)
-  { if(ident >=Report.error && ident <=Report.fineDebug)
+  { if(ident >=MainCmdLogging_ifc.error && ident <=MainCmdLogging_ifc.fineDebug)
     { return ident;
     }
     else throw new RuntimeException("report idents are not supported here.");
@@ -1471,7 +1547,7 @@ public abstract class MainCmd implements MainCmd_ifc
   
   
   public String getReportFileName()
-  { return sFileReport;
+  { return sFileLog;
   }
   
 
@@ -1499,7 +1575,7 @@ public abstract class MainCmd implements MainCmd_ifc
    *             @pjava2c=zeroTermString.
    * @param args 0, 1 or more arguments of any type. 
    *             The interpretation of the arguments is controlled by param text.
-   * @return TODO
+   * @return true if the message will be dispatched, false if it is suppressed
    */  
   @Override public boolean sendMsg(int identNumber, String text, Object... args)
   { return redirectLogMessage.sendMsg(identNumber, text, args);
@@ -1514,7 +1590,7 @@ public abstract class MainCmd implements MainCmd_ifc
    *             @pjava2c=zeroTermString.
    * @param args 0, 1 or more arguments of any type. 
    *             The interpretation of the arguments is controlled by param text.
-   * @return TODO
+   * @return true if the message will be dispatched, false if it is suppressed
    */
   @Override public boolean sendMsgTime(int identNumber, OS_TimeStamp creationTime, String text, Object... args)
   { return redirectLogMessage.sendMsgTime(identNumber, creationTime, text, args);
@@ -1590,29 +1666,30 @@ public abstract class MainCmd implements MainCmd_ifc
     
   final void sendMsgTimeToAppendableDst(Appendable dst, int identNumber, int reportLevel, OS_TimeStamp creationTime,
       String text, Object... args) {
-      String line;
-      if(args.length == 0){
-        line = dateFormatMsg.format(creationTime) + "; " + identNumber + "; " + text;
-      } else {
-        try{
-          if(args[0] instanceof Object[]){
-            args = (Object[])args[0];
-          }
-          line = dateFormatMsg.format(creationTime) + "; " + identNumber + "; " + String.format(text,args);
-        } catch(IllegalFormatException exc){
-          line = dateFormatMsg.format(creationTime) + "; FORMATEXCEPTION " + identNumber + "; " + text;
+    Object[] argsArg = args;  
+    String line;
+    if(argsArg.length == 0){
+      line = dateFormatMsg.format(creationTime) + "; " + identNumber + "; " + text;
+    } else {
+      try{
+        if(argsArg[0] instanceof Object[]){
+          argsArg = (Object[])argsArg[0];
         }
+        line = dateFormatMsg.format(creationTime) + "; " + identNumber + "; " + String.format(text,argsArg);
+      } catch(IllegalFormatException exc){
+        line = dateFormatMsg.format(creationTime) + "; FORMATEXCEPTION " + identNumber + "; " + text;
       }
-      try{ 
-        dst.append(line);
-        if(!line.endsWith("\n")){
-          dst.append("\n");
-        }
-      } catch(IOException exc){
-        //the exception may be unexpected. Write it to the original System.err on construction of this class,
-        //all other channels may be redirected.
-        exc.printStackTrace(this.errCmdline);
+    }
+    try{ 
+      dst.append(line);
+      if(!line.endsWith("\n")){
+        dst.append("\n");
       }
+    } catch(IOException exc){
+      //the exception may be unexpected. Write it to the original System.err on construction of this class,
+      //all other channels may be redirected.
+      exc.printStackTrace(this.errCmdline);
+    }
   }
 
     
@@ -1644,8 +1721,8 @@ public abstract class MainCmd implements MainCmd_ifc
     @Override
     public boolean sendMsgTime(int identNumber, OS_TimeStamp creationTime, String text, Object... args) {
       final int reportLevel = identNumber == 0 ? 
-                               Report.info :
-                               identNumber <= Report.fineDebug ? identNumber : Report.info;
+                               MainCmdLogging_ifc.info :
+                               identNumber <= MainCmdLogging_ifc.fineDebug ? identNumber : MainCmdLogging_ifc.info;
 
       final String line;
       if(args.length == 0){
@@ -1697,8 +1774,8 @@ public abstract class MainCmd implements MainCmd_ifc
     @Override
     public boolean sendMsgTime(int identNumber, OS_TimeStamp creationTime, String text, Object... args) {
       final int reportLevel = identNumber == 0 ? 
-                               Report.info :
-                               identNumber <= Report.fineDebug ? identNumber : Report.info;
+                               MainCmdLogging_ifc.info :
+                               identNumber <= MainCmdLogging_ifc.fineDebug ? identNumber : MainCmdLogging_ifc.info;
       sendMsgTimeToAppendableDst(MainCmd.this.outConsole, identNumber, reportLevel, creationTime, text, args); 
       return true;
     }
@@ -1735,8 +1812,8 @@ public abstract class MainCmd implements MainCmd_ifc
     @Override
     public boolean sendMsgTime(int identNumber, OS_TimeStamp creationTime, String text, Object... args) {
       final int reportLevel = identNumber == 0 ? 
-                               Report.info :
-                               identNumber <= Report.fineDebug ? identNumber : Report.info;
+                               MainCmdLogging_ifc.info :
+                               identNumber <= MainCmdLogging_ifc.fineDebug ? identNumber : MainCmdLogging_ifc.info;
       sendMsgTimeToAppendableDst(MainCmd.this.errConsole, identNumber, reportLevel, creationTime, text, args); 
       return true;
     }
@@ -1760,7 +1837,7 @@ public abstract class MainCmd implements MainCmd_ifc
     public boolean sendMsgVaList(int identNumber, OS_TimeStamp creationTime,
         String text, Va_list args) {
       String line = dateFormat.format(creationTime) + "; " + identNumber + "; " + String.format(text,args.get());
-      reportln(Report.info, line);
+      reportln(MainCmdLogging_ifc.info, line);
       return false;
     }
 
@@ -1825,9 +1902,7 @@ public abstract class MainCmd implements MainCmd_ifc
   */
   private class ShowCmdOutput implements Runnable
   {
-    /** To response the outer class outer may be used.*/
-    //final MainCmd outer = (MainCmd)(this);  //:TODO: why is that an error?
-
+ 
     /** The reader to read the contents*/
     final BufferedReader reader;
 
@@ -1842,15 +1917,15 @@ public abstract class MainCmd implements MainCmd_ifc
         The output is directed in the followed manner with the value of nCtrl
         <table border=1>
           <tr><th>nCtrl</th><th>meaning</th></tr>
-          <tr><td>Report.error .. Report.fineDebug</td>  <td>Writes the output to the report</td></tr>
-          <tr><td>-Report.error (negativ)         </td>   <td>Writes the output via writeError()</td></tr>
-          <tr><td>-Report.warning (negativ)       </td><td>Writes the output via writeWarning()</td></tr>
-          <tr><td>-Report.info (negativ)          </td><td>Writes the output via writeInfo()
+          <tr><td>MainCmdLogging_ifc.error .. MainCmdLogging_ifc.fineDebug</td>  <td>Writes the output to the report</td></tr>
+          <tr><td>-MainCmdLogging_ifc.error (negativ)         </td>   <td>Writes the output via writeError()</td></tr>
+          <tr><td>-MainCmdLogging_ifc.warning (negativ)       </td><td>Writes the output via writeWarning()</td></tr>
+          <tr><td>-MainCmdLogging_ifc.info (negativ)          </td><td>Writes the output via writeInfo()
                                                            usw.                            </td></tr>
           <tr><td>other value</td>               <td>cause an exception, it is wrong.</td></tr>
         </table>
-        @param nCtrl Controls the output channel: 1..6 using Report.error to Report.fineDebug writes to the report;
-                     -1..-3 (negative) using -Report.error to -Report.info  writes via writeInfo
+        @param nCtrl Controls the output channel: 1..6 using MainCmdLogging_ifc.error to MainCmdLogging_ifc.fineDebug writes to the report;
+                     -1..-3 (negative) using -MainCmdLogging_ifc.error to -MainCmdLogging_ifc.info  writes via writeInfo
         @param in The input stream to read.
     */
     ShowCmdOutput(Appendable output, int nCtrl, BufferedReader in)
@@ -1867,9 +1942,9 @@ public abstract class MainCmd implements MainCmd_ifc
       { while( (sOut = reader.readLine()) != null)
         { if(uOutput!=null) uOutput.append(sOut + "\n");
 
-          if     (nCtrl == -Report.error)  writeError(sOut);
-          else if(nCtrl == -Report.warning)writeWarning(sOut);
-          else if(nCtrl == -Report.info)   writeInfoln(sOut);
+          if     (nCtrl == -MainCmdLogging_ifc.error)  writeError(sOut);
+          else if(nCtrl == -MainCmdLogging_ifc.warning)writeWarning(sOut);
+          else if(nCtrl == -MainCmdLogging_ifc.info)   writeInfoln(sOut);
           else if(nCtrl == 0);   //no output
           else reportln(nCtrl, sOut);
         }

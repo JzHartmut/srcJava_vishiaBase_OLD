@@ -334,7 +334,7 @@ public class FileList
           }
         }
       } else {
-        mainCmdLine.writeHelpInfo();
+        mainCmdLine.writeHelpInfo(null);
       }
     } catch(Exception exc){
       sRet = exc.getMessage();
