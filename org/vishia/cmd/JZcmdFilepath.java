@@ -188,13 +188,6 @@ public final class JZcmdFilepath {
   
   
   
-  /**Creates an empty instance with empty data which can be filled.
-   * @param zgenlevel
-   */
-  JZcmdFilepath(JZcmdExecuter.ExecuteLevel zgenlevel){
-    this.zgenlevel = zgenlevel;
-    this.data = new FilePath(); //with empty elements.
-  }
   
   /**Creates an instance with given data.
    * @param zgenlevel
@@ -214,6 +207,8 @@ public final class JZcmdFilepath {
     this.data = new FilePath(filepath);
   }
   
+
+  
   /**Creates a JZcmdFilepath entry with an additonal pathbase.
    * if the basepath of src is given and the pathbase0 is given, both are joined: pathbase0/src.pathbase.
    * @param zgenlevel  Reference to the zgenlevel, necessary for the current directory
@@ -225,24 +220,7 @@ public final class JZcmdFilepath {
    */
   JZcmdFilepath(JZcmdExecuter.ExecuteLevel zgenlevel, JZcmdFilepath src, JZcmdFilepath commonPath, JZcmdFilepath accessPath) throws NoSuchFieldException {
     this.zgenlevel = zgenlevel;
-    data = new FilePath();  //an empty instance to hold information from sources.
-    FilePath commonFilePath = commonPath !=null ? commonPath.data : null;
-    FilePath accessFilePath = accessPath !=null ? accessPath.data : null;
-    CharSequence basePath = src.data.basepath(null, commonFilePath, accessFilePath, zgenlevel);
-    CharSequence localDir = src.data.localDir(null, commonFilePath, accessFilePath, zgenlevel);
-    int posbase = FilePath.isRootpath(basePath);
-    data.drive = posbase >=2 ? Character.toString(basePath.charAt(0)) : null;
-    data.absPath = posbase == 1 || posbase == 3;
-    data.basepath = basePath.subSequence(posbase, basePath.length()).toString();
-    data.localdir = localDir.toString();
-    if(!data.localdir.endsWith("/"))
-      Assert.stop();
-    else
-      Assert.stop();
-    data.name = src.data.name;
-    data.ext = src.data.ext;
-    data.allTree = data.localdir.indexOf('*') >=0;
-    data.someFiles = src.data.someFiles;
+    data = new FilePath(src.data, commonPath.data, accessPath.data, zgenlevel);
   }
   
 

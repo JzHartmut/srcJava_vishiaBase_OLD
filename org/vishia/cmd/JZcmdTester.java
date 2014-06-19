@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.Map;
 
+import org.vishia.util.DataAccess;
 import org.vishia.util.StringFunctions;
 
 public class JZcmdTester
@@ -73,6 +74,11 @@ public class JZcmdTester
     }
   }
   
+  
+  
+  public void debugField(String ident){ DataAccess.debugIdent(ident); }
+  
+  public void debugMethod(String ident){ DataAccess.debugMethod(ident); }
   
   
   
