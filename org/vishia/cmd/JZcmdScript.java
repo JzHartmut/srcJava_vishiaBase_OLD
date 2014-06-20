@@ -703,12 +703,6 @@ public class JZcmdScript extends CompiledScript
      * It should refer instanceof {@link java.lang.Class}. */
     protected JZcmdDataAccess dpathClass;
     
-    /**For ZbnfJavaOutput: Creates a datapath for a specific ClassLoader. */
-    public JZcmdDataAccess new_loader(){ return new JZcmdDataAccess(); }
-    
-    /**For ZbnfJavaOutput: Sets the datapath for a specific ClassLoader. */
-    public void add_loader(JZcmdDataAccess val){ dpathLoader = val; }
-    
     /**For ZbnfJavaOutput: Creates a new item for an argument of a method or constructor. */
     public JZcmditem new_argument(){ return new JZcmditem(null, 'A'); }
     
@@ -719,9 +713,15 @@ public class JZcmdScript extends CompiledScript
     } 
 
     
-    public JZcmdDataAccess new_classVar(){ return new JZcmdDataAccess(); }
+    public JZcmdDataAccess new_Class_Var(){ return new JZcmdDataAccess(); }
     
-    public void add_classVar(JZcmdDataAccess val){ dpathClass = val; }
+    public void add_Class_Var(JZcmdDataAccess val){ dpathClass = val; }
+    
+    /**For ZbnfJavaOutput: Creates a datapath for a specific ClassLoader. */
+    public JZcmdDataAccess new_Classpath_Var(){ return new JZcmdDataAccess(); }
+    
+    /**For ZbnfJavaOutput: Sets the datapath for a specific ClassLoader. */
+    public void add_Classpath_Var(JZcmdDataAccess val){ dpathLoader = val; }
     
 
   }

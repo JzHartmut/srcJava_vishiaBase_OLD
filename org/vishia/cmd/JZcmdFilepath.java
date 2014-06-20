@@ -220,7 +220,9 @@ public final class JZcmdFilepath {
    */
   JZcmdFilepath(JZcmdExecuter.ExecuteLevel zgenlevel, JZcmdFilepath src, JZcmdFilepath commonPath, JZcmdFilepath accessPath) throws NoSuchFieldException {
     this.zgenlevel = zgenlevel;
-    data = new FilePath(src.data, commonPath.data, accessPath.data, zgenlevel);
+    FilePath fcommonPath = commonPath == null ? null : commonPath.data;
+    FilePath faccessPath = accessPath == null ? null : accessPath.data;
+    data = new FilePath(src.data, fcommonPath, faccessPath, zgenlevel);
   }
   
 

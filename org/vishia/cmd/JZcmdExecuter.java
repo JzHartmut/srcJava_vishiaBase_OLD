@@ -373,7 +373,7 @@ public class JZcmdExecuter {
       //if(scriptLevel.localVariables.get("jbat") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jbat", 'O', this, true); }
       //if(scriptLevel.localVariables.get("zgen") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "zgen", 'O', this, true); }
       if(scriptLevel.localVariables.get("jzcmd") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jzcmd", 'O', this, true); }
-      if(scriptLevel.localVariables.get("file") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "file", 'O', new FileSystem(), true); }
+      //if(scriptLevel.localVariables.get("file") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "file", 'O', new FileSystem(), true); }
       if(scriptLevel.localVariables.get("test") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new JZcmdTester(), true); }
       if(scriptLevel.localVariables.get("conv") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "conv", 'O', new Conversion(), true); }
       DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "Math", 'C', Class.forName("java.lang.Math"), true);
@@ -1448,6 +1448,9 @@ public class JZcmdExecuter {
           Object ref = scriptLevel.evalObject(arg, false);
           String name = arg.getVariableIdent();
           char cType = arg.elementType();
+          if(cType == 'F' && !(ref instanceof JZcmdFilepath) ){
+            ref = new JZcmdFilepath(this, ref.toString());
+          }
           //creates the argument variable with given default value and the requested type.
           DataAccess.createOrReplaceVariable(sublevel.localVariables, name, cType, ref, false);
         }
