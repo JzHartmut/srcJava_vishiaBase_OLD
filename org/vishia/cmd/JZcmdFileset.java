@@ -1,6 +1,5 @@
 package org.vishia.cmd;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -24,10 +23,10 @@ import org.vishia.util.FilePath;
  * <br><br>
  * Uml-Notation see {@link org.vishia.util.Docu_UML_simpleNotation}:
  * <pre>
- *               UserFileset
- *                    |------------commonBasepath-------->{@link UserFilepath}
+ *               JZcmdFileset
+ *                    |------------commonBasepath-------->{@link JZcmdFilepath}
  *                    |
- *                    |------------filesOfFileset-------*>{@link UserFilepath}
+ *                    |------------filesOfFileset-------*>{@link JZcmdFilepath}
  *                                                        -drive:
  *                                                        -absPath: boolean
  *                                                        -basepath
@@ -93,7 +92,7 @@ public class JZcmdFileset
       JZcmdFilepath filepath = new JZcmdFilepath(zgenlevel, scriptFilepath);
       JZcmdFilepath commonBasepath = data.commonBasepath ==null ? null : new JZcmdFilepath(zgenlevel, data.commonBasepath);
       FilePath accessFilePath = zgenAccesspath !=null ? zgenAccesspath.data : null;
-      if(expandFiles && (filepath.data.someFiles || filepath.data.allTree)){
+      if(expandFiles && (filepath.data.someFiles() || filepath.data.allTree())){
         List<FilePath> files1 = new LinkedList<FilePath>();
         filepath.data.expandFiles(files1, data.commonBasepath, accessFilePath, zgenlevel);
         for(FilePath file: files1){
@@ -101,7 +100,7 @@ public class JZcmdFileset
           files.add(zgenFile);
         }
       } else {
-        //clone filepath! add srcpath
+        //clone and resolve common and access path
         JZcmdFilepath targetsrc = new JZcmdFilepath(zgenlevel, filepath, commonBasepath, zgenAccesspath);
         files.add(targetsrc);
       }

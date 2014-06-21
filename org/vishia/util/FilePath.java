@@ -5,13 +5,14 @@ import java.util.List;
 
 
 
-/**This class holds a path to a file with its parts (base path, directory path, name, extension, drive letter etc)
+/**This class holds a path to a file with its parts: base path, directory path, name, extension, drive letter etc
  * and supports getting String-paths in several forms - absolute, relative, name only, extension, with slash or backslash etc.
- * It supports using of script variables too.
+ * It supports using of script variables.
  * 
  * For building the absolute path or using script variables the user should provide an implementation 
  * of the {@link FilePathEnvAccess}
  * which supports access to String-given variables and the current directory of the user's environment.
+ * This interface is implemented in the JZcmd environment.
  * 
  * @author Hartmut Schorrig
  *
@@ -20,18 +21,50 @@ public class FilePath
 {
   /**Version, history and license.
    * <ul>   
+   * <li>2014-06-22 Hartmut note: The possibility of wildcard in the local path (not only "/** /" for allTree) 
+   *   is not described, designed and tested completely. The method {@link #someFiles()} should return true
+   *   on wildcards in the local path too.     
+   * <li>2014-06-22 Hartmut chg: Set all fields private. The fine fragmentation to drive, ... name, ext was done
+   *   in 2005 because in the XSLT language it is more simple to concatenate the parts and the ZBNF parser is capable
+   *   to fragment. From Java language view it may be better to fragment the given path only in basepath and localpath whereby the basepath
+   *   starts with the "D:/" if given and the localpath contains "local/path/name.ext". In preparation the positions of
+   *   name, ext can be stored in int-fields. Then it is more simple to return for example the {@link #localfile(FilePathEnvAccess)}
+   *   without using a StringBuilder. It saves memory and calculation time. The {@link #name()} is a substring only.
+   *   That change can be done later to faster the algorithm. Firstly the class {@link ZbnfFilepath} should be removed.
+   *   Therefore it is set to depreciated just now. This class sets the fine graduated parts.
+   *   All get methods can be changed maybe without side effects. Because that the fields are private up to now.
    * <li>2014-06-20 Hartmut chg: accessPath: if it contains {@link #someFiles} then use the directory only.
    *   It may be a special case. The usage of wildcard in access path is non constructive. 
-   * <li>2014-04-05 Hartmut create from org/vishia/cmd/JZcmdFilepath, usage more universal.     
-   * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined here. Only one concept!
-   *   This file was copied from srcJava_Zbnf/org/vishia/zmake/Userfilepath.
-   *   The data of a file are referenced with {@link #data}. The original fields are contained in
-   *   {@link JZcmdScript.Filepath}. Both are separated because the parts in JZcmdScript are set completely
-   *   by parsing the script. This class contains the access methods which uses the reference {@link #zgenlevel}.
+   * <li>2014-04-05 Hartmut dissolved from {@link org/vishia/cmd/JZcmdFilepath}, usage more universal.     
+   * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined in JZcmd. Only one concept!
+   *   The file {@link org/vishia/cmd/JZcmdFilepath} was copied from former <code>srcJava_Zbnf/org/vishia/zmake/Userfilepath</code>.
+   *   The data of a file in the JZcmd context are referenced with {@link org.vishia.cmd.JZcmdFilepath#zgenlevel}. 
+   *   The original fields are contained in this class. Both are separated because the parts in JZcmdScript are set completely
+   *   by parsing the script. This class contains the access methods which uses the reference to {@link FilePathEnvAccess}
+   *   as parameter.
    * <li>2013-03-10 Hartmut new: {@link FileSystem#normalizePath(CharSequence)} called in {@link #absbasepath(CharSequence)}
    *   offers the normalize path for all absolute file paths. 
-   * <li>2013-03-10 Hartmut new: Replace wildcards: {@link #absfile(JZcmdFilepath)} (TODO for some more access methods)
-   * <li>2013-02-12 Hartmut chg: dissolved from inner class in {@link ZmakeUserScript}
+   * <li>2013-03-10 Hartmut new: Replace wildcard: {@link #absfile(JZcmdFilepath)} (TODO for some more access methods)
+   * <li>2013-02-12 Hartmut chg: dissolved from inner class in {@nolink ZmakeUserScript}
+   * <li>2012-12-29 Hartmut chg: A {@link FilePath} is independent from a target and describes a non-completely relative path usually.
+   *   The path is completed, usual as absolute path, if the {UserFileSet} is used in a target. The {TargetInput} of a target
+   *   determines the location of the file set by its {@nolink TargetInput#srcpathInput}. The {@nolink UserFilepath} of all inputs are cloned
+   *   and completed with that srcpath for usage. The {@nolink UserTarget#allInputFiles()} or {@nolink UserTarget#allInputFilesExpanded()}
+   *   builds that list. Usage of that files provide the correct source path for the files of a target's input.
+   * <li>2012-12-08 Hartmut chg: improve access rotoutines.
+   * <li>2012-11-29 Hartmut new: The ZmakeUserScript.UserFilePath now contains all access routines to parts of the file path
+   *   which were contained in the ZmakeGenerator class before. This allows to use this with the common concept
+   *   of a text generator using org.vishia.zTextGen.TextGenerator. That Textgenerator does not know such
+   *   file parts and this UserFilepath class because it is more universal. Access is possible 
+   *   with that access methods {@link FilePath#localfile()} etc. To implement that a UserFilepath
+   *   knows its file-set where it is contained in, that is {@link UserFilepath#itsFileset}. 
+   *   The UserFileset#script knows the Zmake generation script. In this kind it is possible to use the
+   *   common data of a file set and the absolute path.
+   * <li>2011-02-20 Hartmut Re-engineering of Zmake, class ZmakeUserScript. The basic was the XML implementation of zmake. 
+   *   The content of this user script was present in an XML tree after parsing instead in this java class. 
+   *   It was processed with a XSLT translator. The new Zmake concept is attempt to use Java and a textual generation 
+   *   from java data instead XSLT, it is more flexible.
+   * <li>2005 Hartmut creation of this class in an XML environment parsed with ZBNF, used for generation of ANT-Zmake-scripts.
    * </ul>
    * <b>Copyright/Copyleft</b>:
     * For this source the LGPL Lesser General Public License,
@@ -42,7 +75,7 @@ public class FilePath
     * <li> You can redistribute copies of this source to everybody.
     * <li> Every user of this source, also the user of redistribute copies
     *    with or without payment, must accept this license for further using.
-    * <li> But the LPGL ist not appropriate for a whole software product,
+    * <li> But the LPGL is not appropriate for a whole software product,
     *    if this source is only a part of them. It means, the user
     *    must publish this part of source,
     *    but don't need to publish the whole source of the own product.
@@ -58,10 +91,10 @@ public class FilePath
     * 
     * 
     */
-   static final public String sVersion = "2014-06-20";
+   static final public String sVersion = "2014-06-22";
 
   /**An implementation of this interface should be provided by the user if absolute paths and script variables should be used. 
-   * It may be a short simple implementation if that features are unused. See the {@link FilePath#test()} method. 
+   * It may be a short simple implementation if that features are unused. See the {@link org.vishia.util.test.Test_FilePath}. 
    * @author Hartmut Schorrig
    *
    */
@@ -70,12 +103,12 @@ public class FilePath
     /**Returns the Object which is addressed by the name. It may be a script variable, able to find in one
      * or more container sorted by name. 
      * @param variable The name
-     * @return either an instance of FilePath or a CharSequence or null if the variable is not found (optional). 
+     * @return either an instance of FilePath or a CharSequence or null if the variable is not found (optional, instead Exception). 
      * @throws NoSuchFieldException if the variable is not found (optional, recommended).
      */
     Object getValue(String variable) throws NoSuchFieldException;
     
-    /**Returns the current directory of the context.
+    /**Returns the current directory of the context necessary to build an absolute path in {@link FilePath}.
      */
     CharSequence getCurrentDir();
   }
@@ -84,41 +117,43 @@ public class FilePath
   
   /**If given, then the basePath() starts with it. 
    */
-  public String scriptVariable, envVariable;
+  private String scriptVariable;
   
   /**The drive letter if a drive is given. */
-  public String drive;
+  private String drive;
   
   /**Set if the path starts with '/' or '\' maybe after drive letter. */
-  public boolean absPath;
+  private boolean absPath;
   
-  /**Path-part before a ':'. It is null if the basepath is not given. */
-  public String basepath;
+  /**Base path-part before a ':' in String-given path. It is null if the basepath is not given. */
+  private String basepath;
   
   /**Localpath after ':' or the whole path. It is an empty "" if a directory is not given. 
    * It does not contain a slash on end. */
-  public String localdir = "";
+  private String localdir = "";
   
   /**From Zbnf: The filename without extension. */
-  public String name = "";
+  private String name = "";
   
   
   /**From Zbnf: The extension inclusive the leading dot. */
-  public String ext = "";
+  private String ext = "";
   
   /**Set to true if a "*" was found in any directory part.*/
-  public boolean allTree;
+  private boolean allTree;
   
   /**Set to true if a "*" was found in the name or extension.*/
-  public boolean someFiles;
+  private boolean someFiles;
   
   
   /**An empty file path which is used as argument if a common base path is not given. */
-  static FilePath emptyParent = new FilePath();
+  private static FilePath emptyParent = new FilePath();
   
 
 
-  public FilePath(){}
+  /**Empty instance. Set the parts manually. Used in {@link ZbnfFilepath}. 
+   * @deprecated because it is only used in {@link ZbnfFilepath}. In the future: all data of this class should be set final. */
+  @Deprecated public FilePath(){}
   
 
   
@@ -134,12 +169,11 @@ public class FilePath
    * <li>The extension is the part inclusive the last dot.
    * <li>A simple '.' or '..' is stored as the name 
    * </ul> 
-   * The syntax may be described in ZBNF-Form: 
+   * The syntax may be described in ZBNF-Form. This syntax was used in the originally XML presentation from 2005: 
    * <pre>
  prepFilePath::=<$NoWhiteSpaces><! *?>
- [ $$<$?@envVariable> [\\|/|]     ##path can start with a environment variable's content
- | $<$?@scriptVariable> [\\|/|]   ##path can start with a scriptvariable's content
- | [<!.?@drive>:]                   ## only 1 char with followed : is the drive letter
+ [ &<$?@scriptVariable> [\\|/|]   ##path can start with a scriptvariable's content
+ | [<!.?@drive>:]                 ## only 1 char with followed : is the drive letter
    [ [/|\\]<?@absPath>]           ## starting with / maybe after d: is absolute path
  |]
  [ <*:?@pathbase>[?:=]:]            ## all until : is pathbase, but not till a :=
@@ -150,8 +184,7 @@ public class FilePath
  ] . 
    * </pre>
    * But the parsing is done with java basics (indexOf etc.)
-   * See the method {@link #test()} for examples.
-   * */
+   */
   public FilePath(String pathP){
     String path = pathP.replace('\\', '/');
     int zpath = path.length();
@@ -198,7 +231,8 @@ public class FilePath
     //
     if(posname > poslocal){
       localdir = path.substring(poslocal, posname-1);
-      allTree = localdir.indexOf("**")>=0;
+      allTree = localdir.indexOf("/**/")>=0;
+      someFiles = localdir.indexOf('*') >=0;
     } else {
       localdir = "";
     }
@@ -207,7 +241,7 @@ public class FilePath
       posext = zpath;  //no extension.
     } 
     name = path.substring(posname, posext);
-    someFiles = name.indexOf('*')>=0;
+    someFiles |= name.indexOf('*')>=0;
     ext = path.substring(posext);  //with "."
     someFiles |= ext.indexOf('*')>=0;
     if(posname +1 == posext && posname +2 == zpath && path.charAt(posname) == '.'){
@@ -222,14 +256,16 @@ public class FilePath
   
   /**Creates a new FilePath from a given FilePath with possible given common and access path.
    * This method is used especially to build a new set of FilePath from a given set
-   * with common and access and maybe variables. The variables are resolved all
+   * with common and access paths and maybe variables. The variables are resolved all
    * and the relation between base and local parts in all components are resolved too,
    * so the new FilePath is simple to access.
-   * @param src Any given FilePath
+   * This method is used in {@link org.vishia.cmd.JZcmdFileset#listFiles(org.vishia.cmd.JZcmdFilepath, boolean)}.
+   * 
+   * @param src Any given FilePath, usual member of a Fileset
    * @param commonPath A common path of this FilePath enhances the local or given base part of FilePath
    * @param accessPath An access path enhances the given local or base part
    * @param env To resolve variables
-   * @throws NoSuchFieldException
+   * @throws NoSuchFieldException if a variable is not found.
    */
   public FilePath(FilePath src, FilePath commonPath, FilePath accessPath, FilePathEnvAccess env) 
   throws NoSuchFieldException {
@@ -260,8 +296,8 @@ public class FilePath
   
   
   
-  /**An empty instance has not a localdir or basepath or name or drive.
-   * @return true if nothing is given.
+  /**An empty instance has not a localdir nor basepath nor name nor drive.
+   * @return false if nothing is given, true if at least one element is given which determines a path.
    */
   public boolean isNotEmpty(){
     return basepath !=null || localdir.length() >0 || name.length() >0 || drive !=null
@@ -270,7 +306,7 @@ public class FilePath
   }
   
   
-  /**It should return the input String.
+  /**It should return the input String of {@link #FilePath(String)}. Only used for debug view.
    * @see java.lang.Object#toString()
    */
   @Override public String toString() {
@@ -287,46 +323,107 @@ public class FilePath
 
   
   
-  /**Inserts the given drive letter and the root designation on start of buffer. It does nothing if the path is relative.
-   * @param u The buffer
-   * @param commonBasepath An common base path in file set
-   * @param accesspath An access path while using a file set
-   * @return true if it is a root path or it has a drive letter.
+  /**Returns the local directory path part. This method is usefully if another file path should be built 
+   * but with the same local directory part. Usual {@link #localname(FilePathEnvAccess)} may be more usefully. 
+   * @param env Access to the environment to resolve variables.
+   * @throws NoSuchFieldException if a {@link #scriptVariable} is used and it is not found in the context. 
    */
-  private CharSequence driveRoot(CharSequence basepathP, FilePath commonBasepath, FilePath accesspath){
-    boolean isRoot1 = false;
-    CharSequence ret = basepathP;
-    if(this.absPath || commonBasepath !=null && commonBasepath.absPath || accesspath !=null && accesspath.absPath){ 
-      StringBuilder u = basepathP instanceof StringBuilder? (StringBuilder)basepathP : new StringBuilder(basepathP);
-      ret = u;
-      u.insert(0, '/'); 
-      isRoot1 = true; 
-    }
-    if(this.drive !=null){
-      StringBuilder u = basepathP instanceof StringBuilder? (StringBuilder)basepathP : new StringBuilder(basepathP);
-      ret = u;
-      u.insert(0, this.drive).insert(1, ':'); 
-      isRoot1 = true;
-    }
-    else if(commonBasepath !=null && commonBasepath.drive !=null){
-      StringBuilder u = basepathP instanceof StringBuilder? (StringBuilder)basepathP : new StringBuilder(basepathP);
-      ret = u;
-      u.insert(0, commonBasepath.drive).insert(1, ':'); 
-      isRoot1 = true;
-    }
-    else if(accesspath !=null && accesspath.drive !=null){
-      StringBuilder u = basepathP instanceof StringBuilder? (StringBuilder)basepathP : new StringBuilder(basepathP);
-      ret = u;
-      u.insert(0, accesspath.drive).insert(1, ':'); 
-      isRoot1 = true;
-    }
-    return ret;
+  public CharSequence localdir(FilePathEnvAccess env) throws NoSuchFieldException{
+    CharSequence ret = localDir(null, null, null, env);
+    if(ret.length() == 0){ return "."; }
+    else return ret;
   }
+
+
+
+  /**Returns the local directory path part for Windows environment with backslash as separator.
+   * It wraps {@link #localdir(FilePathEnvAccess)}, see there.
+   */
+  public CharSequence localdirW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(localdir(env)); }
+
+
+
+  /**Returns the local file path part without extension. This method is usefully if another file path should be built 
+   * with the same local file part but another absolute directory and another extension. 
+   * That is the usual usefully if destination files should be build from given source files.
+   * @param env Access to the environment to resolve variables.
+   * @throws NoSuchFieldException if a {@link #scriptVariable} is used and it is not found in the context. 
+   */
+  public CharSequence localname(FilePathEnvAccess env) throws NoSuchFieldException{ 
+    StringBuilder uRet = new StringBuilder();
+    return addLocalName(uRet, env); 
+  }
+
+
+
+  /**Returns the local file path part without extension for Windows environment with backslash as separator.
+   * It wraps {@link #localname(FilePathEnvAccess)}, see there.
+   */
+  public CharSequence localnameW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(localname(env)); }
+
+
+
+  /**Returns the local file path part. This method is usefully if another file path should be built 
+   * with the same local file path part but another absolute directory. 
+   * That is the usual usefully if a file with the same name and local directory should be copied to another location.
+   * @param env Access to the environment to resolve variables.
+   * @throws NoSuchFieldException if a {@link #scriptVariable} is used and it is not found in the context. 
+   */
+  public CharSequence localfile(FilePathEnvAccess env) throws NoSuchFieldException{ 
+    StringBuilder uRet = new StringBuilder();
+    addLocalName(uRet, env);
+    uRet.append(this.ext);
+    return uRet;
+  }
+
+
+
+  /**Returns the local file path part for Windows environment with backslash as separator.
+   * It wraps {@link #localfile(FilePathEnvAccess)}, see there.
+   */
+  public CharSequence localfileW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(localfile(env)); }
+
+
+
+  /**Returns the name of the file without extension.
+   */
+  public CharSequence name(){ return this.name; }
+
+
+
+  /**Returns the name of the file inclusively the extension.
+   */
+  public CharSequence namext(){ 
+    StringBuilder uRet = new StringBuilder(); 
+    uRet.append(this.name);
+    uRet.append(this.ext);
+    return uRet;
+  }
+
+
+
+  /**Returns the extension of the file inclusively the dot on start.
+   */
+  public CharSequence ext(){ return this.ext; }
+
+
+  /**Return true if the local path, name or extension contains a wildcard.
+   * @return false if name and extension are given without wildcard. 
+   */
+  public boolean someFiles(){ return someFiles; }
   
   
-  /**Method can be called in the generation script: <*absbasepath()>. 
-   * @return the whole path inclusive a given general path in a {@link UserFileSet} as absolute path.
-   * @throws NoSuchFieldException 
+  /**Return true if the local path contains a <code>"/** /"</code> which means, all files in the directory tree
+   * should be used.
+   */
+  public boolean allTree(){ return allTree; }
+  
+
+  /**Returns the base path part as absolute path. It does not end with a '/'. 
+   * A current directory is gotten via {@link FilePathEnvAccess#getCurrentDir()}
+   * and not from the systems current directory. 
+   * @param env Access to the environment to get the current directory and to resolve variables.
+   * @throws NoSuchFieldException if a {@link #scriptVariable} is used and it is not found in the context. 
    *  
    */
   public CharSequence absbasepath(FilePathEnvAccess env) throws NoSuchFieldException { 
@@ -334,38 +431,39 @@ public class FilePath
     return absbasepath(sBasepath, env);
   }
   
+  /**Returns the base path part as absolute path for Windows environment with backslash as separator.
+   * It wraps {@link #absbasepath(FilePathEnvAccess)}, see there.
+   */
   public CharSequence absbasepathW(FilePathEnvAccess env) throws NoSuchFieldException { return toWindows(absbasepath(env)); }
   
 
   
-  /**Method can be called in the generation script: <*path.absdir()>. 
-   * @return the whole path to the parent of this file inclusive a given general path in a {@link UserFileSet}.
-   *   The path is absolute. If it is given as relative path, the general current directory of the script is used.
-   * @throws NoSuchFieldException 
-   *   
+  /**Returns the directory part as absolute path. It does not end with a '/'. 
+   * A current directory is gotten via {@link FilePathEnvAccess#getCurrentDir()}
+   * and not from the systems current directory. 
+   * @param env Access to the environment to get the current directory and to resolve variables.
+   * @throws NoSuchFieldException if a {@link #scriptVariable} is used and it is not found in the context. 
+   *  
    */
   public CharSequence absdir(FilePathEnvAccess env) throws NoSuchFieldException  { 
     CharSequence basePath = absbasepath(env);
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     return localDir(uRet, null, null, env);
-    /*
-    int zpath = (this.localdir == null) ? 0 : this.localdir.length();
-    if(zpath > 0){ //not empty
-      int pos;
-      if( (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
-      uRet.append(this.localdir);
-    }
-    return uRet;
-    */
   }
   
+  /**Returns the directory part as absolute path for Windows environment with backslash as separator.
+   * It wraps {@link #absdir(FilePathEnvAccess)}, see there.
+   */
   public CharSequence absdirW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(absdir(env)); }
   
   
-  /**Method can be called in the generation script: <*this.absname()>. 
-   * @return the whole path with file name but without extension inclusive a given general path in a {@link UserFileSet}.
-   *   Either as absolute or as relative path.
-   * @throws NoSuchFieldException 
+  /**Returns the file path but without extension as absolute path. It does not end with a '.'. 
+   * The extension is the last part of the filename after the last dot including the dot.
+   * Usual new files are build with the same name but with other extension. Therefore this method is given.
+   * A current directory is gotten via {@link FilePathEnvAccess#getCurrentDir()}
+   * and not from the systems current directory. 
+   * @param env Access to the environment to get the current directory and to resolve variables.
+   * @throws NoSuchFieldException if a {@link #scriptVariable} is used and it is not found in the context. 
    */
   public CharSequence absname(FilePathEnvAccess env) throws NoSuchFieldException{ 
     CharSequence basePath = absbasepath(env);
@@ -378,15 +476,19 @@ public class FilePath
     return uRet;
   }
   
+  /**Returns the file path but without extension as absolute path for Windows environment with backslash as separator.
+   * It wraps {@link #absname(FilePathEnvAccess)}, see there.
+   */
   public CharSequence absnameW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(absname(env)); }
   
 
 
   
-  /**Method can be called in the generation script: <*path.absfile()>. 
-   * @return the whole path inclusive a given general path .
-   *   The path is absolute. If it is given as relative path, the general current directory of the script is used.
-   * @throws NoSuchFieldException 
+  /**Returns the complete file path as absolute path. 
+   * A current directory is gotten via {@link FilePathEnvAccess#getCurrentDir()}
+   * and not from the systems current directory. 
+   * @param env Access to the environment to get the current directory and to resolve variables.
+   * @throws NoSuchFieldException if a {@link #scriptVariable} is used and it is not found in the context. 
    */
   public CharSequence absfile(FilePathEnvAccess env) throws NoSuchFieldException{ 
     CharSequence basePath = absbasepath(env);
@@ -396,16 +498,19 @@ public class FilePath
     return uRet;
   }
   
+  /**Returns the complete file path as absolute path for Windows environment with backslash as separator.
+   * It wraps {@link #absfile(FilePathEnvAccess)}, see there.
+   */
   public CharSequence absfileW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(absfile(env)); }
   
   
-  /**Method can be called in the generation script: <*path.absfile()>.
+  /**Returns the file with replaced wildcard in the local dir. TODO is it used anywhere? 
    * @param replWildc With them localdir and name a wildcard in this.localdir and this.name is replaced.
    * @return the whole path inclusive a given general path .
    *   The path is absolute. If it is given as relative path, the general current directory of the script is used.
    * @throws NoSuchFieldException 
    */
-  public CharSequence absfile(FilePath replWildc, FilePathEnvAccess env) throws NoSuchFieldException{ 
+  CharSequence XXXabsfile(FilePath replWildc, FilePathEnvAccess env) throws NoSuchFieldException{ 
     CharSequence basePath = absbasepath(env);
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
     addLocalName(uRet, replWildc);
@@ -413,25 +518,25 @@ public class FilePath
     return uRet;
   }
   
-  /**Method can be called in the generation script: <*basepath()>. 
-   * @return the whole base path inclusive a given general path in a {@link UserFileSet}.
-   *   till a ':' in the input path or an empty string.
-   *   Either as absolute or as relative path how it is given.
-   * @throws NoSuchFieldException 
+  /**Returns the base path part like given, either as absolute path or relative path. 
+   * @param env Access to the environment to resolve variables.
+   * @throws NoSuchFieldException if a {@link #scriptVariable} is used and it is not found in the context. 
    */
   public CharSequence basepath(FilePathEnvAccess env) throws NoSuchFieldException{ return basepath(null, emptyParent, null, env); }
    
   
 
   
+  /**Returns the base path part like given for Windows environment with backslash as separator.
+   * It wraps {@link #basepath(FilePathEnvAccess)}, see there.
+   */
   public CharSequence basepathW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(basepath(env)); }
   
   
   
-  /**Method can be called in the generation script: <*path.dir()>. 
-   * @return the whole path to the parent of this file inclusive a given general path in a {@link UserFileSet}.
-   *   The path is absolute or relative like it is given.
-   * @throws NoSuchFieldException 
+  /**Returns the directory part like given, either as absolute path or relative path. 
+   * @param env Access to the environment to resolve variables.
+   * @throws NoSuchFieldException if a {@link #scriptVariable} is used and it is not found in the context. 
    */
   public CharSequence dir(FilePathEnvAccess env) throws NoSuchFieldException{ 
     CharSequence basePath = basepath(env);
@@ -447,12 +552,14 @@ public class FilePath
 
   
   
+  /**Returns the directory part like given for Windows environment with backslash as separator.
+   * It wraps {@link #dir(FilePathEnvAccess)}, see there.
+   */
   public CharSequence dirW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(dir(env)); }
   
-  /**Method can be called in the generation script: <*this.pathname()>. 
-   * @return the whole path with file name but without extension inclusive a given general path in a {@link UserFileSet}.
-   *   The path is absolute or relative like it is given.
-   * @throws NoSuchFieldException 
+  /**Returns the file path without extension like given, either as absolute path or relative path. 
+   * @param env Access to the environment to resolve variables.
+   * @throws NoSuchFieldException if a {@link #scriptVariable} is used and it is not found in the context. 
    */
   public CharSequence pathname(FilePathEnvAccess env) throws NoSuchFieldException{ 
     CharSequence basePath = basepath(env);
@@ -465,15 +572,17 @@ public class FilePath
     return uRet;
   }
   
+  /**Returns the file path without extension like given for Windows environment with backslash as separator.
+   * It wraps {@link #pathname(FilePathEnvAccess)}, see there.
+   */
   public CharSequence pathnameW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(pathname(env)); }
   
 
 
   
-  /**Method can be called in the generation script: <*this.file()>. 
-   * @return the whole path with file name and extension.
-   *   The path is absolute or relative like it is given.
-   * @throws NoSuchFieldException 
+  /**Returns the file path like given, either as absolute path or relative path. 
+   * @param env Access to the environment to resolve variables.
+   * @throws NoSuchFieldException if a {@link #scriptVariable} is used and it is not found in the context. 
    */
   public CharSequence file(FilePathEnvAccess env) throws NoSuchFieldException{ 
     CharSequence basePath = basepath(env);
@@ -482,14 +591,16 @@ public class FilePath
     return uRet.append(this.ext);
   }
   
+  /**Returns the file path like given for Windows environment with backslash as separator.
+   * It wraps {@link #file(FilePathEnvAccess)}, see there.
+   */
   public CharSequence fileW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(file(env)); }
   
   
   
-  /**Method can be called in the generation script: <*this.base_localdir()>. 
-   * @return the basepath:localpath in a {@link UserFileSet} with given wildcards 
-   *   inclusive a given general path. The path is absolute or relative like it is given.
-   * @throws NoSuchFieldException 
+  /**Returns the base path and the local dir like given with ':' as separator between both parts. 
+   * @param env Access to the environment to resolve variables.
+   * @throws NoSuchFieldException if a {@link #scriptVariable} is used and it is not found in the context. 
    */
   public CharSequence base_localdir(FilePathEnvAccess env) throws NoSuchFieldException{ 
     CharSequence basePath = basepath(env);
@@ -499,13 +610,16 @@ public class FilePath
     return uRet;
   }
   
+  /**Returns the base path and the local dir like given with ':' as separator between both parts
+   * for Windows environment with backslash as separator.
+   * It wraps {@link #base_localdir(FilePathEnvAccess)}, see there.
+   */
   public CharSequence base_localdirW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(base_localdir(env)); }
   
   
-  /**Method can be called in the generation script: <*this.base_localfile()>. 
-   * @return the basepath:localpath/name.ext in a {@link UserFileSet} with given wildcards 
-   *   inclusive a given general path. The path is absolute or relative like it is given.
-   * @throws NoSuchFieldException 
+  /**Returns the base path and the local file like given with ':' as separator between both parts. 
+   * @param env Access to the environment to resolve variables.
+   * @throws NoSuchFieldException if a {@link #scriptVariable} is used and it is not found in the context. 
    */
   public CharSequence base_localfile(FilePathEnvAccess env) throws NoSuchFieldException{ 
     CharSequence basePath = basepath(env);
@@ -519,80 +633,20 @@ public class FilePath
     return uRet;
   }
   
+  /**Returns the base path and the local file like given with ':' as separator between both parts
+   * for Windows environment with backslash as separator.
+   * It wraps {@link #base_localdir(FilePathEnvAccess)}, see there.
+   */
   public CharSequence base_localfileW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(base_localfile(env)); }
   
   
   
 
-  /**Method can be called in the generation script: <*path.localdir()>. 
-   * @return the local path part of the directory of the file without ending slash. 
-   *   If no directory is given in the local part, it returns ".". 
-   * @throws NoSuchFieldException 
+  /**Converts a given path to the windows presentation with backslash.
+   * @param inp It is is a StringBuilder, it is used and its content is changed.
+   * @return either inp if it is a StringBuilder, or a new unmated StringBuilder instance.
    */
-  public CharSequence localdir(FilePathEnvAccess env) throws NoSuchFieldException{
-    CharSequence ret = localDir(null, null, null, env);
-    if(ret.length() == 0){ return "."; }
-    else return ret;
-  }
-  
-  /**Method can be called in the generation script: <*path.localDir()>. 
-   * @return the local path part with file without extension.
-   * @throws NoSuchFieldException 
-   */
-  public CharSequence localdirW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(localdir(env)); }
-  
-
-  
-  /**Method can be called in the generation script: <*path.localname()>. 
-   * @return the local path part with file without extension.
-   * @throws NoSuchFieldException 
-   */
-  public CharSequence localname(FilePathEnvAccess env) throws NoSuchFieldException{ 
-    StringBuilder uRet = new StringBuilder();
-    return addLocalName(uRet, env); 
-  }
-  
-  public CharSequence localnameW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(localname(env)); }
-
-  
-  /**Method can be called in the generation script: <*path.localfile()>. 
-   * @return the local path to this file inclusive name and extension of the file.
-   * @throws NoSuchFieldException 
-   */
-  public CharSequence localfile(FilePathEnvAccess env) throws NoSuchFieldException{ 
-    StringBuilder uRet = new StringBuilder();
-    addLocalName(uRet, env);
-    uRet.append(this.ext);
-    return uRet;
-  }
-
-  public CharSequence localfileW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(localfile(env)); }
-
-  
-  
-  
-  /**Method can be called in the generation script: <*path.name()>. 
-   * @return the name of the file without extension.
-   */
-  public CharSequence name(){ return this.name; }
-  
-  /**Method can be called in the generation script: <*path.namext()>. 
-   * @return the file name with extension.
-   */
-  public CharSequence namext(){ 
-    StringBuilder uRet = new StringBuilder(); 
-    uRet.append(this.name);
-    uRet.append(this.ext);
-    return uRet;
-  }
-  
-  /**Method can be called in the generation script: <*path.ext()>. 
-   * @return the file extension.
-   */
-  public CharSequence ext(){ return this.ext; }
-  
-  
-  static CharSequence toWindows(CharSequence inp)
+  public static CharSequence toWindows(CharSequence inp)
   {
     if(inp instanceof StringBuilder){
       StringBuilder uRet = (StringBuilder)inp;
@@ -606,14 +660,14 @@ public class FilePath
     }
   }
   
-  /**Builds non-wildcard instance for any found file and add all these instances to the given list
+  /**Builds non-wildcard instances for any found file and add all these instances to the given list
    * for all files, which are selected by this instance maybe with wild-cards and the given commonPath and accessPath.
    * The expansion with wild-cards is a capability of {@link FileSystem#addFilesWithBasePath(File, String, List)}
    * which is used here as core routine.
    * <br><br>
-   * The possible given commonPath and accessPath will be dissolved. The absolute base path will be gotten from that,
+   * The possible given commonPath and accessPath will be resolved. The absolute base path will be gotten from that,
    * see {@link #basepath(StringBuilder, FilePath, FilePath, boolean[], FilePathEnvAccess)}.
-   * The result instances of FilePath will be contain the resultig base path maybe as absolute or relative one.
+   * The result instances of FilePath will be contain the resulting base path maybe as absolute or relative one.
    * <br><br>
    * The instances from given FilePath with wild-cards will be gotten from the currently content of the file system
    * using the absolute path from {@link FilePathEnvAccess#getCurrentDir()}. 
@@ -842,7 +896,7 @@ public class FilePath
       //  | base    | base abs  base abs
       //  x  x      x  x   x     1    1      /thisBase                   : thisLocal
       //  x  x      x  x   x     0    1      "/"                         : thisLocal
-      if(this.drive !=null || this.basepath !=null || uRetP !=null || varfile !=null || this.envVariable !=null){
+      if(this.drive !=null || this.basepath !=null || uRetP !=null || varfile !=null){
         StringBuilder uRet = uRetP !=null ? uRetP : new StringBuilder();   //it is necessary.
         uRet.setLength(0);
         if(this.drive !=null){ 
@@ -1274,10 +1328,13 @@ public class FilePath
 
   
   
-  /**This class is used only temporary while processing the parse result into a instance of {@link Filepath}
+  /**This class is used only temporary while processing the parse result into a instance of {@link FilePath}
    * while running {@link ZbnfJavaOutput}. 
+   * @deprecated This is the only one reason that the fields of FilePath are fine graduated. It saves calculation time
+   * if a better algorithm is used. This class will be removed if the {@link org.vishia.zcmd.JZcmdScript} and its syntax
+   * does not need it anymore.
    */
-  public static class ZbnfFilepath{
+  @Deprecated public static class ZbnfFilepath{
     
     /**The instance which are filled with the components content. It is used for the user's data tree. */
     public final FilePath filepath;
@@ -1296,11 +1353,6 @@ public class FilePath
     
     /**FromZbnf. */
     public void set_scriptVariable(String val){ filepath.scriptVariable = val; }
-    
-    
-    /**FromZbnf. */
-    public void set_envVariable(String val){ filepath.envVariable = val; }
-    
     
 
     

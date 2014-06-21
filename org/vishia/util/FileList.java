@@ -21,13 +21,12 @@ import java.util.zip.CRC32;
 import org.vishia.mainCmd.MainCmd;
 import org.vishia.mainCmd.MainCmd_ifc;
 
-/**This is a tool class which deals with list of files. 
+/**This class creates a list which information about a file tree and supports change timestamp of given files (touch). 
  * A file list can be created from any directory tree. 
  * It contains properties of files: timestamp, length, relative path inside this file tree
  * and a CRC checksum of the file content.
  * The list can be used to 
  * <ul>
- * <li>manually overview of all files of a deeper directory tree, for example sorted by timestamp or length.
  * <li>touch the timestamp of files if their length and CRC matches.
  * <li>compare files with the content of the list - detect changes, maybe used for version check.
  * </ul>
@@ -40,7 +39,7 @@ public class FileList
   /**Version, history and license.
    * <ul>
    * <li>2014-01-14 Hartmut chg: round up and down to 10 seconds, to ignore second differences on writing.
-   * <li>2013-08-09 Hartmut created: The FileList was written by me in 1994..2001 in C++-Language.
+   * <li>2013-08-09 Hartmut created: The FileList was written by me in 1992..2001 in C++-Language.
    *   Now it is available for Java usage. One of the motivation was the necessity of correction of
    *   time stamps of reverted files from Bazaar and git.
    * </ul>
