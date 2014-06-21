@@ -18,23 +18,7 @@ import org.vishia.util.FilePath;
  * <pre>
  * fileset::= { basepath = <file?basepath> | <file> ? , }.
  * </pre>
- * The <code>basepath</code> is a general path for all files which is the basepath (in opposite to localpath of each file)
- * or which is a pre-basepath if any file is given with basepath.
- * <br><br>
- * Uml-Notation see {@link org.vishia.util.Docu_UML_simpleNotation}:
- * <pre>
- *               JZcmdFileset
- *                    |------------commonBasepath-------->{@link JZcmdFilepath}
- *                    |
- *                    |------------filesOfFileset-------*>{@link JZcmdFilepath}
- *                                                        -drive:
- *                                                        -absPath: boolean
- *                                                        -basepath
- *                                                        -localdir
- *                                                        -name
- *                                                        -someFiles: boolean
- *                                                        -ext
- * </pre>
+ * It refers a {@link FileSet}.
  * @see {@link JZcmdAccessFileset}. That class refers this and contains an access path, used as argument in a zmake call
  *   or as Argument build with <code>call ...( name = Fileset accesspath&FilesetVariable)</code> in a JZcmd script.
  */
@@ -43,6 +27,7 @@ public class JZcmdFileset
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-06-22 Hartmut chg: creation of {@link FileSet} as extra class. 
    * <li>2014-06-14 Hartmut chg: {@link ExecuteLevel} implements {@link FilePath.FilePathEnvAccess} now,
    *   therewith a {@link #listFiles(List, JZcmdFilepath, boolean, org.vishia.util.FilePath.FilePathEnvAccess)}
    *   does not need an accessPath, it may be empty respectively null.
@@ -58,7 +43,7 @@ public class JZcmdFileset
    * <li> You can redistribute copies of this source to everybody.
    * <li> Every user of this source, also the user of redistribute copies
    *    with or without payment, must accept this license for further using.
-   * <li> But the LPGL ist not appropriate for a whole software product,
+   * <li> But the LPGL is not appropriate for a whole software product,
    *    if this source is only a part of them. It means, the user
    *    must publish this part of source,
    *    but don't need to publish the whole source of the own product.
@@ -75,7 +60,7 @@ public class JZcmdFileset
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String sVersion = "2014-03-07";
+  static final public String sVersion = "2014-06-22";
 
   final JZcmdExecuter.ExecuteLevel zgenlevel;
   final JZcmdScript.UserFileset data;
@@ -88,22 +73,13 @@ public class JZcmdFileset
   
   
   void listFiles(List<JZcmdFilepath> files, JZcmdFilepath zgenAccesspath, boolean expandFiles) throws NoSuchFieldException {  ////
-    for(FilePath scriptFilepath: data.filesOfFileset){
-      JZcmdFilepath filepath = new JZcmdFilepath(zgenlevel, scriptFilepath);
-      JZcmdFilepath commonBasepath = data.commonBasepath ==null ? null : new JZcmdFilepath(zgenlevel, data.commonBasepath);
-      FilePath accessFilePath = zgenAccesspath !=null ? zgenAccesspath.data : null;
-      if(expandFiles && (filepath.data.someFiles() || filepath.data.allTree())){
-        List<FilePath> files1 = new LinkedList<FilePath>();
-        filepath.data.expandFiles(files1, data.commonBasepath, accessFilePath, zgenlevel);
-        for(FilePath file: files1){
-          JZcmdFilepath zgenFile = new JZcmdFilepath(zgenlevel, file);
-          files.add(zgenFile);
-        }
-      } else {
-        //clone and resolve common and access path
-        JZcmdFilepath targetsrc = new JZcmdFilepath(zgenlevel, filepath, commonBasepath, zgenAccesspath);
-        files.add(targetsrc);
-      }
+    List<FilePath> files1 = new LinkedList<FilePath>();
+    FilePath accesspath = zgenAccesspath == null ? null : zgenAccesspath.data;
+    data.fileset.listFiles(files1, accesspath, zgenlevel, expandFiles);
+    //wrap all FilePath in JZcmdFilepath
+    for(FilePath file: files1){
+      JZcmdFilepath jzfile = new JZcmdFilepath(zgenlevel, file);
+      files.add(jzfile);
     }
   }
 
@@ -133,12 +109,7 @@ public class JZcmdFileset
     
     
   @Override
-  public String toString(){ 
-    StringBuilder u = new StringBuilder();
-    if(data.commonBasepath !=null) u.append("basepath="+data.commonBasepath+", ");
-    u.append(data.filesOfFileset);
-    return u.toString();
-  }
+  public String toString(){ return data.toString(); } 
 
   
   

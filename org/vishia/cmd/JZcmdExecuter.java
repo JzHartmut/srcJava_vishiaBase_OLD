@@ -526,7 +526,11 @@ public class JZcmdExecuter {
     //  ret = kException;
     //}
     if(ret == kException){
-      throw new ScriptException(scriptThread.exception.getMessage(), scriptThread.excSrcfile, scriptThread.excLine, scriptThread.excColumn);
+      if(scriptThread.exception instanceof ScriptException){
+        throw (ScriptException)scriptThread.exception; 
+      } else {
+        throw new ScriptException(scriptThread.exception.toString(), scriptThread.excSrcfile, scriptThread.excLine, scriptThread.excColumn);
+      }
     }
   }
 
@@ -2297,6 +2301,10 @@ public class JZcmdExecuter {
             } else {
               obj = new File(currdir, value);
             }
+          } break;
+          case 'F': {
+            String value = obj.toString();
+            obj = new JZcmdFilepath(this, value);
           } break;
           default: assert(false);
         }

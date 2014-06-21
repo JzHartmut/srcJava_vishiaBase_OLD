@@ -13,6 +13,92 @@ import java.util.List;
  * of the {@link FilePathEnvAccess}
  * which supports access to String-given variables and the current directory of the user's environment.
  * This interface is implemented in the JZcmd environment.
+ * <br><br>
+ * <b>The local path</b>:<br>
+ * If you write <code>any/Path:local/path/file.ext</code> then <code>any/Path</code> is the so named base path 
+ * and <code>local/path</code> is the local directory. The <code>':'</code> separates the path in that 2 parts.
+ * Regarding the drive designation of windows, the <code>':'</code>-separator for base and local path
+ * is expected from the 3. position of a String given path. 
+ * On 2. position it is the separator after the drive letter:
+ * <pre>
+ *   D:base/path:local/path/name.ext
+ * </pre>  
+ * <ul>
+ * <li>For example in C-compilation object-files can be stored in sub directories of the objects destination directory 
+ *   which follows this local path designation.
+ * <li>Another example: copying some files from one directory location to another in designated sub directories.
+ * </ul> 
+ * <br><br>
+ * <b>Common path and access path</b>:<br> 
+ * If this file entry is member of a {@link FileSet}, the file set can have a common path.
+ * This instance can contain a relative path, an {@link FilePath} instance as access path can determine
+ * where the files are located. Therefore some methods works with this 2 arguments. 
+ * The separation between the base path and the local path can be found in any of that prefix paths:
+ * <pre>
+ *   accessPath / commonPath / scriptVariable / localDir
+ *                     :
+ *                     ^---anywhere of that may have a basePath. All other are act as localDir.                    
+ * </pre>
+ * Of one of that paths are absolute it determines the path. If the commonPath is absolute, the accessPath is not regarded
+ * for that. The most left of the prefix paths uses the {@link FilePathEnvAccess#getCurrentDir()} to build an absolute path
+ * if it is required. 
+ * <br>
+ * <br>
+ * <b>Drive letter or select path</b>: On windows systems a drive letter can be used in form <code>A:</code>.
+ *   The path should not be absolute. For example <code>"X:mypath\file.ext"</code> describes a file starting from the 
+ *   current directory of the <code>X</code> drive. Any drive has its own current directory. A user can use this capability
+ *   of windows to set different current directories in special maybe substitute drives. This feature is not supported here
+ *   because there is only one current directory. 
+ * <br>
+ * <br>
+ * <b>Drive letter as select path</b>:  
+ *   It may be possible (future extension) to use the capability of drive letters independent of windows in this class. 
+ *   That should be a feature of {@link FilePathEnvAccess}.
+ *   If the path starts with a drive letter, the associated path is searched in the parents drive list. 
+ * <br>
+ * <br>
+ * <b>Absolute path</b>: If this entry starts with slash or backslash, maybe after a drive designation for windows systems,
+ *   it is an absolute path. If an absolute path is requested
+ *   calling {@link #absfile()} or adequate and the path is not given as absolute path, then the current directory is used
+ *   as prefix for the path. The current directory is a property of the {@link FilePathEnvAccess#getCurrentDir()}. 
+ *   The current directory of the operation system is not used for that. 
+ * <br>
+ * <br>
+ * <b>operation systems current directory</b>: In opposite if you generate a relative path and the executing system
+ *   expects a normal path then it may use the operation system's current directory. But that behavior is outside of this tool.
+ * <br>
+ * <br>
+ * <b>Slash or backslash</b>: The user script can contain slash characters for path directory separation also for windows systems.
+ *   It is recommended to use slash. The script which should be generate may expect back slashes on windows systems.
+ *   Therefore all methods which returns a path are provided in 2 forms: <b>With "W" on end</b> of there name it is the <b>Windows version</b>
+ *   which converts given slash characters in backslash in its return value. So the generated script will contain backslash characters.
+ *   Note that some tools in windows accept a separation with slash too. Especial in C-sources an <code>#include <path/file.h></code>
+ *   should be written with slash or URLs (hyperlinks) should be written with slash in any case.    
+ * <br>
+ * <br>
+ * <b>Return value of methods</b>: All methods which assembles parts of the path returns a {@link java.lang.CharSequence}.
+ *   The instance type of the CharSequence is either {@link java.lang.String} or {@link java.lang.StringBuilder}.
+ *   It is not recommended that a user casts the instance type to StringBuilder, then changes it, stores references and
+ *   expects that is unchanged. Usual either references to {@link java.lang.CharSequence} or {@link java.lang.String} are expected
+ *   as argument type for further processing. If a String is need, one can invoke returnValue.toString(); 
+ *   <br><br>
+ *   The usage of a {@link java.lang.CharSequence} saves memory space in opposite to concatenate Strings and then return
+ *   a new String. In user algorithms it may be recommended to use  {@link java.lang.CharSequence} argument types 
+ *   instead {@link java.lang.String} if the reference is not stored permanently but processed immediately.
+ *   <br><br> 
+ *   If a reference is stored for a longer time in multithreading or in complex algorithms, a {@link java.lang.String}
+ *   preserves that the content of the referenced String is unchanged in any case. A {@link java.lang.CharSequence} does not
+ *   assert that it is unchanged in any case. Therefore in that case the usage of {@link java.lang.String} is recommended.
+ * <br>
+ * <br>
+ * <b>Handling of Wildcards</b>:<br>
+ * The method {@link #expandFiles(List, FilePath, FilePath, FilePathEnvAccess)} resolve wild cards with respect to
+ * really found files in a specified file location.
+ * <br>
+ * In opposite the method {@link #absfileReplwildcard(FilePath, FilePathEnvAccess)} or {@link #localfileReplwildcard(StringBuilder, FilePath)}
+ * replaces the given parts of another FilePath on positions of wildcards especially to build a new file.
+ * <br>
+ * All simple get methods {@link #localfile(FilePathEnvAccess)} etc. returns the wildcards like given.
  * 
  * @author Hartmut Schorrig
  *
@@ -22,8 +108,7 @@ public class FilePath
   /**Version, history and license.
    * <ul>   
    * <li>2014-06-22 Hartmut note: The possibility of wildcard in the local path (not only "/** /" for allTree) 
-   *   is not described, designed and tested completely. The method {@link #someFiles()} should return true
-   *   on wildcards in the local path too.     
+   *   is not described, designed and tested completely. 
    * <li>2014-06-22 Hartmut chg: Set all fields private. The fine fragmentation to drive, ... name, ext was done
    *   in 2005 because in the XSLT language it is more simple to concatenate the parts and the ZBNF parser is capable
    *   to fragment. From Java language view it may be better to fragment the given path only in basepath and localpath whereby the basepath
@@ -272,7 +357,7 @@ public class FilePath
     FilePath commonFilePath = commonPath !=null ? commonPath : null;
     FilePath accessFilePath = accessPath !=null ? accessPath : null;
     CharSequence basePath = src.basepath(null, commonFilePath, accessFilePath, env);
-    CharSequence localDir = src.localDir(null, commonFilePath, accessFilePath, env);
+    CharSequence localDir = src.localdir(null, commonFilePath, accessFilePath, env);
     int posbase = FilePath.isRootpath(basePath);
     drive = posbase >=2 ? Character.toString(basePath.charAt(0)) : null;
     absPath = posbase == 1 || posbase == 3;
@@ -329,7 +414,7 @@ public class FilePath
    * @throws NoSuchFieldException if a {@link #scriptVariable} is used and it is not found in the context. 
    */
   public CharSequence localdir(FilePathEnvAccess env) throws NoSuchFieldException{
-    CharSequence ret = localDir(null, null, null, env);
+    CharSequence ret = localdir(null, null, null, env);
     if(ret.length() == 0){ return "."; }
     else return ret;
   }
@@ -448,7 +533,7 @@ public class FilePath
   public CharSequence absdir(FilePathEnvAccess env) throws NoSuchFieldException  { 
     CharSequence basePath = absbasepath(env);
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
-    return localDir(uRet, null, null, env);
+    return localdir(uRet, null, null, env);
   }
   
   /**Returns the directory part as absolute path for Windows environment with backslash as separator.
@@ -504,17 +589,17 @@ public class FilePath
   public CharSequence absfileW(FilePathEnvAccess env) throws NoSuchFieldException{ return toWindows(absfile(env)); }
   
   
-  /**Returns the file with replaced wildcard in the local dir. TODO is it used anywhere? 
+  /**Returns the local file with replaced wildcard in the local dir. See {@link #addLocalNameReplwildcard(StringBuilder, FilePath).
    * @param replWildc With them localdir and name a wildcard in this.localdir and this.name is replaced.
    * @return the whole path inclusive a given general path .
    *   The path is absolute. If it is given as relative path, the general current directory of the script is used.
    * @throws NoSuchFieldException 
    */
-  CharSequence XXXabsfile(FilePath replWildc, FilePathEnvAccess env) throws NoSuchFieldException{ 
+  public CharSequence absfileReplwildcard(FilePath replWildc, FilePathEnvAccess env) throws NoSuchFieldException{ 
     CharSequence basePath = absbasepath(env);
     StringBuilder uRet = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
-    addLocalName(uRet, replWildc);
-    uRet.append(this.ext);
+    localfileReplwildcard(uRet, replWildc);
+    //uRet.append(this.ext);
     return uRet;
   }
   
@@ -698,7 +783,7 @@ public class FilePath
     }
     //
     List<FileSystem.FileAndBasePath> listFiles = new LinkedList<FileSystem.FileAndBasePath>();
-    final CharSequence localfilePath = this.localFile(null, commonPath, accessPath, env); //getPartsFromFilepath(file, null, "file").toString();
+    final CharSequence localfilePath = this.localfile(null, commonPath, accessPath, env); //getPartsFromFilepath(file, null, "file").toString();
     final String sPathSearch = absBasepath + ":" + localfilePath;
     try{ FileSystem.addFilesWithBasePath(null, sPathSearch, listFiles);
     } catch(Exception exc){
@@ -1084,8 +1169,8 @@ public class FilePath
    *   the local path part of the accessPath and the whole generalPath is used as a prefix for the local directory path.
    * </ul>  
    * If the accessPath contains a wildcard in the name or ext ({@link #someFiles} is true),
-   * then only the {@link #localDir(StringBuilder, FilePath, FilePath, FilePathEnvAccess)} is used from them. 
-   * Elsewhere the {@link #localFile(StringBuilder, FilePath, FilePath, FilePathEnvAccess)} is evaluated from it.
+   * then only the {@link #localdir(StringBuilder, FilePath, FilePath, FilePathEnvAccess)} is used from them. 
+   * Elsewhere the {@link #localfile(StringBuilder, FilePath, FilePath, FilePathEnvAccess)} is evaluated from it.
    * 
    * <pre>
    *   accessPath / commonPath / scriptVariable / localDir
@@ -1101,7 +1186,7 @@ public class FilePath
    * @since 2014-06-20 doc improved
    *  
    */
-  public CharSequence localDir(StringBuilder uRetP, FilePath commonPath, FilePath accessPath
+  public CharSequence localdir(StringBuilder uRetP, FilePath commonPath, FilePath accessPath
       , FilePathEnvAccess env) 
   throws NoSuchFieldException {
     ///
@@ -1130,9 +1215,9 @@ public class FilePath
           FilePath valfile = (FilePath)oValue;
           //get the localFile from the scriptVariable, not only the localDir because it is the dir.
           if(valfile.someFiles){  //but use only the dir if some files.
-            valfile.localDir(uRet, commonPath, accessPath, env); //append localDir of variable 
+            valfile.localdir(uRet, commonPath, accessPath, env); //append localDir of variable 
           } else {
-            valfile.localFile(uRet, commonPath, accessPath, env); //append localDir of variable 
+            valfile.localfile(uRet, commonPath, accessPath, env); //append localDir of variable 
           }
         } else if(oValue instanceof CharSequence){
           uRet.append((CharSequence)oValue);
@@ -1141,13 +1226,13 @@ public class FilePath
         }
       }
       else if(commonPath !=null){
-        commonPath.localFile(uRet, null, accessPath, env);
+        commonPath.localfile(uRet, null, accessPath, env);
       } 
       else if(accessPath !=null){
         if(accessPath.someFiles){
-          accessPath.localDir(uRet, null, null, env);
+          accessPath.localdir(uRet, null, null, env);
         } else {
-          accessPath.localFile(uRet, null, null, env);
+          accessPath.localfile(uRet, null, null, env);
         }
       }
       //
@@ -1168,14 +1253,14 @@ public class FilePath
    * @return Either a String which is the name or a new StringBuilder or uRetP if uRetP given.
    * @throws NoSuchFieldException
    */
-  public CharSequence localFile(StringBuilder uRetP, FilePath commonPath, FilePath accessPath, FilePathEnvAccess env) 
+  public CharSequence localfile(StringBuilder uRetP, FilePath commonPath, FilePath accessPath, FilePathEnvAccess env) 
   throws NoSuchFieldException {
     if(localdir.length() ==0 && ext.length() == 0 && commonPath ==null && accessPath == null && this.scriptVariable == null){ 
       //simplest case: only name is given.
       if(uRetP == null){ return name; }
       else { uRetP.append(name); return uRetP; }
     } else {
-      CharSequence dir = localDir(uRetP, commonPath, accessPath, env);
+      CharSequence dir = localdir(uRetP, commonPath, accessPath, env);
       final StringBuilder uRet = dir instanceof StringBuilder ? (StringBuilder)dir: new StringBuilder(dir);
       int pos;
       if( (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
@@ -1207,7 +1292,7 @@ public class FilePath
   throws NoSuchFieldException { 
     CharSequence basePath = basepath(uRet, commonPath, accesspath, env);
     StringBuilder uRet1 = basePath instanceof StringBuilder ? (StringBuilder)basePath : new StringBuilder(basePath);
-    localDir(uRet1, emptyParent, accesspath, env);
+    localdir(uRet1, emptyParent, accesspath, env);
     int pos;
     if( (pos = uRet1.length()) >0 && uRet1.charAt(pos-1) != '/'){ uRet1.append("/"); }
     uRet1.append(this.name).append(this.ext);
@@ -1245,12 +1330,31 @@ public class FilePath
     return uRet;
   }
   
-  /**Adds the local dir and the name, not the extension
+  /**Adds the file with replaced wildcard in the local dir. 
+   * <ul>
+   * <li>The first "*" or "**" wildcard in the local path part is replaced by the whole local path part of the replWildc-argument.
+   *   Usual the local path part of this consists only of a "**" or it consists of a path ending with "**" or it contains
+   *   a prefix and a postfix like "pre/ ** /post". All variants may be proper. 
+   * <li>The first "*" in the name is replaced by the whole name of the 'replWildc' argument. Usual the name may consist only
+   *   of a single "*".
+   * <li>The second "*" in the name is replaced by the whole ext of the 'replWildc' argument. Usual the name.ext of this 
+   *   may consist of "*.*.ext". See examples.      
+   * </ul>       
+   * Examples
+   * <table><tr><th>this </th><th> replWildc</th><th>result</th></tr>
+   * <tr><td>** / *.*.ext</td><td>rlocal/rpath/rname.rxt</td><td>rlocal/rpath/rname.rxt.ext</td></tr>
+   * <tr><td>local/path / *.*.ext</td><td>rlocal/rpath/rname.rxt</td><td>local/path/rname.rxt.ext</td></tr>
+   * <tr><td>local/path/ ** / *.*.ext</td><td>rlocal/rpath/rname.rxt</td><td>local/path/rlocal/rpath/rname.rxt.ext</td></tr>
+   * <tr><td>local/ ** /path / *.*.ext</td><td>rlocal/rpath/rname.rxt</td><td>local/rlocal/rpath/path/rname.rxt.ext</td></tr>
+   * <tr><td>*.*.ext</td><td>rlocal/rpath/rname.rxt</td><td>rname.rxt.ext</td></tr>
+   * <tr><td>*.ext</td><td>rlocal/rpath/rname.rxt</td><td>rname.ext</td></tr>
+   * <tr><td>*.*</td><td>rlocal/rpath/rname.rxt</td><td>rname.rxt</td></tr>
+   * </table>
    * @param uRet
    * @param replWildc With that localdir and name a wildcard in this is replaced.
    * @return uRet itself to concatenate.
    */
-  private CharSequence addLocalName(StringBuilder uRet, FilePath replWildc){ 
+  public CharSequence localfileReplwildcard(StringBuilder uRet, FilePath replWildc){ 
     int pos;
     if( this.localdir.length() > 0 && (pos = uRet.length()) >0 && uRet.charAt(pos-1) != '/'){ uRet.append("/"); }
     int posW = this.localdir.indexOf('*');

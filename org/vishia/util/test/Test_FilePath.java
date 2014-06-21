@@ -57,7 +57,7 @@ public class Test_FilePath
     StringBuilder buf = new StringBuilder();
     CharSequence file, basepath, localdir, localfile;
     try{
-      localdir = pLocalNameExt.localDir(buf, null, null, env);
+      localdir = pLocalNameExt.localdir(buf, null, null, env);
       basepath = pVarBaseLocal_LocalNameExt.localdir(env);
       localdir = pVarBaseLocal_LocalNameExt.localdir(env);
       localfile = pVarBaseLocal_LocalNameExt.localfile(env);

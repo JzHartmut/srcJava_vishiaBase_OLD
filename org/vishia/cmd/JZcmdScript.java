@@ -19,6 +19,7 @@ import org.vishia.util.CalculatorExpr;
 import org.vishia.util.DataAccess;
 import org.vishia.util.Debugutil;
 import org.vishia.util.FilePath;
+import org.vishia.util.FileSet;
 import org.vishia.util.SetLineColumn_ifc;
 import org.vishia.util.StringFunctions;
 
@@ -293,6 +294,10 @@ public class JZcmdScript extends CompiledScript
     /**Any calculation of data. */
     public CalculatorExpr expression;
 
+    
+    /**Any special sub item if necessary, see conversion. */
+    JZcmditem subitem;
+    
     /**From Zbnf <""?textInStatement>, constant text, null if not used. */
     public String textArg; 
     
@@ -436,7 +441,15 @@ public class JZcmdScript extends CompiledScript
     
     public void add_File(JZcmditem val){} //do nothing. 
     
+    public JZcmditem new_Filepath(){ conversion = 'F'; return this; }
     
+    public void add_Filepath(JZcmditem val){} //do nothing. conversion was set.
+    
+    public AccessFilesetname new_filesetAccess(){ return new AccessFilesetname(parentList); }
+    
+    public void add_filesetAccess(AccessFilesetname val){ subitem = val; };
+    
+
     
     static String sindentA = "                                                                               "; 
     
@@ -574,15 +587,6 @@ public class JZcmdScript extends CompiledScript
     
     public String getIdent(){ return identArgJbat; }
     
-    
-    /**From ZBNF: The argument is given with <code>Filepath name = "a path"</code>. */
-    public FilePath.ZbnfFilepath new_Filepath(){ return new FilePath.ZbnfFilepath(); }
-    
-    public void add_Filepath(FilePath.ZbnfFilepath val){ filepath =val.filepath; }
-    
-    public AccessFilesetname new_filesetAccess(){ return new AccessFilesetname(parentList); }
-    
-    public void add_filesetAccess(AccessFilesetname val){ accessFileset = val; };
     
 
     
@@ -782,16 +786,7 @@ public class JZcmdScript extends CompiledScript
     
     final JZcmdScript script;
     
-    /**From ZBNF basepath = <""?!prepSrcpath>. It is a part of the base path anyway. It may be absolute, but usually relative. 
-     * If null then unused. */
-    FilePath commonBasepath;
-    
-    /**From ZBNF srcext = <""?srcext>. If null then unused. */
-    //public String srcext;
-    
-    
-    /**All entries of the file set how it is given in the users script. */
-    List<FilePath> filesOfFileset = new LinkedList<FilePath>();
+    final FileSet fileset = new FileSet();
     
     UserFileset(StatementList parentList, JZcmdScript script){
       super(parentList, 'G');
@@ -816,20 +811,12 @@ public class JZcmdScript extends CompiledScript
      * It sets the base path for all files of this fileset. This basepath is usually relative.
      * @return ZBNF component.
      */
-    public FilePath.ZbnfFilepath new_commonpath(){ return new FilePath.ZbnfFilepath(); }  //NOTE: it has not a parent. this is not its parent!
-    public void set_commonpath(FilePath.ZbnfFilepath val){ commonBasepath = val.filepath; }
+    //public FilePath.ZbnfFilepath new_commonpath(){ return new FilePath.ZbnfFilepath(); }  //NOTE: it has not a parent. this is not its parent!
+    //public void set_commonpath(FilePath.ZbnfFilepath val){ commonBasepath = val.filepath; }
     
-    /**From ZBNF: < Filepath>. */
-    public FilePath.ZbnfFilepath new_Filepath(){ return new FilePath.ZbnfFilepath(); }
+    public void set_commonPath(String val){ fileset.set_commonPath(val); }
     
-    /**From ZBNF: < file>. */
-    public void add_Filepath(FilePath.ZbnfFilepath valz){ 
-      FilePath val =valz.filepath;
-      if(val.isNotEmpty()){
-        //only if any field is set. not on empty val
-        filesOfFileset.add(val); 
-      }
-    }
+    public void set_filePath(String val){ fileset.add_filePath(val); }
     
     
   }
@@ -847,16 +834,6 @@ public class JZcmdScript extends CompiledScript
       super(parentList, 'F');
     }
   
-    /**From Zbnf, set the string given path
-     * @param path
-    public void set_filepath(String path){
-      filepath = new FilePath(path);
-    }
-     */
-    
-    public FilePath.ZbnfFilepath new_Filepath(){ return new FilePath.ZbnfFilepath(); } 
-    
-    public void add_Filepath(FilePath.ZbnfFilepath val){ filepath = val.filepath; } 
     
   }
  
@@ -867,8 +844,6 @@ public class JZcmdScript extends CompiledScript
 
   public static class Zmake extends CallStatement {
 
-    
-    FilePath xxxoutput;
     
     JZcmditem jzoutput;
     
@@ -881,18 +856,8 @@ public class JZcmdScript extends CompiledScript
     }
     
     
-    public FilePath.ZbnfFilepath new_output(){
-      return new FilePath.ZbnfFilepath();
-    }
     
     public void set_name(String name){ this.name = name; }
-    
-    public void add_output(FilePath.ZbnfFilepath val){ 
-      xxxoutput = val.filepath;
-      if(name == null){
-        name = xxxoutput.toString();
-      }
-    }
     
     
     
@@ -900,8 +865,10 @@ public class JZcmdScript extends CompiledScript
     
     public void add_zmakeOutput(JZcmditem val){ jzoutput = val; }
     
+    @Override
     public AccessFilesetname new_filesetAccess(){ return new AccessFilesetname(parentList); }
     
+    @Override
     public void add_filesetAccess(AccessFilesetname val){ input.add(val); };
     
     
@@ -966,9 +933,6 @@ public class JZcmdScript extends CompiledScript
       this.filesetVariableName = val; 
     }
     
-    public FilePath.ZbnfFilepath XXXnew_accessPath(){ return new FilePath.ZbnfFilepath(); }
-    
-    public void XXXadd_accessPath(FilePath.ZbnfFilepath val){ accessPath = val.filepath; }
   }
   
   
@@ -1105,8 +1069,10 @@ public class JZcmdScript extends CompiledScript
     }
     
     
+    @Override
     public AccessFilesetname new_filesetAccess(){ return new AccessFilesetname(parentList); }
     
+    @Override
     public void add_filesetAccess(AccessFilesetname val){ jarpaths.add(val); };
     
 

@@ -9,108 +9,15 @@ import org.vishia.util.DataAccess;
 import org.vishia.util.FilePath;
 import org.vishia.util.FileSystem;
 
-/**This class describes a file entity in a executer level of JZcmd. The file entity can contain wild cards.
+/**This class describes a Filepath instance in an executer level of JZcmd. The file entity can contain wild cards.
  * It can refer to a variable which contains the base path.
  * It may be a absolute or a relative path. It can have a base path and a local path part.
- * This class contains only the reference to the {@link JZcmdExecuter.ExecuteLevel} where this variable is located
+ * This class contains the reference to the {@link JZcmdExecuter.ExecuteLevel} where this variable is located
  * and a reference to the {@link JZcmdScript.Filepath}. The last one contains all information about the
  * file entity. This class is used to get all presentation possibilities of the file. Therefore the current directory
  * should be known which is given in the JZcmd executer level. 
- * <ul>
- * <li><b>localpath</b>:
- *   If you write <code>anyPath/path:localPath/path/file.ext</code> then it describes a path which part 
- *    from <code>localPath</code> can be used as path to the file in some scripts. 
- *    <ul>
- *    <li>For example in C-compilation object-files can be stored in sub directories of the objects destination directory 
- *      which follows this local path designation.
- *    <li>Another example: copying some files from one directory location to another in designated sub directories.
- *    </ul> 
- * <li><b>General path</b>: If this file entry is member of a file set, the file set can have a general path.
- *   It is given by the {@link UserFileset#srcpath}. A given general path is used for all methods. 
- *   Only this entry describes an absolute path the general path is not used. 
- * <li><b>Drive letter or select path</b>: On windows systems a drive letter can be used in form <code>A:</code>.
- *   The path should not be absolute. For example <code>"X:mypath\file.ext"</code> describes a file starting from the 
- *   current directory of the <code>X</code> drive. Any drive has its own current directory. A user can use this capability
- *   of windows to set different current directories in special maybe substitute drives.
- * <li><b>Drive letter as select path</b>:  
- *   It may be possible (future extension) to use this capability independent of windows in this class. 
- *   For that the {@link #itsFileset} can have some paths associated to drive letters with local meaning,
- *   If the path starts with a drive letter, the associated path is searched in the parents drive list. 
- * <li><b>Absolute path</b>: If this entry starts with slash or backslash, maybe after a drive designation for windows systems,
- *   it is an absolute path. Elsewhere the parent's general path can be absolute. If an absolute path is requested
- *   calling {@link #absFile()} or adequate and the path is not given as absolute path, then the current directory is used
- *   as prefix for the path. The current directory is a property of the {@link UserScript#sCurrDir}. The current directory
- *   of the operation system is not used for that. 
- * <li><b>operation systems current directory</b>: In opposite if you generate a relative path and the executing system
- *   expects a normal path then it may use the operation system's current directory. But that behaviour is outside of this tool.
- * <li><b>Slash or backslash</b>: The user script can contain slash characters for path directory separation also for windows systems.
- *   It is recommended to use slash. The script which should be generate may expect back slashes on windows systems.
- *   Therefore all methods which returns a path are provided in 2 forms: <b>With "W" on end</b> of there name it is the <b>Windows version</b>
- *   which converts given slash characters in backslash in its return value. So the generated script will contain backslash characters.
- *   Note that some tools in windows accept a separation with slash too. Especial in C-sources an <code>#include <path/file.h></code>
- *   should be written with slash or URLs (hyperlinks) should be written with slash in any case.    
- * <li><b>Return value of methods</b>: All methods which assembles parts of the path returns a {@link java.lang.CharSequence}.
- *   The instance type of the CharSequence is either {@link java.lang.String} or {@link java.lang.StringBuilder}.
- *   It is not recommended that a user casts the instance type to StringBuilder, then changes it, stores references and
- *   expects that is unchanged. Usual either references to {@link java.lang.CharSequence} or {@link java.lang.String} are expected
- *   as argument type for further processing. If a String is need, one can invoke returnValue.toString(); 
- *   <br><br>
- *   The usage of a {@link java.lang.CharSequence} saves memory space in opposite to concatenate Strings and then return
- *   a new String. In user algorithms it may be recommended to use  {@link java.lang.CharSequence} argument types 
- *   instead {@link java.lang.String} if the reference is not stored permanently but processed immediately.
- *   <br><br> 
- *   If a reference is stored for a longer time in multithreading or in complex algorithms, a {@link java.lang.String}
- *   preserves that the content of the referenced String is unchanged in any case. A {@link java.lang.CharSequence} does not
- *   assert that it is unchanged in any case. Therefore in that case the usage of {@link java.lang.String} is recommended.
- * </ul>
  * <br><br>
- * <b>Handling of Wildcards</b>:<br>
- * If a UserFilepath is used in {@link Zmake}, the {@link ZmakeUserScript.UserTarget#allInputFilesExpanded()}
- * expands given files with wildcards in a list of existing files. That's result are instances of this class which
- * does no more contain wildcards, because they are expanded already. The expand algorithm is given with
- * {@link org.vishia.util.FileSystem#addFilesWithBasePath(File, String, List)}.
  * <br><br>
- * If the file designation of this class contains wildcards (in Zmake for example an <code><*$target.output.file()></code>
- * either the wildcards are present in the returned value of the access methods or that type of access methods
- * which have a argument 'replWildc' are used.
- * <br><br>
- * <b>Replace wildcards</b>:<br>
- * All methods with 'replWildc'-argument does the following:
- * <ul>
- * <li>The first "*" or "**" wildcard in the local path part is replaced by the whole local path part of the replWildc-argument.
- *   Usual the local path part of this consists only of a "**" or it consists of a path ending with "**" or it contains
- *   a prefix and a postfix like "pre/ ** /post". All variants may be proper. 
- * <li>The first "*" in the name is replaced by the whole name of the 'replWildc' argument. Usual the name may consist only
- *   of a single "*".
- * <li>The second "*" in the name is replaced by the whole ext of the 'replWildc' argument. Usual the name.ext of this 
- *   may consist of "*.*.ext". See examples.      
- * </ul>       
- * Examples
- * <table><tr><th>this </th><th> replWildc</th><th>result</th></tr>
- * <tr><td>** / *.*.ext</td><td>rlocal/rpath/rname.rxt</td><td>rlocal/rpath/rname.rxt.ext</td></tr>
- * <tr><td>local/path / *.*.ext</td><td>rlocal/rpath/rname.rxt</td><td>local/path/rname.rxt.ext</td></tr>
- * <tr><td>local/path/ ** / *.*.ext</td><td>rlocal/rpath/rname.rxt</td><td>local/path/rlocal/rpath/rname.rxt.ext</td></tr>
- * <tr><td>local/ ** /path / *.*.ext</td><td>rlocal/rpath/rname.rxt</td><td>local/rlocal/rpath/path/rname.rxt.ext</td></tr>
- * <tr><td>*.*.ext</td><td>rlocal/rpath/rname.rxt</td><td>rname.rxt.ext</td></tr>
- * <tr><td>*.ext</td><td>rlocal/rpath/rname.rxt</td><td>rname.ext</td></tr>
- * <tr><td>*.*</td><td>rlocal/rpath/rname.rxt</td><td>rname.rxt</td></tr>
- * </table>
- * <br><br>
- * ZBNF-syntax parsing an Zmake input script for this class:
- * <pre>
-prepFilePath::=<$NoWhiteSpaces><! *?>
-[ $$<$?@envVariable> [\\|/|]     ##path can start with a environment variable's content
-| $<$?@scriptVariable> [\\|/|]   ##path can start with a scriptvariable's content
-| [<!.?@drive>:]                 ## only 1 char with followed : is the drive letter
-[ [/|\\]<?@absPath>]           ## starting with / is absolute path
-|]  
-[ <*:?@pathbase>[?:=]:]          ## all until : is pathbase, but not till a :=
-[ <toLastChar:/\\?@path>[\\|/|]] ## all until last \\ or / is path
-[ <toLastChar:.?@name>           ## all until exclusive dot is the name
-<*\e?@ext>                     ## from dot to end is the extension
-| <*\e?@name>                    ## No dot is found, all is the name. 
-] .
- * </pre>
  */
 public final class JZcmdFilepath {
 
@@ -175,16 +82,6 @@ public final class JZcmdFilepath {
   
 
   final FilePath data;
-  
-  /**An empty file path which is used as argument if a common base path is not given. */
-  static JZcmdFilepath emptyParent = new JZcmdFilepath();
-  
-  /**Only for {@link #emptyParent}. */
-  private JZcmdFilepath(){
-    this.zgenlevel = null;
-    data = new FilePath(); //with empty elements. 
-  }
-  
   
   
   
@@ -319,7 +216,16 @@ public final class JZcmdFilepath {
   
   public CharSequence fileW() throws NoSuchFieldException{ return data.fileW(zgenlevel); }
   
-  
+  public CharSequence file(StringBuilder uRet, FilePath commonPath, FilePath accesspath) 
+  throws NoSuchFieldException {
+    return data.file(uRet, commonPath, accesspath, zgenlevel);
+  }
+
+  public CharSequence fileW(StringBuilder uRet, FilePath commonPath, FilePath accesspath) 
+  throws NoSuchFieldException {
+    return FilePath.toWindows(data.file(uRet, commonPath, accesspath, zgenlevel));
+  }
+
   
   /**Method can be called in the generation script: <*data.base_localdir()>. 
    * @return the basepath:localpath in a {@link UserFileSet} with given wildcards 
@@ -375,9 +281,20 @@ public final class JZcmdFilepath {
 
   public CharSequence localfileW() throws NoSuchFieldException{ return data.localfileW(zgenlevel); }
 
+  /**Returns the local file with replaced wildcard in the local dir. See {@link #addLocalNameReplwildcard(StringBuilder, FilePath).
+   * @param replWildc With them localdir and name a wildcard in this.localdir and this.name is replaced.
+   * @return the whole path inclusive a given general path .
+   *   The path is absolute. If it is given as relative path, the general current directory of the script is used.
+   * @throws NoSuchFieldException 
+   */
+  CharSequence absfileReplwildcard(FilePath replWildc) throws NoSuchFieldException{ 
+    return data.absfileReplwildcard(replWildc, zgenlevel);
+  }
   
-  
-  
+  public CharSequence localfileReplwildcard(StringBuilder uRet, JZcmdFilepath replWildc){ 
+    return data.localfileReplwildcard(uRet, replWildc.data);
+  }
+
   /**Method can be called in the generation script: <*path.name()>. 
    * @return the name of the file without extension.
    */
