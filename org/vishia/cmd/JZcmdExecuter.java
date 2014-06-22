@@ -948,13 +948,15 @@ public class JZcmdExecuter {
           }
           if(found){ //onerror found:
             assert(onerrorStatement !=null);  //because it is found in while above.
-            ret = execute(onerrorStatement.statementlist, out, indentOut, false, -1);  //executes the onerror block
             //a kBreak, kReturn etc. is used in the calling level.
             threadData.error.setValue(null);  //clear for next usage.
             threadData.exception = null;
             threadData.excStatement = null;
+            //maybe throw exception too, Exception in onerror{...}
+            ret = execute(onerrorStatement.statementlist, out, indentOut, false, -1);  //executes the onerror block
           } else {
             ret = kException;  //terminates this level.
+            assert(threadData.exception !=null);
           }
         }
       }//while
@@ -1487,7 +1489,7 @@ public class JZcmdExecuter {
       }
       //target.output = new JZcmdFilepath(this, statement.output);  //prepare to ready-to-use form.
       for(JZcmdScript.AccessFilesetname input: statement.input){
-        JZcmdAccessFileset zinput = new JZcmdAccessFileset(input.accessPath, input.filesetVariableName, this);
+        JZcmdAccessFileset zinput = new JZcmdAccessFileset(input, input.filesetVariableName, this);
         if(target.inputs ==null){ target.inputs = new ArrayList<JZcmdAccessFileset>(); }
         target.inputs.add(zinput);
       }
@@ -2282,16 +2284,9 @@ public class JZcmdExecuter {
       } else if(arg.expression !=null){
         CalculatorExpr.Value value = calculateExpression(arg.expression); //.calcDataAccess(localVariables);
         obj = value.objValue();
-      } else if(arg instanceof JZcmdScript.Argument){
-        JZcmdScript.Argument arg1 = (JZcmdScript.Argument) arg;
-        if(arg1.filepath !=null){
-          obj = new JZcmdFilepath(this, arg1.filepath);
-        } else if(arg1.accessFileset !=null){
-          obj = new JZcmdAccessFileset(arg1.accessFileset.accessPath, arg1.accessFileset.textArg, this);
-        } else {
-          obj = null;
-        }
-      } else obj = null;  //throw new IllegalArgumentException("JZcmd - unexpected, faulty syntax");
+      } else {
+        obj = null;  //throw new IllegalArgumentException("JZcmd - unexpected, faulty syntax");
+      }
       if(obj !=null && ret != kException && arg.conversion !=0){
         switch(arg.conversion){
           case 'E': {
@@ -2305,6 +2300,11 @@ public class JZcmdExecuter {
           case 'F': {
             String value = obj.toString();
             obj = new JZcmdFilepath(this, value);
+          } break;
+          case 'G': {
+            assert(arg.subitem instanceof JZcmdScript.AccessFilesetname);
+            JZcmdScript.AccessFilesetname arg1 = (JZcmdScript.AccessFilesetname) arg.subitem;
+            obj = new JZcmdAccessFileset(arg1, arg1.filesetVariableName, this);
           } break;
           default: assert(false);
         }
@@ -2414,15 +2414,8 @@ public class JZcmdExecuter {
     throws Exception {
       List<File> filesjar = new LinkedList<File>();
       for(JZcmdScript.AccessFilesetname fileset: statement.jarpaths){
-        CharSequence sAccesspath = evalString(fileset);
-        final FilePath accessPath;
-        if(sAccesspath !=null){
-          accessPath = new FilePath(sAccesspath.toString());
-        } else {
-          accessPath = fileset.accessPath;
-        }
         if(fileset.filesetVariableName !=null){  //fileset variable
-          JZcmdAccessFileset zjars = new JZcmdAccessFileset(accessPath, fileset.filesetVariableName, this);
+          JZcmdAccessFileset zjars = new JZcmdAccessFileset(fileset, fileset.filesetVariableName, this);
           List<JZcmdFilepath> jars = zjars.listFilesExpanded();
           for(JZcmdFilepath jfilejar: jars){
             File filejar = new File(jfilejar.absfile().toString());
@@ -2430,6 +2423,13 @@ public class JZcmdExecuter {
             filesjar.add(filejar);
           }
         } else {
+          final FilePath accessPath;
+          //if(fileset.accessPath ==null){
+            CharSequence sAccesspath = evalString(fileset);
+            accessPath = new FilePath(sAccesspath.toString());
+          //} else {
+          //  accessPath = fileset.accessPath;
+          //}
           JZcmdFilepath jfilejar = new JZcmdFilepath(this, accessPath);
           File filejar = new File(jfilejar.absfile().toString());
           if(!filejar.exists()) throw new IllegalArgumentException("JZcmd.addClasspath - file does not exist; " + filejar.getAbsolutePath());

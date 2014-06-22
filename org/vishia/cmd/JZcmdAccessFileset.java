@@ -62,11 +62,19 @@ public class JZcmdAccessFileset
    * @param sFilesetVariable
    * @param jzlevel
    * @return the instance
-   * @throws NoSuchFieldException
+   * @throws Exception 
    */
-  public JZcmdAccessFileset(FilePath accessPath, String sFilesetVariable, JZcmdExecuter.ExecuteLevel jzlevel) 
-  throws NoSuchFieldException
+  public JZcmdAccessFileset(JZcmdScript.AccessFilesetname statement, String sFilesetVariable, JZcmdExecuter.ExecuteLevel jzlevel) 
+  throws Exception
   {
+    
+    final FilePath accessPath;
+    //if(statement.accessPath ==null){
+      CharSequence sAccesspath = jzlevel.evalString(statement);
+      accessPath = new FilePath(sAccesspath.toString());
+    //} else {
+    //  accessPath = statement.accessPath;
+    //}
     //search the named file set. It is stored in a ready-to-use form in any variable.
     DataAccess.Variable<Object> filesetV = jzlevel.localVariables.get(sFilesetVariable);
     if(filesetV == null) throw new NoSuchFieldException("JZcmdAccessFileset - fileset not found;" + sFilesetVariable);

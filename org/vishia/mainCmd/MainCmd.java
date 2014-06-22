@@ -1695,6 +1695,8 @@ public abstract class MainCmd implements MainCmd_ifc
     
 
   
+  /**Instance to send a LogMessage to the Log interface of maincmd.
+   */
   protected LogMessage logMessageImplReport = new LogMessage()
   {
 
@@ -1735,6 +1737,7 @@ public abstract class MainCmd implements MainCmd_ifc
       return true;
     }
     
+    public @Override String toString(){ return "MainCmd.logMessageImplReport"; }
   };
   
 
@@ -1743,7 +1746,11 @@ public abstract class MainCmd implements MainCmd_ifc
   
   
   
-  class LogMessageImplConsole implements LogMessage
+  /**Inner class to send a LogMessage to the {@link MainCmd#outConsole}.
+   * The last one is originally System.out from main invocation but may be redirected, 
+   * see {@link MainCmd#setOutputChannels(Appendable, Appendable)}. 
+   */
+  private class LogMessageImplConsole implements LogMessage
   {
 
     @Override
@@ -1779,7 +1786,9 @@ public abstract class MainCmd implements MainCmd_ifc
       sendMsgTimeToAppendableDst(MainCmd.this.outConsole, identNumber, reportLevel, creationTime, text, args); 
       return true;
     }
-    
+
+    public @Override String toString(){ return "MainCmd.LogMessageImplConsole"; }
+
   }
   
 
@@ -1817,7 +1826,9 @@ public abstract class MainCmd implements MainCmd_ifc
       sendMsgTimeToAppendableDst(MainCmd.this.errConsole, identNumber, reportLevel, creationTime, text, args); 
       return true;
     }
-    
+
+    public @Override String toString(){ return "MainCmd.LogMessageImplErrConsole"; }
+
   }
   
   class LogMessageImplFile implements LogMessage
@@ -1863,7 +1874,9 @@ public abstract class MainCmd implements MainCmd_ifc
       }
       return false;
     }
-    
+
+    public @Override String toString(){ return "MainCmd.LogMessageImplFile"; }
+
   }
   
   LogMessageImplConsole logMessageConsole = new LogMessageImplConsole();

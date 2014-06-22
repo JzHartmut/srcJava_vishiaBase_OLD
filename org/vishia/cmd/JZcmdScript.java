@@ -447,7 +447,7 @@ public class JZcmdScript extends CompiledScript
     
     public AccessFilesetname new_filesetAccess(){ return new AccessFilesetname(parentList); }
     
-    public void add_filesetAccess(AccessFilesetname val){ subitem = val; };
+    public void add_filesetAccess(AccessFilesetname val){ conversion = 'G'; subitem = val; };
     
 
     
@@ -575,9 +575,9 @@ public class JZcmdScript extends CompiledScript
     public String identArgJbat;
     
     /**Set whether the argument is a filepath. The the references of JZcmditem are null.*/
-    protected FilePath filepath;
+    //protected FilePath filepath;
     
-    protected AccessFilesetname accessFileset;
+    //protected AccessFilesetname accessFileset;
    
     public Argument(StatementList parentList){
       super(parentList, '.');
@@ -890,14 +890,19 @@ public class JZcmdScript extends CompiledScript
     String filesetVariableName;
     
     /**The filepath for the fileset. */
-    FilePath accessPath;
+    //FilePath accessPath;
     
     public AccessFilesetname(StatementList list){
       super(list, 'G');
     }
     
+    /**For ZbnfJavaOutput: <""?accessPath>. Note that the access path can be given with an text expression,
+     * then it is stored in {@link JZcmditem#statementlist}.
+     * 
+     */
     public void set_accessPath(String val){
-      accessPath = new FilePath(val);  //prepare it with its parts.
+      textArg = val;
+      //accessPath = new FilePath(val);  //prepare it with its parts.
     }
 
     /**For ZbnfJavaOutput: The first occurrence of &name is checked whether it is a accesspath or a fileset.
@@ -905,16 +910,11 @@ public class JZcmdScript extends CompiledScript
     public void set_accessPathOrFilesetVariable(String val){ 
       if(val.startsWith("&") && StringFunctions.indexOfAnyChar(val, 0, val.length(), "\\/:") <0){
         //contains only &name
-        filesetVariableName = val.substring(1);
+        filesetVariableName = val.substring(1);  //Note: nevertheless it may be an accessPath, check in set_zmakeFilesetVariable  
       } else {
-        accessPath = new FilePath(val);  //prepare it with its parts.
+        textArg = val;
+        //accessPath = new FilePath(val);  //prepare it with its parts.
       }
-      
-      
-      
-      
-      
-      
     }
 
     
@@ -925,10 +925,11 @@ public class JZcmdScript extends CompiledScript
      */
     public void set_zmakeFilesetVariable(String val){
       if(filesetVariableName !=null){
-        assert(accessPath == null);
+        //assert(accessPath == null);
         //a simple accessPath "&name" was recognized as the filesetVariablebame,
         //but it is an accessPath really.
-        accessPath = new FilePath("&" + filesetVariableName);  //create afterward.
+        textArg = "&" + filesetVariableName;
+        //accessPath = new FilePath("&" + filesetVariableName);  //create afterward.
       }
       this.filesetVariableName = val; 
     }

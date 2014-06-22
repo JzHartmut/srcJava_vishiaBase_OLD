@@ -205,6 +205,8 @@ public class MsgDispatcherCore implements LogMessage
      * It is important especially in fast embedded systems.
      */
     boolean bUseText;
+    
+    public @Java4C.exclude @Override String toString(){ return name + ":" + outputIfc; }
   }
   
   long idThreadForDispatching;
