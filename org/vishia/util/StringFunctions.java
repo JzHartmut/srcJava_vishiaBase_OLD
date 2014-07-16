@@ -736,7 +736,7 @@ public class StringFunctions {
    * @return The output string with replaces backslash pairs. It is a non-referenced StringBuilder
    *   if the src contains transcription chars, it is src itself if src does not contain transcription chars.
    */
-  public static CharSequence convertTranscription(CharSequence src, char transcriptChar)
+  public static CharSequence convertTransliteration(CharSequence src, char transcriptChar)
   { CharSequence sResult;
     int posSwitch = indexOf(src,0, src.length(), transcriptChar);
     if(posSwitch < 0)

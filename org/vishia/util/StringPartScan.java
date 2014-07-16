@@ -582,36 +582,57 @@ public class StringPartScan extends StringPart
   /*=================================================================================================================*/
   /*=================================================================================================================*/
   /*=================================================================================================================*/
-  /** Gets a String with translitaration.
+  /** Gets a String with transliteration.
    *  The end of the string is determined by any of the given chars.
    *  But a char directly after the escape char \ is not detected as an end char.
    *  Example: getCircumScriptionToAnyChar("\"") ends not at a char " after an \,
-   *  it detects the string "this is a \"quotion\"!".
-   *  Every char after the \ is accepted. But the known subscription chars
+   *  it detects the string "this is a \"quotation\"!".
+   *  Every char after the \ is accepted. But the known transliteration chars
    *  \n, \r, \t, \f, \b are converted to their control-char- equivalence.
    *  The \s and \e mean begin and end of text, coded with ASCII-STX and ETX = 0x2 and 0x3.</br></br>
    *  The actual part is tested for this, after this operation the actual part begins
    *  after the getting chars!
-   *  @param sCharsEnd Assembling of chars determine the end of the part.  
+   *  @param sCharsEnd Assembling of chars determine the end of the part.
+   *  @see #scanToAnyChar(CharSequence[], String, char, char, char), 
+   *  this method allows all transliteration and quotation characters.  
    * */
   public final CharSequence getCircumScriptionToAnyChar(String sCharsEnd)
   { return getCircumScriptionToAnyChar_p(sCharsEnd, false);
   }
   
   
+  /** Gets a String with transliteration and skip over quotation while searchin.
+   *  @param sCharsEnd Assembling of chars determine the end of the part.
+   *  @see #getCircumScriptionToAnyChar(String)
+   *  @see #scanToAnyChar(CharSequence[], String, char, char, char), 
+   *  this method allows all transliteration and quotation characters.  
+   * */
   public final CharSequence getCircumScriptionToAnyCharOutsideQuotion(String sCharsEnd)
   { return getCircumScriptionToAnyChar_p(sCharsEnd, true);
   }
   
   
   private final CharSequence getCircumScriptionToAnyChar_p(String sCharsEnd, boolean bOutsideQuotion)
-  { CharSequence sResult;
+  { 
+    char quotationChar = bOutsideQuotion ? '\"' : 0;
+    int posEnd = indexOfAnyChar(sCharsEnd, 0, end-begin, '\\', quotationChar, quotationChar);
+    if(posEnd >=0){
+      lento(posEnd);
+      CharSequence ret = StringFunctions.convertTransliteration(getCurrentPart(), '\\');
+      fromEnd();
+      return ret;
+    } else {
+      return "";
+    }
+    
+    /*
+    CharSequence sResult;
     if(begin == 4910)
       Assert.stop();
     final char cEscape = '\\';
     int posEnd    = (sCharsEnd == null) ? end 
                   : bOutsideQuotion ? indexOfAnyCharOutsideQuotion(sCharsEnd, 0, end-begin)
-                                    : indexOfAnyChar(sCharsEnd);
+                                    : indexOfAnyChar(sCharsEnd, 0, end-begin);
     if(posEnd < 0) posEnd = end - begin;
     //int posEscape = indexOf(cEscape);
     //search the first escape char inside the string.
@@ -640,21 +661,33 @@ public class StringPartScan extends StringPart
     }
     fromEnd();
     return sResult;
+    */
   }
 
 
   
-  /**Scans a String with transcription till one of end characters, maybe outside any quotation.
-   *  The end of the string is determined by any of the given chars.
-   *  But a char directly after the transcription char is not detected as an end char.
-   *  Example: scanTranscriptionToAnyChar(dst, "<", '\\', '\"', '\"') 
-   *  does not end at a char > after an \ and does not end inside the quotation,
-   *  it detects the string "this \< is a \"quotation\"!" till a simple "<".
-   *  Every char after the transcriptChar is accepted. But the known subscription chars
-   *  \n, \r, \t, \f, \b are converted to their control-char- equivalence.
-   *  The \s and \e mean begin and end of text, coded with ASCII-STX and ETX = 0x2 and 0x3.</br></br>
-   *  The actual part is tested for this, after this operation the actual part begins
-   *  after the getting chars!
+  /**Scans a String with maybe transliterated characters till one of end characters, 
+   * maybe outside any quotation. A transliterated character is a pair of characters 
+   * with the special transliteration char, usual '\' followed by any special char. 
+   * This pair of characters are not regarded while search the end of the text part, 
+   * and the transliteration will be resolved in the result (dst) String.
+   * <br>
+   * The end of the string is determined by any of the given chars.
+   * But a char directly after the transliteration char is not detected as an end char.
+   * Example: <pre>scanToAnyChar(dst, ">?", '\\', '\"', '\"')</pre> 
+   * does not end at a char > after an \ and does not end inside the quotation.
+   * If the following string is given: 
+   * <pre>a text -\>arrow, "quotation>" till > ...following</pre> 
+   * then the last '>' is detected as the end character. The first one is a transcription,
+   * the second one is inside a quotation.
+   * <br><br>
+   * The meaning of the transliterated characters is defined in the routine
+   * {@link StringFunctions#convertTranscription(CharSequence, char)}: 
+   * Every char after the transcriptChar is accepted. But the known transcription chars
+   * \n, \r, \t, \f, \b are converted to their control-char- equivalence.
+   * The \s and \e mean begin and end of text, coded with ASCII-STX and ETX = 0x2 and 0x3.</br></br>
+   * The actual part is tested for this, after this operation the actual part begins
+   * after the gotten chars!
    *
    * @param dst if it is null, then no result will be stored, elsewhere a CharSequence[1].
    * @param sCharsEnd End characters
@@ -663,17 +696,17 @@ public class StringPartScan extends StringPart
    * @param quotationEndChar The end char, typically '\"', may be ">" or such, 0 if not used
    * @return
    * @since 2013-09-07
+   * @see {@link StringPart#indexOfAnyChar(String, int, int, char, char, char)}, used here.
+   * @see {@link StringFunctions#convertTransliteration(CharSequence, char)}, used here.
    */
-  public final StringPartScan scanTranscriptionToAnyChar(CharSequence[] dst, String sCharsEnd
+  public final StringPartScan scanToAnyChar(CharSequence[] dst, String sCharsEnd
       , char transcriptChar, char quotationStartChar, char quotationEndChar)
   { if(scanEntry()){
-      if(begin == 4910)
-        Assert.stop();
       int posEnd = indexOfAnyChar(sCharsEnd, 0, end-begin, transcriptChar, quotationStartChar, quotationEndChar);
       if(posEnd >=0){
         lento(posEnd);
         if(dst !=null){
-          dst[0] = StringFunctions.convertTranscription(getCurrentPart(), transcriptChar);
+          dst[0] = StringFunctions.convertTransliteration(getCurrentPart(), transcriptChar);
         }
         fromEnd();
       } else {

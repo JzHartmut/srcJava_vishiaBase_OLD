@@ -1209,30 +1209,64 @@ return this;
 
  
   
-  /**Returns the position of some chars in the current part. 
-   * @param sq given CharSequence 
-   * @param sChars Some chars to search in sq
-   *   If sChars contains a EOT character (code 03, {@link #cEndOfText}) then the search stops at this character 
-   *   or it is continued to the end of the range in sq. Then the length of the text range is returned
-   *   if another character in sChars is not found. 
-   *   It means: The end of the text range is adequate to an EOT-character. Note that EOT is not unicode,
-   *   but it is an ASCII control character.  
-   * @param fromWhere start position in current part, often 0
-   * @param maxToTest maybe {@link java.lang.Integer#MAX_VALUE}.
-   * @return -1 if not found, elsewhere position in the current part, >=fromWhere.
-   */
-  public final int indexOfAnyChar(String sChars, final int fromWhere, final int maxToTest)
-  {
-    int pos = begin + fromWhere;
-    int max = (end - pos) < maxToTest ? end : pos + maxToTest;
-    int found = StringFunctions.indexOfAnyChar(content, pos, max, sChars); 
-    if(found <0) return found;
-    else return found - begin;  //
-  }
+/**Searches any char contained in sChars in the current part
+ * Example: The given string in the current part is
+ * <pre>abc end:zxy</pre>
+ * The calling is
+ * <pre>indexOfAnyChar("xyz", 0, 20);</pre>
+ * The result is 8 because the character 'z' is found first as the end char.
+ * 
+ * @param fromWhere Offset after begin to begin search. It may be 0 often.
+ * @param sChars Some chars to search in sq
+ *   If sChars contains a EOT character (code 03, {@link #cEndOfText}) then the search stops at this character 
+ *   or it is continued to the end of the range in sq. Then the length of the text range is returned
+ *   if another character in sChars is not found. 
+ *   It means: The end of the text range is adequate to an EOT-character. Note that EOT is not unicode,
+ *   but it is an ASCII control character.  
+ * @param maxToTest number of character to test from fromWhere. 
+ *   If maxToTest is greater then the length of the current part, only the whole current part is tested.
+ *   Especially Integer.MAXVALUE and beu used. 
+ * @return -1 if no character from sChars was found in the current part. 
+ *   0.. Position of the found character inside the current part, but >= fromWhere
+ */
+public final int indexOfAnyChar(String sChars, final int fromWhere, final int maxToTest)
+{
+  int pos = begin + fromWhere;
+  int max = (end - pos) < maxToTest ? end : pos + maxToTest;
+  int found = StringFunctions.indexOfAnyChar(content, pos, max, sChars); 
+  if(found <0) return found;
+  else return found - begin;  //
+}
   
-  /**Returns the position of one of the chars in sChars within the part, started inside the part with fromIndex,
+
+
+
+/**Returns the position of one of the chars in sChars within the part, started inside the part with fromIndex,
   returns -1 if the char is not found in the part started from 'fromIndex'.
- @param sChars contents some chars to find. If it contains the char with code {@link #cEndOfText}
+  It may regard transcription characters and it regard quotation. 
+  A transcription character is a pair of characters 
+  with the transcriptionChar, usual '\' followed by any special char. This pair of characters
+  are not regarded while search the end of the text part, and the transcription
+  will be resolved in the result (dst) String.
+  <br>
+  The end of the string is determined by any of the given chars.
+  But a char directly after the transcription char is not detected as an end char.
+  Example: <pre>scanTranscriptionToAnyChar(dst, ">?", '\\', '\"', '\"')</pre> 
+  does not end at a char > after an \ and does not end inside the quotation.
+  If the following string is given: 
+  <pre>a text -\>arrow, "quotation>" till > ...following</pre> 
+  then the last '>' is detected as the end character. The first one is a transcription,
+  the second one is inside a quotation.
+  <br><br>
+  The meaning of the transcription characters is defined in the routine
+  {@link StringFunctions#convertTranscription(CharSequence, char)}: 
+  Every char after the transcriptChar is accepted. But the known transcription chars
+  \n, \r, \t, \f, \b are converted to their control-char- equivalence.
+  The \s and \e mean begin and end of text, coded with ASCII-STX and ETX = 0x2 and 0x3.</br></br>
+  The actual part is tested for this, after this operation the actual part begins
+  after the gotten chars!
+  
+ @param sChars contains some chars to find. If it contains the char with code {@link #cEndOfText}
    then the number of chars till the end of this text are returned if no char was found.
    If a char with code of {@link #cEndOfText} is found in this string, it is the end of this search process too.
  @param fromIndex begin of search within the part.
@@ -1393,36 +1427,38 @@ public final int lastIndexOfAnyChar(String sChars, final int fromWhere, final in
 
 
 
-/** Searches any char contented in sChars,
-* but skip over quotions while testing. Example: The given string is<pre>
-* abc "yxz" end:zxy</pre>
-* The calling is<pre>
-* lentoAnyCharOutsideQuotion("xyz", 20);</pre>
-* The result current part is<pre>
-* abc "yxz" end:</pre>
-* because the char 'z' is found first as the end char, but outside the quoted string "xyz".
+/** Searches any char contained in sChars in the current part
+* but skip over quotations while testing. Example: The given string in the current part is
+* <pre>abc "yxz" end:zxy</pre>
+* The calling is
+* <pre>lentoAnyCharOutsideQuotion("xyz", 20);</pre>
+* The result is 14 because the character 'z' is found first as the end char, but outside the quoted string "xyz".
+* 
 * @param sChars One of this chars is a endchar. It may be null: means, every chars is a endchar.
-* @param fromWhere Offset after begin to begin search. It may be 0 in many cases.
-* @param maxToTest
-* @return
+* @param fromWhere Offset after begin to begin search. It may be 0 often.
+* @param maxToTest number of character to test from fromWhere. 
+*   If maxToTest is greater then the length of the current part, only the whole current part is tested.
+*   Especially Integer.MAXVALUE and beu used. 
+* @return -1 if no character from sChars was found in the current part. 
+*   0.. Position of the found character inside the current part, but >= fromWhere
 */
 public final int indexOfAnyCharOutsideQuotion(String sChars, final int fromWhere, final int maxToTest)
 { int pos = begin + fromWhere;
- int max = (end - pos) < maxToTest ? end : begin + maxToTest;
- boolean bNotFound = true;
- while(pos < max && bNotFound)
- { char cc = content.charAt(pos);
-   if(cc == '\"')
-   { int endQuotion = indexEndOfQuotion('\"', pos - begin, max - begin);
-     if(endQuotion < 0){ pos = max; }
-     else{ pos = endQuotion + begin; }
-   }
-   else
-   { if(sChars.indexOf(cc) >= 0){ bNotFound = false; }
-     else{ pos +=1; }
-   }
- }
- return (bNotFound) ? -1 : (pos - begin);
+  int max = (end - pos) < maxToTest ? end : begin + maxToTest;
+  boolean bNotFound = true;
+  while(pos < max && bNotFound)
+  { char cc = content.charAt(pos);
+    if(cc == '\"')
+    { int endQuotion = indexEndOfQuotion('\"', pos - begin, max - begin);
+      if(endQuotion < 0){ pos = max; }
+      else{ pos = endQuotion + begin; }
+    }
+    else
+    { if(sChars.indexOf(cc) >= 0){ bNotFound = false; }
+      else{ pos +=1; }
+    }
+  }
+  return (bNotFound) ? -1 : (pos - begin);
 }
 
 
