@@ -338,6 +338,7 @@ public class JZcmdScript extends CompiledScript
     }
     
 
+    public void set_plainText(String text) { if(text.length() >0) set_text(text); } 
 
 
     public void set_text(String text) { 
@@ -1297,7 +1298,7 @@ public class JZcmdScript extends CompiledScript
   public static class ForStatement extends CondStatement
   {
     
-    String forVariable;
+    String forVariable, checkForVariable;
     
     
     JZcmdDataAccess forContainer;
@@ -1309,6 +1310,8 @@ public class JZcmdScript extends CompiledScript
     
     public void set_forVariable(String name){ this.forVariable = name; }
 
+    
+    public void set_checkForVariable(String name){ this.checkForVariable = name; }
     
     public JZcmdDataAccess new_forContainer() { 
       return new JZcmdDataAccess(); 
@@ -1475,7 +1478,7 @@ public class JZcmdScript extends CompiledScript
   public static class CallStatement extends AssignExpr
   {
     
-    public JZcmditem callName;
+    JZcmditem call_Name;
     
     /**Argument list either actual or formal if this is a subtext call or subtext definition. 
      * Maybe null if the subtext has not argument. It is null if it is not a subtext call or definition. */
@@ -1487,7 +1490,7 @@ public class JZcmdScript extends CompiledScript
       super(parentList, elementType);
     }
     
-    public JZcmditem new_callName(){ return callName = new Argument(parentList); }
+    public JZcmditem new_callName(){ return call_Name = new Argument(parentList); }
     
     public void set_callName(JZcmditem val){}
     
@@ -1502,7 +1505,7 @@ public class JZcmdScript extends CompiledScript
     
     
     @Override void writeStructAdd(int indent, Appendable out) throws IOException{
-      callName.writeStruct(0, out);
+      call_Name.writeStruct(0, out);
       if(actualArgs !=null){
         for(Argument item: actualArgs){
           item.writeStruct(indent+1, out);

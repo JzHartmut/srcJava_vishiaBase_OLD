@@ -1320,7 +1320,7 @@ public class JZcmdExecuter {
       } else {
         nameSubtext = statement.name;
       }*/
-      nameSubtext = evalString(callStatement.callName); 
+      nameSubtext = evalString(callStatement.call_Name); 
       JZcmdScript.Subroutine subtextScript = jzcmdScript.getSubroutine(nameSubtext);  //the subtext script to call
       if(subtextScript == null){
         throw new NoSuchElementException("JbatExecuter - subroutine not found; " + nameSubtext);
