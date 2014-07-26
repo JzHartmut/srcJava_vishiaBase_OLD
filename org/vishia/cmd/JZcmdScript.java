@@ -2031,7 +2031,7 @@ public class JZcmdScript extends CompiledScript
     }
     
     
-    public void set_transcription(String val){
+    public void set_transliteration(String val){
       JZcmditem statement = new JZcmditem(this, '\\');
       char cc = val.charAt(0);
       switch(cc){
