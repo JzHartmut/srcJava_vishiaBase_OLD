@@ -17,7 +17,7 @@ import org.vishia.event.Event;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventThread;
-import org.vishia.fileLocalAccessor.FileAccessorLocalJava7;
+import org.vishia.fileLocalAccessor.FileAccessorLocalJava6;
 import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
@@ -112,6 +112,9 @@ public class FileRemote extends File implements MarkMask_ifc
 
   /**Version, history and license.
    * <ul>
+   * <li>2014-07-30 Hartmut new: calling {@link FileAccessorLocalJava6#selectLocalFileAlways} in {@link #getAccessorSelector()}
+   *   for compatibility with Java6. There the existence of java.nio.file.Files is checked, and the File access
+   *   in Java7 is used if available. So this class runs with Java6 too, which is necessary in some established environments.
    * <li>2013-10-06 Hartmut new: {@link #getChildren(ChildrenEvent)} with aborting a last request.
    * <li>2013-09-15 Hartmut new: {@link #getChildren(ChildrenEvent)} should work proper with
    *   {@link java.nio.file.Files#walkFileTree(java.nio.file.Path, java.util.Set, int, java.nio.file.FileVisitor)}.
@@ -580,7 +583,7 @@ public class FileRemote extends File implements MarkMask_ifc
   
   static FileRemoteAccessorSelector getAccessorSelector(){
     if(accessorSelector == null){
-      accessorSelector = FileAccessorLocalJava7.selectLocalFileAlways;
+      accessorSelector = FileAccessorLocalJava6.selectLocalFileAlways;
       // accessorSelector = FileAccessorLocalJava7.selectLocalFileAlways;
     }
     return accessorSelector;
