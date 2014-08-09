@@ -22,6 +22,7 @@ import org.vishia.util.FilePath;
 import org.vishia.util.FileSet;
 import org.vishia.util.SetLineColumn_ifc;
 import org.vishia.util.StringFunctions;
+import org.vishia.xmlSimple.XmlNode;
 
 
 
@@ -40,6 +41,7 @@ public class JZcmdScript extends CompiledScript
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-08-10 Hartmut new: !checkXmlFile = filename; 
    * <li>2014-06-12 Hartmut new: {@link JZcmditem#scriptException(String)} 
    * <li>2014-06-07 Hartmut new: {@link DefClassVariable} with {@link DefClassVariable#loader}:
    *   Syntax: Class var = :loader: package.path.Class; with a loader. 
@@ -144,7 +146,14 @@ public class JZcmdScript extends CompiledScript
    */
   Subroutine mainRoutine;
   
+  /**Text expression for a file name where the script content is written to. */
   protected JZcmditem checkJZcmdFile;
+  
+  /**Text expression for a file name where the parsed script in XML is written to. */
+  JZcmditem checkJZcmdXmlFile;
+  
+  /**Only set if checkJZcmdXmlFile is not null, removed after processing. */
+  XmlNode xmlSrc;
   
   /**The class which presents the script level. */
   JZcmdClass scriptClass;
@@ -2429,16 +2438,26 @@ public class JZcmdScript extends CompiledScript
     
     
     
-    public JZcmditem new_checkJZcmd(){ return new JZcmditem(this, '\0'); } 
+    public JZcmditem new_checkJZcmdFile(){ return new JZcmditem(this, '\0'); } 
 
-    public void add_checkJZcmd(JZcmditem val){ compiledScript.checkJZcmdFile = val; }
+    public void add_checkJZcmdFile(JZcmditem val){ compiledScript.checkJZcmdFile = val; }
+
+    
+    public JZcmditem new_checkXmlFile(){ return new JZcmditem(this, '\0'); } 
+
+    public void add_checkXmlFile(JZcmditem val){ compiledScript.checkJZcmdXmlFile = val; }
 
     
     public void setMainRoutine(Subroutine mainRoutine){
       compiledScript.mainRoutine = mainRoutine;
     }
     
+    public boolean isXmlSrcNecessary(){ return compiledScript.checkJZcmdXmlFile !=null; }
 
+    public void setXmlSrc(XmlNode xmlSrc){
+    	compiledScript.xmlSrc = xmlSrc;	
+    }
+    
     
   }
   

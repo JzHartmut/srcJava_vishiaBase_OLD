@@ -60,6 +60,7 @@ public class StringFormatter implements Appendable, Closeable, Flushable
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-08-10: Hartmut bugfix: {@link #append(char)}: if more as one line feed 0d 0a 0d 0a follows, it was recognized as only one line feed. 
    * <li>2014-05-10: Hartmut new: implements Closeable, {@link #close()}, 
    *   ctor {@link #StringFormatter(Appendable, boolean, String, int)} to close the aggregated appendable.
    *   Need for JZcmd 
@@ -99,7 +100,7 @@ public class StringFormatter implements Appendable, Closeable, Flushable
    * 
    * 
    */
-  public static final String version = "2013-03-31";
+  public static final String version = "2014-08-10";
   
   private static final byte mNrofBytesInWord = 0x1F;
 
@@ -1101,10 +1102,14 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
 
 
 
+  /**Appends on char. If the char is a 0x0d 0r 0x0a (carriage return, line-feed), the buffered line ({@link #buffer} is output
+   * and a {@link #sNewline} is added. If a 0x0a is given and the last char is 0x0d, this char is prevented because 0d 0a is only one line feed. 
+   * @see java.lang.Appendable#append(char)
+   */
   @Override
   public StringFormatter append(char c) throws IOException { 
     if(lineout !=null && (c == '\n' || c=='\r')){
-      if(c == '\n' && lastNewline != '\r' || c=='\r' && lastNewline != '\n'){
+      if(lastNewline != '\r' ){   //bug: 0d0a0d0a creates only one line:  || c=='\r' && lastNewline != '\n'){
         lineout.append(buffer, 0, pos);
         lineout.append(sNewline);
         buffer.delete(0, pos);

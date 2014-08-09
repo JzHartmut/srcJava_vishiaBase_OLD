@@ -40,6 +40,8 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-08-10 Hartmut bugfix: on push to stack operation the type of the new level should start with {@value #startExpr} already
+   *   because the new level is a new start type. The operation with the pushed value is done later, the adjusting of types should be done later too! 
    * <li>2014-02-22 Hartmut chg: now string >= string2 tests 'startswith' instead alphabetiv comparison. 
    * <li>2014-02-22 Hartmut new: {@link #calcDataAccess(Map, Object...)} accepts {@link Value} as return of dataAccess.
    *   A Value is stored for Num variables in JZcmd especially.
@@ -117,7 +119,8 @@ public class CalculatorExpr
      * <li>J I D F Z: long, int, double, boolean, the known Java characters for types see {@link java.lang.Class#getName()}
      * <li>o: The oVal contains any object.
      * <li>t: A character sequence stored in stringVal,
-     * <li>d: Access via the data path using reflection
+     * <li>a: An Appendable,
+     * <li>old: d: Access via the data path using reflection
      * </ul>
      */
     protected char type = '?';
@@ -412,6 +415,9 @@ public class CalculatorExpr
 
     @Override public char typeChar() { return 'Z'; }
     
+    /**Converts the value of val2 to boolean because a booleanExpr is required. 
+     * @see org.vishia.util.CalculatorExpr.ExpressionType#checkArgument(org.vishia.util.CalculatorExpr.Value, org.vishia.util.CalculatorExpr.Value)
+     */
     @Override public ExpressionType checkArgument(Value accu, Value val2) {
       switch(val2.type){
         case 'C': 
@@ -460,23 +466,41 @@ public class CalculatorExpr
     
     @Override public char typeChar() { return 'o'; }
     
-    /**Converts both operands to strings and returns stringExpression
+    /**If the accu is clear, sets the accu from val2 and returns the type of val2, elsewhere converts both operands to strings and returns stringExpression.
+     * First one is on set operation, the second for string concatenation.
      * @see org.vishia.util.CalculatorExpr.ExpressionType#checkArgument(org.vishia.util.CalculatorExpr.Value, org.vishia.util.CalculatorExpr.Value)
      */
     @Override public ExpressionType checkArgument(Value accu, Value val2) {
-      if(accu.type !='t'){
-        //especially any object.
-        accu.stringVal = accu.stringValue();
-        accu.type = 't';
+      if(accu.type == '?'){
+      	assert(false);   //should never true because if accu.type=='?' the type of expression should be set to startExpr
+      	accu.type = val2.type;
+      	switch(val2.type){
+      		case 'Z': return booleanExpr;
+      		case 'D': return doubleExpr;
+      		case 'F': return floatExpr;
+      		case 'I': return intExpr;
+      		case 'J': return longExpr;
+      		case 'o': return objExpr;
+      		case 't': return stringExpr; 
+          case '?': throw new IllegalArgumentException("the type is not determined while operation.");
+          default: throw new IllegalArgumentException("unknown type char: " + val2.type);
+        }//switch
       }
-      if(val2.type !='t'){ 
-        val2.stringVal = val2.stringValue();
-        val2.type = 't';
+      else {
+        if(accu.type !='t'){
+          //especially any object.
+          accu.stringVal = accu.stringValue();
+          accu.type = 't';
+        }
+        if(val2.type !='t'){ 
+          val2.stringVal = val2.stringValue();
+          val2.type = 't';
+        }
+        return stringExpr;
       }
-      return stringExpr;
     }
 
-    @Override public String toString(){ return "Type=t"; }
+    @Override public String toString(){ return "Type=o"; }
 
 
   };
@@ -1788,7 +1812,7 @@ public class CalculatorExpr
         } else if(oval2 instanceof Value){
           val2 = (Value)oval2;
         } else {
-          val2 = val2jar;
+          val2 = val2jar;  //use the class member for rightside operand.
           //Convert a Object-wrapped value into its real representation.
           if(oval2 instanceof Long)             { val2.longVal =   ((Long)oval2).longValue(); val2.type = 'J'; }
           else if(oval2 instanceof Integer)     { val2.intVal = ((Integer)oval2).intValue(); val2.type = 'I'; }
@@ -1802,8 +1826,9 @@ public class CalculatorExpr
           val2.oVal = oval2;;
         }
         if(oper.operator == Operators.setOperation && accu.type != '?'){
-          stack.push(accu);
+          stack.push(accu);    //the accu is filled with a value, therefore push it and replace the accu with the new value. The accu is the top of stack substantially.
           accu = new Value();
+          type = startExpr;
         }
         //Convert the value adequate the given type of expression:
         if(!oper.operator.isUnary()){  //if unary, don't change the type

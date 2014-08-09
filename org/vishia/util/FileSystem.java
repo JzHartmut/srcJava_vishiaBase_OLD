@@ -75,6 +75,7 @@ public class FileSystem
   /**Version, history and license.
    * Changes:
    * <ul>
+   * <li>2014-08-01 Hartmut bugfix in {@link #grep1line(File, String)}: Should close the file. Nobody does it elsewhere.
    * <li>2014-06-03 Hartmut bugfix in {@link #normalizePath(CharSequence)}: it has not deleted
    *   <code>path/folder/folder/../../ because faulty following start search position. 
    * <li>2014-05-10 Hartmut new: {@link #delete(String)} 
@@ -463,7 +464,10 @@ public class FileSystem
   {
   	if(file.exists()) return;
   	String sName = file.getAbsolutePath();
-  	if(file.isDirectory()){ assert(false); sName = sName + "/"; }
+  	if(file.isDirectory()){ 
+      //assert(false); 
+  	  sName = sName + "/"; 
+    }
   	mkDirPath(sName);
   }
   
@@ -1346,7 +1350,7 @@ public class FileSystem
   
   
 
-  /**Searches the first lien with given text in 1 file, returns the line or null.
+  /**Searches the first line with given text in 1 file, returns the line or null.
    * @param file The file
    * @param what content to search, a simple text, not an regular expression.
    * @return null if nothing was found, elsewhere the line.
@@ -1364,6 +1368,7 @@ public class FileSystem
         retLine = sLine;  //breaks
       }
     }
+    r1.close();
     return retLine;
   }
 

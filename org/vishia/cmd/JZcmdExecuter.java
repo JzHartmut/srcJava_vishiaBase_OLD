@@ -4,8 +4,10 @@ package org.vishia.cmd;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
 import java.lang.reflect.InvocationTargetException;
@@ -32,6 +34,7 @@ import javax.script.ScriptException;
 
 
 
+
 import org.vishia.cmd.CmdExecuter;
 import org.vishia.mainCmd.MainCmd;
 import org.vishia.mainCmd.MainCmdLoggingStream;
@@ -51,6 +54,7 @@ import org.vishia.util.StringPartAppend;
 import org.vishia.util.StringSeq;
 import org.vishia.util.CalculatorExpr.Value;
 import org.vishia.util.IndexMultiTable.Provide;
+import org.vishia.xmlSimple.SimpleXmlOutputter;
 
 
 /**This class is the executer of JZcmd. The translated JZscript is contained in an instance of {@link JZcmdScript}. 
@@ -81,6 +85,7 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-08-10 Hartmut new: !checkXmlFile = filename; 
    * <li>2014-07-27 Hartmut bugfix: {@link ExecuteLevel#exec_hasNext(org.vishia.cmd.JZcmdScript.JZcmditem, StringFormatter, int, boolean, int)}
    * <li>2014-07-27 Hartmut chg: save one level for recursive execution, less stack, better able to view
    *   by calling {@link ExecuteLevel#execute(org.vishia.cmd.JZcmdScript.StatementList, StringFormatter, int, boolean, Map, int)}immediately.
@@ -490,12 +495,27 @@ public class JZcmdExecuter {
       setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
       } catch(IllegalAccessException exc){ throw new ScriptException("JZcmd.execute - IllegalAccessException; " + exc.getMessage()); }
       ExecuteLevel execFile = new ExecuteLevel(scriptThread, scriptLevel, null);
+      if(jzcmdScript.checkJZcmdXmlFile !=null) {
+        CharSequence sFilecheckXml;
+        try { sFilecheckXml = execFile.evalString(jzcmdScript.checkJZcmdXmlFile);
+        } catch (Exception exc) { throw new ScriptException("JZcmd.execute - String eval error on checkJZcmd; "
+            , jzcmdScript.checkJZcmdXmlFile.srcFile, jzcmdScript.checkJZcmdXmlFile.srcLine, jzcmdScript.checkJZcmdXmlFile.srcColumn ); 
+        }
+        SimpleXmlOutputter xmlOutputter = new SimpleXmlOutputter();
+        try{
+          OutputStreamWriter xmlWriter = new OutputStreamWriter(new FileOutputStream(sFilecheckXml.toString()));
+          xmlOutputter.write(xmlWriter, jzcmdScript.xmlSrc);
+          xmlWriter.close();
+          jzcmdScript.xmlSrc = null;  //can be garbaged.
+        } catch(IOException exc){ throw new ScriptException(exc); }
+      	
+      }
       if(jzcmdScript.checkJZcmdFile !=null){
-          CharSequence sFilecheck;
-          try { sFilecheck = execFile.evalString(jzcmdScript.checkJZcmdFile);
-          } catch (Exception exc) { throw new ScriptException("JZcmd.execute - String eval error on checkJZcmd; "
-              , jzcmdScript.checkJZcmdFile.srcFile, jzcmdScript.checkJZcmdFile.srcLine, jzcmdScript.checkJZcmdFile.srcColumn ); 
-          }
+        CharSequence sFilecheck;
+        try { sFilecheck = execFile.evalString(jzcmdScript.checkJZcmdFile);
+        } catch (Exception exc) { throw new ScriptException("JZcmd.execute - String eval error on checkJZcmd; "
+            , jzcmdScript.checkJZcmdFile.srcFile, jzcmdScript.checkJZcmdFile.srcLine, jzcmdScript.checkJZcmdFile.srcColumn ); 
+        }
         File filecheck = new File(sFilecheck.toString());
         try{
           Writer writer = new FileWriter(filecheck);
