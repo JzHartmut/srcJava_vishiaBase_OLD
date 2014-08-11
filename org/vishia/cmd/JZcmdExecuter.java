@@ -85,6 +85,8 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-08-10 Hartmut new: <:>...<.> as statement writes into the current out Buffer. Before: calculates an textexpression which is never used then.
+   *   In opposite:<+>...<.> writes to the main text output always, not to the current buffer. 
    * <li>2014-08-10 Hartmut new: !checkXmlFile = filename; 
    * <li>2014-07-27 Hartmut bugfix: {@link ExecuteLevel#exec_hasNext(org.vishia.cmd.JZcmdScript.JZcmditem, StringFormatter, int, boolean, int)}
    * <li>2014-07-27 Hartmut chg: save one level for recursive execution, less stack, better able to view
@@ -770,21 +772,7 @@ public class JZcmdExecuter {
     }
 
   
-    /**Processes the statement of the current node in the JZcmditem.
-     * @param contentScript 
-     * @param out The current output. Either it is a special output channel for <+channel>...<.+>
-     *   or it is the threadData.out or it is null if threadData.out is not initialized yet.
-     * @param indentOutArg The indentation in the script.
-     * @param bContainerHasNext Especially for <:for:element:container>SCRIPT<.for> to implement <:hasNext>
-     * @return
-     * @throws Exception
-     */
-    protected short XXXexecute(JZcmdScript.StatementList contentScript, final StringFormatter out, int indentOutArg, boolean bContainerHasNext, int nDebugP) 
-    //throws Exception 
-    { return execute(contentScript, out, indentOutArg, bContainerHasNext, localVariables, nDebugP);
-    }
 
-    
     /**Processes the statement of the current node in the JZcmditem.
      * @param statementList 
      * @param out The current output. Either it is a special output channel for <+channel>...<.+>
@@ -833,7 +821,8 @@ public class JZcmdExecuter {
           case '!': out.flush();  break;   //<.n+>
           case '_': out.close();  out = null; break;   //<.n+>
           case '\\': out.append(statement.textArg);  break;   //<:n> transcription
-          case 'T': ret = textAppendToVarOrOut((JZcmdScript.TextOut)statement, out, --nDebug1); break; //<+text>...<.+> 
+          case 'T': ret = textAppendToVar((JZcmdScript.TextOut)statement, --nDebug1); break; //<+text>...<.+> 
+          case ':': ret = textAppendToOut(statement, out, --nDebug1); break; //<+text>...<.+> 
           case 'A': break;  //used for Argument
           case 'X': break;  //used for dataStruct in Argument
           case 'U': ret = defineExpr(newVariables, (JZcmdScript.DefVariable)statement); break; //setStringVariable(statement); break; 
@@ -1281,7 +1270,44 @@ public class JZcmdExecuter {
      * @param statement the statement
      * @throws Exception 
      */
-    short textAppendToVarOrOut(JZcmdScript.TextOut statement, StringFormatter out, int nDebug) throws Exception
+    short textAppendToOut(JZcmdScript.JZcmditem statement, StringFormatter out, int nDebug) throws Exception
+    { short ret;
+      if(statement.statementlist !=null){
+        //executes the statement, use the Appendable to output immediately
+        synchronized(out){
+          ret = execute(statement.statementlist, out, statement.srcColumn, false, localVariables, nDebug);
+        }
+      } else {
+        //Any other text expression
+        CharSequence text = evalString(statement);
+        ret = text == JZcmdExecuter.retException ? kException : kSuccess;
+        if(text !=null){
+          synchronized(out){
+            out.append(text);
+          }
+        }
+      }
+      //if(bShouldClose){
+      //  out1.close();
+      //}
+      return ret;
+    }
+    
+    
+
+    
+    
+    
+    
+    
+    /**Invocation for <+name>text<.+>.
+     * It gets the Appendable from the assign variable
+     * and executes {@link #execute(org.vishia.cmd.JZcmdScript.StatementList, Appendable, boolean)}
+     * with it.
+     * @param statement the statement
+     * @throws Exception 
+     */
+    short textAppendToVar(JZcmdScript.TextOut statement, int nDebug) throws Exception
     { StringFormatter out1;
       //boolean bShouldClose;
       short ret;
@@ -1313,7 +1339,7 @@ public class JZcmdExecuter {
           //bShouldClose = false;
         }
       } else {
-        out1 = out;
+        out1 = textout;  //output to the text output.
         //bShouldClose = false;
       }
       if(statement.statementlist !=null){

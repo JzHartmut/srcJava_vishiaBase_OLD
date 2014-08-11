@@ -41,6 +41,8 @@ public class JZcmdScript extends CompiledScript
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-08-10 Hartmut new: <:>...<.> as statement writes into the current out Buffer. Before: calculates an textexpression which is never used then.
+   *   In opposite:<+>...<.> writes to the main text output always, not to the current buffer. 
    * <li>2014-08-10 Hartmut new: !checkXmlFile = filename; 
    * <li>2014-06-12 Hartmut new: {@link JZcmditem#scriptException(String)} 
    * <li>2014-06-07 Hartmut new: {@link DefClassVariable} with {@link DefClassVariable#loader}:
@@ -551,6 +553,7 @@ public class JZcmdScript extends CompiledScript
           case 'y': u.append(" copy "); break;
           case 'z': u.append(" exit "); break;
           case 'n': u.append(" newline "); break;
+          case ':': u.append(" <:> ... <.>"); break;
           case '!': u.append(" flush "); break;
           case '_': u.append(" close "); break;
           case ',': u.append(" errortoOutput "); if(textArg == null){ u.append("off "); } break;
@@ -1832,6 +1835,17 @@ public class JZcmdScript extends CompiledScript
     public void add_textOut(TextOut val){ 
       statements.add(val); 
     } 
+    
+    /**Gathers a text which is assigned to the out-instance
+     */
+    public StatementList new_textExpr(){ 
+      JZcmditem textExpr = new JZcmditem(this, ':');
+      statements.add(textExpr);
+      textExpr.statementlist = new StatementList(textExpr);
+      return textExpr.statementlist;
+    }
+
+    public void add_textExpr(StatementList val){ } 
     
     /**Defines a variable with initial value. <= <variableAssign?textVariable> \<\.=\>
      */
