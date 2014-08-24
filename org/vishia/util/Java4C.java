@@ -63,7 +63,12 @@ public interface Java4C {
    */
   public final static String sVersion = "2014-01-12"; 
 
+
   
+  /**Defines that the <code>Type instance = new Type(args);</code> is only used in this method, in Java garbaged after the end of the method
+   * and therefore it is possible to create an instance as Stack variable in C language.
+   * Assure that a reference of this instance is not stored outside of the routine!
+   */
   public @interface StackInstance{}
 	
   /**Sets that the following array has a fix size. It may be with or without a head - ObjectArrayJc.

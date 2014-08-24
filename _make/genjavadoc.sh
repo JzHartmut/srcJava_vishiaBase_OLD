@@ -1,7 +1,8 @@
 
 
-export DST="../../docuSrcJava_vishiaBase"
-export DST_priv="../../docuSrcJava_vishiaBase_priv"
+export DSTDIR="../../"
+export DST="docuSrcJava_vishiaBase"
+export DST_priv="docuSrcJava_vishiaBase_priv"
 
 export SRC="-subpackages org.vishia"
 export SRCPATH=".."
