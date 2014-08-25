@@ -117,6 +117,9 @@ public interface Java4C {
   /**The method is translated building a simple macro or inline method for C++. */
   public @interface inline{}
   
+  /**The method is translated building a simple macro or inline method for C++ which returns a value. */
+  public @interface retinline{}
+  
   /**The class contains only methods. The super class should be enhanced with that methods whithout build
    * a special class. */
   public @interface extendsOnlyMethods{}

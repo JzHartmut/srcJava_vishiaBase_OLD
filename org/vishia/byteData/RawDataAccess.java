@@ -58,10 +58,6 @@ public class RawDataAccess  extends ByteDataAccess
   } 
 
   
-  @Override
-  public void setBigEndian(boolean value)
-  { super.setBigEndian(value);
-  }
   
   
   

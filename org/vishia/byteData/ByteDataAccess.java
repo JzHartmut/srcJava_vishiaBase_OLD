@@ -186,7 +186,6 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
     bExpand = false;
     idxBegin = 0;
     idxEnd = 0;
-    idxFirstChild = 0;
     idxCurrentChild = -1;  //to mark start.
     idxCurrentChildEnd = 0;
     parent = null;
@@ -575,7 +574,7 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
     int sizeChildHead, sizeChild;
     if(child.idxCurrentChildEnd == kInitializedWithLength){
       //initialized child with its local length:
-      child.setSizeHead(child.idxFirstChild);
+      //child.setSizeHead(child.idxFirstChild);
       sizeChild = child.idxEnd;
     } else {
       //uninitialized child with length, or reused child:
@@ -752,36 +751,6 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
   }
   */
 
-  /**This method is especially usefully to debug in eclipse. 
-   * It shows the first bytes of head, the position of child and the first bytes of the child.
-   */
-  @Override
-  @Java4C.exclude
-  public String toString() 
-  { //NOTE: do not create a new object in every call, it is uneffective.
-    if(data==null){ return "no data"; }
-    else
-    { if(toStringformatter == null){ toStringformatter = new StringFormatter(); }
-      else { toStringformatter.reset(); }
-      toStringformatter.addint(idxBegin, "33331").add("..").addint(idxFirstChild,"333331").add(":");
-      int nrofBytes = idxFirstChild - idxBegin;
-      if(nrofBytes > 16){ nrofBytes = 16; }
-      if(nrofBytes <0){ nrofBytes = 4; }
-      if(idxBegin + nrofBytes > data.length){ nrofBytes = data.length - idxBegin; }  
-      toStringformatter.addHexLine(data, idxBegin, nrofBytes, bBigEndian? StringFormatter.k4left: StringFormatter.k4right);
-      toStringformatter.add(" child ").addint(idxCurrentChild,"-3331").add("..").addint(idxCurrentChildEnd,"-33331").add(":");
-      if(idxCurrentChild >= idxBegin)
-      { 
-        nrofBytes = idxCurrentChildEnd - idxCurrentChild;
-        if(nrofBytes > 16){ nrofBytes = 16; }
-        if(nrofBytes <0){ nrofBytes = 4; }
-        if(idxCurrentChild + nrofBytes > data.length){ nrofBytes = data.length - idxBegin; }  
-        toStringformatter.addHexLine(data, idxCurrentChild, nrofBytes, bBigEndian? StringFormatter.k4left: StringFormatter.k4right);
-      }
-      final String ret = toStringformatter.toString();
-      return ret;
-    }  
-  }
   
 
   

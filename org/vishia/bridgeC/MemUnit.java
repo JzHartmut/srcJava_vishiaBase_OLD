@@ -50,9 +50,5 @@ public class MemUnit extends ByteDataAccess
   { return 1;
   }
   
-  public void setBigEndian(boolean val)
-  {
-    super.setBigEndian(val);
-  }
   
 }
