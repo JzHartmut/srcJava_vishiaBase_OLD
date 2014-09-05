@@ -112,6 +112,9 @@ public class StringPart implements CharSequence, Comparable<CharSequence>, Close
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-09-05 Hartmut new: Twice methods {@link #indexOf(CharSequence)} and {@link #indexOf(String)}. 
+   *   The methods are the same in Java. But in C the handling of reference is different. In Java2C translation a StringJc does not base on CharSequence
+   *   because it is a simple reference to char[] and a length only. CharSequence needs ObjectJc and virtual methods. 
    * <li>2014-05-23 Hartmut new: {@link #getLineAndColumn(int[])} instead getLineCt() because it determines the column
    *   in one function instead extra call off {@link StringPart#getCurrentColumn()}. It is faster.   
    * <li>2014-05-22 Hartmut new: {@link #setInputfile(String)}, {@link #getInputfile()} 
@@ -558,7 +561,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
   /**Sets the full range of available text.
    * begin is set to 0, end is set to the length() of the content.
    */
-  @Java4C.inline 
+  @Java4C.Inline 
   public void setParttoMax(){
     begiMin = beginLast = begin = 0;
     endMax = end = endLast = content.length();
@@ -1076,7 +1079,7 @@ that is a liststring and his part The associated String
    * @param sSeek
    * @return
    */
-  @Java4C.inline
+  @Java4C.Inline
   public StringPart seek(String sSeek){ return seek(sSeek, seekNormal); }
   
   
@@ -1085,7 +1088,7 @@ that is a liststring and his part The associated String
    * @param sSeek
    * @return this
    */
-  @Java4C.inline
+  @Java4C.Inline
   public StringPart seekEnd(String sSeek){ return seek(sSeek, seekEnd); }
   
   
@@ -1916,17 +1919,33 @@ public final StringPart len0end()
 
 
   /** Returns the position of the string within the part. Returns -1 if the string is not found in the part.
-      Example: indexOf("abc") returns 6, indexOf("fgh") returns -1 <pre>
-         abcdefgabcdefghijk
-  part:   =============  </pre>
-    @param sCmp string to find
-    @return position of the string within the part or -1 if not found within the part.
-  */
-  public final int indexOf(CharSequence sCmp)
-  { int pos = StringFunctions.indexOf(content, begin, end, sCmp);  //content.substring(begin, end).indexOf(sCmp);
-    if(pos < 0) return -1;
-    else return pos - begin;
-  }
+  Example: indexOf("abc") returns 6, indexOf("fgh") returns -1 <pre>
+     abcdefgabcdefghijk
+part:   =============  </pre>
+@param sCmp string to find
+@return position of the string within the part or -1 if not found within the part.
+*/
+public final int indexOf(String sCmp)
+{ int pos = StringFunctions.indexOf(content, begin, end, sCmp);  //content.substring(begin, end).indexOf(sCmp);
+if(pos < 0) return -1;
+else return pos - begin;
+}
+
+
+
+
+/** Returns the position of the string within the part. Returns -1 if the string is not found in the part.
+Example: indexOf("abc") returns 6, indexOf("fgh") returns -1 <pre>
+   abcdefgabcdefghijk
+part:   =============  </pre>
+@param sCmp string to find
+@return position of the string within the part or -1 if not found within the part.
+*/
+public final int indexOf(CharSequence sCmp)
+{ int pos = StringFunctions.indexOf(content, begin, end, sCmp);  //content.substring(begin, end).indexOf(sCmp);
+if(pos < 0) return -1;
+else return pos - begin;
+}
 
 
 

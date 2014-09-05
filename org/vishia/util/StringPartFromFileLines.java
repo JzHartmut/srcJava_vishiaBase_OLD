@@ -113,9 +113,6 @@ public class StringPartFromFileLines extends StringPartScan
    *        and used as charset name. If the charset name is failed, a CharsetException is thrown.
    *        It means, a failed content of file may cause a charset exception.<br>
    *        
-   * @param charset If not null, this charset is used as default, if no other charset is found in the files first line,
-   *        see param sEncodingDetect. If null and not charset is found in file, the systems default charset is used.<br>
-   *        
    * @throws FileNotFoundException If the file is not found
    * @throws IOException If any other exception is thrown
    */

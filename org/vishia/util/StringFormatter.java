@@ -1067,7 +1067,7 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
    * @return
    */
   @SuppressWarnings("boxing")
-  @Java4C.exclude
+  @Java4C.Exclude
   public String convertTimestampToday(long timestamp){
     long dateNow = System.currentTimeMillis();
     long diffTime = dateNow - timestamp;

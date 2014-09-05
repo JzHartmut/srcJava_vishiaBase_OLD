@@ -32,7 +32,7 @@ import java.lang.annotation.RetentionPolicy;
 public interface Java4C {
   
   /**Version, history and license.
-   * <ul>
+   * <ul>2014-09-05 Hartmut chg all annotation written beginning with upper case letters.
    * <li>2012-08-22 Hartmut new {@link exclude} for elements and classes which should not be generated in C
    * <li>2011-01-05 Hartmut created: It is better to use java language annotations instead annotations in comment,
    *   because an selection/auto completion is available for them for example in Eclipse environment.
@@ -77,8 +77,38 @@ public interface Java4C {
   @Retention(RetentionPolicy.RUNTIME)
   public @interface FixArraySize{ int value(); }
 	
-  public @interface SimpleArray{  }
-	
+  /**Sets the following association as simple pointer in C, without garbage collection usage. 
+   * For example <pre>
+   *   MyClass element; 
+   * </pre>
+   * will be translated in C to <pre>
+   *   MyClass_pkg* element;
+   * </pre>  
+   */
+  public @interface SimpleRef{  }
+    
+  /**Sets the following array as simple reference. An byte[] in Java is a int8* in C. */
+  public @interface SimpleArrayRef{  }
+    
+  /**Sets the following array as simple reference. An byte[] in Java is a int8* in C. 
+   * It is the same as SimpleArrayRef. But in Java only array[0] should be used as referenced type. */
+  public @interface SimpleVariableRef{  }
+  
+  
+  /**The array which is designated with PtrVal is provided in C with a PtrVal_Type reference. 
+   * The array should have only 1 dimension. The PtrVal_Type is defined in C like <pre>
+   * struct { Type* ptr__, int32 value__} PtrVal_Type;
+   * </pre>
+   * This definition is contained in os_types_def.h because it may depend on the platform's C-compiler. 
+   * The struct should pass values in 2 register of the processor. It is the same like a MemC-reference, but the ptr__ is type-specific.
+   * */
+  public @interface PtrVal{  }
+  
+  
+  /**The byte[] array is provided in C like a MemC reference. */
+  public @interface ByteStringJc { }
+  
+  
   /**Designates that the following variable is a variable for dynamic call, a method-table-reference. */
   public @interface DynamicCall{  }
   
@@ -86,7 +116,7 @@ public interface Java4C {
    * Written on definition of String variable. In C the String or CharSequence can be hold in a StringJc
    * which can refer a String in the Stack. In Java this reference should only be a Stack reference.
    * The reference should not be stored on any other location. */
-  public @interface nonPersistent{}
+  public @interface NonPersistent{}
   
   /**The CharSequence reference should be used as a StringJc instance.
    * It is applicable if the CharSequence variable in Java is set only from a StringBuilder or a String,
@@ -97,7 +127,7 @@ public interface Java4C {
   public @interface StringJc{}
   
   /**The String is designated as non-persistent, especially located in ThreadContext. */
-  public @interface toStringNonPersist{}
+  public @interface ToStringNonPersist{}
   
   public @interface StringBuilderInThreadCxt{}
 
@@ -105,23 +135,23 @@ public interface Java4C {
   
   /**The method or field is not existing for C-translation. Both the definition and the implementation
    * is not translated to C. */
-  public @interface exclude{}
+  public @interface Exclude{}
   
   /**The implementation of the method is not translated to C. 
    * Usual the method with given name is programmed in C direct. */
-  public @interface excludeImpl{}
+  public @interface ExcludeImpl{}
   
   /**Declare the String as const char* in C-language. */
-  public @interface zeroTermString{}
+  public @interface ZeroTermString{}
   
   /**The method is translated building a simple macro or inline method for C++. */
-  public @interface inline{}
+  public @interface Inline{}
   
   /**The method is translated building a simple macro or inline method for C++ which returns a value. */
-  public @interface retinline{}
+  public @interface Retinline{}
   
   /**The class contains only methods. The super class should be enhanced with that methods whithout build
    * a special class. */
-  public @interface extendsOnlyMethods{}
+  public @interface ExtendsOnlyMethods{}
   
 }

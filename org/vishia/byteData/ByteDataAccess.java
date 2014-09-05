@@ -123,6 +123,7 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
 {
   /**The version. 
    * <ul>
+   * <li>2014-08-23: Creating of class ByteDataAccessBase, more simple for C-usage, expecially without virtual methods.
    * <li>2014-01-12 Hartmut new: Java4C.inline for C-compilation. 
    * <li>2013-12-08 Hartmut new: {@link #ByteDataAccess(int, int)} as super constructor with given head and data size.
    *   {@link #addChild(ByteDataAccess)} accepts an initialized not used child. Uses {@link #kInitializedWithLength}.
@@ -191,7 +192,6 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
     parent = null;
     //currentChild = null;
     //charset = Charset.forName("ISO-8859-1");  //NOTE: String(..., Charset) is only support from Java 6
-    charset = "ISO-8859-1";
   }
 
 
@@ -419,7 +419,7 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
    * @param index
    * @throws IllegalArgumentException
    */
-  @Java4C.inline
+  @Java4C.Inline
   public final void assignData(byte[] data, int lengthData, int index) 
   throws IllegalArgumentException
   { assignData(data, -1, lengthData, index);
@@ -443,7 +443,7 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
    *               in any state of the evaluation.
    * @throws IllegalArgumentException if the length is > data.length
    */
-  @Java4C.inline
+  @Java4C.Inline
   public final void assignData(byte[] data, int length) 
   throws IllegalArgumentException
   { if(length == 0)
@@ -492,7 +492,7 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
    * @param input
    * @throws IllegalArgumentException
    */
-  @Java4C.inline
+  @Java4C.Inline
   final protected void assignDowncast_i(ByteDataAccess input)
   throws IllegalArgumentException
   { assignCasted_i(input, 0, -1);
@@ -629,7 +629,7 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
    *        orginal from {@link specifyLengthElement()}.
    * @deprecated use addChild()
    */
-  @Java4C.inline
+  @Java4C.Inline
   @Deprecated
   final public void assignAsChild(ByteDataAccess parent)
   throws IllegalArgumentException
@@ -647,7 +647,7 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
    *              to add some content.
    * @throws IllegalArgumentException 
    */
-  @Java4C.inline
+  @Java4C.Inline
   final public void addChildEmpty(ByteDataAccess child) 
   throws IllegalArgumentException
   { addChild(child);
@@ -737,7 +737,7 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
  * 
  * @param indexObjectArray Index of Array
  */
-  //@Java4C.inline: don't set inline because it contains call of virtual methods. 2014-08 
+  //@Java4C.Inline: don't set inline because it contains call of virtual methods. 2014-08 
   public final void elementAt(int indexObjectArray) {
     idxCurrentChild = idxBegin + specifyLengthElementHead() + specifyLengthCurrentChildElement() * indexObjectArray;
   }

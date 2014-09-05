@@ -88,7 +88,7 @@ public class RawDataAccess  extends ByteDataAccess
    * @param idx byte-offset, the offset is not tested. If the offset is wrong, a null-pointer-exception throws.
    * @return double value
    */
-  @Java4C.inline
+  @Java4C.Inline
   public final double getDoubleVal(int idx)
   { return Double.longBitsToDouble(_getLong(idx, 8));
   }
@@ -99,7 +99,7 @@ public class RawDataAccess  extends ByteDataAccess
    * @param nrofBytes
    * @param value  xxxxxx
    */
-  @Java4C.inline
+  @Java4C.Inline
   public final void setIntVal(int idx, int nrofBytes, long value)
   { try{
       _setLong(idx, nrofBytes, value);  //test2
@@ -115,7 +115,7 @@ public class RawDataAccess  extends ByteDataAccess
   	super.setFloat(idx, value);
   }
   
-  @Java4C.inline
+  @Java4C.Inline
   public final void setDoubleVal(int idx, double value)
   { //call of the protected super method.
     /** @Java4C.StringBuilderInThreadCxt*/
@@ -128,7 +128,7 @@ public class RawDataAccess  extends ByteDataAccess
   
   
   @Override 
-  @Java4C.exclude
+  @Java4C.Exclude
   public String toString(){ return super.toString(); }
   
 }

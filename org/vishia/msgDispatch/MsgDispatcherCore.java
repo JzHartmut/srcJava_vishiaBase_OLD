@@ -206,7 +206,7 @@ public class MsgDispatcherCore implements LogMessage
      */
     boolean bUseText;
     
-    public @Java4C.exclude @Override String toString(){ return name + ":" + outputIfc; }
+    public @Java4C.Exclude @Override String toString(){ return name + ":" + outputIfc; }
   }
   
   long idThreadForDispatching;
@@ -528,7 +528,7 @@ public class MsgDispatcherCore implements LogMessage
     dstBits &= mDispatchBits;  
     int bitTest = 0x1;
     int idst = 0;
-    @Java4C.zeroTermString String sTextMsg = text;  //maybe null if not used.
+    @Java4C.ZeroTermString String sTextMsg = text;  //maybe null if not used.
     boolean bMsgTextGotten = false;
     while(dstBits != 0 && bitTest < mDispatchBits) //abort if no bits are set anymore.
     { if(  (dstBits & bitTest)!=0 //test if this bit for output is set

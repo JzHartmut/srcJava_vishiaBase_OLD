@@ -13,6 +13,10 @@ public class StringFunctions {
 
   /**Version, history and license.
    * <ul>
+   * <li>2014-09-05 Hartmut new: Twice methods {@link #indexOf(CharSequence, int, int, String)} and {@link #indexOf(CharSequence, int, int, CharSequence)}.
+   *   Twice methods {@link #lastIndexOf(CharSequence, int, int, String)} and {@link #lastIndexOf(CharSequence, int, int, CharSequence)}.
+   *   The methods are the same in Java. But in C the handling of reference is different. In Java2C translation a StringJc does not base on CharSequence
+   *   because it is a simple reference to char[] and a length only. CharSequence needs ObjectJc and virtual methods. 
    * <li>2014-05-04 Hartmut new: {@link #indexOfAnyChar(CharSequence, int, int, String)}: Algorithm transfered from 
    *   {@link StringPart#indexOfAnyChar(String, int, int, char, char, char)} to this class for common usage,
    *   called in StringPart. TODO do it with all that algoritm.
@@ -161,7 +165,7 @@ public class StringFunctions {
   
 
   
-  @Java4C.inline public static int parseIntRadix(final String srcP, final int pos, final int sizeP, final int radix, final int[] parsedChars)
+  @Java4C.Inline public static int parseIntRadix(final String srcP, final int pos, final int sizeP, final int radix, final int[] parsedChars)
   {
     return parseIntRadix(srcP, pos, sizeP, radix, parsedChars, null);
   }
@@ -318,7 +322,7 @@ public class StringFunctions {
    * @param encoding The encoding. If null, then use the UTF8-encoding.
    * @return number of bytes in buffer.
    */
-  @Java4C.exclude public static int copyToBuffer(String src, byte[] buffer, Charset encoding){
+  @Java4C.Exclude public static int copyToBuffer(String src, byte[] buffer, Charset encoding){
     if(encoding == null){ 
       encoding = Charset.forName("UTF8"); 
     }
@@ -343,7 +347,7 @@ public class StringFunctions {
    * @param buffer The desination buffer with given length. The last byte will be set to 0.
    * @return number of chars in buffer.
    */
-  @Java4C.exclude public static int copyToBuffer(String src, char[] buffer){
+  @Java4C.Exclude public static int copyToBuffer(String src, char[] buffer){
     int nChars = src.length();
     if(buffer.length < nChars){
       nChars = buffer.length -1;
@@ -363,7 +367,7 @@ public class StringFunctions {
    * @param buffer It is zero-terminated.
    * @return A String which contains all characters till the first '\0' or the whole buffer.
    */
-  @Java4C.exclude public static String z_StringJc(char[] buffer){
+  @Java4C.Exclude public static String z_StringJc(char[] buffer){
     int ix=-1;
     while(++ix < buffer.length && buffer[ix] !='0');
     return new String(buffer, 0, ix);
@@ -638,6 +642,39 @@ public class StringFunctions {
    * @param fromIndex first checked position in sq
    * @return -1 if not found, else first occurrence of str in sq which is >= fromIndex. 
    */
+  public static int indexOf(CharSequence sq, int fromIndex, int to, String str){
+    int zsq = sq.length();
+    int max = (to >= zsq ? zsq : to) - str.length()+1 ;
+    int ii = fromIndex-1;  //pre-increment
+    if (fromIndex < 0) {
+        ii = -1;
+    } else if (fromIndex >= max) {
+        return -1;
+    }
+    char ch = str.charAt(0);   //search first char of str
+    while(++ii < max){
+      if(sq.charAt(ii) == ch) { //search first char of str
+        int s1 = 0;
+        for(int jj = ii+1; jj < ii + str.length(); ++jj){
+          if(sq.charAt(jj) != str.charAt(++s1)){
+            s1 = -1; //designate: not found
+            break;
+          }
+        }
+        if(s1 >=0) return ii;  //found.
+      }
+    }
+    return -1;  //not found;
+  }
+  
+  
+  /**Checks whether the given CharSequence contains the other given CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#indexOf(String, int)}. 
+   * @param sq A CharSequence
+   * @param str CharSequence which is searched.
+   * @param fromIndex first checked position in sq
+   * @return -1 if not found, else first occurrence of str in sq which is >= fromIndex. 
+   */
   public static int indexOf(CharSequence sq, int fromIndex, int to, CharSequence str){
     int zsq = sq.length();
     int max = (to >= zsq ? zsq : to) - str.length()+1 ;
@@ -676,8 +713,41 @@ public class StringFunctions {
   }
   
   
-  /**Checks whether the given CharSequence contains the other given CharSequence.
+  /**Checks whether the given CharSequence contains the given String.
    * It is the adequate functionality like {@link java.lang.String#lastIndexOf(String, int)}. 
+   * @param sq Any sequence where to search in
+   * @param from range, it ends searching on from
+   * @param to if > sq.length() uses sq.length(), it starts searching on to-str.lsength()
+   * @param str comparison String, check whether contained fully.
+   * @return -1 if not found, elsewhere the position inside sq >=fromIndex and <= to - str.length()
+   */
+  public static int lastIndexOf(CharSequence sq, int fromIndex, int to, String str){
+    int zsq = sq.length();
+    int max = (to >= zsq ? zsq : to) - str.length()+1 ;
+    if (fromIndex >= max) {
+      return -1;
+    }
+    char ch = str.charAt(0);
+    while(--max >= fromIndex){
+      if(sq.charAt(max) == ch) {
+        int s1 = 0;
+        for(int jj = max+1; jj < max + str.length(); ++jj){
+          if(sq.charAt(jj) != str.charAt(++s1)){
+            s1 = -1; //designate: not found
+            break;
+          }
+        }
+        if(s1 >0) return max;  //found.
+      }
+    }
+    return -1;  //not found;
+  }
+  
+  
+  
+  /**Checks whether the given CharSequence contains the other given CharSequence.
+   * Note: The algorithm and source lines are the same like in {@link #lastIndexOfAnyChar(CharSequence, int, int, String)}.
+   * The difference is by translating to C source.
    * @param sq Any sequence where to search in
    * @param from range, it ends searching on from
    * @param to if > sq.length() uses sq.length(), it starts searching on to-str.lsength()
@@ -744,7 +814,7 @@ public class StringFunctions {
     }
     else
     { //escape character is found before end
-      StringBuffer sbReturn = new StringBuffer(src);
+      StringBuilder sbReturn = new StringBuilder(src);
       while(posSwitch >=0)
       { if(posSwitch < sbReturn.length()-1)
         { sbReturn.deleteCharAt(posSwitch);

@@ -75,6 +75,7 @@ public class FileSystem
   /**Version, history and license.
    * Changes:
    * <ul>
+   * <li>2014-09-05 Hartmut bugfix: {@link #searchInFiles(List, String, Appendable)} missing close().  
    * <li>2014-08-01 Hartmut bugfix in {@link #grep1line(File, String)}: Should close the file. Nobody does it elsewhere.
    * <li>2014-06-03 Hartmut bugfix in {@link #normalizePath(CharSequence)}: it has not deleted
    *   <code>path/folder/folder/../../ because faulty following start search position. 
@@ -1385,8 +1386,9 @@ public class FileSystem
   {
     List<String> listResult = new LinkedList<String>();
     for(File file: files){
+      BufferedReader r1 = null;
       try{
-        BufferedReader r1 = new BufferedReader(new FileReader(file));
+        r1 = new BufferedReader(new FileReader(file));
         String sLine;
         boolean fileOut = false;
         while( (sLine = r1.readLine()) !=null){
@@ -1399,8 +1401,11 @@ public class FileSystem
             //TODO fill an ArrayList, with the line number and file path. 
           }
         }
+        r1.close();
       }catch(IOException exc){ 
-        try{ searchOutput.append("<file=").append(file.getPath()).append("> - read error.\n");
+        try{ 
+          if(r1 !=null){ r1.close(); }
+          searchOutput.append("<file=").append(file.getPath()).append("> - read error.\n");
         } catch(IOException exc2){}
         //listResult.add("File error; " + file.getAbsolutePath()); 
       }
