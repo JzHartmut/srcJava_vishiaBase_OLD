@@ -42,7 +42,7 @@ import org.vishia.util.Java4C;
 public class MsgDispatcherCore implements LogMessage
 {
 
-  /**version, history and license:
+  /**version, history and license.
    * <ul>
    * <li>2014-01-08 Hartmut new: {@link #setIdThreadForMsgDispatching(long)}
    * <li>2014-01-08 Hartmut chg: The {@link #tickAndFlushOrClose()} should be part of the core.  

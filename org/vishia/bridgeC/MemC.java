@@ -1,6 +1,6 @@
 package org.vishia.bridgeC;
 
-/**This class is an analogue to the MemC class in C. It should represent an amount of memory. 
+/**This class is an analog to the MemC class in C. It should represent an amount of memory. 
  * For Standard Java implementation it is a dummy.
  * 
  * @author JcHartmut

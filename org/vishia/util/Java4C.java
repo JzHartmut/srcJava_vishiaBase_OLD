@@ -71,12 +71,36 @@ public interface Java4C {
    */
   public @interface StackInstance{}
 	
+  /**Sets that the following array has not a Array head structure - not an ObjectArrayJ.
+   * It is a embedded array if the variable is final and construct in the same line:
+   * <pre>
+   * @Java4C.SimpleArray final int myArray[100]
+   * <Pre>
+   * produces in C a definition:<pre>
+   *   int myArray[100];
+   * </pre>  
+   */
+  public @interface SimpleArray{ }
+    
+  /**Sets that the following array as a simple embedded Array with the given size.
+   * It is possible to construct the array later in the constructor in Java because the size should be calculated for Java usage.
+   * In C the size is the given value.
+   * <pre>
+   * @Java4C.SimpleArraySize(100) int myArray;
+   * <Pre>
+   * produces in C a definition:<pre>
+   *   int myArray[100];
+   * </pre>  
+   * TODO needed? usability?
+   */
+  public @interface SimpleArraySize{ int value(); }
+    
   /**Sets that the following array has a fix size. It may be with or without a head - ObjectArrayJc.
    * Use {@link SimpleArray} to designate whether it has a head structure or not.
    */
   @Retention(RetentionPolicy.RUNTIME)
   public @interface FixArraySize{ int value(); }
-	
+    
   /**Sets the following association as simple pointer in C, without garbage collection usage. 
    * For example <pre>
    *   MyClass element; 

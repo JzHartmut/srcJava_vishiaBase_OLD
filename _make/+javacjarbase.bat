@@ -24,18 +24,20 @@ REM  Environment variables set from zbnfjax:
 
 REM  The java-copiler may be located at a user-specified position.
 REM  Set the environment variable JAVA_JDK, where bin/javac will be found.
-::call +findJAVA_JDK.bat
 REM  The java-copiler may be located on a user-specified position.
 REM  Set the environment variable JAVA_JDK, where bin/javac will be found.
 REM  The setJAVA_JDK.bat may be existing in the user's path.
-if "" == "%JAVA_JDK%" call setJAVA_JDK.bat
-if not "" == "%JAVA_JDK%" goto :JavaOK
+::if "" == "%JAVA_JDK%" 
+call setJAVA_JDK.bat
+if exist %JAVA_JDK% goto :JavaOK
 
-REM if setJAVA_JDK.bat is not found:
-echo JAVA_JDK not found. If javac is not able to find in the System's PATH
+REM if setJAVA_JDK.bat is not found or its content is faulty.
+echo %JAVA_JDK% not found. 
 echo read the srcJava_vishiaBase/_make/readme_javac.txt
 
 pause
+exit /B
+
 :JavaOk
 
 if not exist %OUTDIR_JAVAC% mkdir %OUTDIR_JAVAC%
