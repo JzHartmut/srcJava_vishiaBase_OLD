@@ -581,7 +581,8 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
       sizeChild = -1;
       child.setSizeHead(child.specifyLengthElementHead());
     }
-    return super.addChild(child, sizeChild);
+    super.addChild(child, sizeChild);
+    return bExpand;
   }
 
   
