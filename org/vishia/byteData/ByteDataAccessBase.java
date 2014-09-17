@@ -4,6 +4,7 @@ import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 
+import org.vishia.bridgeC.IllegalArgumentExceptionJc;
 import org.vishia.util.Debugutil;
 import org.vishia.util.Java4C;
 import org.vishia.util.StringFormatter;
@@ -20,7 +21,7 @@ public abstract class ByteDataAccessBase
   
   /**The version. 
    * <ul>
-   * <li>2014-09-05 Hartmut chg: Some problems fixed in C-Application. Runs in Java. Meaning of {@link #bExpand} = TODO
+   * <li>2014-09-05 Hartmut chg: Some problems fixed in C-Application. Runs in Java. Meaning of {@link #bExpand} = TODO Store this version as well running.
    * <li>2014-09-05 Hartmut chg: Designation with some Java4C annotation.
    * <li>2014-09-05 Hartmut chg: now based on a {@link #charset} of type {@link java.nio.charset.Charset}. In C it is a dummy yet.
    *  In Java the Charset can be used immediately, more simple.
@@ -194,9 +195,8 @@ public abstract class ByteDataAccessBase
     bExpand = lengthData <= 0;  //expand if the data have no head.
     idxCurrentChild = -1;
     idxCurrentChildEnd = idxBegin + sizeHead;
-    //NOTE: problem in last version? The idxBegin ... idxEnd should be the number of given data.
-    //lengthData is inclusively head. Other variants are calling problems.
-    this.idxEnd = lengthData < this.sizeHead ? this.idxBegin + this.sizeHead : this.idxBegin + lengthData;
+    //lengthData is inclusively head. maybe checl lengthData, >=sizeHead or 0.
+    this.idxEnd = bExpand ? this.idxBegin + this.sizeHead : this.idxBegin + lengthData;
     { //@Java4C.Exclude
       if(idxEnd > data.length)
       { @Java4C.StringBuilderInThreadCxt String msg = "not enough data bytes, requested=" + idxEnd + ", buffer-length=" + data.length;
@@ -619,7 +619,9 @@ public abstract class ByteDataAccessBase
    *
    * @param child The child will be assigned with the data of this at index after the current child's end-index.
    *   Note that the child's sizeHead should be set correctly.
-   * @param sizeChild The number of bytes which are used from the child. It have to be >= the child's head.
+   * @param sizeChild The number of bytes which are used from the child or 0. If it is 0, then the child's sizeHead are used 
+   *   to set this.{@link #idxCurrentChildEnd}, elsewhere {@link #idxCurrentChildEnd} is set using that value.
+   *   The child itself does not use this value.
    * @throws IllegalArgumentException if the length of the old current child is not determined yet.
    *         Either the method specifyLengthElement() should be overwritten or the method 
    *         {@link setLengthElement(int)} for the child or {@link setLengthCurrentChildElement(int)}
@@ -629,14 +631,21 @@ public abstract class ByteDataAccessBase
    */
   final public void addChild(ByteDataAccessBase child, int sizeChild) 
   throws IllegalArgumentException
-  { child.bBigEndian = bBigEndian;
+  { assert(sizeChild == 0 || sizeChild >= child.sizeHead);
+    assert(child.sizeHead >=0);
+    setIdxtoNextCurrentChild(sizeChild ==0 ? child.sizeHead: sizeChild);
+    
+    child.bBigEndian = bBigEndian;
     child.bExpand = bExpand;
-    setIdxtoNextCurrentChild();
-    assert(sizeChild >= child.sizeHead);
-    child.assign(data, sizeChild, idxCurrentChild);
+    child.data = this.data;
     child.parent = this;
-    int idxEndNew = child.idxEnd > child.idxCurrentChildEnd ? child.idxEnd : child.idxCurrentChildEnd;
-    expand(idxEndNew);  
+    child.charset = this.charset;
+    child.idxBegin = this.idxCurrentChild;
+    child.idxCurrentChildEnd = child.idxBegin + child.sizeHead;  //the child does not contain grand children.
+    child.idxCurrentChild = -1;
+    child.idxEnd = bExpand ? child.idxCurrentChildEnd : this.idxEnd;  //use the full data range maybe for child.
+    assert(child.idxEnd <= data.length);
+    if(bExpand){ expand(child.idxEnd); }  
     //return bExpand;
   }
 
@@ -644,6 +653,9 @@ public abstract class ByteDataAccessBase
   
   @Java4C.Retinline
   final public void addChild(ByteDataAccessBase child){ addChild(child, child.sizeHead); } 
+  
+  
+  
   
   final public void addChildAt(int idxChild, ByteDataAccessBase child, int sizeChild) 
   throws IllegalArgumentException
@@ -677,7 +689,7 @@ public abstract class ByteDataAccessBase
    */
   public final void addChildInteger(int nrofBytes, long value) 
   throws IllegalArgumentException
-  { setIdxtoNextCurrentChild();
+  { setIdxtoNextCurrentChild(nrofBytes);
     if(data.length < idxCurrentChild + nrofBytes){
       @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
       throw new IllegalArgumentException(msg);
@@ -685,7 +697,6 @@ public abstract class ByteDataAccessBase
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     _setLong(idxCurrentChild - idxBegin, nrofBytes, value);  
-    expand(idxCurrentChild + nrofBytes);
   }
 
 
@@ -699,7 +710,7 @@ public abstract class ByteDataAccessBase
    */
   public final void addChildFloat(float value) 
   throws IllegalArgumentException
-  { setIdxtoNextCurrentChild();
+  { setIdxtoNextCurrentChild(4);
     if(data.length < idxCurrentChild + 4){
       @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + 4);
       throw new IllegalArgumentException(msg);
@@ -707,7 +718,6 @@ public abstract class ByteDataAccessBase
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     setFloat(idxCurrentChild - idxBegin, value);  
-    expand(idxCurrentChild + 4);
   }
 
 
@@ -726,16 +736,11 @@ public abstract class ByteDataAccessBase
    */
   public final void addChildString(String value, String sEncoding, boolean preventCtrlChars) 
   throws IllegalArgumentException, UnsupportedEncodingException
-  { setIdxtoNextCurrentChild();
-    int nrofBytes = value.length();
-    if(data.length < idxCurrentChild + nrofBytes){
-      @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
-      throw new IllegalArgumentException(msg);
-    }
+  { int nrofBytes = value.length();
+    setIdxtoNextCurrentChild(nrofBytes);
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     _setString(idxCurrentChild - idxBegin, nrofBytes, value, sEncoding, preventCtrlChars);  
-    expand(idxCurrentChild + nrofBytes);
   }
 
 
@@ -750,19 +755,14 @@ public abstract class ByteDataAccessBase
    */
   public final void addChildString(CharSequence valueCs, String sEncoding) 
   throws IllegalArgumentException, UnsupportedEncodingException
-  { setIdxtoNextCurrentChild();
-    int nrofBytes = valueCs.length();
-    if(data.length < idxCurrentChild + nrofBytes){
-      @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
-      throw new IllegalArgumentException(msg);
-    }
+  { int nrofBytes = valueCs.length();
+    setIdxtoNextCurrentChild(nrofBytes);
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     for(int ii=0; ii<nrofBytes; ++ii){
       byte charByte = (byte)(valueCs.charAt(ii));  //TODO encoding
       data[idxCurrentChild+ii] = charByte;
     }
-    expand(idxCurrentChild + nrofBytes);
   }
 
 
@@ -791,7 +791,7 @@ public abstract class ByteDataAccessBase
   public final long getChildInteger(int nrofBytes) 
   throws IllegalArgumentException
   { //NOTE: there is no instance for this child, but it is the current child anyway.
-    setIdxtoNextCurrentChild();
+    setIdxtoNextCurrentChild(nrofBytes);
     setIdxCurrentChildEnd(Math.abs(nrofBytes));
     { //NOTE: to read from idxInChild = 0, build the difference as shown:
       long value = _getLong(idxCurrentChild - idxBegin, nrofBytes);  
@@ -810,12 +810,11 @@ public abstract class ByteDataAccessBase
   public final float getChildFloat() 
   throws IllegalArgumentException
   { //NOTE: there is no instance for this child, but it is the current child anyway.
-    setIdxtoNextCurrentChild();
-    setIdxCurrentChildEnd(4);
+    setIdxtoNextCurrentChild(4);
     { //NOTE: to read from idxInChild = 0, build the difference as shown:
       int intRepresentation = (int)_getLong(idxCurrentChild - idxBegin, 4);  
       return Float.intBitsToFloat(intRepresentation);
-     }
+    }
   }
   
   
@@ -829,8 +828,7 @@ public abstract class ByteDataAccessBase
   public final double getChildDouble() 
   throws IllegalArgumentException
   { //NOTE: there is no instance for this child, but it is the current child anyway.
-    setIdxtoNextCurrentChild();
-    setIdxCurrentChildEnd(8);
+    setIdxtoNextCurrentChild(8);
     { //NOTE: to read from idxInChild = 0, build the difference as shown:
       long intRepresentation = _getLong(idxCurrentChild - idxBegin, 8);  
       return Double.longBitsToDouble(intRepresentation);
@@ -851,11 +849,11 @@ public abstract class ByteDataAccessBase
   public final String getChildString(int nrofBytes) 
   throws IllegalArgumentException, UnsupportedEncodingException
   { //NOTE: there is no instance for this child, but it is the current child anyway.
-    setIdxtoNextCurrentChild();
+    setIdxtoNextCurrentChild(nrofBytes);
     setIdxCurrentChildEnd(nrofBytes);
-    { //NOTE: to read from idxInChild = 0, build the difference as shown:
-      return getString(idxCurrentChild - idxBegin, nrofBytes);  
-    }
+    //NOTE: to read from idxInChild = 0, build the difference as shown:
+    return getString(idxCurrentChild - idxBegin, nrofBytes);  
+   
   }
   
   
@@ -886,7 +884,7 @@ public abstract class ByteDataAccessBase
   { 
     idxCurrentChildEnd = idxBegin + sizeHead;
     if(bExpand){
-      idxEnd = idxBegin + sizeHead;
+      idxEnd = idxBegin + sizeHead;  //reset idxEnd only in expand method, let it unchanged in read mode.
     }
     idxCurrentChild = -1;
   }
@@ -992,7 +990,7 @@ public abstract class ByteDataAccessBase
    * will be called a second one.
    * This is done in the calling routines. 
    */
-  final void setIdxtoNextCurrentChild() 
+  final void setIdxtoNextCurrentChild(int sizeChild) 
   //throws IllegalArgumentException
   {
     if(idxCurrentChildEnd >= idxCurrentChild )
@@ -1007,7 +1005,18 @@ public abstract class ByteDataAccessBase
     else
     { throw new RuntimeException("unexpected idxCurrentChildEnd"); //its a programming error.
     }
-    idxCurrentChildEnd = -1;  //the child content is not checked, this index will be set if setLengthCurrentChildElement() is called.
+    if(sizeChild >0) { //given:
+      idxCurrentChildEnd = idxCurrentChild + sizeChild;  
+      if(bExpand) { 
+        expand(idxCurrentChildEnd); 
+      }
+      if(data.length < idxCurrentChildEnd){
+        throw new IllegalArgumentExceptionJc("ByteDataAccess: less data", idxCurrentChildEnd);
+      }
+
+    } else {  //size of child is not given:
+      idxCurrentChildEnd = -1;
+    }
   }
 
 
@@ -1083,7 +1092,6 @@ public abstract class ByteDataAccessBase
     , String sEncoding, boolean preventCtrlChars) 
   throws UnsupportedEncodingException
   {
-    String value1 = value.length() >nrofBytes ? value.substring(0, nrofBytes) : value;  //truncate.
     int idxData = idx + idxBegin;
     int idxEnd = idxData + nrofBytes;
     /**@java2c=ByteStringJc. */
