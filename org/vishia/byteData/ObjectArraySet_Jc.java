@@ -65,20 +65,20 @@ public class ObjectArraySet_Jc extends ObjectArray_Jc
         objectArrays.removeAllElements(); 
         //objectarrays einlesen
         
-        while ( idxBegin < idxEnd )
+        while ( ixBegin < ixEnd )
         {
           if(getReflectionClass() != 0)//ObjectArray Class
           {
               ObjectArray_Jc newItem = new ObjectArray_Jc();
               objectArrays.add(newItem );
-              newItem.assignData(data, data.length, idxBegin);
+              newItem.assignData(data, data.length, ixBegin);
            }
 
               int lengthCurrentElement = specifyLengthElement();
               if (lengthCurrentElement == 0) 
-                throw new ParseException("Position: " + idxBegin, idxBegin);
+                throw new ParseException("Position: " + ixBegin, ixBegin);
                  
-              assignData(data, data.length, idxBegin + lengthCurrentElement);
+              assignData(data, data.length, ixBegin + lengthCurrentElement);
          }
       } //setImageData(byte[])
 

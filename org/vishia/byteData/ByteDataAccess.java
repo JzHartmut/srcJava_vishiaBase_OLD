@@ -185,10 +185,10 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
     this.data = null;
     this.bBigEndian = false;
     bExpand = false;
-    idxBegin = 0;
-    idxEnd = 0;
-    idxCurrentChild = -1;  //to mark start.
-    idxCurrentChildEnd = 0;
+    ixBegin = 0;
+    ixEnd = 0;
+    ixChild = -1;  //to mark start.
+    ixChildEnd = 0;
     parent = null;
     //currentChild = null;
     //charset = Charset.forName("ISO-8859-1");  //NOTE: String(..., Charset) is only support from Java 6
@@ -213,7 +213,7 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
    * */
   protected ByteDataAccess(int sizeHead, int sizeData){
     super(sizeHead, sizeData);
-    idxCurrentChildEnd = kInitializedWithLength;
+    ixChildEnd = kInitializedWithLength;
   }
 
 
@@ -345,8 +345,8 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
    * or by getting data from the head only if children should ot be used.
    * <br><br>
    * See {@link #assignEmpty(byte[])}, {@link #assignData(byte[], int)}. This routine
-   * is called there after setting the data reference and the {@link #idxBegin}. In opposite to the
-   * newly assignment of data, the {@link #data}-reference is not changed, the {@link #idxBegin}
+   * is called there after setting the data reference and the {@link #ixBegin}. In opposite to the
+   * newly assignment of data, the {@link #data}-reference is not changed, the {@link #ixBegin}
    * is not changed and a {@link #parent} is not changed. It means, a reset can be invoked for any child
    * of data without changing the context.
    * 
@@ -359,8 +359,8 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
     if(lengthData <= 0){
       specifyEmptyDefaultData();
     }
-    super.setSizeHead(lengthHeadSpecified);
-    super.clear(lengthData);
+    super._setSizeHead(lengthHeadSpecified);
+    super._reset(lengthData);
   }
 
   
@@ -404,7 +404,7 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
     if(lengthData <= 0){
       specifyEmptyDefaultData();
     }
-    super.setSizeHead(lengthHeadSpecified);
+    super._setSizeHead(lengthHeadSpecified);
     super.assign(dataP, lengthData, index);
     assignDataToFixChilds();
   }
@@ -533,12 +533,12 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
   { @SuppressWarnings("unused")
     int lengthHead = getLengthHead();
     int lengthData;
-    if(idxCurrentChildEnd ==kInitializedWithLength){
-      lengthData = idxEnd;
+    if(ixChildEnd ==kInitializedWithLength){
+      lengthData = ixEnd;
     } else {
       lengthData = -1;  //unknown
     }
-    assignData(parent.data, lengthHead, lengthData, parent.idxBegin + idxChildInParent);
+    assignData(parent.data, lengthHead, lengthData, parent.ixBegin + idxChildInParent);
     setBigEndian(parent.bBigEndian);
   }
 
@@ -572,14 +572,14 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
   throws IllegalArgumentException
   { notifyAddChild();
     int sizeChildHead, sizeChild;
-    if(child.idxCurrentChildEnd == kInitializedWithLength){
+    if(child.ixChildEnd == kInitializedWithLength){
       //initialized child with its local length:
       //child.setSizeHead(child.idxFirstChild);
-      sizeChild = child.idxEnd;
+      sizeChild = child.ixEnd;
     } else {
       //uninitialized child with length, or reused child:
       sizeChild = -1;
-      child.setSizeHead(child.specifyLengthElementHead());
+      child._setSizeHead(child.specifyLengthElementHead());
     }
     super.addChild(child, sizeChild);
     return bExpand;
@@ -676,10 +676,10 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
   final public int getLengthCurrentChildElement()
   throws IllegalArgumentException
   {
-    if(idxCurrentChildEnd > idxCurrentChild)
+    if(ixChildEnd > ixChild)
     { //a get method, especially getText() was called,
       //so the end of the child is known yet, use it!
-      return idxCurrentChildEnd - idxCurrentChild;
+      return ixChildEnd - ixChild;
     }
     /*changed: it cannot be assumed that the coding use textbytes!
      * If they are textbytes, the user has called getText normally,
@@ -719,12 +719,12 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
    */
   @Deprecated final public void expandParent()
   throws IllegalArgumentException
-  { if(idxBegin == 0 && parent == null)
+  { if(ixBegin == 0 && parent == null)
     { //it is the top level element, do nothing
     }
     else if(parent != null)
-    { if(parent.idxEnd < idxEnd)
-      { parent.idxEnd = idxEnd;
+    { if(parent.ixEnd < ixEnd)
+      { parent.ixEnd = ixEnd;
       }
       ((ByteDataAccess)parent).expandParent();
     }
@@ -740,7 +740,7 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
  */
   //@Java4C.Inline: don't set inline because it contains call of virtual methods. 2014-08 
   public final void elementAt(int indexObjectArray) {
-    idxCurrentChild = idxBegin + specifyLengthElementHead() + specifyLengthCurrentChildElement() * indexObjectArray;
+    ixChild = ixBegin + specifyLengthElementHead() + specifyLengthCurrentChildElement() * indexObjectArray;
   }
 
 

@@ -83,7 +83,7 @@ public class ByteDataAccessSimple extends ByteDataAccess
   public ByteDataAccessSimple(byte[] data, boolean bigEndian, int lengthData, int index)
   { super();
     this.data = data;
-    this.idxBegin = index;
+    this.ixBegin = index;
     super.bBigEndian = bigEndian; 
     assert(lengthData >=0 && lengthData + index <= data.length);
     reset(0, lengthData);

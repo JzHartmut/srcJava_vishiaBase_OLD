@@ -78,7 +78,7 @@ public class Class_Jc extends Object_Jc
     /** inherit from XmlBinCodeElement. This method is left empty because only given data are processed. */
     protected void specifyEmptyDefaultData()
     {
-      Arrays.fill(data, super.idxBegin, super.idxBegin + kPos_Last, (byte)0);
+      Arrays.fill(data, super.ixBegin, super.ixBegin + kPos_Last, (byte)0);
     }
     
   
@@ -182,10 +182,10 @@ public class Class_Jc extends Object_Jc
    */
   public String getName() 
   { String ret; 
-    int idxName = idxBegin + kPosName;
+    int idxName = ixBegin + kPosName;
     int idxEnd =  idxName + kLengthName;
     while(idxEnd > idxName && data[--idxEnd]==0);
-    try{ ret = new String(data, idxBegin + kPosName, idxEnd - idxName +1, "ISO-8859-1"); }
+    try{ ret = new String(data, ixBegin + kPosName, idxEnd - idxName +1, "ISO-8859-1"); }
     catch(UnsupportedEncodingException exc){ throw new RuntimeException("ISO-8859-1 encoding is not supported.");};
     return ret;
   }

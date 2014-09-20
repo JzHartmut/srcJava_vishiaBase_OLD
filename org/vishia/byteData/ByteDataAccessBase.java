@@ -31,7 +31,7 @@ public abstract class ByteDataAccessBase
    * <li>2014-08-23 Hartmut chg: Member idxFirstChild removed, the information is contained in {@link #sizeHead}. 
    * <li>2014-08-23 Hartmut new: this class ByteDataAccessBase works without virtual methods (overrideable), it is proper for usage in C-language
    *   and it is not necessary. The {@link #sizeHead} is set by construction. Only for the compatible now deprecated {@link ByteDataAccess} the sizeHead 
-   *   is able to set via the package-private {@link #setSizeHead(int)}.  
+   *   is able to set via the package-private {@link #_setSizeHead(int)}.  
    * <li>2014-01-12 Hartmut new: Java4C.inline for C-compilation. 
    * <li>2013-12-08 Hartmut new: {@link #ByteDataAccessBase(int, int)} as super constructor with given head and data size.
    *   {@link #addChild(ByteDataAccessBase)} accepts an initialized not used child. Uses {@link #kInitializedWithLength}.
@@ -73,23 +73,23 @@ public abstract class ByteDataAccessBase
   protected @Java4C.PtrVal byte[] data;
   
   /**Index of the beginning of the actual element in data*/
-  protected int idxBegin;
+  protected int ixBegin;
+
+  /** Index within the data at position of the current child element.
+   * If no current child is known, after initialize, this index is -1. */
+  protected int ixChild;
+
+  /**Index of the currents child end.
+   * If no current child is known this index is equal ixBegin + sizeHead, it is the position after the head. 
+   * If the length of the current child is not known, this index is <= -1. That is after {@link #addChild(ByteDataAccessBase, int)} with lenght=-1.
+   */
+  protected int ixChildEnd;
 
   /** Index of the end of the actual element in data. If {@link #bExpand} is set, this idxEnd and the idxEnd of all parents are increased
    * if an child was added. If bExpand==false then this value is set via the {@link #addChild(ByteDataAccessBase, int)} or {@link #addChildAt(int, ByteDataAccessBase, int)}.*/
-  protected int idxEnd;
+  protected int ixEnd;
 
-  /** Index within the data at position of the current child element.
-   * If no current child is known, this index is -1. */
-  protected int idxCurrentChild;
-
-  /**Index of the currents child end.
-   * If no current child is known this index is equal idxBegin + sizeHead, it is the position after the head. 
-   * If the length of the current child is not known, this index is <= idxCurrentChild.
-   */
-  protected int idxCurrentChildEnd;
-
-  /**True if the {@link #idxEnd} should not be set to the {@link #sizeHead} on removing children. */
+  /**True if the {@link #ixEnd} should not be set to the {@link #sizeHead} on removing children. */
   protected boolean bExpand;
 
   /** Flag is set or get data in big endian or little endian (if false)*/
@@ -127,10 +127,10 @@ public abstract class ByteDataAccessBase
    * */
   protected ByteDataAccessBase(int sizeHead, int sizeData){
     this.sizeHead = sizeHead;
-    idxBegin = 0;
-    idxEnd = sizeData;
-    idxCurrentChild = -1;  //to mark start.
-    idxCurrentChildEnd = -1;
+    ixBegin = 0;
+    ixEnd = sizeData;
+    ixChild = -1;  //to mark start.
+    ixChildEnd = sizeHead;
     parent = null;
   }
 
@@ -156,7 +156,7 @@ public abstract class ByteDataAccessBase
    * @param size The element {@link #sizeHead} is changed (should be final).
    */
   @Java4C.Inline
-  final void setSizeHead(int size){
+  /*package private*/ final void _setSizeHead(int size){
     if(sizeHead < 0){
       sizeHead = size;
     } else if(sizeHead == size){
@@ -181,8 +181,8 @@ public abstract class ByteDataAccessBase
    * or by getting data from the head only if children should ot be used.
    * <br><br>
    * See {@link #assignEmpty(byte[])}, {@link #assignData(byte[], int)}. This routine
-   * is called there after setting the data reference and the {@link #idxBegin}. In opposite to the
-   * newly assignment of data, the {@link #data}-reference is not changed, the {@link #idxBegin}
+   * is called there after setting the data reference and the {@link #ixBegin}. In opposite to the
+   * newly assignment of data, the {@link #data}-reference is not changed, the {@link #ixBegin}
    * is not changed and a {@link #parent} is not changed. It means, a reset can be invoked for any child
    * of data without changing the context.
    * 
@@ -190,16 +190,16 @@ public abstract class ByteDataAccessBase
    * @param lengthData Number of bytes for this element. If <=0 (usual 0 or -1), the element is set to expandable.
    *   
    */
-  protected final void clear(int lengthData){
+  /*package private*/ final void _reset(int lengthData){
     assert(sizeHead >=0);
     bExpand = lengthData <= 0;  //expand if the data have no head.
-    idxCurrentChild = -1;
-    idxCurrentChildEnd = idxBegin + sizeHead;
+    ixChild = -1;
+    ixChildEnd = ixBegin + sizeHead;
     //lengthData is inclusively head. maybe checl lengthData, >=sizeHead or 0.
-    this.idxEnd = bExpand ? this.idxBegin + this.sizeHead : this.idxBegin + lengthData;
+    this.ixEnd = bExpand ? this.ixBegin + this.sizeHead : this.ixBegin + lengthData;
     { //@Java4C.Exclude
-      if(idxEnd > data.length)
-      { @Java4C.StringBuilderInThreadCxt String msg = "not enough data bytes, requested=" + idxEnd + ", buffer-length=" + data.length;
+      if(ixEnd > data.length)
+      { @Java4C.StringBuilderInThreadCxt String msg = "not enough data bytes, requested=" + ixEnd + ", buffer-length=" + data.length;
         throw new IllegalArgumentException(msg);
       }
     }
@@ -232,11 +232,11 @@ public abstract class ByteDataAccessBase
       bSigned = true;
     }
     if(bBigEndian)
-    { idx = idxBegin + idxInChild;
+    { idx = ixBegin + idxInChild;
       idxStep = 1;
     }
     else
-    { idx = idxBegin + idxInChild + nrofBytes -1;
+    { idx = ixBegin + idxInChild + nrofBytes -1;
       idxStep = -1;
     }
     int nByteCnt = nrofBytes;
@@ -270,11 +270,11 @@ public abstract class ByteDataAccessBase
   protected final void _setLong(int idx, int nrofBytes, long val)
   { int idxStep;
     if(bBigEndian)
-    { idx = idxBegin + idx + nrofBytes -1;
+    { idx = ixBegin + idx + nrofBytes -1;
       idxStep = -1;
     }
     else
-    { idx = idxBegin + idx;
+    { idx = ixBegin + idx;
       idxStep = 1;
     }
     do
@@ -296,15 +296,15 @@ public abstract class ByteDataAccessBase
    * inside method addChild(child) and recursively to correct
    * in all parents.
    */
-  final void expand(int idxCurrentChildEndNew)
-  { if(idxEnd < idxCurrentChildEndNew) 
+  /*package private*/ final void _expand(int idxCurrentChildEndNew)
+  { if(ixEnd < idxCurrentChildEndNew) 
     { //do it only in expand mode
-      idxEnd = idxCurrentChildEndNew;
+      ixEnd = idxCurrentChildEndNew;
     }
-    assert(idxCurrentChildEndNew >= idxBegin + sizeHead);
-    idxCurrentChildEnd = idxCurrentChildEndNew;
+    assert(idxCurrentChildEndNew >= ixBegin + sizeHead);
+    ixChildEnd = idxCurrentChildEndNew;
     if(parent != null)
-    { parent.expand(idxCurrentChildEndNew);
+    { parent._expand(idxCurrentChildEndNew);
     }
   }
 
@@ -341,9 +341,9 @@ public abstract class ByteDataAccessBase
   throws IllegalArgumentException
   { assert (index >= 0 && this.sizeHead >=0);
     this.data = dataP;
-    idxBegin = index; 
+    ixBegin = index; 
     parent = null;
-    clear(lengthData);
+    _reset(lengthData);
   }
   
   @Java4C.Inline
@@ -402,7 +402,7 @@ public abstract class ByteDataAccessBase
   throws IllegalArgumentException
   { this.bBigEndian = parent.bBigEndian;
     this.bExpand = parent.bExpand;
-    assign(parent.data, parent.idxBegin + idxChildInParent + lengthChild, parent.idxBegin + idxChildInParent);
+    assign(parent.data, parent.ixBegin + idxChildInParent + lengthChild, parent.ixBegin + idxChildInParent);
     setBigEndian(parent.bBigEndian);
   }
 
@@ -439,7 +439,7 @@ public abstract class ByteDataAccessBase
   { this.bBigEndian = src.bBigEndian;
     bExpand = src.bExpand;
     //assignData(src.data, src.idxBegin + lengthDst + offsetCastToInput, src.idxBegin + offsetCastToInput);
-    assign(src.data, src.idxEnd, src.idxBegin + offsetCastToInput);
+    assign(src.data, src.ixEnd, src.ixBegin + offsetCastToInput);
     //lengthDst is unsused, not necessary because lengthElementHead is knwon!
   }
 
@@ -464,14 +464,14 @@ public abstract class ByteDataAccessBase
    */
   @Java4C.Inline
   public final void rewind()
-  { idxCurrentChild = -1;
+  { ixChild = -1;
   }
 
 
 
 
   /**Returns the length of the head. This method returns the size of the head given on construction
-   * or set with {@link #setSizeHead(int)} (package private). The size of the head is not changed normally for an existing instance.
+   * or set with {@link #_setSizeHead(int)} (package private). The size of the head is not changed normally for an existing instance.
    */ 
   @Java4C.Retinline
   public final int getLengthHead(){ return sizeHead; }
@@ -484,7 +484,7 @@ public abstract class ByteDataAccessBase
    */
   @Java4C.Retinline
   final public int getLength()
-  { return idxEnd - idxBegin;
+  { return ixEnd - ixBegin;
   }
 
 
@@ -496,7 +496,7 @@ public abstract class ByteDataAccessBase
    */
   @Java4C.Retinline
   final public int getLengthTotal()
-  { return idxEnd;
+  { return ixEnd;
   }
 
 
@@ -512,7 +512,7 @@ public abstract class ByteDataAccessBase
    */ 
   @Java4C.Retinline
   final public int getMaxNrofBytes()
-  { return data.length - idxBegin;
+  { return data.length - ixBegin;
   }
 
 
@@ -521,8 +521,8 @@ public abstract class ByteDataAccessBase
 
   /**Sets the length of the element in this and all {@link #parent} of this. 
    * If the element is a child of any parent, it should be the current child of the parent. 
-   * The {@link #idxEnd} and the {@link #idxCurrentChildEnd} of this and all its parents is set
-   * with the (this.{@link #idxBegin}+length).
+   * The {@link #ixEnd} and the {@link #ixChildEnd} of this and all its parents is set
+   * with the (this.{@link #ixBegin}+length).
    * <br><br>
    * This routine is usefully if data are set in a child directly without sub-tree child structure
    * (without using {@link #addChild(ByteDataAccessBase)}).
@@ -533,7 +533,7 @@ public abstract class ByteDataAccessBase
   @Java4C.Inline
   final public void setLengthElement(int length)
   { //if(!bExpand && )
-    expand(idxBegin + length);
+    _expand(ixBegin + length);
   }
 
 
@@ -544,7 +544,7 @@ public abstract class ByteDataAccessBase
    */
   @Java4C.Inline
   public final void clearHead(){
-    Arrays.fill(data, idxBegin, idxBegin + sizeHead, (byte)0);
+    Arrays.fill(data, ixBegin, ixBegin + sizeHead, (byte)0);
   }
 
 
@@ -556,7 +556,7 @@ public abstract class ByteDataAccessBase
    */
   @Java4C.Inline
   public final void clearData(){
-    Arrays.fill(data, idxBegin, idxEnd, (byte)0);
+    Arrays.fill(data, ixBegin, ixEnd, (byte)0);
   }
 
 
@@ -579,9 +579,8 @@ public abstract class ByteDataAccessBase
 
 
 
-  /**returns the number number of bytes there are max available from position of a next current child. 
-   * ,
-   * the number of bytes to the end of buffer is returned.
+  /**returns the maximal number of bytes which are available from position of a next current child. 
+   * It returns (ixEnd - ixChildEnd). With this information any child which head length is less or equal can be added to check whether it is matched to the data. 
    * 
    * @return nrofBytes that should fitting in the given data range from current child position 
    *                  to the end of data determines by calling assingData(...)
@@ -593,9 +592,9 @@ public abstract class ByteDataAccessBase
    */ 
   @Java4C.Retinline
   final public int getMaxNrofBytesForNextChild() throws IllegalArgumentException
-  { if(idxCurrentChildEnd < idxCurrentChild)
+  { if(ixChildEnd < ixChild)
       throw new IllegalArgumentException("length of current child is undefined."); 
-    return idxEnd - idxCurrentChildEnd;
+    return ixEnd - ixChildEnd;
   }
 
 
@@ -620,7 +619,7 @@ public abstract class ByteDataAccessBase
    * @param child The child will be assigned with the data of this at index after the current child's end-index.
    *   Note that the child's sizeHead should be set correctly.
    * @param sizeChild The number of bytes which are used from the child or 0. If it is 0, then the child's sizeHead are used 
-   *   to set this.{@link #idxCurrentChildEnd}, elsewhere {@link #idxCurrentChildEnd} is set using that value.
+   *   to set this.{@link #ixChildEnd}, elsewhere {@link #ixChildEnd} is set using that value.
    *   The child itself does not use this value.
    * @throws IllegalArgumentException if the length of the old current child is not determined yet.
    *         Either the method specifyLengthElement() should be overwritten or the method 
@@ -640,12 +639,12 @@ public abstract class ByteDataAccessBase
     child.data = this.data;
     child.parent = this;
     child.charset = this.charset;
-    child.idxBegin = this.idxCurrentChild;
-    child.idxCurrentChildEnd = child.idxBegin + child.sizeHead;  //the child does not contain grand children.
-    child.idxCurrentChild = -1;
-    child.idxEnd = bExpand ? child.idxCurrentChildEnd : this.idxEnd;  //use the full data range maybe for child.
-    assert(child.idxEnd <= data.length);
-    if(bExpand){ expand(child.idxEnd); }  
+    child.ixBegin = this.ixChild;
+    child.ixChildEnd = child.ixBegin + child.sizeHead;  //the child does not contain grand children.
+    child.ixChild = -1;
+    child.ixEnd = bExpand ? child.ixChildEnd : this.ixEnd;  //use the full data range maybe for child.
+    assert(child.ixEnd <= data.length);
+    if(bExpand){ _expand(child.ixEnd); }  
     //return bExpand;
   }
 
@@ -660,15 +659,15 @@ public abstract class ByteDataAccessBase
   final public void addChildAt(int idxChild, ByteDataAccessBase child, int sizeChild) 
   throws IllegalArgumentException
   { child.data = data;
-    int idxBegin = this.idxBegin + idxChild;
-    child.idxBegin = idxBegin;
-    child.idxEnd = idxBegin + sizeChild;
-    child.idxCurrentChild = idxBegin + child.sizeHead;
-    child.idxCurrentChildEnd = -1;
+    int idxBegin = this.ixBegin + idxChild;
+    child.ixBegin = idxBegin;
+    child.ixEnd = idxBegin + sizeChild;
+    child.ixChild = idxBegin + child.sizeHead;
+    child.ixChildEnd = -1;
     child.bBigEndian = bBigEndian;
     child.bExpand = bExpand;
     child.parent = this;
-    expand(child.idxEnd);  
+    _expand(child.ixEnd);  
     //return bExpand;
   }
 
@@ -690,13 +689,13 @@ public abstract class ByteDataAccessBase
   public final void addChildInteger(int nrofBytes, long value) 
   throws IllegalArgumentException
   { setIdxtoNextCurrentChild(nrofBytes);
-    if(data.length < idxCurrentChild + nrofBytes){
-      @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
+    if(data.length < ixChild + nrofBytes){
+      @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (ixChild + nrofBytes);
       throw new IllegalArgumentException(msg);
     }
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
-    _setLong(idxCurrentChild - idxBegin, nrofBytes, value);  
+    _setLong(ixChild - ixBegin, nrofBytes, value);  
   }
 
 
@@ -711,13 +710,13 @@ public abstract class ByteDataAccessBase
   public final void addChildFloat(float value) 
   throws IllegalArgumentException
   { setIdxtoNextCurrentChild(4);
-    if(data.length < idxCurrentChild + 4){
-      @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + 4);
+    if(data.length < ixChild + 4){
+      @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (ixChild + 4);
       throw new IllegalArgumentException(msg);
     }
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
-    setFloat(idxCurrentChild - idxBegin, value);  
+    setFloat(ixChild - ixBegin, value);  
   }
 
 
@@ -740,7 +739,7 @@ public abstract class ByteDataAccessBase
     setIdxtoNextCurrentChild(nrofBytes);
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
-    _setString(idxCurrentChild - idxBegin, nrofBytes, value, sEncoding, preventCtrlChars);  
+    _setString(ixChild - ixBegin, nrofBytes, value, sEncoding, preventCtrlChars);  
   }
 
 
@@ -761,7 +760,7 @@ public abstract class ByteDataAccessBase
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     for(int ii=0; ii<nrofBytes; ++ii){
       byte charByte = (byte)(valueCs.charAt(ii));  //TODO encoding
-      data[idxCurrentChild+ii] = charByte;
+      data[ixChild+ii] = charByte;
     }
   }
 
@@ -794,7 +793,7 @@ public abstract class ByteDataAccessBase
     setIdxtoNextCurrentChild(nrofBytes);
     setIdxCurrentChildEnd(Math.abs(nrofBytes));
     { //NOTE: to read from idxInChild = 0, build the difference as shown:
-      long value = _getLong(idxCurrentChild - idxBegin, nrofBytes);  
+      long value = _getLong(ixChild - ixBegin, nrofBytes);  
       return value;
     }
   }
@@ -812,7 +811,7 @@ public abstract class ByteDataAccessBase
   { //NOTE: there is no instance for this child, but it is the current child anyway.
     setIdxtoNextCurrentChild(4);
     { //NOTE: to read from idxInChild = 0, build the difference as shown:
-      int intRepresentation = (int)_getLong(idxCurrentChild - idxBegin, 4);  
+      int intRepresentation = (int)_getLong(ixChild - ixBegin, 4);  
       return Float.intBitsToFloat(intRepresentation);
     }
   }
@@ -830,7 +829,7 @@ public abstract class ByteDataAccessBase
   { //NOTE: there is no instance for this child, but it is the current child anyway.
     setIdxtoNextCurrentChild(8);
     { //NOTE: to read from idxInChild = 0, build the difference as shown:
-      long intRepresentation = _getLong(idxCurrentChild - idxBegin, 8);  
+      long intRepresentation = _getLong(ixChild - ixBegin, 8);  
       return Double.longBitsToDouble(intRepresentation);
      }
   }
@@ -852,7 +851,7 @@ public abstract class ByteDataAccessBase
     setIdxtoNextCurrentChild(nrofBytes);
     setIdxCurrentChildEnd(nrofBytes);
     //NOTE: to read from idxInChild = 0, build the difference as shown:
-    return getString(idxCurrentChild - idxBegin, nrofBytes);  
+    return getString(ixChild - ixBegin, nrofBytes);  
    
   }
   
@@ -869,8 +868,8 @@ public abstract class ByteDataAccessBase
   throws IllegalArgumentException
   { //if(bExpand) throw new RuntimeException("don't call it in expand mode");
     //revert the current child.
-    idxCurrentChildEnd = idxCurrentChild;
-    idxCurrentChild = -1;
+    ixChildEnd = ixChild;
+    ixChild = -1;
   }
 
 
@@ -882,11 +881,11 @@ public abstract class ByteDataAccessBase
   @Java4C.Inline
   public final void removeChildren()
   { 
-    idxCurrentChildEnd = idxBegin + sizeHead;
+    ixChildEnd = ixBegin + sizeHead;
     if(bExpand){
-      idxEnd = idxBegin + sizeHead;  //reset idxEnd only in expand method, let it unchanged in read mode.
+      ixEnd = ixBegin + sizeHead;  //reset idxEnd only in expand method, let it unchanged in read mode.
     }
-    idxCurrentChild = -1;
+    ixChild = -1;
   }
 
 
@@ -897,8 +896,8 @@ public abstract class ByteDataAccessBase
   final public void detach()
   { data = null;
     parent = null;
-    idxBegin = idxEnd = 0;
-    idxCurrentChild = idxCurrentChildEnd = sizeHead;
+    ixBegin = ixEnd = 0;
+    ixChild = ixChildEnd = sizeHead;
     bExpand = false;
   }
 
@@ -911,7 +910,7 @@ public abstract class ByteDataAccessBase
    */  
   @Java4C.Retinline
   final public int getPositionInBuffer()
-  { return idxBegin;
+  { return ixBegin;
   }
 
 
@@ -923,7 +922,7 @@ public abstract class ByteDataAccessBase
    */  
   @Java4C.Retinline
   final public int getPositionNextChildInBuffer()
-  { return idxCurrentChildEnd;
+  { return ixChildEnd;
   }
 
 
@@ -951,7 +950,7 @@ public abstract class ByteDataAccessBase
    * @param dst This array is field, but only from data of the current element between idxBegin and idxEnd
    */
   public final void copyData(int[] dst)
-  { int idxMax = idxEnd - idxBegin;
+  { int idxMax = ixEnd - ixBegin;
     if(idxMax/4 > dst.length) idxMax = 4* dst.length;
     int iDst = 0;
     for(int idx = 0; idx < idxMax; idx+=4)
@@ -965,7 +964,7 @@ public abstract class ByteDataAccessBase
   @Java4C.Retinline
   public final boolean assertNotExpandable()
   {
-    assert(idxCurrentChild >0 && idxEnd > 0 && !bExpand);
+    assert(ixChild >0 && ixEnd > 0 && !bExpand);
     return true;
   }
 
@@ -993,12 +992,12 @@ public abstract class ByteDataAccessBase
   final void setIdxtoNextCurrentChild(int sizeChild) 
   //throws IllegalArgumentException
   {
-    if(idxCurrentChildEnd >= idxCurrentChild )
+    if(ixChildEnd >= ixChild )
     { //This is the standard case.
       //NOTE: idxCurrentChild = -1 is assert if no child is added before.
-      idxCurrentChild = idxCurrentChildEnd;
+      ixChild = ixChildEnd;
     }
-    else if(idxCurrentChildEnd == -2)
+    else if(ixChildEnd == -2)
     { //next() was called before:
       //do nothing, because next() was performed before.
     }
@@ -1006,16 +1005,16 @@ public abstract class ByteDataAccessBase
     { throw new RuntimeException("unexpected idxCurrentChildEnd"); //its a programming error.
     }
     if(sizeChild >0) { //given:
-      idxCurrentChildEnd = idxCurrentChild + sizeChild;  
+      ixChildEnd = ixChild + sizeChild;  
       if(bExpand) { 
-        expand(idxCurrentChildEnd); 
+        _expand(ixChildEnd); 
       }
-      if(data.length < idxCurrentChildEnd){
-        throw new IllegalArgumentExceptionJc("ByteDataAccess: less data", idxCurrentChildEnd);
+      if(data.length < ixChildEnd){
+        throw new IllegalArgumentExceptionJc("ByteDataAccess: less data", ixChildEnd);
       }
 
     } else {  //size of child is not given:
-      idxCurrentChildEnd = -1;
+      ixChildEnd = -1;
     }
   }
 
@@ -1036,9 +1035,9 @@ public abstract class ByteDataAccessBase
    */
   protected final String getString(int idx, int nrofBytes)
   {
-    int idxData = idx + idxBegin;
+    int idxData = idx + ixBegin;
     int idxEnd1 = idxData + nrofBytes;
-    assert(idxEnd1 <= idxEnd && idxEnd1 <= data.length);
+    assert(idxEnd1 <= ixEnd && idxEnd1 <= data.length);
     while(data[--idxEnd1] ==0 && idxEnd1 > idxData);  //skip 0 character on end
     int len = idxEnd1 +1 - idxData; //resulting len without 0-character.
     String value;
@@ -1066,7 +1065,7 @@ public abstract class ByteDataAccessBase
     catch (UnsupportedEncodingException e){ byteRepresentation = null; }
     int len = byteRepresentation.length;
     if(len > nmax){ len = nmax; } //truncate.
-    System.arraycopy(byteRepresentation, 0, data, idxBegin + idx, len);
+    System.arraycopy(byteRepresentation, 0, data, ixBegin + idx, len);
     return len;
   }
   
@@ -1092,7 +1091,7 @@ public abstract class ByteDataAccessBase
     , String sEncoding, boolean preventCtrlChars) 
   throws UnsupportedEncodingException
   {
-    int idxData = idx + idxBegin;
+    int idxData = idx + ixBegin;
     int idxEnd = idxData + nrofBytes;
     /**@java2c=ByteStringJc. */
     byte[] chars;
@@ -1159,16 +1158,16 @@ public abstract class ByteDataAccessBase
   protected final int getInt32(int idx)
   { int val;
     if(bBigEndian)
-    { val =  ((  data[idxBegin + idx])<<24)  //NOTE all 24 low-bits are 0
-          |  (( (data[idxBegin + idx+1])<<16) & 0x00ff0000 ) //NOTE the high bits may be 0 or 1
-          |  (( (data[idxBegin + idx+2])<< 8) & 0x0000ff00 ) //depending on sign of byte. Mask it!
-          |  (( (data[idxBegin + idx+3])    ) & 0x000000ff );  //NOTE: the value has only 8 bits for bitwise or.
+    { val =  ((  data[ixBegin + idx])<<24)  //NOTE all 24 low-bits are 0
+          |  (( (data[ixBegin + idx+1])<<16) & 0x00ff0000 ) //NOTE the high bits may be 0 or 1
+          |  (( (data[ixBegin + idx+2])<< 8) & 0x0000ff00 ) //depending on sign of byte. Mask it!
+          |  (( (data[ixBegin + idx+3])    ) & 0x000000ff );  //NOTE: the value has only 8 bits for bitwise or.
     }
     else
-    { val =  (  (data[idxBegin + idx+3])<<24)  //NOTE all 24 low-bits are 0
-          |  (( (data[idxBegin + idx+2])<<16) & 0x00ff0000 ) //NOTE the high bits may be 0 or 1
-          |  (( (data[idxBegin + idx+1])<< 8) & 0x0000ff00 ) //depending on sign of byte. Mask it!
-          |  (( (data[idxBegin + idx  ])    ) & 0x000000ff );  //NOTE: the value has only 8 bits for bitwise or.
+    { val =  (  (data[ixBegin + idx+3])<<24)  //NOTE all 24 low-bits are 0
+          |  (( (data[ixBegin + idx+2])<<16) & 0x00ff0000 ) //NOTE the high bits may be 0 or 1
+          |  (( (data[ixBegin + idx+1])<< 8) & 0x0000ff00 ) //depending on sign of byte. Mask it!
+          |  (( (data[ixBegin + idx  ])    ) & 0x000000ff );  //NOTE: the value has only 8 bits for bitwise or.
     }
     return val;
   }
@@ -1189,12 +1188,12 @@ public abstract class ByteDataAccessBase
   protected final int getUint16(int idx)
   { int val;
     if(bBigEndian)
-    { val =  (( (data[idxBegin + idx  ])<< 8) & 0x0000ff00 ) //depending on sign of byte. Mask it!
-          |  (( (data[idxBegin + idx+1])    ) & 0x000000ff );  //NOTE: the value has only 8 bits for bitwise or.
+    { val =  (( (data[ixBegin + idx  ])<< 8) & 0x0000ff00 ) //depending on sign of byte. Mask it!
+          |  (( (data[ixBegin + idx+1])    ) & 0x000000ff );  //NOTE: the value has only 8 bits for bitwise or.
     }
     else
-    { val =  (( (data[idxBegin + idx+1])<< 8) & 0x0000ff00 ) //depending on sign of byte. Mask it!
-          |  (( (data[idxBegin + idx  ])    ) & 0x000000ff );  //NOTE: the value has only 8 bits for bitwise or.
+    { val =  (( (data[ixBegin + idx+1])<< 8) & 0x0000ff00 ) //depending on sign of byte. Mask it!
+          |  (( (data[ixBegin + idx  ])    ) & 0x000000ff );  //NOTE: the value has only 8 bits for bitwise or.
     }
     return val;
   }
@@ -1208,12 +1207,12 @@ public abstract class ByteDataAccessBase
   protected final short getInt16(int idx)
   { int val;
     if(bBigEndian)
-    { val =  (( (data[idxBegin + idx  ])<< 8) & 0xff00 ) //depending on sign of byte. Mask it!
-          |  (( (data[idxBegin + idx+1])    ) & 0x00ff );  //NOTE: the value has only 8 bits for bitwise or.
+    { val =  (( (data[ixBegin + idx  ])<< 8) & 0xff00 ) //depending on sign of byte. Mask it!
+          |  (( (data[ixBegin + idx+1])    ) & 0x00ff );  //NOTE: the value has only 8 bits for bitwise or.
     }
     else
-    { val =  (( (data[idxBegin + idx+1])<< 8) & 0xff00 ) //depending on sign of byte. Mask it!
-          |  (( (data[idxBegin + idx  ])    ) & 0x00ff );  //NOTE: the value has only 8 bits for bitwise or.
+    { val =  (( (data[ixBegin + idx+1])<< 8) & 0xff00 ) //depending on sign of byte. Mask it!
+          |  (( (data[ixBegin + idx  ])    ) & 0x00ff );  //NOTE: the value has only 8 bits for bitwise or.
     }
     return (short)val;
   }
@@ -1227,7 +1226,7 @@ public abstract class ByteDataAccessBase
    * */
   protected final char getChar(int idx)
   { char val;
-    val = (char) data[idxBegin + idx];
+    val = (char) data[ixBegin + idx];
     return val;
   }
   
@@ -1240,7 +1239,7 @@ public abstract class ByteDataAccessBase
    * */
   protected final byte getInt8(int idx)
   { byte val;
-    val = data[idxBegin + idx];
+    val = data[ixBegin + idx];
     return val;
   }
 
@@ -1254,7 +1253,7 @@ public abstract class ByteDataAccessBase
    * */
   protected final int getUint8(int idx)
   { int val;
-    val = data[idxBegin + idx] & 0xff;
+    val = data[ixBegin + idx] & 0xff;
     return val;
   }
  
@@ -1337,16 +1336,16 @@ public abstract class ByteDataAccessBase
    * */
   protected final void setInt32(int idx, int value)
   { if(bBigEndian)
-    { data[idxBegin + idx]   = (byte)((value>>24) & 0xff);
-      data[idxBegin + idx+1] = (byte)((value>>16) & 0xff);
-      data[idxBegin + idx+2] = (byte)((value>>8) & 0xff);
-      data[idxBegin + idx+3] = (byte)(value & 0xff);
+    { data[ixBegin + idx]   = (byte)((value>>24) & 0xff);
+      data[ixBegin + idx+1] = (byte)((value>>16) & 0xff);
+      data[ixBegin + idx+2] = (byte)((value>>8) & 0xff);
+      data[ixBegin + idx+3] = (byte)(value & 0xff);
     }
     else
-    { data[idxBegin + idx+3] = (byte)((value>>24) & 0xff);
-      data[idxBegin + idx+2] = (byte)((value>>16) & 0xff);
-      data[idxBegin + idx+1] = (byte)((value>>8) & 0xff);
-      data[idxBegin + idx]   = (byte)(value & 0xff);
+    { data[ixBegin + idx+3] = (byte)((value>>24) & 0xff);
+      data[ixBegin + idx+2] = (byte)((value>>16) & 0xff);
+      data[ixBegin + idx+1] = (byte)((value>>8) & 0xff);
+      data[ixBegin + idx]   = (byte)(value & 0xff);
     }
   }
 
@@ -1358,7 +1357,7 @@ public abstract class ByteDataAccessBase
    * */
   @Java4C.Inline
   protected final void setInt8(int idx, int value)
-  { data[idxBegin + idx] = (byte)(value & 0xff);
+  { data[ixBegin + idx] = (byte)(value & 0xff);
   }
 
 
@@ -1384,16 +1383,16 @@ public abstract class ByteDataAccessBase
   { //the same algorithm in source, but other action on machine level,
     //because value is long!
     if(bBigEndian)
-    { data[idxBegin + idx]   = (byte)((value>>24) & 0xff);
-      data[idxBegin + idx+1] = (byte)((value>>16) & 0xff);
-      data[idxBegin + idx+2] = (byte)((value>>8) & 0xff);
-      data[idxBegin + idx+3] = (byte)(value & 0xff);
+    { data[ixBegin + idx]   = (byte)((value>>24) & 0xff);
+      data[ixBegin + idx+1] = (byte)((value>>16) & 0xff);
+      data[ixBegin + idx+2] = (byte)((value>>8) & 0xff);
+      data[ixBegin + idx+3] = (byte)(value & 0xff);
     }
     else
-    { data[idxBegin + idx+3] = (byte)((value>>24) & 0xff);
-      data[idxBegin + idx+2] = (byte)((value>>16) & 0xff);
-      data[idxBegin + idx+1] = (byte)((value>>8) & 0xff);
-      data[idxBegin + idx]   = (byte)(value & 0xff);
+    { data[ixBegin + idx+3] = (byte)((value>>24) & 0xff);
+      data[ixBegin + idx+2] = (byte)((value>>16) & 0xff);
+      data[ixBegin + idx+1] = (byte)((value>>8) & 0xff);
+      data[ixBegin + idx]   = (byte)(value & 0xff);
     }
   }
 
@@ -1408,12 +1407,12 @@ public abstract class ByteDataAccessBase
    * */
   protected final void setInt16(int idx, int value)
   { if(bBigEndian)
-    { data[idxBegin + idx]   = (byte)((value>>8) & 0xff);
-      data[idxBegin + idx+1] = (byte)(value & 0xff);
+    { data[ixBegin + idx]   = (byte)((value>>8) & 0xff);
+      data[ixBegin + idx+1] = (byte)(value & 0xff);
     }
     else
-    { data[idxBegin + idx+1] = (byte)((value>>8) & 0xff);
-      data[idxBegin + idx]   = (byte)(value & 0xff);
+    { data[ixBegin + idx+1] = (byte)((value>>8) & 0xff);
+      data[ixBegin + idx]   = (byte)(value & 0xff);
     }
   }
   
@@ -1488,11 +1487,11 @@ public abstract class ByteDataAccessBase
    * in all parents.
    */
   final protected void correctCurrentChildEnd(int idxEndNew)
-  { if(idxEnd < idxEndNew) 
-    { idxEnd = idxEndNew;
+  { if(ixEnd < idxEndNew) 
+    { ixEnd = idxEndNew;
     }
-    if(idxCurrentChildEnd < idxEndNew) 
-    { idxCurrentChildEnd = idxEndNew;
+    if(ixChildEnd < idxEndNew) 
+    { ixChildEnd = idxEndNew;
     }
     if(parent != null)
     { parent.correctCurrentChildEnd(idxEndNew);
@@ -1515,11 +1514,11 @@ public abstract class ByteDataAccessBase
     */
    protected final void setIdxCurrentChildEnd(int nrofBytes) 
    throws IllegalArgumentException
-   { if(data.length < idxCurrentChild + nrofBytes)
-     { @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
+   { if(data.length < ixChild + nrofBytes)
+     { @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (ixChild + nrofBytes);
        throw new IllegalArgumentException(msg);
      }
-     expand(idxCurrentChild + nrofBytes);  //also of all parents
+     _expand(ixChild + nrofBytes);  //also of all parents
      //return bExpand;
    }
 
@@ -1538,19 +1537,21 @@ public abstract class ByteDataAccessBase
      { if(toStringformatter == null){ toStringformatter = new StringFormatter(); }
        else { toStringformatter.reset(); }
        int sizeHead = getLengthHead();
-       toStringformatter.addint(idxBegin, "33331").add("..").addint(idxBegin + sizeHead,"333331").add(":");
+       toStringformatter.addint(ixBegin, "33331")
+       .add("..").addint(ixBegin + sizeHead,"333331")
+       .add("..").addint(ixEnd,"333331").add(":");
        if(sizeHead > 16){ sizeHead = 16; }
        if(sizeHead <0){ sizeHead = 4; }
-       if(idxBegin + sizeHead > data.length){ sizeHead = data.length - idxBegin; }  
-       toStringformatter.addHexLine(data, idxBegin, sizeHead, bBigEndian? StringFormatter.k4left: StringFormatter.k4right);
-       toStringformatter.add(" child ").addint(idxCurrentChild,"-3331").add("..").addint(idxCurrentChildEnd,"-33331").add(":");
-       if(idxCurrentChild >= idxBegin)
+       if(ixBegin + sizeHead > data.length){ sizeHead = data.length - ixBegin; }  
+       toStringformatter.addHexLine(data, ixBegin, sizeHead, bBigEndian? StringFormatter.k4left: StringFormatter.k4right);
+       toStringformatter.add(" child ").addint(ixChild,"-3331").add("..").addint(ixChildEnd,"-33331").add(":");
+       if(ixChild >= ixBegin)
        { 
-         sizeHead = idxCurrentChildEnd - idxCurrentChild;
+         sizeHead = ixChildEnd - ixChild;
          if(sizeHead > 16){ sizeHead = 16; }
          if(sizeHead <0){ sizeHead = 4; }
-         if(idxCurrentChild + sizeHead > data.length){ sizeHead = data.length - idxBegin; }  
-         toStringformatter.addHexLine(data, idxCurrentChild, sizeHead, bBigEndian? StringFormatter.k4left: StringFormatter.k4right);
+         if(ixChild + sizeHead > data.length){ sizeHead = data.length - ixBegin; }  
+         toStringformatter.addHexLine(data, ixChild, sizeHead, bBigEndian? StringFormatter.k4left: StringFormatter.k4right);
        }
        final String ret = toStringformatter.toString();
        return ret;

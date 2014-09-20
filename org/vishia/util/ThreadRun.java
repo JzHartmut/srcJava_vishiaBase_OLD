@@ -16,6 +16,7 @@ public class ThreadRun implements Closeable
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-09-21 Hartmut TODO some variables to class for inspect-ability. Separate const and volatile variables.
    * <li>2013-12-11 Hartmut: Created
    * </ul>
    * <br><br>
@@ -138,7 +139,7 @@ public class ThreadRun implements Closeable
    
     int ctOutofrange=0, ctless0=0, ctOk=0, ctWaitInterrupted=0;
     //
-    int timewait = step.start(cycletime);
+    int timewait = step.start(cycletime);  //TODO some variables to class for inspect-ability. Separate const and volatile variables.
     //
     while(runThread){
       shortTime = ((int)System.currentTimeMillis());
@@ -237,8 +238,8 @@ public class ThreadRun implements Closeable
      * @param cycletime the programmed cycle time
      * @param lastCalctime the last need calculation time.
      *   The step routine can check whether there is a time overflow.
-     * @return >=0 the waits to the next step this given time,
-     *   if ==0 then the next step() is executed without wait.
+     * @return >=0 then waits till the next step with this given time,
+     *   especially if ==0 then the next step() is executed without wait.
      *  <0, especially -1: Executes the next step in exactly the cycle time.
      */
     public int step(int cycletimeNom, int cycletimeLast, int calctimeLast, long millisecAbs);

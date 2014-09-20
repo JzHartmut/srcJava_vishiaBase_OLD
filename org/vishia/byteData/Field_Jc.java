@@ -203,10 +203,10 @@ public  class Field_Jc extends ByteDataAccess
        */
       public String getName() 
       { String ret; 
-        int idxName = idxBegin + kPosName;
+        int idxName = ixBegin + kPosName;
         int idxEnd =  idxName + kLengthName;
         while(idxEnd > idxName && data[--idxEnd]==0);
-        try{ ret = new String(data, idxBegin + kPosName, idxEnd - idxName +1, "ISO-8859-1"); }
+        try{ ret = new String(data, ixBegin + kPosName, idxEnd - idxName +1, "ISO-8859-1"); }
         catch(UnsupportedEncodingException exc){ throw new RuntimeException("ISO-8859-1 encoding is not supported.");};
         return ret;
       }
@@ -221,7 +221,7 @@ public  class Field_Jc extends ByteDataAccess
       public  String getValue(Object_Jc Data)
       {
           String sResult = "";
-          int idxOffset= (Data.idxCurrentChild - Data.idxBegin) + this.getPosValue();//Data.idxChild - Data.idxBegin; //DataStart + offset
+          int idxOffset= (Data.ixChild - Data.ixBegin) + this.getPosValue();//Data.idxChild - Data.idxBegin; //DataStart + offset
           
           switch (getType())
           {

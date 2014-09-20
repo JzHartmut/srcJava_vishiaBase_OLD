@@ -65,12 +65,17 @@ public interface Java4C {
 
 
   
+  /**Defines that the <code>class Type{ ... }</code> does not base on ObjectJc in C. It is a simple struct without ObjectJc head data.
+   * Note that such an instance does not support overridden methods and does not support Reflection of derived types with a base reference. 
+   * A derivation is possible. */
+  public @interface NoObject{}
+    
   /**Defines that the <code>Type instance = new Type(args);</code> is only used in this method, in Java garbaged after the end of the method
    * and therefore it is possible to create an instance as Stack variable in C language.
    * Assure that a reference of this instance is not stored outside of the routine!
    */
   public @interface StackInstance{}
-	
+    
   /**Sets that the following array has not a Array head structure - not an ObjectArrayJ.
    * It is a embedded array if the variable is final and construct in the same line:
    * <pre>
@@ -110,6 +115,13 @@ public interface Java4C {
    * </pre>  
    */
   public @interface SimpleRef{  }
+  
+  /**Produces a const modifier for a reference (refers a const object). 
+   * Note that the const of C/C++ is not supported by the Java language. But it may be important for C/C++.
+   * In Java it means, the Object which is referenced, won't be changed.
+   * In opposite, a final modifier on the reference means in Java and in C: The reference itself won't be changed.
+   */
+  public @interface ConstRef{ }
     
   /**Sets the following array as simple reference. An byte[] in Java is a int8* in C. */
   public @interface SimpleArrayRef{  }
