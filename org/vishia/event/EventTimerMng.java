@@ -86,7 +86,7 @@ public class EventTimerMng extends Thread implements Closeable{
      * @param thread The destination thread may be null, then the {@link EventConsumer#processEvent(Event)} method
      *   is called in the timer thread.
      */
-    TimeEvent(EventConsumer dst, EventThread thread, int identNrEvent){
+    public TimeEvent(EventConsumer dst, EventThread thread, int identNrEvent){
       super(null, dst, thread);
       this.identNrEvent = identNrEvent;
     }

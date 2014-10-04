@@ -96,6 +96,12 @@ implements EventConsumer
     this.theTimer = timer;
   }
 
+  public StateTopBase() {
+    super("top");
+    this.theThread = null;
+    this.theTimer = null;
+  }
+
 
   /**The trans routine is implemented as an empty routine here. The StateTop has not a capability
    * to switch any states.

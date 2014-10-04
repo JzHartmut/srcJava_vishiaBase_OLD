@@ -1597,6 +1597,8 @@ public class DataAccess {
    * @return the enclosing instance or null.
    */
   public static Object getEnclosingInstance(Object obj){
+    return getEnclosingInstance(0, obj);
+    /*
     Object encl;
     try{ Field fieldEncl = obj.getClass().getDeclaredField("this$0");
       fieldEncl.setAccessible(true);
@@ -1607,7 +1609,51 @@ public class DataAccess {
       encl = null;        //Any access problems ? 
     }
     return encl;
+    */
   }
+  
+  
+  
+  
+  private static Object getEnclosingInstance(int recurs, Object obj){
+    Object encl;
+    boolean bNext = false;
+    if(recurs >10){ encl = null; }
+    else {
+      String enclName = "this$" + recurs;
+      try{ Field fieldEncl = obj.getClass().getDeclaredField(enclName);
+        fieldEncl.setAccessible(true);
+        encl = fieldEncl.get(obj);
+      } catch(NoSuchFieldException exc){
+        bNext = true;
+        encl = null;
+      } catch(IllegalAccessException exc){
+        encl = null;        //Any access problems ? 
+      }
+    }
+    if(bNext){
+      encl = getEnclosingInstance(recurs+1, obj);
+    }
+    return encl;
+  }
+  
+  
+  
+  
+  
+  public static boolean isOrExtends(Class<?> thisclazz, Class<?> superclazz)
+  {
+    Class<?> clazzret = thisclazz;
+    do{
+      if(clazzret == superclazz) return true;
+      else {
+        clazzret = clazzret.getSuperclass();
+      }
+    } while(clazzret !=null);
+    return false; //if not found.
+  }
+  
+  
   
   
   
