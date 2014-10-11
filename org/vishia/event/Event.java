@@ -793,7 +793,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   public boolean hasDst(){ return evDst !=null; }
   
   
-  
+  public void setDst(EventConsumer dst) { this.evDst = dst; }
   
   
   

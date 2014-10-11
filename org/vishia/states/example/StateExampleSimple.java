@@ -23,8 +23,8 @@ public class StateExampleSimple
     class StateIdle extends StateSimple {
 
       StateTrans step_State1 = new StateTrans("descr"){ @Override protected int trans(Event<?, ?> ev)
-      { exitState();
-        return entryState(ev) | mEventConsumed;
+      { doExit();
+        return doEntry(ev) | mEventConsumed;
       }};
     
       
@@ -37,8 +37,8 @@ public class StateExampleSimple
 
         @SuppressWarnings("unused") 
         StateTrans addRequest = new StateTrans("descr"){ @Override protected int trans(Event<?, ?> ev)
-        { exitState();
-          return entryState(ev) | mEventConsumed;
+        { doExit();
+          return doEntry(ev) | mEventConsumed;
         }};
       
         
@@ -48,8 +48,8 @@ public class StateExampleSimple
       class State2 extends StateSimple {
 
         StateTrans addRequest = new StateTrans("descr"){ @Override protected int trans(Event<?, ?> ev)
-        { exitState();
-        return entryState(ev) | mEventConsumed;
+        { doExit();
+        return doEntry(ev) | mEventConsumed;
         }};
      
         
@@ -57,8 +57,8 @@ public class StateExampleSimple
           if(trans == null){
             return new StateTrans("start2", StateIdle.class);
           } 
-          trans.exitState();
-          trans.retTrans = trans.entryState(ev) | mEventConsumed;
+          trans.doExit();
+          trans.retTrans = trans.doEntry(ev) | mEventConsumed;
           return trans;
         }
         
@@ -82,12 +82,12 @@ public class StateExampleSimple
     StateExampleSimple main = new StateExampleSimple();
     main.ev.occupy(null, true);
     main.ev.setCmd(Ecmd.Step);
-    main.states1.processEvent(main.ev);
+    main.states1.applyEvent(main.ev);
     main.ev.occupy(null, true);
     main.ev.setCmd(Ecmd.Step);
-    main.states1.processEvent(main.ev);
-    main.states1.processEvent(main.ev);
-    main.states1.processEvent(main.ev);
+    main.states1.applyEvent(main.ev);
+    main.states1.applyEvent(main.ev);
+    main.states1.applyEvent(main.ev);
   }
   
   

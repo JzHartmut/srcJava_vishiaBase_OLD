@@ -31,9 +31,9 @@ public class StatesNestedParallel
         { condition = new StateAction() {
             @Override public int action(Event<?, ?> ev) {
               if(cond.start){ 
-                exitState();
+                doExit();
                 //no action
-                return entryState(ev) | mEventConsumed;
+                return doEntry(ev) | mEventConsumed;
               }
               else return 0;
             };
@@ -44,9 +44,9 @@ public class StatesNestedParallel
       StateTrans on_Ready = new StateTrans("on_Ready", StateWork.StateReady.class){ 
         @Override protected int trans(Event<?, ?> ev) {
         if(cond.on_ready){
-          exitState();
+          doExit();
           //no action
-          return entryState(ev) | mEventConsumed;
+          return doEntry(ev) | mEventConsumed;
           //return switchto(ev, StateWork.StateReady.class);
         }
         else return 0;
@@ -77,8 +77,8 @@ public class StatesNestedParallel
         //Class<? extends StateSimple> dst = StateWork.StateReady.class;
         //int id = StateWork.class.hashCode();
         if(cond.on_ready){
-          trans.exitState();
-          trans.entryState(ev);
+          trans.doExit();
+          trans.doEntry(ev);
         }
         return trans;
       }
@@ -99,9 +99,9 @@ public class StatesNestedParallel
         StateTrans start = new StateTrans("start", StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class){ 
           @Override protected int trans(Event<?, ?> ev) {
             if(cond.start) {
-              exitState();
+              doExit();
               //no action
-              return entryState(ev) | mEventConsumed;
+              return doEntry(ev) | mEventConsumed;
             }
             else return 0;
           }
@@ -114,9 +114,9 @@ public class StatesNestedParallel
           
           @Override protected int trans(Event<?, ?> ev) {
             if(cond.start) {
-              exitState();
+              doExit();
               //no action
-              return entryState(ev) | mEventConsumed;
+              return doEntry(ev) | mEventConsumed;
             }
             else return 0;
           }
@@ -131,9 +131,9 @@ public class StatesNestedParallel
             return new StateTrans("start2", StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class);
           } 
           if(cond.start) {
-            transP.exitState();
+            transP.doExit();
             //no action
-            transP.entryState(ev);
+            transP.doEntry(ev);
             transP.retTrans =  mEventConsumed;
             return transP;
           }
@@ -194,7 +194,7 @@ public class StatesNestedParallel
   
   private void execute(){
     cond.on_ready = true;
-    states.processEvent(null);
+    states.applyEvent(null);
   }
   
   

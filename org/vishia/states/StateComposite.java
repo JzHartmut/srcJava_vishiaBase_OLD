@@ -16,7 +16,7 @@ import org.vishia.util.DateOrder;
 
 public class StateComposite extends StateSimple
 {
-  /**Version, history and license
+  /**Version, history and license.
    * <ul>
    * <li>2013-05-11 Hartmut new: It is a {@link EventConsumer} yet. Especially a timer event needs a destination
    *   which is this class.

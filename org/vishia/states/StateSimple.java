@@ -164,6 +164,26 @@ private StateTrans[] transitions;
 
 
 /**An instance of this class represents a transition of the enclosing SimpleState to one or more destination states.
+ * There are three forms to program transitions in a state class:
+ * <br><br><b>Simple transition method in a state class:</b><br>
+ * The user can write a method with the following form: <pre>
+ *   class MyState_A extends StateSimple
+ *   {
+ *     StateTrans trans1_State2(Event<?,?> ev, StateTrans trans) {
+ *       if(trans == null) return new StateTrans(MyState_B.class);
+ *       if(condition && ev instanceof MyEvent && (ev.getCmd == MyCmd){
+ *         doExit();
+ *         myAction();
+ *         doEntry();
+ *       }
+ *       return trans;
+ *     }  
+ * </pre>
+ * The method will be detected by checking the State class content via reflection.
+ * The StateTrans instance will be build by invoking this method with null as ev and trans parameter. 
+ * <br><br>
+ * <b>Transition class:</b><br>
+ * 
  * The user should build derived anonymous classes for each transition which should be initialized with the destination state classes.
  * The user should override the method {@link #trans(Event)} which should contain the condition and actions: <pre>
  *   class MyState_A extends StateSimple
@@ -460,7 +480,7 @@ public class StateTrans
   /**Executes the exit from this and all enclosing States to fire the transition.
    * 
    */
-  public void exitState()
+  public void doExit()
   {
     for(StateSimple state: exitStates){
       state.exitTheState();
@@ -469,7 +489,7 @@ public class StateTrans
   
   
   
-  public int entryState(Event<?,?> ev)
+  public int doEntry(Event<?,?> ev)
   {
     for(StateSimple[] stateParallel: entryStates){
       for(StateSimple state: stateParallel) {
