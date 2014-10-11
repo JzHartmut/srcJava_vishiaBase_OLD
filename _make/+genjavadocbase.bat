@@ -17,8 +17,10 @@ if not exist %DSTDIR%%DST% mkdir %DSTDIR%%DST%
 if not exist %DSTDIR%%DST_priv% mkdir %DSTDIR%%DST_priv%
 
 echo javadoc -d %DSTDIR%%DST% -linksource -notimestamp -nodeprecated %LINKPATH% %CLASSPATH% -sourcepath %SRCPATH%
+echo on
 %JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST% -protected -linksource -notimestamp -nodeprecated %LINKPATH% %CLASSPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST%\javadoc.rpt 2>%DSTDIR%%DST%\javadoc.err
 if errorlevel 1 goto :error
+echo off
 copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DSTDIR%%DST%\stylesheet.css >NUL
 
 echo javadoc -d %DSTDIR%%DST_priv% -private -linksource -notimestamp %LINKPATH% %CLASSPATH% -sourcepath %SRCPATH%

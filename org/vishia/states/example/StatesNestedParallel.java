@@ -1,11 +1,12 @@
 package org.vishia.states.example;
 
 import org.vishia.event.Event;
+import org.vishia.states.StateAction;
 import org.vishia.states.StateAddParallel;
 import org.vishia.states.StateComposite;
 import org.vishia.states.StateParallel;
 import org.vishia.states.StateSimple;
-import org.vishia.states.StateTop;
+import org.vishia.states.StateMachine;
 
 public class StatesNestedParallel
 {
@@ -22,46 +23,64 @@ public class StatesNestedParallel
   
   Conditions cond = new Conditions();
   
-  class States extends StateTop
+  class States extends StateMachine
   {
     class StateOff extends StateSimple
     {
-      StateTrans start = new StateTrans(StateWork.StateActive.StateActive1.StateRunning.class, StateWork.StateActive.StateActive2.StateRemainOn.class){ 
-        @Override protected int trans(Event<?, ?> ev) {
-        if(cond.start) return exit().entry(StateWork.StateActive.StateActive1.StateRunning.class, ev);
-        else return 0;
+      StateTrans start = new StateTrans("start", StateWork.StateActive.StateActive1.StateRunning.class, StateWork.StateActive.StateActive2.StateRemainOn.class){ 
+        { condition = new StateAction() {
+            @Override public int action(Event<?, ?> ev) {
+              if(cond.start){ 
+                exitState();
+                //no action
+                return entryState(ev) | mEventConsumed;
+              }
+              else return 0;
+            };
+          };
       } };
 
       
-      StateTrans on_Ready = new StateTrans(StateWork.StateReady.class){ 
+      StateTrans on_Ready = new StateTrans("on_Ready", StateWork.StateReady.class){ 
         @Override protected int trans(Event<?, ?> ev) {
         if(cond.on_ready){
-          return switchto(ev, StateWork.StateReady.class);
+          exitState();
+          //no action
+          return entryState(ev) | mEventConsumed;
+          //return switchto(ev, StateWork.StateReady.class);
         }
         else return 0;
       } };
       
       
       
-      StateTrans testChoice = new StateTrans(){
+      /*
+      StateTrans testChoice = new StateTrans("testChoice"){
         @Override protected int trans(Event<?, ?> ev) {
           return 0;
         }        
         
         Choice choice1 = new Choice(StateWork.StateReady.class) {
-          
+          {
+            condition = new Runnable(){@Override public void run()
+            { }};
+          }
         };
         
         
       };
+      */
       
       
-      
-      int on_Ready(Event<?, ?> ev) {
+      StateTrans on_Ready(Event<?, ?> ev, StateTrans trans) {
+        if(trans == null) return new StateTrans("on_Ready", StateWork.StateReady.class); 
         //Class<? extends StateSimple> dst = StateWork.StateReady.class;
         //int id = StateWork.class.hashCode();
-        if(cond.on_ready) return switchto(ev, StateWork.StateReady.class);
-        else return 0;
+        if(cond.on_ready){
+          trans.exitState();
+          trans.entryState(ev);
+        }
+        return trans;
       }
       
     }
@@ -72,22 +91,56 @@ public class StatesNestedParallel
       class StateReady extends StateSimple
       {
         
-        StateTrans start = new StateTrans(StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class){ 
+        @Override public int entry(Event<?,?> ev){
+          System.out.println("entry Ready");
+          return 0;
+        }
+        
+        StateTrans start = new StateTrans("start", StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class){ 
           @Override protected int trans(Event<?, ?> ev) {
-          if(cond.start) {
-            return exit().entry(StateActive.StateActive1.StateRunning.class, ev);
-          }
-          else return 0;
+            if(cond.start) {
+              exitState();
+              //no action
+              return entryState(ev) | mEventConsumed;
+            }
+            else return 0;
           }
           
-          {
-            action = new Runnable(){@Override public void run()
-            {
-              // TODO Auto-generated method stub
-              
-            }};
-          }
         };
+        
+        class Start extends StateTrans {
+          
+          Start(){ super("Start", StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class); } 
+          
+          @Override protected int trans(Event<?, ?> ev) {
+            if(cond.start) {
+              exitState();
+              //no action
+              return entryState(ev) | mEventConsumed;
+            }
+            else return 0;
+          }
+          
+          int action(Event<?,?>ev){
+            return 0;
+          }
+        } //class Start
+        
+        StateTrans start2(Event<?,?> ev, StateTrans transP){
+          if(transP == null){
+            return new StateTrans("start2", StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class);
+          } 
+          if(cond.start) {
+            transP.exitState();
+            //no action
+            transP.entryState(ev);
+            transP.retTrans =  mEventConsumed;
+            return transP;
+          }
+          else return null;
+          
+        }
+        
         
       }
       
@@ -113,7 +166,6 @@ public class StatesNestedParallel
           //};
           
         } 
-        StateActive1 stateActive1; // = new StateActive1();
         
         
         class StateActive2 extends StateAddParallel

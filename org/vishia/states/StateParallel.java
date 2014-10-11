@@ -95,7 +95,7 @@ public abstract class StateParallel extends StateComposite
     XXXentryComposite();
     for(StateComposite state: states){
       if( state.enclState != null && !state.enclState.isInState(state)) {  
-        state.entry(ev);          //executes the entry action of this enclosing state to notify the state by its enclosingState.
+        state.entryTheState(ev);          //executes the entry action of this enclosing state to notify the state by its enclosingState.
       }
       state.stateAct = null;
       state.isActive = true;
@@ -113,7 +113,7 @@ public abstract class StateParallel extends StateComposite
     if((cont & StateSimpleBase.mEventConsumed) != 0){
       ev = null;
     }
-    trans(ev);  //the own trans
+    checkTransitions(ev);  //the own trans
     return cont;
   }
   
@@ -122,11 +122,11 @@ public abstract class StateParallel extends StateComposite
   /**Exits first the actual sub state (and tha exits its actual sub state), after them this state is exited.
    * @see org.vishia.stateMachine.StateSimpleBase#exit()
    */
-  @Override public StateComposite exit(){ 
+  @Override public StateComposite exitTheState(){ 
     for(StateComposite state: states){
-      state.exit();
+      state.exitTheState();
     }
-    return super.exit();
+    return super.exitTheState();
   }
 
 

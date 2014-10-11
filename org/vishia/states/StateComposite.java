@@ -66,7 +66,7 @@ public class StateComposite extends StateSimple
   /**Stores whether this composite state is active. Note that the #stateAct is set as history state
    * as well the state is not active. This bit is set to false too if the current state is exited
    * and a new state is not entered yet, while temporary transition processing. It helps to prevent double
-   * execution of the {@link #exit()} routine if exit of the enclosing state is processed.*/
+   * execution of the {@link #exitTheState()} routine if exit of the enclosing state is processed.*/
   boolean isActive;
   
   /**If set true, then any state transition is logged with System.out.printf("..."). One can use the 
@@ -76,15 +76,24 @@ public class StateComposite extends StateSimple
   
   /*package private*/ StateSimple stateAct;
   
-  private StateSimple stateDefault;
+  StateSimple stateDefault;
   
   
-  StateTop stateTop;
+  StateMachine stateMachine;
   
   
   /**List of all sub states of this composite state. This list is necessary to build the transition paths on startup.
    * It is nice to have for debugging. Therefore its name starts with 'a' to set it on top of variable list in debugging. */
   final StateSimple[] aSubstates;
+  
+  
+  /**Only for the {@link StateMachine#topState} */
+  StateComposite(StateMachine stateMachine, StateSimple[] aSubstates){
+    this.aSubstates = aSubstates;
+    this.stateMachine = stateMachine;
+  };
+  
+  
   
   
   protected StateComposite() {
@@ -94,18 +103,15 @@ public class StateComposite extends StateSimple
     Object env = this;
     do {
       Class<?> clazzTop2 = env.getClass();
-      if(DataAccess.isOrExtends(clazzTop2, StateTop.class)){
-        this.stateTop = (StateTop)env;
+      if(DataAccess.isOrExtends(clazzTop2, StateMachine.class)){
+        this.stateMachine = (StateMachine)env;
         //firstly create the stateMap. Note: This is called in constructor of the StateTop-superclass.
-        if(stateTop.stateMap == null){
-          stateTop.stateMap = new HashMap<Integer, StateSimple>();
-        }
       } else {
         env = DataAccess.getEnclosingInstance(env);
       }
-    } while(stateTop == null && env !=null);
+    } while(stateMachine == null && env !=null);
       
-    if(stateTop == null){
+    if(stateMachine == null){
       throw new IllegalArgumentException("");
     }
     Class<?>[] innerClasses = clazz.getDeclaredClasses();
@@ -124,7 +130,7 @@ public class StateComposite extends StateSimple
             state.stateId = clazz1.getSimpleName();
             state.enclState = this;
             int idState = clazz1.hashCode();
-            stateTop.stateMap.put(idState, state);
+            stateMachine.stateMap.put(idState, state);
             if(this.stateDefault == null){
               this.stateDefault = state;  //The first state is the default one.
             }
@@ -213,7 +219,7 @@ public class StateComposite extends StateSimple
     if(this instanceof StateParallel){
       ((StateParallel)this).entryDefaultParallelStates();
     } else {
-      stateDefault.entry(null);
+      stateDefault.entryTheState(null);
     }
   }
 
@@ -226,11 +232,11 @@ public class StateComposite extends StateSimple
    */
   public final int entryDeepHistory(Event<?,?> ev){
     StateSimple stateActHistory = stateAct;  //save it
-    int cont = entry(ev);                  //entry in this state, remark: may be overridden, sets the stateAct to null
+    int cont = entryTheState(ev);                  //entry in this state, remark: may be overridden, sets the stateAct to null
     if(stateActHistory instanceof StateComposite){
       cont = ((StateComposite)stateActHistory).entryDeepHistory(ev);
     } else {
-      cont = stateActHistory.entry(ev);           //entry in the history sub state.
+      cont = stateActHistory.entryTheState(ev);           //entry in the history sub state.
     }
     return cont;
   }
@@ -243,8 +249,8 @@ public class StateComposite extends StateSimple
    */
   public final int entryFlatHistory(Event<?,?> ev){
     StateSimple stateActHistory = stateAct;  //save it
-    int cont = entry(ev);                  //entry in this state, remark: may be overridden, sets the stateAct to null
-    cont = stateActHistory.entry(ev);             //entry in the history sub state.
+    int cont = entryTheState(ev);                  //entry in this state, remark: may be overridden, sets the stateAct to null
+    cont = stateActHistory.entryTheState(ev);             //entry in the history sub state.
     return cont;
   }
   
@@ -284,10 +290,10 @@ public class StateComposite extends StateSimple
 
   
   
-  public final int entry(Class state, Event<?,?> ev){
+  public final int XXXentry(Class state, Event<?,?> ev){
     int id = state.hashCode();
-    StateSimple entryState = stateTop.stateMap.get(new Integer(id));
-    return entryState.entry(ev);
+    StateSimple entryState = stateMachine.stateMap.get(new Integer(id));
+    return entryState.entryTheState(ev);
   }
 
   
@@ -295,7 +301,7 @@ public class StateComposite extends StateSimple
   
   /**Processes the event for the states of this composite state.
    * First the event is applied to the own (inner) states invoking either its {@link StateCompositeBase#processEvent(Event)}
-   * or its {@link #trans(Event)} method.
+   * or its {@link #checkTransitions(Event)} method.
    * If this method returns {@link StateSimpleBase#mRunToComplete} that invocation is repeated in a loop, to call
    * the transition of the new state too. But if the event was consumed by the last invocation, it is not supplied again
    * in the loop, the event parameter is set to null instead. It means only conditional transitions are possible.
@@ -306,8 +312,8 @@ public class StateComposite extends StateSimple
    * <br><br>
    * This method is not attempt to override by the user. Only the class {@link StateParallelBase} overrides it
    * to invoke the processing of all parallel boughs.
-   * @param evP The event supplied to the {@link #trans(Event)} method.
-   * @return The bits {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #trans(Event)}.
+   * @param evP The event supplied to the {@link #checkTransitions(Event)} method.
+   * @return The bits {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #checkTransitions(Event)}.
    *   Note that if an event is consumed in an inner state, it should not be applied to its enclosing state transitions. 
    */
   /*package private*/ int _processEvent(final Event<?,?> evP){  //NOTE: should be protected.
@@ -326,7 +332,7 @@ public class StateComposite extends StateSimple
         cont = ((StateComposite)stateAct)._processEvent(evTrans); 
       } else {
         StateSimple statePrev = stateAct;
-        cont = stateAct.trans(evTrans);
+        cont = stateAct.checkTransitions(evTrans);
         if(debugState && (cont & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, cont); }
       }
       //
@@ -349,7 +355,7 @@ public class StateComposite extends StateSimple
       //process the own transition. Do it after processing the inner state (omg.org)
       //and only if either an event is present or the state has only conditional transitions.
       StateSimple statePrev = stateAct;
-      cont = trans(evTrans); 
+      cont = checkTransitions(evTrans); 
       if(debugState && (cont & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, cont); }
     }
     return cont;  //runToComplete.bit may be set from an inner state transition too.
@@ -399,12 +405,12 @@ public class StateComposite extends StateSimple
    * @return The enclosing state, which can used for entry immediately.
    * @see org.vishia.stateMachine.StateSimpleBase#exit()
    */
-  @Override public StateComposite exit(){ 
+  @Override public StateComposite exitTheState(){ 
     if(isActive){
-      stateAct.exit();
+      stateAct.exitTheState();
       isActive = false; //NOTE that StateSimpleBase.exit() sets isActive to false already. It is done twice.
     }
-    return super.exit();
+    return super.exitTheState();
   }
 
   
