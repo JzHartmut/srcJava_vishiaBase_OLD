@@ -54,61 +54,33 @@ public abstract class StateParallel extends StateComposite
    */
   public static final int version = 20130414;
 
-  List<StateComposite> states = new LinkedList<StateComposite>();
+  //List<StateComposite> states = new LinkedList<StateComposite>();
   
   
-  final public void addState(StateComposite state){
-    states.add(state);
-  }
+  //final public void addState(StateComposite state){
+    //states.add(state);
+  //}
   
   
-  /*package private*/ final void entryDefaultParallelStates() {
-    for(StateComposite state: states){
-      state.entryDefaultState();
+  /*package private*/ final int entryDefaultParallelStates() {
+    int ret = 0;
+    for(StateSimple state: aSubstates){
+      assert(state instanceof StateComposite);
+      StateComposite state1 = (StateComposite)state;
+      ret |= state1.entryDefaultState();
     }
+    return ret;
   }
   
 
-  /**This method sets this state in the enclosing composite state and sets the own {@link #stateAct} to null 
-   * to force entry of the default state if {@link #process(Event)} is running firstly after them.
-   * If this method will be called recursively in an {@link #entry(int)} of an inner state,
-   * that entry sets the {@link #stateAct} in {@link #setState(StateSimpleBase)} after them so it is not null.
-   * <br><br> 
-   * This method should be overridden if a entry action is necessary in any state. 
-   * The overridden form should call this method in form super.entry(isConsumed):
-   * <pre>
-  public int entry(isConsumed){
-    super.entry(0);
-    //statements of entry action.
-    return isConsumed | runToComplete;  //if the trans action should be entered immediately after the entry.
-    return isConsumed | complete;       //if the trans action should not be tested.
-  }
-   * </pre>  
-   * 
-   * @param isConsumed Information about the usage of an event in a transition, given as input and returned as output.
-   * @return The parameter isConsumed may be completed with the bit {@link #mRunToComplete} if this state's {@link #trans(Event)}-
-   *   method has non-event but conditional state transitions. Setting of this bit {@link #mRunToComplete} causes
-   *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#process(Event)} method.
-   *   This method sets {@link #mRunToComplete}.
-   */
-  /**package private*/ void XXXentryParallelBase(Event<?,?> ev){
-    XXXentryComposite();
-    for(StateComposite state: states){
-      if( state.enclState != null && !state.enclState.isInState(state)) {  
-        state.entryTheState(ev);          //executes the entry action of this enclosing state to notify the state by its enclosingState.
-      }
-      state.stateAct = null;
-      state.isActive = true;
-    }
-  }
 
-
-  
   
   @Override public int _processEvent(Event<?,?> ev){
     int cont = 0;
-    for(StateComposite state: states){
-      cont |= state._processEvent(ev);
+    for(StateSimple state: aSubstates){
+      assert(state instanceof StateComposite);
+      StateComposite state1 = (StateComposite)state;
+      cont |= state1._processEvent(ev);
     }
     if((cont & StateSimpleBase.mEventConsumed) != 0){
       ev = null;
@@ -123,14 +95,28 @@ public abstract class StateParallel extends StateComposite
    * @see org.vishia.stateMachine.StateSimpleBase#exit()
    */
   @Override public StateComposite exitTheState(){ 
-    for(StateComposite state: states){
-      state.exitTheState();
+    for(StateSimple state: aSubstates){
+      assert(state instanceof StateComposite);
+      StateComposite state1 = (StateComposite)state;
+      state1.exitTheState();
     }
     return super.exitTheState();
   }
 
 
-  
+  @Override public String toString() {
+    if(!super.isActive) return super.toString();
+    else {
+      StringBuilder u = new StringBuilder();
+      String separator = "";
+      for(StateSimple state: aSubstates){
+        u.append(separator);
+        u.append(state.toString());
+        separator = " || ";
+      }
+      return u.toString();
+    }
+  }
   
 
   

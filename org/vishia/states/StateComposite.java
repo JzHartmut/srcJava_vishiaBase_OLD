@@ -79,8 +79,6 @@ public class StateComposite extends StateSimple
   StateSimple stateDefault;
   
   
-  StateMachine stateMachine;
-  
   
   /**List of all sub states of this composite state. This list is necessary to build the transition paths on startup.
    * It is nice to have for debugging. Therefore its name starts with 'a' to set it on top of variable list in debugging. */
@@ -96,6 +94,21 @@ public class StateComposite extends StateSimple
   
   
   
+  /**The constructor of any StateComposite checks the class for inner classes which are the states.
+   * Each inner class which is instance of {@link StateSimple} is instantiated and stored both in the {@link StateMachine#stateMap} 
+   * to find all states by its class.hashCode
+   * and in {@link #aSubstates} for debugging only.
+   * <br><br>
+   * After them {@link #buildStatePathSubstates()} is invoked to store the state path in all states.
+   * Then {@link #createTransitionListSubstate(int)} is invoked which checks the transition of all states recursively. 
+   * Therewith all necessary data for the state machines's processing are created on construction. 
+   * 
+   * @see StateMachine#StateMachine()
+   * @see StateComposite#buildStatePathSubstates(StateComposite, int)
+   * @see StateSimple#buildStatePath(StateComposite)
+   * @see StateComposite#createTransitionListSubstate(int)
+   * @see StateSimple#createTransitionList()
+   */
   protected StateComposite() {
     super();
     Class<?> clazz = this.getClass();
@@ -128,6 +141,7 @@ public class StateComposite extends StateSimple
             StateSimple state = (StateSimple)oState;
             this.aSubstates[++ixSubstates] = state;
             state.stateId = clazz1.getSimpleName();
+            state.stateMachine = this.stateMachine;
             state.enclState = this;
             int idState = clazz1.hashCode();
             stateMachine.stateMap.put(idState, state);
@@ -195,7 +209,7 @@ public class StateComposite extends StateSimple
   /**Sets the default state of this composite. 
    * This routine has to be called in the constructor of the derived state after calling the super constructor.
    * @param stateDefault The state which will be set if the composite class was selected 
-   *   but an inner state was not set. The {@link #entry(Event)} to the default state is ivoked
+   *   but an inner state was not set. The {@link #entryTheState(Event)} to the default state is invoked
    *   if this state will be {@link #processEvent(Event)}.
    */
   public void setDefaultState(StateSimple stateDefault ){
@@ -215,11 +229,11 @@ public class StateComposite extends StateSimple
   }
   
   /**This method is used to entry the default state if the actual state is null (first invocation).  */
-  /*package private*/ final void entryDefaultState(){ 
+  /*package private*/ final int entryDefaultState(){ 
     if(this instanceof StateParallel){
-      ((StateParallel)this).entryDefaultParallelStates();
+      return ((StateParallel)this).entryDefaultParallelStates();
     } else {
-      stateDefault.entryTheState(null);
+      return stateDefault.entryTheState(null);
     }
   }
 
@@ -300,13 +314,13 @@ public class StateComposite extends StateSimple
   
   
   /**Processes the event for the states of this composite state.
-   * First the event is applied to the own (inner) states invoking either its {@link StateCompositeBase#processEvent(Event)}
+   * First the event is applied to the own (inner) states invoking either its {@link StateComposite#_processEvent(Event)}
    * or its {@link #checkTransitions(Event)} method.
    * If this method returns {@link StateSimpleBase#mRunToComplete} that invocation is repeated in a loop, to call
    * the transition of the new state too. But if the event was consumed by the last invocation, it is not supplied again
    * in the loop, the event parameter is set to null instead. It means only conditional transitions are possible.
    * This behavior is conform with the UML definition.
-   * If the loop would not terminate because any state have a valid transtion and the state machine switches forever,
+   * If the loop would not terminate because any state have a valid transition and the state machine switches forever,
    * the loop is terminated with an exception for a number of {@link #maxStateSwitchesInLoop}. This exception occurs
    * if the user stateMachine conditions are faulty only.
    * <br><br>
@@ -324,16 +338,19 @@ public class StateComposite extends StateSimple
 
       //
       //
+      cont = 0;
       if(stateAct == null){
-        entryDefaultState();  //regards also Parallel states.
+        cont |= entryDefaultState();  //regards also Parallel states.
+        if(debugState && (cont & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(null, evTrans, cont); }
       } 
       if(stateAct instanceof StateComposite){
         //recursively call for the composite inner state
-        cont = ((StateComposite)stateAct)._processEvent(evTrans); 
+        cont |= ((StateComposite)stateAct)._processEvent(evTrans); 
       } else {
         StateSimple statePrev = stateAct;
-        cont = stateAct.checkTransitions(evTrans);
-        if(debugState && (cont & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, cont); }
+        int trans = stateAct.checkTransitions(evTrans);
+        if(debugState && (trans & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, trans); }
+        cont |= trans;
       }
       //
       if((cont & StateSimpleBase.mEventConsumed) != 0){
@@ -349,14 +366,16 @@ public class StateComposite extends StateSimple
     if(catastrophicalCount <0) {
       throw new RuntimeException("unterminated loop in state switches");
     }
+    cont &= mEventConsumed;
     if(  evTrans != null   //evTrans is null if it was consumed in inner transitions. 
       || (modeTrans & StateSimpleBase.mRunToComplete) !=0  //state has only conditional transitions
       ){
       //process the own transition. Do it after processing the inner state (omg.org)
       //and only if either an event is present or the state has only conditional transitions.
       StateSimple statePrev = stateAct;
-      cont = checkTransitions(evTrans); 
-      if(debugState && (cont & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, cont); }
+      int trans = checkTransitions(evTrans); 
+      if(debugState && (cont & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, trans); }
+      cont |= trans;
     }
     return cont;  //runToComplete.bit may be set from an inner state transition too.
   }
@@ -364,16 +383,29 @@ public class StateComposite extends StateSimple
   
   
   private void printStateSwitchInfo(StateSimple statePrev, Event<?,?> evTrans, int cont) {
-    DateOrder date = new DateOrder();
-    Thread currThread = Thread.currentThread();
-    String sThread = currThread.getName();
-    String sActiveState = getActiveState();
+    //DateOrder date = new DateOrder();
+    //Thread currThread = Thread.currentThread();
+    //String sThread = currThread.getName();
+    String sStatePrev = statePrev !=null ? statePrev.stateId : "INIT";
+    //String sActiveState = getActiveState();
+    StringBuilder uStateNext = new StringBuilder();
+    if(stateAct == null){ uStateNext.append("--inactive--"); }
+    else {
+      StateSimple stateAct1 = stateAct;
+      uStateNext.append(stateAct.stateId);
+      while(stateAct1 instanceof StateComposite) {
+        stateAct1 = ((StateComposite)stateAct1).stateAct;
+        if(stateAct1 !=null) { 
+          uStateNext.insert(0, '.').insert(0,  stateAct1.stateId);
+        }
+      }
+    }
     if(!isActive){
-      System.out.println("StateCompositeBase - State leaved " + sThread + ";." + date.order + "; state " + statePrev + " ==> " + sActiveState + "; ev=" + evTrans + ";");
+      System.out.println("StateCompositeBase - leaved; " + sStatePrev + " ==> " + uStateNext + "; event=" + evTrans + ";");
     } else if((cont & StateSimpleBase.mEventConsumed)!=0) {  //statePrev != stateAct){  //from the same in the same state!
-      System.out.println("StateCompositeBase - state switch " + sThread + ";." + date.order + "; state " + statePrev + " ==> "  + sActiveState + "; ev=" + evTrans + ";");
+      System.out.println("StateCompositeBase - switch;" + sStatePrev + " ==> "  + uStateNext + "; event=" + evTrans + ";");
     } else if(evTrans !=null){ 
-      System.out.println("StateCompositeBase - state switch " + sThread + " - Ev not used ;." + date.order + "; state " + statePrev + " ==> "  + sActiveState + "; ev=" + evTrans + ";");
+      System.out.println("StateCompositeBase - switch;" + sStatePrev + " ==> "  + uStateNext + "; not used event=" + evTrans + ";");
     }
     
   }
@@ -428,15 +460,17 @@ public class StateComposite extends StateSimple
     StringBuilder uPath = new StringBuilder(120);
     StateSimple state = this;
     while((state = state.enclState) !=null){
-      uPath.insert(0,'.').insert(0, state.stateId);
+      uPath.append(':').append(state.stateId);
     }
     state = this;
+    //*
     do{
       uPath.append('.').append(state.stateId);
       if(state instanceof StateComposite){
         state = ((StateComposite)state).stateAct;
       } else { state = null; }
     } while(state !=null);
+    //*/
     return uPath;
   }
   
@@ -444,7 +478,7 @@ public class StateComposite extends StateSimple
   @Override public String toString(){ 
     return stateId + ":" + (!isActive ? "-inactive-": 
       (stateAct instanceof StateComposite ? stateAct.toString()  //recursive call of toString 
-          : stateAct.stateId));   //attention: StateSimple shows the state structure backward. Use only stateId! 
+          : (stateAct == null ? "null" : stateAct.stateId)));   //attention: StateSimple shows the state structure backward. Use only stateId! 
   }
 
 

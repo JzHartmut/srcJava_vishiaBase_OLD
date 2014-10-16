@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.vishia.event.Event;
 import org.vishia.event.EventConsumer;
+import org.vishia.event.EventTimerMng;
 import org.vishia.stateMachine.StateCompositeBase;
 import org.vishia.stateMachine.StateParallelBase;
 import org.vishia.util.Assert;
@@ -96,16 +97,20 @@ public static final int version = 20130511;
  */
 public final static int mEventConsumed = EventConsumer.mEventConsumed;
 
+
 /**Specification of the consumed Bit in return value of a Statemachine's {@link #checkTransitions(Event)} or {@link #entry(int)} 
  * method for designation, that the given Event object was not used to switch. The value of this is 0.
  */
-public final static int eventNotConsumed =0x0;
+public final static int notTransit =0x0;
 
-/**Bit in return value of a Statemachine's trans and entry method for designation, 
- * that the given State has non-event-driven transitions, therefore the trans method should be called
- * in the same cycle.
+
+/**Bit in return value of a Statemachine's trans method for designation, 
+ * that the given Transition is true. The bit should be set together with {@link #mEventConsumed} if the event forces true.
+ * If this bit is set without {@link #mEventConsumed} though an event is given the transition has not tested the event.
+ * In that case the event may be used in the following run-to-complete transitions.
  */
-public final static int mRunToComplete =0x2;
+public final static int mTransit = 0x2;
+
 
 /**Bit in return value of a Statemachine's trans and entry method for designation, 
  * that the given State has entered yet. If this bit is not set, an {@link #entry(Event)} action is not called.
@@ -115,7 +120,19 @@ public final static int mStateEntered = 0x4;
 
 
 /**If a composite state is leaved, any other parallel composite states don't processed then. */
-public final static int mStateLeaved = 0x10;
+public final static int mStateLeaved = 0x8;
+
+
+/**Bit in return value of a Statemachine's trans and entry method for designation, 
+ * that the given State has non-event-driven transitions, therefore the trans method should be called
+ * in the same cycle.
+ */
+public final static int mRunToComplete =0x10;
+
+
+
+/**Aggregation to the whole state machine */
+protected StateMachine stateMachine;
 
 
 /**Reference to the enclosing state. With this, the structure of state nesting can be observed in data structures.
@@ -132,6 +149,16 @@ protected StateSimple[] statePath;
 //final EnumState stateId;
 
 protected String stateId;
+
+/**If set, on state entry the timer for timeout is set. */
+int timeout;
+
+
+/**The timeout event set if necessary. This is a static instance, reused. It is the same instance in all non-parallel states. */
+//EventTimerMng.TimeEvent evTimeout;
+
+/**Set so long a timeout is active. */
+EventTimerMng.TimeOrder timeOrder;
 
 /**It is either 0 or {@link #mRunToComplete}. Or to the return value of entry. */
 protected final int modeTrans;
@@ -205,12 +232,14 @@ private StateTrans[] transitions;
 public class StateTrans
 {
   
+  /**Return value of the last used transition test. For debugging and for the {@link TransitionMethod}. */
   public int retTrans;
   
   /**All destination classes from constructor. They are not necessary furthermore after {@link #buildTransitionPath()}
    * because they are processed in the {@link #exitStates} and {@link #entryStates} lists.
    */
   final Class<?>[] dst;
+  
   
   /**If a condition instance is given, its {@link StateAction#action(Event)}-method is called to test whether the transition should fire.
    * The condition can contain action statements. But that is not allowed, if some {@link #choice} conditions are set.
@@ -443,9 +472,14 @@ public class StateTrans
   public int trans(Event ev){
     TypeOfStateComposite enclState;
     if(ev instanceof MyEvent and ((MyEvent)ev).getCmd() == myExpectedCmd){
-      enclState = exit();
+      retTrans = mEventConsumed | mTransit;
+      doExit();
+      if(this.action !=null) {
+        this.action.action(ev); //executes given action
+      }
       statementsOfTransition();
-      return enclState.otherState.entry(consumed);
+      retTrans |= doEntry();
+      return retTrans;
     } 
     else if( otherCondition) {
       return exit().otherState.entry(consumed);
@@ -463,12 +497,22 @@ public class StateTrans
    */
   protected int trans(Event<?,?> ev){
     if(condition !=null){
-      int bCond = condition.action(ev);
-      if(bCond ==0) return 0;  //don't fire.
-      if(choice !=null) {
-        //check all choice, one of them have to be true
-        for(StateTrans choice1: choice) {
-          
+      retTrans = condition.action(ev);  //may set mEventConsumed or 
+      if(retTrans ==0) return 0;  //don't fire.
+      else {
+        if(choice !=null) {
+          //check all choice, one of them have to be true
+          for(StateTrans choice1: choice) {  //check all choices
+            retTrans = choice1.trans(ev);   //the choice determines the return. If the conditions returns mEventConsumed it is not consumed if no choice.     
+            if(retTrans !=0) return retTrans;          //if true than return, don't check the other!
+          }
+        } else {
+          doExit();  //exit the current state(s)
+          if(this.action !=null) {
+            this.action.action(ev); //executes action, its return determines the return bits.
+          } 
+          retTrans |= doEntry(ev);
+          return retTrans;
         }
       }
     }
@@ -480,8 +524,9 @@ public class StateTrans
   /**Executes the exit from this and all enclosing States to fire the transition.
    * 
    */
-  public void doExit()
+  public final void doExit()
   {
+    retTrans |= mStateLeaved;
     for(StateSimple state: exitStates){
       state.exitTheState();
     }
@@ -489,15 +534,14 @@ public class StateTrans
   
   
   
-  public int doEntry(Event<?,?> ev)
-  {
+  public final int doEntry(Event<?,?> ev)
+  { retTrans |= mStateEntered;
     for(StateSimple[] stateParallel: entryStates){
       for(StateSimple state: stateParallel) {
-        state.entryTheState(ev);
+        retTrans |= state.entryTheState(ev);
       }
     }
-    retTrans = mEventConsumed;
-    return 0;
+    return retTrans;
   }
   
   @Override public String toString(){ return description; }
@@ -515,6 +559,26 @@ public class StateTrans
 
   
 }
+
+
+
+/**If a state contains a field of this class, a timeout is given for that state.
+ */
+public class Timeout extends StateTrans
+{
+  int millisec;
+  
+  /**Creates the timeout.
+   * @param millisec The milliseconds to the timeout as positive number > 0 
+   * @param dstStates The destination state(s)
+   */
+  public Timeout(int millisec, Class<?> ...dstStates) {
+    super("timeout", dstStates);
+    this.millisec = millisec;
+  }
+}
+
+
 
 
 protected StateSimple(){
@@ -601,6 +665,9 @@ void buildStatePath(StateComposite enclState) {
 
 
 
+/**Creates the list of all transitions for this state, invoked one time after constructing the statemachine.
+ * 
+ */
 void createTransitionList(){
   List<StateTrans>transitions = new LinkedList<StateTrans>();
   try{
@@ -613,6 +680,12 @@ void createTransitionList(){
         StateTrans trans = (StateTrans) oField;
         transitions.add(trans);
         trans.buildTransitionPath();
+        if(trans instanceof Timeout) {
+          Timeout timeoutTrans = (Timeout)trans;
+          trans.condition = new ConditionTimeout();
+          this.timeout = timeoutTrans.millisec;
+          searchOrCreateTimerEvent();
+        }
       }
     }
     Method[] methods = this.getClass().getDeclaredMethods();
@@ -637,6 +710,26 @@ void createTransitionList(){
     exc.printStackTrace();
   }   
   this.transitions = transitions.toArray(new StateTrans[transitions.size()]);
+}
+
+
+
+/**Gets the timeout event from the top state or the {@link StateAddParallel} 
+ * or creates that event.
+ * All non-parallel states need only one timeout event instance because only one of them is used.
+ */
+private void searchOrCreateTimerEvent() {
+  if(stateMachine.theTimer == null || stateMachine.theThread == null) 
+    throw new IllegalArgumentException("This statemachine needs a thread and a timer manager because timeouts are used. Use StateMachine(thread, timer); to construct it");
+  StateSimple parent = this;
+  while(parent.enclState !=null && !(parent instanceof StateAddParallel)) {
+    parent = parent.enclState;
+  }
+  //parent is either the top state or a StateAddParallel
+  if(parent.timeOrder == null) {
+    parent.timeOrder = stateMachine.theTimer.new TimeOrder(stateMachine.processEvent, stateMachine.theThread);
+  }
+  this.timeOrder = parent.timeOrder;
 }
 
 
@@ -733,9 +826,6 @@ public final int XXXswitchto(Event<?,?> ev, Class<? /*extends StateSimple*/> ...
     if(dst1 instanceof StateParallel) {
       //check whether any further dst state has this parallel state:
       StateParallel stateParallel = (StateParallel)dst1;
-      for(StateComposite stP1: stateParallel.states){
-        
-      }
       
       
     }
@@ -757,7 +847,7 @@ final int checkTransitions(Event<?,?> ev){
   int res = 0;
   for(StateTrans trans: transitions){ //check all transitions
     res = trans.trans(ev);
-    if((res & mEventConsumed)!=0) break;      //transition is used. TODO
+    if((res & (mTransit | mEventConsumed))!=0) break;      //transition is used. TODO
   }
   return res;
 }
@@ -783,9 +873,11 @@ final int entryTheState(Event<?,?> ev) { //int isConsumed){
     ((StateComposite)this).stateAct = null;   
     ((StateComposite)this).isActive = true;
   }
+  if(this.timeout !=0 && timeOrder !=null){
+    timeOrder.activate(System.currentTimeMillis() + this.timeout);
+  }
   entry(ev);  //run the user's entry action.
-  if(ev !=null) return mStateEntered | mEventConsumed | modeTrans;
-  else return mStateEntered | modeTrans;
+  return mStateEntered | modeTrans;
   //return isConsumed | modeTrans;
 }
 
@@ -799,6 +891,9 @@ final int entryTheState(Event<?,?> ev) { //int isConsumed){
 StateComposite exitTheState(){ 
   durationLast = System.currentTimeMillis() - dateLastEntry;
   enclState.isActive = false;
+  if(timeOrder !=null && timeOrder.used()) {
+    stateMachine.theTimer.removeTimeOrder(timeOrder);
+  }
   exit();  //run the user's exit action.
   return enclState; 
 }
@@ -823,7 +918,7 @@ CharSequence getStatePath(){
 /**Returns the state Id and maybe some more debug information.
  * @see java.lang.Object#toString()
  */
-@Override public String toString(){ return getStatePath().toString(); }
+@Override public String toString(){ return stateId; } //return getStatePath().toString(); }
 
 
 private class EntryMethodAction implements StateAction {
@@ -875,6 +970,9 @@ class TransitionMethod extends StateTrans {
 
 
 
+/**Used for a StateAction if any method with the expected signature is given as action method,
+ * not a StateAction class and not a StateAction instance.
+ */
 private class StateActionMethod implements StateAction {
 
   final Method transMethod;
@@ -888,13 +986,30 @@ private class StateActionMethod implements StateAction {
   
   
   @Override public int action(Event<?, ?> event)
-  {
+  { trans.retTrans = 0;  //initial, it should be set by the transMethod. 
     try{ transMethod.invoke(StateSimple.this, event, trans); }
     catch(Exception exc){
       System.err.println(exc);
       return 0;
     }
-    return trans.retTrans;
+    return trans.retTrans; //Note that the transMethod returns the transition instance for initializing.
+    //The transition method should set that retTrans to provide the return value of trans.
+  }
+  
+}
+
+
+
+/**An instance of this class is used for {@link StateSimple.StateTrans#condition} to check whether it is a timeout.
+ * @author hartmut
+ *
+ */
+private class ConditionTimeout implements StateAction {
+
+  @Override public int action(Event<?, ?> event)
+  {
+    // TODO Auto-generated method stub
+    return event instanceof EventTimerMng.TimeEvent ? 1 : 0;
   }
   
 }

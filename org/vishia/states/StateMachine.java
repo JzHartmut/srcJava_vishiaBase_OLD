@@ -122,7 +122,7 @@ public class StateMachine
    */
   EventTimerMng theTimer;
   
-  EventTimerMng.TimeEvent evTime;
+  //EventTimerMng.TimeEvent evTime;
   
   StateComposite topState; 
   
@@ -139,9 +139,29 @@ public class StateMachine
     @Override public int processEvent(final Event<?,?> evP){ return topState._processEvent(evP); }
   };
   
-  public StateMachine(){ 
-    //super();  //it initializes stateMap
-
+  
+  
+  public StateMachine(){ this(null, null);}
+  
+  /**The constructor of the whole stateMachine does the same as the {@link StateComposite#StateComposite()}: 
+   * It checks the class for inner classes which are the states.
+   * Each inner class which is instance of {@link StateSimple} is instantiated and stored both in the {@link #stateMap} to find all states by its class.hashCode
+   * and in the {@link #topState} {@link StateComposite#aSubstates} for debugging only.
+   * <br><br>
+   * After them {@link #buildStatePathSubstates()} is invoked to store the state path in all states.
+   * Then {@link StateComposite#createTransitionListSubstate(int)} is invoked for the {@link #topState} 
+   * which checks the transition of all states recursively. Therewith all necessary data for the state machines's processing
+   * are created on construction. 
+   * @see StateComposite#StateComposite()
+   * @see StateComposite#buildStatePathSubstates(StateComposite, int)
+   * @see StateSimple#buildStatePath(StateComposite)
+   * @see StateComposite#createTransitionListSubstate(int)
+   * @see StateSimple#createTransitionList()
+   */
+  public StateMachine(EventThread thread, EventTimerMng timer)
+  {
+    this.theThread = thread;
+    this.theTimer = timer;
     final StateSimple[] aSubstates;
     Class<?>[] innerClasses = this.getClass().getDeclaredClasses();
     if(innerClasses.length >0) {  //it is a composite state.
@@ -157,6 +177,7 @@ public class StateMachine
             StateSimple state = (StateSimple)oState;
             aSubstates[++ixSubstates] = state;
             state.stateId = clazz1.getSimpleName();
+            state.stateMachine = this;
             state.enclState = topState;
             int idState = clazz1.hashCode();
             this.stateMap.put(idState, state);
@@ -186,11 +207,11 @@ public class StateMachine
    * @param timer Source for timer events. It is necessary if the state machine uses timer events.
    * @param queue Queue for events. Left null if the state machine should be invoked in the same thread where the events are created.
    */
-  public void setTimerAndThread(EventTimerMng timer, EventThread queue){
+  public void XXXsetTimerAndThread(EventTimerMng timer, EventThread queue){
     if(theTimer !=null) throw new IllegalStateException("setTimeMng() of a StateTop should be invoked only one time");
     theTimer = timer;
     theThread = queue;
-    evTime = new EventTimerMng.TimeEvent(processEvent, theThread, 0);
+    //evTime = new EventTimerMng.TimeEvent(processEvent, theThread, 0);
   }
 
 
@@ -245,14 +266,6 @@ public class StateMachine
   }
   
   
-  /**Adds a timeout time to the given {@link EventTimerMng} with the given event {@link EventTimerMng.TimeEvent} of this class. 
-   * @param date The timestamp in milliseconds after 1970 for the timeout.
-   * @return The time order for debugging.
-   */
-  public EventTimerMng.TimeOrder timeout(long date){
-    evTime.occupyRecall(null, true);
-    return theTimer.addTimeOrder(date, evTime);
-  }
   
 
 }

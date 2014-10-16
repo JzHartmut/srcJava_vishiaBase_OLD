@@ -528,6 +528,7 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   
   /**Version, history and license
    * <ul>
+   * <li>2013-10-06 Hartmut chg: Some checks for thread safety.
    * <li>2013-10-06 Hartmut chg: {@link #occupy(int, EventSource, EventConsumer, EventThread)} with timeout
    * <li>2013-10-06 Hartmut chg: {@link #occupyRecall(EventSource, boolean)} return 0,1,2, not boolean.
    *   The state whether the recalled event is processed or it is only removed from the queued, may
@@ -1000,14 +1001,15 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    */
   public void relinquish(){
     if(donotRelinquish) return;
-    if(source !=null){
-      source.notifyRelinquished(ctConsumed);
+    EventSource source1 = this.source;
+    if(source1 !=null){
+      source1.notifyRelinquished(ctConsumed);
     }
     this.stateOfEvent= 'a';
     this.cmde = null;
     this.orderId = 0;
     //data1 = data2 = 0;
-    source = null;
+    this.source = null;
     dateCreation.set(0);
     if(bAwaitReserve){
       synchronized(this){ notify(); }
@@ -1091,27 +1093,31 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   
   public void consumed(){
     ctConsumed +=1;
-    if(source !=null){
-      source.notifyConsumed(ctConsumed);
+    EventSource source1 = this.source;
+    if(source1 !=null){
+      source1.notifyConsumed(ctConsumed);
     }
   }
   
 
   /*package private*/ void notifyDequeued(){
-    if(source !=null){
-      source.notifyDequeued();
+    EventSource source1 = this.source;
+    if(source1 !=null){
+      source1.notifyDequeued();
     }
   }
 
   private void notifyShouldSentButInUse(){
-    if(source !=null){
-      source.notifyShouldSentButInUse();
+    EventSource source1 = this.source;
+    if(source1 !=null){
+      source1.notifyShouldSentButInUse();
     }
   }
 
   private void notifyShouldOccupyButInUse(){
-    if(source !=null){
-      source.notifyShouldOccupyButInUse();
+    EventSource source1 = this.source;
+    if(source1 !=null){
+      source1.notifyShouldOccupyButInUse();
     }
   }
 
@@ -1123,7 +1129,8 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
     if(nDate == 0) return "Event not occupied";
     Date date = new Date(nDate);
     String sCmd = cmde == null ? "null" : cmde.toString();
-    return "Event cmd=" + sCmd + "; " + (nDate == 0 ? "nonOccupied" : toStringDateFormat.format(date) + "." + dateOrder) + "; src=" + (source !=null ? source.toString() : " noSrc") + "; dst="+ (evDst !=null ? evDst.toString() : " noDst"); 
+    EventSource source1 = this.source;
+    return "Event cmd=" + sCmd + "; " + (nDate == 0 ? "nonOccupied" : toStringDateFormat.format(date) + "." + dateOrder) + "; src=" + (source1 !=null ? source1.toString() : " noSrc") + "; dst="+ (evDst !=null ? evDst.toString() : " noDst"); 
   }
   
   

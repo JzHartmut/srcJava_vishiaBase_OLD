@@ -1,6 +1,8 @@
 package org.vishia.states.example;
 
 import org.vishia.event.Event;
+import org.vishia.event.EventThread;
+import org.vishia.event.EventTimerMng;
 import org.vishia.states.StateAction;
 import org.vishia.states.StateAddParallel;
 import org.vishia.states.StateComposite;
@@ -18,22 +20,29 @@ public class StatesNestedParallel
   
   
     boolean start;
+    
+    boolean offAfterRunning;
   }
   
   
   Conditions cond = new Conditions();
   
+  Event<?,?> event = new Event();
+  
   class States extends StateMachine
   {
+    States(EventThread thread, EventTimerMng timer){ super(thread, timer); }
+
     class StateOff extends StateSimple
     {
+      @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
+      
       StateTrans start = new StateTrans("start", StateWork.StateActive.StateActive1.StateRunning.class, StateWork.StateActive.StateActive2.StateRemainOn.class){ 
         { condition = new StateAction() {
             @Override public int action(Event<?, ?> ev) {
               if(cond.start){ 
-                doExit();
-                //no action
-                return doEntry(ev) | mEventConsumed;
+                cond.start = false;
+                return mTransit;
               }
               else return 0;
             };
@@ -88,6 +97,8 @@ public class StatesNestedParallel
     
     class StateWork extends StateComposite
     {
+      @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
+
       class StateReady extends StateSimple
       {
         
@@ -147,18 +158,22 @@ public class StatesNestedParallel
       
       class StateActive extends StateParallel
       {
-        
+        @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
+
         class StateActive1 extends StateAddParallel
         {
-          
+          @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
+
           class StateRunning extends StateSimple
-          {
-            
+          { @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
+
+            Timeout timeout = new Timeout(5000, StateFinit.class);
           }
           
           
           class StateFinit extends StateSimple
-          {
+          {  @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
+
             
           }
           
@@ -169,14 +184,17 @@ public class StatesNestedParallel
         
         
         class StateActive2 extends StateAddParallel
-        {
+        { @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
+
           class StateRemainOn extends StateSimple
           {
-            
+            @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
+  
           }
           
           class StateShouldOff extends StateSimple
           {
+            @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
             
           }
         }
@@ -189,19 +207,29 @@ public class StatesNestedParallel
   
   
   private StatesNestedParallel(){
-    states = new States();
+    EventThread thread = new EventThread("thread");
+    EventTimerMng timer = new EventTimerMng("timer");
+    states = new States(thread, timer);
   }
   
-  private void execute(){
+  private void executeCondions() {
     cond.on_ready = true;
-    states.applyEvent(null);
+    cond.start = true;
+    cond.offAfterRunning = true;
+    event.occupy(null, true);
+    states.applyEvent(event);
+    cond.on_ready = false;
+    while(!states.isInState(States.StateOff.class)) {
+      try{ Thread.sleep(100);
+      } catch(InterruptedException exc) {}
+    }
   }
   
   
   
   public static void main(String[] args){
     StatesNestedParallel main = new StatesNestedParallel();
-    main.execute();
+    main.executeCondions();
   }
   
 }

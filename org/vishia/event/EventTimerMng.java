@@ -13,6 +13,7 @@ public class EventTimerMng extends Thread implements Closeable{
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-10-17 Hartmut chg: {@link TimeOrder} now non-static, knows it EventTimeMng. Possible static usage of instance. 
    * <li>2013-05-12 Hartmut new: {@link #identNrEvent} and {@link TimeEvent#isMatchingto(TimeOrder)}
    * <li>2013-05-11 Hartmut new: {@link #addTimeOrder(TimeOrder)} not only for singleton.
    * <li>2012...improved
@@ -45,10 +46,10 @@ public class EventTimerMng extends Thread implements Closeable{
    */
   public static final int version = 20130513;
 
-  public static class TimeOrder{
+  public class TimeOrder{
     /**Absolute time when the event should be occurred. */
-    final long dateEvent;
-    
+    long dateEvent;
+   
     final int identNrEvent;
     
     final Event<TimeEvent.Cmd, Event.NoOpponent> event;
@@ -56,6 +57,8 @@ public class EventTimerMng extends Thread implements Closeable{
     final EventConsumer dst;
     
     final EventThread threadDst;
+    
+    private boolean used;
     
     TimeOrder(Event<TimeEvent.Cmd, Event.NoOpponent> ev, long date, int identNrEvent){
       this.dateEvent = date;
@@ -73,6 +76,26 @@ public class EventTimerMng extends Thread implements Closeable{
       this.identNrEvent = identNrEvent;
     }
 
+    public TimeOrder(EventConsumer dst, EventThread dstThread){
+      this.dateEvent = 0;
+      this.event = new TimeEvent(dst, dstThread, 0);
+      this.dst = dst;  //stored in ev
+      this.threadDst = dstThread;
+      this.identNrEvent = 0;
+    }
+
+    
+    public void activate(long date) {
+      this.dateEvent = date;
+      EventTimerMng.this.addTimeOrder(this);
+    }
+    
+    void setUsed() { used = true; }
+    
+    void setUnused(){ used = false; } 
+    
+    public boolean used() { return used; }
+    
   }
   
   
@@ -196,7 +219,7 @@ public class EventTimerMng extends Thread implements Closeable{
     if(evTime !=null){
       Assert.checkMsg (evTime instanceof TimeEvent, "The Event should be a org.vishia.util.EventTimerMng.TimeEvent");
       Assert.checkMsg (evTime.hasDst(), "The Event must have a destination.");
-      Assert.checkMsg (!evTime.isOccupied(), "The Event must not be occupied.");
+      Assert.checkMsg (evTime.isOccupied(), "The Event must be occupied.");
     }
     TimeOrder entry = new TimeOrder(evTime, date, ++this.identNrEvent);
     addTimeOrder(entry);
@@ -205,12 +228,13 @@ public class EventTimerMng extends Thread implements Closeable{
   
   
   private void addTimeOrder(TimeOrder order){
+    order.setUsed();
     timeEntriesNew.add(order);
     //notify the run process to shorten the wait time.
     synchronized(this){
-      if((order.dateEvent - dateCheck) < 0){
-        if(bWait){
-          notify();
+      if((order.dateEvent - dateCheck) < 0) { //this date is less than the next check date
+        if(bWait){  
+          notify();  //notify to add and accept this lesser date.
         } else; //not necessary to notify, because it is active yet.
       } else; //let it run, it will be waken up before date.
     }
@@ -218,6 +242,7 @@ public class EventTimerMng extends Thread implements Closeable{
   
   
   public boolean removeTimeOrder(TimeOrder order){
+    order.setUnused();
     if(timeEntries.remove(order)) return true;
     else return timeEntriesNew.remove(order);
   }
@@ -235,7 +260,8 @@ public class EventTimerMng extends Thread implements Closeable{
           TimeOrder entry = iter.next();
           long wait = entry.dateEvent - timeAct;
           if(wait <=0){
-            iter.remove();
+            iter.remove();  //remove this entry
+            entry.setUnused();
             executeTime(entry);
           } else if(dateCheck1 > entry.dateEvent){ 
             dateCheck1 = entry.dateEvent; 
