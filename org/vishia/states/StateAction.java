@@ -33,5 +33,5 @@ import org.vishia.event.Event;
  */
 public interface StateAction
 {
-  int action(Event<?,?> event);
+  int exec(Event<?,?> event);
 }

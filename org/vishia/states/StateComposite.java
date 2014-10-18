@@ -188,13 +188,13 @@ public class StateComposite extends StateSimple
    * @param recurs
    */
   void createTransitionListSubstate(int recurs){
-    if(recurs > 1000) throw new IllegalArgumentException("recursion faulty");
-    this.createTransitionList();  
+    if(recurs > 1000) throw new IllegalArgumentException("recursion faulty, too many subStates; state=" + stateId);
+    this.createTransitionList(this, null, 0);  
     for(StateSimple subState: this.aSubstates){
       if(subState instanceof StateComposite){
         ((StateComposite)subState).createTransitionListSubstate(recurs+1);
       } else {
-        subState.createTransitionList();  //simple state.
+        subState.createTransitionList(subState, null,0);  //simple state.
       }
     }    
   }

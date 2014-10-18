@@ -87,6 +87,7 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2014-10-19 Hartmut new: {@link #isReferenceToEnclosing(Field)} and {@link #isOrExtends(Class, Class)} 
    * <li>2014-06-15 Hartmut chg: {@link #access(List, Object, boolean, boolean, boolean, Dst)} 
    *   and {@link #access(CharSequence, Object, boolean, boolean, boolean, Dst)} now with only one dataRoot.
    *   Not differenced between a Map<String,?) dataPool and a then non necessary dataRoot.
@@ -1639,13 +1640,43 @@ public class DataAccess {
   
   
   
+  /**Checks whether a given Field is the reference to the enclosing respectively outer class.
+   * Such an reference is not visible in the souce code often. In source code it should be written with <pre>
+   *  EnclosingType.this </pre>
+   * but it can be omitted. The internal name of the field is <pre>
+   * this$99</pre>
+   * whereby 99 is a number, <code>this$0</pre> for the immediate enclosing instance. 
+   * Note that a enclosing instance is accessible immediately, but it is a referenced object.
+   *  
+   * @param ref the Field
+   * @return true if the name of the field starts with <code>this$</code>
+   */
+  public static boolean isReferenceToEnclosing(Field ref) {
+    return ref.getName().startsWith("this$");
+  }
   
   
-  public static boolean isOrExtends(Class<?> thisclazz, Class<?> superclazz)
+  
+  /**Check whether a given class is type of another class. This method does not check interfaces, only the extends-path.
+   * Example:<pre>
+   * MyClass myInstance = new MyClass();  //MyClass extends MySuperclass.
+   * ...
+   * if(DataAcess.isOrExtends(myInstance.getClass(), MySuperclass.class)) { ...
+   * </pre> 
+   * This method is similar like <pre>
+   *   myInstance instanceof MySuperclass
+   * </pre>.
+   * The difference is: It checks classes.
+   *   
+   * @param thisclazz Class to test, usual build with <code>myInstance.getClass()</code>
+   * @param cmpclazz A Class to check, usual build with <code>Classtype.class</code>
+   * @return true if thisclazz is of type cmpclazz. Note: It does not check interfaces.
+   */
+  public static boolean isOrExtends(Class<?> thisclazz, Class<?> cmpclazz)
   {
     Class<?> clazzret = thisclazz;
     do{
-      if(clazzret == superclazz) return true;
+      if(clazzret == cmpclazz) return true;
       else {
         clazzret = clazzret.getSuperclass();
       }

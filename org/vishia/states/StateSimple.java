@@ -1,5 +1,6 @@
 package org.vishia.states;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.LinkedList;
@@ -12,6 +13,7 @@ import org.vishia.stateMachine.StateCompositeBase;
 import org.vishia.stateMachine.StateParallelBase;
 import org.vishia.util.Assert;
 import org.vishia.util.DataAccess;
+import org.vishia.util.Debugutil;
 
 
 
@@ -187,12 +189,16 @@ protected Runnable exit;
 
 private Method entryMethod, exitMethod;
 
+/**Set to true if the {@link #selectTrans(Event)} is not overridden. Then check the {@link #transitions} -list */
+private boolean bCheckTransitionArray;
+
 private StateTrans[] transitions;
 
 
 /**An instance of this class represents a transition of the enclosing SimpleState to one or more destination states.
  * There are three forms to program transitions in a state class:
- * <br><br><b>Simple transition method in a state class:</b><br>
+ * <br><br>
+ * <b>Simple transition method in a state class:</b><br>
  * The user can write a method with the following form: <pre>
  *   class MyState_A extends StateSimple
  *   {
@@ -207,11 +213,30 @@ private StateTrans[] transitions;
  *     }  
  * </pre>
  * The method will be detected by checking the State class content via reflection.
- * The StateTrans instance will be build by invoking this method with null as ev and trans parameter. 
+ * The StateTrans instance will be build by invoking this method with null as ev and trans parameter.
+ * That method is used as condition method via an instance of {@link StateTransitionMethod}. 
+ * That method have to contain the action and the {@link #doExit()}, the action and the {@link #doEntry(Event)} like shown above. 
  * <br><br>
  * <b>Transition class:</b><br>
- * 
- * The user should build derived anonymous classes for each transition which should be initialized with the destination state classes.
+ * The user can write a class derived from {@link StateTrans} for each transition. 
+ * The parameterless constructor of this should invoke the super constructor with the destination state(s) class which should be initialized with the destination state classes.
+ * The user should override the method {@link #trans(Event)} which should contain the condition and actions: <pre>
+ *   class MyState_A extends StateSimple
+ *   {
+ *     StateTrans trans1_State2 = new StateTrans(MyState_B.class) {
+ *       QOverride int trans(Event<?,?> ev) {
+ *         if(condition && ev instanceof MyEvent && (ev.getCmd == MyCmd){
+ *           doExit();
+ *           myAction();
+ *           doEntry();
+ *         }
+ *       }  
+ *     }; 
+ * </pre>
+ * <br><br>
+ * <b>Transition class or transition instance:</b><br>
+ * The user can build either a class derived from {@link StateTrans} or as instance with a derived anonymous classes of {@link StateTrans}
+ * for each transition. which should be initialized with the destination state classes.
  * The user should override the method {@link #trans(Event)} which should contain the condition and actions: <pre>
  *   class MyState_A extends StateSimple
  *   {
@@ -241,7 +266,7 @@ public class StateTrans
   final Class<?>[] dst;
   
   
-  /**If a condition instance is given, its {@link StateAction#action(Event)}-method is called to test whether the transition should fire.
+  /**If a condition instance is given, its {@link StateAction#exec(Event)}-method is called to test whether the transition should fire.
    * The condition can contain action statements. But that is not allowed, if some {@link #choice} conditions are set.
    * if the condition contains only a condition, it should return 0 if it is false and not {@link StateSimple#mEventConsumed}, if it is true.
    * The event can be used for condition or not. If events are not used <code>null</code> can be supplied instead the event. 
@@ -260,30 +285,32 @@ public class StateTrans
    */
   protected StateTrans[] choice;
  
+  
+  /**It is null for a simple transition in a state. It contains the parent transition for a choice, which is an inner transition. */
+  StateTrans parent;
+  
   /**All states which's {@link StateSimple#exitTheState()} have to be processed if the transition is fired. */
   StateSimple[] exitStates;
   
   /**All states which's {@link StateSimple#entry(Event)} have to be processed if the transition is fired. */
   StateSimple[][] entryStates;
   
-  private final String description;
+  String transId;
   
   
   /**This constructor is used to initialize a derived anonymous class with one or more destination state of this transition.
    * This constructor should not be used if a transition class contains {@link #choice}-transitions.
    */
-  public StateTrans(String description, Class<?> ...dst){
-    if(dst.length ==0) throw new IllegalArgumentException("should have at least one destination state: " + stateId + ": trans " + description);
-    this.dst = dst;
-    this.description = description;
+  public StateTrans(Class<?> ...dst){
+    if(dst.length ==0) this.dst = null;
+    else this.dst = dst;
   }
   
   
   /**Constructs a transition with {@link #choice} sub-transitions.
    */
-  public StateTrans(String description){
+  public StateTrans(){
     this.dst = null;
-    this.description = description;
   }
   
   
@@ -466,6 +493,32 @@ public class StateTrans
     }
   }
   
+
+  
+  /**The non-overridden condition checks the {@link #condition} or returns 0 if it is not given.
+   * @param ev event
+   * @return not 0, especially {@link StateSimple#mTransit} or {@link StateSimple#mEventConsumed} then true, transition should fire. 
+   */
+  protected int condition(Event<?,?> ev) {
+    if(condition !=null){
+      return condition.exec(ev);  //may set mEventConsumed or
+    } else return 0;  //don't fire.
+  }
+  
+  
+  
+  /**The non-overridden action executes the {@link #action} or returns 0 if it is not given.
+   * @param ev event
+   * @return especially {@link StateSimple#mRunToComplete} for state control, elsewhere 0. 
+   */
+  protected void action(Event<?,?> ev) {
+    if(action !=null){
+      action.exec(ev);  //may set mEventConsumed or
+    }
+  }
+  
+  
+  
   
   /**Checks the trigger and conditions of a state transition. The user should override this method in form (example)
    * <pre>
@@ -496,29 +549,41 @@ public class StateTrans
    *   Returns 0 if a state switch is not processed. Elsewhere {@link #mStateEntered}. {@link #mStateLeaved}
    */
   protected int trans(Event<?,?> ev){
-    if(condition !=null){
-      retTrans = condition.action(ev);  //may set mEventConsumed or 
-      if(retTrans ==0) return 0;  //don't fire.
-      else {
-        if(choice !=null) {
-          //check all choice, one of them have to be true
-          for(StateTrans choice1: choice) {  //check all choices
-            retTrans = choice1.trans(ev);   //the choice determines the return. If the conditions returns mEventConsumed it is not consumed if no choice.     
-            if(retTrans !=0) return retTrans;          //if true than return, don't check the other!
-          }
-        } else {
-          doExit();  //exit the current state(s)
-          if(this.action !=null) {
-            this.action.action(ev); //executes action, its return determines the return bits.
-          } 
-          retTrans |= doEntry(ev);
-          return retTrans;
+    retTrans = condition(ev);
+    if(retTrans ==0) return 0;  //don't fire.
+    else {
+      if(choice !=null) {
+        //check all choice, one of them have to be true
+        for(StateTrans choice1: choice) {  //check all choices
+          retTrans = choice1.trans(ev);   //the choice determines the return. If the conditions returns mEventConsumed it is not consumed if no choice.     
+          if(retTrans !=0) return retTrans;          //if true than return, don't check the other!
         }
+        return 0; //if no choice found
+      } else {
+        doExit();  //exit the current state(s)
+        doAction(this.parent, ev, 0);
+        doEntry(ev);
+        return retTrans;
       }
     }
-    return 0;
   }
 
+  
+  
+  /**Processes the action of the transition. If it is a choice transition: firstly process the action of the condition before.
+   * It is calling recursively for more as one choice.
+   * @param parent The transition before this choice or null on State-transition
+   * @param ev The given event.
+   * @param recurs recursion count. throws IllegalArgumentException if > 20 
+   */
+  private void doAction(StateTrans parent, Event<?,?> ev, int recurs) {
+    if(recurs > 20) throw new IllegalArgumentException("too many recursions");
+    if(parent !=null) {
+      doAction(parent.parent, ev, recurs+1);  //recursion to the first parent
+    }
+    action(ev);
+  }
+  
   
   
   /**Executes the exit from this and all enclosing States to fire the transition.
@@ -534,28 +599,22 @@ public class StateTrans
   
   
   
-  public final int doEntry(Event<?,?> ev)
-  { retTrans |= mStateEntered;
+  /**Entry in all states for this transition.
+   * The states will be entered in the order from outer to inner state
+   * and for all parallel states then from outer to inner.
+   * @param ev
+   */
+  public final void doEntry(Event<?,?> ev)
+  { 
     for(StateSimple[] stateParallel: entryStates){
       for(StateSimple state: stateParallel) {
         retTrans |= state.entryTheState(ev);
       }
     }
-    return retTrans;
   }
   
-  @Override public String toString(){ return description; }
+  @Override public String toString(){ return transId; }
   
-  protected class Choice {
-    
-    protected Choice(Class<?> ...dst){
-      
-    }
-    
-    protected Runnable condition;
-    
-    protected Runnable action;    
-  }
 
   
 }
@@ -573,7 +632,8 @@ public class Timeout extends StateTrans
    * @param dstStates The destination state(s)
    */
   public Timeout(int millisec, Class<?> ...dstStates) {
-    super("timeout", dstStates);
+    super(dstStates);
+    transId = "timeout";
     this.millisec = millisec;
   }
 }
@@ -622,7 +682,7 @@ protected StateSimple(){
  * @return {@link #mRunToComplete} if next states should be tested for conditions.
  */
 protected int entry(Event<?,?> ev) {
-  if(entry !=null) { return entry.action(ev); }
+  if(entry !=null) { return entry.exec(ev); }
   else return 0;
 }
 
@@ -668,27 +728,46 @@ void buildStatePath(StateComposite enclState) {
 /**Creates the list of all transitions for this state, invoked one time after constructing the statemachine.
  * 
  */
-void createTransitionList(){
+void createTransitionList(Object encl, StateTrans parent, int nRecurs){
   List<StateTrans>transitions = new LinkedList<StateTrans>();
+  Class<?> clazz = encl.getClass();
+  if(nRecurs > 2) {
+    Debugutil.stop();
+  }
+  if(nRecurs > 10) throw new IllegalArgumentException("too many recursion, choice-transition; state=" + stateId);
   try{
-    Class<?> clazz = this.getClass();
+    Class<?>[] clazzs = clazz.getDeclaredClasses();
+    for(Class<?> clazz1: clazzs){
+      if(DataAccess.isOrExtends(clazz1, StateTrans.class)){
+        @SuppressWarnings("unused")  //only test
+        Constructor<?>[] ctora = clazz1.getDeclaredConstructors();
+        //Note: the constructor needs the enclosing class as one parameter because it is non-static.
+        //The enclosing instance is the StateSimple always, also on choice-transitions.
+        Constructor<?> ctor1 = clazz1.getDeclaredConstructor(StateSimple.this.getClass());
+        ctor1.setAccessible(true);
+        StateTrans trans = (StateTrans)ctor1.newInstance(this);
+        trans.transId = clazz1.getSimpleName();
+        transitions.add(trans);
+        trans.parent = parent;  //null for a state transition
+        checkBuiltTransition(trans, nRecurs);
+      }
+    }
     Field[] fields = clazz.getDeclaredFields();
     for(Field field: fields){
       field.setAccessible(true);
-      Object oField = field.get(this);
+      Object oField = field.get(encl);
       if(oField !=null && DataAccess.isOrExtends(oField.getClass(), StateTrans.class)) {
-        StateTrans trans = (StateTrans) oField;
-        transitions.add(trans);
-        trans.buildTransitionPath();
-        if(trans instanceof Timeout) {
-          Timeout timeoutTrans = (Timeout)trans;
-          trans.condition = new ConditionTimeout();
-          this.timeout = timeoutTrans.millisec;
-          searchOrCreateTimerEvent();
+        String sFieldName = field.getName();
+        if(!DataAccess.isReferenceToEnclosing(field)) { //don't test the enclosing instance, it is named this$0 etc. 
+          StateTrans trans = (StateTrans) oField;
+          trans.transId = sFieldName;
+          transitions.add(trans);
+          trans.parent = parent;  //null for a state transition
+          checkBuiltTransition(trans, nRecurs);
         }
       }
     }
-    Method[] methods = this.getClass().getDeclaredMethods();
+    Method[] methods = clazz.getDeclaredMethods();
     for(Method method: methods) {
       String name = method.getName();
       Class<?>[] argTypes = method.getParameterTypes();
@@ -698,19 +777,44 @@ void createTransitionList(){
         StateTrans trans = null;
         try{ 
           method.setAccessible(true);
-          Object oTrans = method.invoke(this,  null, null); 
+          Object oTrans = method.invoke(encl,  null, null); 
           trans = (StateTrans)oTrans;
-          trans.condition = new StateActionMethod(trans, method);
+          trans.transId = method.getName();
+          trans.condition = new StateTransitionMethod(trans, method);
           trans.buildTransitionPath();
+          trans.parent = parent;  //null for a state transition
           transitions.add(trans);
         } catch(Exception exc){ throw new IllegalArgumentException("stateTrans-method failure"); }
       }
     }
   } catch(Exception exc){
     exc.printStackTrace();
-  }   
-  this.transitions = transitions.toArray(new StateTrans[transitions.size()]);
+  }  
+  if(transitions.size() >0) {
+    if(parent == null) {
+      this.transitions = transitions.toArray(new StateTrans[transitions.size()]);
+    } else {
+      parent.choice = transitions.toArray(new StateTrans[transitions.size()]);
+    }
+  }
 }
+
+
+
+
+private void checkBuiltTransition(StateTrans trans, int nRecurs) {
+  if(trans.dst !=null) {
+    trans.buildTransitionPath();
+  }
+  if(trans instanceof Timeout) {
+    Timeout timeoutTrans = (Timeout)trans;
+    trans.condition = new ConditionTimeout();
+    this.timeout = timeoutTrans.millisec;
+    searchOrCreateTimerEvent();
+  }
+  createTransitionList(trans, trans, nRecurs+1);  //for choices
+}
+
 
 
 
@@ -836,19 +940,65 @@ public final int XXXswitchto(Event<?,?> ev, Class<? /*extends StateSimple*/> ...
 
 
 
-
+/**This method can be overridden by the user if the user want to write all transition condition in one method
+ * or if the user is attempt to set a debug breakpoint for transition check in a specific state.
+ * <br><br>
+ * If only a breakpoint should be able to set the user should write:
+ * Q Override StateTrans selectTrans(Event<?,?> ev) { return super.selectTrans(ev); }
+ * <br><br>
+ * If it is overridden then the returned transition should be fired or nothing is to do if null is returned.
+ * <br>Template for that method overriding: <pre>
+ * Q Override StateTrans selectTrans(Event<?,?> ev) {
+ *   if(ev instanceof MyEvent) return trans_A;
+ *   else if(otherCondition) return trans_B;
+ *   else return null;
+ * }</pre> 
+ * The Transitions which are used here should be declared as fields of {@link StateTrans} which may be overridden anonymously.
+ * Especially the {@link StateTrans#action(Event)} can be overridden or the field {@link StateTrans#action} can be set. 
+ * An overridden {@link StateTrans#condition(Event)} or a set {@link StateTrans#condition} field of that transitions is not regarded.
+ * <br>Template for the necessary transition definition:<pre>
+ * StateTrans trans_A = new StateTrans(Destination.class);   //without action
+ * 
+ * StateTrans trans_B = new StateTrans(Destination.class) {
+ *   protected void action(Event<?,?> ev) {
+ *     //do action code
+ *   }
+ * };
+ * 
+ * StateTrans trans_C = new StateTrans(Destination.class) {
+ *   { action = ref.action;  //instanceof StateAction, callback 
+ *   }
+ * };
+ * 
+ * @param ev The event to test.
+ * @return The transition which should be fired or null.
+ */
+protected StateTrans selectTrans(Event<?,?> ev) { bCheckTransitionArray = true; return null; }
 
 
 /**Check all transitions and fire one transition if true.
+ * This method is called primary in {@link StateComposite#_processEvent(Event)} if the state is active.
  * @param ev Given event
- * @return
+ * @return Bits {@link #mRunToComplete}, {@value #mTransit}, {@link #mEventConsumed}, {@link #mStateEntered} to control the event processing.
  */
 final int checkTransitions(Event<?,?> ev){
   int res = 0;
-  for(StateTrans trans: transitions){ //check all transitions
-    res = trans.trans(ev);
-    if((res & (mTransit | mEventConsumed))!=0) break;      //transition is used. TODO
+  if(!bCheckTransitionArray) {
+    //either the first time or overridden check method: Use it.
+    StateTrans trans = selectTrans(ev);
+    if(trans !=null){
+      trans.doExit();  //exit the current state(s)
+      trans.doAction(trans.parent, ev, 0);
+      trans.doEntry(ev);
+      return trans.retTrans;
+    }
   }
+  if(bCheckTransitionArray && transitions !=null) {
+    //not overridden check method.
+    for(StateTrans trans1: transitions){ //check all transitions
+      res = trans1.trans(ev);
+      if((res & (mTransit | mEventConsumed))!=0) break;      //transition is used. TODO
+  } }
   return res;
 }
 
@@ -922,7 +1072,7 @@ CharSequence getStatePath(){
 
 
 private class EntryMethodAction implements StateAction {
-  public int action(Event<?,?> ev) {
+  public int exec(Event<?,?> ev) {
     try { 
       entryMethod.invoke(StateSimple.this, ev);
     } catch(Exception exc) {
@@ -950,8 +1100,9 @@ class TransitionMethod extends StateTrans {
 
   private final Method transitionMethod;
   
-  TransitionMethod(String description, Method method){
-    super(description);
+  TransitionMethod(String transId, Method method){
+    super();
+    super.transId = transId;
     transitionMethod = method;
   }
   
@@ -973,19 +1124,19 @@ class TransitionMethod extends StateTrans {
 /**Used for a StateAction if any method with the expected signature is given as action method,
  * not a StateAction class and not a StateAction instance.
  */
-private class StateActionMethod implements StateAction {
+private class StateTransitionMethod implements StateAction {
 
   final Method transMethod;
   
   final StateTrans trans;
   
-  StateActionMethod(StateTrans trans, Method transMethod){
+  StateTransitionMethod(StateTrans trans, Method transMethod){
     this.transMethod = transMethod;
     this.trans = trans;
   }
   
   
-  @Override public int action(Event<?, ?> event)
+  @Override public int exec(Event<?, ?> event)
   { trans.retTrans = 0;  //initial, it should be set by the transMethod. 
     try{ transMethod.invoke(StateSimple.this, event, trans); }
     catch(Exception exc){
@@ -1006,7 +1157,7 @@ private class StateActionMethod implements StateAction {
  */
 private class ConditionTimeout implements StateAction {
 
-  @Override public int action(Event<?, ?> event)
+  @Override public int exec(Event<?, ?> event)
   {
     // TODO Auto-generated method stub
     return event instanceof EventTimerMng.TimeEvent ? 1 : 0;
