@@ -85,6 +85,8 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-10-20 Hartmut bufgix: some parameter in call of {@link ExecuteLevel#execute(org.vishia.cmd.JZcmdScript.StatementList, StringFormatter, int, boolean, Map, int)}
+   *   were set faulty. Last change bug from 2014-07-27. 
    * <li>2014-08-10 Hartmut new: <:>...<.> as statement writes into the current out Buffer. Before: calculates an textexpression which is never used then.
    *   In opposite:<+>...<.> writes to the main text output always, not to the current buffer. 
    * <li>2014-08-10 Hartmut new: !checkXmlFile = filename; 
@@ -768,7 +770,7 @@ public class JZcmdExecuter {
       } else {
         level = this;
       }
-      return level.execute(contentScript, out, indentOut, bContainerHasNext, localVariables, nDebug);
+      return level.execute(contentScript, out, indentOut, bContainerHasNext, level.localVariables, nDebug);
     }
 
   
@@ -1098,7 +1100,7 @@ public class JZcmdExecuter {
           if(cond){
             Object foreachData = iter.next();
             forVariable.setValue(foreachData);
-            cont = forExecuter.execute(subContent, out, indentOut, iter.hasNext(), localVariables, nDebug);
+            cont = forExecuter.execute(subContent, out, indentOut, iter.hasNext(), forExecuter.localVariables, nDebug);
           }
         }//while of for-loop
       }
@@ -1115,7 +1117,7 @@ public class JZcmdExecuter {
             Map.Entry<?, ?> foreachDataEntry = (Map.Entry<?, ?>)iter.next();
             Object foreachData = foreachDataEntry.getValue();
             forVariable.setValue(foreachData);
-            cont = forExecuter.execute(subContent, out, indentOut, iter.hasNext(), localVariables, nDebug);
+            cont = forExecuter.execute(subContent, out, indentOut, iter.hasNext(), forExecuter.localVariables, nDebug);
           }
         }
       }
@@ -1132,7 +1134,7 @@ public class JZcmdExecuter {
             Object foreachData = aContainer[iContainer];
             forVariable.setValue(foreachData);
             boolean bLastElement = iContainer < zContainer-1;
-            cont = forExecuter.execute(subContent, out, indentOut, bLastElement, localVariables, nDebug);
+            cont = forExecuter.execute(subContent, out, indentOut, bLastElement, forExecuter.localVariables, nDebug);
           }
         }
       }
@@ -1526,7 +1528,7 @@ public class JZcmdExecuter {
       } else if(actualArgs !=null){
         throw new IllegalArgumentException("execSubroutine -  not expected arguments");
       }
-      success = sublevel.execute(subtextScript.statementlist, out, indentOut, false, localVariables, nDebug);
+      success = sublevel.execute(subtextScript.statementlist, out, indentOut, false, sublevel.localVariables, nDebug);
       return success;
     }
     
@@ -1624,7 +1626,7 @@ public class JZcmdExecuter {
       } else {
         genContent = this;  //don't use an own instance, save memory and calculation time.
       }
-      short ret = genContent.execute(script.statementlist, out, indentOut, false, localVariables, nDebug);
+      short ret = genContent.execute(script.statementlist, out, indentOut, false, genContent.localVariables, nDebug);
       if(ret == kBreak){ 
         ret = kSuccess; 
       }
@@ -2335,7 +2337,7 @@ public class JZcmdExecuter {
           IndexMultiTable<String, DataAccess.Variable<Object>> newVariables = 
             new IndexMultiTable<String, DataAccess.Variable<Object>>(IndexMultiTable.providerString); 
           //fill the dataStruct with its values:
-          ret = level.execute(arg.statementlist, null, 0, false, newVariables, -1);
+          ret = level.execute(arg.statementlist, null, 0, false, newVariables, -1); //Note: extra newVariables
           obj = ret == kException ? JZcmdExecuter.retException: newVariables;
         } else {
           //A statementlist as object can be only a text expression.
@@ -2518,7 +2520,7 @@ public class JZcmdExecuter {
     
     protected void runThread(ExecuteLevel executeLevel, JZcmdScript.ThreadBlock statement, JZcmdThread threadVar){
       try{
-        executeLevel.execute(statement.statementlist, JZcmdExecuter.this.textout, 0, false, localVariables, -1);
+        executeLevel.execute(statement.statementlist, JZcmdExecuter.this.textout, 0, false, executeLevel.localVariables, -1);
       } 
       catch(Exception exc){
         threadVar.exception = exc;
