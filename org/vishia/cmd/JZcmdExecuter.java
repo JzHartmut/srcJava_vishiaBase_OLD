@@ -85,6 +85,10 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-10-20 Hartmut chg: break in a condition should break a loop, forwarding {@link #kBreak} from execution level in {@link ExecuteLevel#executeIfStatement(org.vishia.cmd.JZcmdScript.IfStatement, StringFormatter, int, int)}.
+   * <li>2014-10-20 Hartmut new: Map name = { String variable = "value"; Obj next; } now works. Changed 'M' instead 'X' in {@link JZcmdScript.JZcmditem#add_dataStruct(org.vishia.cmd.JZcmdScript.StatementList)}.
+   *   {@link ExecuteLevel#evalObject(org.vishia.cmd.JZcmdScript.JZcmditem, boolean)} has accepted such dataStruct already (used in argumentlist), now with 'M' instead 'X'.
+   *   {@link ExecuteLevel#exec_DefMapVariable(org.vishia.cmd.JZcmdScript.DefVariable, Map)} newly.  
    * <li>2014-10-20 Hartmut bufgix: some parameter in call of {@link ExecuteLevel#execute(org.vishia.cmd.JZcmdScript.StatementList, StringFormatter, int, boolean, Map, int)}
    *   were set faulty. Last change bug from 2014-07-27. 
    * <li>2014-08-10 Hartmut new: <:>...<.> as statement writes into the current out Buffer. Before: calculates an textexpression which is never used then.
@@ -826,7 +830,7 @@ public class JZcmdExecuter {
           case 'T': ret = textAppendToVar((JZcmdScript.TextOut)statement, --nDebug1); break; //<+text>...<.+> 
           case ':': ret = textAppendToOut(statement, out, --nDebug1); break; //<+text>...<.+> 
           case 'A': break;  //used for Argument
-          case 'X': break;  //used for dataStruct in Argument
+          //case 'X': break;  //unused for dataStruct in Argument
           case 'U': ret = defineExpr(newVariables, (JZcmdScript.DefVariable)statement); break; //setStringVariable(statement); break; 
           case 'S': ret = defineExpr(newVariables, (JZcmdScript.DefVariable)statement); break; //setStringVariable(statement); break; 
           case 'P': { //create a new local variable as pipe
@@ -845,7 +849,7 @@ public class JZcmdExecuter {
               executeDefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'L', value, true);
             }
           } break;
-          case 'M': executeDefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'M', new TreeMap<String, Object>(), true); break; 
+          case 'M': ret = exec_DefMapVariable((JZcmdScript.DefVariable)statement, newVariables); break;
           case 'W': ret = executeOpenfile(newVariables, (JZcmdScript.DefVariable)statement); break;
           case 'C': ret = exec_DefClassVariable((JZcmdScript.DefClassVariable) statement, newVariables); break; 
           case 'J': ret = addClassLoader((JZcmdScript.DefClasspathVariable)statement, newVariables); break;
@@ -1138,7 +1142,7 @@ public class JZcmdExecuter {
           }
         }
       }
-      if(cont == kBreak){ cont = kSuccess; } //break in while does not break at calling level.
+      if(cont == kBreak){ cont = kSuccess; } //break in while does not break at calling level. It breaks only the own one.
       return cont;
     }
     
@@ -1193,7 +1197,7 @@ public class JZcmdExecuter {
           }
         }//switch
       }//for
-      if(cont == kBreak){ cont = kSuccess; } //break in an if block does not break at calling level.
+      if(cont == kBreak){ cont = kBreak; }   //break in an if block should break at calling level especially in for-container
       if(cont == kFalse){ cont = kSuccess; }
       return cont;
     }
@@ -2306,8 +2310,8 @@ public class JZcmdExecuter {
      * <ul>
      * <li>String from {@link JZcmdScript.JZcmditem#textArg}
      * <li>Object from {@link JZcmdScript.JZcmditem#dataAccess}
-     * <li>String from {@link JZcmdScript.JZcmditem#statementlist} if not 'X'
-     * <li>Map<String, Object> from statementlist if the arg.{@link JZcmdScript.JZcmditem#elementType} == 'X'.
+     * <li>String from {@link JZcmdScript.JZcmditem#statementlist} if not 'M'
+     * <li>Map<String, Object> from statementlist if the arg.{@link JZcmdScript.JZcmditem#elementType} == 'M'.
      *   it is d 'dataStruct'. 
      * <li>Object from {@link JZcmdScript.JZcmditem#expression}.
      * <li>If the arg is instanceof {@link JZcmdScript.Argument} - an argument of a call subroutine, then
@@ -2331,7 +2335,7 @@ public class JZcmdExecuter {
         obj = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
         //obj = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
       } else if(arg.statementlist !=null){
-        if(arg.elementType == 'X') {  
+        if(arg.elementType == 'M') {  
           //a dataStruct
           final ExecuteLevel level = new ExecuteLevel(threadData, this, localVariables);
           IndexMultiTable<String, DataAccess.Variable<Object>> newVariables = 
@@ -2451,6 +2455,23 @@ public class JZcmdExecuter {
     }
     
 
+    
+    
+    
+    protected short exec_DefMapVariable(JZcmdScript.DefVariable statement,  Map<String, DataAccess.Variable<Object>> newVariables) 
+    throws Exception   
+    { short ret = kSuccess;
+      Object value = evalObject(statement, false);
+      if(value == JZcmdExecuter.retException) {
+        ret = kException;
+      } else {
+        if(value == null) { //no initialization
+          value = new TreeMap<String, Object>();
+        }
+        executeDefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'M', value, true); 
+      }
+      return ret;
+    }
     
     
     protected short exec_DefClassVariable(JZcmdScript.DefClassVariable statement, Map<String, DataAccess.Variable<Object>> newVariables) 

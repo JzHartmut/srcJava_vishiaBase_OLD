@@ -41,7 +41,8 @@ public class JZcmdScript extends CompiledScript
 {
   /**Version, history and license.
    * <ul>
-   * <li>2014-08-10 Hartmut new: <:>...<.> as statement writes into the current out Buffer. Before: calculates an textexpression which is never used then.
+   * <li>2014-10-19 Hartmut chg: {@link JZcmditem#add_dataStruct(StatementList)} with 'M' instead 'X' adequate to change in JZcmdExecuter.
+   * <li>2014-08-10 Hartmut new: <:>...<.> as statement writes into the current out Buffer. Before: calculates an textExpression which is never used then.
    *   In opposite:<+>...<.> writes to the main text output always, not to the current buffer. 
    * <li>2014-08-10 Hartmut new: !checkXmlFile = filename; 
    * <li>2014-06-12 Hartmut new: {@link JZcmditem#scriptException(String)} 
@@ -338,9 +339,15 @@ public class JZcmdScript extends CompiledScript
     public StatementList statementlist(){ return statementlist; }
 
     
+    private void checkEmpty() {
+      if(statementlist != null || dataAccess != null || expression != null || textArg != null) {
+        throw new IllegalArgumentException("JZcmdItem with more as one content type.");
+      }
+    }
+    
     
     public JZcmdDataAccess new_dataAccess() { 
-      assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
+      checkEmpty();
       return new JZcmdDataAccess(); 
     }
     
@@ -353,7 +360,7 @@ public class JZcmdScript extends CompiledScript
 
 
     public void set_text(String text) { 
-      assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
+      checkEmpty();
       CharSequence cText;
       if(text.contains("\n=")){   //= on start of line, remove it
         StringBuilder u = new StringBuilder(text);
@@ -377,9 +384,11 @@ public class JZcmdScript extends CompiledScript
      * </pre>
      */
     public StatementList new_dataStruct(){
-      assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
+      checkEmpty();
       statementlist = new StatementList(this);
-      elementType = 'X';
+      if(elementType != 'M') {
+        elementType = 'M';     //should be a Map
+      }
       return statementlist;
     }
     
@@ -394,7 +403,7 @@ public class JZcmdScript extends CompiledScript
      * </pre>
      */
     public StatementList new_statementBlock(){
-      assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
+      checkEmpty();
       statementlist = new StatementList(this);
       return statementlist;
     }
@@ -405,14 +414,14 @@ public class JZcmdScript extends CompiledScript
 
     /**From Zbnf, a part <:>...<.> */
     public StatementList new_textExpr() { 
-      assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
+      checkEmpty();
       return this.statementlist = new StatementList(this); 
     }
     
     public void add_textExpr(StatementList val){}
 
     public JZcmdCalculatorExpr new_numExpr() { 
-      assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
+      checkEmpty();
       return new JZcmdCalculatorExpr(this); 
     }
 
@@ -428,7 +437,7 @@ public class JZcmdScript extends CompiledScript
     
     
     public JZcmdCalculatorExpr new_boolExpr() { 
-      assert(statementlist == null && dataAccess == null && expression == null && textArg == null);
+      checkEmpty();
       return new JZcmdCalculatorExpr(this); 
     }
 
@@ -557,7 +566,7 @@ public class JZcmdScript extends CompiledScript
           case '!': u.append(" flush "); break;
           case '_': u.append(" close "); break;
           case ',': u.append(" errortoOutput "); if(textArg == null){ u.append("off "); } break;
-          case 'X': u.append(" dataStruct "); break;
+          case 'M': u.append(" Map "); break;
           default: //do nothing. Fo in overridden method.
         }
       } catch(IOException exc){
