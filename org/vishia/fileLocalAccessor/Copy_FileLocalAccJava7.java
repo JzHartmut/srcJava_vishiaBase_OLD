@@ -21,6 +21,7 @@ import org.vishia.stateMachine.StateCompositeBase;
 import org.vishia.stateMachine.StateSimpleBase;
 import org.vishia.stateMachine.StateTopBase;
 import org.vishia.util.Assert;
+import org.vishia.util.Debugutil;
 import org.vishia.util.FileSystem;
 import org.vishia.util.StringFunctions;
 
@@ -939,6 +940,8 @@ public class Copy_FileLocalAccJava7
       StateDelFile(StateCopyProcess superState) { super(superState, "DelFile", true); }
       
       @Override protected void entryAction(Event<?,?> ev){
+        if(actData.src.getName().equals("src-html"))
+          Debugutil.stop();
         if(actData.src.exists()){  //do nothing if src does not exists
           if(!actData.src.canWrite()){
             if((modeCopyOper & FileRemote.modeCopyReadOnlyNever)!=0){

@@ -359,6 +359,9 @@ public class StateTrans
       }
     }
     
+    /**Searches the common state between all {@link #dstStates} and the source state.
+     * All states till the common state should be exited. 
+     */
     private void searchStateCommon() {
       //search the common state for all transitions. 
       StateSimple stateCommon;  //the common state between this and dstState.

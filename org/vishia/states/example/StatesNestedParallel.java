@@ -3,7 +3,6 @@ package org.vishia.states.example;
 import org.vishia.event.Event;
 import org.vishia.event.EventThread;
 import org.vishia.event.EventTimerMng;
-import org.vishia.states.StateAction;
 import org.vishia.states.StateAddParallel;
 import org.vishia.states.StateComposite;
 import org.vishia.states.StateParallel;
@@ -166,7 +165,11 @@ public class StatesNestedParallel
           class StateRunning extends StateSimple
           { @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
 
-            Timeout timeout = new Timeout(5000, StateFinit.class);
+            Timeout timeout = new Timeout(5000, StateFinit.class) {
+              @Override protected void action(Event<?,?> ev){
+                System.err.println("timeout");
+              }
+            };
           }
           
           

@@ -96,6 +96,7 @@ public class ZmakeTarget
    */
   private List<JZcmdFilepath> prepareFiles( List<JZcmdAccessFileset> filesOrFilesets, boolean expandFiles) throws NoSuchFieldException {
     //
+    if(filesOrFilesets == null) throw new IllegalArgumentException("no files given");
     //check whether the target has a parameter srcpath=... or commonpath = ....
     //JZcmdFilepath commonPathTarget = null;
     List<JZcmdFilepath> files = new LinkedList<JZcmdFilepath>();

@@ -85,8 +85,8 @@ public class StateComposite extends StateSimple
   final StateSimple[] aSubstates;
   
   
-  /**Only for the {@link StateMachine#topState} */
-  StateComposite(StateMachine stateMachine, StateSimple[] aSubstates){
+  /**Only for the {@link StateMachine#topState} and GenStm*/
+  public StateComposite(StateMachine stateMachine, StateSimple[] aSubstates){
     this.aSubstates = aSubstates;
     this.stateMachine = stateMachine;
   };
@@ -109,7 +109,7 @@ public class StateComposite extends StateSimple
    * @see StateComposite#createTransitionListSubstate(int)
    * @see StateSimple#createTransitionList()
    */
-  protected StateComposite() {
+  public StateComposite() {
     super();
     Class<?> clazz = this.getClass();
     //Class<?> clazzTop1 = clazz;
@@ -159,6 +159,19 @@ public class StateComposite extends StateSimple
     } else { //no inner states
       this.aSubstates = null;
     }
+  }
+  
+  
+  
+  /**It is called from outside if the state machine is build other than with Reflection.
+   * @param state a new inner state.
+   */
+  public void addState(StateSimple state){
+    int ix = 0;
+    while(ix < aSubstates.length && aSubstates[ix] !=null){ ix +=1; } //search next free
+    if(ix >= aSubstates.length) throw new IllegalArgumentException("too many states to add");
+    aSubstates[ix] = state;
+    stateMachine.stateMap.put(state.hashCode(), state);
   }
   
   

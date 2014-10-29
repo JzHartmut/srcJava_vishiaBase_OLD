@@ -99,7 +99,6 @@ public class JZcmdScript extends CompiledScript
    *   instead dataAccess::=<$?name>\.<$?elementPart>., it is more universal. adapted. 
    * <li>2012-10-10 new: Some enhancements, it is used for {@link org.vishia.zbatch.ZbatchExecuter} now too.
    * <li>2011-03-00 created.
-   *   It is the concept of specialized {@link GralWidget}.
    * </ul>
    * 
    * <b>Copyright/Copyleft</b>:

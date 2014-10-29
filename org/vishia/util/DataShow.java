@@ -159,18 +159,20 @@ public class DataShow
               if(bXML){
                 out.append("\" />");
               }
-            } else {
+            } else {  //non primitive
               try{
                 Object elementData = field.get(data);
                 if(elementData ==null){
                   if(bXML){ out.append(" value=\"null\" />");} else { out.append("null"); }
-                } else if(elementData instanceof CharSequence){
+                } 
+                else if(elementData instanceof CharSequence){
                   if(bXML){ 
                     out.append(" value=\"").append(SimpleXmlOutputter.convertString(elementData.toString())).append("\" />");
                   } else {
                     out.append(elementData.toString());
                   }
-                } else if(elementData instanceof List<?>){
+                } 
+                else if(elementData instanceof List<?>){
                   List<?> list = (List<?>)elementData;
                   if(bXML){ 
                     out.append(" listsize=\"").append(Integer.toString(list.size())).append("\" />");
@@ -178,11 +180,16 @@ public class DataShow
                     out.append(" listsize=\"").append(Integer.toString(list.size()));
                   }
                   if(recurs < maxRecurs){
+                    int ixItem = -1;
                     for(Object listElement: list){
-                      outData(recurs+1, maxRecurs, listElement, out, bXML, processedAlready);
+                      outIndent(recurs+1, out, bXML);
+                      out.append(Integer.toString(++ixItem)).append(". List entry: ------------------------------------------------------------------------");
+                      outIndent(recurs+2, out, bXML);
+                      outData(recurs+2, maxRecurs, listElement, out, bXML, processedAlready);
                     }
                   }
-                } else if(elementData instanceof Map<?,?>){
+                } 
+                else if(elementData instanceof Map<?,?>){
                   Map<?,?> map = (Map<?,?>)elementData;
                   if(bXML){ 
                     out.append(" mapsize=\"").append(Integer.toString(map.size())).append("\" >");
@@ -190,14 +197,15 @@ public class DataShow
                     out.append(" mapsize=\"").append(Integer.toString(map.size()));
                   }
                   if(recurs < maxRecurs){
+                    int ixEntries = -1;
                     for(Map.Entry<?,?> element: map.entrySet()){
                       Object key = element.getKey();
                       Object value = element.getValue();
                       outIndent(recurs+1, out, bXML);
                       if(bXML){ 
-                        out.append("<Map-Entry key=\"").append(key.toString()).append("\" >");
+                        out.append("<Map-Entry ix=\"").append(Integer.toString(++ixEntries)).append("\" key=\"").append(key.toString()).append("\" >");
                       } else {
-                        out.append("Map-Entry key=").append(key.toString());
+                        out.append(Integer.toString(++ixEntries)).append(". Map-Entry key=").append(key.toString());
                       }
                       if(recurs+1 < maxRecurs){
                         outData(recurs+2, maxRecurs, value, out, bXML, processedAlready);

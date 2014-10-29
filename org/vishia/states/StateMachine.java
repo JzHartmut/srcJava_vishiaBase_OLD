@@ -58,14 +58,33 @@ import org.vishia.util.DataAccess;
  * <br><br>
  * A state instance can be gotten with {@link org.vishia.states.StateMachine#getState(Class)}
  * <br><br>
- * The {@link org.vishia.states.StateMachine} can be quested whether a state is active yet: {@link org.vishia.states.StateMachine#isInState(Class)} 
- * or {@link org.vishia.states.StateMachine#isInState(StateSimple)}
+ * The {@link StateMachine} can be quested whether a state is active yet: {@link org.vishia.states.StateMachine#isInState(Class)} 
+ * or {@link StateMachine#isInState(Class)}
  * <br><br>
- * The state machine can be animated using {@link org.vishia.states.StateMachine#processEvent(org.vishia.event.Event)} from an event queue or without events
- * by given a null argument, for example cyclically.
+ * <br>Creation of a StateMachine with or without a timer and an event queue</b>:<br>
+ * One can execute the state machine in 2 modes:
+ * <ul>
+ * <li>State execution inside a thread which processes events. That thread can process more as one state machine. 
+ *   The limit is: If many events can be occured, the execution of all state transitions should be able to done in a limited time. 
+ *   The advantage is: All state machines are executed in the same thread.
+ *   The transitions are <em>fibers</em> of that thread. They are non-interrupt-able. If more as one state machines work with the same data,
+ *   no additional mutexes are necessary.
+ * <li>State execution inside the calling thread. That is the more simple variant. 
+ *   Events to trigger the state machine are possible but not necessary. The user should have control over mutual exclusion access to data 
+ *   if some more threads are used.  
+ * </ul>
+ * In the first case an instance of {@link EventThread#EventThread(String)} are necessary which is a parameter for the constructor
+ * {@link #StateMachine(EventThread, EventTimerMng)}.
  * <br><br>
- * The state machine can be associated with an event queue and a timer using 
- * {@link org.vishia.states.StateMachine#setTimerAndThread(org.vishia.event.EventTimerMng, org.vishia.event.EventThread)}.
+ * If an {@link EventThread} is used an instance of {@link EventTimerMng} is possible and recommended . 
+ * The timer manager can manage any number of time orders.
+ * It sends an {@link EventTimerMng.TimeEvent} to this StateMachine it the time is expired.
+ * <br><br>
+ * The state machine can be animated using {@link org.vishia.states.StateMachine#applyEvent(Event)} with or without events
+ * by given a null argument, for example cyclically if an {@link EventThread} is not used.
+ * <br><br>
+ * 
+ * To see how transitions and timeouts should be written see on {@link StateSimple.StateTrans} and {@link StateSimple.Timeout}.
  * 
  * @author hartmut Schorrig
  *
@@ -115,16 +134,16 @@ public class StateMachine
    * The state machine should processed in only one thread.
    * But this aggregation may be null if the state machine will be processed in a users thread.
    */
-  EventThread theThread;
+  final EventThread theThread;
   
   /**Aggregation to the used timer for time events. See {@link #addTimeOrder(long)}.
    * It may be null if queued time events are not necessary for this.
    */
-  EventTimerMng theTimer;
+  final EventTimerMng theTimer;
   
   //EventTimerMng.TimeEvent evTime;
   
-  StateComposite topState; 
+  protected final StateCompositeTop topState; 
   
   /**Map of all states defined as inner classes of the derived class, filled with reflection. */
   HashMap<Integer, StateSimple> stateMap = new HashMap<Integer, StateSimple>();
@@ -141,22 +160,44 @@ public class StateMachine
   
   
   
+  protected static class StateCompositeTop extends StateComposite
+  {
+    StateCompositeTop(StateMachine stateMachine, StateSimple[] aSubstates) { super(stateMachine, aSubstates); } 
+    
+    
+    public void prepare() {
+      buildStatePathSubstates(null,0);  //for all states recursively
+      createTransitionListSubstate(0);
+    }
+  }
+  
+  
+  
+  /**Creates a state machine which is executed directly by {@link #applyEvent(Event)}. {@link StateSimple.Timeout} is not possible.
+   * 
+   */
   public StateMachine(){ this(null, null);}
   
-  /**The constructor of the whole stateMachine does the same as the {@link StateComposite#StateComposite()}: 
+  /**Constructs a state machine with a given thread and a given timer manager.
+   * The constructor of the whole stateMachine does the same as the {@link StateComposite#StateComposite()}: 
    * It checks the class for inner classes which are the states.
    * Each inner class which is instance of {@link StateSimple} is instantiated and stored both in the {@link #stateMap} to find all states by its class.hashCode
    * and in the {@link #topState} {@link StateComposite#aSubstates} for debugging only.
    * <br><br>
-   * After them {@link #buildStatePathSubstates()} is invoked to store the state path in all states.
+   * After them {@link StateComposite#buildStatePathSubstates()} is invoked for the topstate and recursively for all states 
+   * to store the state path in all states.
    * Then {@link StateComposite#createTransitionListSubstate(int)} is invoked for the {@link #topState} 
    * which checks the transition of all states recursively. Therewith all necessary data for the state machines's processing
    * are created on construction. 
+   * 
    * @see StateComposite#StateComposite()
    * @see StateComposite#buildStatePathSubstates(StateComposite, int)
    * @see StateSimple#buildStatePath(StateComposite)
    * @see StateComposite#createTransitionListSubstate(int)
    * @see StateSimple#createTransitionList()
+   * 
+   * @param thread if given all events are stored in the thread's event queue, the state machine is executed only in that thread.
+   * @param if given timer events can be created. 
    */
   public StateMachine(EventThread thread, EventTimerMng timer)
   {
@@ -164,71 +205,49 @@ public class StateMachine
     this.theTimer = timer;
     final StateSimple[] aSubstates;
     Class<?>[] innerClasses = this.getClass().getDeclaredClasses();
-    if(innerClasses.length >0) {  //it is a composite state.
-      aSubstates = new StateSimple[innerClasses.length];  //assume that all inner classes are states. Elsewhere the rest of elements are left null.
-      topState = new StateComposite(this, aSubstates);
-      int ixSubstates = -1;
-      try{
-        for(Class<?> clazz1: innerClasses) {
-          if(DataAccess.isOrExtends(clazz1, StateSimple.class)) {
-            Constructor<?>[] ctor1 = clazz1.getDeclaredConstructors();
-            ctor1[0].setAccessible(true);
-            Object oState = ctor1[0].newInstance(this);
-            StateSimple state = (StateSimple)oState;
-            aSubstates[++ixSubstates] = state;
-            state.stateId = clazz1.getSimpleName();
-            state.stateMachine = this;
-            state.enclState = topState;
-            int idState = clazz1.hashCode();
-            this.stateMap.put(idState, state);
-            if(topState.stateDefault == null){
-              topState.stateDefault = state;  //The first state is the default one.
-            }
+    if(innerClasses.length ==0) throw new IllegalArgumentException("The StateMachine should have inner classes which are the states.");  //expected.
+    aSubstates = new StateSimple[innerClasses.length];  //assume that all inner classes are states. Elsewhere the rest of elements are left null.
+    topState = new StateCompositeTop(this, aSubstates);
+    int ixSubstates = -1;
+    try{
+      for(Class<?> clazz1: innerClasses) {
+        if(DataAccess.isOrExtends(clazz1, StateSimple.class)) {
+          Constructor<?>[] ctor1 = clazz1.getDeclaredConstructors();
+          ctor1[0].setAccessible(true);
+          Object oState = ctor1[0].newInstance(this);
+          StateSimple state = (StateSimple)oState;
+          aSubstates[++ixSubstates] = state;
+          state.stateId = clazz1.getSimpleName();
+          state.stateMachine = this;
+          state.enclState = topState;
+          int idState = clazz1.hashCode();
+          this.stateMap.put(idState, state);
+          if(topState.stateDefault == null){
+            topState.stateDefault = state;  //The first state is the default one.
           }
         }
-        //after construction of all subStates: complete.
-        topState.stateId = "StateTop";
-        topState.buildStatePathSubstates(null,0);  //for all states recursively
-        topState.createTransitionListSubstate(0);
-      } catch(Exception exc){
-        exc.printStackTrace();
-      }   
-    } else { //no inner states
-      //this.aSubstates = null;
-    }
-
-    
-    
+      }
+      //after construction of all subStates: complete.
+      topState.stateId = "StateTop";
+      topState.buildStatePathSubstates(null,0);  //for all states recursively
+      topState.createTransitionListSubstate(0);
+    } catch(Exception exc){
+      exc.printStackTrace();
+    }   
   }
 
   
-  /**Sets the timer manager and a optional thread for the event queue after construction.
-   * This method should be called only one time for any object. Elsewhere a IllegalStateException is thrown. 
-   * @param timer Source for timer events. It is necessary if the state machine uses timer events.
-   * @param queue Queue for events. Left null if the state machine should be invoked in the same thread where the events are created.
+  
+  /**Special constructor for StateMGen, with given topState, without reflection analysis. 
+   * @param topState
    */
-  public void XXXsetTimerAndThread(EventTimerMng timer, EventThread queue){
-    if(theTimer !=null) throw new IllegalStateException("setTimeMng() of a StateTop should be invoked only one time");
-    theTimer = timer;
-    theThread = queue;
-    //evTime = new EventTimerMng.TimeEvent(processEvent, theThread, 0);
+  protected StateMachine(StateSimple[] aSubstates) {
+    this.topState = new StateCompositeTop(this, aSubstates);
+    theTimer = null;
+    theThread = null;
   }
-
-
-  /**Sets the path to the state for this and all {@link #aSubstates}, recursively call.
-   * @param enclState
-   * @param recurs
-   */
-  void buildStatePathSubstates() {
-    //this.buildStatePath(topState);
-    for(StateSimple subState: topState.aSubstates){
-      if(subState instanceof StateComposite){
-        ((StateComposite) subState).buildStatePathSubstates(topState, 1);
-      } else {
-        subState.buildStatePath(topState);
-      }
-    }
-  }
+  
+  
 
 
   /**Gets the state instance to the State class inside this state machine.
