@@ -167,7 +167,8 @@ public class StateMachine
     
     public void prepare() {
       buildStatePathSubstates(null,0);  //for all states recursively
-      createTransitionListSubstate(0);
+      
+      //createTransitionListSubstate(0);
     }
   }
   

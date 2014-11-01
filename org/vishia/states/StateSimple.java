@@ -133,12 +133,13 @@ public final static int mRunToComplete =0x10;
 
 
 
-/**Aggregation to the whole state machine */
+/**Aggregation to the whole state machine. Note: it cannot be final because it will be set on preparing only. */
 protected StateMachine stateMachine;
 
 
 /**Reference to the enclosing state. With this, the structure of state nesting can be observed in data structures.
  * The State knows its enclosing state to set and check the state identification there. 
+ * Note: it cannot be final because it will be set on preparing only. 
  */
 protected StateComposite enclState;
 
@@ -147,9 +148,7 @@ protected StateComposite enclState;
  */
 protected StateSimple[] statePath;
 
-/**The own identification of the state. It is given by constructor. */
-//final EnumState stateId;
-
+/**The own identification of the state. Note: it cannot be final because it will be set on preparing only. */
 protected String stateId;
 
 /**If set, on state entry the timer for timeout is set. */
@@ -263,7 +262,8 @@ public class StateTrans
   /**All destination classes from constructor. They are not necessary furthermore after {@link #buildTransitionPath()}
    * because they are processed in the {@link #exitStates} and {@link #entryStates} lists.
    */
-  final Class<?>[] dst;
+  //final Class<?>[] dst;
+  final int[] dst;
   
   
   /**If a condition instance is given, its {@link StateAction#exec(Event)}-method is called to test whether the transition should fire.
@@ -303,9 +303,21 @@ public class StateTrans
    */
   public StateTrans(Class<?> ...dst){
     if(dst.length ==0) this.dst = null;
-    else this.dst = dst;
+    else {
+      this.dst = new int[dst.length];
+      for(int ix = 0; ix < dst.length; ++ix){
+        this.dst[ix] = dst[ix].hashCode();     //store the hashcode to find it.
+      }
+    }
   }
   
+  
+  /**This constructor should be used if the destination states are given from an outer algorithm.
+   * @param dstKeys
+   */
+  public StateTrans(int[] dstKeys){
+    this.dst = dstKeys;
+  }
   
   /**Constructs a transition with {@link #choice} sub-transitions.
    */
@@ -355,7 +367,7 @@ public class StateTrans
     private void buildDstStates() {
       //search all dst state instances from the given class. In constructor only the class is known.
       if(dst !=null) for(int ixdst = 0; ixdst < dst.length; ++ixdst){
-        dstStates[ixdst] = enclState.stateMachine.stateMap.get(new Integer(dst[ixdst].hashCode()));
+        dstStates[ixdst] = enclState.stateMachine.stateMap.get(new Integer(dst[ixdst]/*.hashCode()*/));
       }
     }
     
@@ -804,6 +816,41 @@ void createTransitionList(Object encl, StateTrans parent, int nRecurs){
 
 
 
+protected void prepareTransitions() {
+  if(transitions !=null) {
+    for(StateTrans trans: transitions) {
+      checkBuiltTransition(trans, 0);
+    }
+  }
+}
+
+
+
+
+/**Creates the empty yet array of transitions. 
+ * Invoked if transitions should be defined from any Java program outside, not from the Source of this class. Used for StateMgen.
+ * @param nrofTransitions Number should be the number of transitions to add, see {@link #addTransition(StateTrans)}
+ */
+public void createTransitions(int nrofTransitions) {
+  transitions = new StateTrans[nrofTransitions];
+}
+
+
+/**Adds a transition.
+ * Invoked if transitions should be defined from any Java program outside, not from the Source of this class. Used for StateMgen.
+ * @param trans
+ */
+public void addTransition(StateSimple.StateTrans trans) {
+  int ix = 0;
+  while(ix < transitions.length && transitions[ix] !=null){ ix +=1; } //search next free
+  if(ix >= transitions.length) throw new IllegalArgumentException("too many states to add");
+  transitions[ix] = trans;
+
+}
+
+
+
+
 
 private void checkBuiltTransition(StateTrans trans, int nRecurs) {
   if(trans.dst !=null) {
@@ -1067,6 +1114,12 @@ CharSequence getStatePath(){
   return uPath;
 }
 
+
+
+/**Returns the name of the state, for debugging.
+ * @return
+ */
+public String getName(){ return stateId; }
 
 /**Returns the state Id and maybe some more debug information.
  * @see java.lang.Object#toString()

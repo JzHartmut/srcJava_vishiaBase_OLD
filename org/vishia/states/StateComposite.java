@@ -164,9 +164,10 @@ public class StateComposite extends StateSimple
   
   
   /**It is called from outside if the state machine is build other than with Reflection.
+   * @param key the key which is used to find the state in {@link StateMachine#stateMap} while preparing the transitions
    * @param state a new inner state.
    */
-  public void addState(StateSimple state){
+  public void addState(int key, StateSimple state){
     int ix = 0;
     while(ix < aSubstates.length && aSubstates[ix] !=null){ ix +=1; } //search next free
     if(ix >= aSubstates.length) throw new IllegalArgumentException("too many states to add");
