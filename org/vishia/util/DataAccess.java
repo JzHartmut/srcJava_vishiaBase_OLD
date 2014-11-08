@@ -1759,6 +1759,49 @@ public class DataAccess {
   }
 
 
+  
+  /**Checks whether data is an array and returns the current number of elements.
+   * <br>Note: Use data.getClass(): {@link Class#isArray()} to check whether it is an array
+   * @param data any data
+   * @return -1 if it is not an array. The current number of elements if it is an array.
+   */
+  public int getLengthOfArray(Object data) 
+  {
+    Class<?> clazz = data.getClass();
+    if(clazz.isArray()) {
+      Object[] array = (Object[]) data;
+      return array.length;
+    }
+    else return -1;
+  }
+  
+  
+  
+  
+  /**Gets the indexed element of the given array.
+   * @param data Should be an array with the expected number of dimensions, elsewhere see throws
+   * @param ixArray The indices, maybe missed, then data is returned.
+   * @return the array element
+   * @throws ClassCastException if data is not an array or the element has less dimensions
+   * @throws IndexOutOfBoundsException on faulty ixArray
+   */
+  public Object getArrayElement(Object data, int ... ixArray) 
+  {
+    Object data1 = data;
+    Object[] array = null; 
+    for(int ix1 = 0; ix1 < ixArray.length; ++ix1) {
+      array = (Object[]) data1;
+      data1 = ixArray[ix1];
+    }
+    return data1;
+  }
+  
+  
+  
+  
+  
+  
+  
   /**Sets a bit in a int word
    * @param value The actual value of the word
    * @param mask Designation of bits to change. Usual only one bit. Tip: Use symbolic names.

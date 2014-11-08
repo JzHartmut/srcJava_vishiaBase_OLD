@@ -44,6 +44,9 @@ public abstract class StateSimple
   
 /**Version, history and license.
  * <ul>
+ * <li>2014-11-09 Hartmut new: {@link #setAuxInfo(Object)}, {@link #auxInfo()} used for state machine generation for C/C++
+ * <li>2014-09-28 Hartmut chg: Copied from {@link org.vishia.stateMachine.StateSimpleBase}, changed concept: 
+ *   Nested writing of states, less code, using reflection for missing instances and data. 
  * <li>2013-05-11 Hartmut chg: Override {@link #exitAction()} instead {@link #exitTheState()}!
  * <li>2013-04-27 Hartmut chg: The {@link #entry(Event)} and the {@link #entryAction(Event)} should get the event
  *   from the transition. It needs adaption in users code. The general advantage is: The entry action can use data
@@ -142,6 +145,10 @@ protected StateMachine stateMachine;
  * Note: it cannot be final because it will be set on preparing only. 
  */
 protected StateComposite enclState;
+
+
+/**Any additional information. Used for special cases. */
+private Object auxInfo;
 
 /**Path to this state from the top state. The element [0] is the top state.
  * The last element is the enclosing state.
@@ -439,10 +446,6 @@ public class StateTrans
       do {
         //walk through all dstStates[..].statePath
         StateSimple dst1 = dstStates[0].statePath[ixDstPath[0]];
-        if(dst1 instanceof StateParallel) {
-          //check whether all parallel states are entere Elsewhere use the default state in the non-entered branch. 
-          
-        }
         int nrofBranchs = ixEntryStates < 0 ? 1 : StateTrans.this.entryStates[ixEntryStates].length;
         for(int ixDst = 0; ixDst < dstStates.length; ++ixDst){
           //check the same path
@@ -628,7 +631,7 @@ public class StateTrans
     }
   }
   
-  @Override public String toString(){ return transId; }
+  @Override public String toString(){ return transId == null ? "-unknown transId" : transId; }
   
 
   
@@ -687,6 +690,12 @@ protected StateSimple(){
   }
   */
 }
+
+
+public void setAuxInfo(Object info) { auxInfo = info; }
+
+public Object auxInfo() { return auxInfo; }
+
 
 
 /**This method may be overridden for a entry action. In that case the {@link #entry} or {@link #entryMethod} is either not used
@@ -897,97 +906,6 @@ public final boolean isInState(){
   return enclState == null           //it is the top state.
        || enclState.isInState(this);  //the enclosing state has this as active one.
 }
-
-/**This method sets this state in its enclosing composite state.
- * If the enclosing state is not the active state of its enclosing state, then the entry is invoked recursively firstly for the enclosing state.
- * It is possible to program the entry in a deep nested state, the entry action for all enclosing states are executed automatically be recursive call.
- * <br><br>
- * This is the only one {@link #entry(Event)} for all derived state types. It is final, not able to override. 
- * For the composite and parallel states the necessary actions are done here too. 
- * That may be more simple than overridden methods for composite and parallel states. All what is done can be seen in only one method.
- * <br><br>
- * It calls {@link #entryAction()}. 
- * @param ev The event from the transition. It is transferred to the {@link #entryAction(Event)}, especially event data
- *   can be used there. If the event is not used for transition but given, this entry action have to be called with entry(null).
- * @return Bits: 
- * <ul>
- * <li>If ev not null, then bit {@link #mEventConsumed}. 
- * <li>If the state is constructed with {@link #StateSimpleBase(StateCompositeBase, String, boolean)} with true
- *   because it has non-event transitions, the bit {@link #mRunToComplete}, see {@link #modeTrans}.
- * <li>{@value #mStateEntered} anyway.  
- * </ul>
- */
-//@SafeVarargs 
-public final int XXXswitchto(Event<?,?> ev, Class<? /*extends StateSimple*/> ... dstStateClass ) {
-  
-  int id = dstStateClass[0].hashCode();
-  //Hint: only the stateTop itself has not an enclState.
-  StateSimple dstState = enclState.stateMachine.stateMap.get(new Integer(id));
-  //
-  //exit to the current state till a common state with the entryState is found.
-  boolean exitFound = false;
-  StateSimple stateCommon;  //the common state between this and dstState.
-  int zStatePath;
-  StateSimple exitState = this;
-  do{
-    exitState = exitState.exitTheState();      //*** exit();
-    stateCommon = dstState;
-    zStatePath = 1;
-    while(stateCommon !=null && !exitFound){
-      if( stateCommon == exitState){ 
-        exitFound = true;
-      } else {
-        stateCommon = stateCommon.enclState;
-        zStatePath +=1;
-      }
-    }
-  } while( !exitFound );
-  //
-  //    |---->(----->dst0 )
-  //--->|            
-  //    |---->(----->|--->dst1
-  //                 |--->dst2
-  //
-  //check whether there are more as one entry states:
-  StateParallel[][] statesParallel;
-  if( dstStateClass.length >1 ) {
-    statesParallel = new StateParallel[dstStateClass.length][];
-    for(int ixdst = 0; ixdst < dstStateClass.length; ++ixdst) {
-      Class<?> dstClass3 = dstStateClass[ixdst];
-      StateSimple stateP2 = enclState.stateMachine.stateMap.get(new Integer(dstClass3.hashCode()));
-      if(stateP2 instanceof StateParallel){
-        //if(statesParallel[ixdst])
-      }
-      if(stateP2 !=null){
-        
-      }
-    }
-  }
-  //
-  //now entry in the dstState, but across the dst path:
-  StateSimple[] statePath = new StateSimple[zStatePath];
-  int ixStatePath;
-  //build the state path backward from dstState to the common State.
-  //the common state is reached in zStatePath steps.
-  for(ixStatePath = zStatePath-1; ixStatePath >=0; --ixStatePath){
-    statePath[ixStatePath] = dstState;
-    dstState = dstState.enclState;
-  }
-  //now entry all states.
-  int res = 0;
-  for(ixStatePath = 0; ixStatePath < zStatePath; ++ixStatePath){
-    StateSimple dst1 = statePath[ixStatePath];
-    if(dst1 instanceof StateParallel) {
-      //check whether any further dst state has this parallel state:
-      StateParallel stateParallel = (StateParallel)dst1;
-      
-      
-    }
-    res = dst1.entryTheState(ev);
-  }  
-  return res;
-}
-
 
 
 /**This method can be overridden by the user if the user want to write all transition condition in one method

@@ -10,6 +10,8 @@ public abstract class StateAddParallel extends StateComposite
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-09-28 Hartmut chg: Copied from {@link org.vishia.stateMachine.StateAdditionalParallelBase}, changed concept: 
+   *   Nested writing of states, less code, using reflection for missing instances and data. 
    * <li>2012-09-17 Hartmut improved.
    * <li>2012-08-30 Hartmut created. The experience with that concept are given since about 2003 in C-language.
    * </ul>
@@ -40,6 +42,15 @@ public abstract class StateAddParallel extends StateComposite
    */
   public static final int version = 20120917;
 
+  
+  /**Only for the {@link StateMachine#topState} and GenStm*/
+  public StateAddParallel(StateMachine stateMachine, StateSimple[] aSubstates, StateComposite[] aParallelstates){
+    super(stateMachine, aSubstates, aParallelstates);
+  }
+
+  
+  public StateAddParallel(){ super(); }
+  
   
   /**package private*/ final void XXXentryAdditionalParallelBase(){
     ctEntry +=1;

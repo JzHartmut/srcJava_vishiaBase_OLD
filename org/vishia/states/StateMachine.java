@@ -95,8 +95,9 @@ public class StateMachine
   /**Version, history and license.
    * <ul>
    * <li>2014-10-12 Hartmut chg: Not does not inherit from {@link StateComposite}, instance of {@link #topState}. 
-   * <li>2014-09-28 Hartmut chg: Copied from org.vishia.stateMachine.TopState, changed concept
-   * <li>2013-04-07 Hartmut adap: Event<?,?> with 2 generic parameter
+   * <li>2014-09-28 Hartmut chg: Copied from org.vishia.stateMachine.TopState, changed concept: 
+   *   Nested writing of states, less code, using reflection for missing instances and data. 
+   * <li>2013-04-07 Hartmut adapt: Event<?,?> with 2 generic parameter
    * <li>2012-09-17 Hartmut improved.
    * <li>2012-08-30 Hartmut created. The experience with that concept are given since about 2001 in C-language and Java.
    * </ul>
@@ -162,7 +163,7 @@ public class StateMachine
   
   protected static class StateCompositeTop extends StateComposite
   {
-    StateCompositeTop(StateMachine stateMachine, StateSimple[] aSubstates) { super(stateMachine, aSubstates); } 
+    StateCompositeTop(StateMachine stateMachine, StateSimple[] aSubstates, StateComposite[] aParallelstates) { super(stateMachine, aSubstates, aParallelstates); } 
     
     
     public void prepare() {
@@ -208,7 +209,7 @@ public class StateMachine
     Class<?>[] innerClasses = this.getClass().getDeclaredClasses();
     if(innerClasses.length ==0) throw new IllegalArgumentException("The StateMachine should have inner classes which are the states.");  //expected.
     aSubstates = new StateSimple[innerClasses.length];  //assume that all inner classes are states. Elsewhere the rest of elements are left null.
-    topState = new StateCompositeTop(this, aSubstates);
+    topState = new StateCompositeTop(this, aSubstates, null);
     int ixSubstates = -1;
     try{
       for(Class<?> clazz1: innerClasses) {
@@ -243,7 +244,7 @@ public class StateMachine
    * @param topState
    */
   protected StateMachine(StateSimple[] aSubstates) {
-    this.topState = new StateCompositeTop(this, aSubstates);
+    this.topState = new StateCompositeTop(this, aSubstates, null);
     theTimer = null;
     theThread = null;
   }

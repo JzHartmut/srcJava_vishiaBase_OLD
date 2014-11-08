@@ -5,7 +5,6 @@ import org.vishia.event.EventThread;
 import org.vishia.event.EventTimerMng;
 import org.vishia.states.StateAddParallel;
 import org.vishia.states.StateComposite;
-import org.vishia.states.StateParallel;
 import org.vishia.states.StateSimple;
 import org.vishia.states.StateMachine;
 
@@ -154,7 +153,7 @@ public class StatesNestedParallel
       }
       
       
-      class StateActive extends StateParallel
+      class StateActive extends StateComposite
       {
         @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
 
