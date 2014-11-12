@@ -26,7 +26,14 @@
  */
 package org.vishia.byteData;
 
-public class Object_Jc  extends ByteDataAccess
+
+
+/**This class enables the access to binary data which presents a C-type ObjectJc.
+ * 
+ * @author Hartmut Schorrig
+ *
+ */
+public class Object_Jc  extends ByteDataAccessBase
 {
   public final static int kPos_objIdentSize = 0;
   private final static int kPos_ownAdress = 4;
@@ -69,22 +76,23 @@ public class Object_Jc  extends ByteDataAccess
   public final static int OBJTYPE_ReflectionImageBaseAddress_Jc = Object_Jc.kIsSmallSize_typeSizeIdent + 0x0ff70000; 
   */
   
+  /**Constructs the access to binary data of the head data of ObjectJc.
+   * Note that more data should be added by {@link #addChild(ByteDataAccessBase)} etc.
+   */
   public Object_Jc()
-  { setBigEndian(false);
+  { super(sizeof_Object_Jc);
+    setBigEndian(false);
   }
 
-  protected void specifyEmptyDefaultData() 
-  {
-    // TODO Auto-generated method stub
-    
+  
+  /**Constructs the access to binary data of a type based on ObjectJc
+   * @param size Size of that type inclusively ObjectJc.
+   */
+  public Object_Jc(int size)
+  { super(size);
+    setBigEndian(false);
   }
 
-
- //NEW
-  /**Thats wrong!!! */
-  protected int specifyLengthElement(int idxChild) 
-  { return 0;
-  }
   
   
   /**returns the size of the Object_Jc data correlating with typeSizeIdent of Object_Jc.
@@ -121,56 +129,6 @@ public class Object_Jc  extends ByteDataAccess
   }
   
   
-/*    
-    protected int specifyLengthElement(int idxChild) 
-    {
-      int nResult = 0;
-      int typeSizeIdent = getInt32(Object_Jc.kPos_objIdentSize + idxChild);
-
-      int nSizeInfo = typeSizeIdent & mSizeBits_typeSizeIdent;
-      
-      switch (nSizeInfo)
-      {
-      case kIsSmallSize_typeSizeIdent:
-      case 0x30000000: //HOT FIX!!!
-        nResult = typeSizeIdent & Object_Jc.mSizeSmall_typeSizeIdent;
-        break;
-      case kIsMediumSize_typeSizeIdent :
-        nResult = typeSizeIdent & Object_Jc.mSizeMedium_typeSizeIdent ;
-        break;
-      case mIsLargeSize_typeSizeIdent:
-          nResult = typeSizeIdent & Object_Jc.mSizeLarge_typeSizeIdent;
-          break;
-      }
-      
-      return nResult;    
-    }
-//*/
-  protected int specifyLengthElement() 
-  {
-    return -1;  //the size is not specified commonly, though it may be defined in Object_Jc.
-    //The reason is: First test content carefully.
-    /*
-    int size = getSizeObject();  //read from sizeTypeInfo-element. 
-    if(size < sizeof_Object_Jc)
-    { size = sizeof_Object_Jc;   //especially if size info is 0!
-    }
-    return size;
-    */    
-  }
-
-  public int specifyLengthElementHead() 
-  { return sizeof_Object_Jc;
-  } 
-
-  
-  /*
-  protected int specifyLengthCurrentChildElement()
-  throws AccessException
-  { 
-      return specifyLengthElement();
-  }
-  */
   public int getOwnAdress()
   {
       return getInt32(kPos_ownAdress);

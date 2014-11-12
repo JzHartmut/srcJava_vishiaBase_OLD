@@ -46,12 +46,11 @@ public class ObjectArray_Jc extends Object_Jc {
   
   
   public ObjectArray_Jc()
-  {
-    
+  { super(sizeof_ObjectArray_Jc);
   }
   
    /**assigns data from a given Object_Jc instance 
-   * which is assigned to a byte[] via {@link ByteDataAccess} superclass of Object_Jc.
+   * which is assigned to a byte[] via {@link ByteDataAccessBase} superclass of Object_Jc.
    * The byte[] have to be containing valid data.
    */
   public void assignDataUpcast(Object_Jc base)
@@ -62,7 +61,7 @@ public class ObjectArray_Jc extends Object_Jc {
    
     
     
-    public int specifyLengthElementHead() {
+    public int XXXspecifyLengthElementHead() {
          return sizeof_ObjectArray_Jc;
     } 
     

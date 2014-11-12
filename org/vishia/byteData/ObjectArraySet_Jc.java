@@ -10,8 +10,8 @@ public class ObjectArraySet_Jc extends ObjectArray_Jc
   
   private Vector<ObjectArray_Jc> objectArrays;
 
-  public ObjectArraySet_Jc(ByteDataAccess parent, int idxChildInParent)
-  { assignAtIndex(idxChildInParent, parent);
+  public ObjectArraySet_Jc(ByteDataAccessBase parent, int idxChildInParent)
+  { assignAt(idxChildInParent, parent);
   }
     
   
@@ -54,7 +54,7 @@ public class ObjectArraySet_Jc extends ObjectArray_Jc
       public void setImageData(byte[] imageData)
       throws ParseException
       { 
-        super.assignData(imageData, imageData.length);
+        super.assign(imageData, imageData.length);
         //  super.assignFromParentsChild();
          //counts the number of classes
           //loop over all elements:
@@ -71,14 +71,14 @@ public class ObjectArraySet_Jc extends ObjectArray_Jc
           {
               ObjectArray_Jc newItem = new ObjectArray_Jc();
               objectArrays.add(newItem );
-              newItem.assignData(data, data.length, ixBegin);
+              newItem.assign(data, data.length, ixBegin);
            }
 
-              int lengthCurrentElement = specifyLengthElement();
+              int lengthCurrentElement = getLength();
               if (lengthCurrentElement == 0) 
                 throw new ParseException("Position: " + ixBegin, ixBegin);
                  
-              assignData(data, data.length, ixBegin + lengthCurrentElement);
+              assign(data, data.length, ixBegin + lengthCurrentElement);
          }
       } //setImageData(byte[])
 

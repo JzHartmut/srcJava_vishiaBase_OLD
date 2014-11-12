@@ -21,7 +21,7 @@ package org.vishia.byteData;
  * @author Hartmut Schorrig
  *
  */
-public class ByteDataAccessSimple extends ByteDataAccess
+public class ByteDataAccessSimple extends ByteDataAccessBase
 {
   
   /**Version, history and license
@@ -61,50 +61,33 @@ public class ByteDataAccessSimple extends ByteDataAccess
   
   /** Constructs a new instance which is assigned to an empty buffer. */
   public ByteDataAccessSimple(byte[] data, boolean bigEndian)
-  { super();
+  { super(0, data.length);
     super.bBigEndian = bigEndian; 
-    super.data = data;
-    reset(0, -1);
+    assign(data);
+    clearData();
   }
 
   
   
   /** Constructs a new instance which is assigned to an filled buffer. */
   public ByteDataAccessSimple(byte[] data, boolean bigEndian, int lengthData)
-  { super();
-    this.data = data;
+  { super(0, lengthData);
+    assign(data, lengthData);
     super.bBigEndian = bigEndian; 
     assert(lengthData >=0 && lengthData <= data.length);
-    reset(0, lengthData);
+    clearData();
   }
   
   
   /** Constructs a new instance which is assigned to an filled buffer. */
   public ByteDataAccessSimple(byte[] data, boolean bigEndian, int lengthData, int index)
-  { super();
-    this.data = data;
-    this.ixBegin = index;
+  { super(0, lengthData);
+    assign(data, lengthData, index);
     super.bBigEndian = bigEndian; 
     assert(lengthData >=0 && lengthData + index <= data.length);
-    reset(0, lengthData);
+    clearData();
   }
   
-  @Override
-  protected void specifyEmptyDefaultData() 
-  {
-  }
-
-
-  @Override
-  protected int specifyLengthElement() 
-  { return -1;
-  }
-  
-  
-  @Override
-  public int specifyLengthElementHead() 
-  { return 0;
-  } 
 
   
   /**Gets a integer value from any offset started from Object_Jc

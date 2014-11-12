@@ -51,7 +51,7 @@ public class Class_Jc extends Object_Jc
   
     /**creates an empty not assigned instance. */
     public Class_Jc()
-    { 
+    { super(kPos_Last);
     }
     
     
@@ -62,7 +62,7 @@ public class Class_Jc extends Object_Jc
  
 
     /**assigns data from a given Object_Jc instance 
-     * which is assigned to a byte[] via {@link ByteDataAccess} superclass of Object_Jc.
+     * which is assigned to a byte[] via {@link ByteDataAccessBase} superclass of Object_Jc.
      * The byte[] have to be containing valid data.
      */
     public void assignDataUpcast(Object_Jc base)
@@ -71,12 +71,12 @@ public class Class_Jc extends Object_Jc
     }
     
     /** inherit from XmlBinCodeElement. Specifies the length of the head informations, used inside superclass. */
-    public int specifyLengthElementHead()
+    public int XXXspecifyLengthElementHead()
     { return kPos_Last;
     }
 
     /** inherit from XmlBinCodeElement. This method is left empty because only given data are processed. */
-    protected void specifyEmptyDefaultData()
+    protected void XXXspecifyEmptyDefaultData()
     {
       Arrays.fill(data, super.ixBegin, super.ixBegin + kPos_Last, (byte)0);
     }

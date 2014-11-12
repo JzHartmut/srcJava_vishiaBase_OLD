@@ -31,31 +31,14 @@ import org.vishia.util.Java4C;
 /**This class is use-able to free access to data.
  * @deprecated, use {@link ByteDataAccessSimple} instead.
  */ 
-public class RawDataAccess  extends ByteDataAccess
+public class RawDataAccess  extends ByteDataAccessBase
 {
   
   
   
   public RawDataAccess()
-  { 
+  { super(0); 
   }
-
-  @Override
-  protected void specifyEmptyDefaultData() 
-  {
-  }
-
-
-  @Override
-  protected int specifyLengthElement() 
-  { return -1;
-  }
-  
-  
-  @Override
-  public int specifyLengthElementHead() 
-  { return 0;
-  } 
 
   
   

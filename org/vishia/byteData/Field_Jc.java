@@ -37,7 +37,7 @@ import java.util.TreeMap;
  * The Field_Jc supports the access to a single data field of a users byte image.
  * See {@link Class_Jc.getDeclaredField(String)} and {@link Class_Jc.getDeclaredFields()}  
  */ 
-public  class Field_Jc extends ByteDataAccess
+public  class Field_Jc extends ByteDataAccessBase
 {
       /** Position of the name in a Field_Jc-POD*/
       private static final int kPosName = 0x0;
@@ -138,28 +138,13 @@ public  class Field_Jc extends ByteDataAccess
   public final static int OBJTYPE_Field_Jc =  0x0FF50000; 
       
   public Field_Jc()
-  {
+  { super(sizeOf_Field_Jc);
   }
 
   
   
   
-   /** Hat keine head informations!!! Verwaltungsklasse ist ObjectArray_Jc */
-      public int specifyLengthElementHead()
-      {
-        return sizeOf_Field_Jc; //kPos_position + 8;
-      }
-
-      /** inherit from ByteDataAccess. This method is left empty because only given data are processed. */
-      protected void specifyEmptyDefaultData()
-      {
-      }
-
-      /** inherit from ByteDataAccess. Specifies the length of the head informations, used inside superclass. */
-      protected int specifyLengthElement()
-      { return sizeOf_Field_Jc;
-      }
-
+  
   public int getTypeSize(int nType)
   {
       int nResult = 0;

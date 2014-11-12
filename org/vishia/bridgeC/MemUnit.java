@@ -22,33 +22,21 @@
  *******************************************************************************/ 
 package org.vishia.bridgeC;
 
-import org.vishia.byteData.ByteDataAccess;
+import org.vishia.byteData.ByteDataAccessBase;
 
 /**A reference to this class represents a reference to a memory address position. 
  * It is adequately to a void* pointer in C, but in C address operations are possible.  
  * @author Hartmut Schorrig
  *
  */
-public class MemUnit extends ByteDataAccess 
+public class MemUnit extends ByteDataAccessBase 
 {
+  protected MemUnit()
+  { super(1);
+  }
+
   public static final int kIdxAfterLast = 1;
 
-  @Override
-  protected void specifyEmptyDefaultData()
-  {
-    // TODO Auto-generated method stub
-    
-  }
-
-  @Override
-  protected int specifyLengthElement() throws IllegalArgumentException
-  { return 1;
-  }
-
-  @Override
-  public int specifyLengthElementHead()
-  { return 1;
-  }
   
   
 }

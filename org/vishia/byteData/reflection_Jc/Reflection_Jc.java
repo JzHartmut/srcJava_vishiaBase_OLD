@@ -10,7 +10,7 @@ import org.vishia.byteData.ObjectArray_Jc;
 
 
 /**This class contains all reflection information from CRuntimeJavalike 
- * read from a C application via {@link ByteDataAccess}.
+ * read from a C application via {@link ByteDataAccessBase}.
  * The informations are prepared from pure Byte data to comfortable access in Java.
  */
 public class Reflection_Jc

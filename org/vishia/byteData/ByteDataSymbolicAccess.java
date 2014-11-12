@@ -398,7 +398,7 @@ public class ByteDataSymbolicAccess {
     this.ixStartData = from;
     this.nrofData = length;
     assert( (from + length) <= data.length);
-    try{  dataAccess.assignData(data, length, from);
+    try{  dataAccess.assign(data, length, from);
     } catch (IllegalArgumentException exc) { }
     dataAccess.setBigEndian(true);
     timeSetNewValue = time; 

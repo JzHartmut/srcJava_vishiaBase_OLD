@@ -296,15 +296,15 @@ public abstract class ByteDataAccessBase
    * inside method addChild(child) and recursively to correct
    * in all parents.
    */
-  /*package private*/ final void _expand(int idxCurrentChildEndNew)
-  { if(ixEnd < idxCurrentChildEndNew) 
+  /*package private*/ final void _expand(int ixChildEndNew)
+  { if(ixEnd < ixChildEndNew) 
     { //do it only in expand mode
-      ixEnd = idxCurrentChildEndNew;
+      ixEnd = ixChildEndNew;
     }
-    assert(idxCurrentChildEndNew >= ixBegin + sizeHead);
-    ixChildEnd = idxCurrentChildEndNew;
+    assert(ixChildEndNew >= ixBegin + sizeHead);
+    ixChildEnd = ixChildEndNew;
     if(parent != null)
-    { parent._expand(idxCurrentChildEndNew);
+    { parent._expand(ixChildEndNew);
     }
   }
 
@@ -618,7 +618,7 @@ public abstract class ByteDataAccessBase
    *
    * @param child The child will be assigned with the data of this at index after the current child's end-index.
    *   Note that the child's sizeHead should be set correctly.
-   * @param sizeChild The number of bytes which are used from the child or 0. If it is 0, then the child's sizeHead are used 
+   * @param sizeChild The number of bytes which are used from the child or 0. If it is 0, then the child's sizeHead is used 
    *   to set this.{@link #ixChildEnd}, elsewhere {@link #ixChildEnd} is set using that value.
    *   The child itself does not use this value.
    * @throws IllegalArgumentException if the length of the old current child is not determined yet.
@@ -654,7 +654,19 @@ public abstract class ByteDataAccessBase
   final public void addChild(ByteDataAccessBase child){ addChild(child, child.sizeHead); } 
   
   
+  final public void addChildEmpty(ByteDataAccessBase child) 
+  { addChild(child);  //first add the child
+    child.clearHead(); //then clears its data.
+  }
   
+  
+  
+  final public void addChildEmpty(ByteDataAccessBase child, int sizeChild) 
+  { addChild(child, sizeChild);  //first add the child
+    child.clearData(); //then clears its data.
+  }
+  
+
   
   final public void addChildAt(int idxChild, ByteDataAccessBase child, int sizeChild) 
   throws IllegalArgumentException
@@ -971,18 +983,18 @@ public abstract class ByteDataAccessBase
 
 
 
-  /**sets the idxCurrentChild to the known idxCurrentChildEnd.
+  /**sets the ixChild to the known ixChildEnd.
    * This method is called while addChild. The state before is:
-   * <ul><li>idxCurrentChild is the index of the up to now current Child, or -1 if no child was added before.
-   * <li>idxCurrentChildEnd is the actual end index of the current Child, 
+   * <ul><li>ixChild is the index of the up to now current Child, or -1 if no child was added before.
+   * <li>ixChildEnd is the actual end index of the current Child, 
    *     or the index of the first child (after head, may be also 0 if the head has 0 bytes), 
    *     if no child was added before.
    * <ul>
    * The state after is:    
-   * <ul><li>idxCurrentChild is set to the idxCurrentChildEnd from state before. 
-   * <li>idxCurrentChildEnd is set to -1, because it is not defined yet.
+   * <ul><li>ixChild is set to the ixChildEnd from state before. 
+   * <li>ixChildEnd is set to -1, because it is not defined yet.
    * <ul>
-   * If idxCurrentChildEnd >= idxCurrentChild, it means that this operation respectively {@link next()}
+   * If ixChildEnd >= ixChild, it means that this operation respectively {@link next()}
    * was called before. Than this operation is done already, a second call does nothing.
    * <br>
    * The length of the current child should be set after this operation and before this operation respectively the calling operation addChild() 
@@ -994,7 +1006,7 @@ public abstract class ByteDataAccessBase
   {
     if(ixChildEnd >= ixChild )
     { //This is the standard case.
-      //NOTE: idxCurrentChild = -1 is assert if no child is added before.
+      //NOTE: ixChild = -1 is assert if no child is added before.
       ixChild = ixChildEnd;
     }
     else if(ixChildEnd == -2)
@@ -1002,7 +1014,7 @@ public abstract class ByteDataAccessBase
       //do nothing, because next() was performed before.
     }
     else
-    { throw new RuntimeException("unexpected idxCurrentChildEnd"); //its a programming error.
+    { throw new RuntimeException("unexpected ixChildEnd"); //its a programming error.
     }
     if(sizeChild >0) { //given:
       ixChildEnd = ixChild + sizeChild;  
@@ -1482,7 +1494,7 @@ public abstract class ByteDataAccessBase
   
   
   
-  /** Increments the idxEnd and the idxCurrentChildEnd if a new child is added. Called only
+  /** Increments the idxEnd and the ixChildEnd if a new child is added. Called only
    * inside method addChild(child) and recursively to correct
    * in all parents.
    */
@@ -1501,10 +1513,10 @@ public abstract class ByteDataAccessBase
 
 
 
-  /**sets the idxCurrentChildEnd and idxEnd. There are two modi:
+  /**sets the ixChildEnd and idxEnd. There are two modi:
     * <ul><li>Expand data: the idxEnd == idxCurrenChild. In this case the idxEnd will be expanded.
-    *     <li>Use existing data: idxEnd > idxCurrentChild: 
-    *         In this case the idxEnd should be >= idxCurrentChild + nrofBytes.
+    *     <li>Use existing data: idxEnd > ixChild: 
+    *         In this case the idxEnd should be >= ixChild + nrofBytes.
     * </ul>        
     * @param nrofBytes of the child
     * @return true if the data are expanded.
