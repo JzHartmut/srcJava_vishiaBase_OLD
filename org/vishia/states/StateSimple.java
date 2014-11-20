@@ -300,7 +300,8 @@ public class StateTrans
   StateSimple[] exitStates;
   
   /**All states which's {@link StateSimple#entry(Event)} have to be processed if the transition is fired. */
-  StateSimple[][] entryStates;
+  StateSimple[] entryStates;
+  StateSimple[][] entryStatesOld;
   
   String transId;
   
@@ -354,8 +355,8 @@ public class StateTrans
     /**The current indices in {@link #dstStates}.{@link StateSimple#statePath} while evaluating the entry path. */
     int[] ixDstPath = this.dstStates == null ? null : new int[this.dstStates.length];
     
-    /**Current index to write {@link StateTrans#entryStates}. Pre-increment. */
-    int ixEntryStates = -1;
+    /**Current index to write {@link StateTrans#entryStatesOld}. Pre-increment. */
+    int ixEntryStatesOld = -1;
     
     
     public BuildTransitionPath(StateSimple[] exitStates)
@@ -364,10 +365,13 @@ public class StateTrans
     }
     
     void execute(){
+      if(stateId.equals("Ready"))
+        Debugutil.stop();
+
       buildDstStates();
-      searchStateCommon();
+      searchStateCommon(); //after them ixDstPath was set.
       buildExitPath();
-      buildEntryPath();      
+      buildEntryStates();      
       
     }
     
@@ -379,16 +383,20 @@ public class StateTrans
     }
     
     /**Searches the common state between all {@link #dstStates} and the source state.
-     * All states till the common state should be exited. 
+     * All states till the common state should be exited. All states from the common state should be entered.
+     * As result the {@link #ixDstPath} is set with the index after the found stateCommon 
      */
     private void searchStateCommon() {
       //search the common state for all transitions. 
-      StateSimple stateCommon;  //the common state between this and dstState.
+      StateSimple stateCommon;  //the common state between this and all dstState.
       int zStatePath =1;
       int ixSrcPath = statePath.length -2;  //Note: the commonState is never this itself, at least one exit.
       do {
         stateCommon = StateSimple.this.statePath[ixSrcPath];  
         int ixdst = -1;
+        //check all dst states whether the common state is in that state path. If it is not in the statePath, set stateCommon = null to abort the search.
+        //If the stateCommon is in the statePath of all dstStates then ixDstPath[] is set with the index of the stateCommon in the dstPath.
+        //It should the same index for all states because the statePath starts from the stateTop for all.
         while(stateCommon !=null && ++ixdst < dstStates.length) {  //commonSearch: abort this while if at least one 
           //check all dstStates down to either the exitState or down to to top state.
           //If the exit state is equal any entry enclosing state or both are null (top state), then it is the common state.
@@ -400,7 +408,7 @@ public class StateTrans
             }
           }
         }
-      } while(stateCommon == null && --ixSrcPath >=0);     
+      } while(stateCommon == null && --ixSrcPath >=0); //continue if the stateCommon is not member of all dst state paths.    
       if(stateCommon == null){
         throw new IllegalArgumentException("no common state found");
       }
@@ -421,11 +429,54 @@ public class StateTrans
     }
     
     
-    private void buildEntryPath() {
+    
+    private void buildEntryStates() 
+    {
+      int[] entries1 = new int[dstStates.length];
+      List<StateSimple> listEntries = new LinkedList<StateSimple>();
+      int ixEntry = ixDstPath[0];  //start with the states after the common state.
+      int dstNotReached;  // if 0 then all reached.
+      do {
+        dstNotReached = ixDstPath.length;  // if 0 then all reached.
+        int ixDst, ixDst2;
+        for(ixDst = 0; ixDst < ixDstPath.length; ++ixDst) { entries1[ixDst] = 0; } //clean
+        //
+        for(ixDst = 0; ixDst < ixDstPath.length; ++ixDst) {
+          StateSimple[] statePath = dstStates[ixDst].statePath;
+          if(ixEntry < statePath.length ) { // if >=, it is reached
+            StateSimple entryState = statePath[ixEntry];
+            //search whether this state is processed already:
+            int hashEntryState = entryState.hashCode();
+            if(ixDst == 0) { 
+              ixDst2 = entries1.length;       //first is the first: add the state.
+            } else {
+              ixDst2 = 0;
+              while(ixDst2 < entries1.length && entries1[ixDst2] != hashEntryState) {
+                ixDst2 +=1;  //search in short array.
+              }
+            }
+            if(ixDst2 == entries1.length) { //not found or first
+              entries1[ixDst] = hashEntryState;   //set it to the place for this dstState.
+              listEntries.add(entryState);
+            }
+          }
+          else {
+            dstNotReached -=1;  //dst state was reached.
+          }
+        }
+        ixEntry +=1;
+      } while( dstNotReached >0);
+      StateTrans.this.entryStates = listEntries.toArray(new StateSimple[listEntries.size()]);
+    }
+    
+    
+    
+    
+    
+    
+    private void buildEntryPathOld() {
       
       //this array contains which dst paths a the same. 
-      
-      
       
       //for()
       int lengthEntryStates = 0;
@@ -435,7 +486,7 @@ public class StateTrans
           lengthEntryStates = l1;
         }
       }
-      StateTrans.this.entryStates = new StateSimple[lengthEntryStates][];
+      StateTrans.this.entryStatesOld = new StateSimple[lengthEntryStates][];
       //
       //          |---->(----->dst1 )
       //--->()--->|            
@@ -446,7 +497,7 @@ public class StateTrans
       do {
         //walk through all dstStates[..].statePath
         StateSimple dst1 = dstStates[0].statePath[ixDstPath[0]];
-        int nrofBranchs = ixEntryStates < 0 ? 1 : StateTrans.this.entryStates[ixEntryStates].length;
+        int nrofBranchs = ixEntryStatesOld < 0 ? 1 : StateTrans.this.entryStatesOld[ixEntryStatesOld].length;
         for(int ixDst = 0; ixDst < dstStates.length; ++ixDst){
           //check the same path
           StateSimple dst = dstStates[ixDst].statePath[ixDstPath[ixDst]];
@@ -465,7 +516,7 @@ public class StateTrans
           }
               
         }
-        bAllDstReached = writeEntryPathItem(nrofBranchs);
+        bAllDstReached = XXXwriteEntryPathItem(nrofBranchs);
       } while(!bAllDstReached);
       
     }
@@ -476,14 +527,14 @@ public class StateTrans
     }
     
     
-    private boolean writeEntryPathItem(int nrofBranchs) {
+    private boolean XXXwriteEntryPathItem(int nrofBranchs) {
       boolean bAllDstReached = true;
-      StateTrans.this.entryStates[++ixEntryStates] = new StateSimple[nrofBranchs];
+      StateTrans.this.entryStatesOld[++ixEntryStatesOld] = new StateSimple[nrofBranchs];
       int ixEntry = -1;
       for(int ixDst = 0; ixDst < dstStates.length; ++ixDst) {
         //don't store the same entry twice, check:
         if(samePaths[ixDst] == ixDst) { //it is an own path
-          StateTrans.this.entryStates[ixEntryStates][++ixEntry] = dstStates[ixDst].statePath[ixDstPath[ixDst]];
+          StateTrans.this.entryStatesOld[ixEntryStatesOld][++ixEntry] = dstStates[ixDst].statePath[ixDstPath[ixDst]];
           if(ixDstPath[ixDst] < dstStates[ixDst].statePath.length -1){
             bAllDstReached = false;  //continue!
           }
@@ -624,11 +675,11 @@ public class StateTrans
    */
   public final void doEntry(Event<?,?> ev)
   { 
-    for(StateSimple[] stateParallel: entryStates){
-      for(StateSimple state: stateParallel) {
+    //for(StateSimple stateParallel: entryStatesOld){
+      for(StateSimple state: entryStates) { //stateParallel) {
         retTrans |= state.entryTheState(ev);
       }
-    }
+    //}
   }
   
   @Override public String toString(){ return transId == null ? "-unknown transId" : transId; }

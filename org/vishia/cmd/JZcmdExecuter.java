@@ -85,6 +85,8 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-11-21 Hartmut chg: Character ::: can be used as indentation characters
+   * <li>2014-11-16 Hartmut chg: enhancement of capability of set text column: <:@ nr> nr can be an expression. Not only a constant.   
    * <li>2014-10-20 Hartmut chg: break in a condition should break a loop, forwarding {@link #kBreak} from execution level in {@link ExecuteLevel#executeIfStatement(org.vishia.cmd.JZcmdScript.IfStatement, StringFormatter, int, int)}.
    * <li>2014-10-20 Hartmut new: Map name = { String variable = "value"; Obj next; } now works. Changed 'M' instead 'X' in {@link JZcmdScript.JZcmditem#add_dataStruct(org.vishia.cmd.JZcmdScript.StatementList)}.
    *   {@link ExecuteLevel#evalObject(org.vishia.cmd.JZcmdScript.JZcmditem, boolean)} has accepted such dataStruct already (used in argumentlist), now with 'M' instead 'X'.
@@ -1026,9 +1028,17 @@ public class JZcmdExecuter {
           if(++posEnd1 < zText){
             if(cEnd == '\r'){ if(statement.textArg.charAt(posEnd1)=='\n'){ posEnd1 +=1; }}
             else            { if(statement.textArg.charAt(posEnd1)=='\r'){ posEnd1 +=1; }}
+            //posEnd1 refers the start of the next line.
             int indentCt = indentOut;
-            while(--indentCt >= 0 && posEnd1 < zText && " \t".indexOf(statement.textArg.charAt(posEnd1))>=0){
-              posEnd1 +=1; //skip over all indentation chars  
+            if(statement.textArg.charAt(posEnd1) == ':') {
+              //line starts with ':', search all ::::, after them the line starts.  
+              while(--indentCt >= 0 && posEnd1 < zText && statement.textArg.charAt(posEnd1)==':'){
+                posEnd1 +=1; //skip over all indentation chars :::::  
+              }
+            } else {
+              while(--indentCt >= 0 && posEnd1 < zText && " \t:".indexOf(statement.textArg.charAt(posEnd1))>=0){
+                posEnd1 +=1; //skip over all indentation chars  
+              }
             }
           }
           posLine = posEnd1;
@@ -1040,8 +1050,15 @@ public class JZcmdExecuter {
     }
     
     
-    void execSetColumn(JZcmdScript.TextColumn statement, StringFormatter out) throws IOException{
-      out.pos(statement.column, statement.minChars);
+    void execSetColumn(JZcmdScript.TextColumn statement, StringFormatter out) throws Exception{
+      int column = -1;
+      int minChars = -1;
+      if(statement.expression !=null) {
+        CalculatorExpr.Value value = calculateExpression(statement.expression); //.calcDataAccess(localVariables);
+        column = value.intValue();
+      }
+      
+      out.pos(column, minChars);
     }
     
     

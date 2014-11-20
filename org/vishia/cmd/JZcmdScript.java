@@ -41,6 +41,8 @@ public class JZcmdScript extends CompiledScript
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-11-16 Hartmut chg: enhancement of capability of set text column: <:@ nr> nr can be an expression. Not only a constant.   
+   * <li>2014-11-15 Hartmut new: instanceof as compare operator.   
    * <li>2014-10-19 Hartmut chg: {@link JZcmditem#add_dataStruct(StatementList)} with 'M' instead 'X' adequate to change in JZcmdExecuter.
    * <li>2014-08-10 Hartmut new: <:>...<.> as statement writes into the current out Buffer. Before: calculates an textExpression which is never used then.
    *   In opposite:<+>...<.> writes to the main text output always, not to the current buffer. 
@@ -769,8 +771,21 @@ public class JZcmdScript extends CompiledScript
     @Override protected JZcmdDataAccess newDataAccessSet(){ return new JZcmdDataAccess(); }
     
     
+    public JZcmdInstanceofExpr new_instanceof() { return new JZcmdInstanceofExpr(); }
+    public void add_instanceof(JZcmdInstanceofExpr val) {  }
+    
   }
   
+  
+  
+  
+  public static class JZcmdInstanceofExpr
+  {
+    
+    
+    
+    
+  }
   
   
   
@@ -1213,22 +1228,26 @@ public class JZcmdScript extends CompiledScript
    */
   public static class TextColumn extends JZcmditem
   {
-    /**The column where the current position is to be set. */
-    final int column;
     
-    /**If >=0, then at least this number of spaces are added on setColumn. 
+    /**If given then at least this number of spaces are added on setColumn. 
      * The column is not be exact than, but existing text won't be not overridden.
      * If -1 then the setPosition may override existing text, but the column is exact.
      */
-    int minChars = -1;
+    CalculatorExpr minSpaces;
     
-    TextColumn(StatementList parentList, int column)
+    
+    TextColumn(StatementList parentList)
     { super(parentList, '@');
-      this.column = column;
     }
 
+    
+    public CalculatorExpr new_minSpaces(){ return minSpaces = new CalculatorExpr(); }
+    
+    public void add_minSpaces(){}
+    
+    
     @Override
-    void writeStructAdd(int indent, Appendable out) throws IOException{ out.append(" setColumn ").append(Integer.toString(column)); }
+    void writeStructAdd(int indent, Appendable out) throws IOException{ out.append(" setColumn ").append(Integer.toString(0x7777777)); }
 
   }
   
@@ -1724,7 +1743,7 @@ public class JZcmdScript extends CompiledScript
    */
   public static class StatementList implements SetLineColumn_ifc
   {
-    JZcmditem currStatement;
+    //JZcmditem currStatement;
     
     /**Hint to the source of this parsed argument or statement. */
     String srcFile = "srcFile-yet-unknown";
@@ -2039,17 +2058,15 @@ public class JZcmdScript extends CompiledScript
     
     
     
-    public void set_setColumn(int val){
-      currStatement = new TextColumn(this, val);
-      statements.add(currStatement);
-      onerrorAccu = null; withoutOnerror.add(currStatement);
+    public TextColumn new_setColumn(){
+      return new TextColumn(this);
     }
-
     
-    public void set_minChars(int val){
-      ((TextColumn)currStatement).minChars = val;
+    
+    public void add_setColumn(TextColumn val){ 
+      statements.add(val);
     }
-
+    
     
     /**Sets the plainText From ZBNF. invokes {@link #set_textReplLf(String)} if the text contains
      * other characters as white spaces. 

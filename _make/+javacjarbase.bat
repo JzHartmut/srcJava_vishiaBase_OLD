@@ -28,17 +28,30 @@ REM  The java-copiler may be located on a user-specified position.
 REM  Set the environment variable JAVA_JDK, where bin/javac will be found.
 REM  The setJAVA_JDK.bat may be existing in the user's path.
 ::if "" == "%JAVA_JDK%" 
+
+if not "%JAVA_JDK%" == "" goto :JavaOK
+REM call a batch which sets the environment variable JAVA_JDK and expands the path to a proper JAVA-JDK
 call setJAVA_JDK.bat
 if exist %JAVA_JDK% goto :JavaOK
 
 REM if setJAVA_JDK.bat is not found or its content is faulty.
 echo %JAVA_JDK% not found. 
 echo read the srcJava_vishiaBase/_make/readme_javac.txt
-
 pause
 exit /B
 
 :JavaOk
+
+if exist %JAVA_JDK%\bin\javac.exe goto JavaJdkOk
+echo JAVA_JDK is set but it is not ok, bin/javac is not found there:
+echo read the srcJava_vishiaBase/_make/readme_javac.txt
+echo JAVA_JDK=%JAVA_JDK% 
+pause
+exit /B
+
+:JavaJdkOk
+
+
 
 if not exist %OUTDIR_JAVAC% mkdir %OUTDIR_JAVAC%
 

@@ -40,6 +40,7 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-11-15 Hartmut new: instanceof as compare operator.   
    * <li>2014-08-10 Hartmut bugfix: on push to stack operation the type of the new level should start with {@value #startExpr} already
    *   because the new level is a new start type. The operation with the pushed value is done later, the adjusting of types should be done later too! 
    * <li>2014-02-22 Hartmut chg: now string >= string2 tests 'startswith' instead alphabetiv comparison. 
@@ -815,6 +816,23 @@ public class CalculatorExpr
     @Override public boolean isUnary(){ return false; }
   };
   
+  
+  
+  static final Operator cmpInstanceofOperation = new Operator("?instanceof"){
+    @Override public ExpressionType operate(ExpressionType type, Value accu, Value arg) {
+      Object oArg = arg.oVal;
+      if(oArg == null || !(oArg instanceof Class)) throw new IllegalArgumentException("\"instanceof\" should compare with a class instance");
+      accu.boolVal = DataAccess.isOrExtends(accu.oVal.getClass(), (Class)oArg);
+      accu.type = 'Z';
+      return booleanExpr;
+    }
+    @Override public boolean isUnary(){ return false; }
+  };
+  
+  
+  
+  
+  
   }
 
   
@@ -1004,6 +1022,8 @@ public class CalculatorExpr
     
     
     public boolean setOperator(String op){
+      if(op.equals("?instanceof"))
+        Debugutil.stop();
       Operator op1 = operators.get(op);
       this.operatorChar = op1.name.charAt(0);
       if(op1 !=null){ 
@@ -1299,7 +1319,9 @@ public class CalculatorExpr
      * @return
      */
     public DataAccess.DataAccessSet new_dataAccess(){ 
-      assert(actOperation ==null);
+      if(actOperation != null)
+        Debugutil.stop();
+      //assert(actOperation ==null);
       if(actOperation == null){ actOperation = new CalculatorExpr.Operation(); }
       if(actOperation.datapath == null){ actOperation.datapath = newDataAccessSet();}
       return actOperation.datapath;
@@ -1411,6 +1433,7 @@ public class CalculatorExpr
    * <li>"<>" other form of not equal operator
    * <li>"ge" "le" "gt" "lt" "eq" "ne" other form of comparators
    * <li>"||" "&&" known logical opeators
+   * <li>"instanceof"
    * </ul>
    * Unary operators:
    * <ul> 
@@ -1452,6 +1475,7 @@ public class CalculatorExpr
       operators.put("ge", Operators.cmpGreaterEqualOperation);
       operators.put("eq", Operators.cmpEqOperation);
       operators.put("ne", Operators.cmpNeOperation);
+      operators.put("instanceof", Operators.cmpInstanceofOperation);
       operators.put("||", Operators.boolOrOperation);
       operators.put("&&", Operators.boolAndOperation);
       operators.put("ub", Operators.boolOperation);   //not for boolean
