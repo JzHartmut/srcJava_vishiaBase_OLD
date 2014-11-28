@@ -1030,16 +1030,17 @@ public class JZcmdExecuter {
             else            { if(statement.textArg.charAt(posEnd1)=='\r'){ posEnd1 +=1; }}
             //posEnd1 refers the start of the next line.
             int indentCt = indentOut;
-            if(statement.textArg.charAt(posEnd1) == ':') {
-              //line starts with ':', search all ::::, after them the line starts.  
-              while(--indentCt >= 0 && posEnd1 < zText && statement.textArg.charAt(posEnd1)==':'){
-                posEnd1 +=1; //skip over all indentation chars :::::  
-              }
-            } else {
-              while(--indentCt >= 0 && posEnd1 < zText && " \t:".indexOf(statement.textArg.charAt(posEnd1))>=0){
-                posEnd1 +=1; //skip over all indentation chars  
-              }
+            char cc;
+            while(indentCt > 0 && posEnd1 < zText && ((cc = statement.textArg.charAt(posEnd1)) == ' ' || cc == '\t')) {
+              posEnd1 +=1; //skip over all indentation chars
+              indentCt -=1;
             }
+            while(--indentCt >= 0 && posEnd1 < zText && (cc = statement.textArg.charAt(posEnd1)) == ':') {
+              posEnd1 +=1; //skip over all ::: as indentation chars  
+            }
+            //line starts after :::: which starts before indentation end
+            //or line starts after first char which is not a space or tab
+            //or line starts on the indent position.
           }
           posLine = posEnd1;
         } else { //the rest till end.

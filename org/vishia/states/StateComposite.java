@@ -217,6 +217,9 @@ public class StateComposite extends StateSimple
       aSubstates[ix] = state;
     }
     stateMachine.stateMap.put(state.hashCode(), state);
+    if(stateDefault ==null){
+      stateDefault = state;  //the first state is the default state.
+    }
   }
   
   
