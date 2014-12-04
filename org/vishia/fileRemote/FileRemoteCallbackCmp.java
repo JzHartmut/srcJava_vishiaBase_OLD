@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
@@ -15,6 +17,23 @@ import org.vishia.util.StringFunctions;
  */
 public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
 {
+  
+  
+    class CompareCtrl {
+      
+      /**Some Strings for start Strings to ignore comparison to end of line.
+       * For example it contains "//" to ignore comments in source files.
+       */
+      final List<String> ignoreToEol = new LinkedList<String>();
+      
+      /**Entries with an array of 2 Strings, start and end of non-compare regions. */
+      final List<String[]> ignoreFromTo = new LinkedList<String[]>();
+      
+      
+    }
+  
+    private final CompareCtrl cmpCtrl = new CompareCtrl();
+  
     private final FileRemote dir1, dir2;
     
     private final String basepath1;
@@ -43,6 +62,8 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
       //} catch(Exception exc){
       //  dir1 = null; //does not exists.
       //}
+      cmpCtrl.ignoreToEol.add("Compilation time:");
+      cmpCtrl.ignoreFromTo.add(new String[]{".epcannot:", ".epcannot.end:"});
     }
     
     @Override public void start()
@@ -191,6 +212,51 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
       String s1, s2;
       while( bEqu && (s1 = r1.readLine()) !=null){
         s2 = r2.readLine();
+        //check if an eol ignore String is contained:
+        for(String sEol: cmpCtrl.ignoreToEol) {
+          int z1 = s1.indexOf(sEol);
+          if( z1 >=0){
+            s1 = s1.substring(0, z1);    //shorten s1 to eol text
+            int z2 = s2.indexOf(sEol);
+            if(z2 >=0 && z2 == z1){
+              s2 = s2.substring(0, z2);  //shorten s2 to eol text
+            } //else: non't shorten, it is possible that s2 ends exactly without the sEol text. Than it is accepted.
+            break; //break the for
+          }
+        }
+        //check if an ignore String is contained, not after the eol!
+        for(String[] fromTo: cmpCtrl.ignoreFromTo) {
+          int z1 = s1.indexOf(fromTo[0]);
+          if(z1 >=0){
+            //from-marker was found:
+            s1 = s1.substring(0, z1);
+            //read the file lines till end was found:
+            String s3;
+            while( (s3 = r1.readLine()) !=null){
+              int z3 = s3.indexOf(fromTo[1]);
+              if(z3 >=0){
+                s1 += s3.substring(z3 + fromTo[1].length());  //rest after to-string, maybe length=0
+                break;  //break while readLine()
+              }
+            }
+            int z2 = s2.indexOf(fromTo[0]);  //check second line whether the marker is contained too
+            if(z2 >=0){
+              s2 = s2.substring(0, z2);
+              //read the file lines till end was found:
+              String s4;
+              while( (s4 = r2.readLine()) !=null){
+                int z4 = s4.indexOf(fromTo[1]);
+                if(z4 >=0){
+                  s2 += s4.substring(z4 + fromTo[1].length());  //rest after to-string, maybe length=0
+                  break;  //break while readLine()
+                }
+              }    
+            } //else: accept that the s2 does not contain anything of this text part.
+            //s1, s2 contains the start of line till from-String and the end of line after the to-String, compare it.
+            //If the end marker is not found the rest to end of file is ignored.
+            break; //break the for
+          }
+        }
         if(s2 ==null || !s1.equals(s2)){
           //check trimmed etc.
           bEqu = false;

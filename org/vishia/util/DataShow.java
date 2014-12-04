@@ -291,6 +291,15 @@ public class DataShow
   
   
   
+  /**Generates a html file which contains the description of all data contained in referred in the given data instance.
+   * The given data instance is evaluated with all files, also private, using reflection.
+   * All references are evaluated in the same kind. The references are referenced in the html presentation using html links inside the generated file.
+   * If data refers a large amount of other instances, maybe with a large list etc then the created file is large. There is no limitation.
+   * Circulate references are detected, any Object is presented only one time.
+   * @param data Any Object.
+   * @param out To write
+   * @throws IOException
+   */
   public static void outHtml(Object data, Appendable out)
   throws IOException
   {

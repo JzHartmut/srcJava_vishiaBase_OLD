@@ -489,7 +489,7 @@ public class FilePath
 
   /**Returns the extension of the file inclusively the dot on start.
    */
-  public CharSequence ext(){ return this.ext; }
+  public String ext(){ return this.ext; }
 
 
   /**Return true if the local path, name or extension contains a wildcard.

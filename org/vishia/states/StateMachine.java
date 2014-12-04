@@ -17,7 +17,7 @@ import org.vishia.util.DataAccess;
  * <ul>
  * <li>{@link org.vishia.states.StateSimple}: A simple state with transitions, an optional entry- and an exit-action.
  * <li>{@link org.vishia.states.StateComposite}: It contains more as one sub states.
- * <li>{@link org.vishia.states.StateParallel}: It contains more as one {@link org.vishia.states.StateAddParallel} which are {@link org.vishia.states.StateComposite} 
+ * <li>{@link org.vishia.states.StateParallel}: It contains more as one {@link org.vishia.states.StateParallel} which are {@link org.vishia.states.StateComposite} 
  * for parallel behavior.
  * </ul>
  * See example pattern {@link org.vishia.states.example.StateExampleSimple}.

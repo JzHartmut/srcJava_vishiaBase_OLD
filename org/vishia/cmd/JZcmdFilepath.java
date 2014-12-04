@@ -127,7 +127,7 @@ public final class JZcmdFilepath {
   
   
   
-  /**Method can be called in the generation script: <*absbasepath()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder:: <&absbasepath()>. 
    * @return the whole path inclusive a given general path in a {@link UserFileSet} as absolute path.
    * @throws NoSuchFieldException 
    *  
@@ -138,7 +138,7 @@ public final class JZcmdFilepath {
   
 
   
-  /**Method can be called in the generation script: <*path.absdir()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder:: <&path.absdir()>. 
    * @return the whole path to the parent of this file inclusive a given general path in a {@link UserFileSet}.
    *   The path is absolute. If it is given as relative path, the general current directory of the script is used.
    * @throws NoSuchFieldException 
@@ -149,7 +149,7 @@ public final class JZcmdFilepath {
   public CharSequence absdirW() throws NoSuchFieldException{ return data.absdirW(zgenlevel); }
   
   
-  /**Method can be called in the generation script: <*data.absname()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&data.absname()>. 
    * @return the whole path with file name but without extension inclusive a given general path in a {@link UserFileSet}.
    *   Either as absolute or as relative path.
    * @throws NoSuchFieldException 
@@ -161,7 +161,7 @@ public final class JZcmdFilepath {
 
 
   
-  /**Method can be called in the generation script: <*path.absfile()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&path.absfile()>. 
    * @return the whole path inclusive a given general path .
    *   The path is absolute. If it is given as relative path, the general current directory of the script is used.
    * @throws NoSuchFieldException 
@@ -172,7 +172,7 @@ public final class JZcmdFilepath {
   
   
   
-  /**Method can be called in the generation script: <*basepath()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&basepath()>. 
    * @return the whole base path inclusive a given general path in a {@link UserFileSet}.
    *   till a ':' in the input path or an empty string.
    *   Either as absolute or as relative path how it is given.
@@ -187,7 +187,7 @@ public final class JZcmdFilepath {
   
   
   
-  /**Method can be called in the generation script: <*path.dir()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&path.dir()>. 
    * @return the whole path to the parent of this file inclusive a given general path in a {@link UserFileSet}.
    *   The path is absolute or relative like it is given.
    * @throws NoSuchFieldException 
@@ -197,7 +197,7 @@ public final class JZcmdFilepath {
   
   public CharSequence dirW() throws NoSuchFieldException{ return data.dirW(zgenlevel); }
   
-  /**Method can be called in the generation script: <*data.pathname()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&data.pathname()>. 
    * @return the whole path with file name but without extension inclusive a given general path in a {@link UserFileSet}.
    *   The path is absolute or relative like it is given.
    * @throws NoSuchFieldException 
@@ -207,7 +207,7 @@ public final class JZcmdFilepath {
   public CharSequence pathnameW() throws NoSuchFieldException{ return data.pathnameW(zgenlevel); }
   
 
-  /**Method can be called in the generation script: <*data.file()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&data.file()>. 
    * @return the whole path with file name and extension.
    *   The path is absolute or relative like it is given.
    * @throws NoSuchFieldException 
@@ -227,7 +227,7 @@ public final class JZcmdFilepath {
   }
 
   
-  /**Method can be called in the generation script: <*data.base_localdir()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&data.base_localdir()>. 
    * @return the basepath:localpath in a {@link UserFileSet} with given wildcards 
    *   inclusive a given general path. The path is absolute or relative like it is given.
    * @throws NoSuchFieldException 
@@ -237,7 +237,7 @@ public final class JZcmdFilepath {
   public CharSequence base_localdirW() throws NoSuchFieldException{ return data.base_localdirW(zgenlevel); }
   
   
-  /**Method can be called in the generation script: <*data.base_localfile()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&data.base_localfile()>. 
    * @return the basepath:localpath/name.ext in a {@link UserFileSet} with given wildcards 
    *   inclusive a given general path. The path is absolute or relative like it is given.
    * @throws NoSuchFieldException 
@@ -249,14 +249,14 @@ public final class JZcmdFilepath {
   
   
 
-  /**Method can be called in the generation script: <*path.localdir()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&path.localdir()>. 
    * @return the local path part of the directory of the file without ending slash. 
    *   If no directory is given in the local part, it returns ".". 
    * @throws NoSuchFieldException 
    */
   public CharSequence localdir() throws NoSuchFieldException{ return data.localdir(zgenlevel); }
   
-  /**Method can be called in the generation script: <*path.localDir()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&path.localDir()>. 
    * @return the local path part with file without extension.
    * @throws NoSuchFieldException 
    */
@@ -264,7 +264,7 @@ public final class JZcmdFilepath {
   
 
   
-  /**Method can be called in the generation script: <*path.localname()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&path.localname()>. 
    * @return the local path part with file without extension.
    * @throws NoSuchFieldException 
    */
@@ -273,7 +273,7 @@ public final class JZcmdFilepath {
   public CharSequence localnameW() throws NoSuchFieldException{return data.localnameW(zgenlevel); }
 
   
-  /**Method can be called in the generation script: <*path.localfile()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&path.localfile()>. 
    * @return the local path to this file inclusive name and extension of the file.
    * @throws NoSuchFieldException 
    */
@@ -295,20 +295,20 @@ public final class JZcmdFilepath {
     return data.localfileReplwildcard(uRet, replWildc.data);
   }
 
-  /**Method can be called in the generation script: <*path.name()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&path.name()>. 
    * @return the name of the file without extension.
    */
   public CharSequence name(){ return data.name(); }
   
-  /**Method can be called in the generation script: <*path.namext()>. 
+  /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&path.namext()>. 
    * @return the file name with extension.
    */
   public CharSequence namext(){ return data.namext(); }
   
-  /**Method can be called in the generation script: <*path.ext()>. 
+  /**Assembles and returns the extension from this Filepath as String.. 
    * @return the file extension.
    */
-  public CharSequence ext(){ return data.ext(); }
+  public String ext(){ return data.ext(); }
   
   
   

@@ -1372,10 +1372,16 @@ public class JZcmdScript extends CompiledScript
   {
     public String name;
     
+    /**If set the subroutine gets all local variables as copy. */
+    public boolean addLocals;
+    
+    /**If set the subroutine uses the local variables of the calling level immediately. It does not use an extra calling level. 
+     * The the subroutine has no formalArgs. */
+    public boolean useLocals;
     
     public List<DefVariable> formalArgs;
     
-    char type;
+    //char type;
     
     Subroutine(StatementList parentList){
       super(parentList, 'X');
@@ -1383,6 +1389,9 @@ public class JZcmdScript extends CompiledScript
     
     public void set_name(String name){ this.name = name; }
 
+    public void set_useLocals(){ useLocals = true; }
+
+    public void set_addLocals(){ addLocals = true; }
     
     public Subroutine new_formalArgument(){ return this; } //new Argument(parentList); }
     

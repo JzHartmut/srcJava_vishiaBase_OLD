@@ -23,7 +23,7 @@ public class StateComposite extends StateSimple
    * <ul>
    * <li>2014-11-09 Hartmut chg: Capability of StateParallel contained here, class StateParallel removed: 
    *   It is possible to have a StateComposite with its own sub states, but a second or more parallel states
-   *   in an own composite, which is yet the class StateAddParallel. It is {@link StateAddParallel}. More simple, more flexibility. 
+   *   in an own composite, which is yet the class StateAddParallel. It is {@link StateParallel}. More simple, more flexibility. 
    * <li>2014-09-28 Hartmut chg: Copied from {@link org.vishia.stateMachine.StateCompositeBase}, changed concept: 
    *   Nested writing of states, less code, using reflection for missing instances and data. 
    * <li>2013-05-11 Hartmut new: It is a {@link EventConsumer} yet. Especially a timer event needs a destination
@@ -146,7 +146,7 @@ public class StateComposite extends StateSimple
     Class<?>[] innerClasses = clazz.getDeclaredClasses();
     if(innerClasses.length >0) {  //it is a composite state.
       List<StateSimple> listSubstates = null;
-      List<StateAddParallel> listParallelstates = null;
+      List<StateParallel> listParallelstates = null;
       int ixSubstates = -1;
       try{
         for(Class<?> clazz1: innerClasses) {
@@ -157,9 +157,9 @@ public class StateComposite extends StateSimple
             final Object oState = ctor1[0].newInstance(this);   //creates the instance, maybe a StateComposite or a StateAddParallel.
             //Note that the inner states are processed already in the yet called constructor.
             final StateSimple state;
-            if(oState instanceof StateAddParallel) {
-              if(listParallelstates ==null) { listParallelstates = new LinkedList<StateAddParallel>(); }
-              final StateAddParallel stateParallel = (StateAddParallel)oState;
+            if(oState instanceof StateParallel) {
+              if(listParallelstates ==null) { listParallelstates = new LinkedList<StateParallel>(); }
+              final StateParallel stateParallel = (StateParallel)oState;
               listParallelstates.add(stateParallel);
               state = stateParallel;
             } else {
@@ -189,7 +189,7 @@ public class StateComposite extends StateSimple
         this.aSubstates = null;
       }
       if(listParallelstates !=null ){
-        this.aParallelstates = listParallelstates.toArray(new StateAddParallel[listParallelstates.size()]); 
+        this.aParallelstates = listParallelstates.toArray(new StateParallel[listParallelstates.size()]); 
       } else {
         this.aParallelstates = null;
       }
@@ -207,10 +207,10 @@ public class StateComposite extends StateSimple
    */
   public void addState(int key, StateSimple state){
     int ix = 0;
-    if(state instanceof StateAddParallel) {
+    if(state instanceof StateParallel) {
       while(ix < aParallelstates.length && aParallelstates[ix] !=null){ ix +=1; } //search next free
       if(ix >= aParallelstates.length) throw new IllegalArgumentException("too many parallel states to add");
-      aParallelstates[ix] = (StateAddParallel)state;
+      aParallelstates[ix] = (StateParallel)state;
     } else {
       while(ix < aSubstates.length && aSubstates[ix] !=null){ ix +=1; } //search next free
       if(ix >= aSubstates.length) throw new IllegalArgumentException("too many states to add");

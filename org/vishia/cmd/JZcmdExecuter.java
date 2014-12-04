@@ -85,6 +85,7 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-11-28 Hartmut chg: {@link ExecuteLevel#bForHasNext} instead calling argument for all execute...(...), it was forgotten in one level.
    * <li>2014-11-21 Hartmut chg: Character ::: can be used as indentation characters
    * <li>2014-11-16 Hartmut chg: enhancement of capability of set text column: <:@ nr> nr can be an expression. Not only a constant.   
    * <li>2014-10-20 Hartmut chg: break in a condition should break a loop, forwarding {@link #kBreak} from execution level in {@link ExecuteLevel#executeIfStatement(org.vishia.cmd.JZcmdScript.IfStatement, StringFormatter, int, int)}.
@@ -418,7 +419,7 @@ public class JZcmdExecuter {
     }
     //generate all variables in this script:
     short ret;
-    ret = scriptLevel.execute(genScriptPar.scriptClass, null, 0, false, scriptLevel.localVariables, -1);
+    ret = scriptLevel.execute(genScriptPar.scriptClass, null, 0, scriptLevel.localVariables, -1);
     if(ret == kException){
       throw new ScriptException(scriptThread.exception.getMessage(), scriptThread.excSrcfile, scriptThread.excLine, scriptThread.excColumn);
     }
@@ -539,7 +540,7 @@ public class JZcmdExecuter {
       startnano = System.nanoTime();
       StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
       textout = outFormatter;
-      ret = execFile.execute(mainRoutine.statementlist, outFormatter, 0, false, execFile.localVariables, -1);
+      ret = execFile.execute(mainRoutine.statementlist, outFormatter, 0, execFile.localVariables, -1);
       try{ outFormatter.close(); } catch(IOException exc){ throw new RuntimeException("unexpected exception on close", exc); }
       if(bWaitForThreads){
         boolean bWait = true;
@@ -596,7 +597,7 @@ public class JZcmdExecuter {
     startmilli = System.currentTimeMillis();
     startnano = System.nanoTime();
     StringFormatter outLines = new StringFormatter(out, out instanceof Closeable, "\n", 200);
-    short ret = level.execute(statement.statementlist, outLines, 0, false, level.localVariables, -1);
+    short ret = level.execute(statement.statementlist, outLines, 0, level.localVariables, -1);
     outLines.close();
     if(ret == kReturn || ret == kBreak){ ret = kSuccess; }
     if(ret == kException){
@@ -676,6 +677,9 @@ public class JZcmdExecuter {
 
     /**Set on break statement. Used only in a for-container execution to break the loop over the elements. */
     private boolean isBreak;
+    
+    /**Used while a for-container loop runs. Remain after for if for was broken with a condition. */
+    private boolean bForHasNext;
     
     private boolean debug_dataAccessArguments;
     
@@ -768,7 +772,7 @@ public class JZcmdExecuter {
      * @throws IOException
      */
     public short executeNewlevel(JZcmdScript.StatementList contentScript, final StringFormatter out, int indentOut
-        , boolean bContainerHasNext, int nDebug) 
+        , int nDebug) 
     throws Exception 
     { final ExecuteLevel level;
       if(contentScript.bContainsVariableDef){
@@ -776,7 +780,7 @@ public class JZcmdExecuter {
       } else {
         level = this;
       }
-      return level.execute(contentScript, out, indentOut, bContainerHasNext, level.localVariables, nDebug);
+      return level.execute(contentScript, out, indentOut, level.localVariables, nDebug);
     }
 
   
@@ -794,7 +798,7 @@ public class JZcmdExecuter {
      * @throws Exception
      */
     private short execute(JZcmdScript.StatementList statementList, StringFormatter out, int indentOutArg
-        , boolean bContainerHasNext, Map<String, DataAccess.Variable<Object>> newVariables, int nDebugP) 
+        , Map<String, DataAccess.Variable<Object>> newVariables, int nDebugP) 
     //throws Exception 
     {
       this.ctNesting +=1;
@@ -889,7 +893,7 @@ public class JZcmdExecuter {
           case 'i': ret = executeIfStatement((JZcmdScript.IfStatement)statement, out, indentOut, --nDebug1); break;
           case 'w': ret = whileStatement((JZcmdScript.CondStatement)statement, out, indentOut, --nDebug1); break;
           case 'u': ret = dowhileStatement((JZcmdScript.CondStatement)statement, out, indentOut, --nDebug1); break;
-          case 'N': ret = exec_hasNext(statement, out, indentOut, bContainerHasNext, --nDebug1); break;
+          case 'N': ret = exec_hasNext(statement, out, indentOut, --nDebug1); break;
           case '=': ret = assignStatement(statement); break;
           case '+': ret = appendExpr((JZcmdScript.AssignExpr)statement); break;        //+=
           case '?': break;  //don't execute a onerror, skip it.  //onerror
@@ -973,7 +977,7 @@ public class JZcmdExecuter {
             threadData.exception = null;
             threadData.excStatement = null;
             //maybe throw exception too, Exception in onerror{...}
-            ret = execute(onerrorStatement.statementlist, out, indentOut, false, localVariables, -1);  //executes the onerror block
+            ret = execute(onerrorStatement.statementlist, out, indentOut, localVariables, -1);  //executes the onerror block
           } else {
             ret = kException;  //terminates this level.
             assert(threadData.exception !=null);
@@ -1109,6 +1113,7 @@ public class JZcmdExecuter {
       //DataAccess.access(statement.defVariable.datapath(), null, localVariables, bAccessPrivate,false, true, dst);
       boolean cond = true;
       short cont = kSuccess;
+      boolean bForHasNextOld = bForHasNext;  //to restore
       if(container instanceof String && ((String)container).startsWith("<?")){
         throw new IllegalArgumentException("JZcmd.execFor - faulty container type;" + (String)container);
       }
@@ -1122,7 +1127,8 @@ public class JZcmdExecuter {
           if(cond){
             Object foreachData = iter.next();
             forVariable.setValue(foreachData);
-            cont = forExecuter.execute(subContent, out, indentOut, iter.hasNext(), forExecuter.localVariables, nDebug);
+            bForHasNext = iter.hasNext();  //an element after it?
+            cont = forExecuter.execute(subContent, out, indentOut, forExecuter.localVariables, nDebug);
           }
         }//while of for-loop
       }
@@ -1139,7 +1145,8 @@ public class JZcmdExecuter {
             Map.Entry<?, ?> foreachDataEntry = (Map.Entry<?, ?>)iter.next();
             Object foreachData = foreachDataEntry.getValue();
             forVariable.setValue(foreachData);
-            cont = forExecuter.execute(subContent, out, indentOut, iter.hasNext(), forExecuter.localVariables, nDebug);
+            bForHasNext = iter.hasNext();  //an element after it?
+            cont = forExecuter.execute(subContent, out, indentOut, forExecuter.localVariables, nDebug);
           }
         }
       }
@@ -1155,11 +1162,12 @@ public class JZcmdExecuter {
           if(cond){
             Object foreachData = aContainer[iContainer];
             forVariable.setValue(foreachData);
-            boolean bLastElement = iContainer < zContainer-1;
-            cont = forExecuter.execute(subContent, out, indentOut, bLastElement, forExecuter.localVariables, nDebug);
+            bForHasNext = iContainer < zContainer-1;
+            cont = forExecuter.execute(subContent, out, indentOut, forExecuter.localVariables, nDebug);
           }
         }
       }
+      bForHasNext = bForHasNextOld;  //restore for nested for loops.
       if(cont == kBreak){ cont = kSuccess; } //break in while does not break at calling level. It breaks only the own one.
       return cont;
     }
@@ -1171,18 +1179,17 @@ public class JZcmdExecuter {
      * @param statement the hasnext-Statement. 
      * @param out
      * @param indentOut
-     * @param bContainerHasNext true then executes this statement
      * @param nDebug
      * @return
      * @throws Exception
      */
-    short exec_hasNext(JZcmdScript.JZcmditem statement, StringFormatter out, int indentOut, boolean bContainerHasNext, int nDebug) 
+    short exec_hasNext(JZcmdScript.JZcmditem statement, StringFormatter out, int indentOut, int nDebug) 
     throws Exception{
       short cont = kSuccess;
-      if(bContainerHasNext){
+      if(this.bForHasNext){
         JZcmdScript.StatementList statementList = statement.statementlist();
         if(statementList !=null){
-          cont = execute(statement.statementlist(), out, indentOut, false, localVariables, nDebug);
+          cont = execute(statement.statementlist(), out, indentOut, localVariables, nDebug);
         } 
         else if(statement.textArg !=null){
           executeText(statement, out, indentOut);
@@ -1204,11 +1211,11 @@ public class JZcmdExecuter {
         JZcmdScript.JZcmditem statement = iter.next();
         switch(statement.elementType()){
           case 'g': { //if-block
-            boolean hasNext = iter.hasNext();
-            cont = executeIfBlock((JZcmdScript.IfCondition)statement, out, indentOut, hasNext, nDebug);
+            //boolean hasNext = iter.hasNext();
+            cont = executeIfBlock((JZcmdScript.IfCondition)statement, out, indentOut, nDebug);
           } break;
           case 'E': { //elsef
-            cont = execute(statement.statementlist, out, indentOut, false, localVariables, nDebug);
+            cont = execute(statement.statementlist, out, indentOut, localVariables, nDebug);
           } break;
           default:{
             throw new IllegalArgumentException("JZcmd.execIf - unknown statement; " + statement.elementType());
@@ -1233,7 +1240,7 @@ public class JZcmdExecuter {
         cond =  (cont ==kSuccess)
              && evalCondition(whileStatement.condition); //.calcDataAccess(localVariables);
         if(cond){
-          cont = execute(whileStatement.statementlist, out, indentOut, false, localVariables, nDebug);
+          cont = execute(whileStatement.statementlist, out, indentOut, localVariables, nDebug);
         }
       } while(cond);  //if executed, check cond again.  
       if(cont == kBreak){ cont = kSuccess; } //break in while does not break at calling level.
@@ -1249,7 +1256,7 @@ public class JZcmdExecuter {
     { short cont;
       boolean cond;
       do{
-        cont = execute(whileStatement.statementlist, out, indentOut, false, localVariables, nDebug);
+        cont = execute(whileStatement.statementlist, out, indentOut, localVariables, nDebug);
         cond =  (cont ==kSuccess)
              && evalCondition(whileStatement.condition); //.calcDataAccess(localVariables);
       } while(cond);  //if executed, check cond again.  
@@ -1268,7 +1275,7 @@ public class JZcmdExecuter {
      * @return true if the condition is true. If it returns false, an elsif or else-Block should be executed.
      * @throws Exception
      */
-    short executeIfBlock(JZcmdScript.IfCondition ifBlock, StringFormatter out, int indentOut, boolean bIfHasNext, int nDebug) 
+    short executeIfBlock(JZcmdScript.IfCondition ifBlock, StringFormatter out, int indentOut, int nDebug) 
     throws Exception
     { short cont;
       //Object check = getContent(ifBlock, localVariables, false);
@@ -1277,7 +1284,7 @@ public class JZcmdExecuter {
       boolean bCheck;
       bCheck = evalCondition(ifBlock.condition); //.calcDataAccess(localVariables);
       if(bCheck){
-        cont = execute(ifBlock.statementlist, out, indentOut, bIfHasNext, localVariables, nDebug);
+        cont = execute(ifBlock.statementlist, out, indentOut, localVariables, nDebug);
       } else cont = kFalse;
       return cont;
     }
@@ -1299,7 +1306,7 @@ public class JZcmdExecuter {
       if(statement.statementlist !=null){
         //executes the statement, use the Appendable to output immediately
         synchronized(out){
-          ret = execute(statement.statementlist, out, statement.srcColumn, false, localVariables, nDebug);
+          ret = execute(statement.statementlist, out, statement.srcColumn, localVariables, nDebug);
         }
       } else {
         //Any other text expression
@@ -1369,7 +1376,7 @@ public class JZcmdExecuter {
       if(statement.statementlist !=null){
         //executes the statement, use the Appendable to output immediately
         synchronized(out1){
-          ret = execute(statement.statementlist, out1, statement.srcColumn, false, localVariables, nDebug);
+          ret = execute(statement.statementlist, out1, statement.srcColumn, localVariables, nDebug);
         }
       } else {
         //Any other text expression
@@ -1408,12 +1415,14 @@ public class JZcmdExecuter {
         nameSubtext = statement.name;
       }*/
       nameSubtext = evalString(callStatement.call_Name); 
-      JZcmdScript.Subroutine subtextScript = jzcmdScript.getSubroutine(nameSubtext);  //the subtext script to call
-      if(subtextScript == null){
+      JZcmdScript.Subroutine subroutine = jzcmdScript.getSubroutine(nameSubtext);  //the subtext script to call
+      if(subroutine == null){
         throw new NoSuchElementException("JbatExecuter - subroutine not found; " + nameSubtext);
       } else {
-        ExecuteLevel sublevel = new ExecuteLevel(threadData, this, null);
-        success = execSubroutine(subtextScript, sublevel, callStatement.actualArgs, additionalArgs, out, indentOut, nDebug);
+        final ExecuteLevel sublevel;
+        if(subroutine.useLocals) { sublevel = this; }
+        else { sublevel = new ExecuteLevel(threadData, this, subroutine.useLocals ? localVariables : null); }
+        success = execSubroutine(subroutine, sublevel, callStatement.actualArgs, additionalArgs, out, indentOut, nDebug);
         if(success == kSuccess){
           if(callStatement.variable !=null || callStatement.assignObjs !=null){
             DataAccess.Variable<Object> retVar = sublevel.localVariables.get("return");
@@ -1452,18 +1461,20 @@ public class JZcmdExecuter {
     
     /**Executes a subroutine invoked from outside of this class
      * @param substatement Statement of the subroutine
-     * @param args Any given arguments in form of a ma.
+     * @param args Any given arguments in form of a map.
      * @param out output
      * @param indentOut
      * @return null on success, an error message on parameter error
      * @throws Exception
      */
-    public short execSubroutine(JZcmdScript.Subroutine substatement
+    public short execSubroutine(JZcmdScript.Subroutine subroutine
         , Map<String, DataAccess.Variable<Object>> args
         , StringFormatter out, int indentOut
     )  
     {
-      ExecuteLevel sublevel = new ExecuteLevel(threadData, this, null);
+      final ExecuteLevel sublevel;
+      if(subroutine.useLocals) { sublevel = this; }
+      else { sublevel = new ExecuteLevel(threadData, this, subroutine.useLocals ? localVariables : null); }
       final List<DataAccess.Variable<Object>> arglist;
       if(args !=null){
         arglist = new LinkedList<DataAccess.Variable<Object>>();
@@ -1475,7 +1486,7 @@ public class JZcmdExecuter {
       }
       short success;
       try{
-        success = execSubroutine(substatement, sublevel, null, arglist, out, indentOut, -1);
+        success = execSubroutine(subroutine, sublevel, null, arglist, out, indentOut, -1);
       } catch(Exception exc){
         success = kException;
       }
@@ -1550,7 +1561,7 @@ public class JZcmdExecuter {
       } else if(actualArgs !=null){
         throw new IllegalArgumentException("execSubroutine -  not expected arguments");
       }
-      success = sublevel.execute(subtextScript.statementlist, out, indentOut, false, sublevel.localVariables, nDebug);
+      success = sublevel.execute(subtextScript.statementlist, out, indentOut, sublevel.localVariables, nDebug);
       return success;
     }
     
@@ -1648,7 +1659,7 @@ public class JZcmdExecuter {
       } else {
         genContent = this;  //don't use an own instance, save memory and calculation time.
       }
-      short ret = genContent.execute(script.statementlist, out, indentOut, false, genContent.localVariables, nDebug);
+      short ret = genContent.execute(script.statementlist, out, indentOut, genContent.localVariables, nDebug);
       if(ret == kBreak){ 
         ret = kSuccess; 
       }
@@ -1759,7 +1770,7 @@ public class JZcmdExecuter {
     short execCmdError(JZcmdScript.Onerror statement, StringFormatter out, int indentOut) throws Exception {
       short ret = 0;
       if(this.cmdErrorlevel >= statement.errorLevel){
-        ret = execute(statement.statementlist, out, indentOut, false, localVariables, -1);
+        ret = execute(statement.statementlist, out, indentOut, localVariables, -1);
       }
       return ret;
     }
@@ -2208,7 +2219,7 @@ public class JZcmdExecuter {
       } else if(arg.statementlist !=null){
         StringFormatter u = new StringFormatter();
         //StringPartAppend u = new StringPartAppend();
-        short ret = executeNewlevel(arg.statementlist, u, 0, false, -1);
+        short ret = executeNewlevel(arg.statementlist, u, 0, -1);
         if(ret == kException){ return JZcmdExecuter.retException; }
         else { return u.getBuffer(); }
       } else if(arg.expression !=null){
@@ -2359,13 +2370,13 @@ public class JZcmdExecuter {
           IndexMultiTable<String, DataAccess.Variable<Object>> newVariables = 
             new IndexMultiTable<String, DataAccess.Variable<Object>>(IndexMultiTable.providerString); 
           //fill the dataStruct with its values:
-          ret = level.execute(arg.statementlist, null, 0, false, newVariables, -1); //Note: extra newVariables
+          ret = level.execute(arg.statementlist, null, 0, newVariables, -1); //Note: extra newVariables
           obj = ret == kException ? JZcmdExecuter.retException: newVariables;
         } else {
           //A statementlist as object can be only a text expression.
           //its value is returned as String.
           StringFormatter u = new StringFormatter();
-          ret = executeNewlevel(arg.statementlist, u, arg.statementlist.indentText, false, -1);
+          ret = executeNewlevel(arg.statementlist, u, arg.statementlist.indentText, -1);
           obj = ret == kException ? JZcmdExecuter.retException:  u.toString();
         }
       } else if(arg.expression !=null){
@@ -2559,7 +2570,7 @@ public class JZcmdExecuter {
     
     protected void runThread(ExecuteLevel executeLevel, JZcmdScript.ThreadBlock statement, JZcmdThread threadVar){
       try{
-        executeLevel.execute(statement.statementlist, JZcmdExecuter.this.textout, 0, false, executeLevel.localVariables, -1);
+        executeLevel.execute(statement.statementlist, JZcmdExecuter.this.textout, 0, executeLevel.localVariables, -1);
       } 
       catch(Exception exc){
         threadVar.exception = exc;

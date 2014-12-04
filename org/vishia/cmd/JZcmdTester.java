@@ -148,7 +148,26 @@ public class JZcmdTester
   { DataShow.dataTreeXml(data, out, maxRecurs); }
   
   
+  /**Generates a html file which contains the description of all data contained in referred in the given data instance.
+   * See {@link DataShow#outHtml(Object, Appendable)} - that capability is used. This is only a wrapper method
+   * to adapt a given Filepath in a JZcmd environment. The file is created or overwritten and closed after them.
+   * @param data Any instance
+   * @param file
+   * @throws IOException
+   * @throws NoSuchFieldException
+   */
+  public static void dataHtml(Object data, JZcmdFilepath file) throws IOException, NoSuchFieldException 
+  { Writer out = new FileWriter(file.absfile().toString());
+    DataShow.outHtml(data, out);
+    out.close();
+  }
+  
+  
 
+  
+  
+  
+  
   
   /**This method is only intend to set a breakpoint into it.
    * @return

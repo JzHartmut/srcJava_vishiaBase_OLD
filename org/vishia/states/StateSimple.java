@@ -928,7 +928,7 @@ private void checkBuiltTransition(StateTrans trans, int nRecurs) {
 
 
 
-/**Gets the timeout event from the top state or the {@link StateAddParallel} 
+/**Gets the timeout event from the top state or the {@link StateParallel} 
  * or creates that event.
  * All non-parallel states need only one timeout event instance because only one of them is used.
  */
@@ -936,7 +936,7 @@ private void searchOrCreateTimerEvent() {
   if(stateMachine.theTimer == null || stateMachine.theThread == null) 
     throw new IllegalArgumentException("This statemachine needs a thread and a timer manager because timeouts are used. Use StateMachine(thread, timer); to construct it");
   StateSimple parent = this;
-  while(parent.enclState !=null && !(parent instanceof StateAddParallel)) {
+  while(parent.enclState !=null && !(parent instanceof StateParallel)) {
     parent = parent.enclState;
   }
   //parent is either the top state or a StateAddParallel
