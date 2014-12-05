@@ -2,6 +2,8 @@ package org.vishia.util;
 
 import java.text.ParseException;
 
+import org.vishia.util.CalculatorExpr.Value;
+
 /**This class extends the capability of StringPartBase for scanning capability.
  * In opposite to the {@link StringPart#seek(int)} functionality with several conditions 
  * the scan methods does not search till a requested char or string but test the string
@@ -49,6 +51,10 @@ public class StringPartScan extends StringPart
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-12-06 Hartmut new: {@link #scanFractionalNumber(long)} enables scanning first an integer, then check whether
+   *   it is a possibility to detect whether an intgeger or a float value is given.
+   * <li>2014-12-06 Hartmut new: {@link #scanSkipSpace()} and {@link #scanSkipComment()} calls {@link #seekNoWhitespace()()} etc
+   *   but returns this to concatenate. 
    * <li>2013-10-26 Hartmut creation from StringPart. Same routines, but does not use substring yet, some gardening, renaming. 
    * <li>1997 Hartmut: The scan routines in approximately this form were part of the StringScan class in C++ language,
    *   written of me.
@@ -114,6 +120,17 @@ public class StringPartScan extends StringPart
   }
 
   
+  /**Skips over white spaces. It calls {@link StringPart#seekNoWhitespace()} and return this. */
+  public final StringPartScan scanSkipSpace()
+  { seekNoWhitespace();
+    return this;
+  }
+  
+  /**Skips over white spaces and comments. It calls {@link StringPart#seekNoWhitespaceOrComments()} and return this. */
+  public final StringPartScan scanSkipComment()
+  { seekNoWhitespaceOrComments();
+    return this;
+  }
   
   /**
    * @java2c=return-this.
@@ -134,6 +151,7 @@ public class StringPartScan extends StringPart
     { seekNoWhitespaceOrComments();
       if(bStartScan)
       { idxLastIntegerNumber = -1;
+        //idxLastFloatNumber = -1;
         //idxLastFloatNumber = 0;
         //idxLastString = 0;
         bStartScan = false; 
@@ -270,7 +288,9 @@ public class StringPartScan extends StringPart
         return nn;
         //nLastIntegerNumber = nn;
       }
-      else bCurrentOk = false;  //scanning failed.
+      else { 
+        bCurrentOk = false;  //scanning failed.
+      }
     }
     return -1; //on error
   }
@@ -349,9 +369,9 @@ public class StringPartScan extends StringPart
     return this;
   }
   
+
   
-  
-  /**Scans a float number. The result is stored internally
+  /**Scans a float / double number. The result is stored internally
    * and have to be got calling {@link #getLastScannedFloatNumber()}.
    * There can stored upto 5 numbers. If more as 5 numbers are stored yet,
    * an exception is thrown. 
@@ -360,77 +380,113 @@ public class StringPartScan extends StringPart
    * @throws ParseException if the buffer is not free to hold the float number.
    */
   public final StringPartScan scanFloatNumber() throws ParseException  //::TODO:: scanLong(String sPicture)
-  { if(scanEntry())
-    { long nInteger = 0, nFractional = 0;
-      int nDivisorFract = 1, nExponent;
-      //int nDigitsFrac;
+  {
+    if(scanEntry()) { 
+      boolean bNegativValue = false;
       char cc;
-      boolean bNegativValue = false, bNegativExponent = false;
-      boolean bFractionalFollowed = false;
-      
       if( (cc = content.charAt(begin)) == '-')
       { bNegativValue = true;
         seek(1);
-        cc = content.charAt(begin);
       }
-      if(cc == '.')
-      { nInteger = 0;
-        bFractionalFollowed = true;
-      }
-      else
-      { nInteger = scanDigits(false, Integer.MAX_VALUE);
-        if(bCurrentOk)
-        { if(begin < endMax && content.charAt(begin) == '.')
-          { bFractionalFollowed = true;
-          }
+      long nInteger = scanDigits(false, Integer.MAX_VALUE);
+      if(bCurrentOk) {
+        if(bNegativValue)
+        { nInteger = - nInteger; 
+        }
+        if(!scanFractionalNumber(nInteger).scanOk()){
+          //only integer number found, store as floatnumber
+          if(idxLastFloatNumber < nLastFloatNumber.length -2){
+            nLastFloatNumber[++idxLastFloatNumber] = (double)nInteger;
+          } else throw new ParseException("to much scanned floats",0);
         }
       }
-      
-      if(bCurrentOk && bFractionalFollowed)
-      { seek(1); //over .
+    }
+    return this;
+  }
+  
+  
+  /**Scans the fractional part of a float / double number. The result is stored internally
+   * and have to be got calling {@link #getLastScannedFloatNumber()}.
+   * There can stored upto 5 numbers. If more as 5 numbers are stored yet,
+   * an exception is thrown. 
+   * <br><br>
+   * Application-sample:
+   * <pre>
+   * if(spExpr.scanSkipSpace().scanInteger().scanOk()) {
+      Value value = new Value();
+      long longvalue = spExpr.getLastScannedIntegerNumber();
+      if(spExpr.scanFractionalNumber(longvalue).scanOk()) {
+        double dval = spExpr.getLastScannedFloatNumber();
+        if(spExpr.scan("F").scanOk()){
+          value.floatVal = (float)dval;
+          value.type = 'F';
+        } else {
+          value.doubleVal = dval;
+          value.type = 'D';
+        }
+      } else {
+        //no float, check range of integer
+        if(longvalue < 0x80000000L && longvalue >= -0x80000000L) {
+          value.intVal = (int)longvalue; value.type = 'I';
+        } else {
+          value.longVal = longvalue; value.type = 'L';
+        }
+      }
+   * </pre>
+   * @java2c=return-this.
+   * @return this
+   * @throws ParseException if the buffer is not free to hold the float number.
+   */
+  public final StringPartScan scanFractionalNumber(long nInteger) throws ParseException  //::TODO:: scanLong(String sPicture)
+  { if(scanEntry()) { 
+      long nFractional = 0;
+      int nDivisorFract = 1, nExponent = 0;
+      //int nDigitsFrac;
+      char cc;
+      boolean bNegativExponent = false;
+      double result;
+      int begin0 = this.begin;
+      if(begin < endMax && content.charAt(begin) == '.') {
+        seek(1); //over .
         while(begin < endMax && getCurrentChar() == '0')
         { seek(1); nDivisorFract *=10;
         }
         //int posFrac = begin;
-        nFractional = scanDigits(false, Integer.MAX_VALUE);
+        nFractional = scanDigits(false, Integer.MAX_VALUE);  //set bCurrentOk = false if there are no digits.
         if(bCurrentOk)
-        { //nDigitsFrac = begin - posFrac;
+        { //the it has set begin to end of scan position.
+          //nDigitsFrac = begin - posFrac;
         }
         else if(nDivisorFract >=10)
         { bCurrentOk = true; //it is okay, at ex."9.0" is found. There are no more digits after "0".
           nFractional = 0;
         }
-      }   
-      else {nFractional = 0; } //nDigitsFrac = 0;}
-      
-      if(bCurrentOk)
-      { int nPosExponent = begin;
-        if( nPosExponent < endMax && (cc = content.charAt(begin)) == 'e' || cc == 'E')
-        { seek(1);
-          if( (cc = content.charAt(begin)) == '-')
-          { bNegativExponent = true;
-            seek(1);
-            cc = content.charAt(begin);
-          }
-          if(cc >='0' && cc <= '9' )
-          { nExponent = (int)scanDigits(false, Integer.MAX_VALUE);
-            if(!bCurrentOk)
-            { nExponent = 0;
-            }
-          }
-          else
-          { // it isn't an exponent, but a String beginning with 'E' or 'e'.
-            //This string is not a part of the float number.
-            begin = nPosExponent;
-            nExponent = 0;
+      }
+      int nPosExponent = begin;
+      if( bCurrentOk && nPosExponent < endMax && ((cc = content.charAt(begin)) == 'e' || cc == 'E'))
+      { seek(1);
+        if( (cc = content.charAt(begin)) == '-')
+        { bNegativExponent = true;
+          seek(1);
+          cc = content.charAt(begin);
+        }
+        if(cc >='0' && cc <= '9' )
+        { nExponent = (int)scanDigits(false, Integer.MAX_VALUE);  //set bCurrentOk if there are no digits
+          if(!bCurrentOk)
+          { nExponent = 0;
+            assert(false);  //0..9 was tested!
           }
         }
-        else{ nExponent = 0; }
-      } 
-      else{ nExponent = 0; }
-      
-      if(bCurrentOk){ 
-        double result = nInteger;
+        else
+        { // it isn't an exponent, but a String beginning with 'E' or 'e'.
+          //This string is not a part of the float number.
+          begin = nPosExponent;
+          nExponent = 0;
+        }
+      }
+      if(begin > begin0) {
+        //either fractional or exponent found
+        result = nInteger;
         if(nFractional > 0)
         { double fFrac = nFractional;
           while(fFrac >= 1.0)  //the read number is pure integer, it is 0.1234
@@ -439,7 +495,6 @@ public class StringPartScan extends StringPart
           fFrac /= nDivisorFract;    //number of 0 after . until first digit.
           result += fFrac;
         }
-        if(bNegativValue) { result = - result; }
         if(nExponent != 0)
         { if(bNegativExponent){ nExponent = -nExponent;}
           result *= Math.pow(10, nExponent);
@@ -448,7 +503,10 @@ public class StringPartScan extends StringPart
           nLastFloatNumber[++idxLastFloatNumber] = result;
         } else throw new ParseException("to much scanned floats",0);
       }
-    }  
+      else {  //whetter '.' nor 'E' found:
+        bCurrentOk = false;
+      }
+    }
     return this;
   }
 

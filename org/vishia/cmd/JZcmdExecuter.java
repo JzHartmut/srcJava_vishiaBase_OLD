@@ -85,6 +85,7 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-12-06 Hartmut new: don't need a main routine, writes only a warning on System.out. 
    * <li>2014-11-28 Hartmut chg: {@link ExecuteLevel#bForHasNext} instead calling argument for all execute...(...), it was forgotten in one level.
    * <li>2014-11-21 Hartmut chg: Character ::: can be used as indentation characters
    * <li>2014-11-16 Hartmut chg: enhancement of capability of set text column: <:@ nr> nr can be an expression. Not only a constant.   
@@ -540,7 +541,12 @@ public class JZcmdExecuter {
       startnano = System.nanoTime();
       StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
       textout = outFormatter;
-      ret = execFile.execute(mainRoutine.statementlist, outFormatter, 0, execFile.localVariables, -1);
+      if(mainRoutine !=null) {
+        ret = execFile.execute(mainRoutine.statementlist, outFormatter, 0, execFile.localVariables, -1);
+      } else {
+        System.out.println("JZcmdExecuter - main routine not found.");
+        ret = 0;
+      }
       try{ outFormatter.close(); } catch(IOException exc){ throw new RuntimeException("unexpected exception on close", exc); }
       if(bWaitForThreads){
         boolean bWait = true;

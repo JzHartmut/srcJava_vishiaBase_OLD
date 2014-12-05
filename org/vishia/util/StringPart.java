@@ -909,11 +909,11 @@ abcdefghijklmnopqrstuvwxyz  The associated String
 */
 public final StringPart seekNoWhitespace()
 { beginLast = begin;
-while( begin < end && " \t\r\n\f".indexOf(content.charAt(begin)) >=0 )
-{ begin +=1;
-}
-bFound = (begin > beginLast);
-return this;
+  while( begin < end && " \t\r\n\f".indexOf(content.charAt(begin)) >=0 )
+  { begin +=1;
+  }
+  bFound = (begin > beginLast);
+  return this;
 }
 
 

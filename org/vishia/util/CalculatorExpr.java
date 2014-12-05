@@ -41,6 +41,8 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-12-06 Hartmut chg: {@link #calc(float)} now uses the {@link #calcDataAccess(Map, Object...)} which is complete.
+   *   Some enhancements and tunings. TODO same for {@link #calc(double)} etc.
    * <li>2014-12-06 Hartmut chg: correct check of object values whether it is a numeric type.
    * <li>2014-12-06 Hartmut chg: On DataAccess and FieldNotFoundException it is false if a boolean value is expected.
    * <li>2014-12-06 Hartmut chg: Handling of AND and OR operation: A special operation {@link Operators#boolCheckAndOperation}
@@ -163,6 +165,20 @@ public class CalculatorExpr
     
     public Value(){ type = '?'; }
     
+    
+    /**Copy all content from src to this.
+     * @param src
+     */
+    public void copy(Value src){
+      type = src.type;
+      longVal = src.longVal;
+      intVal = src.intVal;
+      doubleVal = src.doubleVal;
+      floatVal = src.floatVal;
+      stringVal = src.stringVal;
+      oVal = src.oVal;
+    }
+    
     /**Returns a boolean value. If the type of content is a numeric, false is returned if the value is ==0.
      * If the type is a text, false is returned if the string is empty.
      * If the type is any other Object, false is returned if the object referenz is ==null.
@@ -210,15 +226,30 @@ public class CalculatorExpr
     
     public double doubleValue()
     { switch(type){
+        case 'F': return floatVal;
         case 'I': return intVal;
         case 'C': return intVal;
         case 'J': return longVal;
         case 'D': return doubleVal;
-        case 'F': return floatVal;
         case 'Z': return boolVal ? 1.0 : 0;
         case 't': return Double.parseDouble(stringVal.toString());
         case 'o': throw new IllegalArgumentException("Double expected, object given.");
         case '?': return 7777777.0; //TODO throw new IllegalArgumentException("the type is not determined while operation.");
+        default: throw new IllegalArgumentException("unknown type char: " + type);
+      }//switch
+    }
+    
+    public float floatValue()
+    { switch(type){
+        case 'I': return intVal;
+        case 'C': return intVal;
+        case 'J': return longVal;
+        case 'D': return (float)doubleVal;
+        case 'F': return floatVal;
+        case 'Z': return boolVal ? 1.0f: 0;
+        case 't': return Float.parseFloat(stringVal.toString());
+        case 'o': throw new IllegalArgumentException("Double expected, object given.");
+        case '?': return 77777.0f; //TODO throw new IllegalArgumentException("the type is not determined while operation.");
         default: throw new IllegalArgumentException("unknown type char: " + type);
       }//switch
     }
@@ -282,14 +313,15 @@ public class CalculatorExpr
     
     @Override public String toString(){ 
       switch(type){
-        case 'I': return Integer.toString(intVal);
-        case 'J': return Long.toString(longVal);
-        case 'D': return Double.toString(doubleVal);
-        case 'F': return Float.toString(floatVal);
-        case 'C': return "" + (char)intVal;
-        case 'Z': return Boolean.toString(boolVal);
-        case 't': return stringVal.toString();
-        case 'o': return oVal ==null ? "null" : oVal.toString();
+        case 'I': return "I " + Integer.toString(intVal);
+        case 'J': return "J " + Long.toString(longVal);
+        case 'D': return "D " + Double.toString(doubleVal);
+        case 'F': return "F " + Float.toString(floatVal);
+        case 'C': return "C " + (char)intVal;
+        case 'Z': return "Z " + Boolean.toString(boolVal);
+        case 't': return "t " + stringVal.toString();
+        case 'o': return "o " + oVal ==null ? "null" : oVal.toString();
+        case 'e': return "e " + ((Exception)oVal).getMessage();
         case '?': return "??";
         default:  return "?" + type;
       }//switch
@@ -361,19 +393,18 @@ public class CalculatorExpr
         case 'D': accu.doubleVal = accu.intVal; accu.type = 'D'; return doubleExpr; 
         case 'Z': accu.boolVal = accu.intVal !=0; accu.type = 'Z'; return booleanExpr; 
         case 'o': 
-          if(val2.oVal instanceof Long)          { val2.longVal = ((Long)val2.oVal).longValue();       val2.type = 'L'; accu.longVal = accu.intVal; return longExpr; }
-          else if(val2.oVal instanceof Integer)  { val2.intVal = ((Integer)val2.oVal).intValue();      val2.type = 'I'; return this; }
-          else if(val2.oVal instanceof Short)    { val2.intVal = ((Short)val2.oVal).shortValue();      val2.type = 'I'; return this; }
-          else if(val2.oVal instanceof Byte)     { val2.intVal = ((Byte)val2.oVal).byteValue();        val2.type = 'I'; return this; }
-          else if(val2.oVal instanceof Double)   { val2.doubleVal = ((Double)val2.oVal).doubleValue(); val2.type = 'D'; accu.doubleVal = accu.intVal; return doubleExpr; }
-          else if(val2.oVal instanceof Float)    { val2.floatVal = ((Float)val2.oVal).floatValue();    val2.type = 'F'; accu.floatVal = accu.intVal; return floatExpr; }
-          else if(val2.oVal instanceof Boolean)  { val2.boolVal = ((Boolean)val2.oVal).booleanValue(); val2.type = 'Z'; accu.boolVal = accu.intVal !=0; return booleanExpr; }
-          else if(val2.oVal instanceof Character){ val2.intVal = ((Character)val2.oVal).charValue();   val2.type = 'I'; return this; }
+          if(val2.oVal instanceof Long)          { val2.longVal = ((Long)val2.oVal).longValue();       accu.longVal = accu.intVal; return longExpr; }
+          else if(val2.oVal instanceof Integer)  { val2.intVal = ((Integer)val2.oVal).intValue();      return this; }
+          else if(val2.oVal instanceof Short)    { val2.intVal = ((Short)val2.oVal).shortValue();      return this; }
+          else if(val2.oVal instanceof Byte)     { val2.intVal = ((Byte)val2.oVal).byteValue();        return this; }
+          else if(val2.oVal instanceof Double)   { val2.doubleVal = ((Double)val2.oVal).doubleValue(); accu.doubleVal = accu.intVal; return doubleExpr; }
+          else if(val2.oVal instanceof Float)    { val2.floatVal = ((Float)val2.oVal).floatValue();    accu.floatVal = accu.intVal; return floatExpr; }
+          else if(val2.oVal instanceof Boolean)  { val2.boolVal = ((Boolean)val2.oVal).booleanValue(); accu.boolVal = accu.intVal !=0; return booleanExpr; }
+          else if(val2.oVal instanceof Character){ val2.intVal = ((Character)val2.oVal).charValue();   return this; }
           else throw new IllegalArgumentException("the value should be of a numeric type");
         case 'e': throw (Exception)val2.oVal;
         case 't': {
           try{ val2.longVal = Long.parseLong(val2.stringVal.toString());
-            val2.type = 'J'; 
             return this; 
           } catch(Exception exc){ throw new IllegalArgumentException("CalculatorExpr - String converion error"); }
         }
@@ -392,19 +423,19 @@ public class CalculatorExpr
     
     @Override public ExpressionType checkArgument(Value accu, Value val2) throws Exception {
       switch(val2.type){
-        case 'C': case 'I': val2.longVal = val2.intVal; val2.type = 'J'; return this; 
+        case 'C': case 'I': val2.longVal = val2.intVal; return this; 
         case 'J': return this; 
         case 'F': accu.floatVal = accu.longVal; accu.type = 'F'; return floatExpr; 
         case 'D': accu.doubleVal = accu.longVal; accu.type = 'D'; return doubleExpr; 
         case 'o': 
-          if(val2.oVal instanceof Long)          { val2.longVal = ((Long)val2.oVal).longValue();       val2.type = 'L'; return this; }
-          else if(val2.oVal instanceof Integer)  { val2.longVal = ((Integer)val2.oVal).intValue();     val2.type = 'L'; return this; }
-          else if(val2.oVal instanceof Short)    { val2.longVal = ((Short)val2.oVal).shortValue();     val2.type = 'L'; return this; }
-          else if(val2.oVal instanceof Byte)     { val2.longVal = ((Byte)val2.oVal).byteValue();       val2.type = 'L'; return this; }
-          else if(val2.oVal instanceof Double)   { val2.doubleVal = ((Double)val2.oVal).doubleValue(); val2.type = 'D'; accu.doubleVal = accu.longVal; return doubleExpr; }
-          else if(val2.oVal instanceof Float)    { val2.floatVal = ((Float)val2.oVal).floatValue();    val2.type = 'F'; accu.floatVal = accu.longVal; return floatExpr; }
-          else if(val2.oVal instanceof Boolean)  { val2.boolVal = ((Boolean)val2.oVal).booleanValue(); val2.type = 'Z'; accu.boolVal = accu.longVal !=0; return booleanExpr; }
-          else if(val2.oVal instanceof Character){ val2.intVal = ((Character)val2.oVal).charValue();   val2.type = 'I'; return this; }
+          if(val2.oVal instanceof Long)          { val2.longVal = ((Long)val2.oVal).longValue();       return this; }
+          else if(val2.oVal instanceof Integer)  { val2.longVal = ((Integer)val2.oVal).intValue();     return this; }
+          else if(val2.oVal instanceof Short)    { val2.longVal = ((Short)val2.oVal).shortValue();     return this; }
+          else if(val2.oVal instanceof Byte)     { val2.longVal = ((Byte)val2.oVal).byteValue();       return this; }
+          else if(val2.oVal instanceof Double)   { val2.doubleVal = ((Double)val2.oVal).doubleValue(); accu.doubleVal = accu.longVal; return doubleExpr; }
+          else if(val2.oVal instanceof Float)    { val2.floatVal = ((Float)val2.oVal).floatValue();    accu.floatVal = accu.longVal; return floatExpr; }
+          else if(val2.oVal instanceof Boolean)  { val2.boolVal = ((Boolean)val2.oVal).booleanValue(); accu.boolVal = accu.longVal !=0; return booleanExpr; }
+          else if(val2.oVal instanceof Character){ val2.intVal = ((Character)val2.oVal).charValue();   return this; }
           else throw new IllegalArgumentException("the value should be of a numeric type");
         case 'e': throw (Exception)val2.oVal;
         default: throw new IllegalArgumentException("src type");
@@ -422,19 +453,19 @@ public class CalculatorExpr
     
     @Override public ExpressionType checkArgument(Value accu, Value val2) throws Exception {
       switch(val2.type){
-        case 'C': case 'I': val2.floatVal = val2.intVal; val2.type = 'F'; return this; 
-        case 'J': val2.doubleVal = val2.longVal; val2.type = 'D'; return doubleExpr; 
+        case 'C': case 'I': val2.floatVal = val2.intVal; return this; 
+        case 'J': val2.doubleVal = val2.longVal; return doubleExpr; 
         case 'F': return this; 
         case 'D': accu.doubleVal = accu.floatVal; accu.type = 'D'; return doubleExpr; 
         case 'o': 
-          if(val2.oVal instanceof Long)          { val2.floatVal = ((Long)val2.oVal).longValue();      val2.type = 'F'; return this; }
-          else if(val2.oVal instanceof Integer)  { val2.floatVal = ((Integer)val2.oVal).intValue();    val2.type = 'F'; return this; }
-          else if(val2.oVal instanceof Short)    { val2.floatVal = ((Short)val2.oVal).shortValue();    val2.type = 'F'; return this; }
-          else if(val2.oVal instanceof Byte)     { val2.floatVal = ((Byte)val2.oVal).byteValue();      val2.type = 'F'; return this; }
-          else if(val2.oVal instanceof Double)   { val2.doubleVal = ((Double)val2.oVal).doubleValue(); val2.type = 'D'; accu.doubleVal = accu.floatVal; return doubleExpr; }
-          else if(val2.oVal instanceof Float)    { val2.floatVal = ((Float)val2.oVal).floatValue();    val2.type = 'F'; return this; }
-          else if(val2.oVal instanceof Boolean)  { val2.boolVal = ((Boolean)val2.oVal).booleanValue(); val2.type = 'Z'; accu.boolVal = accu.floatVal !=0; return booleanExpr; }
-          else if(val2.oVal instanceof Character){ val2.floatVal = ((Character)val2.oVal).charValue(); val2.type = 'F'; return this; }
+          if(val2.oVal instanceof Long)          { val2.floatVal = ((Long)val2.oVal).longValue();      return this; }
+          else if(val2.oVal instanceof Integer)  { val2.floatVal = ((Integer)val2.oVal).intValue();    return this; }
+          else if(val2.oVal instanceof Short)    { val2.floatVal = ((Short)val2.oVal).shortValue();    return this; }
+          else if(val2.oVal instanceof Byte)     { val2.floatVal = ((Byte)val2.oVal).byteValue();      return this; }
+          else if(val2.oVal instanceof Double)   { val2.doubleVal = ((Double)val2.oVal).doubleValue(); accu.doubleVal = accu.floatVal; return doubleExpr; }
+          else if(val2.oVal instanceof Float)    { val2.floatVal = ((Float)val2.oVal).floatValue();    return this; }
+          else if(val2.oVal instanceof Boolean)  { val2.boolVal = ((Boolean)val2.oVal).booleanValue(); accu.boolVal = accu.floatVal !=0; return booleanExpr; }
+          else if(val2.oVal instanceof Character){ val2.floatVal = ((Character)val2.oVal).charValue(); return this; }
           else throw new IllegalArgumentException("the value should be of a numeric type");
         case 'e': throw (Exception)val2.oVal;
         default: throw new IllegalArgumentException("src type");
@@ -452,19 +483,19 @@ public class CalculatorExpr
     
     @Override public ExpressionType checkArgument(Value accu, Value val2) throws Exception {
       switch(val2.type){
-        case 'C': case 'I': val2.doubleVal = val2.intVal; val2.type = 'D'; return this; 
-        case 'J': val2.doubleVal = val2.longVal; val2.type = 'D'; return this; 
-        case 'F': val2.doubleVal = val2.floatVal; val2.type = 'D'; return this; 
+        case 'C': case 'I': val2.doubleVal = val2.intVal; return this; 
+        case 'J': val2.doubleVal = val2.longVal; return this; 
+        case 'F': val2.doubleVal = val2.floatVal; return this; 
         case 'D': return this; 
         case 'o': 
-          if(val2.oVal instanceof Long)          { val2.doubleVal = ((Long)val2.oVal).longValue();      val2.type = 'D'; return this; }
-          else if(val2.oVal instanceof Integer)  { val2.doubleVal = ((Integer)val2.oVal).intValue();    val2.type = 'D'; return this; }
-          else if(val2.oVal instanceof Short)    { val2.doubleVal = ((Short)val2.oVal).shortValue();    val2.type = 'D'; return this; }
-          else if(val2.oVal instanceof Byte)     { val2.doubleVal = ((Byte)val2.oVal).byteValue();      val2.type = 'D'; return this; }
-          else if(val2.oVal instanceof Double)   { val2.doubleVal = ((Double)val2.oVal).doubleValue();  val2.type = 'D'; return this; }
-          else if(val2.oVal instanceof Float)    { val2.doubleVal = ((Float)val2.oVal).floatValue();    val2.type = 'D'; return this; }
-          else if(val2.oVal instanceof Boolean)  { val2.boolVal = ((Boolean)val2.oVal).booleanValue();  val2.type = 'Z'; accu.boolVal = accu.doubleVal !=0; return booleanExpr; }
-          else if(val2.oVal instanceof Character){ val2.doubleVal = ((Character)val2.oVal).charValue();    val2.type = 'I'; return this; }
+          if(val2.oVal instanceof Long)          { val2.doubleVal = ((Long)val2.oVal).longValue();      return this; }
+          else if(val2.oVal instanceof Integer)  { val2.doubleVal = ((Integer)val2.oVal).intValue();    return this; }
+          else if(val2.oVal instanceof Short)    { val2.doubleVal = ((Short)val2.oVal).shortValue();    return this; }
+          else if(val2.oVal instanceof Byte)     { val2.doubleVal = ((Byte)val2.oVal).byteValue();      return this; }
+          else if(val2.oVal instanceof Double)   { val2.doubleVal = ((Double)val2.oVal).doubleValue();  return this; }
+          else if(val2.oVal instanceof Float)    { val2.doubleVal = ((Float)val2.oVal).floatValue();    return this; }
+          else if(val2.oVal instanceof Boolean)  { val2.boolVal = ((Boolean)val2.oVal).booleanValue();  accu.boolVal = accu.doubleVal !=0; return booleanExpr; }
+          else if(val2.oVal instanceof Character){ val2.doubleVal = ((Character)val2.oVal).charValue(); return this; }
           else throw new IllegalArgumentException("the value should be of a numeric type");
         case 'e': throw (Exception)val2.oVal;
         default: throw new IllegalArgumentException("src type");
@@ -487,11 +518,11 @@ public class CalculatorExpr
     @Override public ExpressionType checkArgument(Value accu, Value val2) {
       switch(val2.type){
         case 'C': 
-        case 'I': val2.boolVal = val2.intVal !=0; val2.type = 'Z'; break;
-        case 'J': val2.boolVal = val2.longVal != 0; val2.type = 'Z'; break;
-        case 'F': val2.boolVal = val2.floatVal !=0; val2.type = 'Z'; break;
-        case 'D': val2.boolVal = val2.floatVal !=0; val2.type = 'Z'; break;
-        case 't': val2.boolVal = val2.stringVal !=null && val2.stringVal.length() >0; val2.type = 'Z'; break;
+        case 'I': val2.boolVal = val2.intVal !=0; break;
+        case 'J': val2.boolVal = val2.longVal != 0; break;
+        case 'F': val2.boolVal = val2.floatVal !=0; break;
+        case 'D': val2.boolVal = val2.floatVal !=0; break;
+        case 't': val2.boolVal = val2.stringVal !=null && val2.stringVal.length() >0; break;
         case 'o':           
           if(val2.oVal instanceof Long)          { val2.boolVal = ((Long)val2.oVal).longValue() !=0;  }
           else if(val2.oVal instanceof Integer)  { val2.boolVal = ((Integer)val2.oVal).intValue() !=0; }
@@ -502,8 +533,8 @@ public class CalculatorExpr
           else if(val2.oVal instanceof Boolean)  { val2.boolVal = ((Boolean)val2.oVal).booleanValue(); }
           else if(val2.oVal instanceof Character){ val2.boolVal = ((Character)val2.oVal).charValue() !=0; }
           else { val2.boolVal = val2.oVal !=null; }
-          val2.type = 'Z'; return this;
-        case 'e': val2.boolVal = false; val2.type = 'Z'; return this;
+          return this;
+        case 'e': val2.boolVal = false; return this;
         case 'Z': return this; 
         default: throw new IllegalArgumentException("src type");
       } //switch  
@@ -540,7 +571,6 @@ public class CalculatorExpr
       }
       if(val2.type !='t'){ 
         val2.stringVal = val2.stringValue();
-        val2.type = 't';
       }
       return this;
     }
@@ -587,7 +617,6 @@ public class CalculatorExpr
         }
         if(val2.type !='t'){ 
           val2.stringVal = val2.stringValue();
-          val2.type = 't';
         }
         return stringExpr;
       }
@@ -1026,6 +1055,21 @@ public class CalculatorExpr
     
     public Operation(){
       this.ixVariable = kArgumentUndefined;
+    }
+    
+    public Operation(String op, Value value){
+      setOperator(op);
+      //this.operator = op;
+      //this.operatorChar = op.name.charAt(0);  //not only for all, therefore deprecated.
+      this.ixVariable = this.operator.isUnary() ? kUnaryOperation : kArgumentUndefined; 
+      this.value = value;
+    }
+    
+    public Operation(Operator op, Value value){
+      this.operator = op;
+      this.operatorChar = op.name.charAt(0);  //not only for all, therefore deprecated.
+      this.ixVariable = this.operator.isUnary() ? kUnaryOperation : kArgumentUndefined; 
+      this.value = value;
     }
     
     public Operation(Operator op, int ixVariable){
@@ -1676,8 +1720,10 @@ public class CalculatorExpr
   public String setExpr(String sExpr, String[] sIdentifier)
   {
     this.variables = sIdentifier;
-    StringPartScan sp = new StringPartScan(sExpr);
-    return multExpr(sp, "!", 1);  //TODO addExpr
+    StringPartScan spExpr = new StringPartScan(sExpr);
+    try{ parseAddExpr(spExpr, "!", 1);  //TODO addExpr
+    } catch(ParseException exc){ return exc.getMessage(); }
+    return null;
   }
   
   /**Converts the given expression in a stack operable form. One variable with name "X" will be created.
@@ -1686,74 +1732,119 @@ public class CalculatorExpr
    * @see #setExpr(String, String[])
    */
   public String setExpr(String sExpr)
-  {
+  { listOperations().clear();
     this.variables = new String[]{"X"};
-    StringPartScan sp = new StringPartScan(sExpr);
-    return addExpr(sp, "!", 1);
+    StringPartScan spExpr = new StringPartScan(sExpr);
+    try{ parseAddExpr(spExpr, "!", 1);  //TODO addExpr
+    } catch(ParseException exc){ return exc.getMessage(); }
+    return null;
   }
   
 
   /**The outer expression is a add or subtract expression.
    * call recursively for any number of operands.
    * call {@link #multExpr(StringPartScan, char)} to get the argument values.
-   * @param sp
-   * @param operation The first operation.
+   * @param spExpr
+   * @param operation The first operation. On start operand it is "!" for set.
    * @return this
    */
-  private String addExpr(StringPartScan sp, String operation, int recursion)
-  { String sError = null;
-    if(recursion > 1000) throw new RuntimeException("recursion");
-    sError = multExpr(sp, operation, recursion +1);
-    if(sError == null && sp.length()>0){
-      char cc = sp.getCurrentChar();
-      if("+-".indexOf(cc)>=0){
-        sp.seek(1).scan().scanOk();
-        return addExpr(sp, ""+cc, recursion+1);
+  private void parseAddExpr(StringPartScan spExpr, String startOperation, int recursion)
+  throws ParseException
+  { if(recursion > 1000) throw new RuntimeException("recursion");
+    String op = startOperation;
+    while(op != null) {
+      parseMultExpr(spExpr, op, recursion +1);
+      if(spExpr.scanSkipSpace().length()>0){
+        char cc = spExpr.getCurrentChar();
+        if("+-".indexOf(cc)>=0){
+          spExpr.seek(1).scan().scanOk();
+          op = "" + cc;
+          //addExpr(spExpr, ""+cc, recursion+1);
+        }
+        else { op = null; } //end of addExpr, maybe on a ")"
       }
-    }
-    return null;
+      else { op = null; }
+    }//while
   }
   
   
   /**The more inner expression is a mult or divide expression.
    * call recursively for any number of operands.
    * call functions to get the argument values. 
-   * @param sp
-   * @param operation
+   * @param spExpr
+   * @param operation The first operation. On start operand it is "!" for set.
    * @return
    */
-  private String multExpr(StringPartScan sp, String operation, int recursion)
+  private String parseMultExpr(StringPartScan spExpr, String startOperation, int recursion) 
+  throws ParseException
   { if(recursion > 1000) throw new RuntimeException("recursion");
-    try{
-      if(sp.scanIdentifier().scanOk()){
-        CharSequence sIdent = sp.getLastScannedString();
-        int ix;
-        for(ix = 0; ix< variables.length; ++ix){
-          if(StringFunctions.equals(variables[ix],sIdent)){
-            listOperations.add(new Operation(operation, ix));
-            ix = Integer.MAX_VALUE-1; //break;
-          }
+    String sError = null;
+    String operation = startOperation;
+    while(operation != null) {
+      parseArgument(spExpr, operation, recursion);
+      if(spExpr.scanSkipSpace().length()>0){
+        char cc = spExpr.getCurrentChar();
+        if("*/".indexOf(cc)>=0){
+          spExpr.seek(1).scan().scanOk();
+          operation = "" + cc;
+          //addExpr(spExpr, ""+cc, recursion+1);
         }
-        if(ix != Integer.MAX_VALUE){ //variable not found
-          return("unknown variable" + sIdent);
-        }
-      } else if(sp.scanFloatNumber().scanOk()){
-        listOperations.add(new Operation(operation, sp.getLastScannedFloatNumber()));
+        else { operation = null; } //end of addExpr, maybe on a ")"
       }
-    }catch(ParseException exc){
-      return("ParseException float number"); 
-    }
-    if(sp.length()>0){
-      char cc = sp.getCurrentChar();
-      if("*/".indexOf(cc)>=0){
-        sp.seek(1).scan().scanOk();
-        return multExpr(sp, ""+cc, recursion+1);
-      }
-    }
-    return null;  //ok
+      else { operation = null; }
+    }//while
+    return sError;  //ok
   }
   
 
+  
+  
+  private void parseArgument(StringPartScan spExpr, String operation, int recursion ) throws ParseException
+  {
+    if(spExpr.scanSkipSpace().scan("(").scanOk()){
+      parseAddExpr(spExpr, "!", recursion+1);
+      if(!spExpr.scanSkipSpace().scan(")").scanOk()) throw new ParseException(") expected", (int)spExpr.getCurrentPosition());
+      listOperations.add(new Operation(operation, Operation.kStackOperand));
+    } else if(spExpr.scanSkipSpace().scanIdentifier().scanOk()){
+          CharSequence sIdent = spExpr.getLastScannedString();
+      int ix;
+      for(ix = 0; ix< variables.length; ++ix){
+        if(StringFunctions.equals(variables[ix],sIdent)){
+          listOperations.add(new Operation(operation, ix));
+          ix = Integer.MAX_VALUE-1; //break;
+        }
+      }
+      if(ix != Integer.MAX_VALUE){ //variable not found
+        throw new ParseException("Variable not found: " + sIdent, (int)spExpr.getCurrentPosition());
+      }
+    } else if(spExpr.scanSkipSpace().scanInteger().scanOk()) {
+      Value value = new Value();
+      long longvalue = spExpr.getLastScannedIntegerNumber();
+      if(spExpr.scanFractionalNumber(longvalue).scanOk()) {
+        double dval = spExpr.getLastScannedFloatNumber();
+        if(spExpr.scan("F").scanOk()){
+          value.floatVal = (float)dval;
+          value.type = 'F';
+        } else {
+          value.doubleVal = dval;
+          value.type = 'D';
+        }
+      } else {
+        //no float, check range of integer
+        if(longvalue < 0x80000000L && longvalue >= -0x80000000L) {
+          value.intVal = (int)longvalue; value.type = 'I';
+        } else {
+          value.longVal = longvalue; value.type = 'L';
+        }
+      }
+      listOperations.add(new Operation(operation, value));
+    }
+  }
+  
+  
+  
+  
+  
   
   /**Adds the given operation to the list of operations. The list of operations is executed one after another.
    * All calculation rules such as parenthesis, prior of multiplication, functions arguments etc.
@@ -1844,7 +1935,7 @@ public class CalculatorExpr
    * @param input The only one input value (used for all variables, simple version).
    * @return The result.
    */
-  public float calc(float input)
+  public float Oldcalc(float input)
   { float val = 0;
     for(Operation oper: listOperations){
       final float val2;
@@ -1862,6 +1953,12 @@ public class CalculatorExpr
   }
   
 
+  public float calc(float input)
+  { try{ calcDataAccess(null, input);
+    } catch(Exception exc){ throw new RuntimeException(exc); }
+    return this.accu.floatValue();
+  }
+  
   
   /**Calculates the expression with only one integer input.
    * @param input The only one input value (used for all variables, simple version).
@@ -1939,7 +2036,7 @@ public class CalculatorExpr
    *   if the access via reflection is done.
    */
   public Value calcDataAccess(Map<String, DataAccess.Variable<Object>> javaVariables, Object... args) throws Exception{
-    accu = new Value(); //empty
+    accu = new Value(); //empty, use a new instance because the last one may be used as reference anywhere.
     Value val2jar = new Value();  //Instance to hold values for the right side operand.
     Value val2; //Reference to the right side operand
     ExpressionType type = startExpr;
@@ -1957,48 +2054,30 @@ public class CalculatorExpr
         //don't get arguments, no side effect (like in Java, C etc.
       } else */ {
         //Get the operand either from args or from Operation
-        Object oval2;
         if(oper.ixVariable >=0){ 
-          oval2 = args[oper.ixVariable];   //may throw ArrayOutOfBoundsException if less arguments
+          Object oval2 = args[oper.ixVariable];   //may throw ArrayOutOfBoundsException if less arguments
+          convertObj(val2jar, oval2);
+          val2 = val2jar;
         }  //an input value
         else if(oper.ixVariable == Operation.kStackOperand){
-          oval2 = accu;
+          val2 = accu;
           accu = stack.pop();              //may throw Exception if the stack is emtpy.
           //oval2 = null;
         }
         else if(oper.datapath !=null){
           try{
-            oval2 = oper.datapath.access(javaVariables, true, false);
+            Object oval2 = oper.datapath.access(javaVariables, true, false);
+            convertObj(val2jar, oval2);
+            val2 = val2jar;
           } catch(Exception exc){
-            oval2 = val2jar;
             //get data does not found data or returns null:
             val2jar.type = 'e'; val2jar.oVal = exc;  //throw the exception if the oVal is need not for boolean or instanceof
+            val2 = val2jar;
           }
         }
         else {
-          oval2 = oper.value;              //immediate value.
+          val2 = oper.value;
           //oval2 = null;
-        }
-        //
-        if(oval2 == null){
-          val2 = val2jar;
-          //get data does not found data or returns null:
-          val2.type = 'o'; val2.oVal = null;
-        } else if(oval2 instanceof Value){
-          val2 = (Value)oval2;
-        } else {
-          val2 = val2jar;  //use the class member for rightside operand.
-          //Convert a Object-wrapped value into its real representation.
-          if(oval2 instanceof Long)             { val2.longVal =   ((Long)oval2).longValue(); val2.type = 'J'; }
-          else if(oval2 instanceof Integer)     { val2.intVal = ((Integer)oval2).intValue(); val2.type = 'I'; }
-          else if(oval2 instanceof Short)       { val2.intVal =   ((Short)oval2).intValue(); val2.type = 'I'; }
-          else if(oval2 instanceof Byte)        { val2.intVal =    ((Byte)oval2).intValue(); val2.type = 'I'; }
-          else if(oval2 instanceof Boolean)     { val2.boolVal = ((Boolean)oval2).booleanValue(); val2.type = 'Z'; }
-          else if(oval2 instanceof Double)      { val2.doubleVal = ((Double)oval2).doubleValue(); val2.type = 'D'; }
-          else if(oval2 instanceof Float)       { val2.floatVal = ((Float)oval2).floatValue(); val2.type = 'F'; }
-          else if(oval2 instanceof StringSeq)   { val2.stringVal = (StringSeq)oval2; val2.type = 't'; }
-          else                                   { val2.oVal = oval2; val2.type = 'o'; }
-          val2.oVal = oval2;;
         }
         if(oper.operator == Operators.setOperation && accu.type != '?'){
           stack.push(accu);    //the accu is filled with a value, therefore push it and replace the accu with the new value. The accu is the top of stack substantially.
@@ -2012,20 +2091,49 @@ public class CalculatorExpr
         //
         //executes the operation:
         if(oper.unaryOperator !=null){
+          if(val2 != val2jar) {
+            //a constant value is referred, don't change it:
+            val2jar.copy(val2);
+            val2 = val2jar;
+          }
           type = oper.unaryOperator.operate(type, val2, null);   //change the right value
         }
         else if(oper.unaryOperators !=null){
+          if(val2 != val2jar) {
+            //a constant value is referred, don't change it:
+            val2jar.copy(val2);
+            val2 = val2jar;
+          }
           for(Operator unary: oper.unaryOperators){
             type = unary.operate(type, val2, null);   //change the right value
           }
         }
+        //!!!!!!!!!!
         type = oper.operator.operate(type, accu, val2);  //operate, may change the type if the operator forces it.
+        //
         if(type == finishBooleanExpr){
           break;  //break the operation calculation, the result is given for AND or OR expression.
         }
       }
     }
     return accu;
+  }
+  
+  
+  
+  private void convertObj(Value val2jar, Object oval2)
+  {
+    //Convert a Object-wrapped value into its real representation.
+    if(oval2 instanceof Long)             { val2jar.longVal =   ((Long)oval2).longValue();     val2jar.type = 'J'; }
+    else if(oval2 instanceof Integer)     { val2jar.intVal = ((Integer)oval2).intValue();      val2jar.type = 'I'; }
+    else if(oval2 instanceof Short)       { val2jar.intVal =   ((Short)oval2).intValue();      val2jar.type = 'I'; }
+    else if(oval2 instanceof Byte)        { val2jar.intVal =    ((Byte)oval2).intValue();      val2jar.type = 'I'; }
+    else if(oval2 instanceof Boolean)     { val2jar.boolVal = ((Boolean)oval2).booleanValue(); val2jar.type = 'Z'; }
+    else if(oval2 instanceof Double)      { val2jar.doubleVal = ((Double)oval2).doubleValue(); val2jar.type = 'D'; }
+    else if(oval2 instanceof Float)       { val2jar.floatVal = ((Float)oval2).floatValue();    val2jar.type = 'F'; }
+    else if(oval2 instanceof StringSeq)   { val2jar.stringVal = (StringSeq)oval2;              val2jar.type = 't'; }
+    else                                  { val2jar.oVal = oval2;                              val2jar.type = 'o'; }
+    
   }
   
   
