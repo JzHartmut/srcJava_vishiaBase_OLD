@@ -2085,7 +2085,7 @@ public class CalculatorExpr
           type = startExpr;
         }
         //Convert the value adequate the given type of expression:
-        if(!oper.operator.isUnary()){  //if unary, don't change the type
+        if(!oper.operator.isUnary() && val2 !=null){  //if unary, don't change the type
           type = type.checkArgument(accu, val2);    //may change the type.
         }
         //

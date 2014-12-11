@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author Hartmut Schorrig
  *
  */
-public class OrderListRun
+public class OrderListExecuter
 {
   
   
@@ -98,7 +98,7 @@ public class OrderListRun
    */
   private final AtomicBoolean extEventSet = new AtomicBoolean(false);
 
-  public OrderListRun(ConnectionExecThread execThread){
+  public OrderListExecuter(ConnectionExecThread execThread){
     this.execThread = execThread;
     threadTimer = new Thread(runTimer, "graphictime");
   }
@@ -149,9 +149,9 @@ public class OrderListRun
 
 
   
-  /**
-   * @param nrofOrders
-   * @param millisecAbs
+  /**Executes the orders called from any thread which also does other thinks.
+   * @param nrofOrders -1 to execute all stored orders, >0 to limit the number of orders to execute.
+   * @param millisecAbs The current time
    * @return true then the execThread should not wait
    */
   public boolean step(int nrofOrders, long millisecAbs){

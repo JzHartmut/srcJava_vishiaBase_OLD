@@ -18,6 +18,39 @@ import org.vishia.util.StringFunctions;
 public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
 {
   
+  /**Version, history and license.
+   * <ul>
+   * <li>2014-12-12 Hartmut new: {@link CompareCtrl}: Comparison with suppressed parts especially comments. 
+   * <li>2013-09-19 created. Comparison in callback routine of walkThroughFiles instead in the graphic thread.
+   * </ul>
+   * 
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL is not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   * 
+   */
+  //@SuppressWarnings("hiding")
+  static final public String sVersion = "2014-12-14";
   
     class CompareCtrl {
       
@@ -25,6 +58,12 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
        * For example it contains "//" to ignore comments in source files.
        */
       final List<String> ignoreToEol = new LinkedList<String>();
+      
+      /**Some Strings which are start Strings of a whole line to ignore this line both in first and second file independent.
+       * If a line starts with this String, maybe after spaces, then ignore the whole line.
+       * For example it contains "//" to ignore comments in source files.
+       */
+      final List<String> ignoreCommentline = new LinkedList<String>();
       
       /**Entries with an array of 2 Strings, start and end of non-compare regions. */
       final List<String[]> ignoreFromTo = new LinkedList<String[]>();
@@ -62,8 +101,10 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
       //} catch(Exception exc){
       //  dir1 = null; //does not exists.
       //}
-      cmpCtrl.ignoreToEol.add("Compilation time:");
-      cmpCtrl.ignoreFromTo.add(new String[]{".epcannot:", ".epcannot.end:"});
+        cmpCtrl.ignoreToEol.add("Compilation time:");
+        cmpCtrl.ignoreToEol.add("Compiler options:");
+        cmpCtrl.ignoreCommentline.add("//");
+        cmpCtrl.ignoreFromTo.add(new String[]{".epcannot:", ".epcannot.end:"});
     }
     
     @Override public void start()
@@ -210,9 +251,10 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
       r1 = new BufferedReader(new FileReader(file1));
       r2 = new BufferedReader(new FileReader(file2));
       String s1, s2;
-      while( bEqu && (s1 = r1.readLine()) !=null){
-        s2 = r2.readLine();
+      while( bEqu && (s1 = readIgnoreComment(r1)) !=null){
+        s2 = readIgnoreComment(r2);
         //check if an eol ignore String is contained:
+
         for(String sEol: cmpCtrl.ignoreToEol) {
           int z1 = s1.indexOf(sEol);
           if( z1 >=0){
@@ -232,7 +274,7 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
             s1 = s1.substring(0, z1);
             //read the file lines till end was found:
             String s3;
-            while( (s3 = r1.readLine()) !=null){
+            while( (s3 = readIgnoreComment(r1)) !=null){
               int z3 = s3.indexOf(fromTo[1]);
               if(z3 >=0){
                 s1 += s3.substring(z3 + fromTo[1].length());  //rest after to-string, maybe length=0
@@ -244,7 +286,7 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
               s2 = s2.substring(0, z2);
               //read the file lines till end was found:
               String s4;
-              while( (s4 = r2.readLine()) !=null){
+              while( (s4 = readIgnoreComment(r2)) !=null){
                 int z4 = s4.indexOf(fromTo[1]);
                 if(z4 >=0){
                   s2 += s4.substring(z4 + fromTo[1].length());  //rest after to-string, maybe length=0
@@ -271,6 +313,31 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
     }  
     
 
+    
+    private String readIgnoreComment(BufferedReader reader) 
+    throws IOException
+    { boolean cont;
+      String line;
+      do {
+        cont = false;
+        line = reader.readLine();
+        if(line != null){
+          for(String sEol: cmpCtrl.ignoreCommentline) {
+            if(line.startsWith(sEol)){
+              //ignore it, read next.
+              line = reader.readLine();
+              cont = true;  //test this line.
+              break; //break the for
+            }
+          }
+        }
+      } while(cont);
+      return line;
+    }
+    
+    
+    
+    
     
     
     @Override public void finished()

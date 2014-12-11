@@ -1,7 +1,7 @@
 //D:/vishia/Java/srcJava_vishiaBase/org/vishia/util/test/TestCalculatorExpr.java
-//JZcmd
+//==JZcmd==
 //JZcmd Obj a = java org.vishia.util.test.TestCalculatorExpr.testSimpleExpression();
-//endJZcmd
+//==endJZcmd==
 package org.vishia.util.test;
 
 import org.vishia.util.Assert;

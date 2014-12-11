@@ -167,7 +167,16 @@ public class StringPartScan extends StringPart
   
   /**Test the result of scanning and set the scan Pos Ok, if current scanning was ok. If current scanning
    * was not ok, this method set the current scanning pos back to the position of the last call of scanOk()
-   * or scanNext() or setCurrentOk().
+   * or scanStart().
+   * This method should only used in the user space to scan options. 
+   * If it is not okay, the scan starts on the last position where it was okay, for the next option test:
+   * <pre>
+   * scanStart(); //call scanOk() independent of the last result. Set the scan start.
+   * if(scanIdentifier().scanOk()) { //do something with the indentifier
+   * } else if(scanFloat().scanOk()) { //a float is detected
+   * } else if ....
+   * </pre>
+   * It is not yet possible for nested options.  
    * @return true if the current scanning was ok, false if it was not ok.
    */
 
@@ -389,12 +398,16 @@ public class StringPartScan extends StringPart
         seek(1);
       }
       long nInteger = scanDigits(false, Integer.MAX_VALUE);
+      //if(scanOk()) {  //if only an integer is scanned, it is a float too! set scanOk().
       if(bCurrentOk) {
         if(bNegativValue)
         { nInteger = - nInteger; 
         }
-        if(!scanFractionalNumber(nInteger).scanOk()){
-          //only integer number found, store as floatnumber
+        scanFractionalNumber(nInteger);
+        //if(!scanFractionalNumber(nInteger).scanOk()){
+        if(!bCurrentOk) {
+          //only integer number found, store as float number. It is ok.
+          bCurrentOk = true;
           if(idxLastFloatNumber < nLastFloatNumber.length -2){
             nLastFloatNumber[++idxLastFloatNumber] = (double)nInteger;
           } else throw new ParseException("to much scanned floats",0);

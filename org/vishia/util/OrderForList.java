@@ -1,6 +1,6 @@
 package org.vishia.util;
 
-/**This is the super class for orders, which should be added to a {@link OrderListRun} instance.
+/**This is the super class for orders, which should be added to a {@link OrderListExecuter} instance.
  * @author Hartmut Schorrig
  *
  */
@@ -112,7 +112,7 @@ public abstract class OrderForList
    * @param dst The graphic thread.
    * @param delay time in milliseconds for delayed execution or 0.
    */
-  synchronized public void addToList(OrderListRun dst, int delay){
+  synchronized public void addToList(OrderListExecuter dst, int delay){
     long timeExecution1 = System.currentTimeMillis() + delay;
     if(bAdded){
       long timediff = timeExecution1 - timeExecution();
@@ -140,7 +140,7 @@ public abstract class OrderForList
    * graphic thread.
    * @param graphicThread it is the singleton instance refered with {@link GralMng#gralDevice}.
    */
-  synchronized public void removeFromList(OrderListRun dst){
+  synchronized public void removeFromList(OrderListExecuter dst){
     bAdded = false;
     dst.removeDispatchListener(this);
   }

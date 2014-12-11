@@ -85,6 +85,8 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-12-12 Hartmut new: If a subroutine's argument has the type 'F': {@link JZcmdFilepath}, then the argument is converted into this type if necessary.
+   *   TODO: do so for all non-Obj argument types. It is probably to work with a simple String as argument if a Filepath is expected. Therefore new {@link ExecuteLevel#convert2FilePath(Object)}. 
    * <li>2014-12-06 Hartmut new: don't need a main routine, writes only a warning on System.out. 
    * <li>2014-11-28 Hartmut chg: {@link ExecuteLevel#bForHasNext} instead calling argument for all execute...(...), it was forgotten in one level.
    * <li>2014-11-21 Hartmut chg: Character ::: can be used as indentation characters
@@ -198,7 +200,7 @@ public class JZcmdExecuter {
    * <li> You can redistribute copies of this source to everybody.
    * <li> Every user of this source, also the user of redistribute copies
    *    with or without payment, must accept this license for further using.
-   * <li> But the LPGL ist not appropriate for a whole software product,
+   * <li> But the LPGL is not appropriate for a whole software product,
    *    if this source is only a part of them. It means, the user
    *    must publish this part of source,
    *    but don't need to publish the whole source of the own product.
@@ -215,7 +217,7 @@ public class JZcmdExecuter {
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String sVersion = "2014-04-30";
+  static final public String sVersion = "2014-12-14";
 
   /**Variable for any exception while accessing any java resources. It is the $error variable of the script. */
   protected String accessError = null;
@@ -1109,7 +1111,9 @@ public class JZcmdExecuter {
     throws Exception
     {
       JZcmdScript.StatementList subContent = statement.statementlist();  //The same sub content is used for all container elements.
-      ExecuteLevel forExecuter = this; //new ExecuteLevel(threadData, this, localVariables);
+      //Note: don't use an extra ExecuteLevel to save calculation time. Especially the forVariable and some inner defined variables
+      //      are existing outside of the for loop body namely, but that property is defined in the JZcmd language description.
+      ExecuteLevel forExecuter = this; //do not do so: new ExecuteLevel(threadData, this, localVariables);
       //creates the for-variable in the executer level.
       DataAccess.Variable<Object> forVariable = DataAccess.createOrReplaceVariable(forExecuter.localVariables, statement.forVariable, 'O', null, false);
       //a new level for the for... statements. It contains the foreachData and maybe some more variables.
@@ -1530,6 +1534,9 @@ public class JZcmdExecuter {
             } else {
               char cType = checkArg.elementType();
               //creates the argument variable with given actual value and the requested type in the sub level.
+              switch(cType){
+                case 'F': ref = convert2FilePath(ref); 
+              }
               DataAccess.createOrReplaceVariable(sublevel.localVariables, actualArg.identArgJbat, cType, ref, false);
             }
           }
@@ -1585,12 +1592,7 @@ public class JZcmdExecuter {
     throws IllegalArgumentException, Exception {
       ZmakeTarget target = new ZmakeTarget(this, statement.name);
       Object oOutput = evalObject(statement.jzoutput, false);
-      if(oOutput instanceof JZcmdFilepath){
-        target.output = (JZcmdFilepath)oOutput;
-      } else {
-        String sOutput = oOutput.toString();
-        target.output = new JZcmdFilepath(this, new FilePath(sOutput));
-      }
+      target.output = convert2FilePath(oOutput); 
       //target.output = new JZcmdFilepath(this, statement.output);  //prepare to ready-to-use form.
       for(JZcmdScript.AccessFilesetname input: statement.input){
         JZcmdAccessFileset zinput = new JZcmdAccessFileset(input, input.filesetVariableName, this);
@@ -2491,6 +2493,21 @@ public class JZcmdExecuter {
     
 
     
+    
+    /**Check whether osrc is a filepath, or create one.
+     * @param osrc
+     * @return
+     */
+    JZcmdFilepath convert2FilePath(Object osrc)
+    { JZcmdFilepath ret;
+      if(osrc instanceof JZcmdFilepath){
+        ret = (JZcmdFilepath)osrc;
+      } else {
+        String src = osrc.toString();
+        ret = new JZcmdFilepath(this, new FilePath(src));
+      }
+      return ret;
+    }
     
     
     protected short exec_DefMapVariable(JZcmdScript.DefVariable statement,  Map<String, DataAccess.Variable<Object>> newVariables) 

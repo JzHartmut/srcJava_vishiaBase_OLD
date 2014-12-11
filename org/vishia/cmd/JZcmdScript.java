@@ -261,12 +261,14 @@ public class JZcmdScript extends CompiledScript
      * <tr><td>S</td><td>String variable, {@link #textArg} contains the name of the variable</td></tr>
      * <tr><td>L</td><td>Container variable, a list</td></tr>
      * <tr><td>W</td><td>Opened file, a Writer in Java</td></tr>
+     * <tr><td>F</td><td>FilePath</td></tr>
+     * <tr><td>G</td><td>FileSet</td></tr>
      * <tr><td>=</td><td>assignment of an expression to a variable.</td></tr>
      * <tr><td>B</td><td>statement block</td></tr>
      * <tr><td>C</td><td><:for:path> {@link #statementlist} contains build.script for any list element,</td></tr>
      * <tr><td>E</td><td><:else> {@link #statementlist} contains build.script for any list element,</td></tr>
-     * <tr><td>F</td><td><:if:condition:path> {@link #statementlist} contains build.script for any list element,</td></tr>
-     * <tr><td>G</td><td><:elsif:condition:path> {@link #statementlist} contains build.script for any list element,</td></tr>
+     * <tr><td>?? F</td><td><:if:condition:path> {@link #statementlist} contains build.script for any list element,</td></tr>
+     * <tr><td>?? G</td><td><:elsif:condition:path> {@link #statementlist} contains build.script for any list element,</td></tr>
      * <tr><td>w</td><td>while(cond) {@link #statementlist} contains build.script for any list element,</td></tr>
      * <tr><td>b</td><td>break</td></tr>
      * <tr><td>?</td><td><:if:...?gt> compare-operation in if</td></tr>
