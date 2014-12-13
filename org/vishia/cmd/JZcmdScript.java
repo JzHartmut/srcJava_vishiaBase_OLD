@@ -40,7 +40,7 @@ import org.vishia.xmlSimple.XmlNode;
 public class JZcmdScript extends CompiledScript 
 {
   /**Version, history and license.
-   * <ul>
+   * <ul>2014-12-14 Hartmut new: supports <+out:n> to write a newline on start of that output.
    * <li>2014-11-16 Hartmut chg: enhancement of capability of set text column: <:@ nr> nr can be an expression. Not only a constant.   
    * <li>2014-11-15 Hartmut new: instanceof as compare operator.   
    * <li>2014-10-19 Hartmut chg: {@link JZcmditem#add_dataStruct(StatementList)} with 'M' instead 'X' adequate to change in JZcmdExecuter.
@@ -417,8 +417,11 @@ public class JZcmdScript extends CompiledScript
 
     /**From Zbnf, a part <:>...<.> */
     public StatementList new_textExpr() { 
-      checkEmpty();
-      return this.statementlist = new StatementList(this); 
+      //checkEmpty();  //don't check empty, on <+:n> there is stored a newline
+      if(this.statementlist == null){
+        this.statementlist = new StatementList(this); 
+      }
+      return this.statementlist;
     }
     
     public void add_textExpr(StatementList val){}

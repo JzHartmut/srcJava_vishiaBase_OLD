@@ -41,6 +41,8 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-12-06 Hartmut bugfix: If works with an "Num" Object in JZcmd resp if it gets an Object which is a {@link Value}
+   *   the Object is used correct now. 
    * <li>2014-12-06 Hartmut chg: {@link #calc(float)} now uses the {@link #calcDataAccess(Map, Object...)} which is complete.
    *   Some enhancements and tunings. TODO same for {@link #calc(double)} etc.
    * <li>2014-12-06 Hartmut chg: correct check of object values whether it is a numeric type.
@@ -110,7 +112,7 @@ public class CalculatorExpr
    * 
    */
   //@SuppressWarnings("hiding")
-  public final static int version = 0x20140311;
+  public final static int version = 0x20141214;
   
    
    
@@ -668,7 +670,7 @@ public class CalculatorExpr
         case 'D': accu.doubleVal = arg.doubleVal; break;
         case 'Z': accu.boolVal = arg.boolVal; break;
         case 't': accu.stringVal = arg.stringVal; break;
-        case 'o': accu.oVal = arg.oVal; break;
+        case 'o': CalculatorExpr.convertObj(accu, arg.oVal); break; //maybe a numeric type Object.
         case 'e': accu.oVal = arg.oVal; break;
         default: throw new IllegalArgumentException("unknown type" + type.toString());
       }
@@ -2121,10 +2123,11 @@ public class CalculatorExpr
   
   
   
-  private void convertObj(Value val2jar, Object oval2)
+  private static void convertObj(Value val2jar, Object oval2)
   {
     //Convert a Object-wrapped value into its real representation.
-    if(oval2 instanceof Long)             { val2jar.longVal =   ((Long)oval2).longValue();     val2jar.type = 'J'; }
+    if(oval2 instanceof Value)            { val2jar.copy((Value)oval2); }
+    else if(oval2 instanceof Long)        { val2jar.longVal =   ((Long)oval2).longValue();     val2jar.type = 'J'; }
     else if(oval2 instanceof Integer)     { val2jar.intVal = ((Integer)oval2).intValue();      val2jar.type = 'I'; }
     else if(oval2 instanceof Short)       { val2jar.intVal =   ((Short)oval2).intValue();      val2jar.type = 'I'; }
     else if(oval2 instanceof Byte)        { val2jar.intVal =    ((Byte)oval2).intValue();      val2jar.type = 'I'; }

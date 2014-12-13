@@ -51,6 +51,8 @@ public class StringPartScan extends StringPart
 {
   /**Version, history and license.
    * <ul>
+   * <li>2014-12-12 Hartmut chg: Comment: {@link #scanOk()} cannot used nested! It should only used on user level. 
+   *   Elsewhere the scan start position is erratic changed. Don't use it in {@link #scanFloatNumber()}. 
    * <li>2014-12-06 Hartmut new: {@link #scanFractionalNumber(long)} enables scanning first an integer, then check whether
    *   it is a possibility to detect whether an intgeger or a float value is given.
    * <li>2014-12-06 Hartmut new: {@link #scanSkipSpace()} and {@link #scanSkipComment()} calls {@link #seekNoWhitespace()()} etc

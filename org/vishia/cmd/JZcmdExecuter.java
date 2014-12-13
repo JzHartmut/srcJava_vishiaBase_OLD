@@ -85,6 +85,7 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-12-14 Hartmut new: {@link ExecuteLevel#jzClass} stores the current class statement. Not call of own class methods without the class name is possible. TODO instances  
    * <li>2014-12-12 Hartmut new: If a subroutine's argument has the type 'F': {@link JZcmdFilepath}, then the argument is converted into this type if necessary.
    *   TODO: do so for all non-Obj argument types. It is probably to work with a simple String as argument if a Filepath is expected. Therefore new {@link ExecuteLevel#convert2FilePath(Object)}. 
    * <li>2014-12-06 Hartmut new: don't need a main routine, writes only a warning on System.out. 
@@ -502,16 +503,17 @@ public class JZcmdExecuter {
     short ret;
     //try
     {
+      try{
+        setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
+      } catch(IllegalAccessException exc){ throw new ScriptException("JZcmd.execute - IllegalAccessException; " + exc.getMessage()); }
       if(!bScriptVariableGenerated){
         genScriptVariables(jzcmdScript, accessPrivate, null, sCurrdir);
       }
-      try{
-      setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
-      } catch(IllegalAccessException exc){ throw new ScriptException("JZcmd.execute - IllegalAccessException; " + exc.getMessage()); }
-      ExecuteLevel execFile = new ExecuteLevel(scriptThread, scriptLevel, null);
+      //needs all scriptVariable:
+      ExecuteLevel execFile = new ExecuteLevel(jzcmdScript.scriptClass, scriptThread, scriptLevel, null);
       if(jzcmdScript.checkJZcmdXmlFile !=null) {
         CharSequence sFilecheckXml;
-        try { sFilecheckXml = execFile.evalString(jzcmdScript.checkJZcmdXmlFile);
+        try { sFilecheckXml = scriptLevel.evalString(jzcmdScript.checkJZcmdXmlFile);
         } catch (Exception exc) { throw new ScriptException("JZcmd.execute - String eval error on checkJZcmd; "
             , jzcmdScript.checkJZcmdXmlFile.srcFile, jzcmdScript.checkJZcmdXmlFile.srcLine, jzcmdScript.checkJZcmdXmlFile.srcColumn ); 
         }
@@ -594,7 +596,7 @@ public class JZcmdExecuter {
       , boolean accessPrivate, Appendable out, File currdir) 
   throws Throwable
   {
-    ExecuteLevel level = new ExecuteLevel(scriptThread, scriptLevel, null);
+    ExecuteLevel level = new ExecuteLevel(jzcmdScript.scriptClass, scriptThread, scriptLevel, null);
     //The args should be added to the localVariables of the subroutines level:
     level.localVariables.putAll(args);
     if(currdir !=null){
@@ -665,6 +667,8 @@ public class JZcmdExecuter {
     final JZcmdThread threadData;
     
     
+    final JZcmdScript.JZcmdClass jzClass;
+    
     /**The current directory of this level. It is an absolute normalized but not Unix-canonical path. 
      * Note that a canonical path resolved symbolic links. */
     File currdir;
@@ -704,9 +708,10 @@ public class JZcmdExecuter {
      *   local variables of its calling routine! This argument is only set if nested statement blocks
      *   are to execute. 
      */
-    protected ExecuteLevel(JZcmdThread threadData, ExecuteLevel parent
+    protected ExecuteLevel(JZcmdScript.JZcmdClass jzClass, JZcmdThread threadData, ExecuteLevel parent
         , Map<String, DataAccess.Variable<Object>> parentVariables)
     { this.parent = parent;
+      this.jzClass = jzClass;
       this.threadData = threadData;
       if(parent !=null) {
         this.currdir = parent.currdir;
@@ -741,7 +746,7 @@ public class JZcmdExecuter {
     /**Constructs data for the script execution level.
      */
     protected ExecuteLevel(JZcmdThread threadData)
-    { this(threadData, null, null);
+    { this(null, threadData, null, null);
     }
 
     public JZcmdExecuter executer(){ return JZcmdExecuter.this; }
@@ -779,12 +784,12 @@ public class JZcmdExecuter {
      * @return an error hint.
      * @throws IOException
      */
-    public short executeNewlevel(JZcmdScript.StatementList contentScript, final StringFormatter out, int indentOut
+    public short executeNewlevel(JZcmdScript.JZcmdClass jzClass, JZcmdScript.StatementList contentScript, final StringFormatter out, int indentOut
         , int nDebug) 
     throws Exception 
     { final ExecuteLevel level;
       if(contentScript.bContainsVariableDef){
-        level = new ExecuteLevel(threadData, this, localVariables);
+        level = new ExecuteLevel(jzClass, threadData, this, localVariables);
       } else {
         level = this;
       }
@@ -980,12 +985,13 @@ public class JZcmdExecuter {
           }
           if(found){ //onerror found:
             assert(onerrorStatement !=null);  //because it is found in while above.
-            //a kBreak, kReturn etc. is used in the calling level.
-            threadData.error.setValue(null);  //clear for next usage.
-            threadData.exception = null;
-            threadData.excStatement = null;
-            //maybe throw exception too, Exception in onerror{...}
             ret = execute(onerrorStatement.statementlist, out, indentOut, localVariables, -1);  //executes the onerror block
+            //maybe throw exception too, Exception in onerror{...}
+            if(ret != kException) {
+              threadData.error.setValue(null);  //clear for next usage.
+              threadData.exception = null;
+              threadData.excStatement = null;
+            }
           } else {
             ret = kException;  //terminates this level.
             assert(threadData.exception !=null);
@@ -1425,13 +1431,21 @@ public class JZcmdExecuter {
         nameSubtext = statement.name;
       }*/
       nameSubtext = evalString(callStatement.call_Name); 
-      JZcmdScript.Subroutine subroutine = jzcmdScript.getSubroutine(nameSubtext);  //the subtext script to call
+      JZcmdScript.Subroutine subroutine = jzClass.subroutines.get(nameSubtext);
+      if(subroutine == null) { //not found in this class:    
+        subroutine = jzcmdScript.getSubroutine(nameSubtext);  //the subtext script to call
+      }
       if(subroutine == null){
         throw new NoSuchElementException("JbatExecuter - subroutine not found; " + nameSubtext);
       } else {
+        //TODO use execSubroutine, same code!
         final ExecuteLevel sublevel;
-        if(subroutine.useLocals) { sublevel = this; }
-        else { sublevel = new ExecuteLevel(threadData, this, subroutine.useLocals ? localVariables : null); }
+        JZcmdScript.JZcmdClass subClass = (JZcmdScript.JZcmdClass)subroutine.parentList;
+        if(subroutine.useLocals) {  //TODO check whether the subClass == this.jzclass 
+          sublevel = this; 
+        } else { 
+          sublevel = new ExecuteLevel(subClass, threadData, this, subroutine.useLocals ? localVariables : null); 
+        }
         success = execSubroutine(subroutine, sublevel, callStatement.actualArgs, additionalArgs, out, indentOut, nDebug);
         if(success == kSuccess){
           if(callStatement.variable !=null || callStatement.assignObjs !=null){
@@ -1483,8 +1497,12 @@ public class JZcmdExecuter {
     )  
     {
       final ExecuteLevel sublevel;
-      if(subroutine.useLocals) { sublevel = this; }
-      else { sublevel = new ExecuteLevel(threadData, this, subroutine.useLocals ? localVariables : null); }
+      JZcmdScript.JZcmdClass subClass = (JZcmdScript.JZcmdClass)subroutine.parentList;
+      if(subroutine.useLocals) {  //TODO check whether the subClass == this.jzclass 
+        sublevel = this; 
+      } else { 
+        sublevel = new ExecuteLevel(subClass, threadData, this, subroutine.useLocals ? localVariables : null); 
+      }
       final List<DataAccess.Variable<Object>> arglist;
       if(args !=null){
         arglist = new LinkedList<DataAccess.Variable<Object>>();
@@ -1635,7 +1653,7 @@ public class JZcmdExecuter {
         thread = new JZcmdThread();  //without assignment to a variable.
         name = "JZcmd";
       }
-      ExecuteLevel threadLevel = new ExecuteLevel(thread, this, localVariables);
+      ExecuteLevel threadLevel = new ExecuteLevel(jzClass, thread, this, localVariables);
       synchronized(threads){
         threads.add(thread);
       }
@@ -1662,8 +1680,8 @@ public class JZcmdExecuter {
     throws Exception
     {
       ExecuteLevel genContent;
-      if(script.statementlist.bContainsVariableDef){
-        genContent = new ExecuteLevel(threadData, this, localVariables);
+      if(false && script.statementlist.bContainsVariableDef){
+        genContent = new ExecuteLevel(jzClass, threadData, this, localVariables);
       } else {
         genContent = this;  //don't use an own instance, save memory and calculation time.
       }
@@ -2227,7 +2245,7 @@ public class JZcmdExecuter {
       } else if(arg.statementlist !=null){
         StringFormatter u = new StringFormatter();
         //StringPartAppend u = new StringPartAppend();
-        short ret = executeNewlevel(arg.statementlist, u, 0, -1);
+        short ret = executeNewlevel(jzClass, arg.statementlist, u, 0, -1);
         if(ret == kException){ return JZcmdExecuter.retException; }
         else { return u.getBuffer(); }
       } else if(arg.expression !=null){
@@ -2374,7 +2392,7 @@ public class JZcmdExecuter {
       } else if(arg.statementlist !=null){
         if(arg.elementType == 'M') {  
           //a dataStruct
-          final ExecuteLevel level = new ExecuteLevel(threadData, this, localVariables);
+          final ExecuteLevel level = new ExecuteLevel(jzClass, threadData, this, localVariables);
           IndexMultiTable<String, DataAccess.Variable<Object>> newVariables = 
             new IndexMultiTable<String, DataAccess.Variable<Object>>(IndexMultiTable.providerString); 
           //fill the dataStruct with its values:
@@ -2384,7 +2402,7 @@ public class JZcmdExecuter {
           //A statementlist as object can be only a text expression.
           //its value is returned as String.
           StringFormatter u = new StringFormatter();
-          ret = executeNewlevel(arg.statementlist, u, arg.statementlist.indentText, -1);
+          ret = executeNewlevel(jzClass, arg.statementlist, u, arg.statementlist.indentText, -1);
           obj = ret == kException ? JZcmdExecuter.retException:  u.toString();
         }
       } else if(arg.expression !=null){
