@@ -27,7 +27,7 @@ import org.vishia.util.Debugutil;
  * A simple state can be instantiated with an anonymous class inside its enclosing state. 
  * It has not more necessary additional elements which should access from outside:
  * <pre>
- * StateSimpleBase<StateComposite> stateA = new StateSimpleBase(this, "stateA", true){
+ * StateSimple stateA = new StateSimple(this, "stateA", true){
  *   (add)Override protected int trans(Event<?, ?> evP){
  *     //...transitions
  *   }

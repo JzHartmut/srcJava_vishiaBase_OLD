@@ -784,7 +784,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
       CurrDirChildren(FileRemote dir, CurrDirChildren parent){
         this.dir = dir; this.parent = parent;
         if(refresh){
-          children = new TreeMap<String,FileRemote>();
+          children = FileRemote.createChildrenList(); //new TreeMap<String,FileRemote>();
         }
       }
     }

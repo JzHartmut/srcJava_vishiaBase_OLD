@@ -4,6 +4,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
+import org.vishia.util.Debugutil;
 import org.vishia.util.SelectMask;
 
 /**Class can be associated with a {@link FileRemote} to store comparison or mark information.
@@ -123,7 +124,9 @@ public class FileMark extends SelectMask
   
   
   @Override public int setNonMarked(int mask, Object data)
-  { int selectOld = super.setNonMarked(mask, null);
+  { if(itsFile.getName().equals("ReleaseNotes.topic"))
+      Debugutil.stop();
+    int selectOld = super.setNonMarked(mask, null);
     if(itsFile.isDirectory()){
       
     }
@@ -147,7 +150,10 @@ public class FileMark extends SelectMask
   }
 
   @Override public int setMarked(int mask, Object data)
-  { int selectOld = super.setMarked(mask, null);
+  { if(itsFile.getName().equals("ReleaseNotes.topic"))
+      Debugutil.stop();
+  
+    int selectOld = super.setMarked(mask, null);
     //FileRemote file = (FileRemote)data;
     if(itsFile.isDirectory()){
       //remain selection info set from children

@@ -19,6 +19,7 @@ import org.vishia.event.EventSource;
 import org.vishia.event.EventThread;
 import org.vishia.fileLocalAccessor.FileAccessorLocalJava6;
 import org.vishia.util.Assert;
+import org.vishia.util.Debugutil;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.MarkMask_ifc;
@@ -571,7 +572,11 @@ public class FileRemote extends File implements MarkMask_ifc
   
   //private Map<String, FileRemote> createChildrenList(){ return new TreeMap<String, FileRemote>(); } 
   
-  private Map<String, FileRemote> createChildrenList(){ return new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString); } 
+  /**Method to create a children list. Firstly a java.util.TreeMap was used for that. But a {@link IndexMultiTable} is better,
+   * because the sorted list is better able to view in debugger.
+   * @return An instance of Map to store children FileRemote sorted by its filename.
+   */
+  public static Map<String, FileRemote> createChildrenList(){ return new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString); } 
 
  
   public static boolean setAccessorSelector(FileRemoteAccessorSelector accessorSelectorP){
@@ -646,8 +651,7 @@ public class FileRemote extends File implements MarkMask_ifc
       children = createChildrenList();  
     }
     if(child.parent != this){
-      if(child.parent != null)
-        assert(false);
+      if(child.parent != null) throw new IllegalStateException("faulty parent-child");
       child.parent = this;
     }
     children.put(child.sFile, child);
@@ -725,7 +729,9 @@ public class FileRemote extends File implements MarkMask_ifc
    * @see org.vishia.util.MarkMask_ifc#getMark()
    */
   @Override public int getMark()
-  { return mark == null ? 0 : mark.getMark();
+  { if(sFile.equals("ReleaseNotes.topic"))
+      Debugutil.stop();
+    return mark == null ? 0 : mark.getMark();
   }
 
 
@@ -742,7 +748,9 @@ public class FileRemote extends File implements MarkMask_ifc
    * @see org.vishia.util.MarkMask_ifc#setMarked(int, java.lang.Object)
    */
   @Override public int setMarked(int mask, Object data)
-  { if(mark == null){ mark = new  FileMark(this); }
+  { if(sFile.equals("ReleaseNotes.topic"))
+      Debugutil.stop();
+    if(mark == null){ mark = new  FileMark(this); }
     return mark.setMarked(mask, data);
   }
   
@@ -1490,22 +1498,10 @@ public class FileRemote extends File implements MarkMask_ifc
    * @param dir1 Start dir
    * @param dir2 The other start dir for comparison.
    */
-  public static void cmpFiles(FileRemote dir1, FileRemote dir2){
+  public static void cmpFiles(FileRemote dir1, FileRemote dir2, FileRemote.CallbackEvent evCallback){
     //dir1 = file1; dir2 = file2;
-    if(dir1.device == null){
-      dir1.device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(dir1.getAbsolutePath());
-    }
-    if(dir2.device == null){
-      dir2.device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(dir2.getAbsolutePath());
-    }
-    int markReset = FileMark.markDir | FileMark.markDir | FileMark.cmpAlone | FileMark.cmpContentEqual
-      | FileMark.cmpFileDifferences | FileMark.cmpContentNotEqual | FileMark.cmpMissingFiles;
-    dir1.resetMarkedRecurs(markReset, null);
-    dir2.resetMarkedRecurs(markReset, null);
-    dir1.setMarked(FileMark.markRoot);
-    dir2.setMarked(FileMark.markRoot);
-    FileRemoteCallbackCmp callback = new FileRemoteCallbackCmp(dir1, dir2);
-    dir1.device.walkFileTree(dir1, null, Integer.MAX_VALUE, callback);
+    CmpFilesThread thread1 = new CmpFilesThread(dir1, dir2, evCallback);
+    thread1.start();  //it ends on end or abort of comparison.
   }
   
   
@@ -1834,6 +1830,7 @@ public class FileRemote extends File implements MarkMask_ifc
     countLength,
     delete,
     delChecked,
+    compare,
     mkDir,
     mkDirs,
     /**Abort the currently action. */
@@ -2496,6 +2493,33 @@ public class FileRemote extends File implements MarkMask_ifc
   }
   
 
-  
+  static class CmpFilesThread extends Thread {
+    FileRemote dir1,dir2;
+    
+    FileRemote.CallbackEvent evCallback;
+    
+    CmpFilesThread(FileRemote file1, FileRemote file2, FileRemote.CallbackEvent evCallback) { 
+      super("cmp Files"); this.dir1 = file1; this.dir2 = file2; this.evCallback = evCallback;
+    }
+    
+    public void run() {
+      if(dir1.device == null){
+        dir1.device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(dir1.getAbsolutePath());
+      }
+      if(dir2.device == null){
+        dir2.device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(dir2.getAbsolutePath());
+      }
+      int markReset = FileMark.markDir | FileMark.markDir | FileMark.cmpAlone | FileMark.cmpContentEqual
+        | FileMark.cmpFileDifferences | FileMark.cmpContentNotEqual | FileMark.cmpMissingFiles;
+      dir1.resetMarkedRecurs(markReset, null);
+      dir2.resetMarkedRecurs(markReset, null);
+      dir1.setMarked(FileMark.markRoot);
+      dir2.setMarked(FileMark.markRoot);
+      FileRemoteCallbackCmp callback = new FileRemoteCallbackCmp(dir1, dir2, evCallback);
+      dir1.device.walkFileTree(dir1, null, Integer.MAX_VALUE, callback);
+      //after finish destroy this thread.
+    }
+  }
+
   
 }

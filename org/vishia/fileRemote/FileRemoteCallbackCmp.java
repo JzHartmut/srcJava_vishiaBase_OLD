@@ -7,6 +7,10 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.vishia.event.Event;
+import org.vishia.states.StateMachine;
+import org.vishia.states.StateSimple;
+import org.vishia.states.StateSimple.StateTrans;
 import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
 import org.vishia.util.StringFunctions;
@@ -78,6 +82,8 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
     private final String basepath1;
     private final int zBasePath1;
     
+    /**Event instance for user callback. */
+    private final FileRemote.CallbackEvent evCallback;
     
     int mode;
     
@@ -91,7 +97,13 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
     
     boolean aborted = false;
     
-    FileRemoteCallbackCmp(FileRemote dir1, FileRemote dir2){
+    /**Constructs an instance to execute a comparison of directory trees.
+     * @param dir1
+     * @param dir2
+     * @param evCallback maybe null, if given, this event will be sent to show the progression of the comparison
+     */
+    FileRemoteCallbackCmp(FileRemote dir1, FileRemote dir2, FileRemote.CallbackEvent evCallback){
+      this.evCallback = evCallback;
       this.dir1 = dir1; this.dir2 = dir2;
       dir2.refreshPropertiesAndChildren(null);        
       
@@ -154,12 +166,16 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
         Assert.stop();
       FileRemote file2 = dir2.child(localPath);
       if(!file2.exists()){
-        file.setMarked(FileMark.cmpAlone);
+        file.setMarked(FileMark.cmpAlone);   //mark the file1, all file2 which maybe alone are marked already in callbackMarkSecondAlone.
         file.mark.setMarkParent(FileMark.cmpMissingFiles, false);
         return Result.skipSubtree;  //if it is a directory, skip it.        
       } else {
         file2.resetMarked(FileMark.cmpAlone);
         compareFile(file, file2);
+        if(evCallback.occupy(null, file, false)) {
+          evCallback.setCmd(FileRemote.CallbackCmd.nrofFilesAndBytes);
+          evCallback.sendEvent();   //inform about the state of progress of comparison.
+        }
         return Result.cont;
       }
     }
@@ -185,6 +201,8 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
 
       mode = cmp_withoutLineend;
   
+      if(file1.getName().equals("ReleaseNotes.topic"))
+        Assert.stop();
       
       long date1 = file1.lastModified();
       long date2 = file2.lastModified();
@@ -348,7 +366,8 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
     
     /**Callback to mark all files of the second directory as 'alone' on open directory.
      * If the files are found, there are marked as 'equal' or 'non equal' then, this selection
-     * will be reset. 
+     * will be removed. This callback will be used in the routine {@link #offerDir(FileRemote)} of any directory
+     * in the dir1. A new dir is searched in the dir2 tree, then the children in 1 level are marked. 
      * 
      */
     final FileRemoteAccessor.CallbackFile callbackMarkSecondAlone = new FileRemoteAccessor.CallbackFile()
@@ -369,7 +388,8 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
       @Override
       public Result offerFile(FileRemote file)
       { 
-        file.setMarked(FileMark.cmpAlone);
+        //1412 
+        file.setMarked(FileMark.cmpAlone);   //yet unknown whether the 2. file exists, will be reseted if necessary.
         return Result.cont;
       }
 
@@ -384,4 +404,8 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
       
     };
   
+    
+    
+    
+    
 }

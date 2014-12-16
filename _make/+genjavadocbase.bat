@@ -1,5 +1,5 @@
 echo %0
-pause
+::pause
 
 if "" == "%JAVA_JDK%" call setJAVA_JDK.bat
 if "" == "%JAVA_JDK%" call ..\..\srcJava_vishiaBase\_make\+findJAVA_JDK.bat
