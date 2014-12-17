@@ -373,6 +373,69 @@ public class StringFunctions {
     return new String(buffer, 0, ix);
   }
   
+
+  
+  /**Compares two CharSequence (Strings, StringBuilder-content etc.
+   * It is the adequate functionality like {@link java.lang.String#compareTo(String)}.
+   * but it works proper with {@link java.lang.CharSequence}. See example on {@link #equals(Object)}.
+   *  
+   * @param s1 left char sequence
+   * @param s2 right char sequence
+   * @return 0 if all characters are equal, positive if s1 > s2, s1 < s2.
+   *   <br>The absolute of return is the number of equal characters +1. 
+   *   <br>-1 means, the first character is different whereby s1.charAt(0) < s2.charAt(0)
+   *   <br> 1 means, the first character is different whereby s1.charAt(0) > s2.charAt(0)
+   *   
+   */
+  public static int comparePos(CharSequence s1, CharSequence s2){
+    return comparePos(s1, 0, s2, 0, -1);
+  }
+  
+  
+  /**Compares two CharSequence (Strings, StringBuilder-content etc.
+   * It is the adequate functionality like {@link java.lang.String#compareTo(String)}.
+   * but it works proper with {@link java.lang.CharSequence}. See example on {@link #equals(Object)}.
+   *  
+   * @param s1 left char sequence
+   * @param from1 start position
+   * @param s2 right char sequence
+   * @param from2 start position
+   * @param nrofChars maximal number of chars to compare. It can be negative or {@link java.lang.Integer#MAX_VALUE}
+   *   to compare all characters to the end. negative: it is ignored.
+   *   Note: if 0, the return value of this method is 0 because all (=0) characters are equal. This may be important for some extrem situations.
+   * @return 0 if all characters are equal, positive if the part of s1 > s2,  negative if s1 < s2.
+   *   <br>The absolute of return is the number of equal characters +1. 
+   *   <br>-1 means, the first character is different whereby s1.charAt(0) < s2.charAt(0)
+   *   <br> 1 means, the first character is different whereby s1.charAt(0) > s2.charAt(0)
+   *   
+   */
+  public static int comparePos(CharSequence s1, int from1, CharSequence s2, int from2, int nrofChars){
+    int i1 = from1;
+    int i2 = from2;  //post-increment
+    int z1 = s1.length();
+    int z2 = s2.length();
+    if(nrofChars ==0) return 0; //NOTE: following while compares at least one char
+    int zChars =  nrofChars >=0 ? Math.min(nrofChars, Math.min(z1- i1, z2-i2)) : Math.min(z1-i1, z2-i2);
+    //z1 -=1; z2 -=1;  //compare before increment then.
+    char c1, c2;
+    do {
+      c1 = s1.charAt(i1++);
+      c2 = s2.charAt(i2++);
+    } while(c1 == c2 && --zChars >0);
+    if(zChars ==0){
+      //all characters compared, maybe difference in length.
+      if(i2 < z2) return -(i1 - from1);  //s2 is longer, s1 is less.
+      else if(i1 < z1) return i1 - from1;  //positive value: s1 is greater because i1 < z2, is longer and c1==c2 
+      else return 0;  //both equal, comparison to end. 
+    } 
+    else {
+      //not all possible characters compared, difference in character
+      if(c1 < c2) return -(i1 - from1);  //c1 !=c2, then compare the last characters. <0 because s1 is lesser.
+      else return (i1 - from1);               //note: == i2 - from2, s2 is lesser.
+    }
+  }
+  
+  
   
   /**Compares two CharSequence (Strings, StringBuilder-content etc.
    * It is the adequate functionality like {@link java.lang.String#compareTo(String)}.

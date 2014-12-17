@@ -4,6 +4,7 @@ import java.util.Iterator;
 import java.util.ListIterator;
 
 import org.vishia.util.Assert;
+import org.vishia.util.Debugutil;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.StringFunctions;
@@ -100,117 +101,162 @@ public class FileCluster
    * The path is not checked against the file system. 
    */
   public FileRemote getFile( final CharSequence sDirP, final CharSequence sName, boolean strict){
-    CharSequence sDir = FileSystem.normalizePath(sDirP); //sPath.replace('\\', '/');
-    String ssDir = sDir.toString();
+    CharSequence sDir1 = FileSystem.normalizePath(sDirP); //sPath.replace('\\', '/');
+    final String sDir;
+    int zDir = sDir1.length();
+    if(sDir1.charAt(zDir-1) == '/' && zDir >3)
+    { Debugutil.stop();
+      sDir = sDirP.subSequence(0, zDir-1).toString();
+      zDir -=1;
+    } else { sDir = sDir1.toString(); }
     //Sets the iterator after the exact found position or between a possible position:
-    FileRemote dirRet; // = idxPaths.search(sDir.toString());
+    FileRemote dirCheck; // = idxPaths.search(sDir.toString());
     int flagDir = sName == null ? FileRemote.mDirectory : 0;  //if name is not given, it is a directory. Elsewhere a file.
     boolean bFound = false;
-    boolean putit;
-    ListIterator<FileRemote> iter = idxPaths.iterator(ssDir);
-    if(!iter.hasPrevious()) {
-      //this occurs only if a path lesser than the sDir does not exists, then any parent is not registered.
+    boolean putit = false;
+    ListIterator<FileRemote> iter = idxPaths.iterator(sDir);
+    if(iter.hasNext()){
+      dirCheck = iter.next();  //start with following, then backward
+      iter.previous();
+    } else if(iter.hasPrevious()){
+      dirCheck = iter.previous();
+    } else {
+      //Only on first time.
       //Register this path as first occurrence. 
-      dirRet = new FileRemote(this, null, null, sDir, 0, 0, 0, 0, flagDir, null, true);
-      idxPaths.put(ssDir, dirRet);
+      dirCheck = new FileRemote(this, null, null, sDir, 0, 0, 0, 0, flagDir, null, true);
+      System.out.println("FileCluster - create FileRemote because no found previous, the first one; " + sDir);
+      idxPaths.put(sDir, dirCheck);
       bFound = true;
       putit = false;
-    } else {
-      do {
-        dirRet = iter.previous();
-        putit = true;
-        bFound = false;
-        String sPathRet = dirRet.getAbsolutePath();
-        int zPathRet = sPathRet.length();
-        if(StringFunctions.startsWith(sDir,sPathRet)) {  //maybe equal too, check whether sPathRet is a parent dir of sDir
-          if(sPathRet.length() < sDir.length()){ //any super directory found.
-            if(sDir.charAt(zPathRet) == '/'){    //is it that?
-              //any directory of the file was found. Create the child directory.
-              StringPart pathchild = new StringPart(sDir, zPathRet+1, sDir.length());
-              dirRet = dirRet.child(pathchild);
-              putit = false;  //it is existed as child of any file in the cluster.
-              bFound = true;
-            } else { //other directory name, maybe shorter for ex. "path" vs. "path2".
-              //dirRet = new FileRemote(this, null, null, sDir, 0, 0, 0, 0, flagDir, null, true);
-            }
-          } else {
-            //the same pathm found.
-            putit = false; //it is the same, found.
+    }
+    while(!bFound) {
+      putit = true;
+      bFound = false;
+      String sPathCheck = dirCheck.getAbsolutePath();
+      int zPathCheck = sPathCheck.length();
+      int cmpPathCheck = StringFunctions.comparePos(sDir, 0, sPathCheck, 0, -1);
+      if(cmpPathCheck ==0){ //equal
+        //the same pathm found.
+        putit = false; //it is the same, found.
+        bFound = true;
+      }
+      else if(cmpPathCheck == zPathCheck){  //sPathRet is complete substring
+        if(sPathCheck.length() < sDir.length()){ //any super directory found.
+          if(sDir.charAt(zPathCheck) == '/'){    //is it that?
+            //any directory of the file was found. Create the child directory.
+            StringPart pathchild = new StringPart(sDir, zPathCheck+1, sDir.length());
+            dirCheck = dirCheck.child(pathchild);
+            putit = false;  //it is existed as child of any file in the cluster.
             bFound = true;
+          } else { //other directory name, maybe shorter for ex. "path" vs. "path2".
+            //dirRet = new FileRemote(this, null, null, sDir, 0, 0, 0, 0, flagDir, null, true);
           }
-        } else if(StringFunctions.startsWith(sPathRet, sDir)) {  //check whether dir is a parent of sPathRet
-          //because no other parent is found, entry it but refer in parent too.
-          int zDir = sDir.length();
-          while( (zPathRet = sPathRet.lastIndexOf('/'))
-                 >= zDir) {
-            sPathRet = sPathRet.substring(0, zPathRet);
-            if(dirRet.parent ==null) {
-              FileRemote parent = new FileRemote(this, dirRet.device, null, sPathRet, 0, 0, 0, 0, flagDir, null, true);
-              parent.putNewChild(dirRet);
-              dirRet = parent;
-            } else {
-              //it should be the existing parent:
-              dirRet = dirRet.parent;
-              if(!dirRet.getAbsolutePath().equals(sPathRet)) 
-              { throw new IllegalStateException("FileCluster - faulty parent found."); }
+        } else {
+        }
+      } else if(cmpPathCheck == -zDir){//if(StringFunctions.startsWith(sPathRet, sDir)) {  //check whether dir is a parent of sPathRet
+        //sDir is a parent of found sPathRet.
+        FileRemote checkWhetherParent = null;
+        String sCheckWhetherParent = "";
+        int zCheckWhetherParent = -1;
+        while( (zPathCheck = sPathCheck.lastIndexOf('/')) //builds the parent path from sPathRet
+               >= zDir) {
+          if(checkWhetherParent == null) {  //get new check parent if necessary only.
+            checkWhetherParent = iter.hasPrevious() ? iter.previous() : null;
+            if(checkWhetherParent !=null) {
+              sCheckWhetherParent = checkWhetherParent.getAbsolutePath();
+              zCheckWhetherParent = sCheckWhetherParent.length();
             }
-            idxPaths.put(sPathRet, dirRet);  //Store it for later search.
           }
-          bFound = true;
-        }
-        if(!bFound) {
-          //another directory
-          if(!iter.hasPrevious()) {
-            dirRet = new FileRemote(this, null, null, sDir, 0, 0, 0, 0, flagDir, null, true);
-            bFound = true;
-            putit = false;
-          }
-        }
-      } while(!bFound);
-        if(putit){ 
-          idxPaths.put(sDir.toString(), dirRet);
-          //check whether next entries in the FileCluster are children of this
-          //and register it as children.
-          iter.next(); //start with next entry, not with its own.
-          int zDir = sDir.length();
-          //zDir should be the position of the '/' in the child's paths.
-          //if sDir is a root directory, it contains the '/' on end.
-          //therefore reduce zDir, if sDir ens with '/':
-          if(sDir.charAt(zDir-1) == '/'){
-            zDir -=1;  
-          }
-          while(iter.hasNext()){
-            FileRemote childNext = iter.next();
-            String pathNext = childNext.getAbsolutePath();
-            int zpath = pathNext.length();
-            if(zDir < zpath && StringFunctions.startsWith(pathNext, sDir)){
-              CharSequence sChild = pathNext.subSequence(zDir+1, zpath);
-              int pos1 = 0, pos2;
-              FileRemote dir2 = dirRet; //parent of any child level
-              while( (pos2 = StringFunctions.indexOf(sChild, '/', pos1))  >pos1){
-                CharSequence sChild2 = sChild.subSequence(pos1, pos2);  //child levels
-                //dir2 = dir2.child(sChild2, FileRemote.mDirectory, 0,0,0,0,0);  //child level assigned to parent level, maybe exising, maybe a new FileRemote.
-                FileRemote child = dir2.getChild(sChild2);
-                if(child == null){
-                  child = dir2.internalAccess().newChild(sChild2,0, 0, 0, 0 , FileRemote.mDirectory, null);
-                  dir2.putNewChild(child);
-                }
-                dir2 = child;
-                pos1 = pos2 +1;
+          sPathCheck = sPathCheck.substring(0, zPathCheck);
+          if(dirCheck.parent ==null) {
+            int posCheckParent;
+            if(checkWhetherParent !=null){
+              posCheckParent = StringFunctions.comparePos(sCheckWhetherParent, sPathCheck);
+            } else { posCheckParent = 0; }
+            FileRemote parent;
+            if(-posCheckParent == zCheckWhetherParent) { //previous entry is fully contained in sPathRet, it is a parent 
+              if(zCheckWhetherParent == zPathCheck) {
+                //it is exactly the parent of this level:
+                parent = checkWhetherParent;
+                checkWhetherParent = null;  //to test for next parent level
+                sCheckWhetherParent = null;
+                zCheckWhetherParent = 0;
+              } else {
+                String localPath = sPathCheck.substring(zCheckWhetherParent, zPathCheck);
+                parent = checkWhetherParent.getChild(localPath);
               }
-              dir2.putNewChild(childNext);
             } else {
-              break; //other base path
+              parent = new FileRemote(this, dirCheck.device, null, sPathCheck, 0, 0, 0, 0, flagDir, null, true);
+              System.out.println("FileCluster - create FileRemote for parent; " + sDir);
             }
+            parent.putNewChild(dirCheck);
+            dirCheck = parent;
+          } else {
+            //it should be the existing parent:
+            dirCheck = dirCheck.parent;
+            if(!dirCheck.getAbsolutePath().equals(sPathCheck)) 
+            { throw new IllegalStateException("FileCluster - faulty parent found."); }
           }
+          idxPaths.put(sPathCheck, dirCheck);  //Store it for later search.
+        }
+        bFound = true;
+      } 
+      if(!bFound) {
+        //another directory
+        if(//cmpPath > 0 ||               //the sDir is greater than found path, not convenient to go back 
+          !iter.hasPrevious()) {   //not possible to go back
+          //the new entry. found.
+          dirCheck = new FileRemote(this, null, null, sDir, 0, 0, 0, 0, flagDir, null, true);
+          System.out.println("FileCluster - create FileRemote because nonfound entry; " + sDir);
+          bFound = true;
+          putit = true;
+        } else {
+          dirCheck = iter.previous();
         }
       }
+    }
+    if(putit){ 
+      idxPaths.put(sDir.toString(), dirCheck);
+      //check whether next entries in the FileCluster are children of this
+      //and register it as children.
+      iter.next(); //start with next entry, not with its own.
+      //zDir should be the position of the '/' in the child's paths.
+      //if sDir is a root directory, it contains the '/' on end.
+      //therefore reduce zDir, if sDir ens with '/':
+      if(sDir.charAt(zDir-1) == '/'){
+        zDir -=1;  
+      }
+      while(iter.hasNext()){
+        FileRemote childNext = iter.next();
+        String pathNext = childNext.getAbsolutePath();
+        int zpath = pathNext.length();
+        if(zDir < zpath && StringFunctions.startsWith(pathNext, sDir)){
+          CharSequence sChild = pathNext.subSequence(zDir+1, zpath);
+          int pos1 = 0, pos2;
+          FileRemote dir2 = dirCheck; //parent of any child level
+          while( (pos2 = StringFunctions.indexOf(sChild, '/', pos1))  >pos1){
+            CharSequence sChild2 = sChild.subSequence(pos1, pos2);  //child levels
+            //dir2 = dir2.child(sChild2, FileRemote.mDirectory, 0,0,0,0,0);  //child level assigned to parent level, maybe exising, maybe a new FileRemote.
+            FileRemote child = dir2.getChild(sChild2);
+            if(child == null){
+              child = dir2.internalAccess().newChild(sChild2,0, 0, 0, 0 , FileRemote.mDirectory, null);
+              dir2.putNewChild(child);
+            }
+            dir2 = child;
+            pos1 = pos2 +1;
+          }
+          dir2.putNewChild(childNext);
+        } else {
+          break; //other base path
+        }
+      }
+    }
     //create the named file in the directory if given.
     if(sName !=null){
-      FileRemote fileRet = dirRet.child(sName);
+      FileRemote fileRet = dirCheck.child(sName);
       return fileRet;
     } else {
-      return dirRet;
+      return dirCheck;
     }
   }
 

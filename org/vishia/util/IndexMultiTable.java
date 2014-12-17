@@ -219,6 +219,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     /**Only for test. */
     private Key lastkeyNext, lastkeyPrev; 
     
+    //private Type lastReturnedElement;
+    
     protected IteratorImpl(IndexMultiTable<Key, Type> firstTable)
     { helperNext = new IteratorHelper<Key, Type>(null);
       helperNext.table = firstTable;
@@ -245,14 +247,15 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         { /**an non exact found, accept it.
            * use the table with the key lesser than the requested key
            */
-          idx = -idx-2; //insertion point -1 
+          idx = -idx-1; //insertion point is index of previous
+          /*
           if(idx < 0)
-          { /**Use the first table if the first key in the first table is greater. */
+          { //Use the first table if the first key in the first table is greater. 
             bHasNext = false;
             bHasNextProcessed = true;
             //idx = 0; 
-          }
-        } else { 
+          }*/
+        } //else { 
         //idx -=1;  //?
           helperNext.idx = idx;
           helperPrev.idx = idx;
@@ -265,14 +268,14 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           helperPrev.childHelper.table = childTable;
           helperNext = helperNext.childHelper;  //use the sub-table to iterate. 
           helperPrev = helperPrev.childHelper;  //use the sub-table to iterate. 
-        }         
+        //}         
       }
       int idx = binarySearchFirstKey(helperNext.table.aKeys, 0, helperNext.table.sizeBlock,  startKey); //, sizeBlock, key1);
       if(idx < 0)
       { /**an non exact found, accept it.
          * start from the element with first key greater than the requested key
          */
-        idx = -idx-1;  //it is the position of the previous element.
+        idx = -idx-1;  //it is the position of the next element.
         helperPrev.idx = idx-1;
         helperPrev = checkHyperTable(helperPrev, true);
         bHasPrev = helperPrev.idx >=0;  //Note that helperPrev may be null because checkHyperTable.
@@ -331,7 +334,9 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         //if(compare(table.aKeys[helperNext.idx],lastkey) < 0)
         //  stop();
         lastkeyNext = table.aKeys[helperNext.idx];
-        return (Type)table.aValues[helperNext.idx];
+        Type ret = (Type)table.aValues[helperNext.idx];
+        next_i();  //executes always next after last next.
+        return ret;
       }
       else return null;
     }
@@ -353,7 +358,9 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         //if(compare(table.aKeys[helperPrev.idx],lastkey) >= 0)
         //  stop();
         lastkeyPrev = table.aKeys[helperPrev.idx];
-        return (Type)table.aValues[helperPrev.idx];
+        Type ret = (Type)table.aValues[helperPrev.idx];
+        prev_i();  //executes always previous after last previous.
+        return ret;
       }
       else return null;
     }
@@ -435,7 +442,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     private void next_i()
     {
       //the yet next is the new previous:
-      helperPrev.copy(helperNext);  
+      helperPrev.copy(helperNext);
+      bHasPrev = bHasNext;
       bHasNext = ++helperNext.idx < helperNext.table.sizeBlock;  //next in current table.
       if(bHasNext)
       { helperNext = checkHyperTable(helperNext, false);
@@ -478,7 +486,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     private void prev_i()
     {
       //the yet next is the new previous:
-      helperNext.copy(helperPrev);  
+      helperNext.copy(helperPrev); 
+      bHasNext = bHasPrev;
       bHasPrev = --helperPrev.idx >= 0;  //next in current table.
       if(bHasPrev)
       { helperPrev = checkHyperTable(helperPrev, true);
@@ -511,11 +520,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       
     }
 
-    private void stop()
-    { //debug
-    }
-    
-    
+    @Override public String toString() { return helperPrev.toString() + " ... " + helperNext.toString(); }   
   }
 
   
@@ -557,7 +562,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     }
     
     
-    //@Override public String toString() { return table == null ? "null" : table.toString(); } 
+    @Override public String toString() { return table == null ? "null" : idx < 0 ? "--no-previous--" : idx >= table.sizeBlock ? "--no-next--" : table.aKeys[idx].toString(); } 
   }
   
   

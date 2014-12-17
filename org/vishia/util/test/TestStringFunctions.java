@@ -1,3 +1,8 @@
+//D:/vishia/Java/srcJava_vishiaBase/org/vishia/util/test/TestStringFunctions.java
+//==JZcmd==
+//JZcmd java org.vishia.util.test.TestStringFunctions.test_comparePos();
+//Obj test = 
+//==endJZcmd==
 package org.vishia.util.test;
 
 import org.vishia.util.Assert;
@@ -32,6 +37,18 @@ public class TestStringFunctions
   }  
   
   
+  public static void test_comparePos()
+  {
+    String s1 = "a";
+    String s2 = "b";
+    int cmp = StringFunctions.comparePos(s1, 0, s2, 0, Integer.MAX_VALUE);
+    if(cmp !=-3) error("TestStringFunctions.comparePos e1");
+  }
 
+  
+  static void error(String s){
+    System.out.println(s);
+  }
+  
   
 }
