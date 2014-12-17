@@ -34,7 +34,7 @@ public class MsgConfig implements MsgText_ifc
    * <li> You can redistribute copies of this source to everybody.
    * <li> Every user of this source, also the user of redistribute copies
    *    with or without payment, must accept this license for further using.
-   * <li> But the LPGL ist not appropriate for a whole software product,
+   * <li> But the LPGL is not appropriate for a whole software product,
    *    if this source is only a part of them. It means, the user
    *    must publish this part of source,
    *    but don't need to publish the whole source of the own product.
@@ -76,23 +76,21 @@ public class MsgConfig implements MsgText_ifc
   
 
   
-  /**Reads the configuration from a file with given syntax.An example for such a syntax file is:
+  /**Reads the configuration from a file with given syntax. 
+   * <br>Syntax:
    * <pre>
 MsgConfig::= { <item> } \e.
 
 item::= <#?identNr>[..<#?identNrLast>]  <!.?type> <*|\t|\ \ ?dst> [$$<*|\r|\n|\t|\ \ |$$|:|;?identText>[??<?useInternalText>]]  <*|\r|\n|\t|\ \ ?text>.
    * </pre>
+   * The <code>dst</code> is a String with one or more characters which are associated to output channels of the message dispatcher.
+   * The association between the characters and the outputs are made be the routine {@link #setMsgDispaching(MsgDispatcher, String)}.
    * Examples:
    * <pre>
 1303 i x  $$Ident text is equal to - the output text; some more %d values; val=%d;
 1400 i d  $$Ident text from - internal$$Other output text; val=%d; val2=%d;
 1500 i d  $$Ident text from - internal$$
    * </pre>
-   * <ul>
-   * <li>1303: The internal text till ; determines the ident number. It is used with the given rest after ; to output.
-   * <li>1400: The internal text till ; determines the ident number, but the output text is another one.
-   * <li>1400: The internal text till ; determines the ident number. The whole internal text is outputted.
-   * </ul>
    * Any line is designated with the semantic 'line'. A line is build by the shown syntax elements. 
    * The semantic have to be used like shown. The semantic identifier are given by the element names of the classes 
    * {@link MsgConfigZbnf} and {@link MsgConfigItem}. The syntax can be another one.

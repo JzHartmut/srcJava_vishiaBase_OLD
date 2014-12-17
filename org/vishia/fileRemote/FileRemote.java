@@ -1591,8 +1591,6 @@ public class FileRemote extends File implements MarkMask_ifc
    * </ul>
    * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * 
-   * @param dst This file will be created or filled newly. If it is existing but read only,
-   *   nothing is copied and an error message is fed back.
    * @param evback The event for status messages and success.
    */
   public void copyChecked(FileRemote.CallbackEvent evback, int mode){

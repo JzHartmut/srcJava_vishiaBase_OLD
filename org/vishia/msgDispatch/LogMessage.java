@@ -16,7 +16,7 @@ import org.vishia.bridgeC.Va_list;
  * <ul>
  * <li>The number identifies the message or kind of log entry.
  * <li>The number is used to select receiver(s) of the message or log entry.
- * <ul> 
+ * </ul> 
  * Any message can be dispatched to one or more destinations which evaluate or store the message,
  * or the message can be ignored. A log entry is a special using of a message: 
  * It should only written in a log file or display, without any forcing of reactions.
@@ -48,7 +48,7 @@ import org.vishia.bridgeC.Va_list;
  * A message has a time stamp. The time stamp may be built automatically 
  * at the time while creating the message. But it is possible to supply a time stamp to the message.
  * It is important, if the signal or event associated to the message has a deterministic time stamp
- * created at example in hardware. Following common usages the time stamp is an absolute time 
+ * created for example in hardware. Following common usages the time stamp is an absolute time 
  * in milliseconds, represented by a <code>java.util.Date</code> Object. 
  * In a realtime system, compiled with C-Language, the struct Date may have a microsecond resolution
  * and another base year, but it should be absolute. 
@@ -75,7 +75,7 @@ public interface LogMessage
    * <li> You can redistribute copies of this source to everybody.
    * <li> Every user of this source, also the user of redistribute copies
    *    with or without payment, must accept this license for further using.
-   * <li> But the LPGL ist not appropriate for a whole software product,
+   * <li> But the LPGL is not appropriate for a whole software product,
    *    if this source is only a part of them. It means, the user
    *    must publish this part of source,
    *    but don't need to publish the whole source of the own product.

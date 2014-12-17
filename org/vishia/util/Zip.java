@@ -171,7 +171,7 @@ public class Zip {
    * If {@link #setManifest(File)} was invoked before, a jar file will be created.
    * All source files should be set with {@link #addSource(File, String)} or {@link #addSource(String)}.
    * 
-   * @param dst The destination file.
+   * @param fileZip The destination file.
    * @param compressionLevel Level from 0..9 for compression
    * @param comment in the zip file.
    * @throws IOException on any file error. 
