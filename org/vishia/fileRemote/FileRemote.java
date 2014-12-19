@@ -18,8 +18,8 @@ import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventThread;
 import org.vishia.fileLocalAccessor.FileAccessorLocalJava6;
-import org.vishia.fileRemote.FileRemoteAccessor.CallbackFile;
-import org.vishia.fileRemote.FileRemoteAccessor.CallbackFile.Result;
+import org.vishia.fileRemote.FileRemoteCallback;
+import org.vishia.fileRemote.FileRemoteCallback.Result;
 import org.vishia.util.Assert;
 import org.vishia.util.Debugutil;
 import org.vishia.util.FileSystem;
@@ -817,7 +817,7 @@ public class FileRemote extends File implements MarkMask_ifc
    * will be called with the given CallbackFile.
    * @param callback maybe null if the callback is not used.
    */
-  public void refreshPropertiesAndChildren(FileRemoteAccessor.CallbackFile callback) {
+  public void refreshPropertiesAndChildren(FileRemoteCallback callback) {
     if(device == null){
       device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
@@ -830,7 +830,7 @@ public class FileRemote extends File implements MarkMask_ifc
    * 
    */
   public void refreshPropertiesAndChildren() {
-    FileRemoteAccessor.CallbackFile callback = null;
+    FileRemoteCallback callback = null;
     refreshPropertiesAndChildren(callback);
   }
   
@@ -2492,12 +2492,12 @@ public class FileRemote extends File implements MarkMask_ifc
     }
 
     /**The implementation of the callback interface 
-     * for {@link FileRemoteAccessor#walkFileTree(FileRemote, FileFilter, int, org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)}
+     * for {@link FileRemoteAccessor#walkFileTree(FileRemote, FileFilter, int, org.vishia.fileRemote.FileRemoteCallback)}
      * It is used in {@link FileRemote#getChildren(ChildrenEvent)}.
      * It is an protected non-static inner instance of the class {@link ChildrenEvent} because its implementing routines
      * should have access to the event data, especially {@link ChildrenEvent#newChildren}.
      */
-    public FileRemoteAccessor.CallbackFile callbackChildren = new FileRemoteAccessor.CallbackFile()
+    public FileRemoteCallback callbackChildren = new FileRemoteCallback()
     {
 
       @Override public Result offerDir(FileRemote file){
@@ -2512,7 +2512,7 @@ public class FileRemote extends File implements MarkMask_ifc
       
 
       /* (non-Javadoc)
-       * @see org.vishia.fileRemote.FileRemoteAccessor.CallbackFile#offerFile(org.vishia.fileRemote.FileRemote)
+       * @see org.vishia.fileRemote.FileRemoteCallback#offerFile(org.vishia.fileRemote.FileRemote)
        */
       @Override public Result offerFile(FileRemote file)
       {
@@ -2581,12 +2581,12 @@ public class FileRemote extends File implements MarkMask_ifc
   
   
   
-  /**Callback for walkThroughFiles for {@link FileRemote#refreshPropertiesAndChildren(org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)}.
+  /**Callback for walkThroughFiles for {@link FileRemote#refreshPropertiesAndChildren(org.vishia.fileRemote.FileRemoteCallback)}.
    *
    */
-  public class XXXXXCallbackChildren implements FileRemoteAccessor.CallbackFile {
+  public class XXXXXCallbackChildren implements FileRemoteCallback {
     
-    final FileRemoteAccessor.CallbackFile callbackUser;
+    final FileRemoteCallback callbackUser;
     
     final boolean bUpdateThis;
     
@@ -2594,7 +2594,7 @@ public class FileRemote extends File implements MarkMask_ifc
      * @param callbackUser This callback will be invoked after the child is registered in this.
      * @param updateThis true then remove and update #children.
      */
-    public XXXXXCallbackChildren(FileRemoteAccessor.CallbackFile callbackUser, boolean updateThis)
+    public XXXXXCallbackChildren(FileRemoteCallback callbackUser, boolean updateThis)
     {
       this.callbackUser = callbackUser;
       this.bUpdateThis = updateThis;

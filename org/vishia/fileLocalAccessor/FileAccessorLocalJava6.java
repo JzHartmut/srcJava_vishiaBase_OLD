@@ -23,7 +23,7 @@ import org.vishia.fileRemote.FileRemote;
 import org.vishia.fileRemote.FileRemoteAccessor;
 import org.vishia.fileRemote.FileRemote.CallbackEvent;
 import org.vishia.fileRemote.FileRemote.Cmd;
-import org.vishia.fileRemote.FileRemoteAccessor.CallbackFile;
+import org.vishia.fileRemote.FileRemoteCallback;
 import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
 
@@ -255,27 +255,27 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
    * from the operation system using {@link java.io.File#list()}. Therefore {@link #refreshFilePropertiesAndChildren(FileRemote, CallbackEvent)}
    * will be called. Then this list is iterated and the file properties are gotten using 
    * {@link #refreshFileProperties(FileRemote, CallbackEvent)}. In any iteration step the file
-   * is offered to the application calling {@link FileRemoteAccessor.CallbackFile#offerFile(FileRemote)}.
+   * is offered to the application calling {@link FileRemoteCallback#offerFile(FileRemote)}.
    * 
-   * @see org.vishia.fileRemote.FileRemoteAccessor#walkFileTree(org.vishia.fileRemote.FileRemote, java.io.FileFilter, int, org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)
+   * @see org.vishia.fileRemote.FileRemoteAccessor#walkFileTree(org.vishia.fileRemote.FileRemote, java.io.FileFilter, int, org.vishia.fileRemote.FileRemoteCallback)
    */
-  @Override public void walkFileTree(FileRemote file, boolean bRefreshFile, FileFilter filter, int depth, CallbackFile callback)
+  @Override public void walkFileTree(FileRemote file, boolean bRefreshFile, FileFilter filter, int depth, FileRemoteCallback callback)
   {
     callback.start();
     walkSubTree(file, bRefreshFile, filter, depth, callback);
     callback.finished();
   }
     
-  public FileRemoteAccessor.CallbackFile.Result walkSubTree(FileRemote file, boolean bRefreshFile, FileFilter filter, int depth, CallbackFile callback)
+  public FileRemoteCallback.Result walkSubTree(FileRemote file, boolean bRefreshFile, FileFilter filter, int depth, FileRemoteCallback callback)
   {
     refreshFilePropertiesAndChildren(file, null);
     Map<String, FileRemote> children = file.children();
-    FileRemoteAccessor.CallbackFile.Result result = FileRemoteAccessor.CallbackFile.Result.cont;
+    FileRemoteCallback.Result result = FileRemoteCallback.Result.cont;
     if(children !=null){
       result = callback.offerDir(file);
-      if(result == FileRemoteAccessor.CallbackFile.Result.cont){ //only walk through subdir if cont
+      if(result == FileRemoteCallback.Result.cont){ //only walk through subdir if cont
         Iterator<Map.Entry<String, FileRemote>> iter = children.entrySet().iterator();
-        while(result == FileRemoteAccessor.CallbackFile.Result.cont && iter.hasNext()) {
+        while(result == FileRemoteCallback.Result.cont && iter.hasNext()) {
           Map.Entry<String, FileRemote> file1 = iter.next();
           FileRemote file2 = file1.getValue();
           refreshFileProperties(file2, null);
@@ -291,9 +291,9 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
         }
       } 
     }
-    if(result != FileRemoteAccessor.CallbackFile.Result.terminate){
+    if(result != FileRemoteCallback.Result.terminate){
       //continue with parent. Also if offerDir returns skipSubdir or any file returns skipSiblings.
-      result = FileRemoteAccessor.CallbackFile.Result.cont;
+      result = FileRemoteCallback.Result.cont;
     }
     return result;  //maybe terminate
   }

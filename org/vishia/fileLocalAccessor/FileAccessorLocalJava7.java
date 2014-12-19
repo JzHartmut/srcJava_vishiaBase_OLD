@@ -37,8 +37,8 @@ import org.vishia.fileRemote.FileRemoteAccessor;
 import org.vishia.fileRemote.FileRemote.CallbackEvent;
 import org.vishia.fileRemote.FileRemote.Cmd;
 import org.vishia.fileRemote.FileRemote.CmdEvent;
-import org.vishia.fileRemote.FileRemoteAccessor.CallbackFile;
-import org.vishia.fileRemote.FileRemoteAccessor.CallbackFile.Result;
+import org.vishia.fileRemote.FileRemoteCallback;
+import org.vishia.fileRemote.FileRemoteCallback.Result;
 import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
 
@@ -287,9 +287,9 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
   
   /**Variant of getChildren for Java-7. 
    * It calls {@link Files#walkFileTree(Path, Set, int, FileVisitor)}
-   * @see org.vishia.fileRemote.FileRemoteAccessor#walkFileTree(org.vishia.fileRemote.FileRemote, java.io.FileFilter, int, org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)
+   * @see org.vishia.fileRemote.FileRemoteAccessor#walkFileTree(org.vishia.fileRemote.FileRemote, java.io.FileFilter, int, org.vishia.fileRemote.FileRemoteCallback)
    */
-  @Override public void walkFileTree(FileRemote dir, boolean bRefresh, FileFilter filter, int depth, CallbackFile callback)
+  @Override public void walkFileTree(FileRemote dir, boolean bRefresh, FileFilter filter, int depth, FileRemoteCallback callback)
   { ///
     FileRemoteAccessor.FileWalkerThread thread = new FileRemoteAccessor.FileWalkerThread(dir, bRefresh, depth, filter, callback) {
       @Override public void run() {
@@ -733,7 +733,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
   
   /**This class is the general FileVisitor for the adaption layer to FileRemote.
    * It will be created on the fly if any request is proceeded with the given
-   * {@link FileRemoteAccessor.CallbackFile} callback interface of the FileRemote layer.
+   * {@link FileRemoteCallback} callback interface of the FileRemote layer.
    * All callback are translated 1:1 between the both interfaces. But an instance of 
    * FileRemote is created or gotten from the {@link FileCluster} and delivered to the
    * FileRemote-Callback. Additional the children are refreshed if all children are walked through.
@@ -746,7 +746,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
     
     
     /**Data chained from a first parent to deepness of dir tree for each level.
-     * This data are created while {@link FileAccessorLocalJava7#walkFileTree(FileRemote, FileFilter, int, CallbackFile)} runs.
+     * This data are created while {@link FileAccessorLocalJava7#walkFileTree(FileRemote, FileFilter, int, FileRemoteCallback)} runs.
      * It holds the gathered children from the walker. The children are stored inside the {@link #dir}
      * only on {@link WalkFileTreeVisitor#postVisitDirectory(Path, IOException)}
      */
@@ -771,12 +771,12 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
     
     final FileCluster fileCluster;
     final boolean refresh;
-    final FileRemoteAccessor.CallbackFile callback;
+    final FileRemoteCallback callback;
     
     private CurrDirChildren curr;
     
     
-    public WalkFileTreeVisitor(FileCluster fileCluster, boolean refresh, CallbackFile callback)
+    public WalkFileTreeVisitor(FileCluster fileCluster, boolean refresh, FileRemoteCallback callback)
     {
       this.fileCluster = fileCluster;
       this.refresh = refresh;
@@ -784,7 +784,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
       curr = null;  //starts without parent.
     }
 
-    private FileVisitResult translateResult(FileRemoteAccessor.CallbackFile.Result result){
+    private FileVisitResult translateResult(FileRemoteCallback.Result result){
       FileVisitResult ret;
       switch(result){
         case cont: ret = FileVisitResult.CONTINUE; break;
@@ -808,7 +808,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
       if(refresh && curr !=null){
         curr.children.put(name, dir1);
       }
-      FileRemoteAccessor.CallbackFile.Result result = (callback !=null) ? callback.offerDir(dir1) : Result.cont;
+      FileRemoteCallback.Result result = (callback !=null) ? callback.offerDir(dir1) : Result.cont;
       if(result == Result.cont){
         curr = new CurrDirChildren(dir1, curr);
         System.out.println("FileRemoteAccessorLocalJava7 - callback - pre dir; " + curr.dir.getAbsolutePath());
@@ -821,7 +821,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
     @Override
     public FileVisitResult postVisitDirectory(Path dir, IOException exc)
         throws IOException
-    { FileRemoteAccessor.CallbackFile.Result result = (callback !=null) ? callback.finishedDir(curr.dir) : Result.cont;
+    { FileRemoteCallback.Result result = (callback !=null) ? callback.finishedDir(curr.dir) : Result.cont;
       if(refresh){  //es fehlen alle, die nicht als file erscheinen weil das dir auf Gegenseite nicht vorhanden ist.
         curr.dir.internalAccess().setChildren(curr.children);  //Replace the map.
         curr.dir.timeChildren = System.currentTimeMillis();
@@ -842,7 +842,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
         Assert.stop();
       FileRemote fileRemote = curr.dir.child(name);
       setAttributes(fileRemote, file, attrs);
-      FileRemoteAccessor.CallbackFile.Result result;
+      FileRemoteCallback.Result result;
       if(callback !=null && callback.shouldAborted()){
         result = Result.terminate;
       } else {

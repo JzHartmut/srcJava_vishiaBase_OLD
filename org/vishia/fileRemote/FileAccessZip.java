@@ -18,7 +18,6 @@ import java.util.zip.ZipFile;
 import org.vishia.event.Event;
 import org.vishia.fileRemote.FileRemote.Cmd;
 import org.vishia.fileRemote.FileRemote.CmdEvent;
-import org.vishia.fileRemote.FileRemoteAccessor.CallbackFile;
 import org.vishia.util.Assert;
 import org.vishia.util.TreeNodeBase;
 import org.vishia.util.UnexpectedException;
@@ -394,7 +393,7 @@ public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAc
   }
 
   @Override
-  public void walkFileTree(FileRemote file, boolean bRefreshFile, FileFilter filter, int depth, CallbackFile callback)
+  public void walkFileTree(FileRemote file, boolean bRefreshFile, FileFilter filter, int depth, FileRemoteCallback callback)
   {
     // TODO Auto-generated method stub
     

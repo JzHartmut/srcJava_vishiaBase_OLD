@@ -19,7 +19,7 @@ import org.vishia.util.StringFunctions;
  * @author Hartmut Schorrig
  *
  */
-public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
+public class FileRemoteCallbackCmp implements FileRemoteCallback
 {
   
   /**Version, history and license.
@@ -370,7 +370,7 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
      * in the dir1. A new dir is searched in the dir2 tree, then the children in 1 level are marked. 
      * 
      */
-    final FileRemoteAccessor.CallbackFile callbackMarkSecondAlone = new FileRemoteAccessor.CallbackFile()
+    final FileRemoteCallback callbackMarkSecondAlone = new FileRemoteCallback()
     {
 
       @Override
