@@ -23,6 +23,7 @@ import org.vishia.fileRemote.FileRemote;
 import org.vishia.fileRemote.FileRemoteAccessor;
 import org.vishia.fileRemote.FileRemote.CallbackEvent;
 import org.vishia.fileRemote.FileRemote.Cmd;
+import org.vishia.fileRemote.FileRemoteAccessor.CallbackFile;
 import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
 
@@ -248,7 +249,8 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
     }
     return list;
   }
-
+  
+  
   /**Variant of getChildren for non-Java-7. Firstly all children without its properties are gotten
    * from the operation system using {@link java.io.File#list()}. Therefore {@link #refreshFilePropertiesAndChildren(FileRemote, CallbackEvent)}
    * will be called. Then this list is iterated and the file properties are gotten using 
@@ -257,14 +259,14 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
    * 
    * @see org.vishia.fileRemote.FileRemoteAccessor#walkFileTree(org.vishia.fileRemote.FileRemote, java.io.FileFilter, int, org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)
    */
-  @Override public void walkFileTree(FileRemote file, FileFilter filter, int depth, CallbackFile callback)
+  @Override public void walkFileTree(FileRemote file, boolean bRefreshFile, FileFilter filter, int depth, CallbackFile callback)
   {
     callback.start();
-    walkSubTree(file, filter, depth, callback);
+    walkSubTree(file, bRefreshFile, filter, depth, callback);
     callback.finished();
   }
     
-  public FileRemoteAccessor.CallbackFile.Result walkSubTree(FileRemote file, FileFilter filter, int depth, CallbackFile callback)
+  public FileRemoteAccessor.CallbackFile.Result walkSubTree(FileRemote file, boolean bRefreshFile, FileFilter filter, int depth, CallbackFile callback)
   {
     refreshFilePropertiesAndChildren(file, null);
     Map<String, FileRemote> children = file.children();
@@ -279,7 +281,7 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
           refreshFileProperties(file2, null);
           if(file2.isDirectory()){
             if(depth >1){
-              result = walkSubTree(file2, filter, depth-1, callback);  
+              result = walkSubTree(file2, bRefreshFile, filter, depth-1, callback);  
             } else {
               result = callback.offerFile(file2);  //show it as file instead walk through tree
             }
@@ -450,7 +452,7 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
   
   private void getChildren(FileRemote.CmdEvent ev){
     FileRemote.ChildrenEvent evback = ev.getOpponentChildrenEvent();
-    walkFileTree(ev.filesrc(), evback.filter, evback.depth, evback.callbackChildren);
+    walkFileTree(ev.filesrc(), true, evback.filter, evback.depth, evback.callbackChildren);
   }
   
   

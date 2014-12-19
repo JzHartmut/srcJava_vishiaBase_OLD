@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -18,7 +19,8 @@ public class MsgConfig implements MsgText_ifc
 
   /**version, history and license:
    * <ul>
-   * <li>
+   * <li>2014-12-20 Hartmut new: Reads information for file outputs, see {@link FileOutput}, in preparing, not used yet.
+   * <li>2014-12-20 Hartmut bugfix: closes the read file, important for long running applications.
    * <li>2013-03-31 Hartmut new {@link #readConfig(File)} now regards 1000..1099 (range), $$ for ident strings,
    *   re-read of the config is possible (experience).
    * <li>2013-02-24 Hartmut new {@link #getListItems()}, move {@link MsgConfigItem} to {@link MsgText_ifc}.
@@ -60,6 +62,26 @@ public class MsgConfig implements MsgText_ifc
   public static class MsgConfigZbnf
   { public final List<MsgConfigItem> item = new LinkedList<MsgConfigItem>();
   }
+  
+  
+  public static class FileOutput
+  {
+    char dstChar;
+    String path;
+    int mask;
+    
+    public FileOutput(char dstChar, String path, int mask)
+    {
+      super();
+      this.dstChar = dstChar;
+      this.path = path;
+      this.mask = mask;
+    }
+    
+  }
+  
+  
+  List<FileOutput> listFileOutput;
   
   
   /**Index over all ident numbers. */
@@ -111,11 +133,22 @@ item::= <#?identNr>[..<#?identNrLast>]  <!.?type> <*|\t|\ \ ?dst> [$$<*|\r|\n|\t
     if(sError == null){
       try{
         String sLine;
+        int maskFileOutput = 0x10;
         rootParseResult.item.clear();
         while( sError == null && (sLine = reader.readLine()) !=null){
           sLine = sLine.trim();
           int zLine = sLine.length();
-          if(!sLine.startsWith("//") && !sLine.startsWith("#") && zLine >0){
+          if(sLine.startsWith("MsgFile:")) {
+            int posDst = 8; while(posDst < zLine-2 && sLine.charAt(++posDst) == ' '){ posDst +=1; };
+            char charDst = sLine.charAt(posDst);
+            int posPath = posDst+1; while(posPath < zLine-2 && sLine.charAt(++posPath) == ' '){ posPath +=1; };
+            String path = sLine.substring(posPath).trim();  //can contain spaces, but not recommended.
+            if(listFileOutput == null) { listFileOutput = new LinkedList<FileOutput>(); };
+            FileOutput item = new FileOutput(charDst, path, maskFileOutput);
+            maskFileOutput <<=1;
+            listFileOutput.add(item);
+          }
+          else if(!sLine.startsWith("//") && !sLine.startsWith("#") && zLine >0){
             int posIdentEnd = sLine.indexOf(' ');
             int posType = posIdentEnd; while(posType < zLine-2 && sLine.charAt(posType) == ' '){ posType +=1; };
             int posTypeEnd = sLine.indexOf(' ', posType);
@@ -171,6 +204,11 @@ item::= <#?identNr>[..<#?identNrLast>]  <!.?type> <*|\t|\ \ ?dst> [$$<*|\r|\n|\t
       for(MsgConfigItem item: rootParseResult.item){
         indexIdentNr.put(item.identNr, item);
       }
+    }
+    if(reader !=null){
+      try{ reader.close(); }
+      catch(IOException exc){ System.err.println("MsgConfig - cannot close the cfg file;"); }
+      reader = null;
     }
     return sError;
   }  

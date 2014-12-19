@@ -105,7 +105,7 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
     FileRemoteCallbackCmp(FileRemote dir1, FileRemote dir2, FileRemote.CallbackEvent evCallback){
       this.evCallback = evCallback;
       this.dir1 = dir1; this.dir2 = dir2;
-      dir2.refreshPropertiesAndChildren(null);        
+      dir2.refreshPropertiesAndChildren();        
       
       //try{ 
         basepath1 = FileSystem.normalizePath(dir1.getAbsolutePath()).toString();
@@ -140,7 +140,7 @@ public class FileRemoteCallbackCmp implements FileRemoteAccessor.CallbackFile
             file.mark.setMarkParent(FileMark.cmpMissingFiles, false);
             return Result.skipSubtree;  //if it is a directory, skip it.        
           } else {
-            file2.device.walkFileTree(file2, null, 1, callbackMarkSecondAlone);
+            file2.device.walkFileTree(file2, true, null, 1, callbackMarkSecondAlone);
             //waitfor
             //file2.refreshPropertiesAndChildren(null);        
             return Result.cont;

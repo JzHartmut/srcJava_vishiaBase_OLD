@@ -266,6 +266,9 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
   }
 
   
+  /* (non-Javadoc)
+   * @see org.vishia.fileRemote.FileRemoteAccessor#getChildren(org.vishia.fileRemote.FileRemote, java.io.FileFilter)
+   */
   @Override
   public List<File> getChildren(FileRemote file, FileFilter filter){
     File data = (File)file.oFile();
@@ -279,67 +282,44 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
     return list;
   }
 
+  
+  
+  
   /**Variant of getChildren for Java-7. 
    * It calls {@link Files#walkFileTree(Path, Set, int, FileVisitor)}
    * @see org.vishia.fileRemote.FileRemoteAccessor#walkFileTree(org.vishia.fileRemote.FileRemote, java.io.FileFilter, int, org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)
    */
-  public void walkFileTree(FileRemote dir, FileFilter filter, int depth, CallbackFile callback)
+  @Override public void walkFileTree(FileRemote dir, boolean bRefresh, FileFilter filter, int depth, CallbackFile callback)
   { ///
-    callback.start();
-    String sPath = dir.getAbsolutePath();
-    if(FileSystem.isRoot(sPath))
-      Assert.stop();
-    Path pathdir = Paths.get(sPath);
-    FileVisitor<Path> visitor = new WalkFileTreeVisitor(dir.itsCluster, true, callback);
-    Set<FileVisitOption> options = new TreeSet<FileVisitOption>();
-    try{ 
-      Files.walkFileTree(pathdir, options, depth, visitor);  
-    } catch(IOException exc){
-      System.err.println("FileAccessorLocalData.walkFileTree - unexpected IOException; " + exc.getMessage() );
-    }
-    callback.finished();
+    FileRemoteAccessor.FileWalkerThread thread = new FileRemoteAccessor.FileWalkerThread(dir, bRefresh, depth, filter, callback) {
+      @Override public void run() {
+        try{
+          if(callback !=null) { callback.start(); }
+          String sPath = dir.getAbsolutePath();
+          if(FileSystem.isRoot(sPath))
+            Assert.stop();
+          Path pathdir = Paths.get(sPath);
+          if(bRefresh && filter == null) {
+            dir.internalAccess().newChildren();
+          }
+          FileVisitor<Path> visitor = new WalkFileTreeVisitor(dir.itsCluster, bRefresh, callback);
+          Set<FileVisitOption> options = new TreeSet<FileVisitOption>();
+          try{ 
+            Files.walkFileTree(pathdir, options, depth, visitor);  
+          } catch(IOException exc){
+            System.err.println("FileAccessorLocalData.walkFileTree - unexpected IOException; " + exc.getMessage() );
+          }
+          if(callback !=null) { callback.finished(); }
+        } 
+        catch(Exception exc){
+          System.err.println("FileRemote - RefreshThread Exception; " + exc.getMessage());
+        }
+      }
+    };
+    thread.start();    
   }
 
   
-  public void XwalkFileTree(FileRemote file, FileFilter filter, int depth, CallbackFile callback)
-  {
-    callback.start();
-    walkSubTree(file, filter, depth, callback);
-    callback.finished();
-  }
-    
-  public FileRemoteAccessor.CallbackFile.Result walkSubTree(FileRemote file, FileFilter filter, int depth, CallbackFile callback)
-  {
-    refreshFilePropertiesAndChildren(file, null);
-    Map<String, FileRemote> children = file.children();
-    FileRemoteAccessor.CallbackFile.Result result = FileRemoteAccessor.CallbackFile.Result.cont;
-    if(children !=null){
-      result = callback.offerDir(file);
-      if(result == FileRemoteAccessor.CallbackFile.Result.cont){ //only walk through subdir if cont
-        Iterator<Map.Entry<String, FileRemote>> iter = children.entrySet().iterator();
-        while(result == FileRemoteAccessor.CallbackFile.Result.cont && iter.hasNext()) {
-          Map.Entry<String, FileRemote> file1 = iter.next();
-          FileRemote file2 = file1.getValue();
-          refreshFileProperties(file2, null);
-          if(file2.isDirectory()){
-            if(depth >1){
-              result = walkSubTree(file2, filter, depth-1, callback);  
-            } else {
-              result = callback.offerFile(file2);  //show it as file instead walk through tree
-            }
-          } else {
-            result = callback.offerFile(file2);
-          }
-        }
-      } 
-    }
-    if(result != FileRemoteAccessor.CallbackFile.Result.terminate){
-      //continue with parent. Also if offerDir returns skipSubdir or any file returns skipSiblings.
-      result = FileRemoteAccessor.CallbackFile.Result.cont;
-    }
-    return result;  //maybe terminate
-  }
-
   
   
   @Override public boolean setLastModified(FileRemote file, long time)
@@ -495,7 +475,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
   
   private void getChildren(FileRemote.CmdEvent ev){
     FileRemote.ChildrenEvent evback = ev.getOpponentChildrenEvent();
-    walkFileTree(ev.filesrc(), evback.filter, evback.depth, evback.callbackChildren);
+    walkFileTree(ev.filesrc(), true, evback.filter, evback.depth, evback.callbackChildren);
   }
   
   
@@ -796,8 +776,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
     private CurrDirChildren curr;
     
     
-    public WalkFileTreeVisitor(FileCluster fileCluster, boolean refresh,
-        CallbackFile callback)
+    public WalkFileTreeVisitor(FileCluster fileCluster, boolean refresh, CallbackFile callback)
     {
       this.fileCluster = fileCluster;
       this.refresh = refresh;
@@ -829,7 +808,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
       if(refresh && curr !=null){
         curr.children.put(name, dir1);
       }
-      FileRemoteAccessor.CallbackFile.Result result = callback.offerDir(dir1);
+      FileRemoteAccessor.CallbackFile.Result result = (callback !=null) ? callback.offerDir(dir1) : Result.cont;
       if(result == Result.cont){
         curr = new CurrDirChildren(dir1, curr);
         System.out.println("FileRemoteAccessorLocalJava7 - callback - pre dir; " + curr.dir.getAbsolutePath());
@@ -842,7 +821,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
     @Override
     public FileVisitResult postVisitDirectory(Path dir, IOException exc)
         throws IOException
-    { FileRemoteAccessor.CallbackFile.Result result = callback.finishedDir(curr.dir);
+    { FileRemoteAccessor.CallbackFile.Result result = (callback !=null) ? callback.finishedDir(curr.dir) : Result.cont;
       if(refresh){  //es fehlen alle, die nicht als file erscheinen weil das dir auf Gegenseite nicht vorhanden ist.
         curr.dir.internalAccess().setChildren(curr.children);  //Replace the map.
         curr.dir.timeChildren = System.currentTimeMillis();
@@ -864,7 +843,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
       FileRemote fileRemote = curr.dir.child(name);
       setAttributes(fileRemote, file, attrs);
       FileRemoteAccessor.CallbackFile.Result result;
-      if(callback.shouldAborted()){
+      if(callback !=null && callback.shouldAborted()){
         result = Result.terminate;
       } else {
         if(refresh){
@@ -872,7 +851,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
           curr.dir.internalAccess().setRefreshed();
   
         }
-        result = callback.offerFile(fileRemote);
+        result = (callback !=null) ? callback.offerFile(fileRemote) : Result.cont;
       }
       return translateResult(result);
     }

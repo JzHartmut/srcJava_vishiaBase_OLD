@@ -18,6 +18,8 @@ import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventThread;
 import org.vishia.fileLocalAccessor.FileAccessorLocalJava6;
+import org.vishia.fileRemote.FileRemoteAccessor.CallbackFile;
+import org.vishia.fileRemote.FileRemoteAccessor.CallbackFile.Result;
 import org.vishia.util.Assert;
 import org.vishia.util.Debugutil;
 import org.vishia.util.FileSystem;
@@ -113,6 +115,9 @@ public class FileRemote extends File implements MarkMask_ifc
 
   /**Version, history and license.
    * <ul>
+   * <li>2014-12-20 Hartmut new: {@link #refreshPropertiesAndChildren(CallbackFile)} used in Fcmd with an Thread on demand, 
+   *   see {@link org.vishia.fileLocalAccessor.FileAccessorLocalJava7#walkFileTree(FileRemote, boolean, FileFilter, int, CallbackFile)}
+   *   and {@link FileRemoteAccessor.FileWalkerThread}.
    * <li>2014-07-30 Hartmut new: calling {@link FileAccessorLocalJava6#selectLocalFileAlways} in {@link #getAccessorSelector()}
    *   for compatibility with Java6. There the existence of java.nio.file.Files is checked, and the File access
    *   in Java7 is used if available. So this class runs with Java6 too, which is necessary in some established environments.
@@ -807,6 +812,30 @@ public class FileRemote extends File implements MarkMask_ifc
   
   
   
+  /**Refreshes the properties of this file and gets all children in an extra thread with user-callback for any file.
+   * In an on demand created thread the routine {@link FileRemoteAccessor#refreshPropertiesAndChildren(FileRemote, boolean, FileFilter, CallbackFile)}
+   * will be called with the given CallbackFile.
+   * @param callback maybe null if the callback is not used.
+   */
+  public void refreshPropertiesAndChildren(FileRemoteAccessor.CallbackFile callback) {
+    if(device == null){
+      device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
+    device.walkFileTree(this,  true, null,  1,  callback);  //should work in an extra thread.
+  }
+  
+  
+  /**Uses walk through file tree to refresh but without user callback.
+   * It calls {@link #refreshPropertiesAndChildren(CallbackFile)}.
+   * 
+   */
+  public void refreshPropertiesAndChildren() {
+    FileRemoteAccessor.CallbackFile callback = null;
+    refreshPropertiesAndChildren(callback);
+  }
+  
+  
+  
   /**Sets this as a symbolic linked file or dir with the given path. 
    * 
    * This method is not intent to invoke from a users application. It should only invoked 
@@ -1000,9 +1029,8 @@ public class FileRemote extends File implements MarkMask_ifc
    */
   @Override public String getPath(){ return getPathChars().toString(); } 
   
-  /**Returns the same as {@link #getPath()} but presents it as the StringBuilder instance which was used
-   * to concatenate. 
-   * @return
+  /**Returns the same as {@link #getPath()} but does not build a String from a new StringBuilder if not necessary.
+   * @return The path to the file.
    */
   public CharSequence getPathChars(){
     int zFile = sFile == null ? 0 : sFile.length();
@@ -1018,7 +1046,7 @@ public class FileRemote extends File implements MarkMask_ifc
         }
       }
       ret.append(sFile);
-      return ret.toString();
+      return ret;
     } else {
       return sDir;
       /*
@@ -1031,6 +1059,29 @@ public class FileRemote extends File implements MarkMask_ifc
       }
       */
     }    
+  }
+  
+  /**Returns the same as {@link #getPath()} but uses the given StringBuilder to assemble the path.
+   * @return ret itself cleaned and filled with the path to the file.
+   */
+  public StringBuilder getPathChars(StringBuilder ret){
+    int zFile = sFile == null ? 0 : sFile.length();
+    ret.setLength(0);
+    if(zFile > 0){ 
+      int zDir = sDir == null? 0: sDir.length();
+      if(zDir >0){
+        ret.append(sDir);
+        if(sDir.charAt(zDir-1) != '/' //does not end with "/"
+          && sFile.charAt(0) !='/'    //root path has "/" in sFile
+        ) { 
+          ret.append('/'); 
+        }
+      }
+      ret.append(sFile);
+    } else {
+      ret.append(sDir);
+    }
+    return ret;
   }
   
   @Override public String getCanonicalPath(){ return sCanonicalPath; }
@@ -1592,11 +1643,13 @@ public class FileRemote extends File implements MarkMask_ifc
    * {@link Event#callback}.{@link EventConsumer#processEvent(Event)} method. 
    * 
    * @param evback The event for status messages and success.
+   * @param nameDst maybe null, elsewhere it should contain 1 wildcard to specify an abbreviating name.
    */
-  public void copyChecked(FileRemote.CallbackEvent evback, int mode){
+  public void copyChecked(FileRemote.CallbackEvent evback, String nameDst, int mode){
     CmdEvent ev = evback.getOpponent();
     ev.filesrc = null;
     ev.filedst = this;
+    ev.nameDst = nameDst;
     ev.modeCopyOper = mode;
     ev.sendEvent(Cmd.copyChecked);
   }
@@ -2282,7 +2335,13 @@ public class FileRemote extends File implements MarkMask_ifc
     
     public void setChildrenRefreshed(){ flags &= ~mShouldRefresh; timeRefresh = timeChildren = System.currentTimeMillis(); }
     
-    public void newChildren(){ children = createChildrenList(); }
+    public void newChildren(){ 
+      if(children == null){
+        children = createChildrenList(); 
+      } else {
+        children.clear();
+      }
+    }
     
     /**Creates a new file as child of this file. It does not add the child itself because it may be gathered
      * in an seconst container and then exchanged. Only for internal use.
@@ -2514,10 +2573,77 @@ public class FileRemote extends File implements MarkMask_ifc
       dir1.setMarked(FileMark.markRoot);
       dir2.setMarked(FileMark.markRoot);
       FileRemoteCallbackCmp callback = new FileRemoteCallbackCmp(dir1, dir2, evCallback);
-      dir1.device.walkFileTree(dir1, null, Integer.MAX_VALUE, callback);
+      dir1.device.walkFileTree(dir1, true, null, Integer.MAX_VALUE, callback);
       //after finish destroy this thread.
     }
   }
 
+  
+  
+  
+  /**Callback for walkThroughFiles for {@link FileRemote#refreshPropertiesAndChildren(org.vishia.fileRemote.FileRemoteAccessor.CallbackFile)}.
+   *
+   */
+  public class XXXXXCallbackChildren implements FileRemoteAccessor.CallbackFile {
+    
+    final FileRemoteAccessor.CallbackFile callbackUser;
+    
+    final boolean bUpdateThis;
+    
+    /**Constructs.
+     * @param callbackUser This callback will be invoked after the child is registered in this.
+     * @param updateThis true then remove and update #children.
+     */
+    public XXXXXCallbackChildren(FileRemoteAccessor.CallbackFile callbackUser, boolean updateThis)
+    {
+      this.callbackUser = callbackUser;
+      this.bUpdateThis = updateThis;
+    }
+    
+    
+    @Override public void start() { 
+      if(bUpdateThis) {
+        if(children == null){ children = createChildrenList(); }
+        else { children.clear(); }
+      }
+      if(callbackUser !=null) callbackUser.start(); 
+    }
+    
+    @Override public void finished() {  }
+
+    @Override public Result offerDir(FileRemote file) {
+      if(bUpdateThis) {
+        String name = file.getName();
+        children.put(name, file);
+      }
+      if(callbackUser !=null) return callbackUser.offerDir(file); 
+      else return Result.cont;      
+    }
+    
+    @Override public Result finishedDir(FileRemote file) {
+      if(callbackUser !=null) return callbackUser.finishedDir(file); 
+      else return Result.cont;      
+    }
+    
+    
+
+    @Override public Result offerFile(FileRemote file) {
+      if(bUpdateThis) {
+        String name = file.getName();
+        children.put(name, file);
+      }
+      if(callbackUser !=null) return callbackUser.offerFile(file); 
+      else return Result.cont;      
+    }
+
+    
+    @Override public boolean shouldAborted(){
+      if(callbackUser !=null) return callbackUser.shouldAborted(); 
+      else return false;
+    }
+    
+
+  }
+  
   
 }

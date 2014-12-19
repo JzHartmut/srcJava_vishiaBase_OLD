@@ -531,7 +531,7 @@ public class Copy_FileLocalAccJava6
       try{
         System.out.println("Copy_FileLocalAcc - check;" + actData.toString());
         //if(!actData.src.isTested()){
-        actData.src.refreshPropertiesAndChildren(null);
+        actData.src.refreshPropertiesAndChildren();
         //}
         if(actData.src.isDirectory()){
           //process all sub files

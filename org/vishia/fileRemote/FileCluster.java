@@ -153,7 +153,8 @@ public class FileCluster
           }
         } else {
         }
-      } else if(cmpPathCheck == -zDir){//if(StringFunctions.startsWith(sPathRet, sDir)) {  //check whether dir is a parent of sPathRet
+      } else if(cmpPathCheck == -zDir && sPathCheck.charAt(zDir) == '/') { //check whether dir is a parent of sPathCheck
+      //if(StringFunctions.startsWith(sPathRet, sDir)) {  //check whether dir is a parent of sPathRet
         //sDir is a parent of found sPathRet.
         FileRemote checkWhetherParent = null;
         String sCheckWhetherParent = "";
@@ -194,8 +195,10 @@ public class FileCluster
           } else {
             //it should be the existing parent:
             dirCheck = dirCheck.parent;
+            putit = false;  //it is found
             if(!dirCheck.getAbsolutePath().equals(sPathCheck)) 
             { throw new IllegalStateException("FileCluster - faulty parent found."); }
+            
           }
           idxPaths.put(sPathCheck, dirCheck);  //Store it for later search.
         }

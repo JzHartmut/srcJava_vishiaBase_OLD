@@ -109,20 +109,33 @@ public interface FileRemoteAccessor extends Closeable
   public abstract void refreshFilePropertiesAndChildren(FileRemote file, FileRemote.CallbackEvent callback);
 
   
+  /**Gets files and sub directories of a directory. This method uses the {@link java.io.File} access methods to get the children of this file.
+   * @param file parent directory.
+   * @param filter maybe a filter
+   * @return The list of that file's children with given filter.
+   */
   public abstract List<File> getChildren(FileRemote file, FileFilter filter);
   
-  /**Walks through all children of the given file and call the {@link CallbackFile#offerFile(FileRemote)}
-   * for any file. 
-   * The callback is done in another thread, because it may be a result of communication.
-   * This routine does not wait for finish. The last call {@link CallbackFile#finished()}
-   * is the last action of that.
+  /**Walks through all children of the given file with given filter on the storage medium, maybe refreshes the files 
+   * and inform the user on any directory entry and and file or directory via callback.
+   * The callback may be done in another thread, because it may be a result of communication.
+   * This routine may return immediately. It does not block if a communication is necessary.
+   * <ul>
+   * <li>{@link CallbackFile#start()} is called firstly. 
+   * <li>{@link CallbackFile#offerDir(FileRemote)} is called on a new directory which is entered.
+   * <li>{@link CallbackFile#offerFile(FileRemote)} is called for any found entry in a directory. It may be a file or sub directory.
+   * <li>{@link CallbackFile#finished()} is the last action of that.
+   * </ul> 
    *  
-   * @param file The start file. With it {@link CallbackFile#start()} will be called.
+   * @param file The start file.
+   * @param bRefresh if true then refreshes all entries in file and maybe found children. If false then let file unchanged.
+   *   If filter is not null, only the filtered children will be updated,
+   *   all other children remain unchanged. It means it is possible that non exists files are remain as children.
    * @param filter Any filter which files will be accepted.
    * @param depth depth, at least 1 should be use.
-   * @param callback The callback instance for any file.
+   * @param callback this callback will be invoked on any file or directory.
    */
-  public void walkFileTree(FileRemote file, FileFilter filter, int depth, CallbackFile callback);
+  public void walkFileTree(FileRemote file, boolean bRefresh, FileFilter filter, int depth, CallbackFile callback);
   
 
   boolean setLastModified(FileRemote file, long time);
@@ -177,7 +190,7 @@ public interface FileRemoteAccessor extends Closeable
      */
     void start();
     
-    /**Invoked for any directory.
+    /**Invoked on start on walking through a directory.
      * It is invoked in the thread which executes a FileRemote action.
      * It is possible to create an event and store it in a queue but there are necessary some more events
      * it may not be good.
@@ -195,7 +208,7 @@ public interface FileRemoteAccessor extends Closeable
      */
     Result finishedDir(FileRemote file);
     
-    /**Invoked for any file of the directory.
+    /**Invoked for any file or sub directory.
      * It is invoked in the thread which executes a FileRemote action.
      * It is possible to create an event and store it in a queue but there are necessary some more events
      * it may not be good.
@@ -246,6 +259,30 @@ public interface FileRemoteAccessor extends Closeable
     
   };
   
+  
+  
+  /**This class offers a Thread especially for {@link FileRemoteAccessor#walkFileTree(FileRemote, boolean, FileFilter, int, CallbackFile)}
+   * which can be use for devices which can evaluate the files by immediately system calls without communication but with maybe waiting for response.
+   * It is for the PC's file system especially. 
+   */
+  public static class FileWalkerThread extends Thread
+  {
+    final protected FileRemote dir; 
+    final protected FileFilter filter; 
+    final protected CallbackFile callback;
+    final protected boolean bRefresh;
+    final protected int depth;
+    
+    public FileWalkerThread(FileRemote dir, boolean bRefresh, int depth, FileFilter filter, CallbackFile callback)
+    { super("FileRemoteRefresh");
+      this.dir = dir;
+      this.bRefresh = bRefresh;
+      this.depth = depth;
+      this.filter = filter;
+      this.callback = callback;
+    }
+    
+  }
   
   
 

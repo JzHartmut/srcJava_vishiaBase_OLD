@@ -366,7 +366,7 @@ public class Copy_FileLocalAccJava7
         absPath = "..." + absPath.substring(evBackInfo.fileName.length -4);  //the trailing part.
       }
       StringFunctions.copyToBuffer(absPath, evBackInfo.fileName);
-        evBackInfo.sendEvent(cmd);
+      evBackInfo.sendEvent(cmd);
     } else {
       Assert.checkMsg (false, null);
     }
@@ -532,60 +532,63 @@ public class Copy_FileLocalAccJava7
       try{
         System.out.println("Copy_FileLocalAcc - check;" + actData.toString());
         //if(!actData.src.isTested()){
-        actData.src.refreshPropertiesAndChildren(null);
+        actData.src.refreshPropertiesAndChildren();
         //}
         if(actData.src.isDirectory()){
           //process all sub files
           long time1 = System.currentTimeMillis();
-          for(Map.Entry<String, FileRemote> item: actData.src.children().entrySet()){
-            FileRemote child = item.getValue();
-            if(child.isDirectory()){
-              //build a new recursive instance for the child to process in a next step.
-              child.refreshProperties(null);
-              DataSetCopy1Recurs childData = actData.addNewEntry(child, null);
-            }
-            else { //it's a file, check name, TODO parent dir
-              boolean select = sMaskCheck == null;  //select if no maks given.
-              String sChild = child.getName();
-              //select=false;
-              int ixMask = -1;
-              while(!select && ixMask < sMaskCheck.length-1) {
-                String s1 = sMaskCheck[++ixMask];
-                FileRemote.Ecmp cmp;
-                int z1 = s1.length();
-                int posNotlastAsterisk = s1.lastIndexOf('*', z1-2);
-                int posSlash = s1.lastIndexOf('/');
-                
-                String sCmpName; 
-                if(s1.charAt(z1-1) == '*' && posNotlastAsterisk >=0){
-                  sCmpName = s1.substring(posNotlastAsterisk+1, z1-1); 
-                  cmp = posSlash >= z1-2 ? FileRemote.Ecmp.always 
-                      : posNotlastAsterisk > posSlash ? FileRemote.Ecmp.contains
-                      : FileRemote.Ecmp.starts;
-                } else { 
-                  sCmpName = s1.substring(posNotlastAsterisk+1, z1);
-                  cmp = posNotlastAsterisk > posSlash ? FileRemote.Ecmp.ends: FileRemote.Ecmp.equals;
-                }
-                switch(cmp){
-                  case starts: select= sChild.startsWith(sCmpName); break;
-                  case ends: select= sChild.endsWith(sCmpName); break;
-                  case contains: select= sChild.contains(sCmpName); break;
-                  case equals: select= sChild.equals(sCmpName); break;
-                  case always: select=true;
-                }
+          Map<String, FileRemote> children = actData.src.children();
+          if(children !=null) {
+            for(Map.Entry<String, FileRemote> item: children.entrySet()){
+              FileRemote child = item.getValue();
+              if(child.isDirectory()){
+                //build a new recursive instance for the child to process in a next step.
+                child.refreshProperties(null);
+                DataSetCopy1Recurs childData = actData.addNewEntry(child, null);
               }
-              if(select){
-                actData.selectAnyFile = true;
-                if(!child.isTested(time1-55000)) { //don't refresh if it was refreshed for 5 seconds.
-                  child.refreshProperties(null);   ////
+              else { //it's a file, check name, TODO parent dir
+                boolean select = sMaskCheck == null;  //select if no maks given.
+                String sChild = child.getName();
+                //select=false;
+                int ixMask = -1;
+                while(!select && ixMask < sMaskCheck.length-1) {
+                  String s1 = sMaskCheck[++ixMask];
+                  FileRemote.Ecmp cmp;
+                  int z1 = s1.length();
+                  int posNotlastAsterisk = s1.lastIndexOf('*', z1-2);
+                  int posSlash = s1.lastIndexOf('/');
+                  
+                  String sCmpName; 
+                  if(s1.charAt(z1-1) == '*' && posNotlastAsterisk >=0){
+                    sCmpName = s1.substring(posNotlastAsterisk+1, z1-1); 
+                    cmp = posSlash >= z1-2 ? FileRemote.Ecmp.always 
+                        : posNotlastAsterisk > posSlash ? FileRemote.Ecmp.contains
+                        : FileRemote.Ecmp.starts;
+                  } else { 
+                    sCmpName = s1.substring(posNotlastAsterisk+1, z1);
+                    cmp = posNotlastAsterisk > posSlash ? FileRemote.Ecmp.ends: FileRemote.Ecmp.equals;
+                  }
+                  switch(cmp){
+                    case starts: select= sChild.startsWith(sCmpName); break;
+                    case ends: select= sChild.endsWith(sCmpName); break;
+                    case contains: select= sChild.contains(sCmpName); break;
+                    case equals: select= sChild.equals(sCmpName); break;
+                    case always: select=true;
+                  }
                 }
-                child.setMarked(1);  //a selected file.
-                zBytesAllCheck += child.length();
-                zFilesCheck += 1;
-              } else if(child.isMarked(1)){
-                //count selected files too, selected in the past.
-                zBytesAllCheck += child.length();
-                zFilesCheck += 1;
+                if(select){
+                  actData.selectAnyFile = true;
+                  if(!child.isTested(time1-55000)) { //don't refresh if it was refreshed for 5 seconds.
+                    child.refreshProperties(null);   ////
+                  }
+                  child.setMarked(1);  //a selected file.
+                  zBytesAllCheck += child.length();
+                  zFilesCheck += 1;
+                } else if(child.isMarked(1)){
+                  //count selected files too, selected in the past.
+                  zBytesAllCheck += child.length();
+                  zFilesCheck += 1;
+                }
               }
             }
           }
@@ -641,7 +644,9 @@ public class Copy_FileLocalAccJava7
           
       } catch(Exception exc){
         //bContCopy = false;
-        System.err.printf("FileAccessorLocalJava7 - Copy error; %s\n", exc.getMessage());
+        CharSequence text = Assert.exceptionInfo("FileAccessorLocalJava7 - Copy error;", exc, 0, 20, true);
+        System.err.printf(text.toString());
+        FileRemote path = actData.dst !=null ? actData.dst : actData.src;
         sendEventAsk(actData.dst, FileRemote.CallbackCmd.askErrorCopy );
         bCont = false;
       }
@@ -684,7 +689,7 @@ public class Copy_FileLocalAccJava7
     //actData = checkedFiles.poll();  //start with the first entry.
     actData = new DataSetCopy1Recurs(null);
     actData.src = fileSrc;
-    if(bOnlyOneFile && dirDst !=null && dirDst.exists() && dirDst.isDirectory()){
+    if(false && bOnlyOneFile && dirDst !=null && dirDst.exists() && dirDst.isDirectory()){
       String sName = actData.src.getName();
       FileRemote fileDst = dirDst == null ? null : dirDst.child(sName); 
       actData.dst = fileDst;                                 //complete actData with dst.
