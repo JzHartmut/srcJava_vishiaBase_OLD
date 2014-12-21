@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,7 @@ import java.util.Queue;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.vishia.commander.FcmdCopyCmd;
 import org.vishia.event.Event;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
@@ -116,7 +118,7 @@ public class FileRemote extends File implements MarkMask_ifc
   /**Version, history and license.
    * <ul>
    * <li>2014-12-20 Hartmut new: {@link #refreshPropertiesAndChildren(CallbackFile)} used in Fcmd with an Thread on demand, 
-   *   see {@link org.vishia.fileLocalAccessor.FileAccessorLocalJava7#walkFileTree(FileRemote, boolean, FileFilter, int, CallbackFile)}
+   *   see {@link org.vishia.fileLocalAccessor.FileAccessorLocalJava7#walkFileTree(FileRemote, boolean, boolean, String, int, int, FileRemoteCallback)}
    *   and {@link FileRemoteAccessor.FileWalkerThread}.
    * <li>2014-07-30 Hartmut new: calling {@link FileAccessorLocalJava6#selectLocalFileAlways} in {@link #getAccessorSelector()}
    *   for compatibility with Java6. There the existence of java.nio.file.Files is checked, and the File access
@@ -312,7 +314,11 @@ public class FileRemote extends File implements MarkMask_ifc
    * may be only any path without respect to an existing file.
    */
   public final static int  mTested =        0x20000;
-  //protected final static int mChildrenGotten = 0x40000;
+  
+  
+  /**Set if the file is removed yet because a refresh is pending. Note that the FileRemote instance should be kept for marking etc.
+   */
+  public final static int  mRefreshChildPending = 0x40000;
   
   /**Set if a thread runs to get file properties. */
   public final static int mThreadIsRunning =0x80000;
@@ -659,7 +665,8 @@ public class FileRemote extends File implements MarkMask_ifc
       if(child.parent != null) throw new IllegalStateException("faulty parent-child");
       child.parent = this;
     }
-    children.put(child.sFile, child);
+    children.put(child.sFile, child);  //it may replace the same child with itself. But search is necessary.
+    child.flags &= ~mRefreshChildPending;
   }
   
   
@@ -821,7 +828,7 @@ public class FileRemote extends File implements MarkMask_ifc
     if(device == null){
       device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    device.walkFileTree(this,  true, null,  1,  callback);  //should work in an extra thread.
+    device.walkFileTree(this,  true, false, null, 0,  1,  callback);  //should work in an extra thread.
   }
   
   
@@ -833,6 +840,23 @@ public class FileRemote extends File implements MarkMask_ifc
     FileRemoteCallback callback = null;
     refreshPropertiesAndChildren(callback);
   }
+  
+  
+  
+  /**Refreshes a file tree and mark some files.
+   * @param depth at least 1 for enter in the first directory. Use 0 if all levels should enter.
+   * @param mask a mask to select directory and files
+   * @param mark bits to select mark
+   * @param set or reset the bit.
+   */
+  public void refreshAndMark(int depth, boolean resetMark, String mask, int mark, int set, FileRemoteCallback callbackUser) {
+    if(device == null){
+      device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
+    CallbackMark callbackMark = new CallbackMark(callbackUser, mark);
+    device.walkFileTree(this,  true, resetMark, mask, mark,  depth,  callbackMark);  //should work in an extra thread.
+  }
+  
   
   
   
@@ -1440,7 +1464,7 @@ public class FileRemote extends File implements MarkMask_ifc
    *   {@link #check(String, String, CallbackEvent)}.
    * @param mode
    */
-  public void deleteChecked(FileRemote.CallbackEvent evback, int mode){ ////
+  public void deleteChecked(FileRemote.CallbackEvent evback, int mode){ 
     CmdEvent ev = evback.getOpponent();
     if(ev.occupy(evSrc, true)){
       ev.filesrc = this;
@@ -1484,6 +1508,16 @@ public class FileRemote extends File implements MarkMask_ifc
     }
   }
   
+  
+  
+  
+  /**Deletes all files which has marked with the given bits.
+   * @param mark bits, at least one of them should be set in the file to force delete.
+   */
+  public void deleteMarked(int mark, FileRemoteCallback callback) {
+    CallbackDelete callbackDel = new CallbackDelete(callback, mark);
+    walkFileTreeThread(Integer.MAX_VALUE, callbackDel);
+  }
   
   
   
@@ -1827,6 +1861,76 @@ public class FileRemote extends File implements MarkMask_ifc
     ev.sendEvent(Cmd.chgPropsRecurs);
   }
   
+  
+  
+  /**Walks to the tree of children with given files, without synchronization with the device.
+   * To run this routine in an extra Thread use {@link #walkFileTreeThread(int, FileRemoteCallback)}.
+   * @param depth at least 1 for enter in the first directory. Use 0 if all levels should enter.
+   * @param callback
+   */
+  public void walkFileTree(int depth, FileRemoteCallback callback)
+  {
+    callback.start();
+    walkSubTree(this, depth <=0 ? Integer.MAX_VALUE: depth, callback);
+    callback.finished(0,0);
+  }
+    
+  
+  
+  
+  /**Walks to the tree of children with given files, without synchronization with the device.
+   * This routine creates and starts a {@link WalkThread} and runs {@link #walkFileTree(int, FileRemoteCallback)} in that thread.
+   * The user is informed about progress and results via the callback instance.
+   * @param depth at least 1, 0 to enter all levels.
+   * @param callback
+   */
+  public void walkFileTreeThread(int depth, FileRemoteCallback callback)
+  {
+    WalkThread thread1 = new WalkThread(this, depth, callback);
+    thread1.start();
+  }
+  
+  
+  
+  /**See {@link #walkFileTree(int, FileRemoteCallback)}, invoked internally recursively.
+   */
+  private static FileRemoteCallback.Result walkSubTree(FileRemote dir, int depth, FileRemoteCallback callback)
+  {
+    FileRemoteCallback.Counters cnt = new FileRemoteCallback.Counters();
+    
+    Map<String, FileRemote> children = dir.children();
+    FileRemoteCallback.Result result = FileRemoteCallback.Result.cont;
+    result = callback.offerDir(dir);
+    if(result == FileRemoteCallback.Result.cont && children !=null){ //only walk through subdir if cont
+      Iterator<Map.Entry<String, FileRemote>> iter = children.entrySet().iterator();
+      while(result == FileRemoteCallback.Result.cont && iter.hasNext()) {
+        try{
+          Map.Entry<String, FileRemote> file1 = iter.next();
+          FileRemote file2 = file1.getValue();
+          if(file2.isDirectory()){
+            cnt.nrofDirs +=1;
+            if(depth >1){
+              //invokes offerDir for file2
+              result = walkSubTree(file2, depth-1, callback);  
+            } else {
+              //because the depth is reached, offerFile is called.
+              result = callback.offerFile(file2);  //show it as file instead walk through tree
+            }
+          } else {
+            cnt.nrofFiles +=1;
+            result = callback.offerFile(file2);  //a regular file.
+          }
+        }catch(Exception exc){ System.err.println(Assert.exceptionInfo("FileRemote unexpected - walkSubtree", exc, 0, 20, true)); }
+      }
+    } 
+    if(result != FileRemoteCallback.Result.terminate){
+      //continue with parent. Also if offerDir returns skipSubdir or any file returns skipSiblings.
+      result = callback.finishedDir(dir, cnt); //FileRemoteCallback.Result.cont;
+    }
+    return result;  //maybe terminate
+  }
+
+
   
   
   
@@ -2333,13 +2437,48 @@ public class FileRemote extends File implements MarkMask_ifc
     
     public void setRefreshed(){ flags &= ~mShouldRefresh; timeRefresh = System.currentTimeMillis(); }
     
-    public void setChildrenRefreshed(){ flags &= ~mShouldRefresh; timeRefresh = timeChildren = System.currentTimeMillis(); }
+    /**Removes all children which are marked as {@link FileRemote#mRefreshChildPending},
+     * removes the {@link FileRemote#mShouldRefresh} mark for this directory
+     * and sets the {@link FileRemote#timeRefresh} and {@link FileRemote#timeChildren} to the current time then.
+     */
+    public void setChildrenRefreshed(){
+      Iterator<Map.Entry<String, FileRemote>> iter = FileRemote.this.children.entrySet().iterator();
+      while(iter.hasNext()) {
+        Map.Entry<String, FileRemote> filentry = iter.next();
+        FileRemote child = filentry.getValue();
+        if(child == null) {
+          Debugutil.stop();
+        } else {
+          if((child.flags & mRefreshChildPending)!=0) {
+            //child file is not existing, remove it:
+            iter.remove();
+          }
+        }
+        
+      }
+      
+      flags &= ~mShouldRefresh; timeRefresh = timeChildren = System.currentTimeMillis(); 
+    }
     
+    /**Creates a new children list or removes all children because there should be refreshed.
+     * The children are not removed but only marked as {@link FileRemote#mRefreshChildPending} because the instances are necessary for refreshing
+     * to get the same instance for the same child again. Note that some marker may be stored there, see {@link FileRemote#setMarked(int)} etc.
+     * On entry a new child the instance will be unchanged, but the marker mRemoved is removed and the properties of the child are refreshed.
+     * On finishing the refreshing of a directory all {@link FileRemote} child instances which's mRemoved is remain are removed then.
+     */
     public void newChildren(){ 
       if(children == null){
         children = createChildrenList(); 
       } else {
-        children.clear();
+        Iterator<Map.Entry<String, FileRemote>> iter = children.entrySet().iterator();
+        while(iter.hasNext()) {
+          FileRemote child = iter.next().getValue();
+          if(child == null) {
+            Debugutil.stop();
+          } else {
+            child.flags |= mRefreshChildPending;
+          }
+        }
       }
     }
     
@@ -2505,7 +2644,7 @@ public class FileRemote extends File implements MarkMask_ifc
         return Result.cont;
       }
       
-      @Override public Result finishedDir(FileRemote file){
+      @Override public Result finishedDir(FileRemote file, FileRemoteCallback.Counters cnt){
         return Result.cont;      
       }
       
@@ -2524,7 +2663,7 @@ public class FileRemote extends File implements MarkMask_ifc
        * If there are some files yet in the queue, send the event for the last time.
        * But wait till the other thread has finished it.
        */
-      @Override public void finished()
+      @Override public void finished(long nrofBytes, int nrofFiles)
       { if(0 != occupyRecall(4000, evSrcCmd, false)){
           finished = true;
           sendEvent();
@@ -2573,7 +2712,7 @@ public class FileRemote extends File implements MarkMask_ifc
       dir1.setMarked(FileMark.markRoot);
       dir2.setMarked(FileMark.markRoot);
       FileRemoteCallbackCmp callback = new FileRemoteCallbackCmp(dir1, dir2, evCallback);
-      dir1.device.walkFileTree(dir1, true, null, Integer.MAX_VALUE, callback);
+      dir1.device.walkFileTree(dir1, true, false, null, 0, Integer.MAX_VALUE, callback);
       //after finish destroy this thread.
     }
   }
@@ -2581,57 +2720,67 @@ public class FileRemote extends File implements MarkMask_ifc
   
   
   
-  /**Callback for walkThroughFiles for {@link FileRemote#refreshPropertiesAndChildren(org.vishia.fileRemote.FileRemoteCallback)}.
+  /**Callback for walkThroughFiles for {@link FileRemote#}.
    *
    */
-  public class XXXXXCallbackChildren implements FileRemoteCallback {
+  public class CallbackMark implements FileRemoteCallback {
     
     final FileRemoteCallback callbackUser;
     
-    final boolean bUpdateThis;
+    final int mark;
+    
+    long nrofBytes;
+    int nrofFiles;
+    
+    //int nrofDirMarked, nrofFilesMarked;
+    
+    //boolean markAllInDirectory, markOneInDirectory;
     
     /**Constructs.
      * @param callbackUser This callback will be invoked after the child is registered in this.
      * @param updateThis true then remove and update #children.
      */
-    public XXXXXCallbackChildren(FileRemoteCallback callbackUser, boolean updateThis)
+    public CallbackMark(FileRemoteCallback callbackUser, int mark)
     {
       this.callbackUser = callbackUser;
-      this.bUpdateThis = updateThis;
+      this.mark = mark;
     }
     
     
-    @Override public void start() { 
-      if(bUpdateThis) {
-        if(children == null){ children = createChildrenList(); }
-        else { children.clear(); }
-      }
-      if(callbackUser !=null) callbackUser.start(); 
-    }
+    @Override public void start() {   }
     
-    @Override public void finished() {  }
+    @Override public void finished(long nrofBytesUnused, int nrofFilesUnused) {  
+      if(callbackUser !=null){ callbackUser.finished((int)this.nrofBytes, this.nrofFiles); }
+    }
 
     @Override public Result offerDir(FileRemote file) {
-      if(bUpdateThis) {
-        String name = file.getName();
-        children.put(name, file);
-      }
+      //markAllInDirectory = true; markOneInDirectory = false;
       if(callbackUser !=null) return callbackUser.offerDir(file); 
       else return Result.cont;      
     }
     
-    @Override public Result finishedDir(FileRemote file) {
-      if(callbackUser !=null) return callbackUser.finishedDir(file); 
+    @Override public Result finishedDir(FileRemote dir, FileRemoteCallback.Counters cnt) {
+      if(cnt.nrofDirSelected == cnt.nrofDirs && cnt.nrofFilesSelected == cnt.nrofFiles) {
+        dir.setMarked(FileMark.cmpFileDifferences);
+      } else if(cnt.nrofDirSelected > 0 || cnt.nrofFilesSelected >0) {
+        dir.setMarked(FileMark.cmpMissingFiles);
+      }
+      //this.nrofBytes += cnt.nrofBytes;
+      //this.nrofFiles += cnt.nrofFiles;
+      if(callbackUser !=null) return callbackUser.finishedDir(dir, cnt); 
       else return Result.cont;      
     }
     
     
 
     @Override public Result offerFile(FileRemote file) {
-      if(bUpdateThis) {
-        String name = file.getName();
-        children.put(name, file);
+      nrofFiles +=1;
+      if(file.isDirectory()) { 
+      } else { 
+        file.setMarked(mark);
       }
+      long sizeFile = file.length();
+      nrofBytes += sizeFile;
       if(callbackUser !=null) return callbackUser.offerFile(file); 
       else return Result.cont;      
     }
@@ -2645,5 +2794,125 @@ public class FileRemote extends File implements MarkMask_ifc
 
   }
   
+
   
+  
+  
+  /**Callback for walkThroughFiles for {@link FileRemote#}.
+  *
+  */
+ public class CallbackDelete implements FileRemoteCallback {
+   
+   final FileRemoteCallback callbackUser;
+   
+   final int mark;
+   
+   long nrofBytes;
+   int nrofFiles;
+   
+   /**Constructs.
+    * @param callbackUser This callback will be invoked after the child is registered in this.
+    * @param updateThis true then remove and update #children.
+    */
+   public CallbackDelete(FileRemoteCallback callbackUser, int mark)
+   {
+     this.callbackUser = callbackUser;
+     this.mark = mark;
+   }
+   
+   
+   @Override public void start() {   }
+   
+   @Override public void finished(long nrofBytesUnused, int nrofFilesUnused) {  
+     if(callbackUser !=null){ callbackUser.finished((int)this.nrofBytes, this.nrofFiles); }
+   }
+
+   @Override public Result offerDir(FileRemote file) {
+     //file.setMarked(mark);
+     if(callbackUser !=null) return callbackUser.offerDir(file); 
+     else return Result.cont;      
+   }
+   
+   @Override public Result finishedDir(FileRemote dir, FileRemoteCallback.Counters cnt) {
+     //this.nrofBytes += cnt.nrofBytes;
+     //this.nrofFiles += cnt.nrofFiles;
+     if(dir.children().size()==0 && (dir.getMark() & FileMark.cmpFileDifferences)!=0){
+       boolean isDeleted = dir.delete();
+       if(!isDeleted) {
+         if(callbackUser !=null) return callbackUser.finishedDir(dir, cnt); 
+       }
+     }
+     if(callbackUser !=null) return callbackUser.finishedDir(dir, cnt); 
+     else return Result.cont;      
+   }
+   
+   
+
+   @Override public Result offerFile(FileRemote file) {
+     if(!file.isDirectory()) {
+       int markFile = file.getMark();
+       boolean isDeleted;
+       if( (markFile & mark) !=0)
+       { nrofFiles +=1;
+         long sizeFile = file.length();
+         nrofBytes += sizeFile;
+         isDeleted = file.delete();
+         if(!isDeleted){
+           isDeleted = true;
+           //if(callbackUser !=null) return callbackUser.offerFile(file); 
+         }
+         if(callbackUser !=null) return callbackUser.offerFile(file); 
+         else return Result.cont;      
+       }
+       else return Result.cont;
+     }
+     else return Result.cont;
+   }
+
+   
+   @Override public boolean shouldAborted(){
+     if(callbackUser !=null) return callbackUser.shouldAborted(); 
+     else return false;
+   }
+   
+
+ }
+ 
+
+  
+  
+  
+  /**Class to build a Thread instance to execute {@link FileRemote#walkFileTree(int, FileRemoteCallback)} in an extra thread.
+   * This instance is created while calling {@link FileRemote#walkFileTreeThread(int, FileRemoteCallback)}.
+   * The thread should be started from outside via {@link #start()}. The thread is destroyed on finishing the walking.
+   * 
+   * The user is informed about the progress via the callback interface, see ctor. 
+   */
+  static class WalkThread extends Thread 
+  { 
+    final int depth; final FileRemoteCallback callback;
+    final FileRemote startdir;
+    
+    /**Constructs with given file and callback.
+     * @param startdir
+     * @param depth
+     * @param callback
+     */
+    WalkThread(FileRemote startdir, int depth, FileRemoteCallback callback) {
+      super("walkFileTreeThread");
+      this.depth = depth;
+      this.callback = callback;
+      this.startdir = startdir;
+    }
+    
+    
+    @Override public void run(){
+      try{
+        startdir.walkFileTree(depth, callback);
+      } catch( Exception exc){
+        System.out.println("FileRemote - walkFileTreeThread");
+      }
+    }
+  };
+
 }

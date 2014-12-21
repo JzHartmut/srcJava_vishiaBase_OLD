@@ -140,7 +140,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
             file.mark.setMarkParent(FileMark.cmpMissingFiles, false);
             return Result.skipSubtree;  //if it is a directory, skip it.        
           } else {
-            file2.device.walkFileTree(file2, true, null, 1, callbackMarkSecondAlone);
+            file2.device.walkFileTree(file2, true, false, null, 0, 1, callbackMarkSecondAlone);
             //waitfor
             //file2.refreshPropertiesAndChildren(null);        
             return Result.cont;
@@ -151,7 +151,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
     
     /**Checks whether all files are compared or whether there are alone files.
      */
-    @Override public Result finishedDir(FileRemote file){
+    @Override public Result finishedDir(FileRemote file, FileRemoteCallback.Counters cnt){
       
       return Result.cont;      
     }
@@ -358,7 +358,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
     
     
     
-    @Override public void finished()
+    @Override public void finished(long nrofBytes, int nrofFiles)
     {
     }
 
@@ -374,11 +374,11 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
     {
 
       @Override
-      public void finished()
+      public void finished(long nrofBytes, int nrofFiles)
       { }
 
       @Override
-      public Result finishedDir(FileRemote file)
+      public Result finishedDir(FileRemote file, FileRemoteCallback.Counters cnt)
       { return Result.cont; }
 
       @Override

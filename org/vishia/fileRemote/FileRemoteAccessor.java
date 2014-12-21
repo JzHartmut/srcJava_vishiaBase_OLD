@@ -131,11 +131,12 @@ public interface FileRemoteAccessor extends Closeable
    * @param bRefresh if true then refreshes all entries in file and maybe found children. If false then let file unchanged.
    *   If filter is not null, only the filtered children will be updated,
    *   all other children remain unchanged. It means it is possible that non exists files are remain as children.
-   * @param filter Any filter which files will be accepted.
-   * @param depth depth, at least 1 should be use.
+   * @param sMask Any filter which files will be accepted.
+   * @param markMask TODO
+   * @param depth at least 1 for enter in the first directory. Use 0 if all levels should enter.
    * @param callback this callback will be invoked on any file or directory.
    */
-  public void walkFileTree(FileRemote file, boolean bRefresh, FileFilter filter, int depth, FileRemoteCallback callback);
+  public void walkFileTree(FileRemote file, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback);
   
 
   boolean setLastModified(FileRemote file, long time);
@@ -177,17 +178,22 @@ public interface FileRemoteAccessor extends Closeable
   public static class FileWalkerThread extends Thread
   {
     final protected FileRemote dir; 
-    final protected FileFilter filter; 
+    //final protected FileFilter filter; 
+    final protected String sMask;
+    final protected int markMask;
     final protected FileRemoteCallback callback;
-    final protected boolean bRefresh;
+    final protected boolean bRefresh, resetMark;
     final protected int depth;
     
-    public FileWalkerThread(FileRemote dir, boolean bRefresh, int depth, FileFilter filter, FileRemoteCallback callback)
+    public FileWalkerThread(FileRemote dir, boolean bRefreshChildren, boolean resetMark, int depth, String sMask, int markMask, FileRemoteCallback callback)
     { super("FileRemoteRefresh");
       this.dir = dir;
-      this.bRefresh = bRefresh;
+      this.bRefresh = bRefreshChildren;
+      this.resetMark = resetMark;
       this.depth = depth;
-      this.filter = filter;
+      //this.filter = filter;
+      this.sMask = sMask;
+      this.markMask = markMask;
       this.callback = callback;
     }
     

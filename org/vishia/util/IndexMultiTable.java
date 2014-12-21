@@ -221,7 +221,37 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     
     //private Type lastReturnedElement;
     
+    /**Creates the iterator before the first element. 
+     * @param firstTable
+     */
     protected IteratorImpl(IndexMultiTable<Key, Type> firstTable)
+    { helperNext = new IteratorHelper<Key, Type>(null);
+      helperNext.table = firstTable;
+      helperNext.idx = 0;
+      helperNext = checkHyperTable(helperNext, false);  //maybe create sub tables.
+      bHasNext = helperNext.idx < helperNext.table.sizeBlock;
+      bHasNextProcessed = true;
+      
+      helperPrev = new IteratorHelper<Key, Type>(null);
+      helperPrev.table = firstTable;
+      helperPrev.idx = -1;
+      bHasPrev = false;  //the first left.
+      bHasPrevProcessed = true;
+      lastkeyNext = minKey__;
+      lastkeyPrev = maxKey__;
+    }
+    
+    
+    /**Ctor for the Iterator which starts on any position inside the table.
+     * The previous element {@link #previous()} is any element which's key is lesser or equal the given key.
+     * The next element {@link #next()} is any element which's key is greater the given key.
+     * The previous element is null {@link #hasPrevious()} == false if no element is found which is lesser or equal the given key.
+     * The next element is null, {@link #hasNext()} == false if not element is found which's key is greater. 
+     * @param firstTable The root table.
+     * @param startKey The key
+     * 
+     */
+    IteratorImpl(IndexMultiTable<Key, Type> firstTable, Key startKey)
     { helperNext = new IteratorHelper<Key, Type>(null);
       helperNext.table = firstTable;
       helperNext.idx = 0;
@@ -230,16 +260,6 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       helperPrev.idx = 0;
       lastkeyNext = minKey__;
       lastkeyPrev = maxKey__;
-    }
-    
-    
-    /**Ctor for the Iterator with a range.
-     * @param firstTable
-     * @param startKey
-     * @param endKey
-     */
-    IteratorImpl(IndexMultiTable<Key, Type> firstTable, Key startKey)
-    { this(firstTable);
       while(helperNext.table.isHyperBlock)
       { //call it recursively with sub index.
         int idx = binarySearchFirstKey(helperNext.table.aKeys, 0, helperNext.table.sizeBlock, startKey); //, sizeBlock, key1);
@@ -516,8 +536,9 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     
     public void remove()
     {
-      // TODO Auto-generated method stub
-      
+      helperNext.table.delete(helperNext.idx);  //delete element in table.
+      //left helperNext.ix unchanged
+      helperNext = checkHyperTable(helperNext, false);  //maybe end of table, correct next 
     }
 
     @Override public String toString() { return helperPrev.toString() + " ... " + helperNext.toString(); }   
@@ -667,6 +688,18 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     putOrAdd(key, value, valueNext, KindofAdd.addBefore);
   }
 
+  
+  
+  /**Gets the root table of this.
+   */
+  private IndexMultiTable<Key, Type> rootTable()
+  { IndexMultiTable<Key, Type> checkRoot = this;
+    while(checkRoot.parent !=null) {
+      checkRoot = checkRoot.parent;
+    }
+    return checkRoot; //the root which has not a parent.
+  }
+  
   
   
   /**Put a object in the table. The key may be ambiguous, a new object with the same key is placed
@@ -1191,6 +1224,10 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   protected void delete(int ix){
     Key keydel = aKeys[ix];
     sizeBlock -=1;
+    if(!isHyperBlock){
+      IndexMultiTable<Key, Type> rootTable = rootTable();
+      rootTable.sizeAll -=1;
+    }
     if(ix < sizeBlock){
       System.arraycopy(aKeys, ix+1, aKeys, ix, sizeBlock-ix);
       System.arraycopy(aValues, ix+1, aValues, ix, sizeBlock-ix);
@@ -1874,15 +1911,21 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
     @Override
     public void remove()
-    {
-      tableIter.helperNext.table.delete(tableIter.helperNext.idx);
+    { tableIter.remove();
+      //tableIter.helperNext.table.delete(tableIter.helperNext.idx);
+      //tableIter.
+      /*
       tableIter.helperNext.idx -=1;  //maybe -1 if first was deleted.
       //IndexMultiTable.IteratorHelper<Key, Type> helperTest = tableIter.helperNext;
       while(tableIter.helperNext.parentIter !=null && tableIter.helperNext.table.sizeBlock ==0){
         tableIter.helperNext = tableIter.helperNext.parentIter;
         tableIter.helperNext.idx -=1;  //on idx it is the next, it has deleted the child table!
       }
+      */
     }
+    
+    
+    @Override public String toString(){ return tableIter.toString(); }
     
   };
   

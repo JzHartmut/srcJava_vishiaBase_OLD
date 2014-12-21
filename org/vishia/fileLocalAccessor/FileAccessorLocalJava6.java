@@ -259,14 +259,14 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
    * 
    * @see org.vishia.fileRemote.FileRemoteAccessor#walkFileTree(org.vishia.fileRemote.FileRemote, java.io.FileFilter, int, org.vishia.fileRemote.FileRemoteCallback)
    */
-  @Override public void walkFileTree(FileRemote file, boolean bRefreshFile, FileFilter filter, int depth, FileRemoteCallback callback)
+  @Override public void walkFileTree(FileRemote file, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback)
   {
     callback.start();
-    walkSubTree(file, bRefreshFile, filter, depth, callback);
-    callback.finished();
+    walkSubTree(file, null, depth, callback);
+    callback.finished(0,0);
   }
     
-  public FileRemoteCallback.Result walkSubTree(FileRemote file, boolean bRefreshFile, FileFilter filter, int depth, FileRemoteCallback callback)
+  public FileRemoteCallback.Result walkSubTree(FileRemote file, FileFilter filter, int depth, FileRemoteCallback callback)
   {
     refreshFilePropertiesAndChildren(file, null);
     Map<String, FileRemote> children = file.children();
@@ -281,7 +281,7 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
           refreshFileProperties(file2, null);
           if(file2.isDirectory()){
             if(depth >1){
-              result = walkSubTree(file2, bRefreshFile, filter, depth-1, callback);  
+              result = walkSubTree(file2, filter, depth-1, callback);  
             } else {
               result = callback.offerFile(file2);  //show it as file instead walk through tree
             }
@@ -452,7 +452,7 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
   
   private void getChildren(FileRemote.CmdEvent ev){
     FileRemote.ChildrenEvent evback = ev.getOpponentChildrenEvent();
-    walkFileTree(ev.filesrc(), true, evback.filter, evback.depth, evback.callbackChildren);
+    walkFileTree(ev.filesrc(), true, false, null, 0 , evback.depth, evback.callbackChildren);
   }
   
   

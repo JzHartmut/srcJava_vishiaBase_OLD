@@ -5,9 +5,11 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.Stack;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -539,7 +541,11 @@ public class Copy_FileLocalAccJava7
           long time1 = System.currentTimeMillis();
           Map<String, FileRemote> children = actData.src.children();
           if(children !=null) {
-            for(Map.Entry<String, FileRemote> item: children.entrySet()){
+            Set<Map.Entry<String, FileRemote>> set = children.entrySet();
+            Iterator<Map.Entry<String, FileRemote>> iter = set.iterator();
+            while(iter.hasNext()){
+              Map.Entry<String, FileRemote> item = iter.next();
+            //for(Map.Entry<String, FileRemote> item: children.entrySet()){
               FileRemote child = item.getValue();
               if(child.isDirectory()){
                 //build a new recursive instance for the child to process in a next step.

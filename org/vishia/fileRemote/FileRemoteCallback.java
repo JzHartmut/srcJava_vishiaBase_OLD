@@ -20,41 +20,50 @@ public interface FileRemoteCallback
     , skipSubtree
   }
 
+  
+  /**This class contains the number of files etc. for callback.
+   * @author hartmut
+   *
+   */
+  public static class Counters
+  { public long nrofBytes;
+    /* @param nrofBytes total number of bytes of all files in this directory without sub directories
+    /* @param nrofDirs number of found sub directories in this directory. 
+    /* @param nrofFiles number of regular files  in this directory.*/
+    public int nrofDirs, nrofFiles;
+  
+    public int nrofDirSelected, nrofFilesSelected;
+  }
+  
   /**Invoked before start of {@link java.nio.file.Files#walkFileTree(java.nio.file.Path, java.util.Set, int, java.nio.file.FileVisitor)}.
    * or an adequate communication.
    */
   void start();
   
-  /**Invoked on start on walking through a directory.
-   * It is invoked in the thread which executes a FileRemote action.
-   * It is possible to create an event and store it in a queue but there are necessary some more events
-   * it may not be good.
-   * @param file
-   * @return TODO information to abort, maybe boolean.
+  /**Invoked on start on walking through a directory. If this method is invoked for a sub directory, the  {@link #offerFile(FileRemote)} is not invoked.
+   * @param dir the directory
+   * @return information to abort, maybe boolean.
    */
-  Result offerDir(FileRemote file);
+  Result offerDir(FileRemote dir);
   
   /**Invoked on end of walking through a directory.
    * It is invoked in the thread which executes a FileRemote action.
    * It is possible to create an event and store it in a queue but there are necessary some more events
    * it may not be good.
    * @param file
-   * @return TODO information to abort, maybe boolean.
+   * @param cnt The number of byted, dirs, files selected and total of this directory.
    */
-  Result finishedDir(FileRemote file);
+  Result finishedDir(FileRemote dir, Counters cnt);
   
-  /**Invoked for any file or sub directory.
-   * It is invoked in the thread which executes a FileRemote action.
-   * It is possible to create an event and store it in a queue but there are necessary some more events
-   * it may not be good.
+  /**Invoked for any file, invoked for a sub directory only if the depth is reached and {@link #offerDir(FileRemote)} is not called.
    * @param file
-   * @return TODO information to abort, maybe boolean.
+   * @return information to abort or continue.
    */
   Result offerFile(FileRemote file);
   
   /**Invoked after finishing a {@link java.nio.file.Files#walkFileTree(java.nio.file.Path, java.util.Set, int, java.nio.file.FileVisitor)}.
    */
-  void finished();
+  void finished(long nrofBytes, int nrofFiles);
   
   
   /**Returns true if the file tree walking should be terminated respectively aborted.
@@ -71,13 +80,13 @@ public interface FileRemoteCallback
   {
 
     @Override public void start() {  }
-    @Override public void finished() {  }
+    @Override public void finished(long nrofBytes, int nrofFiles) {  }
 
     @Override public Result offerDir(FileRemote file) {
       return Result.cont;      
     }
     
-    @Override public Result finishedDir(FileRemote file) {
+    @Override public Result finishedDir(FileRemote file, FileRemoteCallback.Counters cnt) {
       return Result.cont;      
     }
     
