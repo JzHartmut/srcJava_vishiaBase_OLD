@@ -259,10 +259,10 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
    * 
    * @see org.vishia.fileRemote.FileRemoteAccessor#walkFileTree(org.vishia.fileRemote.FileRemote, java.io.FileFilter, int, org.vishia.fileRemote.FileRemoteCallback)
    */
-  @Override public void walkFileTree(FileRemote file, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback)
+  @Override public void walkFileTree(FileRemote startDir, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback)
   {
-    callback.start();
-    walkSubTree(file, null, depth, callback);
+    callback.start(startDir);
+    walkSubTree(startDir, null, depth, callback);
     callback.finished(0,0);
   }
     

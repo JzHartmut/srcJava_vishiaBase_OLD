@@ -127,7 +127,7 @@ public interface FileRemoteAccessor extends Closeable
    * <li>{@link CallbackFile#finished()} is the last action of that.
    * </ul> 
    *  
-   * @param file The start file.
+   * @param startDir The start directory.
    * @param bRefresh if true then refreshes all entries in file and maybe found children. If false then let file unchanged.
    *   If filter is not null, only the filtered children will be updated,
    *   all other children remain unchanged. It means it is possible that non exists files are remain as children.
@@ -136,7 +136,7 @@ public interface FileRemoteAccessor extends Closeable
    * @param depth at least 1 for enter in the first directory. Use 0 if all levels should enter.
    * @param callback this callback will be invoked on any file or directory.
    */
-  public void walkFileTree(FileRemote file, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback);
+  public void walkFileTree(FileRemote startDir, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback);
   
 
   boolean setLastModified(FileRemote file, long time);
@@ -177,7 +177,7 @@ public interface FileRemoteAccessor extends Closeable
    */
   public static class FileWalkerThread extends Thread
   {
-    final protected FileRemote dir; 
+    final protected FileRemote startDir; 
     //final protected FileFilter filter; 
     final protected String sMask;
     final protected int markMask;
@@ -185,9 +185,9 @@ public interface FileRemoteAccessor extends Closeable
     final protected boolean bRefresh, resetMark;
     final protected int depth;
     
-    public FileWalkerThread(FileRemote dir, boolean bRefreshChildren, boolean resetMark, int depth, String sMask, int markMask, FileRemoteCallback callback)
+    public FileWalkerThread(FileRemote startDir, boolean bRefreshChildren, boolean resetMark, int depth, String sMask, int markMask, FileRemoteCallback callback)
     { super("FileRemoteRefresh");
-      this.dir = dir;
+      this.startDir = startDir;
       this.bRefresh = bRefreshChildren;
       this.resetMark = resetMark;
       this.depth = depth;

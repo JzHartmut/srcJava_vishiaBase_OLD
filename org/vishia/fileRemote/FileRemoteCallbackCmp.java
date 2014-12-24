@@ -119,7 +119,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
         cmpCtrl.ignoreFromTo.add(new String[]{".epcannot:", ".epcannot.end:"});
     }
     
-    @Override public void start()
+    @Override public void start(FileRemote startDir)
     {
     }
     
@@ -394,7 +394,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
       }
 
       @Override
-      public void start()
+      public void start(FileRemote startDir)
       { }
       
       @Override public boolean shouldAborted(){

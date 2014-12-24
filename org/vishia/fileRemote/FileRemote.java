@@ -9,6 +9,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Queue;
 import java.util.TreeMap;
@@ -21,14 +22,15 @@ import org.vishia.event.EventSource;
 import org.vishia.event.EventThread;
 import org.vishia.fileLocalAccessor.FileAccessorLocalJava6;
 import org.vishia.fileRemote.FileRemoteCallback;
-import org.vishia.fileRemote.FileRemoteCallback.Result;
 import org.vishia.util.Assert;
 import org.vishia.util.Debugutil;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.MarkMask_ifc;
+import org.vishia.util.SortedTreeWalkerCallback;
 import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPart;
+import org.vishia.util.SortedTreeWalkerCallback.Result;
 
 
 /**This class stores the name and some attributes of one File. 
@@ -752,8 +754,19 @@ public class FileRemote extends File implements MarkMask_ifc
    */
   @Override public int setNonMarked(int mask, Object data)
   { if(mark == null) return 0;
-    else return mark.setNonMarked(mask, data);
+    else return mark.setNonMarkedRecursively(mask, data, false);
   }
+
+
+  /**resets a marker bit in the existing {@link #mark} or does nothing if the bit is not present.
+   * @see org.vishia.util.MarkMask_ifc#setNonMarked(int, java.lang.Object)
+   */
+  public int setNonMarkedRecursively(int mask, Object data)
+  { if(mark == null) return 0;
+    else return mark.setNonMarkedRecursively(mask, data, true);
+  }
+
+
 
 
   /**marks a bit in the {@link #mark}, creates it if it is not existing yet.
@@ -1426,7 +1439,11 @@ public class FileRemote extends File implements MarkMask_ifc
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    return device.delete(this, null);
+    boolean deleted = device.delete(this, null);
+    if(deleted && parent !=null && parent.children !=null){
+      parent.children.remove(this.sFile);
+    }
+    return deleted;
   }
   
   
@@ -1511,16 +1528,116 @@ public class FileRemote extends File implements MarkMask_ifc
   
   
   
-  /**Deletes all files which has marked with the given bits.
-   * @param mark bits, at least one of them should be set in the file to force delete.
+  
+  /**Walks to the tree of children with given files, without synchronization with the device.
+   * This routine creates and starts a {@link WalkThread} and runs {@link #walkFileTree(int, FileRemoteCallback)} in that thread.
+   * The user is informed about progress and results via the callback instance.
+   * Note: it should not change the children list, because it uses an iterator.
+   * @param depth at least 1, 0 to enter all levels.
+   * @param callback
    */
-  public void deleteMarked(int mark, FileRemoteCallback callback) {
-    CallbackDelete callbackDel = new CallbackDelete(callback, mark);
-    walkFileTreeThread(Integer.MAX_VALUE, callbackDel);
+  public void deleteMarkedInThread(int mark, FileRemoteCallback callback)
+  {
+    DeleteThread thread1 = new DeleteThread(mark, this, callback);
+    thread1.start();
+  }
+  
+  
+  /**Walks to the tree of children with given files, without synchronization with the device.
+   * This routine creates and starts a {@link WalkThread} and runs {@link #walkFileTree(int, FileRemoteCallback)} in that thread.
+   * The user is informed about progress and results via the callback instance.
+   * Note: it should not change the children list, because it uses an iterator.
+   * @param depth at least 1, 0 to enter all levels.
+   * @param callback
+   */
+  public void deleteMarked(int mark, FileRemoteCallback callback)
+  {
+    if(callback != null) { callback.start(this); }
+    deleteMarkedSub(mark, this, 10000, callback);
+    if(callback != null) { callback.finished(0, 0); }
+    
   }
   
   
   
+  /**See {@link #walkFileTree(int, FileRemoteCallback)}, invoked internally recursively.
+   */
+  private static boolean deleteMarkedSub(int mark, FileRemote dir, int depth, FileRemoteCallback callback)
+  {
+    FileRemoteCallback.Counters cnt = new FileRemoteCallback.Counters();
+    boolean bEmpty = true;
+    Map<String, FileRemote> children = dir.children();
+    FileRemoteCallback.Result result;
+    System.out.println("FileRemote.deleteMarkedSub - offerDir; " + dir.getAbsolutePath());
+    result = callback.offerDir(dir);
+    if(result == FileRemoteCallback.Result.cont && children !=null){ //only walk through subdir if cont
+      Iterator<Map.Entry<String, FileRemote>> iter = children.entrySet().iterator();
+      while(result == FileRemoteCallback.Result.cont && iter.hasNext()) {
+        try {
+          Map.Entry<String, FileRemote> file1 = iter.next();
+          FileRemote file2 = file1.getValue();
+          boolean bCheckDelete;
+          if(file2.isDirectory()){
+            cnt.nrofDirs +=1;
+            if(depth >1){
+              //invokes offerDir for file2
+              bCheckDelete = deleteMarkedSub(mark, file2, depth-1, callback);  //directory is not delete completely.
+            } else {
+              //because the depth is reached, offerFile is called.
+              System.out.println("FileRemote.deleteMarkedSub - offer empty dir; " + file2.getName());
+              result = callback !=null ? callback.offerFile(file2) : Result.cont;  //show it as file instead walk through tree
+              bCheckDelete = result == Result.skipSubtree;
+            }
+          } else {
+            //a file:
+            cnt.nrofFiles +=1;
+            result = callback !=null ? callback.offerFile(file2) : Result.cont;  //show it as file instead walk through tree
+            bCheckDelete = result == Result.cont;
+          }
+          //Check whether a file or directory should be deleted:
+          if(bCheckDelete) {
+            //delete the file
+            int markFile = file2.getMark();
+            boolean isDeleted;
+            if( (markFile & mark) !=0)
+            { cnt.nrofFilesSelected +=1;
+              if(file2.device == null){
+                file2.device = getAccessorSelector().selectFileRemoteAccessor(file2.getAbsolutePath());
+              }
+              //NOTE: Don't call file2.delete() because it changes the iterated Map.
+              System.out.println("FileRemote.deleteMarkedSub - delete File; " + file2.getName());
+              isDeleted = file2.device.delete(file2, null);  //delete on file system with waiting on success.
+              if(isDeleted){
+                iter.remove();  //from children list of the parent.
+              } else {
+                System.err.println("FileRemote.delete - can't delete; >>>" + file2.getAbsolutePath()+ "<<<");
+                bEmpty = false;  //delete fails
+              }
+            } else {
+              System.out.println("FileRemote.deleteMarkedSub - offer file not marked; " + file2.getName());
+              bEmpty = false;  //not marked
+            }
+          } else {
+            bEmpty = false;  //subDir not empty or callback forces skip.
+          }
+        }
+        catch(Exception exc){ 
+          System.err.println(Assert.exceptionInfo("FileRemote unexpected - deleteMarkedSub", exc, 0, 20, true)); 
+        }
+      }
+    } 
+    if(result != FileRemoteCallback.Result.terminate){
+      //continue with parent. Also if offerDir returns skipSubdir or any file returns skipSiblings.
+      result = callback.finishedDir(dir, cnt); //FileRemoteCallback.Result.cont;
+    }
+    return bEmpty;  //maybe terminate
+  }
+
+
+  
+  
+  
+
   /**Creates the directory named by this abstract pathname.
    * This routine waits for execution on the file device. If it is a remote device, it may be spend some more time.
    * See {@link #mkdir(boolean, CallbackEvent)}.
@@ -1865,12 +1982,13 @@ public class FileRemote extends File implements MarkMask_ifc
   
   /**Walks to the tree of children with given files, without synchronization with the device.
    * To run this routine in an extra Thread use {@link #walkFileTreeThread(int, FileRemoteCallback)}.
+   * Note: it should not change the children list, because it uses an iterator.
    * @param depth at least 1 for enter in the first directory. Use 0 if all levels should enter.
    * @param callback
    */
   public void walkFileTree(int depth, FileRemoteCallback callback)
   {
-    callback.start();
+    callback.start(null);
     walkSubTree(this, depth <=0 ? Integer.MAX_VALUE: depth, callback);
     callback.finished(0,0);
   }
@@ -1881,6 +1999,7 @@ public class FileRemote extends File implements MarkMask_ifc
   /**Walks to the tree of children with given files, without synchronization with the device.
    * This routine creates and starts a {@link WalkThread} and runs {@link #walkFileTree(int, FileRemoteCallback)} in that thread.
    * The user is informed about progress and results via the callback instance.
+   * Note: it should not change the children list, because it uses an iterator.
    * @param depth at least 1, 0 to enter all levels.
    * @param callback
    */
@@ -2671,7 +2790,7 @@ public class FileRemote extends File implements MarkMask_ifc
         }
       }
 
-      @Override public void start()
+      @Override public void start(FileRemote startDir)
       {
         startTime = System.currentTimeMillis();
         finished = false;
@@ -2727,7 +2846,7 @@ public class FileRemote extends File implements MarkMask_ifc
     
     final FileRemoteCallback callbackUser;
     
-    final int mark;
+    final int XXXmark;
     
     long nrofBytes;
     int nrofFiles;
@@ -2740,14 +2859,14 @@ public class FileRemote extends File implements MarkMask_ifc
      * @param callbackUser This callback will be invoked after the child is registered in this.
      * @param updateThis true then remove and update #children.
      */
-    public CallbackMark(FileRemoteCallback callbackUser, int mark)
+    public CallbackMark(FileRemoteCallback callbackUser, int XXXmark)
     {
       this.callbackUser = callbackUser;
-      this.mark = mark;
+      this.XXXmark = XXXmark;
     }
     
     
-    @Override public void start() {   }
+    @Override public void start(FileRemote startDir) {   }
     
     @Override public void finished(long nrofBytesUnused, int nrofFilesUnused) {  
       if(callbackUser !=null){ callbackUser.finished((int)this.nrofBytes, this.nrofFiles); }
@@ -2761,9 +2880,13 @@ public class FileRemote extends File implements MarkMask_ifc
     
     @Override public Result finishedDir(FileRemote dir, FileRemoteCallback.Counters cnt) {
       if(cnt.nrofDirSelected == cnt.nrofDirs && cnt.nrofFilesSelected == cnt.nrofFiles) {
-        dir.setMarked(FileMark.cmpFileDifferences);
+        dir.setMarked(FileMark.select);
       } else if(cnt.nrofDirSelected > 0 || cnt.nrofFilesSelected >0) {
-        dir.setMarked(FileMark.cmpMissingFiles);
+        dir.setMarked(FileMark.selectSomeInDir);
+      }
+      FileRemote parent = dir;
+      while( (parent.getMark() & FileMark.selectRoot) !=0 && (parent = parent.parent) !=null) {
+        parent.setMarked(FileMark.selectSomeInDir);  //select till the selection root.
       }
       //this.nrofBytes += cnt.nrofBytes;
       //this.nrofFiles += cnt.nrofFiles;
@@ -2777,7 +2900,7 @@ public class FileRemote extends File implements MarkMask_ifc
       nrofFiles +=1;
       if(file.isDirectory()) { 
       } else { 
-        file.setMarked(mark);
+        file.setMarked(FileMark.select);
       }
       long sizeFile = file.length();
       nrofBytes += sizeFile;
@@ -2796,87 +2919,6 @@ public class FileRemote extends File implements MarkMask_ifc
   
 
   
-  
-  
-  /**Callback for walkThroughFiles for {@link FileRemote#}.
-  *
-  */
- public class CallbackDelete implements FileRemoteCallback {
-   
-   final FileRemoteCallback callbackUser;
-   
-   final int mark;
-   
-   long nrofBytes;
-   int nrofFiles;
-   
-   /**Constructs.
-    * @param callbackUser This callback will be invoked after the child is registered in this.
-    * @param updateThis true then remove and update #children.
-    */
-   public CallbackDelete(FileRemoteCallback callbackUser, int mark)
-   {
-     this.callbackUser = callbackUser;
-     this.mark = mark;
-   }
-   
-   
-   @Override public void start() {   }
-   
-   @Override public void finished(long nrofBytesUnused, int nrofFilesUnused) {  
-     if(callbackUser !=null){ callbackUser.finished((int)this.nrofBytes, this.nrofFiles); }
-   }
-
-   @Override public Result offerDir(FileRemote file) {
-     //file.setMarked(mark);
-     if(callbackUser !=null) return callbackUser.offerDir(file); 
-     else return Result.cont;      
-   }
-   
-   @Override public Result finishedDir(FileRemote dir, FileRemoteCallback.Counters cnt) {
-     //this.nrofBytes += cnt.nrofBytes;
-     //this.nrofFiles += cnt.nrofFiles;
-     if(dir.children().size()==0 && (dir.getMark() & FileMark.cmpFileDifferences)!=0){
-       boolean isDeleted = dir.delete();
-       if(!isDeleted) {
-         if(callbackUser !=null) return callbackUser.finishedDir(dir, cnt); 
-       }
-     }
-     if(callbackUser !=null) return callbackUser.finishedDir(dir, cnt); 
-     else return Result.cont;      
-   }
-   
-   
-
-   @Override public Result offerFile(FileRemote file) {
-     if(!file.isDirectory()) {
-       int markFile = file.getMark();
-       boolean isDeleted;
-       if( (markFile & mark) !=0)
-       { nrofFiles +=1;
-         long sizeFile = file.length();
-         nrofBytes += sizeFile;
-         isDeleted = file.delete();
-         if(!isDeleted){
-           isDeleted = true;
-           //if(callbackUser !=null) return callbackUser.offerFile(file); 
-         }
-         if(callbackUser !=null) return callbackUser.offerFile(file); 
-         else return Result.cont;      
-       }
-       else return Result.cont;
-     }
-     else return Result.cont;
-   }
-
-   
-   @Override public boolean shouldAborted(){
-     if(callbackUser !=null) return callbackUser.shouldAborted(); 
-     else return false;
-   }
-   
-
- }
  
 
   
@@ -2890,7 +2932,8 @@ public class FileRemote extends File implements MarkMask_ifc
    */
   static class WalkThread extends Thread 
   { 
-    final int depth; final FileRemoteCallback callback;
+    final int depth; 
+    final FileRemoteCallback callback;
     final FileRemote startdir;
     
     /**Constructs with given file and callback.
@@ -2913,6 +2956,48 @@ public class FileRemote extends File implements MarkMask_ifc
         System.out.println("FileRemote - walkFileTreeThread");
       }
     }
+  }
+
+  
+  
+  
+  
+  
+  /**Class to build a Thread instance to execute {@link FileRemote#walkFileTree(int, FileRemoteCallback)} in an extra thread.
+   * This instance is created while calling {@link FileRemote#walkFileTreeThread(int, FileRemoteCallback)}.
+   * The thread should be started from outside via {@link #start()}. The thread is destroyed on finishing the walking.
+   * 
+   * The user is informed about the progress via the callback interface, see ctor. 
+   */
+  static class DeleteThread extends Thread 
+  { 
+    final int mark;
+    final FileRemoteCallback callback;
+    final FileRemote startdir;
+    
+    /**Constructs with given file and callback.
+     * @param startdir
+     * @param depth
+     * @param callback
+     */
+    DeleteThread(int mark, FileRemote startdir, FileRemoteCallback callback) {
+      super("walkFileTreeThread");
+      this.mark = mark;
+      this.callback = callback;
+      this.startdir = startdir;
+    }
+    
+    
+    @Override public void run(){
+      try{
+        startdir.deleteMarked(mark, callback);
+      } catch( Exception exc){
+        System.out.println("FileRemote - walkFileTreeThread");
+      }
+    }
   };
 
+
+  
+  
 }

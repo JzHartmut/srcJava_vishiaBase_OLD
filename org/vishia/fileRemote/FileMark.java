@@ -44,23 +44,32 @@ public class FileMark extends SelectMask
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20130513;
+  public static final String sVersion = "2014-12-24";
 
 
   /**Flags as result of an comparison: the other file is checked by content maybe with restricitons. */
-  public static final char charCmpContentEqual = '=';
+  public static final char XXXcharCmpContentEqual = '=';
 
 
   /**Flags as result of an comparison: the other file is checked by content maybe with restricitons. */
-  public static final char charCmpContentEqualWithoutComments = '#';
+  public static final char XXXcharCmpContentEqualWithoutComments = '#';
 
 
   /**Flags as result of an comparison: the other file is checked by content maybe with restricitons. */
-  public static final char charCmpContentEqualWithoutEndlines = '$';
+  public static final char XXXcharCmpContentEqualWithoutEndlines = '$';
 
 
   /**Flags as result of an comparison: the other file is checked by content maybe with restricitons. */
-  public static final char charCmpContentEqualwithoutSpaces = '+';
+  public static final char XXXcharCmpContentEqualwithoutSpaces = '+';
+
+  /**Flags is a simple marker for selecting. */
+  public static final int select = 0x00000001;
+
+  /**Flags means that some but not all files are marked inside a directory. */
+  public static final int selectSomeInDir = 0x00000002;
+
+  /**Flags for the root directory for selecting. */
+  public static final int selectRoot = 0x00000008;
 
   /**Flags means that this file is the root of mark. */
   public static final int markRoot = 0x00100000;
@@ -123,25 +132,27 @@ public class FileMark extends SelectMask
   public int nrofFilesSelected(){ return nrofFilesSelected; } 
   
   
-  @Override public int setNonMarked(int mask, Object data)
+  public int setNonMarkedRecursively(int mask, Object data, boolean recursively)
   { if(itsFile.getName().equals("ReleaseNotes.topic"))
       Debugutil.stop();
     int selectOld = super.setNonMarked(mask, null);
     if(itsFile.isDirectory()){
       
     }
-    FileRemote parent = itsFile;
-    while( (parent = parent.getParentFile()) !=null
-      && parent.mark !=null   //abort while-loop if the parent is not marked 
-      ){
-      parent.mark.nrofFilesSelected -=this.nrofFilesSelected;
-      if(parent.mark.nrofFilesSelected <=0){
-        parent.mark.nrofFilesSelected = 0;
-        parent.mark.selectMask &= ~mask;
-      }
-      parent.mark.nrofBytesSelected -=this.nrofBytesSelected;
-      if(parent.mark.nrofBytesSelected <=0){
-        parent.mark.nrofBytesSelected = 0;
+    if(recursively){
+      FileRemote parent = itsFile;
+      while( (parent = parent.getParentFile()) !=null
+        && parent.mark !=null   //abort while-loop if the parent is not marked 
+        ){
+        parent.mark.nrofFilesSelected -=this.nrofFilesSelected;
+        if(parent.mark.nrofFilesSelected <=0){
+          parent.mark.nrofFilesSelected = 0;
+          parent.mark.selectMask &= ~mask;
+        }
+        parent.mark.nrofBytesSelected -=this.nrofBytesSelected;
+        if(parent.mark.nrofBytesSelected <=0){
+          parent.mark.nrofBytesSelected = 0;
+        }
       }
     }
     this.nrofBytesSelected = 0;

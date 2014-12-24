@@ -2,6 +2,7 @@ package org.vishia.util;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.ListIterator;
 import java.util.Map;
@@ -84,7 +85,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   /**Version, history and license.
    * <ul>
-   * <li>2014-12-20 Hartmut chg structure: Now a {@link Table} is an own instance. 
+   * <li>2014-12-21 Hartmut chg structure: Now a {@link Table} is an own instance. Improved and simplified. 
    * <li>2014-12-20 Hartmut new The iterator is a ListIterator now with {@link ListIterator#hasPrevious()} etc.
    *   The advantage and usage: Set the iterator to a expected point with {@link #iterator(Comparable)} and traverse back- and forward.
    *   There are some changes in algorithm. 
@@ -162,42 +163,64 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
      * than, the next table is got, than the child is initialized and referenced here.  
      * There are 2 helpers necessary because next and previous can have different tables.
      */
-    IndexMultiTable.IteratorHelper<Key, Type> helperNext, helperPrev;
+    IndexMultiTable.IteratorHelper<Key, Type> helperPrev, helperNext;
     
-    /**True if hasNext. The value is valid only if {@link bHasNextProcessed} is true.*/
-    private boolean bHasNext = false, bHasPrev = false;
-      
-    /**true if hasnext-test is done. */
-    private boolean bHasNextProcessed = false, bHasPrevProcessed = false;
+    /**Comparison of this value with {@link IndexMultiTable#modcount} to detect changes. */
+    private final int modcount;
     
-    @SuppressWarnings("unused")
-    private int modcountxxx;
-    
-    /**Only for test. */
-    private Key lastkeyNext, lastkeyPrev; 
-    
-    
+    /**Information whether {@link #next()} or {@link #previous()} was invoked at last.
+     * It is important for the functionality of {@link #remove()}, {@link #add(Object)} and {@link #set(Object)}
+     * If {@link #next()} was called at last, the last element or insertion point is that element which is referred by {@link #helperPrev}:
+     * <br>
+     * Before next():
+     * <pre>
+     *         prev--+      +--next
+     *               |  ,   |
+     *      [1]     [2]    [3]    [4]
+     *                      |  ^   |
+     *                prev--+      +--next
+     * </pre>       
+     * <b>next()</b> has returned [3].       
+     * The {@link #remove()} operation has to remove the element at position 3, which is referred yet as the previous. 
+     * The operation {@link #set(Object)} should be changed the element at position [3].
+     * <br><br>
+     * <be>previous()</b> has returned [2], after them:
+     * <pre>
+     *         prev--+      +--next
+     *               |  ,   |
+     *       [1]    [2]    [3]    [4]
+     *        |  ^   |
+     *  prev--+      +--next
+     * </pre>       
+     * The element [2] which is yet referred from {@link #helperNext} should be deleted or after [2] is to change.
+     */
+    private boolean bLastWasNext = false;
 
+    /**The value which is returned by the last {@link #next()} and {@link #previous()}. */
+    Key lastKey; Type lastValue;
+    
+    
     //private Type lastReturnedElement;
     
     /**Creates the iterator before the first element. 
      * @param firstTable
      */
     IteratorImpl()
-    { helperNext = new IteratorHelper<Key, Type>(null);
+    { this.modcount = IndexMultiTable.this.modcount;
+      helperNext = new IteratorHelper<Key, Type>(false);
       helperNext.table = root;
       helperNext.idx = 0;
-      helperNext = checkHyperTable(helperNext, false);  //maybe create sub tables.
-      bHasNext = helperNext.idx < helperNext.table.sizeBlock;
-      bHasNextProcessed = true;
+      helperNext.checkHyperTable();  //maybe create sub tables.
+      //lastkeyNext = bHasNext ? helperNext.table.aKeys[helperNext.idx] : null;
       
-      helperPrev = new IteratorHelper<Key, Type>(null);
+      helperPrev = new IteratorHelper<Key, Type>(true);
       helperPrev.table = root;
       helperPrev.idx = -1;
-      bHasPrev = false;  //the first left.
-      bHasPrevProcessed = true;
-      lastkeyNext = minKey__;
-      lastkeyPrev = maxKey__;
+      helperPrev.currKey = null;
+      helperPrev.currValue = null;
+      //bHasPrev = false;  //the first left.
+      //lastkeyNext = null;
+      //lastkeyPrev = null;
     }
     
     
@@ -211,86 +234,53 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
      * 
      */
     IteratorImpl(Key startKey)
-    { helperNext = new IteratorHelper<Key, Type>(null);
-      helperNext.table = root;
-      helperNext.idx = 0;
-      helperPrev = new IteratorHelper<Key, Type>(null);
-      helperPrev.table = root;
-      helperPrev.idx = 0;
-      lastkeyNext = minKey__;
-      lastkeyPrev = maxKey__;
-      while(helperNext.table.isHyperBlock)
+    { this.modcount = IndexMultiTable.this.modcount;
+      Table<Key, Type> tableStart = root;
+      while(tableStart.isHyperBlock)
       { //call it recursively with sub index.
-        int idx = helperNext.table.binarySearchFirstKey(helperNext.table.aKeys, 0, helperNext.table.sizeBlock, startKey); //, sizeBlock, key1);
+        int idx = tableStart.binarySearchFirstKey(tableStart.aKeys, 0, tableStart.sizeBlock, startKey); //, sizeBlock, key1);
         if(idx < 0)
         { /**an non exact found, accept it.
            * use the table with the key lesser than the requested key
            */
           idx = -idx-1; //insertion point is index of previous
-          /*
-          if(idx < 0)
-          { //Use the first table if the first key in the first table is greater. 
-            bHasNext = false;
-            bHasNextProcessed = true;
-            //idx = 0; 
-          }*/
-        } //else { 
-        //idx -=1;  //?
-          helperNext.idx = idx;
-          helperPrev.idx = idx;
-          @SuppressWarnings("unchecked")
-          Table<Key, Type> childTable = (Table<Key, Type>)helperNext.table.aValues[helperNext.idx];
-          helperNext.childHelper = new IteratorHelper<Key, Type>(helperNext); 
-          helperPrev.childHelper = new IteratorHelper<Key, Type>(helperNext); 
-          
-          helperNext.childHelper.table = childTable;
-          helperPrev.childHelper.table = childTable;
-          helperNext = helperNext.childHelper;  //use the sub-table to iterate. 
-          helperPrev = helperPrev.childHelper;  //use the sub-table to iterate. 
-        //}         
+        }
+        assert(tableStart.aValues[idx] instanceof Table);
+        @SuppressWarnings("unchecked") 
+        Table<Key, Type> tableNext = (Table)tableStart.aValues[idx];
+        tableStart = tableNext;
       }
-      int idx = helperNext.table.binarySearchFirstKey(helperNext.table.aKeys, 0, helperNext.table.sizeBlock,  startKey); //, sizeBlock, key1);
+      helperPrev = new IteratorHelper<Key, Type>(true);
+      helperNext = new IteratorHelper<Key, Type>(false);
+      helperPrev.table = helperNext.table = tableStart;
+      
+      int idx = tableStart.binarySearchFirstKey(tableStart.aKeys, 0, tableStart.sizeBlock,  startKey); //, sizeBlock, key1);
       if(idx < 0)
       { /**an non exact found, accept it.
          * start from the element with first key greater than the requested key
          */
         idx = -idx-1;  //it is the position of the next element.
         helperPrev.idx = idx-1;
-        helperPrev = checkHyperTable(helperPrev, true);
-        bHasPrev = helperPrev.idx >=0;  //Note that helperPrev may be null because checkHyperTable.
+        helperPrev.checkHyperTable();
         helperNext.idx = idx;
-        helperNext = checkHyperTable(helperNext, true);
-        bHasNext = helperNext.idx < helperNext.table.sizeBlock; 
+        helperNext.checkHyperTable();
         
       } else {
         //exact found, it is the previous to add new elements with the given key after that one with the same name.
         helperPrev.idx = idx;  //it has correct parents, it is not a hyper table.
-        bHasPrev = true;  //because it is found exactly.
+        helperPrev.currKey = helperPrev.table.aKeys[idx];
+        helperPrev.checkHyperTable();
         helperNext.idx = idx+1;
-        helperNext = checkHyperTable(helperNext, false);  //may be a hyper table, search the first not hyper.
-        bHasNext = helperNext.idx < helperNext.table.sizeBlock; 
+        helperNext.checkHyperTable();  //may be a hyper table, search the first not hyper.
+        
       }
-      /**next_i() shouldn't called, because the helperNext.idx is set with first occurrence. */
-      bHasNextProcessed = true;
-      bHasPrevProcessed = true;
-      /**next() returns true always, except if the idx is 0 and the table contains nothing. */
     }
     
     
-    @Override public boolean hasNext()
-    { if(!bHasNextProcessed)
-      { next_i();  //call of next set bHasNext!
-      }
-      return bHasNext;
-    }
+    @Override public boolean hasNext() { return helperNext.currKey !=null; }
   
     
-    @Override public boolean hasPrevious()
-    { if(!bHasPrevProcessed)
-      { prev_i();  //call of next set bHasNext!
-      }
-      return bHasPrev;
-    }
+    @Override public boolean hasPrevious() {  return helperPrev.currKey !=null; }
   
     
     
@@ -302,22 +292,14 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
      */
     @SuppressWarnings("unchecked")
     @Override public Type next()
-    { if(!bHasNextProcessed)
-      {  next_i();
-      }
-      if(bHasNext)
-      { bHasNextProcessed = false;  //call it at next access!
-        Table<Key, Type> table = helperNext.table;
-        //assert(compare(table.aKeys[helperNext.idx],lastkey) >= 0);  //test
-        //if(compare(table.aKeys[helperNext.idx],lastkey) < 0) throw new RuntimeException("assert");
-        //if(compare(table.aKeys[helperNext.idx],lastkey) < 0)
-        //  stop();
-        lastkeyNext = table.aKeys[helperNext.idx];
-        Type ret = (Type)table.aValues[helperNext.idx];
+    { checkForModification();
+      bLastWasNext = true;
+      lastKey = helperNext.currKey;
+      lastValue = helperNext.currValue;
+      if(lastKey !=null) { //only if has next
         next_i();  //executes always next after last next.
-        return ret;
       }
-      else return null;
+      return lastValue;
     }
   
     /**Implements the standard behavior for {@link java.util.Iterator#next()}.
@@ -326,22 +308,14 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
      */
     @SuppressWarnings("unchecked")
     @Override public Type previous()
-    { if(!bHasPrevProcessed)
-      {  prev_i();
-      }
-      if(bHasPrev)
-      { bHasPrevProcessed = false;  //call it at next access!
-        Table<Key, Type> table = helperPrev.table;
-        //assert(compare(table.aKeys[helperPrev.idx],lastkey) < 0);  //test
-        //if(compare(table.aKeys[helperPrev.idx],lastkey) >= 0) throw new RuntimeException("assert");
-        //if(compare(table.aKeys[helperPrev.idx],lastkey) >= 0)
-        //  stop();
-        lastkeyPrev = table.aKeys[helperPrev.idx];
-        Type ret = (Type)table.aValues[helperPrev.idx];
+    { checkForModification();
+      bLastWasNext = false;
+      lastKey = helperPrev.currKey;
+      lastValue = helperPrev.currValue;
+      if(lastKey !=null) { //only if have previous
         prev_i();  //executes always previous after last previous.
-        return ret;
       }
-      else return null;
+      return lastValue;
     }
     
     
@@ -356,53 +330,15 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     /**Sets a new value to the given key!
      * @param value
      */
-    @Override public void set(Type value) { }
+    @Override public void set(Type value) { throw new IllegalStateException("not implemented"); }
     
   
-    Key getNextKey(){ return lastkeyNext; }
-    
-    Key getNextPrev(){ return lastkeyPrev; }
+    Key lastKey(){ return lastKey; }
     
     
-    /**Checks the helper's idx and table.
-     * <ul>
-     * <li>If the #idx is > {@link IndexMultiTable#sizeBlock} then use the next table, over parent.
-     * <li>If the #idx is < 0 then use the previous table, from parent.
-     * <li>If the idx refers a hypertable then use the first non-hypertable.
-     * </ul>
-     * @param helper
-     * @param bPrev
-     * @return maybe another table, maybe null if not previous or not next
-     */
-    private IteratorHelper<Key, Type> checkHyperTable(IteratorHelper<Key, Type> helper, boolean bPrev)
-    {
-      while(helper !=null && helper.idx >= helper.table.sizeBlock && helper.parentIter !=null) {
-        helper = helper.parentIter;
-        helper.idx +=1; //select next in parent
-      }
-      while(helper !=null && helper.idx < 0 && helper.parentIter !=null) {
-        helper = helper.parentIter;
-        helper.idx -=1; //select previous in parent.
-      }
-      while(helper !=null && helper.table.isHyperBlock && helper.idx >=0 && helper.idx < helper.table.sizeBlock) //check whether a hyperBlock is found:
-      { //
-        @SuppressWarnings("unchecked")
-        Table<Key, Type> childTable = (Table<Key, Type>)helper.table.aValues[helper.idx];
-        if(helper.childHelper == null)
-        { //no child yet. later reuse the instance of child.
-          helper.childHelper = new IteratorHelper<Key, Type>(helper); 
-        }
-        if(bPrev) {
-          helper.childHelper.idx = childTable.sizeBlock-1;  //prev is executed.
-        } else  {
-          helper.childHelper.idx = 0;  //next is executed.
-        }    
-        helper.childHelper.table = childTable;
-        helper = helper.childHelper;  //use the sub-table to iterate.        
-      }
-      return helper;
-    } 
-    
+    private void checkForModification() {
+      if(this.modcount != IndexMultiTable.this.modcount) throw new ConcurrentModificationException();
+    }
     
     
     /**executes the next(), on entry {@link bHasNextProcessed} is false.
@@ -419,33 +355,21 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
      */
     //@SuppressWarnings("unchecked")
     private void next_i()
-    {
+    { checkForModification();
       //the yet next is the new previous:
       helperPrev.copy(helperNext);
-      bHasPrev = bHasNext;
-      bHasNext = ++helperNext.idx < helperNext.table.sizeBlock;  //next in current table.
-      if(bHasNext)
-      { helperNext = checkHyperTable(helperNext, false);
-        bHasNext = helperNext.idx < helperNext.table.sizeBlock; 
-        bHasNextProcessed = true;
+      if( ++helperNext.idx >= helperNext.table.sizeBlock) {  //next in current table.
+        //The table is left.
+        helperNext.checkHyperTable();
+      } else {
+        //element in the same table:
+        helperNext.currKey = helperNext.table.aKeys[helperNext.idx];
+        @SuppressWarnings("unchecked") 
+        Type value = (Type)helperNext.table.aValues[helperNext.idx];
+        helperNext.currValue = value;
+        
       }
-      else
-      { //no next, check parent.next.
-        if(helperNext.parentIter != null)
-        { //no next, but it is a sub-table. This sub-table is ended.
-          //a next obj may be exist in the sibling table.
-          helperNext.table = null;  //the child helperNext is unused now.
-          helperNext = helperNext.parentIter; //to top of IteratorHelper, test there.
-          /*Because bHasNextProcessed is false, this routine is called recursively, see method description. */
-        }
-        else
-        { //else: bHasNext is false, it is the end.
-          bHasNextProcessed = true;
-        }
-      }
-      if(!bHasNextProcessed)
-      { next_i();
-      }
+      
     }
     
     
@@ -463,41 +387,44 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
      */
     //@SuppressWarnings("unchecked")
     private void prev_i()
-    {
+    { checkForModification();
       //the yet next is the new previous:
       helperNext.copy(helperPrev); 
-      bHasNext = bHasPrev;
-      bHasPrev = --helperPrev.idx >= 0;  //next in current table.
-      if(bHasPrev)
-      { helperPrev = checkHyperTable(helperPrev, true);
-        bHasPrev = helperPrev.idx >= 0; 
-        bHasPrevProcessed = true;
-      }
-      else
-      { //no prev, check parent.prev.
-        if(helperPrev.parentIter != null)
-        { //no next, but it is a sub-table. This sub-table is ended.
-          //a next obj may be exist in the sibling table.
-          helperPrev.table = null;  //the child helperNext is unused now.
-          helperPrev = helperPrev.parentIter; //to top of IteratorHelper, test there.
-          /*Because bHasNextProcessed is false, this routine is called recursively, see method description. */
-        }
-        else
-        { //else: bHasNext is false, it is the end.
-          bHasPrevProcessed = true;
-        }
-      }
-      if(!bHasPrevProcessed)
-      { prev_i();
+      if(--helperPrev.idx < 0) {  //next in current table.
+        //The table is left.
+        helperPrev.checkHyperTable(); 
+      } else {
+        //element in the same table:
+        helperPrev.currKey = helperPrev.table.aKeys[helperPrev.idx];
+        @SuppressWarnings("unchecked") 
+        Type value = (Type)helperPrev.table.aValues[helperPrev.idx];
+        helperPrev.currValue = value;
       }
     }
     
     
     public void remove()
-    {
-      helperNext.table.delete(helperNext.idx);  //delete element in table.
-      //left helperNext.ix unchanged
-      helperNext = checkHyperTable(helperNext, false);  //maybe end of table, correct next 
+    { checkForModification();
+      if(bLastWasNext) {
+        //because the cursor is set after the next, the previous is the candidate to remove. It was the next before.
+        helperPrev.table.delete(helperPrev.idx);  //delete element in table.
+        //to preserve the situation, the new previous is one before:
+        helperPrev.idx -=1;  //may be negative now
+        helperPrev.checkHyperTable();
+        //the next is unchanged normally. But because it is on another position, seek it from previous: 
+        helperNext.table = helperPrev.table;  //may be a changed table, sibling before, parent etc.
+        helperNext.idx = helperPrev.idx+1;  //the next
+        helperNext.checkHyperTable();
+        //lastkeyNext = bHasNext ? helperNext.table.aKeys[helperNext.idx] : null;
+        
+      } else {
+        //because the cursor is set before the previous, the next is the candidate to remove.
+        helperNext.table.delete(helperNext.idx);  //delete element in table.
+        //left helperNext.ix unchanged
+        helperNext.checkHyperTable();  //maybe end of table, correct next
+        //lastkeyNext = bHasNext ? helperNext.table.aKeys[helperNext.idx] : null;
+        
+      }
     }
   
     @Override public String toString() { return helperPrev.toString() + " ... " + helperNext.toString(); }   
@@ -510,35 +437,76 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    */ 
   private static class IteratorHelper<Key extends Comparable<Key>, Type>
   {
-    /**If not null, this helperNext is associated to a deeper level of table, the parent
-     * contains the iterator value of the higher table.*/
-    protected IteratorHelper<Key, Type> parentIter;
+    /**Dedication whether it is the instance for previous or for next. */
+    private final boolean bPrev;
     
-    /**If not null, an either an empty instance for a deeper level of tables is allocated already 
-     * or the child is used actual. The child is used, if the child or its child 
-     * is the current IteratorHelper stored on {@link IteratorImpl#helperNext}. */ 
-    protected IteratorHelper<Key, Type> childHelper;
-    
-    /**Current index in the associated table. */ 
+    /**Current index in the associated table for the next or previous entry. It is not the last returned one but the next or previous. */ 
     protected int idx;
     
-    /**The associated table, null if the instance is not used yet. */
+    /**The associated table appropriate to the idx. */
     Table<Key, Type> table;
     
-    IteratorHelper(IteratorHelper<Key, Type> parentIter)
-    { this.parentIter = parentIter;
+    /**The current key and value which will be returned from following next() or prev(). */
+    Key currKey; Type currValue;
+    
+    IteratorHelper(boolean bPrev)
+    { this.bPrev = bPrev;
       this.table = null;
       idx = -1;
     }
     
     void copy(IteratorHelper<Key, Type> src) {
-      this.parentIter = src.parentIter;
-      this.childHelper = src.childHelper;
       this.idx = src.idx;
       this.table = src.table;
+      this.currKey = src.currKey;
+      this.currValue = src.currValue;
     }
     
     
+    /**Checks the helper's idx and table.
+     * <ul>
+     * <li>If the #idx is > {@link IndexMultiTable#sizeBlock} then use the next table, over parent.
+     * <li>If the #idx is < 0 then use the previous table, from parent.
+     * <li>If the idx refers a hypertable then use the first non-hypertable.
+     * </ul>
+     * @param helper
+     * @param bPrev
+     * @return maybe another table, maybe null if not previous or not next
+     */
+    private boolean checkHyperTable()
+    {
+      while(idx >= table.sizeBlock && table.parent !=null) { //on end of any table:
+        idx = table.ixInParent +1;  //next entry in parent table
+        table = table.parent;
+      }
+      while(idx < 0 && table.parent !=null) { //on end of any table:
+        idx = table.ixInParent -1;  //previous entry in parent table
+        table = table.parent;
+      }
+      while(table.isHyperBlock && idx >=0 && idx < table.sizeBlock) //check whether a hyperBlock is found:
+      { //
+        @SuppressWarnings("unchecked")
+        Table<Key, Type> childTable = (Table<Key, Type>)table.aValues[idx];
+        table = childTable;
+        if(bPrev) {
+          idx = childTable.sizeBlock-1;  //prev is executed.
+        } else  {
+          idx = 0;  //next is executed.
+        }    
+      }
+      if( idx >=0 && idx < table.sizeBlock) {
+        currKey = table.aKeys[idx];
+        @SuppressWarnings("unchecked") 
+        Type value = (Type)table.aValues[idx];
+        currValue = value;
+        return true;
+      } else {
+        currKey = null;
+        currValue = null;
+        return false;
+      }
+    }
+
     @Override public String toString() { return table == null ? "null" : idx < 0 ? "--no-previous--" : idx >= table.sizeBlock ? "--no-next--" : table.aKeys[idx].toString(); } 
   }
 
@@ -567,7 +535,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     /**True, than {@link #aValues} contains instances of this class too. */
     protected boolean isHyperBlock;
 
-    /**A indentifier number for debugging.*/
+    /**A identifier number for debugging.*/
     final int identParent = ++identParent_;
 
     /**Index of this table in its parent. */
@@ -994,19 +962,34 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
      */
     private int movein(Table<Key,Type> src, Table<Key,Type> dst, int ixSrc, int ixDst, int nrof){
       int sizeRet = nrof;
-      int ix2 = ixDst + nrof - 1;
-      for(int ix1 = ixSrc + nrof-1; ix1 >= ixSrc; --ix1){
-        Object value = src.aValues[ix1];
-        if(value instanceof IndexMultiTable<?,?>) {
+      //int ix2 = ixDst + nrof - 1;
+      int ct1 = nrof;
+      int ix1Src, ix1Dst;
+      final int dx;
+      if(src == dst && ixSrc < ixDst) {
+        //start from end, backward
+        dx = -1;
+        ix1Src = ixSrc + nrof -1;
+        ix1Dst = ixDst + nrof -1;
+      } else {
+        dx = 1;
+        ix1Src = ixSrc;
+        ix1Dst = ixDst;
+      }
+      while(--ct1 >=0) {
+      //for(int ix1 = ixSrc + nrof-1; ix1 >= ixSrc; --ix1){
+        Object value = src.aValues[ix1Src];
+        if(value instanceof Table<?,?>) {
           @SuppressWarnings("unchecked")
           Table<Key,Type> childTable = (Table<Key,Type>)value;
-          childTable.ixInParent = ix2;
+          childTable.ixInParent = ix1Dst;
           childTable.parent = dst;
           sizeRet += childTable.sizeAll -1;  //-1: 1 element is counted initial
         } 
-        dst.aValues[ix2] = value;
-        dst.aKeys[ix2] = src.aKeys[ix1];
-        ix2 -=1;
+        dst.aValues[ix1Dst] = value;
+        dst.aKeys[ix1Dst] = src.aKeys[ix1Src];
+        ix1Src += dx;  //count forward or backward.
+        ix1Dst += dx;
       }
       return sizeRet;
     }
@@ -1034,25 +1017,28 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
      * @param ix
      */
     protected void delete(int ix){
-      Key keydel = aKeys[ix];
+      //Key keydel = aKeys[ix];
       sizeBlock -=1;
-      if(!isHyperBlock){
-        sizeAll -=1;
-      }
+      Table<Key, Type> tableParent = this;
+      do {
+        if(tableParent.sizeAll >0){ tableParent.sizeAll -=1; } //Hint: start with this.
+        tableParent = tableParent.parent;
+      } while(tableParent !=null);
       if(ix < sizeBlock){
-        System.arraycopy(aKeys, ix+1, aKeys, ix, sizeBlock-ix);
-        System.arraycopy(aValues, ix+1, aValues, ix, sizeBlock-ix);
+        movein(this, this, ix+1, ix, this.sizeBlock - ix);
+        //System.arraycopy(aKeys, ix+1, aKeys, ix, sizeBlock-ix);
+        //System.arraycopy(aValues, ix+1, aValues, ix, sizeBlock-ix);
       }
       aKeys[sizeBlock] = rootIdxTable.maxKey__;
       aValues[sizeBlock] = null;   //prevent dangling references!
       if(sizeBlock == 0 && parent !=null){
         //this sub-table is empty
-        ////
-        int ixParent = binarySearchFirstKey(parent.aKeys, 0, parent.sizeBlock, keydel); //, sizeBlock, key1);
-        if(ixParent < 0)
-        { ixParent = -ixParent-1;  
-        }
-        parent.delete(ixParent);  //call recursively.
+        //
+        //int ixParent = binarySearchFirstKey(parent.aKeys, 0, parent.sizeBlock, keydel); //, sizeBlock, key1);
+        //if(ixParent < 0)
+        //{ ixParent = -ixParent-1;  
+        //}
+        parent.delete(this.ixInParent);  //call recursively.
         //it has delete the child table. The table may be referenced by an iterator still.
         //But the iterator won't detect hasNext() and it continoues on its parent iterator too. 
       }
@@ -1785,7 +1771,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     {
       //IteratorHelper<Key, Type> helperNext = tableIter.helperNext;
       Type value = tableIter.next();
-      Key key = tableIter.getNextKey();
+      Key key = tableIter.lastKey();
       return new Entry(key, value); 
     }
 
