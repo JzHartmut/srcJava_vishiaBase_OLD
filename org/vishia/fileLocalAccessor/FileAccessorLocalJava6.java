@@ -255,7 +255,7 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
    * from the operation system using {@link java.io.File#list()}. Therefore {@link #refreshFilePropertiesAndChildren(FileRemote, CallbackEvent)}
    * will be called. Then this list is iterated and the file properties are gotten using 
    * {@link #refreshFileProperties(FileRemote, CallbackEvent)}. In any iteration step the file
-   * is offered to the application calling {@link FileRemoteCallback#offerFile(FileRemote)}.
+   * is offered to the application calling {@link FileRemoteCallback#offerLeafNode(FileRemote)}.
    * 
    * @see org.vishia.fileRemote.FileRemoteAccessor#walkFileTree(org.vishia.fileRemote.FileRemote, java.io.FileFilter, int, org.vishia.fileRemote.FileRemoteCallback)
    */
@@ -263,7 +263,7 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
   {
     callback.start(startDir);
     walkSubTree(startDir, null, depth, callback);
-    callback.finished(0,0);
+    callback.finished(startDir, null);
   }
     
   public FileRemoteCallback.Result walkSubTree(FileRemote file, FileFilter filter, int depth, FileRemoteCallback callback)
@@ -272,7 +272,7 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
     Map<String, FileRemote> children = file.children();
     FileRemoteCallback.Result result = FileRemoteCallback.Result.cont;
     if(children !=null){
-      result = callback.offerDir(file);
+      result = callback.offerParentNode(file);
       if(result == FileRemoteCallback.Result.cont){ //only walk through subdir if cont
         Iterator<Map.Entry<String, FileRemote>> iter = children.entrySet().iterator();
         while(result == FileRemoteCallback.Result.cont && iter.hasNext()) {
@@ -283,10 +283,10 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
             if(depth >1){
               result = walkSubTree(file2, filter, depth-1, callback);  
             } else {
-              result = callback.offerFile(file2);  //show it as file instead walk through tree
+              result = callback.offerLeafNode(file2);  //show it as file instead walk through tree
             }
           } else {
-            result = callback.offerFile(file2);
+            result = callback.offerLeafNode(file2);
           }
         }
       } 

@@ -13,6 +13,7 @@ import org.vishia.states.StateSimple;
 import org.vishia.states.StateSimple.StateTrans;
 import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
+import org.vishia.util.SortedTreeWalkerCallback;
 import org.vishia.util.StringFunctions;
 
 /**This class supports comparison of files in a callback routine.
@@ -123,7 +124,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
     {
     }
     
-    @Override public Result offerDir(FileRemote file){
+    @Override public Result offerParentNode(FileRemote file){
       if(file == dir1){ return Result.cont; } //the first entry
       else {
         CharSequence path = FileSystem.normalizePath(file.getAbsolutePath());
@@ -151,13 +152,13 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
     
     /**Checks whether all files are compared or whether there are alone files.
      */
-    @Override public Result finishedDir(FileRemote file, FileRemoteCallback.Counters cnt){
+    @Override public Result finishedParentNode(FileRemote file, FileRemoteCallback.Counters cnt){
       
       return Result.cont;      
     }
     
     
-    @Override public Result offerFile(FileRemote file)
+    @Override public Result offerLeafNode(FileRemote file)
     {
       CharSequence path = FileSystem.normalizePath(file.getAbsolutePath());
       CharSequence localPath = path.subSequence(zBasePath1+1, path.length());
@@ -358,7 +359,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
     
     
     
-    @Override public void finished(long nrofBytes, int nrofFiles)
+    @Override public void finished(FileRemote startDir, SortedTreeWalkerCallback.Counters cnt)
     {
     }
 
@@ -366,7 +367,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
     
     /**Callback to mark all files of the second directory as 'alone' on open directory.
      * If the files are found, there are marked as 'equal' or 'non equal' then, this selection
-     * will be removed. This callback will be used in the routine {@link #offerDir(FileRemote)} of any directory
+     * will be removed. This callback will be used in the routine {@link #offerParentNode(FileRemote)} of any directory
      * in the dir1. A new dir is searched in the dir2 tree, then the children in 1 level are marked. 
      * 
      */
@@ -374,19 +375,19 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
     {
 
       @Override
-      public void finished(long nrofBytes, int nrofFiles)
+      public void finished(FileRemote startDir, SortedTreeWalkerCallback.Counters cnt)
       { }
 
       @Override
-      public Result finishedDir(FileRemote file, FileRemoteCallback.Counters cnt)
+      public Result finishedParentNode(FileRemote file, FileRemoteCallback.Counters cnt)
       { return Result.cont; }
 
       @Override
-      public Result offerDir(FileRemote file)
+      public Result offerParentNode(FileRemote file)
       { return Result.cont; }
 
       @Override
-      public Result offerFile(FileRemote file)
+      public Result offerLeafNode(FileRemote file)
       { 
         //1412 
         file.setMarked(FileMark.cmpAlone);   //yet unknown whether the 2. file exists, will be reseted if necessary.

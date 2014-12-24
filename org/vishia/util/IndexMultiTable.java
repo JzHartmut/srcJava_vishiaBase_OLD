@@ -1518,9 +1518,9 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     assert(keyArg instanceof Comparable<?>);
     IndexBox ixRet = new IndexBox();
     Table<Key, Type> table = root.searchInTables((Key)keyArg, true, ixRet);
-    if(table !=null){
-      Type ret = (Type)table.aValues[ixRet.ix];
-      table.delete(ixRet.ix);
+    if(table !=null){ //null if keyArg is not found.
+      Type ret = (Type)table.aValues[ixRet.ix];  //deleted value should be returned.
+      table.delete(ixRet.ix);  
       return ret;    
     } else return null;
   }

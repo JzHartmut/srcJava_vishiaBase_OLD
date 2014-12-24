@@ -122,8 +122,8 @@ public interface FileRemoteAccessor extends Closeable
    * This routine may return immediately. It does not block if a communication is necessary.
    * <ul>
    * <li>{@link CallbackFile#start()} is called firstly. 
-   * <li>{@link CallbackFile#offerDir(FileRemote)} is called on a new directory which is entered.
-   * <li>{@link CallbackFile#offerFile(FileRemote)} is called for any found entry in a directory. It may be a file or sub directory.
+   * <li>{@link CallbackFile#offerParentNode(FileRemote)} is called on a new directory which is entered.
+   * <li>{@link CallbackFile#offerLeafNode(FileRemote)} is called for any found entry in a directory. It may be a file or sub directory.
    * <li>{@link CallbackFile#finished()} is the last action of that.
    * </ul> 
    *  

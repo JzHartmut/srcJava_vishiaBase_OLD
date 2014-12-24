@@ -1,8 +1,48 @@
 package org.vishia.util;
 
 
+/**A Callback interface for walking through any tree with more as one children per node.
+ * The concept is similar the {@link java.nio.file.Files#walkFileTree(java.nio.file.Path, java.nio.file.FileVisitor)} callback interface.
+ * but with a more universal approach and concept.
+ * @author Hartmut Schorrig
+ *
+ * @param <Type> The type of a node which may have children or it is a leaf.
+ */
 public interface SortedTreeWalkerCallback<Type>
 {
+  
+  /**Version, history and license.
+   * <ul>
+   * <li>2014-12-24 Hartmut created from the more special interface {@link org.vishia.fileRemote.FileRemoteCallback}.                  
+   * </ul>
+   * <br><br>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL is not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   */
+  public static final String sVersion = "2014-12-24";
+
+  
   /**It is similar {@link java.nio.file.FileVisitResult}.
    * This class is defined here because it runs with Java-6 too.
    */
@@ -20,47 +60,49 @@ public interface SortedTreeWalkerCallback<Type>
    *
    */
   public static class Counters
-  { public long nrofBytes;
-    /* @param nrofBytes total number of bytes of all files in this directory without sub directories
-    /* @param nrofDirs number of found sub directories in this directory. 
-    /* @param nrofFiles number of regular files  in this directory.*/
-    public int nrofDirs, nrofFiles;
+  { /**Any number of internal data. */
+    public long nrofBytes;
+    
+    /**Number of parent nodes and number of leaf nodes which are processed. */
+    public int nrofParents, nrofLeafss;
   
-    public int nrofDirSelected, nrofFilesSelected;
+    /**Number of parent nodes and number of leaf nodes which are selected. */
+    public int nrofParentSelected, nrofLeafSelected;
   }
   
-  /**Invoked before start of {@link java.nio.file.Files#walkFileTree(java.nio.file.Path, java.util.Set, int, java.nio.file.FileVisitor)}.
-   * or an adequate communication.
+  /**Invoked before start of a walk through the tree.
    */
-  void start(Type startDir);
+  void start(Type startNode);
   
-  /**Invoked on start on walking through a directory. If this method is invoked for a sub directory, the  {@link #offerFile(Type)} is not invoked.
-   * @param dir the directory
+  /**Invoked on start on walking through a parent node which have children. It may be a directory inside a file tree. 
+   * If this method is invoked for a node, the {@link #offerLeafNode(Type)} is not invoked.
+   * @param parentNode
    * @return information to abort, maybe boolean.
    */
-  Result offerDir(Type dir);
+  Result offerParentNode(Type parentNode);
   
-  /**Invoked on end of walking through a directory.
-   * It is invoked in the thread which executes a Type action.
-   * It is possible to create an event and store it in a queue but there are necessary some more events
-   * it may not be good.
-   * @param file
-   * @param cnt The number of byted, dirs, files selected and total of this directory.
+  /**Invoked on end of walking through a parent node.
+   * @param parentNode the node which was walked through
+   * @param cnt If the {@link Counters#nrofLeafss} == {@link Counters#nrofLeafSelected} 
+   *   and {@link Counters#nrofParents} == {@link Counters#nrofParentSelected}
+   *   then all children are selected.
    */
-  Result finishedDir(Type dir, Counters cnt);
+  Result finishedParentNode(Type parentNode, Counters cnt);
   
-  /**Invoked for any file, invoked for a sub directory only if the depth is reached and {@link #offerDir(Type)} is not called.
-   * @param file
+  /**Invoked for any node which has no children or which is not processed because the depth of walking through the tree is reached.
+   * It is called in opposite to {@link #offerLeafNode(Object)}, only one of both is called for a node.
+   * For example it is invoked for a sub directory only if the depth is reached and {@link #offerParentNode(Type)} is not called.
+   * @param leafNode
    * @return information to abort or continue.
    */
-  Result offerFile(Type file);
+  Result offerLeafNode(Type leafNode);
   
-  /**Invoked after finishing a {@link java.nio.file.Files#walkFileTree(java.nio.file.Path, java.util.Set, int, java.nio.file.FileVisitor)}.
+  /**Invoked after finishing the walking through.
    */
-  void finished(long nrofBytes, int nrofFiles);
+  void finished(Type startNode, Counters cnt);
   
   
-  /**Returns true if the file tree walking should be terminated respectively aborted.
+  /**Returns true if the tree walking should be terminated respectively aborted.
    * This routine should be called in any walk tree routine.
    * The aborted state should be set from outside in the implementation classes.
    * @return true if should terminated.
@@ -74,19 +116,19 @@ public interface SortedTreeWalkerCallback<Type>
   {
 
     @Override public void start(Object startDir) {  }
-    @Override public void finished(long nrofBytes, int nrofFiles) {  }
+    @Override public void finished(Object parentNode, SortedTreeWalkerCallback.Counters cnt) {  }
 
-    @Override public Result offerDir(Object file) {
+    @Override public Result offerParentNode(Object file) {
       return Result.cont;      
     }
     
-    @Override public Result finishedDir(Object file, SortedTreeWalkerCallback.Counters cnt) {
+    @Override public Result finishedParentNode(Object file, SortedTreeWalkerCallback.Counters cnt) {
       return Result.cont;      
     }
     
     
 
-    @Override public Result offerFile(Object file) {
+    @Override public Result offerLeafNode(Object file) {
       return Result.cont;
     }
 

@@ -310,7 +310,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
           } catch(IOException exc){
             System.err.println("FileAccessorLocalData.walkFileTree - unexpected IOException; " + exc.getMessage() );
           }
-          if(callback !=null) { callback.finished(0,0); }
+          if(callback !=null) { callback.finished(startDir, null); }
         } 
         catch(Exception exc){
           CharSequence text = Assert.exceptionInfo("FileAccessorLocalJava7 - RefreshThread Exception; ", exc, 0, 20, true);
@@ -863,7 +863,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
         dir1.internalAccess().clrFlagBit(FileRemote.mRefreshChildPending);
         curr.children.put(name, dir1);
       }
-      SortedTreeWalkerCallback.Result result = (callback !=null) ? callback.offerDir(dir1) : SortedTreeWalkerCallback.Result.cont;
+      SortedTreeWalkerCallback.Result result = (callback !=null) ? callback.offerParentNode(dir1) : SortedTreeWalkerCallback.Result.cont;
       if(result == SortedTreeWalkerCallback.Result.cont){
         curr = new CurrDirChildren(dir1, curr);
         if(debugout) System.out.println("FileRemoteAccessorLocalJava7 - callback - pre dir; " + curr.dir.getAbsolutePath());
@@ -879,7 +879,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
     public FileVisitResult postVisitDirectory(Path dir, IOException exc)
         throws IOException
     { FileRemoteCallback.Result result = (callback !=null) ? 
-                                         callback.finishedDir(curr.dir, curr.cnt) 
+                                         callback.finishedParentNode(curr.dir, curr.cnt) 
                                        : SortedTreeWalkerCallback.Result.cont;
       if(refresh){  
         //curr.dir.internalAccess().setChildren(curr.children);  //Replace the map.
@@ -912,7 +912,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
       if(resetMark){ 
         fileRemote.resetMarked(0xffffffff); }
       setAttributes(fileRemote, file, attrs);
-      if(attrs.isDirectory()) { curr.cnt.nrofDirs +=1; } else { curr.cnt.nrofFiles +=1; }
+      if(attrs.isDirectory()) { curr.cnt.nrofParents +=1; } else { curr.cnt.nrofLeafss +=1; }
       nrofEntriesTotal +=1;
       long size = attrs.size();
       curr.cnt.nrofBytes += size;
@@ -930,8 +930,8 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
         if(callback !=null) {
           //check mask:
           if(selected) {
-            if(attrs.isDirectory()) { curr.cnt.nrofDirSelected +=1; } else { curr.cnt.nrofFilesSelected +=1; }
-            result = callback.offerFile(fileRemote);
+            if(attrs.isDirectory()) { curr.cnt.nrofParentSelected +=1; } else { curr.cnt.nrofLeafSelected +=1; }
+            result = callback.offerLeafNode(fileRemote);
           } else {
             result = SortedTreeWalkerCallback.Result.cont;
           }

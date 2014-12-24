@@ -15,6 +15,7 @@ import java.util.Queue;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.vishia.checkDeps_C.CheckAllDepFile;
 import org.vishia.commander.FcmdCopyCmd;
 import org.vishia.event.Event;
 import org.vishia.event.EventConsumer;
@@ -1435,6 +1436,9 @@ public class FileRemote extends File implements MarkMask_ifc
   }
   
   
+  /**Deletes this file, correct the parent's children list, remove this file.
+   * @return true if it is successfully deleted.
+   */
   @Override public boolean delete(){
     if(device == null){
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
@@ -1553,88 +1557,121 @@ public class FileRemote extends File implements MarkMask_ifc
   public void deleteMarked(int mark, FileRemoteCallback callback)
   {
     if(callback != null) { callback.start(this); }
-    deleteMarkedSub(mark, this, 10000, callback);
-    if(callback != null) { callback.finished(0, 0); }
+    if(deleteMarkedSub(mark, this, 10000, callback)) {
+      delete(); //delete the directory or file.
+    }
+    if(callback != null) { callback.finished(this, null); }
     
   }
   
   
   
-  /**See {@link #walkFileTree(int, FileRemoteCallback)}, invoked internally recursively.
+  /**
+   * @param mark
+   * @param file
+   * @param depth
+   * @param callback
+   * @return true if the directory is empty or it is a file.
    */
-  private static boolean deleteMarkedSub(int mark, FileRemote dir, int depth, FileRemoteCallback callback)
+  private static boolean deleteMarkedSub(int mark, FileRemote file, int depth, FileRemoteCallback callback)
   {
     FileRemoteCallback.Counters cnt = new FileRemoteCallback.Counters();
-    boolean bEmpty = true;
-    Map<String, FileRemote> children = dir.children();
+    boolean bDeleteParent = true;
+    Map<String, FileRemote> children;
     FileRemoteCallback.Result result;
-    System.out.println("FileRemote.deleteMarkedSub - offerDir; " + dir.getAbsolutePath());
-    result = callback.offerDir(dir);
-    if(result == FileRemoteCallback.Result.cont && children !=null){ //only walk through subdir if cont
-      Iterator<Map.Entry<String, FileRemote>> iter = children.entrySet().iterator();
-      while(result == FileRemoteCallback.Result.cont && iter.hasNext()) {
-        try {
-          Map.Entry<String, FileRemote> file1 = iter.next();
-          FileRemote file2 = file1.getValue();
-          boolean bCheckDelete;
-          if(file2.isDirectory()){
-            cnt.nrofDirs +=1;
-            if(depth >1){
-              //invokes offerDir for file2
-              bCheckDelete = deleteMarkedSub(mark, file2, depth-1, callback);  //directory is not delete completely.
-            } else {
-              //because the depth is reached, offerFile is called.
-              System.out.println("FileRemote.deleteMarkedSub - offer empty dir; " + file2.getName());
-              result = callback !=null ? callback.offerFile(file2) : Result.cont;  //show it as file instead walk through tree
-              bCheckDelete = result == Result.skipSubtree;
-            }
-          } else {
-            //a file:
-            cnt.nrofFiles +=1;
-            result = callback !=null ? callback.offerFile(file2) : Result.cont;  //show it as file instead walk through tree
-            bCheckDelete = result == Result.cont;
-          }
-          //Check whether a file or directory should be deleted:
-          if(bCheckDelete) {
-            //delete the file
-            int markFile = file2.getMark();
-            boolean isDeleted;
-            if( (markFile & mark) !=0)
-            { cnt.nrofFilesSelected +=1;
-              if(file2.device == null){
-                file2.device = getAccessorSelector().selectFileRemoteAccessor(file2.getAbsolutePath());
-              }
-              //NOTE: Don't call file2.delete() because it changes the iterated Map.
-              System.out.println("FileRemote.deleteMarkedSub - delete File; " + file2.getName());
-              isDeleted = file2.device.delete(file2, null);  //delete on file system with waiting on success.
-              if(isDeleted){
-                iter.remove();  //from children list of the parent.
+    if(file.isDirectory() && (children = file.children()) !=null)
+    {
+      System.out.println("FileRemote.deleteMarkedSub - offerDir; " + file.getAbsolutePath());
+      result = callback.offerParentNode(file);
+      if(result == FileRemoteCallback.Result.cont) { //only walk through subdir if cont
+        Iterator<Map.Entry<String, FileRemote>> iter = children.entrySet().iterator();
+        while(result == FileRemoteCallback.Result.cont && iter.hasNext()) {
+          try {
+            Map.Entry<String, FileRemote> file1 = iter.next();
+            FileRemote file2 = file1.getValue();
+            boolean bCheckDelete;
+            if(file2.isDirectory()){
+              cnt.nrofParents +=1;
+              if(depth >1){
+                //invokes offerDir for file2
+                bCheckDelete = deleteMarkedSub(mark, file2, depth-1, callback);  //directory is not delete completely.
               } else {
-                System.err.println("FileRemote.delete - can't delete; >>>" + file2.getAbsolutePath()+ "<<<");
-                bEmpty = false;  //delete fails
+                //because the depth is reached, offerFile is called.
+                System.out.println("FileRemote.deleteMarkedSub - offer empty dir; " + file2.getName());
+                result = callback !=null ? callback.offerLeafNode(file2) : Result.cont;  //show it as file instead walk through tree
+                bCheckDelete = result == Result.skipSubtree;
               }
             } else {
-              System.out.println("FileRemote.deleteMarkedSub - offer file not marked; " + file2.getName());
-              bEmpty = false;  //not marked
+              //a file:
+              cnt.nrofLeafss +=1;
+              result = callback !=null ? callback.offerLeafNode(file2) : Result.cont;  //show it as file instead walk through tree
+              bCheckDelete = result == Result.cont;
             }
-          } else {
-            bEmpty = false;  //subDir not empty or callback forces skip.
+            //Check whether a file or directory should be deleted:
+            if(bCheckDelete) {
+              //delete the file or the directory which's content is successfully removed.
+              if(checkAndDelete(file2, iter, mark)) {
+                cnt.nrofLeafSelected +=1;
+              } else {
+                bDeleteParent = false;
+              }
+            } else {
+              bDeleteParent = false;  //subDir not empty or callback forces skip.
+            }
           }
+          catch(Exception exc){  //for one file in loop: 
+            System.err.println(Assert.exceptionInfo("FileRemote unexpected - deleteMarkedSub", exc, 0, 20, true)); 
+          }
+        }//while
+        if(result != FileRemoteCallback.Result.terminate){
+          //continue with parent. Also if offerDir returns skipSubdir or any file returns skipSiblings.
+          result = callback.finishedParentNode(file, cnt); //FileRemoteCallback.Result.cont;
         }
-        catch(Exception exc){ 
-          System.err.println(Assert.exceptionInfo("FileRemote unexpected - deleteMarkedSub", exc, 0, 20, true)); 
-        }
-      }
+      }//cont = openDir(...) 
+      // else: not cont, do nothing
     } 
-    if(result != FileRemoteCallback.Result.terminate){
-      //continue with parent. Also if offerDir returns skipSubdir or any file returns skipSiblings.
-      result = callback.finishedDir(dir, cnt); //FileRemoteCallback.Result.cont;
+    else { //a file or empty directory:
+      result = callback.offerLeafNode(file);
+      if(result != Result.cont) {
+        bDeleteParent = false;  //don't delete 
+      }
     }
-    return bEmpty;  //maybe terminate
+    return bDeleteParent;
   }
 
 
   
+  
+  /**Checks whether the file is marked, delete it if marked
+   * @param file2
+   * @param iter
+   * @param mark
+   * @return true if marked and successfully deleteted, false if not marked or delete error.
+   */
+  private static boolean checkAndDelete(FileRemote file2, Iterator<Map.Entry<String, FileRemote>> iter, int mark )
+  { final boolean bDelete;
+    int markFile = file2.getMark();
+    boolean isDeleted;
+    if( (markFile & mark) !=0)
+    { if(file2.device == null){
+        file2.device = getAccessorSelector().selectFileRemoteAccessor(file2.getAbsolutePath());
+      }
+      //NOTE: Don't call file2.delete() because it changes the iterated Map.
+      System.out.println("FileRemote.deleteMarkedSub - delete File; " + file2.getName());
+      isDeleted = file2.device.delete(file2, null);  //delete on file system with waiting on success.
+      if(isDeleted){
+        iter.remove();  //from children list of the parent.
+        bDelete = true;
+      } else {
+        System.err.println("FileRemote.delete - can't delete; >>>" + file2.getAbsolutePath()+ "<<<");
+        bDelete = false;  //delete fails
+      }
+    } else {
+      System.out.println("FileRemote.deleteMarkedSub - offer file not marked; " + file2.getName());
+      bDelete = false;  //not marked
+    }
+    return bDelete;
+  }
   
   
 
@@ -1988,9 +2025,9 @@ public class FileRemote extends File implements MarkMask_ifc
    */
   public void walkFileTree(int depth, FileRemoteCallback callback)
   {
-    callback.start(null);
+    callback.start(this);
     walkSubTree(this, depth <=0 ? Integer.MAX_VALUE: depth, callback);
-    callback.finished(0,0);
+    callback.finished(this, null);
   }
     
   
@@ -2019,7 +2056,7 @@ public class FileRemote extends File implements MarkMask_ifc
     
     Map<String, FileRemote> children = dir.children();
     FileRemoteCallback.Result result = FileRemoteCallback.Result.cont;
-    result = callback.offerDir(dir);
+    result = callback.offerParentNode(dir);
     if(result == FileRemoteCallback.Result.cont && children !=null){ //only walk through subdir if cont
       Iterator<Map.Entry<String, FileRemote>> iter = children.entrySet().iterator();
       while(result == FileRemoteCallback.Result.cont && iter.hasNext()) {
@@ -2027,24 +2064,24 @@ public class FileRemote extends File implements MarkMask_ifc
           Map.Entry<String, FileRemote> file1 = iter.next();
           FileRemote file2 = file1.getValue();
           if(file2.isDirectory()){
-            cnt.nrofDirs +=1;
+            cnt.nrofParents +=1;
             if(depth >1){
               //invokes offerDir for file2
               result = walkSubTree(file2, depth-1, callback);  
             } else {
               //because the depth is reached, offerFile is called.
-              result = callback.offerFile(file2);  //show it as file instead walk through tree
+              result = callback.offerLeafNode(file2);  //show it as file instead walk through tree
             }
           } else {
-            cnt.nrofFiles +=1;
-            result = callback.offerFile(file2);  //a regular file.
+            cnt.nrofLeafss +=1;
+            result = callback.offerLeafNode(file2);  //a regular file.
           }
         }catch(Exception exc){ System.err.println(Assert.exceptionInfo("FileRemote unexpected - walkSubtree", exc, 0, 20, true)); }
       }
     } 
     if(result != FileRemoteCallback.Result.terminate){
       //continue with parent. Also if offerDir returns skipSubdir or any file returns skipSiblings.
-      result = callback.finishedDir(dir, cnt); //FileRemoteCallback.Result.cont;
+      result = callback.finishedParentNode(dir, cnt); //FileRemoteCallback.Result.cont;
     }
     return result;  //maybe terminate
   }
@@ -2758,12 +2795,12 @@ public class FileRemote extends File implements MarkMask_ifc
     public FileRemoteCallback callbackChildren = new FileRemoteCallback()
     {
 
-      @Override public Result offerDir(FileRemote file){
+      @Override public Result offerParentNode(FileRemote file){
         //offerChild(file);
         return Result.cont;
       }
       
-      @Override public Result finishedDir(FileRemote file, FileRemoteCallback.Counters cnt){
+      @Override public Result finishedParentNode(FileRemote file, FileRemoteCallback.Counters cnt){
         return Result.cont;      
       }
       
@@ -2772,7 +2809,7 @@ public class FileRemote extends File implements MarkMask_ifc
       /* (non-Javadoc)
        * @see org.vishia.fileRemote.FileRemoteCallback#offerFile(org.vishia.fileRemote.FileRemote)
        */
-      @Override public Result offerFile(FileRemote file)
+      @Override public Result offerLeafNode(FileRemote file)
       {
         offerChild(file);
         return Result.cont;
@@ -2782,7 +2819,7 @@ public class FileRemote extends File implements MarkMask_ifc
        * If there are some files yet in the queue, send the event for the last time.
        * But wait till the other thread has finished it.
        */
-      @Override public void finished(long nrofBytes, int nrofFiles)
+      @Override public void finished(FileRemote startDir, SortedTreeWalkerCallback.Counters cnt)
       { if(0 != occupyRecall(4000, evSrcCmd, false)){
           finished = true;
           sendEvent();
@@ -2868,20 +2905,20 @@ public class FileRemote extends File implements MarkMask_ifc
     
     @Override public void start(FileRemote startDir) {   }
     
-    @Override public void finished(long nrofBytesUnused, int nrofFilesUnused) {  
-      if(callbackUser !=null){ callbackUser.finished((int)this.nrofBytes, this.nrofFiles); }
+    @Override public void finished(FileRemote startDir, SortedTreeWalkerCallback.Counters cnt) {  
+      if(callbackUser !=null){ callbackUser.finished(startDir, cnt); }
     }
 
-    @Override public Result offerDir(FileRemote file) {
+    @Override public Result offerParentNode(FileRemote file) {
       //markAllInDirectory = true; markOneInDirectory = false;
-      if(callbackUser !=null) return callbackUser.offerDir(file); 
+      if(callbackUser !=null) return callbackUser.offerParentNode(file); 
       else return Result.cont;      
     }
     
-    @Override public Result finishedDir(FileRemote dir, FileRemoteCallback.Counters cnt) {
-      if(cnt.nrofDirSelected == cnt.nrofDirs && cnt.nrofFilesSelected == cnt.nrofFiles) {
+    @Override public Result finishedParentNode(FileRemote dir, FileRemoteCallback.Counters cnt) {
+      if(cnt.nrofParentSelected == cnt.nrofParents && cnt.nrofLeafSelected == cnt.nrofLeafss) {
         dir.setMarked(FileMark.select);
-      } else if(cnt.nrofDirSelected > 0 || cnt.nrofFilesSelected >0) {
+      } else if(cnt.nrofParentSelected > 0 || cnt.nrofLeafSelected >0) {
         dir.setMarked(FileMark.selectSomeInDir);
       }
       FileRemote parent = dir;
@@ -2890,13 +2927,13 @@ public class FileRemote extends File implements MarkMask_ifc
       }
       //this.nrofBytes += cnt.nrofBytes;
       //this.nrofFiles += cnt.nrofFiles;
-      if(callbackUser !=null) return callbackUser.finishedDir(dir, cnt); 
+      if(callbackUser !=null) return callbackUser.finishedParentNode(dir, cnt); 
       else return Result.cont;      
     }
     
     
 
-    @Override public Result offerFile(FileRemote file) {
+    @Override public Result offerLeafNode(FileRemote file) {
       nrofFiles +=1;
       if(file.isDirectory()) { 
       } else { 
@@ -2904,7 +2941,7 @@ public class FileRemote extends File implements MarkMask_ifc
       }
       long sizeFile = file.length();
       nrofBytes += sizeFile;
-      if(callbackUser !=null) return callbackUser.offerFile(file); 
+      if(callbackUser !=null) return callbackUser.offerLeafNode(file); 
       else return Result.cont;      
     }
 
