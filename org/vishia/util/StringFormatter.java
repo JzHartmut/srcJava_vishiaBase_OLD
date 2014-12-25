@@ -329,10 +329,12 @@ public class StringFormatter implements Appendable, Closeable, Flushable
   * @param str String
   * @return this
   */
- public StringFormatter add(String str)
+ public StringFormatter add(CharSequence str)
  { int nrofChars = str.length();
    prepareBufferPos(nrofChars);
-   buffer.replace(this.pos, pos + nrofChars, str);
+   buffer.delete(pos, pos + nrofChars);
+   buffer.insert(pos, str, 0, nrofChars);
+   //buffer.replace(this.pos, pos + nrofChars, str);
    pos += nrofChars;
    return this;
  }

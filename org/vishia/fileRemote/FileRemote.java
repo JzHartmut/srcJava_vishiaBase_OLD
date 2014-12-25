@@ -1556,11 +1556,12 @@ public class FileRemote extends File implements MarkMask_ifc
    */
   public void deleteMarked(int mark, FileRemoteCallback callback)
   {
+    FileRemoteCallback.Counters cntAll = new FileRemoteCallback.Counters();
     if(callback != null) { callback.start(this); }
-    if(deleteMarkedSub(mark, this, 10000, callback)) {
+    if(deleteMarkedSub(cntAll, mark, this, 10000, callback)) {
       delete(); //delete the directory or file.
     }
-    if(callback != null) { callback.finished(this, null); }
+    if(callback != null) { callback.finished(this, cntAll); }
     
   }
   
@@ -1573,7 +1574,7 @@ public class FileRemote extends File implements MarkMask_ifc
    * @param callback
    * @return true if the directory is empty or it is a file.
    */
-  private static boolean deleteMarkedSub(int mark, FileRemote file, int depth, FileRemoteCallback callback)
+  private static boolean deleteMarkedSub( FileRemoteCallback.Counters cntAll, int mark, FileRemote file, int depth, FileRemoteCallback callback)
   {
     FileRemoteCallback.Counters cnt = new FileRemoteCallback.Counters();
     boolean bDeleteParent = true;
@@ -1592,9 +1593,10 @@ public class FileRemote extends File implements MarkMask_ifc
             boolean bCheckDelete;
             if(file2.isDirectory()){
               cnt.nrofParents +=1;
+              cntAll.nrofParents +=1;
               if(depth >1){
                 //invokes offerDir for file2
-                bCheckDelete = deleteMarkedSub(mark, file2, depth-1, callback);  //directory is not delete completely.
+                bCheckDelete = deleteMarkedSub(cntAll, mark, file2, depth-1, callback);  //directory is not delete completely.
               } else {
                 //because the depth is reached, offerFile is called.
                 System.out.println("FileRemote.deleteMarkedSub - offer empty dir; " + file2.getName());
@@ -1604,6 +1606,7 @@ public class FileRemote extends File implements MarkMask_ifc
             } else {
               //a file:
               cnt.nrofLeafss +=1;
+              cntAll.nrofLeafss +=1;
               result = callback !=null ? callback.offerLeafNode(file2) : Result.cont;  //show it as file instead walk through tree
               bCheckDelete = result == Result.cont;
             }
@@ -1612,6 +1615,7 @@ public class FileRemote extends File implements MarkMask_ifc
               //delete the file or the directory which's content is successfully removed.
               if(checkAndDelete(file2, iter, mark)) {
                 cnt.nrofLeafSelected +=1;
+                cntAll.nrofLeafSelected +=1;
               } else {
                 bDeleteParent = false;
               }
@@ -2598,21 +2602,22 @@ public class FileRemote extends File implements MarkMask_ifc
      * and sets the {@link FileRemote#timeRefresh} and {@link FileRemote#timeChildren} to the current time then.
      */
     public void setChildrenRefreshed(){
-      Iterator<Map.Entry<String, FileRemote>> iter = FileRemote.this.children.entrySet().iterator();
-      while(iter.hasNext()) {
-        Map.Entry<String, FileRemote> filentry = iter.next();
-        FileRemote child = filentry.getValue();
-        if(child == null) {
-          Debugutil.stop();
-        } else {
-          if((child.flags & mRefreshChildPending)!=0) {
-            //child file is not existing, remove it:
-            iter.remove();
+      if(FileRemote.this.children !=null) {
+        Iterator<Map.Entry<String, FileRemote>> iter = FileRemote.this.children.entrySet().iterator();
+        while(iter.hasNext()) {
+          Map.Entry<String, FileRemote> filentry = iter.next();
+          FileRemote child = filentry.getValue();
+          if(child == null) {
+            Debugutil.stop();
+          } else {
+            if((child.flags & mRefreshChildPending)!=0) {
+              //child file is not existing, remove it:
+              iter.remove();
+            }
           }
+          
         }
-        
-      }
-      
+      }      
       flags &= ~mShouldRefresh; timeRefresh = timeChildren = System.currentTimeMillis(); 
     }
     
@@ -2885,6 +2890,8 @@ public class FileRemote extends File implements MarkMask_ifc
     
     final int XXXmark;
     
+    FileRemote startDir;
+    
     long nrofBytes;
     int nrofFiles;
     
@@ -2903,7 +2910,10 @@ public class FileRemote extends File implements MarkMask_ifc
     }
     
     
-    @Override public void start(FileRemote startDir) {   }
+    @Override public void start(FileRemote startDir) { 
+      this.startDir = startDir;
+      //startDir.setMarked(FileMark.selectRoot);
+    }
     
     @Override public void finished(FileRemote startDir, SortedTreeWalkerCallback.Counters cnt) {  
       if(callbackUser !=null){ callbackUser.finished(startDir, cnt); }
@@ -2922,11 +2932,11 @@ public class FileRemote extends File implements MarkMask_ifc
         dir.setMarked(FileMark.selectSomeInDir);
       }
       FileRemote parent = dir;
-      while( (parent.getMark() & FileMark.selectRoot) !=0 && (parent = parent.parent) !=null) {
-        parent.setMarked(FileMark.selectSomeInDir);  //select till the selection root.
+      while(parent !=null) {
+        parent.setMarked(FileMark.selectSomeInDir);;
+        if(parent != startDir) { parent = parent.parent; }
+        else { parent = null; } //finish while
       }
-      //this.nrofBytes += cnt.nrofBytes;
-      //this.nrofFiles += cnt.nrofFiles;
       if(callbackUser !=null) return callbackUser.finishedParentNode(dir, cnt); 
       else return Result.cont;      
     }

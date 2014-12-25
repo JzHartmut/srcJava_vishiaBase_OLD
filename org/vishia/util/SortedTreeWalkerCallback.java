@@ -68,6 +68,9 @@ public interface SortedTreeWalkerCallback<Type>
   
     /**Number of parent nodes and number of leaf nodes which are selected. */
     public int nrofParentSelected, nrofLeafSelected;
+    
+    public void clear(){ nrofBytes = 0; nrofParents = nrofLeafss = nrofParentSelected = nrofLeafSelected = 0; }
+    
   }
   
   /**Invoked before start of a walk through the tree.
