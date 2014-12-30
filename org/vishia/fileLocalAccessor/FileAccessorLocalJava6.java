@@ -259,7 +259,7 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
    * 
    * @see org.vishia.fileRemote.FileRemoteAccessor#walkFileTree(org.vishia.fileRemote.FileRemote, java.io.FileFilter, int, org.vishia.fileRemote.FileRemoteCallback)
    */
-  @Override public void walkFileTree(FileRemote startDir, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback)
+  @Override public void walkFileTree(FileRemote startDir, boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback)
   {
     callback.start(startDir);
     walkSubTree(startDir, null, depth, callback);
@@ -452,7 +452,7 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
   
   private void getChildren(FileRemote.CmdEvent ev){
     FileRemote.ChildrenEvent evback = ev.getOpponentChildrenEvent();
-    walkFileTree(ev.filesrc(), true, false, null, 0 , evback.depth, evback.callbackChildren);
+    walkFileTree(ev.filesrc(), false, true, false, null, 0 , evback.depth, evback.callbackChildren);
   }
   
   

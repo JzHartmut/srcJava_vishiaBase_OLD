@@ -12,6 +12,7 @@ import org.vishia.states.StateMachine;
 import org.vishia.states.StateSimple;
 import org.vishia.states.StateSimple.StateTrans;
 import org.vishia.util.Assert;
+import org.vishia.util.Debugutil;
 import org.vishia.util.FileSystem;
 import org.vishia.util.SortedTreeWalkerCallback;
 import org.vishia.util.StringFunctions;
@@ -106,11 +107,8 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
     FileRemoteCallbackCmp(FileRemote dir1, FileRemote dir2, FileRemote.CallbackEvent evCallback){
       this.evCallback = evCallback;
       this.dir1 = dir1; this.dir2 = dir2;
-      dir2.refreshPropertiesAndChildren();        
-      
-      //try{ 
-        basepath1 = FileSystem.normalizePath(dir1.getAbsolutePath()).toString();
-        zBasePath1 = basepath1.length();
+      basepath1 = FileSystem.normalizePath(dir1.getAbsolutePath()).toString();
+      zBasePath1 = basepath1.length();
       //} catch(Exception exc){
       //  dir1 = null; //does not exists.
       //}
@@ -120,34 +118,60 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
         cmpCtrl.ignoreFromTo.add(new String[]{".epcannot:", ".epcannot.end:"});
     }
     
+    
+    
     @Override public void start(FileRemote startDir)
     {
+      if(dir1.device == null){
+        dir1.device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(dir1.getAbsolutePath());
+      }
+      if(dir2.device == null){
+        dir2.device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(dir2.getAbsolutePath());
+      }
+      dir2.refreshPropertiesAndChildren();        
+      
+      //try{ 
+      int markReset = FileMark.markRoot | FileMark.markDir | FileMark.markDir | FileMark.cmpAlone | FileMark.cmpContentEqual
+        | FileMark.cmpFileDifferences | FileMark.cmpContentNotEqual | FileMark.cmpMissingFiles;
+      dir1.resetMarkedRecurs(markReset, null);
+      dir2.resetMarkedRecurs(markReset, null);
+      dir1.setMarked(FileMark.markRoot);
+      dir2.setMarked(FileMark.markRoot);
     }
     
-    @Override public Result offerParentNode(FileRemote file){
-      if(file == dir1){ return Result.cont; } //the first entry
-      else {
-        CharSequence path = FileSystem.normalizePath(file.getAbsolutePath());
+    
+    
+    @Override public Result offerParentNode(FileRemote dir){
+      //if(dir == this.dir1){ return Result.cont; } //the first entry
+      //else {
+      FileRemote dir2sub;
+        CharSequence path = FileSystem.normalizePath(dir.getAbsolutePath());
         if(path.length() <= zBasePath1){
+          dir2sub = dir2;
           //it should be file == dir1, but there is a second instance of the start directory.
-          System.err.println("FileRemoteCallbackCmp - faulty FileRemote; " + path);
-          return Result.cont;
+          //System.err.println("FileRemoteCallbackCmp - faulty FileRemote; " + path);
+          //return Result.cont;
         } else {
+          //Build dir2sub with the local path from dir1:
           CharSequence localPath = path.subSequence(zBasePath1+1, path.length());
+          if(StringFunctions.equals(localPath, "functionBlocks"))
+            Debugutil.stop();
           //System.out.println("FileRemoteCallbackCmp - dir; " + localPath);
-          FileRemote file2 = dir2.child(localPath);
-          if(!file2.exists()){
-            file.setMarked(FileMark.cmpAlone);
-            file.mark.setMarkParent(FileMark.cmpMissingFiles, false);
-            return Result.skipSubtree;  //if it is a directory, skip it.        
-          } else {
-            file2.device.walkFileTree(file2, true, false, null, 0, 1, callbackMarkSecondAlone);
-            //waitfor
-            //file2.refreshPropertiesAndChildren(null);        
-            return Result.cont;
-          }
+          dir2sub = dir2.subdir(localPath);
         }
-      }
+        if(!dir2sub.exists()){
+          dir.setMarked(FileMark.cmpAlone);
+          dir.mark.setMarkParent(FileMark.cmpMissingFiles, false);
+          System.out.println("FileRemoteCallbackCmp - offerDir, not exists; " + dir.getAbsolutePath());
+          return Result.skipSubtree;  //if it is a directory, skip it.        
+        } else {
+          dir2sub.device.walkFileTree(dir2sub, true, true, false, null, 0, 1, callbackMarkSecondAlone);
+          System.out.println("FileRemoteCallbackCmp - offerDir, check; " + dir.getAbsolutePath());
+          //waitfor
+          //dir2sub.refreshPropertiesAndChildren(null);        
+          return Result.cont;
+        }
+      //}
     }
     
     /**Checks whether all files are compared or whether there are alone files.
@@ -163,16 +187,17 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
       CharSequence path = FileSystem.normalizePath(file.getAbsolutePath());
       CharSequence localPath = path.subSequence(zBasePath1+1, path.length());
       //System.out.println("FileRemoteCallbackCmp - file; " + localPath);
-      if(StringFunctions.compare(localPath, "supportBase/SupportBase.rpy")==0)
+      if(StringFunctions.compare(localPath, "functionBlocks/AngleBlocks_FB.h")==0)
         Assert.stop();
       FileRemote file2 = dir2.child(localPath);
       if(!file2.exists()){
         file.setMarked(FileMark.cmpAlone);   //mark the file1, all file2 which maybe alone are marked already in callbackMarkSecondAlone.
         file.mark.setMarkParent(FileMark.cmpMissingFiles, false);
-        return Result.skipSubtree;  //if it is a directory, skip it.        
+        return Result.cont;    
       } else {
         file2.resetMarked(FileMark.cmpAlone);
         compareFile(file, file2);
+        
         if(evCallback.occupy(null, file, false)) {
           evCallback.setCmd(FileRemote.CallbackCmd.nrofFilesAndBytes);
           evCallback.sendEvent();   //inform about the state of progress of comparison.
@@ -361,6 +386,9 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
     
     @Override public void finished(FileRemote startDir, SortedTreeWalkerCallback.Counters cnt)
     {
+      if(evCallback !=null && evCallback.occupyRecall(500, null, true) !=0){
+        evCallback.sendEvent(FileRemote.CallbackCmd.done);
+      }
     }
 
   

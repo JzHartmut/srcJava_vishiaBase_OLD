@@ -288,39 +288,53 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
   
   /**Routine for walk through all really files of the file system for PC file systems and Java7 or higher. 
    * It calls {@link Files#walkFileTree(Path, Set, int, FileVisitor)} in an extra thread.
-   * defined in {@link FileRemoteAccessor#walkFileTree(FileRemote, boolean, boolean, String, int, int, FileRemoteCallback)} 
+   * defined in {@link FileRemoteAccessor#walkFileTree(FileRemote, boolean boolean, boolean, String, int, int, FileRemoteCallback)} 
    */
-  @Override public void walkFileTree(FileRemote startDir, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback)
-  { ///
-    FileRemoteAccessor.FileWalkerThread thread = new FileRemoteAccessor.FileWalkerThread(startDir, bRefreshChildren, resetMark, depth, sMask, markMask, callback) {
-      @Override public void run() {
-        try{
-          if(callback !=null) { callback.start(startDir); }
-          String sPath = startDir.getAbsolutePath();
-          if(FileSystem.isRoot(sPath))
-            Assert.stop();
-          Path pathdir = Paths.get(sPath);
-          if(bRefresh) { // && filter == null) {
-            startDir.internalAccess().newChildren();
+  @Override public void walkFileTree(FileRemote startDir, boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback)
+  { if(bWait){
+      //execute it in this thread, therewith wait for success.
+      walkFileTreeExecInThisThread(startDir, bRefreshChildren, resetMark, sMask, markMask, depth, callback);
+    } else {
+      FileRemoteAccessor.FileWalkerThread thread = new FileRemoteAccessor.FileWalkerThread(startDir, bRefreshChildren, resetMark, depth, sMask, markMask, callback) {
+        @Override public void run() {
+          try{
+            walkFileTreeExecInThisThread(startDir, bRefresh, resetMark, sMask, markMask, depth, callback);
+          } 
+          catch(Exception exc){
+            CharSequence text = Assert.exceptionInfo("FileAccessorLocalJava7 - RefreshThread Exception; ", exc, 0, 20, true);
+            System.err.println(text);
           }
-          WalkFileTreeVisitor visitor = new WalkFileTreeVisitor(startDir.itsCluster, bRefresh, resetMark, sMask, markMask, callback);
-          Set<FileVisitOption> options = new TreeSet<FileVisitOption>();
-          try{ 
-            Files.walkFileTree(pathdir, options, depth <=0 ? Integer.MAX_VALUE : depth, visitor);  
-          } catch(IOException exc){
-            System.err.println("FileAccessorLocalData.walkFileTree - unexpected IOException; " + exc.getMessage() );
-          }
-          if(callback !=null) { callback.finished(startDir, visitor.cntTotal); }
-        } 
-        catch(Exception exc){
-          CharSequence text = Assert.exceptionInfo("FileAccessorLocalJava7 - RefreshThread Exception; ", exc, 0, 20, true);
-          System.err.println(text);
         }
-      }
-    };
-    thread.start();    
+      };
+      thread.start();
+    }
   }
 
+
+  
+  
+  private void walkFileTreeExecInThisThread(FileRemote startDir, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback)
+  {
+    if(callback !=null) { callback.start(startDir); }
+    String sPath = startDir.getAbsolutePath();
+    if(FileSystem.isRoot(sPath))
+      Assert.stop();
+    Path pathdir = Paths.get(sPath);
+    if(bRefreshChildren) { // && filter == null) {
+      startDir.internalAccess().newChildren();
+    }
+    WalkFileTreeVisitor visitor = new WalkFileTreeVisitor(startDir.itsCluster, bRefreshChildren, resetMark, sMask, markMask, callback);
+    Set<FileVisitOption> options = new TreeSet<FileVisitOption>();
+    try{ 
+      Files.walkFileTree(pathdir, options, depth <=0 ? Integer.MAX_VALUE : depth, visitor);  
+    } catch(IOException exc){
+      System.err.println("FileAccessorLocalData.walkFileTree - unexpected IOException; " + exc.getMessage() );
+    }
+    if(callback !=null) { callback.finished(startDir, visitor.cntTotal); }
+    
+  }
+  
+  
   
   
   
@@ -477,7 +491,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
   
   private void getChildren(FileRemote.CmdEvent ev){
     FileRemote.ChildrenEvent evback = ev.getOpponentChildrenEvent();
-    walkFileTree(ev.filesrc(), true, false, null, 0 , evback.depth, evback.callbackChildren);
+    walkFileTree(ev.filesrc(), false, true, false, null, 0 , evback.depth, evback.callbackChildren);
   }
   
   
@@ -932,7 +946,11 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
         cntTotal.nrofLeafss +=1;
       }
       if(curr.dir !=null) { 
-        fileRemote = curr.dir.child(name);
+        if(attrs.isDirectory()) { 
+          fileRemote = curr.dir.subdir(name);
+        } else {
+          fileRemote = curr.dir.child(name);
+        }
       } else {
         java.nio.file.FileSystem dir1 = file.getFileSystem();
         //dir1.

@@ -128,6 +128,10 @@ public interface FileRemoteAccessor extends Closeable
    * </ul> 
    *  
    * @param startDir The start directory.
+   * @param bWait true then waits for success. On return the walk through is finished and all callback routines are invoked already.
+   *   false then this method may return immediately. The callback routines are not invoked. The walk is done in another thread.
+   *   Note: Whether or not another thread is used for communication it is not defined with them. It is possible to start another thread
+   *   and wait for success, for example if communication with a remote device is necessary. 
    * @param bRefresh if true then refreshes all entries in file and maybe found children. If false then let file unchanged.
    *   If filter is not null, only the filtered children will be updated,
    *   all other children remain unchanged. It means it is possible that non exists files are remain as children.
@@ -136,7 +140,7 @@ public interface FileRemoteAccessor extends Closeable
    * @param depth at least 1 for enter in the first directory. Use 0 if all levels should enter.
    * @param callback this callback will be invoked on any file or directory.
    */
-  public void walkFileTree(FileRemote startDir, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback);
+  public void walkFileTree(FileRemote startDir, boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback);
   
 
   boolean setLastModified(FileRemote file, long time);

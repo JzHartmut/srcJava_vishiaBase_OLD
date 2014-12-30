@@ -808,11 +808,10 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    * @param source Source instance able to use for monitoring the event life cycle. null is admissible.
    * @param dst The destination instance which should receive this event.
    *   If null, the dst given by constructor or the last given dst is used.
-   * @param thread A thread which queues the event. If null, the dst method 
-   *   {@link EventConsumer#doprocessEvent(Event)} is invoked in the current thread.
-   * @param expect If true and the event is not able to occupy, then the method 
-   *   {@link EventSource#notifyShouldOccupyButInUse()} from the given source is invoked. 
-   *   It may cause an exception for example. 
+   * @param thread A thread which queues the event. If null and dst !=null then the dst method 
+   *   {@link EventConsumer#processEvent(Event)} is invoked in the current thread. If dst ==null this parameter is not used.
+   * @param expect If true and the event is not able to occupy, then the method {@link EventSource#notifyShouldOccupyButInUse()} 
+   *   from the given source is invoked. It may cause an exception for example. 
    * @return true if the event instance is occupied and ready to use.
    */
   public boolean occupy(EventSource source, EventConsumer dst, EventThread thread, boolean expect){ 
@@ -884,6 +883,13 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    *   Then this method returns false. The method doesn't wait. 
    *   See {@link #occupyRecall(int, Object, EventConsumer, EventThread)}.   
    * </ul>
+   * @param source Source instance able to use for monitoring the event life cycle. null is admissible.
+   * @param dst The destination instance which should receive this event.
+   *   If null, the dst given by constructor or the last given dst is used.
+   * @param thread A thread which queues the event. If null and dst !=null then the dst method 
+   *   {@link EventConsumer#processEvent(Event)} is invoked in the current thread. If dst ==null this parameter is not used.
+   * @param expect If true and the event is not able to occupy, then the method {@link EventSource#notifyShouldOccupyButInUse()} 
+   *   from the given source is invoked. It may cause an exception for example. 
    * @return true if the event is occupied.
    */
   public boolean occupyRecall(EventSource source, EventConsumer dst, EventThread thread, boolean expect){ 
@@ -913,9 +919,12 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   
   
   /**Try to occupy the event for usage, recall it if it is in stored in an event queue, wait till it is available.
-   * This method may block if the event is yet processing. The method mustn't block forever because the destination process hangs.
-   * Therefore a maximum of waiting time is given. If the method returns false the the occupying is failed.
-   * Then the application may repeat this method for example after query a human operator or after done any other proper operation.
+   * This method may block if the event is yet processing. The method blocks only for the given timeout. 
+   * If the event process hangs then this method returns false and the event is not occupied. This situation is not occurring
+   * if the event is stored in its event queue because this routine removes it from the queue. It can be only occurred if the event process
+   * is really in a loop or it is in a lower priority thread which has not calculation time. That is a specific situation.
+   * The caller should be inform a user about that situation with a message or adequate because such a situation can be solved
+   * often with specific handling on the whole application. It is possible and maybe recommended firstly waiting a longer timeout.
    * <ul>
    * <li>If the event is free, then it is occupied, the method returns immediately with 1.
    *   The last usage of the event is processed in this case. 
@@ -931,8 +940,16 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
    *   It is possible that the processing of the event hangs (deadlock). 
    * </ul>
    * See {@link #occupyRecall(Object, EventConsumer, EventThread)}.   
-   * @return 1 if the event was processed and it is occupied again. 2 if the event was not processed.
-   *   0 if the event is blocked because it is in process for the timeout time. 
+   * @param timeout maximal millisecond to wait if the event is yet in processing.
+   * @param source Source instance able to use for monitoring the event life cycle. null is admissible.
+   * @param dst The destination instance which should receive this event.
+   *   If null, the dst given by constructor or the last given dst is used.
+   * @param thread A thread which queues the event. If null and dst !=null then the dst method 
+   *   {@link EventConsumer#processEvent(Event)} is invoked in the current thread. If dst ==null this parameter is not used.
+   * @param expect If true and the event is not able to occupy, then the method {@link EventSource#notifyShouldOccupyButInUse()} 
+   *   from the given source is invoked. It may cause an exception for example. 
+   * @return 0 if the event is blocked because it is in process for the timeout time, != 0 if the event is occupied.
+   *   1 if the event was free. 2 if the event is removed from another queue. It means the last one request is not done. 
    */
   public int occupyRecall(int timeout, EventSource source, EventConsumer dst, EventThread thread, boolean expect){
     int ok = 0;
@@ -966,6 +983,16 @@ public class Event<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>>
   }
   
   
+  /**Try to occupy the event for usage, recall it if it is in stored in an event queue, wait till it is available.
+   * Same as {@link #occupyRecall(int, EventSource, EventConsumer, EventThread, boolean)} but left the destination unchanged.
+   * @param timeout maximal millisecond to wait if the event is yet in processing.
+   * @param source Source instance able to use for monitoring the event life cycle. null is admissible.
+   * @param expect If true and the event is not able to occupy, then the method {@link EventSource#notifyShouldOccupyButInUse()} 
+   *   from the given source is invoked. It may cause an exception for example. 
+   * @return 0 if the event is blocked because it is in process for the timeout time, != 0 if the event is occupied.
+   *   1 if the event was free. 2 if the event is removed from another queue. It means the last one request is not done. 
+
+   */
   public int occupyRecall(int timeout, EventSource source, boolean expect){ return occupyRecall(timeout, source, null, null, expect); } 
   
   //public boolean occupyRecall(int timeout, EventSource source, boolean expect){ return occupyRecall(timeout, source, null, null, null, expect); } 

@@ -1277,7 +1277,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   /**Delete all content. 
    * @see java.util.Map#clear()
    */
-  public void clear(){ root.clear(); }
+  public void clear(){ modcount +=1; root.clear(); }
 
   /**Puts the (key - value) pair to the container. An existing value with the same key will be replaced
    * like described in the interface. If more as one value with this key are existing, the first one
@@ -1289,6 +1289,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * @return The last value with this key if existing.
    */
   @Override public Type put(Key key, Type value){
+    modcount +=1;
     return root.putOrAdd(key, value, null, KindofAdd.replace);
   }
 
@@ -1304,6 +1305,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * @return The last value with this key if existing.
    */
   public void add(Key key, Type value){
+    modcount +=1;
     root.putOrAdd(key, value, null, KindofAdd.addOptimized);
   }
 
@@ -1332,6 +1334,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   public void append(Key key, Type obj){
     if(key.equals("ckgro") && root.sizeAll == 19)
       Assert.stop();
+    modcount +=1; 
     root.putOrAdd(key, obj, null, KindofAdd.addLast);
   }
 
@@ -1348,6 +1351,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * @return The last value with this key if existing.
    */
   public void addBefore(Key key, Type value, Type valueNext){
+    modcount +=1; 
     root.putOrAdd(key, value, valueNext, KindofAdd.addBefore);
   }
 

@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -73,8 +74,9 @@ import org.vishia.util.SortedTreeWalkerCallback.Result;
  * The FileCluster prevents more instances of FileRemote for the same physical file and supports
  * additional properties for a file as instance of FileRemote.  
  * If you have any other FileRemote instance, it knows its {@link #itsCluster}.
- * You can create a child of an existing file by given path using {@link #child(CharSequence)} whereby
- * the child can be a deeper one, the path is a relative path from the given parent. This FileRemote instance
+ * You can create a child of an existing file by given path using {@link #child(CharSequence)}, {@link #subdir(CharSequence)}
+ * or {@link #child(CharSequence, int, int, long, long, long)}
+ * whereby the child can be a deeper one, the path is a relative path from the given parent. This FileRemote instance
  * describes a possible existing file or maybe a non existing one, adequate like creation of instances
  * of {@link java.io.File}. Note that on {@link #refreshPropertiesAndChildren(CallbackEvent)} this instance will be removed
  * from the children list if it is not existing.
@@ -323,9 +325,13 @@ public class FileRemote extends File implements MarkMask_ifc
    */
   public final static int  mRefreshChildPending = 0x40000;
   
+  
   /**Set if a thread runs to get file properties. */
-  public final static int mThreadIsRunning =0x80000;
+  public final static int mThreadIsRunning =0x00080000;
 
+  /**Set if it is a root directory. The {@link #mDirectory} is set too. */
+  public final static int mRoot = 0x00100000;
+  
   /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
   public final static int mCmpTimeLen = 0x03000000;
   
@@ -360,17 +366,20 @@ public class FileRemote extends File implements MarkMask_ifc
   /**The last time where the file was synchronized with its physical properties. */
   public long timeRefresh, timeChildren;
   
-  /**The directory path of the file. It does not end with '/' except it is the root.
+  /**The directory path of the file. It does not end with "/"
    * The directory path is absolute and normalized. It doesn't contain any "/./" 
    * or "/../"-parts. 
    * <br>
-   * This absolute path can contain a start string for a remote device designation.
+   * This absolute path can contain a start string for a remote device designation respectively the drive designation for MS-Windows.
    * <br> 
+   * If the instance is the root, this element contains an empty String in UNIX systems, the "C:" drive in Windows
+   * or a special remote designation before the first slash in the path.
    */  
   protected final String sDir;
   
   /**The name with extension of the file or directory name. 
-   * */
+   * If this instance is the root, this element contains "/".
+   */
   protected final String sFile;
   
   /**The unique path to the file or directory entry. If the file is symbolic linked (on UNIX systems),
@@ -510,21 +519,37 @@ public class FileRemote extends File implements MarkMask_ifc
   
   /**Gets or creates a child with the given name. 
    * If the child is not existing, it is create as a new FileRemote instance which is not tested.
-   * @param sPathChild Name or relativ pathname of the child.
-   *   It can be contain "/" or "\", if more as one level of child should be created.
+   * The created instances is not registered in the {@link #itsCluster} because it is assumed that it is a file, not a directory.
+   * But all created sub directories of a given local path are registered.
+   * @param sPathChild Name or relative pathname of the child.
+   *   It can be contain "/" or "\", if more as one level of child should be created. If it has a '/' on end it is created as a sub directory
+   *   and registered in its {@link #itsCluster}.
    * @return The child, not null.
    */
   public FileRemote child(CharSequence sPathChild){
     return child(sPathChild, 0, 0, 0,0, 0);
   }
   
+  /**Gets or creates a child with the given name which is a sub directory of this. 
+   * If the directory is not existing, it is create as a new FileRemote instance which is not tested.
+   * The created instances is registered in the {@link #itsCluster}.
+   * @param sPathChild Name or relative pathname of the child.
+   *   It can be contain "/" or "\", if more as one level of child should be created. It may have a '/' on end or not.
+   * @return The child, not null.
+   */
+  public FileRemote subdir(CharSequence sPathChild){
+    return child(sPathChild, mDirectory, 0, 0,0, 0);
+  }
+  
   /**Returns the instance of FileRemote which is the child of this. If the child does not exists
    * it is created and added as child. That is independent of the existence of the file on the file system.
    * A non existing child is possible, it may be created on file system later.
+   * <br><br>
+   * All created sub directories are registered in {@link #itsCluster}
    * <br>
    * TODO: test if the path mets a file but the path is not on its end. Then it may be a IllegalArgumentException. 
-   * @param sName Name of the child or a path to a deeper sub child. If the name ends with a slash
-   *   or backslash, the returned instance will be created as subdirectory.
+   * @param sName Name of the child or a local path from this to a deeper sub child. If the name ends with a slash
+   *   or backslash, the returned instance will be created as sub directory.
    * @return The child instance. 
    */
   private FileRemote child(CharSequence sPathChild, int flags, int length
@@ -543,15 +568,28 @@ public class FileRemote extends File implements MarkMask_ifc
     FileRemote file = this, child;
     boolean bCont = true;
     int flagNewFile = 0; //FileRemote.mDirectory;
+    StringBuilder uPath = new StringBuilder(100);
     do{
-      child = file.children == null ? null : file.children.get(pathchild1);
+      uPath.setLength(0);
+      setPathTo(uPath).append('/').append(pathchild1);
+      child = file.children == null ? null : file.children.get(pathchild1); //search whether the child is known already.
       if(child == null && pathchild !=null){  //a sub directory child
         //maybe the child directory is registered already, take it.
-        child = itsCluster.check(file.getAbsolutePath(), pathchild1);
+        child = itsCluster.getFile(uPath, null, false);
       } 
       if(child == null){
-        child = new FileRemote(itsCluster, device, file, pathchild1, length
-            , dateLastModified,dateCreation,dateLastAccess, flagNewFile, null, true);
+        if((flags & mDirectory)!=0){
+          child = itsCluster.getFile(uPath, null, false);  //create the instance.
+          child.length = length;
+          child.date = dateLastModified;
+          child.dateLastAccess = dateLastAccess;
+          child.dateCreation = dateCreation;
+          child.flags = flagNewFile;
+        } else {
+          //assumed: a file.
+          child = new FileRemote(itsCluster, device, file, pathchild1, length
+              , dateLastModified,dateCreation,dateLastAccess, flags, null, true);
+        }
       }
       if(pathchild !=null){
         file = child;
@@ -665,7 +703,9 @@ public class FileRemote extends File implements MarkMask_ifc
       children = createChildrenList();  
     }
     if(child.parent != this){
-      if(child.parent != null) throw new IllegalStateException("faulty parent-child");
+      if(child.parent != null) { 
+        throw new IllegalStateException("faulty parent-child"); 
+      }
       child.parent = this;
     }
     children.put(child.sFile, child);  //it may replace the same child with itself. But search is necessary.
@@ -837,38 +877,66 @@ public class FileRemote extends File implements MarkMask_ifc
    * In an on demand created thread the routine {@link FileRemoteAccessor#refreshPropertiesAndChildren(FileRemote, boolean, FileFilter, CallbackFile)}
    * will be called with the given CallbackFile.
    * @param callback maybe null if the callback is not used.
+   * @param bWait true then waits for success. On return the walk through is finished and all callback routines are invoked already.
+   *   false then this method may return immediately. The callback routines are not invoked. The walk is done in another thread.
+   *   Note: Whether or not another thread is used for communication it is not defined with them. It is possible to start another thread
+   *   and wait for success, for example if communication with a remote device is necessary. 
    */
-  public void refreshPropertiesAndChildren(FileRemoteCallback callback) {
+  public void refreshPropertiesAndChildren(FileRemoteCallback callback, boolean bWait) {
     if(device == null){
       device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    device.walkFileTree(this,  true, false, null, 0,  1,  callback);  //should work in an extra thread.
+    device.walkFileTree(this, bWait, true, false, null, 0,  1,  callback);  //should work in an extra thread.
   }
   
   
-  /**Uses walk through file tree to refresh but without user callback.
-   * It calls {@link #refreshPropertiesAndChildren(CallbackFile)}.
+  /**Uses walk through file tree to refresh but without user callback.  It waits for success respectively executes the walk in this thread.
+   * It calls {@link #refreshPropertiesAndChildren(FileRemoteCallback, boolean)} with null and true.
    * 
    */
   public void refreshPropertiesAndChildren() {
     FileRemoteCallback callback = null;
-    refreshPropertiesAndChildren(callback);
+    refreshPropertiesAndChildren(callback, true);
   }
   
   
   
-  /**Refreshes a file tree and mark some files.
+  /**Refreshes a file tree and mark some files. This routine creates another thread usually which accesses the file system
+   * and invokes the callback routines. A longer access time does not influence this thread. 
+   * The result is given only if the {@link FileRemoteCallback#finished(FileRemote, org.vishia.util.SortedTreeWalkerCallback.Counters)}
+   * will be invoked.
    * @param depth at least 1 for enter in the first directory. Use 0 if all levels should enter.
    * @param mask a mask to select directory and files
    * @param mark bits to select mark
    * @param set or reset the bit.
+   * @param callbackUser a user instance which will be informed on start, any file, any directory and the finish.
    */
   public void refreshAndMark(int depth, boolean resetMark, String mask, int mark, int set, FileRemoteCallback callbackUser) {
     if(device == null){
       device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
     CallbackMark callbackMark = new CallbackMark(callbackUser, mark);
-    device.walkFileTree(this,  true, resetMark, mask, mark,  depth,  callbackMark);  //should work in an extra thread.
+    device.walkFileTree(this,  false, true, resetMark, mask, mark,  depth,  callbackMark);  //should work in an extra thread.
+  }
+  
+  
+  
+  /**Refreshes a file tree and compare some or all files. This routine creates another thread usually which accesses the file system
+   * and invokes the callback routines. A longer access time does not influence this thread. 
+   * The result is given only if the {@link FileRemoteCallback#finished(FileRemote, org.vishia.util.SortedTreeWalkerCallback.Counters)}
+   * will be invoked.
+   * @param depth at least 1 for enter in the first directory. Use 0 if all levels should enter.
+   * @param mask a mask to select directory and files
+   * @param mark bits to select mark
+   * @param set or reset the bit.
+   * @param callbackUser a user instance which will be informed on start, any file, any directory and the finish.
+   */
+  public void refreshAndCompare(FileRemote dirCmp, int depth, String mask, int mark, FileRemote.CallbackEvent evCallback) { ////
+    if(device == null){
+      device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
+    FileRemoteCallbackCmp callbackCmp = new FileRemoteCallbackCmp(this, dirCmp, evCallback);
+    device.walkFileTree(this,  false, true, false, mask, mark,  depth,  callbackCmp);  //should work in an extra thread.
   }
   
   
@@ -1099,10 +1167,11 @@ public class FileRemote extends File implements MarkMask_ifc
     }    
   }
   
-  /**Returns the same as {@link #getPath()} but uses the given StringBuilder to assemble the path.
+  /**Fills the path to the given StringBuilder and returns the StringBuilder to concatenate.
+   * This method helps to build a path with this FileRemote and maybe other String elements with low effort of memory allocation and copying. 
    * @return ret itself cleaned and filled with the path to the file.
    */
-  public StringBuilder getPathChars(StringBuilder ret){
+  public StringBuilder setPathTo(StringBuilder ret){
     int zFile = sFile == null ? 0 : sFile.length();
     ret.setLength(0);
     if(zFile > 0){ 
@@ -1298,7 +1367,9 @@ public class FileRemote extends File implements MarkMask_ifc
     return (flags & mDirectory) !=0; 
   }
   
-  
+  public boolean isRoot() {
+    return sFile.equals("/");
+  }
   
   @Override public boolean canWrite(){ 
     if((flags & mTested) ==0){
@@ -1741,10 +1812,11 @@ public class FileRemote extends File implements MarkMask_ifc
    * @param dir1 Start dir
    * @param dir2 The other start dir for comparison.
    */
-  public static void cmpFiles(FileRemote dir1, FileRemote dir2, FileRemote.CallbackEvent evCallback){
+  public static void XXXXXXXXcmpFiles(FileRemote dir1, FileRemote dir2, FileRemote.CallbackEvent evCallback){ ////
     //dir1 = file1; dir2 = file2;
-    CmpFilesThread thread1 = new CmpFilesThread(dir1, dir2, evCallback);
-    thread1.start();  //it ends on end or abort of comparison.
+    FileRemoteCallbackCmp callback = new FileRemoteCallbackCmp(dir1, dir2, evCallback);
+    dir1.walkFileTreeThread(0, callback);
+    //dir1.device.walkFileTree(dir1, true, false, null, 0, Integer.MAX_VALUE, callback);
   }
   
   
@@ -2040,8 +2112,10 @@ public class FileRemote extends File implements MarkMask_ifc
   /**Walks to the tree of children with given files, without synchronization with the device.
    * This routine creates and starts a {@link WalkThread} and runs {@link #walkFileTree(int, FileRemoteCallback)} in that thread.
    * The user is informed about progress and results via the callback instance.
-   * Note: it should not change the children list, because it uses an iterator.
-   * @param depth at least 1, 0 to enter all levels.
+   * Note: The file tree should not be changed outside or inside the callback methods because the walk method uses an iterators.
+   * If the children lists are changed concurrently, then the walking procedure may be aborted because an {@link ConcurrentModificationException}
+   * is thrown.
+   * @param depth at least 1. Use 0 to enter all levels.
    * @param callback
    */
   public void walkFileTreeThread(int depth, FileRemoteCallback callback)
@@ -2543,6 +2617,9 @@ public class FileRemote extends File implements MarkMask_ifc
     
     acknAbortFile,
     
+    /**Start the process, the first event, also to check the event. */
+    start,
+    
     last
   }
 
@@ -2850,12 +2927,12 @@ public class FileRemote extends File implements MarkMask_ifc
   }
   
 
-  static class CmpFilesThread extends Thread {
+  static class XXXCmpFilesThread extends Thread {
     FileRemote dir1,dir2;
     
     FileRemote.CallbackEvent evCallback;
     
-    CmpFilesThread(FileRemote file1, FileRemote file2, FileRemote.CallbackEvent evCallback) { 
+    XXXCmpFilesThread(FileRemote file1, FileRemote file2, FileRemote.CallbackEvent evCallback) { 
       super("cmp Files"); this.dir1 = file1; this.dir2 = file2; this.evCallback = evCallback;
     }
     
@@ -2873,7 +2950,7 @@ public class FileRemote extends File implements MarkMask_ifc
       dir1.setMarked(FileMark.markRoot);
       dir2.setMarked(FileMark.markRoot);
       FileRemoteCallbackCmp callback = new FileRemoteCallbackCmp(dir1, dir2, evCallback);
-      dir1.device.walkFileTree(dir1, true, false, null, 0, Integer.MAX_VALUE, callback);
+      dir1.device.walkFileTree(dir1, true, true, false, null, 0, Integer.MAX_VALUE, callback);
       //after finish destroy this thread.
     }
   }
