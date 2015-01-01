@@ -4,7 +4,7 @@ import org.vishia.event.Event;
 import org.vishia.states.StateComposite;
 import org.vishia.states.StateSimple;
 import org.vishia.states.StateMachine;
-import org.vishia.states.StateSimple.StateTrans;
+import org.vishia.states.StateSimple.Trans;
 
 public class StateExampleSimple
 {
@@ -21,8 +21,8 @@ public class StateExampleSimple
     
     class StateIdle extends StateSimple {
 
-      StateTrans step_State1 = new StateTrans(StateCompositeExample.class){ 
-        @Override protected int trans(Event<?, ?> ev)
+      Trans step_State1 = new Trans(StateCompositeExample.class){ 
+        @Override protected int check(Event<?, ?> ev)
         { retTrans = mEventConsumed;
           doExit();
           doEntry(ev);
@@ -39,8 +39,8 @@ public class StateExampleSimple
       class State1 extends StateSimple {
 
         @SuppressWarnings("unused") 
-        StateTrans addRequest = new StateTrans(){ 
-          @Override protected int trans(Event<?, ?> ev) {
+        Trans addRequest = new Trans(){ 
+          @Override protected int check(Event<?, ?> ev) {
             retTrans = mEventConsumed;
             doExit();
             doEntry(ev);
@@ -52,8 +52,8 @@ public class StateExampleSimple
       @SuppressWarnings("unused") 
       class State2 extends StateSimple {
 
-        StateTrans addRequest = new StateTrans() { 
-          @Override protected int trans(Event<?, ?> ev) {
+        Trans addRequest = new Trans() { 
+          @Override protected int check(Event<?, ?> ev) {
             retTrans = mEventConsumed;
             doExit();
             doEntry(ev);
@@ -62,9 +62,9 @@ public class StateExampleSimple
         };
      
         
-        StateTrans trans2_Idle(Event<?,?> ev, StateTrans trans){
+        Trans trans2_Idle(Event<?,?> ev, Trans trans){
           if(trans == null){
-            return new StateTrans(StateIdle.class);
+            return new Trans(StateIdle.class);
           } 
           trans.retTrans = mEventConsumed;
           trans.doExit();
@@ -92,12 +92,12 @@ public class StateExampleSimple
     StateExampleSimple main = new StateExampleSimple();
     main.ev.occupy(null, true);
     main.ev.setCmd(Ecmd.Step);
-    main.states1.applyEvent(main.ev);
+    main.states1.processEvent(main.ev);
     main.ev.occupy(null, true);
     main.ev.setCmd(Ecmd.Step);
-    main.states1.applyEvent(main.ev);
-    main.states1.applyEvent(main.ev);
-    main.states1.applyEvent(main.ev);
+    main.states1.processEvent(main.ev);
+    main.states1.processEvent(main.ev);
+    main.states1.processEvent(main.ev);
   }
   
   

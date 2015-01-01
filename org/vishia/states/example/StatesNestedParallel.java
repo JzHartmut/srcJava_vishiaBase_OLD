@@ -17,7 +17,7 @@ public class StatesNestedParallel
     boolean on;  
   
   
-    boolean start;
+    boolean start1, start2, start3;
     
     boolean offAfterRunning;
     
@@ -25,23 +25,36 @@ public class StatesNestedParallel
   }
   
   
+  enum CmdEvent { start, ready};
+  
+  class EventA extends Event<CmdEvent, Event.NoOpponent>{}
+  
   Conditions cond = new Conditions();
   
-  Event<?,?> event = new Event();
+  EventA event = new EventA();
   
+  
+  EventThread thread = new EventThread("thread");
+
+  EventTimerMng timer = new EventTimerMng("timer");
+
   class States extends StateMachine
   {
     States(EventThread thread, EventTimerMng timer){ super(thread, timer); }
 
     class StateOff extends StateSimple
     {
+      boolean isDefault;
+      
       @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
       
-      StateTrans ready = new StateTrans(StateWork.StateReady.class);
+      @Override protected void exit(){ System.out.println(" exit " + stateId); }
       
-      StateTrans history = new StateTrans(StateWork.StateActive.class);
+      //Trans ready = new Trans(StateWork.StateReady.class);
       
-      @Override protected StateTrans selectTrans(Event<?,?> ev) { return super.selectTrans(ev); }
+      //Trans history = new Trans(StateWork.StateActive.class);
+      
+      @Override protected Trans selectTrans(Event<?,?> ev) { return super.selectTrans(ev); }
       /*
       if(cond.on) {
           //choice
@@ -52,34 +65,37 @@ public class StatesNestedParallel
       */
       
       
-      public StateTrans on = new StateTrans() { 
-        @Override protected int condition(Event<?, ?> ev) {
-          if(cond.on) return mEventConsumed;
+      public Choice on = new Choice() { 
+        
+        @Override protected int check(Event<?,?> ev) {
+          if(ev.getCmd() == CmdEvent.start) return mEventConsumed;
           else return 0;
         } 
         
-        StateTrans cont = new StateTrans(StateWork.StateReady.class){ 
-          @Override protected int condition(Event<?, ?> ev) {
-            if(cond.cont) return mEventConsumed;
+        Trans cont = new Trans(StateWork.class){ 
+          @Override protected int check(Event<?, ?> ev) {
+            if(cond.cont) return mDeepHistory;
             else return 0;
           } 
         };
  
-        StateTrans hist = new StateTrans(StateWork.StateReady.class){ 
-          @Override protected int condition(Event<?, ?> ev) {
-             return mEventConsumed;
+        Trans hist = new Trans(StateWork.StateReady.class){ 
+          @Override protected int check(Event<?, ?> ev) {
+             return mTransit;
           } 
         };
       };
       
       
       
-      StateTrans on_Ready(Event<?, ?> ev, StateTrans trans) {
-        if(trans == null) return new StateTrans(StateWork.StateReady.class); 
+      Trans on_Ready(EventA ev, Trans trans) {
+        if(trans == null) return new Trans(StateWork.StateReady.class); 
         //Class<? extends StateSimple> dst = StateWork.StateReady.class;
         //int id = StateWork.class.hashCode();
         if(cond.on){
+          trans.retTrans |= mEventConsumed;
           trans.doExit();
+          
           trans.doEntry(ev);
         }
         return trans;
@@ -91,18 +107,20 @@ public class StatesNestedParallel
     class StateWork extends StateComposite
     {
       @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
+      
+      @Override protected void exit(){ System.out.println(" exit " + stateId); }
 
       class StateReady extends StateSimple
       {
+        final boolean isDefault = true;
         
-        @Override public int entry(Event<?,?> ev){
-          System.out.println("entry Ready");
-          return 0;
-        }
+        @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
         
-        StateTrans start = new StateTrans(StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class){ 
-          @Override protected int trans(Event<?, ?> ev) {
-            if(cond.start) { 
+        @Override protected void exit(){ System.out.println(" exit " + stateId); }
+
+        Trans start1 = new Trans(StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class){ 
+          @Override protected int check(Event<?, ?> ev) {
+            if(cond.start1) { 
               retTrans = mEventConsumed;
               doExit();
               doEntry(ev);
@@ -113,11 +131,11 @@ public class StatesNestedParallel
           
         };
         
-        class Start extends StateTrans 
-        { Start(){ super(StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class); } 
+        class Start2 extends Trans 
+        { Start2(){ super(StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class); } 
           
-          @Override protected int trans(Event<?, ?> ev) {
-            if(cond.start) {
+          @Override protected int check(Event<?, ?> ev) {
+            if(cond.start2) {
               retTrans = mEventConsumed;
               doExit();
               doEntry(ev);
@@ -134,15 +152,15 @@ public class StatesNestedParallel
         
         
         
-        StateTrans start2(Event<?,?> ev, StateTrans transP){
+        Trans start3(Event<?,?> ev, Trans transP){
           if(transP == null){
-            return new StateTrans(StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class);
+            return new Trans(StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class);
           } 
-          if(cond.start) {
+          else if(cond.start3) {
+            transP.retTrans =  mEventConsumed;
             transP.doExit();
             //no action
             transP.doEntry(ev);
-            transP.retTrans =  mEventConsumed;
             return transP;
           }
           else return null;
@@ -157,12 +175,19 @@ public class StatesNestedParallel
       {
         @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
 
-        class StateActive1 extends StateParallel
+        @Override protected void exit(){ System.out.println(" exit " + stateId); }
+
+       class StateActive1 extends StateParallel
         {
           @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
 
+          @Override protected void exit(){ System.out.println(" exit " + stateId); }
+
           class StateRunning extends StateSimple
-          { @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
+          { final boolean isDefault = true;
+            @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
+
+            @Override protected void exit(){ System.out.println(" exit " + stateId); }
 
             Timeout timeout = new Timeout(5000, StateFinit.class) {
               @Override protected void action(Event<?,?> ev){
@@ -173,9 +198,19 @@ public class StatesNestedParallel
           
           
           class StateFinit extends StateSimple
-          {  @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
+          { @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
 
+            @Override protected void exit(){ System.out.println(" exit " + stateId); }
+
+            Trans to_off(Event<?,?> ev, Trans trans) {
+              if(trans == null) return new Trans(StateOff.class);
+              else if(stateMachine.isInState(StateActive1.StateFinit.class) && stateMachine.isInState(StateActive2.StateShouldOff.class)) {
+                return trans;
+              } 
+              else return null;
+            }
             
+
           }
           
           //StateSimple stateFinit = new StateSimple(){
@@ -187,19 +222,34 @@ public class StatesNestedParallel
         class StateActive2 extends StateParallel
         { @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
 
+          @Override protected void exit(){ System.out.println(" exit " + stateId); }
+
           class StateRemainOn extends StateSimple
-          {
-            @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
+          { final boolean isDefault = true;
+          
+            @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return mRunToComplete; }
   
+            @Override protected void exit(){ System.out.println(" exit " + stateId); }
+ 
+            Trans toShouldOff(Event<?,?> ev, Trans trans){
+              if(trans == null) return new Trans(StateShouldOff.class);
+              else if(cond.offAfterRunning) return trans;
+              else return null;
+            }
+            
           }
           
           class StateShouldOff extends StateSimple
           {
             @Override protected int entry(Event<?,?> ev){ System.out.println("entry " + stateId); return 0; }
             
+            @Override protected void exit(){ System.out.println(" exit " + stateId); }
+
+            
           }
         }
-      }
+        
+      }//class StateActive
     }
   }
   
@@ -208,22 +258,27 @@ public class StatesNestedParallel
   
   
   private StatesNestedParallel(){
-    EventThread thread = new EventThread("thread");
-    EventTimerMng timer = new EventTimerMng("timer");
     states = new States(thread, timer);
   }
   
   private void executeCondions() {
     cond.on = true;
-    cond.start = true;
+    cond.start3 = true;
     cond.offAfterRunning = true;
-    event.occupy(null, true);
-    states.applyEvent(event);
+    if(event.occupy(null, states, null, true)){
+      event.sendEvent(CmdEvent.start);
+      //instead:
+      //states.processEvent(event);
+    }
     //cond.on = false;
     while(!states.isInState(States.StateOff.class)) {
       try{ Thread.sleep(100);
       } catch(InterruptedException exc) {}
     }
+    try{
+      timer.close();
+      thread.close();
+    } catch(Exception exc){}
   }
   
   

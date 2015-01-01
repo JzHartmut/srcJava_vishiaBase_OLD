@@ -1,6 +1,8 @@
 package org.vishia.states;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.text.ParseException;
 import java.util.HashMap;
 
 import org.vishia.event.Event;
@@ -33,12 +35,12 @@ import org.vishia.util.DataAccess;
  * <br><br>
  * Any state can contain some transitions which can be build either ... or with:
  * <ul>
- * <li>An inner class derived from {@link org.vishia.states.StateSimple.StateTrans}.
- * <li>An instance of an anonymous inner derived class of {@link org.vishia.states.StateSimple.StateTrans}.
- * <li>An method with return value {@link org.vishia.states.StateSimple.StateTrans} 
- *   and 2 arguments {@link org.vishia.event.Event} and {@link org.vishia.states.StateSimple.StateTrans}
- *   which contains the creation of a StateTrans object, the condition test, an action and the {@link org.vishia.states.StateSimple.StateTrans#doExit()}
- *   and {@link org.vishia.states.StateSimple.StateTrans#doEntry(org.vishia.event.Event)} invocation. This form shows only a simple method
+ * <li>An inner class derived from {@link org.vishia.states.StateSimple.Trans}.
+ * <li>An instance of an anonymous inner derived class of {@link org.vishia.states.StateSimple.Trans}.
+ * <li>An method with return value {@link org.vishia.states.StateSimple.Trans} 
+ *   and 2 arguments {@link org.vishia.event.Event} and {@link org.vishia.states.StateSimple.Trans}
+ *   which contains the creation of a StateTrans object, the condition test, an action and the {@link org.vishia.states.StateSimple.Trans#doExit()}
+ *   and {@link org.vishia.states.StateSimple.Trans#doEntry(org.vishia.event.Event)} invocation. This form shows only a simple method
  *   in a browser tree of the source code (outline in Eclipse).  
  * </ul>
  * The three forms of transition phrases gives possibilities for more or less complex transitions:
@@ -84,12 +86,12 @@ import org.vishia.util.DataAccess;
  * by given a null argument, for example cyclically if an {@link EventThread} is not used.
  * <br><br>
  * 
- * To see how transitions and timeouts should be written see on {@link StateSimple.StateTrans} and {@link StateSimple.Timeout}.
+ * To see how transitions and timeouts should be written see on {@link StateSimple.Trans} and {@link StateSimple.Timeout}.
  * 
  * @author hartmut Schorrig
  *
  */
-public class StateMachine
+public class StateMachine implements EventConsumer
 {
   
   /**Version, history and license.
@@ -150,17 +152,6 @@ public class StateMachine
   HashMap<Integer, StateSimple> stateMap = new HashMap<Integer, StateSimple>();
   
 
-  /**Applies an event to this state machine. This method is invoked from the {@link EventThread} if given for the events
-   * which are stored directly to the {@link EventThread#storeEvent(Event)} with this class as destination 
-   * or which are given with {@link #storeEvent(Event)}. It should not invoke by the user. 
-   * @see org.vishia.event.EventConsumer#processEvent(org.vishia.event.Event)
-   */
-  EventConsumer processEvent = new EventConsumer() {
-    @Override public int processEvent(final Event<?,?> evP){ return topState._processEvent(evP); }
-  };
-  
-  
-  
   protected static class StateCompositeTop extends StateComposite
   {
     StateCompositeTop(StateMachine stateMachine, StateSimple[] aSubstates, StateComposite[] aParallelstates) { super(stateMachine, aSubstates, aParallelstates); } 
@@ -178,7 +169,7 @@ public class StateMachine
   /**Creates a state machine which is executed directly by {@link #applyEvent(Event)}. {@link StateSimple.Timeout} is not possible.
    * 
    */
-  public StateMachine(){ this(null, null);}
+  public StateMachine() { this(null, null);}
   
   /**Constructs a state machine with a given thread and a given timer manager.
    * The constructor of the whole stateMachine does the same as the {@link StateComposite#StateComposite()}: 
@@ -224,18 +215,28 @@ public class StateMachine
           state.enclState = topState;
           int idState = clazz1.hashCode();
           this.stateMap.put(idState, state);
-          if(topState.stateDefault == null){
+          try { 
+            clazz1.getDeclaredField("isDefault");
+            if(topState.stateDefault != null){ 
+              throw new IllegalArgumentException("StateMachine - more as one default state in;" + topState.stateId); 
+            }
             topState.stateDefault = state;  //The first state is the default one.
-          }
+          } catch(NoSuchFieldException exc){} //empty!
         }
+      }
+      if(topState.stateDefault == null){ 
+        throw new IllegalArgumentException("StateMachine - a default state is necessary. Define \"final boolean isDefault = true\" in one of an inner class State;" + topState.stateId); 
       }
       //after construction of all subStates: complete.
       topState.stateId = "StateTop";
       topState.buildStatePathSubstates(null,0);  //for all states recursively
       topState.createTransitionListSubstate(0);
-    } catch(Exception exc){
-      exc.printStackTrace();
-    }   
+    } catch(InvocationTargetException exc){
+      Throwable exc1 = exc.getCause();
+      if(exc1 !=null) throw new RuntimeException(exc1);
+    } catch(Exception exc){ 
+      throw new RuntimeException(exc);
+    }
   }
 
   
@@ -273,16 +274,19 @@ public class StateMachine
   }
 
 
-  /**Applies and event to this statemachine. The event is stored in the queue of the {@link EventThread} if it is given 
-   * or it is processed in this thread calling {@link #processEvent(Event)}.
-   * @param ev
+
+  /**Applies an event to this state machine. This method is invoked from {@link Event#sendEvent(Enum)} if this class is given
+   * as {@link EventConsumer}. If the statemachine is aggregated with a {@link EventThread} and this routine is invoked from another thread
+   * then the event will be stored in {@link #theThread}. It is done if the transmitter of the event does not know about the EventThread.
+   * @see org.vishia.event.EventConsumer#processEvent(org.vishia.event.Event)
    */
-  public void applyEvent(final Event<?,?> ev) {
-    if(theThread !=null) {
-      ev.setDst(processEvent);
-      theThread.storeEvent(ev);
+  @Override public int processEvent(Event<?, ?> ev)
+  { if(theThread == null || theThread.isCurrentThread()) {
+      return topState._processEvent(ev); 
     } else {
-      topState._processEvent(ev);
+      ev.donotRelinquish();
+      theThread.storeEvent(ev);
+      return mEventConsumed;
     }
   }
   

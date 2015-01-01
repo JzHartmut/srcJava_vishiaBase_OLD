@@ -10,7 +10,7 @@ import java.util.List;
 import org.vishia.event.Event;
 import org.vishia.states.StateMachine;
 import org.vishia.states.StateSimple;
-import org.vishia.states.StateSimple.StateTrans;
+import org.vishia.states.StateSimple.Trans;
 import org.vishia.util.Assert;
 import org.vishia.util.Debugutil;
 import org.vishia.util.FileSystem;

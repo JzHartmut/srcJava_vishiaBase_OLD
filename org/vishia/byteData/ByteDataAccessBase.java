@@ -398,7 +398,7 @@ public abstract class ByteDataAccessBase
    * @throws IllegalArgumentException If the indices are wrong in respect to the data.
    */
   @Java4C.Inline
-  final protected void assignAt(int idxChildInParent, int lengthChild, ByteDataAccessBase parent)
+  final public void assignAt(int idxChildInParent, int lengthChild, ByteDataAccessBase parent)
   throws IllegalArgumentException
   { this.bBigEndian = parent.bBigEndian;
     this.bExpand = parent.bExpand;

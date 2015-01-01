@@ -181,7 +181,9 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
 
   /** Constructs a new empty instance. Use assign() to work with it. */
   protected ByteDataAccess()
-  { super(-1);    //sizeHead is unknown, get it from specifyLengthElementHead()
+  { super(0);    //sizeHead is unknown, get it from specifyLengthElementHead()
+    int sizeHead = specifyLengthElementHead();
+    _setSizeHead(sizeHead);
     this.data = null;
     this.bBigEndian = false;
     bExpand = false;
@@ -477,7 +479,8 @@ public abstract class ByteDataAccess extends ByteDataAccessBase
    * @throws IllegalArgumentException 
    */
   final public void assignEmpty(byte[] data) 
-  { try{ assignData(data, -1, 0);} catch(IllegalArgumentException e){}
+  { //try{ assignData(data, -1, 0);} catch(IllegalArgumentException e){}
+    try{ assignData(data, 0, 0);} catch(IllegalArgumentException e){}
 
     specifyEmptyDefaultData();  //overrideable
   }

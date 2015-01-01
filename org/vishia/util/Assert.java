@@ -184,6 +184,7 @@ public class Assert
       .append(":").append(stack[ix].getLineNumber())
       .append("); ");
     }
+    u.append("\n");
     return u;
   }
   

@@ -11,7 +11,7 @@ import org.vishia.event.EventConsumer;
 import org.vishia.stateMachine.StateCompositeBase;
 import org.vishia.stateMachine.StateParallelBase;
 import org.vishia.stateMachine.StateSimpleBase;
-import org.vishia.states.StateSimple.StateTrans;
+import org.vishia.states.StateSimple.Trans;
 import org.vishia.util.Assert;
 import org.vishia.util.DataAccess;
 import org.vishia.util.DateOrder;
@@ -172,21 +172,25 @@ public class StateComposite extends StateSimple
             state.enclState = this;
             int idState = clazz1.hashCode();
             stateMachine.stateMap.put(idState, state);
-            if(this.stateDefault == null){
+            try { 
+              clazz1.getDeclaredField("isDefault");
+              if(this.stateDefault != null){ 
+                throw new IllegalArgumentException("StateComposite - more as one default state in;" + stateId); 
+              }
               this.stateDefault = state;  //The first state is the default one.
-            }
+            } catch(NoSuchFieldException exc){} //empty!
           }
         }
-        //after construction of all subStates: complete its topPath.
-        /*
-        */
       } catch(Exception exc){
-        exc.printStackTrace();
+        throw new RuntimeException(exc);
       }
       if(listSubstates !=null ){
         this.aSubstates = listSubstates.toArray(new StateSimple[listSubstates.size()]); 
       } else {
         this.aSubstates = null;
+      }
+      if(stateDefault == null && aSubstates !=null){ 
+        throw new IllegalArgumentException("StateMachine - a default state is necessary. Define \"final boolean isDefault = true\" in one of an inner class State;" + stateId); 
       }
       if(listParallelstates !=null ){
         this.aParallelstates = listParallelstates.toArray(new StateParallel[listParallelstates.size()]); 
@@ -287,7 +291,7 @@ public class StateComposite extends StateSimple
    *   but an inner state was not set. The {@link #entryTheState(Event)} to the default state is invoked
    *   if this state will be {@link #processEvent(Event)}.
    */
-  public void setDefaultState(StateSimple stateDefault ){
+  public void XXXsetDefaultState(StateSimple stateDefault ){
     assert(stateDefault == null);  //invoke only one time.
     this.stateDefault = stateDefault;
   }
@@ -300,7 +304,9 @@ public class StateComposite extends StateSimple
    */
   public final boolean isInState(StateSimple state){ 
     return isInState()             //this state is active too, or it is the top state.
-            && stateAct == state;   //the given state is the active.
+        && (  stateAct == state   //the given state is the active.
+           || aSubstates == null  //a poor parallel state container.
+           );   
   }
   
   /**This method is used to entry the default state if the actual state is null (first invocation).  */
@@ -312,7 +318,7 @@ public class StateComposite extends StateSimple
       }
     }
     if(aSubstates !=null) {
-      ret |= aSubstates[0].entryTheState(null);
+      ret |= aSubstates[0].entryTheState(null,0);
     }
     /*
     if(this instanceof StateParallel){
@@ -333,11 +339,11 @@ public class StateComposite extends StateSimple
    */
   public final int entryDeepHistory(Event<?,?> ev){
     StateSimple stateActHistory = stateAct;  //save it
-    int cont = entryTheState(ev);                  //entry in this state, remark: may be overridden, sets the stateAct to null
+    int cont = entryTheState(ev,0);                  //entry in this state, remark: may be overridden, sets the stateAct to null
     if(stateActHistory instanceof StateComposite){
       cont = ((StateComposite)stateActHistory).entryDeepHistory(ev);
     } else {
-      cont = stateActHistory.entryTheState(ev);           //entry in the history sub state.
+      cont = stateActHistory.entryTheState(ev,0);           //entry in the history sub state.
     }
     return cont;
   }
@@ -350,8 +356,8 @@ public class StateComposite extends StateSimple
    */
   public final int entryFlatHistory(Event<?,?> ev){
     StateSimple stateActHistory = stateAct;  //save it
-    int cont = entryTheState(ev);                  //entry in this state, remark: may be overridden, sets the stateAct to null
-    cont = stateActHistory.entryTheState(ev);             //entry in the history sub state.
+    int cont = entryTheState(ev,0);                  //entry in this state, remark: may be overridden, sets the stateAct to null
+    cont = stateActHistory.entryTheState(ev,0);             //entry in the history sub state.
     return cont;
   }
   
@@ -394,7 +400,7 @@ public class StateComposite extends StateSimple
   public final int XXXentry(Class state, Event<?,?> ev){
     int id = state.hashCode();
     StateSimple entryState = stateMachine.stateMap.get(new Integer(id));
-    return entryState.entryTheState(ev);
+    return entryState.entryTheState(ev,0);
   }
 
   
@@ -555,7 +561,7 @@ public class StateComposite extends StateSimple
    */
   @Override public StateComposite exitTheState(){ 
     if(isActive && stateAct !=null){
-      stateAct.exitTheState();
+      stateAct.exitTheState();    //recursively call for all inner states which are yet active.
       isActive = false; //NOTE that StateSimpleBase.exit() sets isActive to false already. It is done twice.
     }
     if(aParallelstates !=null) {

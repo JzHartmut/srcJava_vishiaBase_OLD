@@ -175,6 +175,14 @@ public class EventThread implements Runnable, Closeable
   }
 
   
+  /**Returns true if the current thread is the thread which is aggregate to this EventThread.
+   * It means the {@link #run()} method has called this method.
+   * @return false if a statement in another thread checks whether this EventThread runs.
+   */
+  public boolean isCurrentThread() {
+    return thread == Thread.currentThread();
+  }
+  
   public char getState(){ return stateOfThread; }
 
   @Override public void close() throws IOException

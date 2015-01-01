@@ -63,7 +63,7 @@ public interface EventConsumer
    */
   int processEvent(Event<?,?> ev); //{ return false; }
   
-  /**Bit in return value of a Statemachine's {@link #trans(Event)} or entry method for designation, 
+  /**Bit in return value of a Statemachine's {@link #check(Event)} or entry method for designation, 
    * that the given Event object was used to switch.
    */
   public final static int mEventConsumed =0x1;
