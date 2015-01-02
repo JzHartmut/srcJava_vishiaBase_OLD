@@ -8,7 +8,7 @@ import org.vishia.event.Event;
  *   Some things;
  *   
  *   StateAction actionForSomewhat = new StateAction() {
- *     QOverride public int action(Event<?,?> ev) { 
+ *     QOverride public int exec(Event<?,?> ev) { 
  *       things.dowithThem(); 
  *   };
  * }

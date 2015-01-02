@@ -25,19 +25,29 @@ public class StatesNestedParallel
   }
   
   
-  enum CmdEvent { start, ready};
+  /**Commands for the event.
+   */
+  enum CmdEvent { start, ready, cyclic};
   
+  /**An event type reuseable for the state machine animation. */
   class EventA extends Event<CmdEvent, Event.NoOpponent>{}
   
+  /**Some conditions for transition in this example. */
   Conditions cond = new Conditions();
   
+  /**An event instance reused for the state machine animation.*/
   EventA event = new EventA();
   
   
+  /**The thread to execute the state machine. */
   EventThread thread = new EventThread("thread");
 
+  /**Timer organisation. */
   EventTimerMng timer = new EventTimerMng("timer");
 
+  /**The state machine. It is an inner class because it should not contain any other things as states. This class is analysed by reflection
+   * to complete the data for state machine execution. 
+   */
   class States extends StateMachine
   {
     States(EventThread thread, EventTimerMng timer){ super(thread, timer); }
@@ -67,21 +77,19 @@ public class StatesNestedParallel
       
       public Choice on = new Choice() { 
         
-        @Override protected int check(Event<?,?> ev) {
-          if(ev.getCmd() == CmdEvent.start) return mEventConsumed;
-          else return 0;
+        @Override protected void check(Event<?,?> ev) {
+          if(ev.getCmd() == CmdEvent.start) retTrans = mEventConsumed;
         } 
         
         Trans cont = new Trans(StateWork.class){ 
-          @Override protected int check(Event<?, ?> ev) {
-            if(cond.cont) return mDeepHistory;
-            else return 0;
+          @Override protected void check(Event<?, ?> ev) {
+            if(cond.cont) retTrans = mDeepHistory;
           } 
         };
  
         Trans hist = new Trans(StateWork.StateReady.class){ 
-          @Override protected int check(Event<?, ?> ev) {
-             return mTransit;
+          @Override protected void check(Event<?, ?> ev) {
+             retTrans = mTransit;
           } 
         };
       };
@@ -118,30 +126,26 @@ public class StatesNestedParallel
         
         @Override protected void exit(){ System.out.println(" exit " + stateId); }
 
-        Trans start1 = new Trans(StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class){ 
-          @Override protected int check(Event<?, ?> ev) {
+        Trans start1 = new Trans(1, StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class){ 
+          @Override protected void check(Event<?, ?> ev) {
             if(cond.start1) { 
               retTrans = mEventConsumed;
               doExit();
               doEntry(ev);
-              return retTrans;
             }
-            else return 0;
           }
           
         };
         
         class Start2 extends Trans 
-        { Start2(){ super(StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class); } 
+        { Start2(){ super(3, StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class); } 
           
-          @Override protected int check(Event<?, ?> ev) {
+          @Override protected void check(Event<?, ?> ev) {
             if(cond.start2) {
               retTrans = mEventConsumed;
               doExit();
               doEntry(ev);
-              return retTrans;
             }
-            else return 0;
           }
           
           @Override protected void action(Event<?,?>ev){
@@ -154,10 +158,10 @@ public class StatesNestedParallel
         
         Trans start3(Event<?,?> ev, Trans transP){
           if(transP == null){
-            return new Trans(StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class);
+            return new Trans(2, StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class);
           } 
           else if(cond.start3) {
-            transP.retTrans =  mEventConsumed;
+            transP.retTrans =  StateSimple.mEventConsumed;
             transP.doExit();
             //no action
             transP.doEntry(ev);
@@ -204,10 +208,10 @@ public class StatesNestedParallel
 
             Trans to_off(Event<?,?> ev, Trans trans) {
               if(trans == null) return new Trans(StateOff.class);
-              else if(stateMachine.isInState(StateActive1.StateFinit.class) && stateMachine.isInState(StateActive2.StateShouldOff.class)) {
-                return trans;
+              if(stateMachine.isInState(StateActive1.StateFinit.class) && stateMachine.isInState(StateActive2.StateShouldOff.class)) {
+                trans.retTrans |= mTransit;
               } 
-              else return null;
+              return null;
             }
             
 
@@ -233,8 +237,8 @@ public class StatesNestedParallel
  
             Trans toShouldOff(Event<?,?> ev, Trans trans){
               if(trans == null) return new Trans(StateShouldOff.class);
-              else if(cond.offAfterRunning) return trans;
-              else return null;
+              else if(cond.offAfterRunning) {trans.retTrans |= mTransit; }
+              return null;
             }
             
           }
@@ -274,6 +278,9 @@ public class StatesNestedParallel
     while(!states.isInState(States.StateOff.class)) {
       try{ Thread.sleep(100);
       } catch(InterruptedException exc) {}
+      if(event.occupy(null, states, null, true)){
+        event.sendEvent(CmdEvent.cyclic);  //animate the state machine cyclically to check some conditions.
+      }
     }
     try{
       timer.close();

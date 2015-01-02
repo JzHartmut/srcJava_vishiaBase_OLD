@@ -22,11 +22,10 @@ public class StateExampleSimple
     class StateIdle extends StateSimple {
 
       Trans step_State1 = new Trans(StateCompositeExample.class){ 
-        @Override protected int check(Event<?, ?> ev)
+        @Override protected void check(Event<?, ?> ev)
         { retTrans = mEventConsumed;
           doExit();
           doEntry(ev);
-          return retTrans;
         }
       };
     
@@ -40,11 +39,10 @@ public class StateExampleSimple
 
         @SuppressWarnings("unused") 
         Trans addRequest = new Trans(){ 
-          @Override protected int check(Event<?, ?> ev) {
+          @Override protected void check(Event<?, ?> ev) {
             retTrans = mEventConsumed;
             doExit();
             doEntry(ev);
-            return retTrans;
           }
         };
       }
@@ -53,11 +51,10 @@ public class StateExampleSimple
       class State2 extends StateSimple {
 
         Trans addRequest = new Trans() { 
-          @Override protected int check(Event<?, ?> ev) {
+          @Override protected void check(Event<?, ?> ev) {
             retTrans = mEventConsumed;
             doExit();
             doEntry(ev);
-            return retTrans;
           }
         };
      
