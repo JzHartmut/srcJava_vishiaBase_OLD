@@ -14,7 +14,8 @@ import java.util.Stack;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.vishia.event.Event;
+import org.vishia.event.EventMsg;
+import org.vishia.event.EventMsg2;
 import org.vishia.event.EventThread;
 import org.vishia.event.EventTimerMng;
 import org.vishia.fileRemote.FileMark;
@@ -102,9 +103,9 @@ public class Copy_FileLocalAccJava7
   
   
   /**The event type for intern events. One permanent instance of this class will be created. */
-  final class EventCpy extends Event<CmdCpyIntern, CmdCpyIntern>{
+  final class EventCpy extends EventMsg2<CmdCpyIntern, CmdCpyIntern>{
     
-    /**The simple constructor calls {@link Event#Event(Object, EventConsumer, EventThread)}
+    /**The simple constructor calls {@link EventMsg2#Event(Object, EventConsumer, EventThread)}
      * with the {@link FileAccessorLocalJava7#executerCommission}
      * and the {@link FileAccessorLocalJava7#singleThreadForCommission}
      * because the event should be send to that.
@@ -168,7 +169,7 @@ public class Copy_FileLocalAccJava7
     final FileRemote.CmdEvent eve;
     final EventCpy evi;
     
-    PrepareEventCmd(Event<?,?> evP){
+    PrepareEventCmd(EventMsg<?> evP){
       if(evP instanceof FileRemote.CmdEvent){
         eve = (FileRemote.CmdEvent) evP;
         cmde = eve.getCmd();
@@ -250,7 +251,7 @@ public class Copy_FileLocalAccJava7
   /**More as one order to check and copy is executed after {@link StateCheckProcess} or {@link StateCopyProcess}
    * is leaved. The event is kept for future execution in the state {@link StateCopyReady}
    */
-  final ConcurrentLinkedQueue<Event<FileRemote.Cmd, FileRemote.CallbackCmd>> storedCopyEvents = new ConcurrentLinkedQueue<Event<FileRemote.Cmd, FileRemote.CallbackCmd>>();
+  final ConcurrentLinkedQueue<EventMsg2<FileRemote.Cmd, FileRemote.CallbackCmd>> storedCopyEvents = new ConcurrentLinkedQueue<EventMsg2<FileRemote.Cmd, FileRemote.CallbackCmd>>();
   
   
   
@@ -481,7 +482,7 @@ public class Copy_FileLocalAccJava7
    *      
    * </ul>                       
    * */
-  void XXXtrans_CopyState(Event ev){
+  void XXXtrans_CopyState(EventMsg2 ev){
   }
   
   
@@ -792,7 +793,7 @@ public class Copy_FileLocalAccJava7
 
     //A(MainState enclosingState){ super(enclosingState); }
   
-    @Override public int trans(Event<?,?> evP) {
+    @Override public int trans(EventMsg<?> evP) {
       if(evP instanceof FileRemote.CmdEvent){
         FileRemote.CmdEvent ev = (FileRemote.CmdEvent)evP;
         cmdFile = ev.getCmd();
@@ -838,7 +839,7 @@ public class Copy_FileLocalAccJava7
     protected StateCopyProcess(StateCopyTop superState) { super(superState, "Process");  setDefaultState(stateDirOrFile);}
 
 
-    @Override public int trans(Event<?,?> evP){
+    @Override public int trans(EventMsg<?> evP){
       PrepareEventCmd ev = new PrepareEventCmd(evP);
       if(ev.cmde == FileRemote.Cmd.check || ev.cmde == FileRemote.Cmd.copyChecked){
         ev.eve.donotRelinquish();
@@ -861,9 +862,9 @@ public class Copy_FileLocalAccJava7
         return mEventConsumed; 
       }
 
-      int transReady(Event<?, ?> ev){ return exit().exit().stateReady.entry(ev); }
+      int transReady(EventMsg<?> ev){ return exit().exit().stateReady.entry(ev); }
 
-      @Override protected int trans(Event<?, ?> evP)
+      @Override protected int trans(EventMsg<?> evP)
       { PrepareEventCmd ev = new PrepareEventCmd(evP);  
         if(ev.cmdi == CmdCpyIntern.check){
           if(processCheck()){
@@ -893,7 +894,7 @@ public class Copy_FileLocalAccJava7
 
       StateMoveFile(StateCopyProcess superState) { super(superState, "MoveFile", true); }
       
-      @Override protected void entryAction(Event<?,?> ev){
+      @Override protected void entryAction(EventMsg<?> ev){
         if(actData.src.exists()){  //do nothing if src does not exists
           if(!actData.src.canWrite()){  //can't move it!
             if((modeCopyOper & FileRemote.modeCopyReadOnlyNever)!=0){
@@ -922,17 +923,17 @@ public class Copy_FileLocalAccJava7
         }
       }
 
-      private int transAsk(Event<?,?> ev){
+      private int transAsk(EventMsg<?> ev){
         if(bask){ return exit().stateAsk.entry(ev); }
         else if(berror){ return exit().stateAsk.entry(ev); }
         else return 0;
       }
       
-      private int transNextFile(Event<?,?> ev){
+      private int transNextFile(EventMsg<?> ev){
         return exit().stateNextFile.entry(ev);
       }
 
-      @Override protected int trans(Event<?,?> ev)
+      @Override protected int trans(EventMsg<?> ev)
       { int ret;
         if((ret = transAsk(ev))!=0) return ret;
         else return transNextFile(ev);
@@ -950,7 +951,7 @@ public class Copy_FileLocalAccJava7
 
       StateDelFile(StateCopyProcess superState) { super(superState, "DelFile", true); }
       
-      @Override protected void entryAction(Event<?,?> ev){
+      @Override protected void entryAction(EventMsg<?> ev){
         if(actData.src.getName().equals("src-html"))
           Debugutil.stop();
         if(actData.src.exists()){  //do nothing if src does not exists
@@ -977,17 +978,17 @@ public class Copy_FileLocalAccJava7
       }
       
       
-      private int transAsk(Event<?,?> ev){
+      private int transAsk(EventMsg<?> ev){
         if(bask){ return exit().stateAsk.entry(ev); }
         else if(berror){ return exit().stateAsk.entry(ev); }
         else return 0;
       }
       
-      private int transNextFile(Event<?,?> ev){
+      private int transNextFile(EventMsg<?> ev){
         return exit().stateNextFile.entry(ev);
       }
 
-      @Override protected int trans(Event<?,?> ev)
+      @Override protected int trans(EventMsg<?> ev)
       { int ret;
         if((ret = transAsk(ev))!=0) return ret;
         else return transNextFile(ev);
@@ -1031,19 +1032,19 @@ public class Copy_FileLocalAccJava7
     StateDirOrFile(StateCopyProcess superState) { super(superState, "DirOrFile"); }
 
     
-    private int transCopySubdir(Event<?,?> ev){
+    private int transCopySubdir(EventMsg<?> ev){
       if(actData.src.isDirectory()){
         return exit().stateSubdir.entry(ev);
       } else return 0;
     }
     
-    private int transDelFile(Event<?,?> ev){
+    private int transDelFile(EventMsg<?> ev){
       if(cmdFile == FileRemote.Cmd.delChecked){
         return exit().stateDelFile.entry(ev);
       } else return 0;
     }
     
-    private int transMoveFile(Event<?,?> ev){
+    private int transMoveFile(EventMsg<?> ev){
       if(cmdFile == FileRemote.Cmd.move){
         return exit().stateMoveFile.entry(ev);
       } else return 0;
@@ -1061,7 +1062,7 @@ public class Copy_FileLocalAccJava7
      * @param ev
      * @return
      */
-    @Override public int trans(Event<?,?> ev) {
+    @Override public int trans(EventMsg<?> ev) {
       //EventCpy ev = evP;
       if(actData.src.getName().equals("Iba"))
         Assert.stop();
@@ -1153,7 +1154,7 @@ public class Copy_FileLocalAccJava7
     
     StateSubDir(StateCopyProcess superState) { super(superState, "SubDir", false); }
 
-    @Override public void entryAction(Event<?,?> ev){
+    @Override public void entryAction(EventMsg<?> ev){
       //super.entry(consumed);
       //onentry action
       //first send a callback
@@ -1216,7 +1217,7 @@ public class Copy_FileLocalAccJava7
      * @param ev
      * @return
      */
-    @Override public int trans(Event<?,?> ev) {
+    @Override public int trans(EventMsg<?> ev) {
       if(ev == null) return 0;
       if(ev.getCmd() == CmdCpyIntern.subDir){
         return exit().stateDirOrFile.entry(ev);  //exit and entry in the same state.
@@ -1235,7 +1236,7 @@ public class Copy_FileLocalAccJava7
     
     StateCopyFileContent(StateCopyProcess superState) { super(superState, "FileContent"); }
 
-    @Override public void entryAction(Event<?,?> ev){
+    @Override public void entryAction(EventMsg<?> ev){
       sendEventInternal(CmdCpyIntern.file); 
       bCopyFinished = false;
       //return super.entry(isConsumed);
@@ -1258,7 +1259,7 @@ public class Copy_FileLocalAccJava7
      * @param ev
      * @return
      */
-    @Override public int trans(Event<?,?> evP) {
+    @Override public int trans(EventMsg<?> evP) {
       PrepareEventCmd ev = new PrepareEventCmd(evP);
       int newState;   
       if(ev.cmdi == CmdCpyIntern.file){
@@ -1376,7 +1377,7 @@ public class Copy_FileLocalAccJava7
     
     StateNextFile(StateCopyProcess superState) { super(superState, "NextFile", true); }
 
-    @Override public void entryAction(Event<?,?> ev){
+    @Override public void entryAction(EventMsg<?> ev){
       //super.entry(isConsumed);
       //stateCopyProcess = EStateCopyProcess.FileFinished;
       boolean bCont;
@@ -1434,14 +1435,14 @@ public class Copy_FileLocalAccJava7
     
     /**If another file or directory is found.
      */
-    private int transDirOrFile(Event<?,?> evP){ return exit().stateDirOrFile.entry(evP); }
+    private int transDirOrFile(EventMsg<?> evP){ return exit().stateDirOrFile.entry(evP); }
 
-    private int transReady(Event<?,?> evP){ 
+    private int transReady(EventMsg<?> evP){ 
       if(actData == null){
         //send done Back
         if(0 != evBackInfo.occupyRecall(1000, outer.evSrc, false)){
           evBackInfo.sendEvent(FileRemote.CallbackCmd.done);
-          Event<?,?> ev1;
+          EventMsg2<?,?> ev1;
           while( (ev1 = storedCopyEvents.poll() ) !=null) {
             ev1.sendEvent();
           }
@@ -1453,7 +1454,7 @@ public class Copy_FileLocalAccJava7
 
     
     
-    @Override public int trans(Event<?,?> evP) {
+    @Override public int trans(EventMsg<?> evP) {
       int ret;
       if((ret = transReady(evP)) !=0) return ret;
       else return transDirOrFile(evP); //another file or directory
@@ -1466,13 +1467,13 @@ public class Copy_FileLocalAccJava7
     
     StateAsk(StateCopyProcess superState) { super(superState, "Ask"); }
 
-    @Override public void entryAction(Event<?,?> ev){
+    @Override public void entryAction(EventMsg<?> ev){
       //onyl to set a breakpoint.
       //return super.entry(isConsumed);
     }
     
     
-    @Override public int trans(Event<?,?> evP) {
+    @Override public int trans(EventMsg<?> evP) {
       if(evP ==null){ 
         return 0;
       } else {

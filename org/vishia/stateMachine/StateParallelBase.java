@@ -3,7 +3,8 @@ package org.vishia.stateMachine;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.vishia.event.Event;
+import org.vishia.event.EventMsg;
+import org.vishia.event.EventMsg2;
 
 
 
@@ -97,7 +98,7 @@ extends StateCompositeBase<DerivedState, EnclosingState>
    *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#process(Event)} method.
    *   This method sets {@link #mRunToComplete}.
    */
-  /**package private*/ void entryParallelBase(Event<?,?> ev){
+  /**package private*/ void entryParallelBase(EventMsg<?> ev){
     entryComposite();
     for(StateCompositeBase<?, DerivedState> state: states){
       state.setState(ev, null);
@@ -107,7 +108,7 @@ extends StateCompositeBase<DerivedState, EnclosingState>
 
   
   
-  @Override public int processEvent(Event<?,?> ev){
+  @Override public int processEvent(EventMsg<?> ev){
     int cont = 0;
     for(StateCompositeBase<?, DerivedState> state: states){
       cont |= state.processEvent(ev);

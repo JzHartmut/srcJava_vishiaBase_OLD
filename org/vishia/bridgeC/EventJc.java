@@ -1,22 +1,22 @@
 package org.vishia.bridgeC;
 
-import org.vishia.event.Event;
+import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventThread;
 
-/**This class extends the {@link Event} only with the capability of deletion from Memory for non-Garbage-Collecting C/C++ usage.
+/**This class extends the {@link EventMsg2} only with the capability of deletion from Memory for non-Garbage-Collecting C/C++ usage.
  * @author Hartmut Schorrig
  *
  */
-public class EventJc<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>> extends Event<CmdEnum, CmdBack>
+public class EventJc<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>> extends EventMsg2<CmdEnum, CmdBack>
 {
   
   
   /**Version, history and license
    * <ul>
-   * <li>2012-08-28 Hartmut created, the dependency from {@link Event} to the {@link MemC} should not present in the
-   *   pure class {@link Event} but in this C-adaption package.
+   * <li>2012-08-28 Hartmut created, the dependency from {@link EventMsg2} to the {@link MemC} should not present in the
+   *   pure class {@link EventMsg2} but in this C-adaption package.
    * </ul>
    * <br><br>
    * <b>Copyright/Copyleft</b>:
@@ -76,7 +76,7 @@ public class EventJc<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack
    * @param thread an optional thread to store the event in an event queue, maybe null.
    * @param callback Another event to interplay with the source of this event.
    */
-  public EventJc(boolean permanentInstance, EventSource evSrc, EventConsumer consumer, EventThread thread, Event<CmdBack, CmdEnum> callback){
+  public EventJc(boolean permanentInstance, EventSource evSrc, EventConsumer consumer, EventThread thread, EventMsg2<CmdBack, CmdEnum> callback){
     super(evSrc, consumer, thread, callback);
     bPermanent = permanentInstance;
   }

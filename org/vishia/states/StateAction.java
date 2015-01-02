@@ -1,6 +1,8 @@
 package org.vishia.states;
 
-import org.vishia.event.Event;
+import java.util.EventObject;
+
+//import org.vishia.event.EventMsg2;
 
 /**This interface is able to use to define a action method for entry, exit or a transition in a Statemachine, which is implemented inside any user class.
  * Use the following pattern: <pre>
@@ -33,5 +35,5 @@ import org.vishia.event.Event;
  */
 public interface StateAction
 {
-  int exec(Event<?,?> event);
+  int exec(EventObject event);
 }

@@ -1,6 +1,8 @@
 package org.vishia.states.example;
 
-import org.vishia.event.Event;
+import java.util.EventObject;
+
+import org.vishia.event.EventMsg2;
 import org.vishia.states.StateComposite;
 import org.vishia.states.StateSimple;
 import org.vishia.states.StateMachine;
@@ -12,7 +14,7 @@ public class StateExampleSimple
 
   enum Ecmd{Step};
   
-  Event<Ecmd, Event.NoOpponent> ev = new Event<Ecmd, Event.NoOpponent>();
+  EventMsg2<Ecmd, EventMsg2.NoOpponent> ev = new EventMsg2<Ecmd, EventMsg2.NoOpponent>();
   
   
   //class States extends StateTop
@@ -22,7 +24,7 @@ public class StateExampleSimple
     class StateIdle extends StateSimple {
 
       Trans step_State1 = new Trans(StateCompositeExample.class){ 
-        @Override protected void check(Event<?, ?> ev)
+        @Override protected void check(EventObject ev)
         { retTrans = mEventConsumed;
           doExit();
           doEntry(ev);
@@ -39,7 +41,7 @@ public class StateExampleSimple
 
         @SuppressWarnings("unused") 
         Trans addRequest = new Trans(){ 
-          @Override protected void check(Event<?, ?> ev) {
+          @Override protected void check(EventObject ev) {
             retTrans = mEventConsumed;
             doExit();
             doEntry(ev);
@@ -51,7 +53,7 @@ public class StateExampleSimple
       class State2 extends StateSimple {
 
         Trans addRequest = new Trans() { 
-          @Override protected void check(Event<?, ?> ev) {
+          @Override protected void check(EventObject ev) {
             retTrans = mEventConsumed;
             doExit();
             doEntry(ev);
@@ -59,7 +61,7 @@ public class StateExampleSimple
         };
      
         
-        Trans trans2_Idle(Event<?,?> ev, Trans trans){
+        Trans trans2_Idle(EventMsg2<?,?> ev, Trans trans){
           if(trans == null){
             return new Trans(StateIdle.class);
           } 

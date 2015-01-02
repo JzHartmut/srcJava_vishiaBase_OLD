@@ -1,6 +1,7 @@
 package org.vishia.stateMachine;
 
-import org.vishia.event.Event;
+import org.vishia.event.EventMsg;
+import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
 import org.vishia.util.DateOrder;
 
@@ -25,7 +26,7 @@ public abstract class StateCompositeBase
    * <ul>
    * <li>2013-05-11 Hartmut new: It is a {@link EventConsumer} yet. Especially a timer event needs a destination
    *   which is this class.
-   * <li>2013-04-27 Hartmut adapt: The {@link #entry(Event)} and the {@link #entryAction(Event)} should get the event
+   * <li>2013-04-27 Hartmut adapt: The {@link #entry(EventMsg2)} and the {@link #entryAction(EventMsg2)} should get the event
    *   from the transition. See {@link StateSimpleBase}.
    * <li>2013-04-13 Hartmut re-engineering: 
    *   <ul>
@@ -104,8 +105,8 @@ public abstract class StateCompositeBase
   /**Sets the default state of this composite. 
    * This routine has to be called in the constructor of the derived state after calling the super constructor.
    * @param stateDefault The state which will be set if the composite class was selected 
-   *   but an inner state was not set. The {@link #entry(Event)} to the default state is ivoked
-   *   if this state will be {@link #processEvent(Event)}.
+   *   but an inner state was not set. The {@link #entry(EventMsg2)} to the default state is ivoked
+   *   if this state will be {@link #processEvent(EventMsg2)}.
    */
   protected void setDefaultState(StateSimpleBase<DerivedState> stateDefault ){
     this.stateDefault = stateDefault;
@@ -139,7 +140,7 @@ public abstract class StateCompositeBase
    * @param isProcessed The bit {@link StateSimpleBase#mEventConsumed} is supplied to return it.
    * @return isProcessed, maybe the additional bits {@link StateSimpleBase#mRunToComplete} is set by user.
    */
-  public final int entryDeepHistory(Event<?,?> ev){
+  public final int entryDeepHistory(EventMsg<?> ev){
     StateSimpleBase<DerivedState> stateActHistory = stateAct;  //save it
     int cont = entry(ev);                  //entry in this state, remark: may be overridden, sets the stateAct to null
     if(stateActHistory instanceof StateCompositeBase<?,?>){
@@ -156,7 +157,7 @@ public abstract class StateCompositeBase
    * @param isProcessed The bit {@link StateSimpleBase#mEventConsumed} is supplied to return it.
    * @return isProcessed, maybe the additional bits {@link StateSimpleBase#mRunToComplete} is set by user.
    */
-  public final int entryFlatHistory(Event<?,?> ev){
+  public final int entryFlatHistory(EventMsg<?> ev){
     StateSimpleBase<DerivedState> stateActHistory = stateAct;  //save it
     int cont = entry(ev);                  //entry in this state, remark: may be overridden, sets the stateAct to null
     cont = stateActHistory.entry(ev);             //entry in the history sub state.
@@ -195,8 +196,8 @@ public abstract class StateCompositeBase
   }
   
   /**Processes the event for the states of this composite state.
-   * First the event is applied to the own (inner) states invoking either its {@link StateCompositeBase#processEvent(Event)}
-   * or its {@link #trans(Event)} method.
+   * First the event is applied to the own (inner) states invoking either its {@link StateCompositeBase#processEvent(EventMsg2)}
+   * or its {@link #trans(EventMsg2)} method.
    * If this method returns {@link StateSimpleBase#mRunToComplete} that invocation is repeated in a loop, to call
    * the transition of the new state too. But if the event was consumed by the last invocation, it is not supplied again
    * in the loop, the event parameter is set to null instead. It means only conditional transitions are possible.
@@ -207,13 +208,13 @@ public abstract class StateCompositeBase
    * <br><br>
    * This method is not attempt to override by the user. Only the class {@link StateParallelBase} overrides it
    * to invoke the processing of all parallel boughs.
-   * @param evP The event supplied to the {@link #trans(Event)} method.
-   * @return The bits {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #trans(Event)}.
+   * @param evP The event supplied to the {@link #trans(EventMsg2)} method.
+   * @return The bits {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #trans(EventMsg2)}.
    *   Note that if an event is consumed in an inner state, it should not be applied to its enclosing state transitions. 
    */
-  public int processEvent(final Event<?,?> evP){  //NOTE: should be protected.
+  public int processEvent(final EventMsg<?> evP){  //NOTE: should be protected.
     int cont;
-    Event<?,?> evTrans = evP;
+    EventMsg<?> evTrans = evP;
     int catastrophicalCount =  maxStateSwitchesInLoop;
     do{
 
@@ -258,7 +259,7 @@ public abstract class StateCompositeBase
 
   
   
-  private void printStateSwitchInfo(StateSimpleBase<DerivedState> statePrev, Event<?,?> evTrans, int cont) {
+  private void printStateSwitchInfo(StateSimpleBase<DerivedState> statePrev, EventMsg<?> evTrans, int cont) {
     DateOrder date = new DateOrder();
     Thread currThread = Thread.currentThread();
     String sThread = currThread.getName();
@@ -282,7 +283,7 @@ public abstract class StateCompositeBase
    *   with the strong type check with the generic type of state. 
    * @return true if it is in state.
    */
-  /*package private*/ void setState(Event<?,?> ev, StateSimpleBase<DerivedState> stateSimple) { //, EnumState stateNr) {
+  /*package private*/ void setState(EventMsg<?> ev, StateSimpleBase<DerivedState> stateSimple) { //, EnumState stateNr) {
     if( !enclHasThisState()) {  
       entry(ev);          //executes the entry action of this enclosing state to notify the state by its enclosingState.
     }

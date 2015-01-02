@@ -1,21 +1,12 @@
 package org.vishia.states;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.util.HashMap;
+import java.util.EventObject;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.vishia.event.Event;
-import org.vishia.event.EventConsumer;
-import org.vishia.stateMachine.StateCompositeBase;
-import org.vishia.stateMachine.StateParallelBase;
-import org.vishia.stateMachine.StateSimpleBase;
-import org.vishia.states.StateSimple.Trans;
-import org.vishia.util.Assert;
+
 import org.vishia.util.DataAccess;
-import org.vishia.util.DateOrder;
-import org.vishia.util.Debugutil;
 
 public class StateComposite extends StateSimple
 {
@@ -28,7 +19,7 @@ public class StateComposite extends StateSimple
    *   Nested writing of states, less code, using reflection for missing instances and data. 
    * <li>2013-05-11 Hartmut new: It is a {@link EventConsumer} yet. Especially a timer event needs a destination
    *   which is this class.
-   * <li>2013-04-27 Hartmut adapt: The {@link #entry(Event)} and the {@link #entryAction(Event)} should get the event
+   * <li>2013-04-27 Hartmut adapt: The {@link #entry(EventMsg2)} and the {@link #entryAction(EventMsg2)} should get the event
    *   from the transition. See {@link StateSimpleBase}.
    * <li>2013-04-13 Hartmut re-engineering: 
    *   <ul>
@@ -288,8 +279,8 @@ public class StateComposite extends StateSimple
   /**Sets the default state of this composite. 
    * This routine has to be called in the constructor of the derived state after calling the super constructor.
    * @param stateDefault The state which will be set if the composite class was selected 
-   *   but an inner state was not set. The {@link #entryTheState(Event)} to the default state is invoked
-   *   if this state will be {@link #processEvent(Event)}.
+   *   but an inner state was not set. The {@link #entryTheState(EventMsg2)} to the default state is invoked
+   *   if this state will be {@link #processEvent(EventMsg2)}.
    */
   public void XXXsetDefaultState(StateSimple stateDefault ){
     assert(stateDefault == null);  //invoke only one time.
@@ -337,7 +328,7 @@ public class StateComposite extends StateSimple
    * @param isProcessed The bit {@link StateSimpleBase#mEventConsumed} is supplied to return it.
    * @return isProcessed, maybe the additional bits {@link StateSimpleBase#mRunToComplete} is set by user.
    */
-  public final int entryDeepHistory(Event<?,?> ev){
+  public final int entryDeepHistory(EventObject ev){
     StateSimple stateActHistory = stateAct;  //save it
     int cont = entryTheState(ev,0);                  //entry in this state, remark: may be overridden, sets the stateAct to null
     if(stateActHistory instanceof StateComposite){
@@ -354,7 +345,7 @@ public class StateComposite extends StateSimple
    * @param isProcessed The bit {@link StateSimpleBase#mEventConsumed} is supplied to return it.
    * @return isProcessed, maybe the additional bits {@link StateSimpleBase#mRunToComplete} is set by user.
    */
-  public final int entryFlatHistory(Event<?,?> ev){
+  public final int entryFlatHistory(EventObject ev){
     StateSimple stateActHistory = stateAct;  //save it
     int cont = entryTheState(ev,0);                  //entry in this state, remark: may be overridden, sets the stateAct to null
     cont = stateActHistory.entryTheState(ev,0);             //entry in the history sub state.
@@ -397,7 +388,7 @@ public class StateComposite extends StateSimple
 
   
   
-  public final int XXXentry(Class state, Event<?,?> ev){
+  public final int XXXentry(Class state, EventObject ev){
     int id = state.hashCode();
     StateSimple entryState = stateMachine.stateMap.get(new Integer(id));
     return entryState.entryTheState(ev,0);
@@ -407,8 +398,8 @@ public class StateComposite extends StateSimple
   
   
   /**Processes the event for the states of this composite state.
-   * First the event is applied to the own (inner) states invoking either its {@link StateComposite#_processEvent(Event)}
-   * or its {@link #checkTransitions(Event)} method.
+   * First the event is applied to the own (inner) states invoking either its {@link StateComposite#_processEvent(EventMsg2)}
+   * or its {@link #checkTransitions(EventMsg2)} method.
    * If this method returns {@link StateSimpleBase#mRunToComplete} that invocation is repeated in a loop, to call
    * the transition of the new state too. But if the event was consumed by the last invocation, it is not supplied again
    * in the loop, the event parameter is set to null instead. It means only conditional transitions are possible.
@@ -419,11 +410,11 @@ public class StateComposite extends StateSimple
    * <br><br>
    * This method is not attempt to override by the user. Only the class {@link StateParallelBase} overrides it
    * to invoke the processing of all parallel boughs.
-   * @param evP The event supplied to the {@link #checkTransitions(Event)} method.
-   * @return The bits {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #checkTransitions(Event)}.
+   * @param evP The event supplied to the {@link #checkTransitions(EventMsg2)} method.
+   * @return The bits {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #checkTransitions(EventMsg2)}.
    *   Note that if an event is consumed in an inner state, it should not be applied to its enclosing state transitions. 
    */
-  /*package private*/ int _processEvent(final Event<?,?> evP){  //NOTE: should be protected.
+  /*package private*/ int _processEvent(final EventObject evP){  //NOTE: should be protected.
     int cont = 0;
     if(aSubstates !=null) {
       cont = processEventOwnStates(evP);
@@ -441,10 +432,10 @@ public class StateComposite extends StateSimple
     //Process to leave this state.
     //
     //If the event was consumed in any inner transition, it is not present for the own transitions. UML-conform.
-    Event<?,?> evTrans = (cont & StateSimpleBase.mEventConsumed)==0 ? evP: null;  
+    EventObject evTrans = (cont & StateSimple.mEventConsumed)==0 ? evP: null;  
     //
     if(  evTrans != null   //evTrans is null if it was consumed in inner transitions. 
-      || (modeTrans & StateSimpleBase.mRunToComplete) !=0  //state has only conditional transitions
+      || (modeTrans & StateSimple.mRunToComplete) !=0  //state has only conditional transitions
       ){
       //process the own transition. Do it after processing the inner state (omg.org)
       //and only if either an event is present or the state has only conditional transitions.
@@ -459,9 +450,9 @@ public class StateComposite extends StateSimple
   
   
   
-  private int processEventOwnStates(Event<?,?> ev) {
+  private int processEventOwnStates(EventObject ev) {
     //this composite has own substates, not only a container for parallel states:
-    Event<?,?> evTrans = ev;
+    EventObject evTrans = ev;
     int catastrophicalCount =  maxStateSwitchesInLoop;
     int contLoop;
     do{
@@ -483,7 +474,7 @@ public class StateComposite extends StateSimple
         contLoop |= trans;
       }
       //
-      if((contLoop & StateSimpleBase.mEventConsumed) != 0){
+      if((contLoop & StateSimple.mEventConsumed) != 0){
         evTrans = null;
       }
       if(catastrophicalCount == 4) {
@@ -504,7 +495,7 @@ public class StateComposite extends StateSimple
   
   
   
-  private void printStateSwitchInfo(StateSimple statePrev, Event<?,?> evTrans, int cont) {
+  private void printStateSwitchInfo(StateSimple statePrev, EventObject evTrans, int cont) {
     //DateOrder date = new DateOrder();
     //Thread currThread = Thread.currentThread();
     //String sThread = currThread.getName();
@@ -524,7 +515,7 @@ public class StateComposite extends StateSimple
     }
     if(!isActive){
       System.out.println("StateCompositeBase - leaved; " + sStatePrev + " ==> " + uStateNext + "; event=" + evTrans + ";");
-    } else if((cont & StateSimpleBase.mEventConsumed)!=0) {  //statePrev != stateAct){  //from the same in the same state!
+    } else if((cont & StateSimple.mEventConsumed)!=0) {  //statePrev != stateAct){  //from the same in the same state!
       System.out.println("StateCompositeBase - switch;" + sStatePrev + " ==> "  + uStateNext + "; event=" + evTrans + ";");
     } else if(evTrans !=null){ 
       System.out.println("StateCompositeBase - switch;" + sStatePrev + " ==> "  + uStateNext + "; not used event=" + evTrans + ";");

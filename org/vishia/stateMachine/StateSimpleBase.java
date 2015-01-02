@@ -1,11 +1,12 @@
 package org.vishia.stateMachine;
 
-import org.vishia.event.Event;
+import org.vishia.event.EventMsg;
+import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
 
 /**Base class of a State in a State machine.
- * The user should override at least the {@link #trans(Event)} method. This method is the transition to another state.
- * The user can override {@link #entryAction(Event)} and {@link #exit()} if the state has actions on entry and exit. 
+ * The user should override at least the {@link #trans(EventMsg2)} method. This method is the transition to another state.
+ * The user can override {@link #entryAction(EventMsg2)} and {@link #exit()} if the state has actions on entry and exit. 
  * But one should call super.exit(); as first statement!
  * <br><br>
  * A State is a small set of data to refer its enclosing state and a set of methods. 
@@ -30,13 +31,13 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   /**Version, history and license.
    * <ul>
    * <li>2013-05-11 Hartmut chg: Override {@link #exitAction()} instead {@link #exit()}!
-   * <li>2013-04-27 Hartmut chg: The {@link #entry(Event)} and the {@link #entryAction(Event)} should get the event
+   * <li>2013-04-27 Hartmut chg: The {@link #entry(EventMsg2)} and the {@link #entryAction(EventMsg2)} should get the event
    *   from the transition. It needs adaption in users code. The general advantage is: The entry action can use data
    *   from the event. A user algorithm does not need to process the events data only in the transition. A user code
    *   can be executed both in a special transition to a state and as entry action. Both possibilities do not distinguish
    *   in formal possibilities. The second advantage is: If the event is used, it should given to the next entry. If it is
    *   not used, a 'null' should be given. The user need not pay attention in the correct usage of {@link #mEventConsumed} or not.
-   * <li>2013-04-27 Hartmut new: {@link #mStateEntered} is returned on any {@link #entry(Event)}. If the state is not changed,
+   * <li>2013-04-27 Hartmut new: {@link #mStateEntered} is returned on any {@link #entry(EventMsg2)}. If the state is not changed,
    *   a 'return 0;' should be written in the transition code. With the new bit especially the debugging can distinguish
    *   a state changed from a non-switching transition.    
    * <li>2013-04-13 Hartmut re-engineering: 
@@ -79,12 +80,12 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
    */
   public static final int version = 20130511;
 
-  /**Bit in return value of a Statemachine's {@link #trans(Event)} or entry method for designation, 
+  /**Bit in return value of a Statemachine's {@link #trans(EventMsg2)} or entry method for designation, 
    * that the given Event object was used to switch.
    */
   public final static int mEventConsumed = EventConsumer.mEventConsumed;
   
-  /**Specification of the consumed Bit in return value of a Statemachine's {@link #trans(Event)} or {@link #entry(int)} 
+  /**Specification of the consumed Bit in return value of a Statemachine's {@link #trans(EventMsg2)} or {@link #entry(int)} 
    * method for designation, that the given Event object was not used to switch. The value of this is 0.
    */
   public final static int eventNotConsumed =0x0;
@@ -96,7 +97,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   public final static int mRunToComplete =0x2;
   
   /**Bit in return value of a Statemachine's trans and entry method for designation, 
-   * that the given State has entered yet. If this bit is not set, an {@link #entry(Event)} action is not called.
+   * that the given State has entered yet. If this bit is not set, an {@link #entry(EventMsg2)} action is not called.
    * It means a state switch has not occurred. Used for debug.
    */
   public final static int mStateEntered = 0x4;
@@ -139,8 +140,8 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   /**The super constructor. 
    * @param superState The enclosing state which contains this state. It is either a {@link StateTopBase} or a {@link StateCompositeBase}.
    * @param stateId Any String for debugging. The string should never use for algorithm. It should be used maybe for display the state.
-   * @param transHasConditionals true if the {@link #trans(Event)} routine has conditional transitions.
-   *   Then the entry of this state returns {@link #mRunToComplete} to force invoking of {@link #trans(Event)} in the same cycle.
+   * @param transHasConditionals true if the {@link #trans(EventMsg2)} routine has conditional transitions.
+   *   Then the entry of this state returns {@link #mRunToComplete} to force invoking of {@link #trans(EventMsg2)} in the same cycle.
    */
   protected StateSimpleBase(EnclosingState superState, String stateId, boolean transHasConditionals) {
     this.enclState = superState;
@@ -154,8 +155,8 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   /**The super constructor only for the top state. 
    * @param superState The enclosing state which contains this state. It is either a {@link StateTopBase} or a {@link StateCompositeBase}.
    * @param stateId Any String for debugging. The string should never use for algorithm. It should be used maybe for display the state.
-   * @param transHasConditionals true if the {@link #trans(Event)} routine has conditional transitions.
-   *   Then the entry of this state returns {@link #mRunToComplete} to force invoking of {@link #trans(Event)} in the same cycle.
+   * @param transHasConditionals true if the {@link #trans(EventMsg2)} routine has conditional transitions.
+   *   Then the entry of this state returns {@link #mRunToComplete} to force invoking of {@link #trans(EventMsg2)} in the same cycle.
    */
   protected StateSimpleBase(String stateId) {
     this.enclState = null;
@@ -193,11 +194,11 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   
   /**This method sets this state in the enclosing composite state. It calls {@link #entryAction()}. 
    * @param isConsumed Information about the usage of an event in a transition, given as input and returned as output.
-   * @return The parameter isConsumed may be completed with the bit {@link #mRunToComplete} if this state's {@link #trans(Event)}-
+   * @return The parameter isConsumed may be completed with the bit {@link #mRunToComplete} if this state's {@link #trans(EventMsg2)}-
    *   method has non-event but conditional state transitions. Setting of this bit {@link #mRunToComplete} causes
-   *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#processEvent(Event)} method.
+   *   the invocation of the {@link #trans(EventMsg2)} method in the control flow of the {@link StateCompositeBase#processEvent(EventMsg2)} method.
    *   This method sets {@link #mRunToComplete}.
-   * @param ev The event from the transition. It is transferred to the {@link #entryAction(Event)}, especially event data
+   * @param ev The event from the transition. It is transferred to the {@link #entryAction(EventMsg2)}, especially event data
    *   can be used there. If the event is not used for transition but given, this entry action have to be called with entry(null).
    * @return Bits: 
    * <ul>
@@ -207,7 +208,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
    * <li>{@value #mStateEntered} anyway.  
    * </ul>
    */
-  public final int entry(Event<?,?> ev) { //int isConsumed){
+  public final int entry(EventMsg<?> ev) { //int isConsumed){
     enclState.setState(ev, this);
     ctEntry +=1;
     dateLastEntry = System.currentTimeMillis();
@@ -229,7 +230,7 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
   
   
   /**This method should be overridden if the state needs any entry action. This default method is empty. */
-  protected void entryAction(Event<?,?> ev){}
+  protected void entryAction(EventMsg<?> ev){}
   
   
   
@@ -253,10 +254,10 @@ public abstract class StateSimpleBase<EnclosingState extends StateCompositeBase<
    *   or it should return {@link #eventNotConsumed} especially if no transition is fired.
    *   That return value is essential for processing events in composite and cascade states.
    *   If an event is consumed it is not used for another switch in the same state machine
-   *   but it is used in parallel states. See {@link StateCompositeBase#processEvent(Event)} and {@link StateParallelBase#processEvent(Event)}.
+   *   but it is used in parallel states. See {@link StateCompositeBase#processEvent(EventMsg2)} and {@link StateParallelBase#processEvent(EventMsg2)}.
    *   Returns 0 if a state switch is not processed. Elsewhere {@link #mStateEntered}. {@link #mStateLeaved}
    */
-  protected abstract int trans(Event<?,?> ev);
+  protected abstract int trans(EventMsg<?> ev);
   
   
   /**Exit the state. This method must not be overridden by the user, only the {@link StateCompositeBase} overrides it.

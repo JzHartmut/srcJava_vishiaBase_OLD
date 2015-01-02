@@ -1,11 +1,11 @@
 package org.vishia.stateMachine.example;
 
-import org.vishia.event.Event;
+import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventThread;
 
-public class EvX extends Event<EvX.Cmd,Event.NoOpponent>{
+public class EvX extends EventMsg2<EvX.Cmd,EventMsg2.NoOpponent>{
   
   
   enum Cmd{EvX, EvY, EvZ};

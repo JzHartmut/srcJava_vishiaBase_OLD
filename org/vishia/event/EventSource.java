@@ -24,7 +24,7 @@ public abstract class EventSource
   /**Version, history and license
    * <ul>
    * <li>The meaning and name is changed. It is only a debugging helper. The functionality of freeing is solved
-   *   in the {@link Event} class.
+   *   in the {@link EventMsg} class.
    * <li>2012-03-10 Hartmut created: 
    *   It is a problem if a request may be crashed in a remote device, but the event is reserved 
    *   for answer in the proxy. It should be freed. Events may be re-used. 
@@ -58,6 +58,13 @@ public abstract class EventSource
   
   /**The name is private because it is only used for toString(). */
   private final String name;  
+  
+  /**A default source with empty methods.
+   * 
+   */
+  public static EventSource nullSource = new EventSource("defaultEventMsgSource"){
+    
+  };
   
   
   /**

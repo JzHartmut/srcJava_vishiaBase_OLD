@@ -49,7 +49,7 @@ public class EventThread implements Runnable, Closeable
   
   
   
-  protected final ConcurrentLinkedQueue<Event> queueEvents = new ConcurrentLinkedQueue<Event>();
+  protected final ConcurrentLinkedQueue<EventMsg> queueEvents = new ConcurrentLinkedQueue<EventMsg>();
 
   /**The state of the thread
    * <ul>
@@ -81,7 +81,7 @@ public class EventThread implements Runnable, Closeable
   
   /**Creates and starts the thread. If this routine is called from the user, the thread runs
    * till the close() method was called. If this method is not invoked from the user,
-   * the thread is created and started automatically if {@link #storeEvent(Event)} was called.
+   * the thread is created and started automatically if {@link #storeEvent(EventMsg)} was called.
    * In that case the thread stops its execution if the event queue is empty and about 5 seconds
    * are gone.  */
   public void startThread(){ 
@@ -91,7 +91,7 @@ public class EventThread implements Runnable, Closeable
   }
   
   
-  public void storeEvent(Event ev){
+  public void storeEvent(EventMsg ev){
     ev.stateOfEvent = 'q';
     queueEvents.offer(ev);
     if(thread == null){
@@ -115,7 +115,7 @@ public class EventThread implements Runnable, Closeable
    * @param ev
    * @return
    */
-  public boolean removeFromQueue(Event ev){
+  public boolean removeFromQueue(EventMsg ev){
     boolean found = queueEvents.remove(ev);
     if(found){ 
       ev.stateOfEvent = 'a'; 
@@ -129,7 +129,7 @@ public class EventThread implements Runnable, Closeable
   { stateOfThread = 'r';
     do { 
       try{ //never let the thread crash
-        Event event;
+        EventMsg event;
         if( (event = queueEvents.poll()) !=null){
           this.ctWaitEmptyQueue = 0;
           synchronized(this){

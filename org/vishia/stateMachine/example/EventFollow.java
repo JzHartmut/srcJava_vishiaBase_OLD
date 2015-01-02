@@ -1,6 +1,6 @@
 package org.vishia.stateMachine.example;
 
-import org.vishia.event.Event;
+import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventThread;
@@ -24,7 +24,7 @@ public class EventFollow  {
   
   EventConsumer evDst = new EventConsumer(){
 
-    @Override public int processEvent(Event ev) {
+    @Override public int processEvent(EventMsg2 ev) {
       state.trans(ev);
       return 1;
     }
@@ -71,12 +71,12 @@ public class EventFollow  {
 
       //protected Start(EventFollow enclosingState) { super(enclosingState); }
   
-      @Override public void entryAction(Event<?,?> ev){
+      @Override public void entryAction(EventMsg2<?,?> ev){
         EventTimerMng.addGlobalTimeOrder(System.currentTimeMillis() + 1000, evDst, evThread);
       }
       
       
-      @Override public int trans(Event ev){
+      @Override public int trans(EventMsg2 ev){
         if(ev instanceof EventTimerMng.TimeEvent){
           EvX ev1 = new EvX(evSrc, evDst, evThread);
           cond1 = true;
@@ -98,7 +98,7 @@ public class EventFollow  {
       //protected StateA(EventFollow enclosingState) { super(enclosingState); }
   
       
-      @Override public int trans(Event ev){
+      @Override public int trans(EventMsg2 ev){
         if(cond1){
           return exit().stateB.entry(null);
         } else {
@@ -117,7 +117,7 @@ public class EventFollow  {
   
       
       
-      @Override public int trans(Event ev){
+      @Override public int trans(EventMsg2 ev){
         if(ev instanceof EvX && ev.getCmd() == EvX.Cmd.EvX){
           return exit().stateC.entry(ev);
         } else {
@@ -137,7 +137,7 @@ public class EventFollow  {
   
       
       
-      @Override public int trans(Event ev){
+      @Override public int trans(EventMsg2 ev){
         if(ev instanceof EvX && ev.getCmd() == EvX.Cmd.EvX){
           return exit().stateD.entry(ev);
         } else {
@@ -158,7 +158,7 @@ public class EventFollow  {
       //protected StateD(EventFollow enclosingState) { super(enclosingState); }
       
     
-      @Override public int trans(Event ev) {
+      @Override public int trans(EventMsg2 ev) {
         return 0;
       }
     }

@@ -2,15 +2,13 @@ package org.vishia.states;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.text.ParseException;
 import java.util.HashMap;
 
-import org.vishia.event.Event;
+import org.vishia.event.EventMsg;
+import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventThread;
 import org.vishia.event.EventTimerMng;
-import org.vishia.stateMachine.StateParallelBase;
-import org.vishia.stateMachine.StateSimpleBase;
 import org.vishia.util.DataAccess;
 
 /**
@@ -26,7 +24,7 @@ import org.vishia.util.DataAccess;
  * <br><br>
  * Any state can contain an entry- and an exit action which can be build either ... or with:
  * <ul>
- * <li>Overriding the method {@link org.vishia.states.StateSimple#entry(org.vishia.event.Event)} respectively {@link StateSimple#exit()}.
+ * <li>Overriding the method {@link org.vishia.states.StateSimple#entry(org.vishia.event.EventMsg2)} respectively {@link StateSimple#exit()}.
  * <li>Set the association {@link org.vishia.states.StateSimple#entry} respectively {@link org.vishia.states.StateSimple#exit} 
  * with an Implementation of {@link org.vishia.states.StateAction}
  *   respectively {@link java.lang.Runnable} which can be located in any other class, usual as inner anonymous class. 
@@ -38,9 +36,9 @@ import org.vishia.util.DataAccess;
  * <li>An inner class derived from {@link org.vishia.states.StateSimple.Trans}.
  * <li>An instance of an anonymous inner derived class of {@link org.vishia.states.StateSimple.Trans}.
  * <li>An method with return value {@link org.vishia.states.StateSimple.Trans} 
- *   and 2 arguments {@link org.vishia.event.Event} and {@link org.vishia.states.StateSimple.Trans}
+ *   and 2 arguments {@link org.vishia.event.EventMsg2} and {@link org.vishia.states.StateSimple.Trans}
  *   which contains the creation of a StateTrans object, the condition test, an action and the {@link org.vishia.states.StateSimple.Trans#doExit()}
- *   and {@link org.vishia.states.StateSimple.Trans#doEntry(org.vishia.event.Event)} invocation. This form shows only a simple method
+ *   and {@link org.vishia.states.StateSimple.Trans#doEntry(org.vishia.event.EventMsg2)} invocation. This form shows only a simple method
  *   in a browser tree of the source code (outline in Eclipse).  
  * </ul>
  * The three forms of transition phrases gives possibilities for more or less complex transitions:
@@ -82,7 +80,7 @@ import org.vishia.util.DataAccess;
  * The timer manager can manage any number of time orders.
  * It sends an {@link EventTimerMng.TimeEvent} to this StateMachine it the time is expired.
  * <br><br>
- * The state machine can be animated using {@link org.vishia.states.StateMachine#applyEvent(Event)} with or without events
+ * The state machine can be animated using {@link org.vishia.states.StateMachine#applyEvent(EventMsg2)} with or without events
  * by given a null argument, for example cyclically if an {@link EventThread} is not used.
  * <br><br>
  * 
@@ -166,7 +164,7 @@ public class StateMachine implements EventConsumer
   
   
   
-  /**Creates a state machine which is executed directly by {@link #applyEvent(Event)}. {@link StateSimple.Timeout} is not possible.
+  /**Creates a state machine which is executed directly by {@link #applyEvent(EventMsg2)}. {@link StateSimple.Timeout} is not possible.
    * 
    */
   public StateMachine() { this(null, null);}
@@ -275,12 +273,12 @@ public class StateMachine implements EventConsumer
 
 
 
-  /**Applies an event to this state machine. This method is invoked from {@link Event#sendEvent(Enum)} if this class is given
+  /**Applies an event to this state machine. This method is invoked from {@link EventMsg2#sendEvent(Enum)} if this class is given
    * as {@link EventConsumer}. If the statemachine is aggregated with a {@link EventThread} and this routine is invoked from another thread
    * then the event will be stored in {@link #theThread}. It is done if the transmitter of the event does not know about the EventThread.
-   * @see org.vishia.event.EventConsumer#processEvent(org.vishia.event.Event)
+   * @see org.vishia.event.EventConsumer#processEvent(org.vishia.event.EventMsg2)
    */
-  @Override public int processEvent(Event<?, ?> ev)
+  @Override public int processEvent(EventMsg<?> ev)
   { if(theThread == null || theThread.isCurrentThread()) {
       return topState._processEvent(ev); 
     } else {

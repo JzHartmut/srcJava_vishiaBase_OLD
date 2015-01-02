@@ -2,7 +2,7 @@ package org.vishia.event;
 
 /**This interface describe the consumer interface for events.
  * The class which implements this interface is able to get events for example from a common queue
- * and executes the {@link #processEvent(Event)} method with the event.
+ * and executes the {@link #processEvent(EventMsg)} method with the event.
  * 
  * @author Hartmut Schorrig
  *
@@ -13,7 +13,7 @@ public interface EventConsumer
    * <ul>
    * <li>2013-05-11 Hartmut chg: It is an interface up to now. The idea to store a name for debugging on 
    *   anonymous overridden instances is able to implement with an <code>toString(){ return "name"}</code> alternatively.
-   *   The method doProcessEvent is renamed to {@link #processEvent(Event)}. 
+   *   The method doProcessEvent is renamed to {@link #processEvent(EventMsg)}. 
    *   The advantage of interface: multi inheritance. 
    *   It is used as interface for {@link org.vishia.stateMachine.StateCompositeBase}.
    * <li>2013-04-07 Hartmut adap: Event<?,?> with 2 generic parameter
@@ -61,9 +61,9 @@ public interface EventConsumer
    *   It is possible to build a chain of responsibility. It is possible too to process a event from 
    *   more as one instance. 
    */
-  int processEvent(Event<?,?> ev); //{ return false; }
+  int processEvent(EventMsg<?> ev); //{ return false; }
   
-  /**Bit in return value of a Statemachine's {@link #check(Event)} or entry method for designation, 
+  /**Bit in return value of a Statemachine's {@link #check(EventMsg)} or entry method for designation, 
    * that the given Event object was used to switch.
    */
   public final static int mEventConsumed =0x1;

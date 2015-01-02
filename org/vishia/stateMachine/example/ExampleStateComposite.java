@@ -3,7 +3,7 @@ package org.vishia.stateMachine.example;
 import java.io.Closeable;
 import java.io.IOException;
 
-import org.vishia.event.Event;
+import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventThread;
@@ -45,7 +45,7 @@ public class ExampleStateComposite implements Closeable{
    * which are defined inside. On the second side an event contains user specific data, which are defined
    * in the specific event type. An application or a state machine can use more as one type of user events.
    */
-  public final static class UserEvent extends Event<UserEvent.Cmd, Event.NoOpponent>{
+  public final static class UserEvent extends EventMsg2<UserEvent.Cmd, EventMsg2.NoOpponent>{
 
     /**Commands for the {@link UserEvent} type. */
     public enum Cmd{ on, off, start }
@@ -81,7 +81,7 @@ public class ExampleStateComposite implements Closeable{
      * @param ev The untyped event
      * @return null if the event does not match the type, elsewhere the casted event.
      */
-    public static UserEvent typeof(Event<?,?> ev){
+    public static UserEvent typeof(EventMsg2<?,?> ev){
       if(ev instanceof UserEvent){
         return (UserEvent)(ev);
       } else {
@@ -107,9 +107,9 @@ public class ExampleStateComposite implements Closeable{
 
     
     /**This method is overridden only to set a derived class specific breakpoint for debugging.
-     * @see org.vishia.stateMachine.StateTopBase#processEvent(org.vishia.event.Event)
+     * @see org.vishia.stateMachine.StateTopBase#processEvent(org.vishia.event.EventMsg2)
      */
-    @Override public int processEvent(final Event<?,?> evP){
+    @Override public int processEvent(final EventMsg2<?,?> evP){
       return super.processEvent(evP);   //<<<<<<<<<< set breakpoint here
     }
 
@@ -134,9 +134,9 @@ public class ExampleStateComposite implements Closeable{
       }
       
       /**The trans method need not be commented. 
-       * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.Event)
+       * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.EventMsg2)
        */
-      @Override public int trans(Event<?,?> ev) {
+      @Override public int trans(EventMsg2<?,?> ev) {
         UserEvent ev1 = UserEvent.typeof(ev);  //convert the event to the expected derived class.
         int cont;
         //Template: one line per trans-Method. return if !=0
@@ -160,7 +160,7 @@ public class ExampleStateComposite implements Closeable{
       }
       
       
-      @Override public int trans(Event<?,?> ev){
+      @Override public int trans(EventMsg2<?,?> ev){
         UserEvent ev1 = UserEvent.typeof(ev);  //convert the event to the expected derived class.
         int cont;
         //Template: one line per trans-Method. return if !=0
@@ -186,9 +186,9 @@ public class ExampleStateComposite implements Closeable{
         }
         
         /**The trans method need not be commented. 
-         * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.Event)
+         * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.EventMsg2)
          */
-        @Override public int trans(Event<?,?> ev) {
+        @Override public int trans(EventMsg2<?,?> ev) {
           UserEvent ev1 = UserEvent.typeof(ev);  //convert the event to the expected derived class.
           int cont;
           //Template: one line per trans-Method. return if !=0
@@ -206,7 +206,7 @@ public class ExampleStateComposite implements Closeable{
         
         private EventTimerMng.TimeOrder timeOrder;
         
-        @Override protected void entryAction(Event<?,?> ev){
+        @Override protected void entryAction(EventMsg2<?,?> ev){
           timeOrder = stateTop.addTimeOrder(System.currentTimeMillis() + delay);
           setOut(true);      
         }
@@ -232,9 +232,9 @@ public class ExampleStateComposite implements Closeable{
         }
         
         /**The trans method need not be commented. 
-         * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.Event)
+         * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.EventMsg2)
          */
-        @Override public int trans(Event<?,?> ev) {
+        @Override public int trans(EventMsg2<?,?> ev) {
           int cont;
           //Template: one line per trans-Method. return if !=0
           if( (cont = transReady(EventTimerMng.TimeEvent.typeof(ev))) !=0) return cont;

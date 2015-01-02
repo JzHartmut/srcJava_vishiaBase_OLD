@@ -1,6 +1,5 @@
 package org.vishia.states;
 
-import org.vishia.event.Event;
 
 /**Base class for a composite state which is a parallel state inside another composite state.
  * @author Hartmut Schorrig
@@ -56,22 +55,10 @@ public abstract class StateParallel extends StateComposite
     ctEntry +=1;
     dateLastEntry = System.currentTimeMillis();
     durationLast = 0;
-    XXXsetStateParallel(null);
   }
   
   
-  /**Sets the state of the composite state.
-   * This method should be called
-   * @param state Only states of the own composite are advisable. It is checked in compile time
-   *   with the strong type check with the generic type of state. 
-   * @return true if it is in state.
-   */
-  //@Override
- /*package private*/ void XXXsetState(Event<?,?> ev, StateSimple stateSimple) { //, EnumState stateNr) {
-    super.XXXsetStateParallel(stateSimple);
-  }
-
-
+ 
   
 
 }

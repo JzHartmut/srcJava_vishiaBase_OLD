@@ -1,6 +1,6 @@
 package org.vishia.stateMachine;
 
-import org.vishia.event.Event;
+import org.vishia.event.EventMsg;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventThread;
 import org.vishia.event.EventTimerMng;
@@ -105,17 +105,17 @@ implements EventConsumer
 
   /**The trans routine is implemented as an empty routine here. The StateTop has not a capability
    * to switch any states.
-   * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.Event)
+   * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.EventMsg2)
    */
-  @Override final public int trans(Event ev){ return 0; }
+  @Override final public int trans(EventMsg<?> ev){ return 0; }
 
-  /**This method is defined in {@link StateCompositeBase#processEvent(org.vishia.event.Event)}.
+  /**This method is defined in {@link StateCompositeBase#processEvent(org.vishia.event.EventMsg2)}.
    * It means that a top State is an {@link EventConsumer}. 
-   * It calls the routine {@link StateCompositeBase#processEvent(Event)}} of its superclass
+   * It calls the routine {@link StateCompositeBase#processEvent(EventMsg2)}} of its superclass
    * which has the same name and signature, but that routine does not implement the {@link EventConsumer}
    * Only a top state should accept events from outside.
    */
-  @Override public int processEvent(final Event<?,?> evP){
+  @Override public int processEvent(final EventMsg<?> evP){
     return super.processEvent(evP);
   }
 
@@ -136,7 +136,7 @@ class StateCompositeNull extends StateCompositeBase<StateCompositeNull, StateCom
     super(enclState, stateId);
   }
 
-  @Override public int trans(Event<?,?> ev) {
+  @Override public int trans(EventMsg<?> ev) {
     return 0;
   }
 }

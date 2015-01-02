@@ -1,7 +1,8 @@
 package org.vishia.stateMachine.example;
 
 
-import org.vishia.event.Event;
+import org.vishia.event.EventMsg;
+import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventThread;
 import org.vishia.stateMachine.StateCompositeBase;
@@ -21,7 +22,7 @@ public class CompositeStates implements EventConsumer {
 
     //A(MainState enclosingState){ super(enclosingState); }
   
-    @Override public int trans(Event ev) {
+    @Override public int trans(EventMsg2 ev) {
       return 0;
     }
   }
@@ -30,7 +31,7 @@ public class CompositeStates implements EventConsumer {
     
     B(Work superState){ super(superState, "B", false); setDefaultState(B1); }
     
-    @Override public int trans(Event ev){
+    @Override public int trans(EventMsg2 ev){
       return eventNotConsumed;
     }
     
@@ -50,7 +51,7 @@ public class CompositeStates implements EventConsumer {
       
       B1(B superState) { super(superState, "B1"); }
       
-      @Override public int trans(Event ev) {
+      @Override public int trans(EventMsg2 ev) {
         return 0;
       }
     }
@@ -60,7 +61,7 @@ public class CompositeStates implements EventConsumer {
       
       B2(B superState) { super(superState, "B2"); }
       
-      @Override public int trans(Event ev) {
+      @Override public int trans(EventMsg2 ev) {
         return 0;
       }
     }
@@ -71,7 +72,7 @@ public class CompositeStates implements EventConsumer {
       
       B3(B superState) { super(superState, "B3"); }
       
-      @Override public int trans(Event ev) {
+      @Override public int trans(EventMsg2 ev) {
         return 0;
       }
     }
@@ -87,7 +88,7 @@ public class CompositeStates implements EventConsumer {
     C1a(C1 superState){ super(superState, "C1a"); }
 
   
-    @Override public int trans(Event ev) {
+    @Override public int trans(EventMsg2 ev) {
       return eventNotConsumed;
     }
   }
@@ -97,7 +98,7 @@ public class CompositeStates implements EventConsumer {
     C1b(C1 superState){ super(superState, "C1b"); }
 
   
-    @Override public int trans(Event ev) {
+    @Override public int trans(EventMsg2 ev) {
       if(ev instanceof EvX && ((EvX)ev).getCmd() == EvX.Cmd.EvZ){
         return exit().C1d.entry(ev);
       }
@@ -111,7 +112,7 @@ public class CompositeStates implements EventConsumer {
     C1c(C1 superState){ super(superState, "C1c"); }
 
   
-    @Override public int trans(Event ev) {
+    @Override public int trans(EventMsg2 ev) {
       return StateSimpleBase.eventNotConsumed;
     }
   }
@@ -122,7 +123,7 @@ public class CompositeStates implements EventConsumer {
     C1d(C1 superState){ super(superState, "C1d"); }
 
   
-    @Override public int trans(Event ev) {
+    @Override public int trans(EventMsg2 ev) {
       return StateSimpleBase.eventNotConsumed;
     }
   }
@@ -133,7 +134,7 @@ public class CompositeStates implements EventConsumer {
     C1(C superState){ super(superState, "C1", false); setDefaultState(C1a); } 
     // super(superState, EWork.C, EState_C1.Null); }
     
-    @Override public int trans(Event ev){
+    @Override public int trans(EventMsg2 ev){
       return eventNotConsumed;
     }
     C1a C1a = new C1a(this);
@@ -150,7 +151,7 @@ public class CompositeStates implements EventConsumer {
     C2a(C2 superState){ super(superState, "C2a"); }
 
   
-    @Override public int trans(Event ev) {
+    @Override public int trans(EventMsg2 ev) {
       if(ev instanceof EvX && ((EvX)ev).getCmd() == EvX.Cmd.EvX){
         return exit().C2b.entry(ev);
       }
@@ -166,7 +167,7 @@ public class CompositeStates implements EventConsumer {
     C2b(C2 superState){ super(superState, "C2b"); }
 
   
-    @Override public int trans(Event ev) {
+    @Override public int trans(EventMsg2 ev) {
       return 0;
     }
   }
@@ -176,7 +177,7 @@ public class CompositeStates implements EventConsumer {
 
     C2(C superState){ super(superState, "C2", false); setDefaultState(C2a); }
     
-    @Override public int trans(Event ev){
+    @Override public int trans(EventMsg2 ev){
       return eventNotConsumed;
     }
     
@@ -208,7 +209,7 @@ public class CompositeStates implements EventConsumer {
     
 
   
-    public int entry(Event<?,?> ev, StateSimpleBase c1, StateSimpleBase c2) {
+    public int entry(EventMsg<?> ev, StateSimpleBase c1, StateSimpleBase c2) {
       int consumed = super.entry(ev);
       //setState(EWork.C);
       //C1.entry(consumed);
@@ -219,12 +220,12 @@ public class CompositeStates implements EventConsumer {
     }
   
     /**First the event is checked whether it should switch the state itself.
-     * Because this state has 2 parallel combined states intern it calls the {@link #trans(Event)}
+     * Because this state has 2 parallel combined states intern it calls the {@link #trans(EventMsg2)}
      * of both parallel states with the given event.
      * If 
-     * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.Event)
+     * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.EventMsg2)
      */
-    @Override public int trans(Event ev) {
+    @Override public int trans(EventMsg2 ev) {
       
       if(C1.isInState(C1.C1d) && C2.isInState(C2.C2a)) {
         Work enclState1 = exit();
@@ -248,7 +249,7 @@ public class CompositeStates implements EventConsumer {
       setDefaultState(B);
     }
 
-    @Override public int trans(Event ev){
+    @Override public int trans(EventMsg2 ev){
       return eventNotConsumed;
     }
 
@@ -280,14 +281,14 @@ public class CompositeStates implements EventConsumer {
       setDefaultState(stateIdle);
     }
 
-    @Override public void entryAction(Event<?,?> ev){
+    @Override public void entryAction(EventMsg<?> ev){
       stateWork.entry(ev);
     }
 
     
     StateSimpleBase<StateTop> stateIdle = new StateSimpleBase<StateTop>(this, "stateIdle"){
       
-      @Override public int trans(Event<?,?> ev) {
+      @Override public int trans(EventMsg<?> ev) {
         if(ev instanceof EvX && ((EvX)ev).getCmd() == EvX.Cmd.EvX){
           StateTop enclState1 = exit();
           int cont = enclState1.stateWork.C.C1.C1b.entry(ev);
@@ -325,7 +326,7 @@ public class CompositeStates implements EventConsumer {
   
 
   
-  @Override public int processEvent(Event ev) {
+  @Override public int processEvent(EventMsg ev) {
     state.processEvent(ev);
     return 1;
   }

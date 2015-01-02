@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.vishia.event.Event;
+import org.vishia.event.EventMsg2;
 import org.vishia.states.StateMachine;
 import org.vishia.states.StateSimple;
 import org.vishia.states.StateSimple.Trans;

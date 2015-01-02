@@ -1,6 +1,6 @@
 package org.vishia.stateMachine.example;
 
-import org.vishia.event.Event;
+import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.stateMachine.StateAdditionalParallelBase;
@@ -20,7 +20,7 @@ public class StateBaseExample {
   
   public final EventConsumer processState = new EventConsumer(){
 
-    @Override public int processEvent(Event<?,?> ev) {
+    @Override public int processEvent(EventMsg2<?,?> ev) {
       stateTop.processEvent(ev);
       return 1;
     }
@@ -35,7 +35,7 @@ public class StateBaseExample {
   
   enum Cmd{ Null, step, on_ready, on_cont, off, offAfterRunning, start, stop, abort};
   
-  public class EventBaseExample extends Event<Cmd, Event.NoOpponent>{
+  public class EventBaseExample extends EventMsg2<Cmd, EventMsg2.NoOpponent>{
     final StateBaseExample data;
     public EventBaseExample() {
       super(eventSource, processState, null);
@@ -50,7 +50,7 @@ public class StateBaseExample {
       setDefaultState(stateOff);
     }
 
-    @Override public int processEvent(Event<?,?> evP){
+    @Override public int processEvent(EventMsg2<?,?> evP){
       return super.processEvent(evP);
     }
     
@@ -71,7 +71,7 @@ public class StateBaseExample {
       super(superState, "Off");
     }
 
-    @Override public int trans(Event<?,?> evP) {
+    @Override public int trans(EventMsg2<?,?> evP) {
       EventBaseExample ev = (EventBaseExample)evP;
       Cmd cmd = ev == null ? Cmd.Null: ev.getCmd();
       if(cmd == Cmd.on_cont){
@@ -95,7 +95,7 @@ public class StateBaseExample {
       setDefaultState(stateReady);
     }
 
-    @Override public int trans(Event ev){
+    @Override public int trans(EventMsg2 ev){
       return 0;
     }
 
@@ -118,7 +118,7 @@ public class StateBaseExample {
       super(superState, "Ready");
     }
 
-    @Override public int trans(Event<?,?> evP) {
+    @Override public int trans(EventMsg2<?,?> evP) {
       EventBaseExample ev = (EventBaseExample)evP;
       Cmd cmd = ev == null ? Cmd.Null: ev.getCmd();
       if(cmd == Cmd.start){
@@ -138,11 +138,11 @@ public class StateBaseExample {
       super(superState, "Running");
     }
     
-    @Override public void entryAction(Event<?,?> ev){
+    @Override public void entryAction(EventMsg2<?,?> ev){
       time = System.currentTimeMillis() + delay;
     }
 
-    @Override public int trans(Event<?,?> ev) {
+    @Override public int trans(EventMsg2<?,?> ev) {
       //call trans of its parallel states
       int evConsumedInParallel = enclState().stateActive2.processEvent(ev);
       if((evConsumedInParallel & mStateLeaved) !=0) return evConsumedInParallel;
@@ -162,7 +162,7 @@ public class StateBaseExample {
       super(superState, "Finit");
     }
 
-    @Override public int trans(Event<?,?> ev) {
+    @Override public int trans(EventMsg2<?,?> ev) {
       int evConsumedInParallel = enclState().stateActive2.processEvent(ev);
       if((evConsumedInParallel | mStateLeaved) !=0) return evConsumedInParallel;
       else{
@@ -197,12 +197,12 @@ public class StateBaseExample {
     }
   
     /**First the event is checked whether it should switch the state itself.
-     * Because this state has 2 parallel combined states intern it calls the {@link #trans(Event)}
+     * Because this state has 2 parallel combined states intern it calls the {@link #trans(EventMsg2)}
      * of both parallel states with the given event.
      * If 
-     * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.Event)
+     * @see org.vishia.stateMachine.StateSimpleBase#trans(org.vishia.event.EventMsg2)
      */
-    @Override public int trans(Event ev) {
+    @Override public int trans(EventMsg2 ev) {
       
       return 0;
       
@@ -222,7 +222,7 @@ public class StateBaseExample {
 
     }
   
-    @Override public int trans(Event ev){
+    @Override public int trans(EventMsg2 ev){
       return eventNotConsumed;
     }
 
@@ -241,11 +241,11 @@ public class StateBaseExample {
       super(superState, "Running", true);
     }
     
-    @Override public void entryAction(Event<?,?> ev){
+    @Override public void entryAction(EventMsg2<?,?> ev){
       time = System.currentTimeMillis() + delay;
     }
 
-    @Override public int trans(Event<?,?> ev) {
+    @Override public int trans(EventMsg2<?,?> ev) {
       if(System.currentTimeMillis() - time >=0){
         return exit().stateFinit.entry(ev);
       }
@@ -260,7 +260,7 @@ public class StateBaseExample {
       super(superState, "Finit");
     }
 
-    @Override public int trans(Event<?,?> ev) {
+    @Override public int trans(EventMsg2<?,?> ev) {
       if(enclState().enclState().stateActive2.stateRemainOn.isInState()){
         return exit().exit().exit().stateReady.entry(ev) | mStateLeaved;
       }
@@ -282,7 +282,7 @@ public class StateBaseExample {
       setDefaultState(stateRemainOn);
     }
 
-    @Override public int trans(Event ev){
+    @Override public int trans(EventMsg2 ev){
       return eventNotConsumed;
     }
 
@@ -302,7 +302,7 @@ public class StateBaseExample {
     }
 
     
-    @Override public int trans(Event<?,?> evP) {
+    @Override public int trans(EventMsg2<?,?> evP) {
       EventBaseExample ev = (EventBaseExample)evP;
       Cmd cmd = ev == null ? Cmd.Null: ev.getCmd();
       if(cmd == Cmd.abort){
@@ -319,7 +319,7 @@ public class StateBaseExample {
       super(superState, "ShouldOff");
     }
 
-    @Override public int trans(Event<?,?> ev) {
+    @Override public int trans(EventMsg2<?,?> ev) {
       return 0;
     }
     
@@ -333,7 +333,7 @@ public class StateBaseExample {
       setDefaultState(stateRemainOn);
     }
 
-    @Override public int trans(Event ev){
+    @Override public int trans(EventMsg2 ev){
       return eventNotConsumed;
     }
 
@@ -352,7 +352,7 @@ public class StateBaseExample {
       super(superState, "RemainOn");
     }
 
-    @Override public int trans(Event<?,?> evP) {
+    @Override public int trans(EventMsg2<?,?> evP) {
       EventBaseExample ev = (EventBaseExample)evP;
       Cmd cmd = ev == null ? Cmd.Null: ev.getCmd();
       if(cmd == Cmd.offAfterRunning){
@@ -369,7 +369,7 @@ public class StateBaseExample {
       super(superState, "ShouldOff");
     }
 
-    @Override public int trans(Event<?,?> evP) {
+    @Override public int trans(EventMsg2<?,?> evP) {
       EventBaseExample ev = (EventBaseExample)evP;
       Cmd cmd = ev == null ? Cmd.Null: ev.getCmd();
       if(cmd == Cmd.abort){

@@ -46,13 +46,67 @@ public class EventTimerMng extends Thread implements Closeable{
    */
   public static final int version = 20130513;
 
+  public static class TimeEvent extends EventMsg<TimeEvent.Cmd>{
+    enum Cmd{Time};
+    
+    final int identNrEvent;
+    
+    /**The constructor
+     * @param dst A destination object should be given
+     * @param thread The destination thread may be null, then the {@link EventConsumer#processEvent(EventMsg)} method
+     *   is called in the timer thread.
+     */
+    public TimeEvent(EventConsumer dst, EventThread thread, int identNrEvent){
+      super(null, dst, thread);
+      this.identNrEvent = identNrEvent;
+    }
+    
+    /**Checks whether the event is a TimeEvent.
+     * @param ev The untyped event
+     * @return null if the event does not match the type, elsewhere the casted event.
+     */
+    public static TimeEvent typeof(EventMsg<?> ev){
+      if(ev instanceof TimeEvent){
+        return (TimeEvent)(ev);
+      } else {
+        return null;   //causes an NullPointerException if not expected from caller.
+      }
+    }
+  
+    /**Checks whether the received event is matching to the created time order.
+     * An event can be received from an older time order if it is not successfully removed
+     * from an exitAction of any state which has created the time order as its timeout.
+     * It should prevented that a non matching event uses for timeout.
+     * Use the following pattern for timeouts in states:
+     * <pre>
+     * MyState state ...{
+     *   private EventTimerMng.TimeOrder timeOrder;
+     *   ...
+     *  protected void entryAction(Event<?,?> ev){
+     *    timeOrder = stateTop.addTimeOrder(System.currentTimeMillis() + delay);
+     *  ...  
+     *  protected void exitAction(){
+     *    if(timeOrder !=null){ timer.removeTimeOrder(timeOrder); }
+     *  ....  
+     *  private int transXy(EventTimerMng.TimeEvent ev){
+     *    if(ev !=null && ev.isMatchingto(timeOrder)){
+     *      timeOrder = null;
+     * </pre>
+     * @param order
+     * @return true if it is the proper event to the time order.
+     */
+    public boolean isMatchingto(TimeOrder order){ return identNrEvent == order.identNrEvent; }
+    
+  }
+
+
   public class TimeOrder{
     /**Absolute time when the event should be occurred. */
     long dateEvent;
    
     final int identNrEvent;
     
-    final Event<TimeEvent.Cmd, Event.NoOpponent> event;
+    final TimeEvent event;
     
     final EventConsumer dst;
     
@@ -60,7 +114,7 @@ public class EventTimerMng extends Thread implements Closeable{
     
     private boolean used;
     
-    TimeOrder(Event<TimeEvent.Cmd, Event.NoOpponent> ev, long date, int identNrEvent){
+    TimeOrder(TimeEvent ev, long date, int identNrEvent){
       this.dateEvent = date;
       this.event = ev;
       this.dst = null;  //stored in ev
@@ -99,60 +153,6 @@ public class EventTimerMng extends Thread implements Closeable{
   }
   
   
-  public static class TimeEvent extends Event<TimeEvent.Cmd, Event.NoOpponent>{
-    enum Cmd{Time};
-    
-    final int identNrEvent;
-    
-    /**The constructor
-     * @param dst A destination object should be given
-     * @param thread The destination thread may be null, then the {@link EventConsumer#processEvent(Event)} method
-     *   is called in the timer thread.
-     */
-    public TimeEvent(EventConsumer dst, EventThread thread, int identNrEvent){
-      super(null, dst, thread);
-      this.identNrEvent = identNrEvent;
-    }
-    
-    /**Checks whether the event is a TimeEvent.
-     * @param ev The untyped event
-     * @return null if the event does not match the type, elsewhere the casted event.
-     */
-    public static TimeEvent typeof(Event<?,?> ev){
-      if(ev instanceof TimeEvent){
-        return (TimeEvent)(ev);
-      } else {
-        return null;   //causes an NullPointerException if not expected from caller.
-      }
-    }
-
-    /**Checks whether the received event is matching to the created time order.
-     * An event can be received from an older time order if it is not successfully removed
-     * from an exitAction of any state which has created the time order as its timeout.
-     * It should prevented that a non matching event uses for timeout.
-     * Use the following pattern for timeouts in states:
-     * <pre>
-     * MyState state ...{
-     *   private EventTimerMng.TimeOrder timeOrder;
-     *   ...
-     *  protected void entryAction(Event<?,?> ev){
-     *    timeOrder = stateTop.addTimeOrder(System.currentTimeMillis() + delay);
-     *  ...  
-     *  protected void exitAction(){
-     *    if(timeOrder !=null){ timer.removeTimeOrder(timeOrder); }
-     *  ....  
-     *  private int transXy(EventTimerMng.TimeEvent ev){
-     *    if(ev !=null && ev.isMatchingto(timeOrder)){
-     *      timeOrder = null;
-     * </pre>
-     * @param order
-     * @return true if it is the proper event to the time order.
-     */
-    public boolean isMatchingto(TimeOrder order){ return identNrEvent == order.identNrEvent; }
-    
-  }
-  
-  
   final EventSource evSource = new EventSource("TimerMng"){
     
   };
@@ -161,7 +161,7 @@ public class EventTimerMng extends Thread implements Closeable{
   
   private boolean run;
   
-  /**timestamp for a new time entry. It is set in synchronized operation between {@link #addTimeOrder(Event, long)}
+  /**timestamp for a new time entry. It is set in synchronized operation between {@link #addTimeOrder(TimeEvent, long)}
    * and the wait in the {@link #run()} operation.
    * 
    */
@@ -191,7 +191,7 @@ public class EventTimerMng extends Thread implements Closeable{
   }
   
   
-  public static TimeOrder addGlobalTimeOrder(long date, Event<TimeEvent.Cmd, Event.NoOpponent> evTime){
+  public static TimeOrder addGlobalTimeOrder(long date, TimeEvent evTime){
     if(singleton == null){
       singleton = new EventTimerMng("EventTimerMng");
     }
@@ -215,7 +215,7 @@ public class EventTimerMng extends Thread implements Closeable{
 
   
   
-  public TimeOrder addTimeOrder(long date, Event<TimeEvent.Cmd, Event.NoOpponent> evTime){
+  public TimeOrder addTimeOrder(long date, TimeEvent evTime){
     if(evTime !=null){
       Assert.checkMsg (evTime instanceof TimeEvent, "The Event should be a org.vishia.util.EventTimerMng.TimeEvent");
       Assert.checkMsg (evTime.hasDst(), "The Event must have a destination.");
@@ -298,7 +298,7 @@ public class EventTimerMng extends Thread implements Closeable{
 
   
   private void executeTime(TimeOrder entry){
-    final Event<TimeEvent.Cmd, Event.NoOpponent> ev = entry.event !=null ? entry.event: 
+    final TimeEvent ev = entry.event !=null ? entry.event: 
       new TimeEvent(entry.dst, entry.threadDst, entry.identNrEvent);
     ev.occupy(evSource, true);
     ev.sendEvent(TimeEvent.Cmd.Time);
