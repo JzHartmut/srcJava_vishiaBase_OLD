@@ -1,10 +1,8 @@
-package org.vishia.fileLocalAccessor;
+package org.vishia.fileRemote;
 
 import java.io.File;
 import java.util.LinkedList;
 import java.util.List;
-
-import org.vishia.fileRemote.FileRemote;
 
 
 
@@ -12,26 +10,26 @@ import org.vishia.fileRemote.FileRemote;
  * @author Hartmut Schorrig
  *
  */
-class CopyOrder
+public class FileRemoteCopyOrder
 {
 
   
-  final long ident;
+  public final long ident;
   
   /**If the order is to old, remove it. */
-  long dateCreation;
+  public long dateCreation;
   
   /**File or dir to copy. */
-  FileRemote fileSrc, fileDst;
+  public FileRemote fileSrc, fileDst;
   
   
   /**List of files to handle between {@link #checkCopy(org.vishia.util.FileRemoteAccessor.FileRemote.CallbackEvent)}
    * and {@link #execCopy(org.vishia.util.FileRemoteAccessor.FileRemote.CallbackEvent)}. */
-  final List<File> listCopyFiles = new LinkedList<File>();
+  public final List<File> listCopyFiles = new LinkedList<File>();
   
 
   
-  CopyOrder(long ident){
+  public FileRemoteCopyOrder(long ident){
     this.ident = ident;
   }
   

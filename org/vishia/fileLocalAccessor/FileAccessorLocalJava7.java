@@ -34,6 +34,7 @@ import org.vishia.fileRemote.FileRemote;
 import org.vishia.fileRemote.FileRemoteAccessor;
 import org.vishia.fileRemote.FileRemote.Cmd;
 import org.vishia.fileRemote.FileRemoteCallback;
+import org.vishia.fileRemote.FileRemoteCopy_NEW;
 import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
 import org.vishia.util.SortedTreeWalkerCallback;
@@ -115,8 +116,8 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
    */
   EventConsumer executerCommission = new EventConsumer(){
     @Override public int processEvent(EventMsg<?> ev) {
-      if(ev instanceof Copy_FileLocalAccJava7.EventCpy){ //internal Event
-        copy.stateCopy.processEvent(ev);
+      if(ev instanceof FileRemoteCopy_NEW.EventCpy){ //internal Event
+        copy.statesCopy.processEvent(ev);
         return 1;
       } else if(ev instanceof FileRemote.CmdEvent){  //event from extern
             execCommission((FileRemote.CmdEvent)ev);
@@ -135,7 +136,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
    * Note: the {@link Copy#Copy(FileAccessorLocalJava7)} needs initialized references
    * of {@link #singleThreadForCommission} and {@link #executerCommission}.
    */
-  private final Copy_FileLocalAccJava7 copy = new Copy_FileLocalAccJava7(this);  
+  private final FileRemoteCopy_NEW copy = new FileRemoteCopy_NEW();  
   
   private FileRemote workingDir;
   
@@ -474,7 +475,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
       case delChecked:
       case moveChecked:
       case copyChecked: 
-        copy.stateCopy.processEvent(commission); break;
+        copy.statesCopy.processEvent(commission); break;
       case move: copy.execMove(commission); break;
       case chgProps:  execChgProps(commission); break;
       case chgPropsRecurs:  execChgPropsRecurs(commission); break;

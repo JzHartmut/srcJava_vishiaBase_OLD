@@ -16,6 +16,7 @@ import org.vishia.event.EventMsg;
 import org.vishia.event.EventMsg2;
 import org.vishia.event.EventThread;
 import org.vishia.event.EventTimerMng;
+import org.vishia.fileRemote.FileRemoteCopyOrder;
 import org.vishia.fileRemote.FileRemote;
 import org.vishia.stateMachine.StateCompositeBase;
 import org.vishia.stateMachine.StateSimpleBase;
@@ -243,7 +244,7 @@ public class Copy_FileLocalAccJava6
   private long checkOrderCounter;
   
   /**Container of all check commands. */
-  private final Map<Long, CopyOrder> checkedOrders = new TreeMap<Long, CopyOrder>();
+  private final Map<Long, FileRemoteCopyOrder> checkedOrders = new TreeMap<Long, FileRemoteCopyOrder>();
   
   /**More as one order to check and copy is executed after {@link StateCheckProcess} or {@link StateCopyProcess}
    * is leaved. The event is kept for future execution in the state {@link StateCopyReady}
@@ -295,7 +296,7 @@ public class Copy_FileLocalAccJava6
    * @param ev
    */
   void checkCopy(FileRemote.CmdEvent ev){ 
-    CopyOrder order = new CopyOrder(++checkOrderCounter);
+    FileRemoteCopyOrder order = new FileRemoteCopyOrder(++checkOrderCounter);
     order.fileSrc = ev.filesrc;
     this.modeCopyOper = ev.modeCopyOper;
     order.listCopyFiles.clear();
@@ -322,7 +323,7 @@ public class Copy_FileLocalAccJava6
    * @param dir
    * @param recursion
    */
-  void checkDir(CopyOrder order, File dir, int recursion){
+  void checkDir(FileRemoteCopyOrder order, File dir, int recursion){
     //try{
       File[] files = dir.listFiles();
       for(File file: files){
