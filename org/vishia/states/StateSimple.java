@@ -1174,7 +1174,7 @@ protected Trans selectTrans(EventObject ev) { bCheckTransitionArray = true; retu
  * @param ev Given event
  * @return Bits {@link #mRunToComplete}, {@value #mTransit}, {@link #mEventConsumed}, {@link #mStateEntered} to control the event processing.
  */
-final int checkTransitions(EventObject ev){
+final int checkTransitions(EventObject ev) {
   int res = 0;
   if(!bCheckTransitionArray) {
     //either the first time or overridden check method: Use it.
@@ -1190,9 +1190,19 @@ final int checkTransitions(EventObject ev){
     //not overridden check method.
     for(Trans trans1: aTransitions){ //check all transitions
       trans1.doneExit = trans1.doneAction = trans1.doneEntry = false;
-      res = trans1.doTrans(ev);
-      if((res & (mTransit | mEventConsumed))!=0){
-        break;      //transition is used. therefore donot check the rest.
+      try{
+        res = trans1.doTrans(ev);
+        if((res & (mTransit | mEventConsumed))!=0){
+          break;      //transition is used. therefore donot check the rest.
+        }
+      } catch(Exception exc){
+        if(stateMachine.permitException) {
+          //an exception in a transition is accepted, the show must go on. It means, other transitions may switch.
+          CharSequence excText = Assert.exceptionInfo("StateSimple -" + stateId, exc, 0, 20);
+          System.err.append(excText);
+        } else {
+          throw exc;
+        }
       }
   } }
   return res;
@@ -1273,6 +1283,11 @@ CharSequence getStatePath(){
  * @return
  */
 public String getName(){ return stateId; }
+
+
+public void toString(StringBuilder u) {
+  u.append(stateId);
+}
 
 /**Returns the state Id and maybe some more debug information.
  * @see java.lang.Object#toString()

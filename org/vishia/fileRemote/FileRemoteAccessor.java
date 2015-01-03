@@ -17,7 +17,7 @@ import org.vishia.event.EventMsg2;
  * @author Hartmut Schorrig
  *
  */
-public interface FileRemoteAccessor extends Closeable
+public abstract class FileRemoteAccessor implements Closeable
 {
   /**Version, history and license.
    * <ul>
@@ -73,8 +73,16 @@ public interface FileRemoteAccessor extends Closeable
   //public final static int kOperation = 0xd00000, kFinishOk = 0xf10000, kFinishNok = 0xf10001
   //, kFinishError = 0xf1e3303, kNrofFilesAndBytes = 0xd00001, kCopyDir = 0xd0cd13;
 
+  /**The state machine for executing over some directory trees is handled in this extra class.
+   * Note: the {@link Copy#Copy(FileAccessorLocalJava7)} needs initialized references
+   * of {@link #singleThreadForCommission} and {@link #executerCommission}.
+   */
+  protected final FileRemoteCopy_NEW states = new FileRemoteCopy_NEW();  
   
-  
+
+  protected FileRemoteAccessor(){
+    
+  }
   
   /**Gets the properties of the file from the physical file.
    * @param file the destination file object.
@@ -140,10 +148,10 @@ public interface FileRemoteAccessor extends Closeable
    * @param depth at least 1 for enter in the first directory. Use 0 if all levels should enter.
    * @param callback this callback will be invoked on any file or directory.
    */
-  public void walkFileTree(FileRemote startDir, boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback);
+  public abstract void walkFileTree(FileRemote startDir, boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback);
   
 
-  boolean setLastModified(FileRemote file, long time);
+  protected abstract boolean setLastModified(FileRemote file, long time);
   
   
   public abstract boolean createNewFile(FileRemote file, FileRemote.CallbackEvent callback) throws IOException;

@@ -2,11 +2,11 @@ package org.vishia.states;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.EventObject;
 import java.util.HashMap;
 
-import org.vishia.event.EventMsg;
-import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
+import org.vishia.event.EventMsg;
 import org.vishia.event.EventThread;
 import org.vishia.event.EventTimerMng;
 import org.vishia.util.DataAccess;
@@ -129,6 +129,12 @@ public class StateMachine implements EventConsumer
   public static final String version = "2014-10-14";
 
   
+  /**True then writes a line on any event and state switch to System.out. */
+  public boolean debugState;
+  
+  /**True then permits exceptions in one state transition. send a log output to System.err but check other transitions. */
+  public boolean permitException;
+  
   /**Aggregation to the used event queue or the thread for this statemachine.
    * It can be used to send events to from outer.
    * Note: Do not send events from any other thread to this directly.
@@ -149,6 +155,7 @@ public class StateMachine implements EventConsumer
   /**Map of all states defined as inner classes of the derived class, filled with reflection. */
   HashMap<Integer, StateSimple> stateMap = new HashMap<Integer, StateSimple>();
   
+  private final String name;
 
   protected static class StateCompositeTop extends StateComposite
   {
@@ -167,7 +174,7 @@ public class StateMachine implements EventConsumer
   /**Creates a state machine which is executed directly by {@link #applyEvent(EventMsg2)}. {@link StateSimple.Timeout} is not possible.
    * 
    */
-  public StateMachine() { this(null, null);}
+  public StateMachine(String name) { this(name, null, null);}
   
   /**Constructs a state machine with a given thread and a given timer manager.
    * The constructor of the whole stateMachine does the same as the {@link StateComposite#StateComposite()}: 
@@ -190,8 +197,8 @@ public class StateMachine implements EventConsumer
    * @param thread if given all events are stored in the thread's event queue, the state machine is executed only in that thread.
    * @param if given timer events can be created. 
    */
-  public StateMachine(EventThread thread, EventTimerMng timer)
-  {
+  public StateMachine(String name, EventThread thread, EventTimerMng timer)
+  { this.name = name;
     this.theThread = thread;
     this.theTimer = timer;
     final StateSimple[] aSubstates;
@@ -242,7 +249,8 @@ public class StateMachine implements EventConsumer
   /**Special constructor for StateMGen, with given topState, without reflection analysis. 
    * @param topState
    */
-  protected StateMachine(StateSimple[] aSubstates) {
+  protected StateMachine(String name, StateSimple[] aSubstates) {
+    this.name = name;
     this.topState = new StateCompositeTop(this, aSubstates, null);
     theTimer = null;
     theThread = null;
@@ -272,23 +280,51 @@ public class StateMachine implements EventConsumer
   }
 
 
+  
+  /**This method can be overridden if the moment of applying an event should be debugged
+   * or for example logged in the derived class. It should be done with the pattern:
+   * <pre>
+   * (at)Override public int eventToTopDebug(EventObject ev) {
+   *   //any statements ...
+   *   return super.eventToTopDebug(ev);
+   * }
+   * </pre>
+   * @param ev The event from user or from queue
+   * @return the return value of {@link StateComposite#processEvent}
+   */
+  public int eventToTopDebug(EventObject ev) {
+    return topState._processEvent(ev); 
+  }
+  
 
   /**Applies an event to this state machine. This method is invoked from {@link EventMsg2#sendEvent(Enum)} if this class is given
    * as {@link EventConsumer}. If the statemachine is aggregated with a {@link EventThread} and this routine is invoked from another thread
    * then the event will be stored in {@link #theThread}. It is done if the transmitter of the event does not know about the EventThread.
    * @see org.vishia.event.EventConsumer#processEvent(org.vishia.event.EventMsg2)
    */
-  @Override public int processEvent(EventMsg<?> ev)
+  @Override public int processEvent(EventObject ev)
   { if(theThread == null || theThread.isCurrentThread()) {
-      return topState._processEvent(ev); 
+      return eventToTopDebug(ev); 
     } else {
-      ev.donotRelinquish();
+      if(ev instanceof EventMsg){
+        ((EventMsg<?>)ev).donotRelinquish();
+      }
       theThread.storeEvent(ev);
       return mEventConsumed;
     }
   }
   
+  @Override public String state(){ return toString(); }
+
   
-  
+  /**Shows the name of the Statemachine and all active states.
+   * @see java.lang.Object#toString()
+   */
+  @Override public String toString() {
+    StringBuilder u = new StringBuilder(200);
+    u.append(name).append(':');
+    topState.toString(u);  //fills the buffer with all aktive sub states.
+    return u.toString();
+  }
 
 }

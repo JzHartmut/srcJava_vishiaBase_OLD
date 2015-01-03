@@ -1,5 +1,7 @@
 package org.vishia.stateMachine;
 
+import java.util.EventObject;
+
 import org.vishia.event.EventMsg;
 import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
@@ -212,9 +214,9 @@ public abstract class StateCompositeBase
    * @return The bits {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #trans(EventMsg2)}.
    *   Note that if an event is consumed in an inner state, it should not be applied to its enclosing state transitions. 
    */
-  public int processEvent(final EventMsg<?> evP){  //NOTE: should be protected.
+  public int processEvent(final EventObject evP){  //NOTE: should be protected.
     int cont;
-    EventMsg<?> evTrans = evP;
+    EventMsg<?> evTrans = (EventMsg<?>)evP;
     int catastrophicalCount =  maxStateSwitchesInLoop;
     do{
 

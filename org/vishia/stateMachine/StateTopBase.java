@@ -1,5 +1,7 @@
 package org.vishia.stateMachine;
 
+import java.util.EventObject;
+
 import org.vishia.event.EventMsg;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventThread;
@@ -115,7 +117,7 @@ implements EventConsumer
    * which has the same name and signature, but that routine does not implement the {@link EventConsumer}
    * Only a top state should accept events from outside.
    */
-  @Override public int processEvent(final EventMsg<?> evP){
+  @Override public int processEvent(final EventObject evP){
     return super.processEvent(evP);
   }
 

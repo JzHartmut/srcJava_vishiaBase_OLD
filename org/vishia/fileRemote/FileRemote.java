@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ConcurrentModificationException;
+import java.util.EventObject;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -1906,17 +1907,26 @@ public class FileRemote extends File implements MarkMask_ifc
    * <li>{@link CallbackCmd#askDstNotAbletoOverwr}: The destination file 
    * </ul>
    * {@link EventMsg2#callback}.{@link EventConsumer#processEvent(EventMsg2)} method. 
-   * 
-   * @param evback The event for status messages and success.
+   *
+   * @param dst The destination which is created as copy of this source. If this is a file the dst should describe a file which may not exits.
+   *   If this is a directory dst should describe a directory which can exist or not where the children of this are stored in.
+   * @param mode  
    * @param nameDst maybe null, elsewhere it should contain 1 wildcard to specify an abbreviating name.
+   * @param evback The event for status messages and success.
+   * @return The consumer of the event. The consumer can be ask about its state.
    */
-  public void copyChecked(FileRemote.CallbackEvent evback, String nameDst, int mode){
+  public EventConsumer copyChecked(FileRemote dst, String nameDst, int mode, FileRemote.CallbackEvent evback){
     CmdEvent ev = evback.getOpponent();
-    ev.filesrc = null;
-    ev.filedst = this;
-    ev.nameDst = nameDst;
-    ev.modeCopyOper = mode;
-    ev.sendEvent(Cmd.copyChecked);
+    if(ev.occupy(evSrc, device.states, null, false)) {
+      ev.filesrc = this;
+      ev.filedst = dst;
+      ev.nameDst = nameDst;
+      ev.modeCopyOper = mode;
+      ev.sendEvent(Cmd.copyChecked);
+      return device.states;
+    } else {
+      throw new IllegalStateException("FileRemote.copyChecked - event is occupied.");
+    }
   }
   
   
@@ -2198,6 +2208,11 @@ public class FileRemote extends File implements MarkMask_ifc
     ev.sendEvent(Cmd.abortAll);
   }
   
+  
+  /**Returns the state of the device statemachine, to detect whether it is active or ready.
+   * @return a String for debugging and show.
+   */
+  public String getStateDevice(){ return (device == null) ? "no-device" : device.states.state(); }
   
   public int ident(){ return _ident; }
   
@@ -2628,13 +2643,16 @@ public class FileRemote extends File implements MarkMask_ifc
   protected class CallbackWait implements EventConsumer{
     public CallbackWait(){  }
 
-    @Override public int processEvent(EventMsg<?> ev)
+    @Override public int processEvent(EventObject ev)
     {
       synchronized(FileRemote.this){
         FileRemote.this.notify();
       }
       return 1;
     }
+    
+    @Override public String state(){ return "no-state"; }
+
   }
   
   

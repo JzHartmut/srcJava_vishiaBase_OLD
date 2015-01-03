@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.EventObject;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -31,7 +32,7 @@ import org.vishia.util.FileSystem;
 
 /**Implementation for a standard local file.
  */
-public class FileAccessorLocalJava6 implements FileRemoteAccessor
+public class FileAccessorLocalJava6 extends FileRemoteAccessor
 {
   
   /**Version, history and license.
@@ -119,7 +120,7 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
    * 
    */
   EventConsumer executerCommission = new EventConsumer(){
-    @Override public int processEvent(EventMsg<?> ev) {
+    @Override public int processEvent(EventObject ev) {
       if(ev instanceof Copy_FileLocalAccJava6.EventCpy){ //internal Event
         copy.stateCopy.processEvent(ev);
         return 1;
@@ -130,6 +131,9 @@ public class FileAccessorLocalJava6 implements FileRemoteAccessor
         return 0;
       }
     }
+    
+    @Override public String state(){ return "no-state"; }
+
     @Override public String toString(){ return "FileRemoteAccessorLocal - executerCommision"; }
 
   };

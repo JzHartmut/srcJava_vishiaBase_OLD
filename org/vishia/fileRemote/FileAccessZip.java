@@ -23,7 +23,7 @@ import org.vishia.util.TreeNodeBase;
 import org.vishia.util.UnexpectedException;
 import org.vishia.util.TreeNodeBase.TreeNode;
 
-public class FileAccessZip implements FileRemoteAccessor // extends FileRemoteAccessorLocalFile
+public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAccessorLocalFile
 {
   /**Version, history and license.
    * <ul>

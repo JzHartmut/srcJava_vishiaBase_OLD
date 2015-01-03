@@ -1,5 +1,7 @@
 package org.vishia.event;
 
+import java.util.EventObject;
+
 /**This interface describe the consumer interface for events.
  * The class which implements this interface is able to get events for example from a common queue
  * and executes the {@link #processEvent(EventMsg)} method with the event.
@@ -11,6 +13,8 @@ public interface EventConsumer
 {
   /**Version, history and license
    * <ul>
+   * <li>2013-05-11 Hartmut chg: With the method {@link #state()} any instance is able to quest for its state. 
+   *   It may be an important method for debugging and showing.
    * <li>2013-05-11 Hartmut chg: It is an interface up to now. The idea to store a name for debugging on 
    *   anonymous overridden instances is able to implement with an <code>toString(){ return "name"}</code> alternatively.
    *   The method doProcessEvent is renamed to {@link #processEvent(EventMsg)}. 
@@ -61,7 +65,10 @@ public interface EventConsumer
    *   It is possible to build a chain of responsibility. It is possible too to process a event from 
    *   more as one instance. 
    */
-  int processEvent(EventMsg<?> ev); //{ return false; }
+  int processEvent(EventObject ev); //{ return false; }
+  
+  /**Returns the state of the consumer in a manual readable form. */
+  String state();
   
   /**Bit in return value of a Statemachine's {@link #check(EventMsg)} or entry method for designation, 
    * that the given Event object was used to switch.

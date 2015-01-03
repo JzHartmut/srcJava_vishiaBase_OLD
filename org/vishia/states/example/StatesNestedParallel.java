@@ -52,7 +52,7 @@ public class StatesNestedParallel
    */
   class States extends StateMachine
   {
-    States(EventThread thread, EventTimerMng timer){ super(thread, timer); }
+    States(EventThread thread, EventTimerMng timer){ super("ExampleNestedParallel", thread, timer); }
 
     class StateOff extends StateSimple
     {

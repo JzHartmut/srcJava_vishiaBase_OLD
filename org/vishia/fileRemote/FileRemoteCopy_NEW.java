@@ -23,7 +23,7 @@ import org.vishia.util.Debugutil;
 import org.vishia.util.FileSystem;
 import org.vishia.util.StringFunctions;
 
-public class FileRemoteCopy_NEW
+public class FileRemoteCopy_NEW implements EventConsumer
 {
   
   /**Version, history and license.
@@ -254,6 +254,17 @@ public class FileRemoteCopy_NEW
     evCpy = new EventCpy(statesCopy);
   }
   
+  @Override public String state() {
+    return statesCopy.toString();
+  }
+  
+  
+  /**Delegates all events to {@link #statesCopy}.
+   */
+  @Override public int processEvent(EventObject ev){ 
+    return statesCopy.processEvent(ev);
+  }
+  
   
   
   void sendEventInternal(CmdCpyIntern cmd){
@@ -374,20 +385,38 @@ public class FileRemoteCopy_NEW
   public final class States  extends StateMachine
   {
     
+    public States()
+    {
+      super("FileRemoteCopy", copyThread, null);
+      super.permitException = true;
+    }
+    
+    
+    @Override public int eventToTopDebug(EventObject ev) {
+      return super.eventToTopDebug(ev);
+    }
+    
     final class Ready extends StateSimple
     {
+      final boolean isDefault = true;
+      
       /**Start transition to {@link Process.DirOrFile} */
-      Trans start_dirOrFile(FileRemote.CmdEvent ev, Trans trans) {
+      Trans start_dirOrFile(EventObject ev, Trans trans) {
         if(trans == null) return new Trans(Process.DirOrFile.class);
-        FileRemote.Cmd cmdFile = ev.getCmd();
+        if(!(ev instanceof FileRemote.CmdEvent)) return null;  //don't fire.
+        FileRemote.CmdEvent ev1 = (FileRemote.CmdEvent)ev;
+        FileRemote.Cmd cmdFile = ev1.getCmd();
         if(cmdFile == FileRemote.Cmd.copyChecked || cmdFile == FileRemote.Cmd.moveChecked) {
+          trans.retTrans = mEventConsumed;
           trans.doExit();
           //action:
-          FileRemoteCopy_NEW.this.modeCopyOper = ev.modeCopyOper;
-          dirDst = ev.filedst;
+          FileRemoteCopy_NEW.this.modeCopyOper = ev1.modeCopyOper;
+          dirDst = ev1.filedst();
           actData = getNextCopyData();
+          actData.dst = dirDst;
+          actData.src = ev1.filesrc();
           //newDataSetCopy(ev.filesrc, ev.filedst);
-          evBackInfo = ev.getOpponent();                 //available for all back information while this copying
+          evBackInfo = ev1.getOpponent();                 //available for all back information while this copying
           timestart = System.currentTimeMillis();
           zBytesAllCopied = zFilesCopied = 0;
           //entry in DirOrFile.
@@ -405,16 +434,40 @@ public class FileRemoteCopy_NEW
       /**Set in any sub state entry if the state {@link NextFile} should be activated with run to complete. */
       boolean bNextFile;
       
+      Trans transAsk = new Trans(Ask.class);
+      
+      Trans transNextFile = new Trans(NextFile.class);
+      
+      Trans transAbort = new Trans(States.Ready.class);
+      
+      
+      @Override protected Trans selectTrans(EventObject ev){
+        if(ev instanceof FileRemote.CmdEvent && ((FileRemote.CmdEvent)ev).getCmd() == FileRemote.Cmd.abortAll) return transAbort;
+        else if(bAsk) return transAsk;
+        else if(bNextFile) return transNextFile;
+        else return null;
+      }
+      
+      /*
       class TransAsk extends Trans {
-        TransAsk(){ super(1, Ask.class);}
+        TransAsk(){ super(2, Ask.class);}
         @Override protected void check(EventObject ev){ if(bAsk){ retTrans |= mTransit;} }
       }
 
       class TransNextFile extends Trans {
-        TransNextFile(){ super(2, NextFile.class);}
+        TransNextFile(){ super(3, NextFile.class);}
         @Override protected void check(EventObject ev){ if(bNextFile){ retTrans |= mTransit;} }
       }
 
+      class TransAbort extends Trans {
+        TransAbort(){ super(1, States.Ready.class);}
+        @Override protected void check(EventObject ev){ 
+          if(ev instanceof FileRemote.CmdEvent && ((FileRemote.CmdEvent)ev).getCmd() == FileRemote.Cmd.abortAll) { 
+            retTrans |= mEventConsumed;} 
+        }
+      }
+      */
+      
       /**sets {@link #bAsk} and {@link #bNextFile} to false because it is set in the states then.
        */
       @Override protected int entry(EventObject ev) { 
@@ -532,8 +585,10 @@ public class FileRemoteCopy_NEW
        * </ul>
        */
       class DirOrFile extends StateSimple {
-  
-        Trans transCopySubdir(EventMsg<?> ev, Trans trans){
+
+        final boolean isDefault = true;
+
+        Trans transCopySubdir(EventObject ev, Trans trans){
           if(trans == null) return new Trans(1, Subdir.class);
           if(actData.src.isDirectory()){
             trans.retTrans = mTransit;
@@ -541,7 +596,7 @@ public class FileRemoteCopy_NEW
           return null;
         }
         
-        Trans transDelFile(EventMsg<?> ev, Trans trans){
+        Trans transDelFile(EventObject ev, Trans trans){
           if(trans == null) return new Trans(2, DelFile.class);
           if(cmdFile == FileRemote.Cmd.delChecked){
             trans.retTrans = mTransit;
@@ -549,7 +604,7 @@ public class FileRemoteCopy_NEW
           return null;
         }
         
-        Trans transMoveFile(EventMsg<?> ev, Trans trans){
+        Trans transMoveFile(EventObject ev, Trans trans){
           if(trans == null) return new Trans(3, MoveFile.class);
           if(cmdFile == FileRemote.Cmd.move){
             trans.retTrans = mTransit;
@@ -557,7 +612,7 @@ public class FileRemoteCopy_NEW
           return null;
         }
         
-        Trans transStartCopy(EventMsg<?> ev, Trans trans){
+        Trans transStartCopy(EventObject ev, Trans trans){
           if(trans == null) return new Trans(4, CopyFile.class);
           else trans.retTrans = mTransit;   //else transition.
           return null;
@@ -820,9 +875,7 @@ public class FileRemoteCopy_NEW
             if(FileRemoteCopy_NEW.this.in!=null){ 
               zFilesCopied +=1;
               FileRemoteCopy_NEW.this.in.close(); 
-              actData.src.resetMarked(1);
-              actData.src.resetMarked(FileMark.mCmpFile);
-              actData.dst.resetMarked(FileMark.mCmpFile);
+              actData.src.resetMarked(1 | FileMark.mCmpFile);
               actData.src.setDirShouldRefresh();
               actData.dst.setDirShouldRefresh();
             }
@@ -976,39 +1029,47 @@ public class FileRemoteCopy_NEW
       
       class Ask extends StateSimple {
 
-        Trans transDirOrFile(FileRemote.CmdEvent ev, Trans trans){ 
+        Trans transDirOrFile(EventObject ev, Trans trans){ 
           if(trans == null) return new Trans(2, DirOrFile.class);
-          if(ev.getCmd() == FileRemote.Cmd.overwr){
-            modeCopyOper  = ev.modeCopyOper;
+          if(!(ev instanceof FileRemote.CmdEvent)) return null;  //don't fire.
+          FileRemote.CmdEvent ev1 = (FileRemote.CmdEvent)ev;
+          if(ev1.getCmd() == FileRemote.Cmd.overwr){
+            modeCopyOper  = ev1.modeCopyOper;
             bOverwrfile = true;
             trans.retTrans = mEventConsumed;
           }
           return null; 
         }
         
-        Trans transAbortFile(FileRemote.CmdEvent ev, Trans trans){ 
+        Trans transAbortFile(EventObject ev, Trans trans){ 
           if(trans == null) return new Trans(2, NextFile.class);
-          if(ev.getCmd() == FileRemote.Cmd.abortCopyFile){
-            modeCopyOper  = ev.modeCopyOper;
+          if(!(ev instanceof FileRemote.CmdEvent)) return null;  //don't fire.
+          FileRemote.CmdEvent ev1 = (FileRemote.CmdEvent)ev;
+          if(ev1.getCmd() == FileRemote.Cmd.abortCopyFile){
+            modeCopyOper  = ev1.modeCopyOper;
             trans.retTrans = mEventConsumed;
           }
           return null; 
         }
         
-        Trans transAbortDir(FileRemote.CmdEvent ev, Trans trans){ 
+        Trans transAbortDir(EventObject ev, Trans trans){ 
           if(trans == null) return new Trans(2, NextFile.class);
-          if(ev.getCmd() == FileRemote.Cmd.abortCopyDir){
-            modeCopyOper  = ev.modeCopyOper;
+          if(!(ev instanceof FileRemote.CmdEvent)) return null;  //don't fire.
+          FileRemote.CmdEvent ev1 = (FileRemote.CmdEvent)ev;
+          if(ev1.getCmd() == FileRemote.Cmd.abortCopyDir){
+            modeCopyOper  = ev1.modeCopyOper;
             bAbortDirectory = true;
             trans.retTrans = mEventConsumed;
           }
           return null; 
         }
         
-        Trans transAbortAll(FileRemote.CmdEvent ev, Trans trans){ 
+        Trans transAbortAll(EventObject ev, Trans trans){ 
           if(trans == null) return new Trans(2, NextFile.class);
-          if(ev.getCmd() == FileRemote.Cmd.abortAll){
-            modeCopyOper  = ev.modeCopyOper;
+          if(!(ev instanceof FileRemote.CmdEvent)) return null;  //don't fire.
+          FileRemote.CmdEvent ev1 = (FileRemote.CmdEvent)ev;
+          if(ev1.getCmd() == FileRemote.Cmd.abortAll){
+            modeCopyOper  = ev1.modeCopyOper;
             copyAbort();
             trans.retTrans = mEventConsumed;
           }

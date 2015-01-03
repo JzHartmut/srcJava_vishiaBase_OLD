@@ -2,6 +2,7 @@ package org.vishia.event;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.EventObject;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.vishia.util.Assert;
@@ -14,6 +15,8 @@ public class EventThread implements Runnable, Closeable
 {
   /**Version, history and license.
    * <ul>
+   * <li>2015-01-04 Hartmut chg: Now uses the Java-standard {@link EventObject} instead a specific one,
+   *   but some methods are supported for {@link EventMsg}, especially {@link EventMsg#notifyDequeued()} and {@link EventMsg#stateOfEvent}.  
    * <li>2013-05-12 Hartmut chg: Now the thread starts and ends automatically if {@link #startThread()}
    *   is not invoked.
    * <li>2012...improved
@@ -49,7 +52,7 @@ public class EventThread implements Runnable, Closeable
   
   
   
-  protected final ConcurrentLinkedQueue<EventMsg> queueEvents = new ConcurrentLinkedQueue<EventMsg>();
+  protected final ConcurrentLinkedQueue<EventObject> queueEvents = new ConcurrentLinkedQueue<EventObject>();
 
   /**The state of the thread
    * <ul>
@@ -91,8 +94,8 @@ public class EventThread implements Runnable, Closeable
   }
   
   
-  public void storeEvent(EventMsg ev){
-    ev.stateOfEvent = 'q';
+  public void storeEvent(EventObject ev){
+    if(ev instanceof EventMsg) { ((EventMsg)ev).stateOfEvent = 'q'; }
     queueEvents.offer(ev);
     if(thread == null){
       startThread();
@@ -125,11 +128,40 @@ public class EventThread implements Runnable, Closeable
   
   
   
-  @Override public void run()
+  /**This method should be overridden if other events then {@link EventMsg} are used because the destination of an event
+   * is not defined for a java.util.EventObject.
+   * @param ev
+   */
+  protected void applyEvent(EventObject ev)
+  {
+    if(ev instanceof EventMsg){
+      EventMsg<?> event = (EventMsg<?>) ev;
+      event.stateOfEvent = 'e';
+      event.notifyDequeued();
+      try{
+        event.donotRelinquish = false;
+        event.evDst().processEvent(event);
+      } catch(Exception exc) {
+        System.err.println("Exception while processing an event: " + exc.getMessage());
+        exc.printStackTrace(System.err);
+      }
+      event.relinquish();
+      
+    }
+  }
+  
+  
+  
+  
+  
+  /**Run method of the thread.
+   * @see java.lang.Runnable#run()
+   */
+  @Override final public void run()
   { stateOfThread = 'r';
     do { 
       try{ //never let the thread crash
-        EventMsg event;
+        EventObject event;
         if( (event = queueEvents.poll()) !=null){
           this.ctWaitEmptyQueue = 0;
           synchronized(this){
@@ -138,16 +170,7 @@ public class EventThread implements Runnable, Closeable
             }
           }
           if(stateOfThread == 'b'){
-            event.stateOfEvent = 'e';
-            event.notifyDequeued();
-            try{
-              event.donotRelinquish = false;
-              event.evDst().processEvent(event);
-            } catch(Exception exc) {
-              System.err.println("Exception while processing an event: " + exc.getMessage());
-              exc.printStackTrace(System.err);
-            }
-            event.relinquish();
+            applyEvent(event);
           }
         } else {
           if(!startOnDemand   //wait anytime 

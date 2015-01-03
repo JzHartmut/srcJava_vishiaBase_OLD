@@ -1,5 +1,6 @@
 package org.vishia.stateMachine;
 
+import java.util.EventObject;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -108,7 +109,7 @@ extends StateCompositeBase<DerivedState, EnclosingState>
 
   
   
-  @Override public int processEvent(EventMsg<?> ev){
+  @Override public int processEvent(EventObject ev){
     int cont = 0;
     for(StateCompositeBase<?, DerivedState> state: states){
       cont |= state.processEvent(ev);
@@ -116,7 +117,7 @@ extends StateCompositeBase<DerivedState, EnclosingState>
     if((cont & StateSimpleBase.mEventConsumed) != 0){
       ev = null;
     }
-    trans(ev);  //the own trans
+    trans((EventMsg<?>)ev);  //the own trans
     return cont;
   }
   

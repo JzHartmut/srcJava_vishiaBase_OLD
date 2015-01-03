@@ -18,6 +18,7 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.DosFileAttributes;
 import java.nio.file.attribute.FileTime;
+import java.util.EventObject;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +40,7 @@ import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
 import org.vishia.util.SortedTreeWalkerCallback;
 
-public class FileAccessorLocalJava7 implements FileRemoteAccessor
+public class FileAccessorLocalJava7 extends FileRemoteAccessor
 {
   /**Version, history and license.
    * <ul>  
@@ -115,9 +116,9 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
    * 
    */
   EventConsumer executerCommission = new EventConsumer(){
-    @Override public int processEvent(EventMsg<?> ev) {
+    @Override public int processEvent(EventObject ev) {
       if(ev instanceof FileRemoteCopy_NEW.EventCpy){ //internal Event
-        copy.statesCopy.processEvent(ev);
+        states.statesCopy.processEvent(ev);
         return 1;
       } else if(ev instanceof FileRemote.CmdEvent){  //event from extern
             execCommission((FileRemote.CmdEvent)ev);
@@ -126,6 +127,9 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
         return 0;
       }
     }
+    
+    @Override public String state(){ return "no-state"; }
+
     @Override public String toString(){ return "FileRemoteAccessorLocal - executerCommision"; }
 
   };
@@ -136,7 +140,7 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
    * Note: the {@link Copy#Copy(FileAccessorLocalJava7)} needs initialized references
    * of {@link #singleThreadForCommission} and {@link #executerCommission}.
    */
-  private final FileRemoteCopy_NEW copy = new FileRemoteCopy_NEW();  
+  //private final FileRemoteCopy_NEW copy = new FileRemoteCopy_NEW();  
   
   private FileRemote workingDir;
   
@@ -475,8 +479,8 @@ public class FileAccessorLocalJava7 implements FileRemoteAccessor
       case delChecked:
       case moveChecked:
       case copyChecked: 
-        copy.statesCopy.processEvent(commission); break;
-      case move: copy.execMove(commission); break;
+        states.statesCopy.processEvent(commission); break;
+      case move: states.execMove(commission); break;
       case chgProps:  execChgProps(commission); break;
       case chgPropsRecurs:  execChgPropsRecurs(commission); break;
       case countLength:  execCountLength(commission); break;

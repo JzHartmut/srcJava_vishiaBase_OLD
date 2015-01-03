@@ -18,7 +18,7 @@ public class StateExampleSimple
   
   
   //class States extends StateTop
-  StateMachine states1 = new StateMachine()
+  StateMachine states1 = new StateMachine("ExampleSimple")
   {
     
     class StateIdle extends StateSimple {

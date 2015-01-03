@@ -308,8 +308,8 @@ public class StateComposite extends StateSimple
         ret |= state.entryDefaultState();
       }
     }
-    if(aSubstates !=null) {
-      ret |= aSubstates[0].entryTheState(null,0);
+    if(stateDefault !=null) {
+      ret |= stateDefault.entryTheState(null,0);
     }
     /*
     if(this instanceof StateParallel){
@@ -598,10 +598,12 @@ public class StateComposite extends StateSimple
     String separator = "";
     if(aSubstates !=null) {
       u.append(stateId);
+      u.append('-');
       if(isActive) {
-        u.append(stateAct.toString());
+        stateAct.toString(u);
+        //u.append(stateAct.toString());
       }
-      separator = " || ";
+      separator = "||";  //for parallel states
     }
     /*
     return stateId + ":" + (!isActive ? "-inactive-": 
@@ -613,7 +615,7 @@ public class StateComposite extends StateSimple
       for(StateComposite stateParallel: aParallelstates){
         u.append(separator);
         stateParallel.toString(u);
-        separator = " || ";
+        separator = "||";
       }
     }
   
