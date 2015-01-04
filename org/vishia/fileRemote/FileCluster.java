@@ -2,6 +2,7 @@ package org.vishia.fileRemote;
 
 import java.util.Iterator;
 import java.util.ListIterator;
+import java.util.Map;
 
 import org.vishia.util.Assert;
 import org.vishia.util.Debugutil;
@@ -151,13 +152,21 @@ public class FileCluster
         idxPaths.put(sDir, dirCheck);  //Note: parents of the new FileRemote are recognized.
       }
     }
+    //builds or stores the requested file:
+    final FileRemote fileRet;
+    if(sName !=null){
+      fileRet = dirCheck.child(sName);
+    } else {
+      fileRet = dirCheck;
+    }
     //checks and registers all parent till the root.
-    FileRemote parent = dirCheck;
-    while(!parent.isRoot()){
-      if(parent.parent !=null) { 
-        parent = parent.parent; 
+    FileRemote parentdirCheck;
+    while(!dirCheck.isRoot()){
+      if(dirCheck.parent !=null) { 
+        parentdirCheck = dirCheck.parent; 
       } else {
-        CharSequence path = parent.getPathChars();
+        //it has no parent, but it is not a root. search the parent:
+        CharSequence path = dirCheck.getPathChars();
         int pos1 = StringFunctions.lastIndexOf(path, '/');
         int pos2 = StringFunctions.indexOf(path, '/', 0);
         final CharSequence sGrandParent; 
@@ -170,21 +179,20 @@ public class FileCluster
           sGrandParent = path.subSequence(0, pos1);  //without ending /
           flags = FileRemote.mDirectory; // | FileRemote
         }
-        FileRemote grandParent = idxPaths.get(sGrandParent);
-        if(grandParent == null) {
-          grandParent = new FileRemote(this, parent.device, null, sGrandParent, 0, 0, 0, 0, flags, null, true);
-          idxPaths.put(sGrandParent.toString(), grandParent);
+        parentdirCheck = idxPaths.get(sGrandParent);
+        if(parentdirCheck == null) {
+          parentdirCheck = new FileRemote(this, dirCheck.device, null, sGrandParent, 0, 0, 0, 0, flags, null, true);
+          idxPaths.put(sGrandParent.toString(), parentdirCheck);
         }
-        parent.parent = grandParent;
-        parent = grandParent;
+        dirCheck.parent = parentdirCheck;
       }
-    }
-    final FileRemote fileRet;
-    if(sName !=null){
-      fileRet = dirCheck.child(sName);
-    } else {
-      fileRet = dirCheck;
-    }
+      //check if the child is known in the parent:
+      Map<String,FileRemote> children = parentdirCheck.children();
+      if(children == null || children.get(dirCheck.getName()) ==null) {
+        parentdirCheck.putNewChild(dirCheck);
+      }
+      dirCheck = parentdirCheck;
+    } //while
     return fileRet;
   }
 

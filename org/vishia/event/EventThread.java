@@ -6,12 +6,13 @@ import java.util.EventObject;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.vishia.util.Assert;
+import org.vishia.util.InfoAppend;
 
 /**This class organizes the execution of events in a own thread. The class contains the event queue.
  * @author Hartmut Schorrig
  *
  */
-public class EventThread implements Runnable, Closeable
+public class EventThread implements Runnable, Closeable, InfoAppend
 {
   /**Version, history and license.
    * <ul>
@@ -76,6 +77,8 @@ public class EventThread implements Runnable, Closeable
   
   protected int maxCtWaitEmptyQueue = 5;
   
+  private boolean preserveRecursiveInfoAppend;
+  
   public EventThread(String threadName)
   {
     this.threadName = threadName;
@@ -128,8 +131,10 @@ public class EventThread implements Runnable, Closeable
   
   
   
-  /**This method should be overridden if other events then {@link EventMsg} are used because the destination of an event
-   * is not defined for a java.util.EventObject.
+  /**Applies an event from the queue to the destination in the event thread. 
+   * This method should be overridden if other events then {@link EventMsg} are used because the destination of an event
+   * is not defined for a java.util.EventObject. Therefore it should be defined in a user-specific way in the overridden method.
+   * This method is proper for events of type {@link EventMsg} which knows their destination.
    * @param ev
    */
   protected void applyEvent(EventObject ev)
@@ -139,14 +144,14 @@ public class EventThread implements Runnable, Closeable
       event.stateOfEvent = 'e';
       event.notifyDequeued();
       try{
-        event.donotRelinquish = false;
+        event.donotRelinquish = false;   //may be overridden in processEvent if the event is stored in another queue
         event.evDst().processEvent(event);
       } catch(Exception exc) {
-        System.err.println("Exception while processing an event: " + exc.getMessage());
-        exc.printStackTrace(System.err);
+        CharSequence excMsg = Assert.exceptionInfo("EventThread.applyEvent exception", exc, 0, 50);
+        System.err.append(excMsg);
+        //exc.printStackTrace(System.err);
       }
-      event.relinquish();
-      
+      event.relinquish();  //the event can be reused, a waiting thread will be notified.
     }
   }
   
@@ -217,5 +222,30 @@ public class EventThread implements Runnable, Closeable
     }  
   }
     
+  
+  @Override public CharSequence infoAppend(StringBuilder u) {
+    if(u == null) { u = new StringBuilder(); }
+    u.append("Thread ");
+    u.append(threadName);
+    if(!preserveRecursiveInfoAppend){
+      preserveRecursiveInfoAppend = true;
+      EventObject[] ev1 = queueEvents.toArray(new EventObject[20]); //presumed, no more as 20 elements in the queue, typically 1..0. 
+      char sep = ':';
+      for(EventObject ev: ev1){
+        if(ev !=null) {
+          u.append(sep).append(' ');
+          u.append(ev.toString());
+          sep = ',';
+        }
+      }
+      preserveRecursiveInfoAppend = false;
+    }
+    u.append("; ");
+    return u;
+  }
+  
+  /*no: Returns only the thread name. Note: Prevent recursively call for gathering info.
+   */
+  @Override public String toString() { if(preserveRecursiveInfoAppend) return threadName; else return infoAppend(null).toString(); } 
   
 }

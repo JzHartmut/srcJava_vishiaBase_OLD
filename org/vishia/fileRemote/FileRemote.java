@@ -699,6 +699,10 @@ public class FileRemote extends File implements MarkMask_ifc
  
   public FileRemoteAccessor device() { return device; }
   
+  
+  
+  
+  
   void putNewChild(FileRemote child){
     if(children == null){
       //children = new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString);  //TreeMap<String, FileRemote>();

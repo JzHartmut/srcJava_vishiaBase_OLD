@@ -9,6 +9,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+
 //import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventTimerMng;
@@ -18,6 +19,7 @@ import org.vishia.util.Assert;
 import org.vishia.util.DataAccess;
 import org.vishia.util.Debugutil;
 import org.vishia.util.IndexMultiTable;
+import org.vishia.util.InfoAppend;
 
 
 
@@ -87,7 +89,7 @@ import org.vishia.util.IndexMultiTable;
  * @author Hartmut Schorrig
  *
  */
-public abstract class StateSimple
+public abstract class StateSimple implements InfoAppend
 {
   
 /**Version, history and license.
@@ -1183,18 +1185,24 @@ protected Trans selectTrans(EventObject ev) { bCheckTransitionArray = true; retu
  */
 final int checkTransitions(EventObject ev) {
   int res = 0;
+  //clear all transition data before test it:
+  if(aTransitions !=null) {
+    for(Trans trans1: aTransitions){ //check all transitions
+      trans1.doneExit = trans1.doneAction = trans1.doneEntry = false;
+      trans1.retTrans = 0;
+  } }
   if(!bCheckTransitionArray) {
     //either the first time or overridden check method: Use it.
     Trans trans = selectTrans(ev);
     if(trans !=null){
-      /*
       if(!trans.doneExit)   { trans.doExit(); }
       if(!trans.doneAction) { trans.doAction(ev,0); }
       if(!trans.doneEntry)  { trans.doEntry(ev); }
-      */
+      /*
       trans.doExit();  //exit the current state(s)
       trans.doAction(ev, 0);
       trans.doEntry(ev,0);
+      */
       if((trans.retTrans & mEventNotConsumed) ==0) {
         trans.retTrans |= mEventConsumed;
       }
@@ -1301,8 +1309,12 @@ CharSequence getStatePath(){
 public String getName(){ return stateId; }
 
 
-public void toString(StringBuilder u) {
-  u.append(stateId);
+public CharSequence infoAppend(StringBuilder u) {
+  if(u !=null) {
+    u.append(stateId);
+    return u;
+  }
+  else return stateId;
 }
 
 /**Returns the state Id and maybe some more debug information.

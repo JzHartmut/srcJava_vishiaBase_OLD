@@ -10,6 +10,7 @@ import org.vishia.event.EventMsg;
 import org.vishia.event.EventThread;
 import org.vishia.event.EventTimerMng;
 import org.vishia.util.DataAccess;
+import org.vishia.util.InfoAppend;
 
 /**
  * To build a state machine you should build a maybe inner class derived from {@link org.vishia.states.StateMachine}. This class builds the frame for all states.
@@ -89,7 +90,7 @@ import org.vishia.util.DataAccess;
  * @author hartmut Schorrig
  *
  */
-public class StateMachine implements EventConsumer
+public class StateMachine implements EventConsumer, InfoAppend
 {
   
   /**Version, history and license.
@@ -129,8 +130,11 @@ public class StateMachine implements EventConsumer
   public static final String version = "2014-10-14";
 
   
-  /**True then writes a line on any event and state switch to System.out. */
-  public boolean debugState;
+  /**If set true, then any state transition is logged with System.out.printf("..."). One can use the 
+   * {@link org.vishia.msgDispatch.MsgRedirectConsole} to use a proper log system. 
+   */
+  protected boolean debugState = false;
+  
   
   /**True then permits exceptions in one state transition. send a log output to System.err but check other transitions. */
   public boolean permitException;
@@ -317,14 +321,24 @@ public class StateMachine implements EventConsumer
   @Override public String getStateInfo(){ return toString(); }
 
   
+  @Override public CharSequence infoAppend(StringBuilder u){
+    if(u == null){ u = new StringBuilder(200); }
+    u.append(name).append(':');
+    topState.infoAppend(u);  //fills the buffer with all aktive sub states.
+    u.append("; ");
+    if(theThread !=null){
+      theThread.infoAppend(u);
+    }
+    return u;
+  }
+  
+  
+  
   /**Shows the name of the Statemachine and all active states.
    * @see java.lang.Object#toString()
    */
   @Override public String toString() {
-    StringBuilder u = new StringBuilder(200);
-    u.append(name).append(':');
-    topState.toString(u);  //fills the buffer with all aktive sub states.
-    return u.toString();
+    return infoAppend(null).toString();
   }
 
 }

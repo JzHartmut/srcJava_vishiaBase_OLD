@@ -6,9 +6,11 @@ import java.util.LinkedList;
 import java.util.List;
 
 
-import org.vishia.util.DataAccess;
 
-public class StateComposite extends StateSimple
+import org.vishia.util.DataAccess;
+import org.vishia.util.InfoAppend;
+
+public class StateComposite extends StateSimple implements InfoAppend
 {
   /**Version, history and license.
    * <ul>
@@ -67,11 +69,6 @@ public class StateComposite extends StateSimple
    * and a new state is not entered yet, while temporary transition processing. It helps to prevent double
    * execution of the {@link #exitTheState()} routine if exit of the enclosing state is processed.*/
   boolean isActive;
-  
-  /**If set true, then any state transition is logged with System.out.printf("..."). One can use the 
-   * {@link org.vishia.msgDispatch.MsgRedirectConsole} to use a proper log system. 
-   */
-  private boolean debugState = false;
   
   /*package private*/ StateSimple stateAct;
   
@@ -441,7 +438,7 @@ public class StateComposite extends StateSimple
       //and only if either an event is present or the state has only conditional transitions.
       StateSimple statePrev = stateAct;
       int trans = checkTransitions(evTrans); 
-      if(debugState && (cont & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, trans); }
+      if(stateMachine.debugState && (trans & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, trans); }
       cont |= trans;
     }
     return cont;  //runToComplete.bit may be set from an inner state transition too.
@@ -450,6 +447,10 @@ public class StateComposite extends StateSimple
   
   
   
+  /**Applies the event or switch transition for this composite state and sub states, not for parallel ones.
+   * @param ev
+   * @return Bits {@link StateSimple#mEventConsumed} etc.
+   */
   private int processEventOwnStates(EventObject ev) {
     //this composite has own substates, not only a container for parallel states:
     EventObject evTrans = ev;
@@ -462,7 +463,7 @@ public class StateComposite extends StateSimple
       contLoop = 0;
       if(stateAct == null){
         contLoop |= entryDefaultState();  //regards also Parallel states.
-        if(debugState && (contLoop & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(null, evTrans, contLoop); }
+        if(stateMachine.debugState && (contLoop & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(null, evTrans, contLoop); }
       } 
       if(stateAct instanceof StateComposite){
         //recursively call for the composite inner state
@@ -470,7 +471,7 @@ public class StateComposite extends StateSimple
       } else {
         StateSimple statePrev = stateAct;
         int trans = stateAct.checkTransitions(evTrans);
-        if(debugState && (trans & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, trans); }
+        if(stateMachine.debugState && (trans & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, trans); }
         contLoop |= trans;
       }
       //
@@ -519,6 +520,8 @@ public class StateComposite extends StateSimple
       System.out.println("StateCompositeBase - switch;" + sStatePrev + " ==> "  + uStateNext + "; event=" + evTrans + ";");
     } else if(evTrans !=null){ 
       System.out.println("StateCompositeBase - switch;" + sStatePrev + " ==> "  + uStateNext + "; not used event=" + evTrans + ";");
+    } else { 
+      System.out.println("StateCompositeBase - switch;" + sStatePrev + " ==> "  + uStateNext + "; runToComplete;");
     }
     
   }
@@ -594,38 +597,33 @@ public class StateComposite extends StateSimple
   
   
   
-  public void toString(StringBuilder u) {
+  @Override public CharSequence infoAppend(StringBuilder u) {
+    if(u == null) { u = new StringBuilder(200); }
     String separator = "";
     if(aSubstates !=null) {
       u.append(stateId);
       u.append('-');
       if(isActive) {
-        stateAct.toString(u);
+        stateAct.infoAppend(u);
         //u.append(stateAct.toString());
       }
       separator = "||";  //for parallel states
     }
-    /*
-    return stateId + ":" + (!isActive ? "-inactive-": 
-      (stateAct instanceof StateComposite ? stateAct.toString()  //recursive call of toString 
-          : (stateAct == null ? "null" : stateAct.stateId)));   //attention: StateSimple shows the state structure backward. Use only stateId! 
-
-    */
     if(aParallelstates !=null) {
       for(StateComposite stateParallel: aParallelstates){
         u.append(separator);
-        stateParallel.toString(u);
+        stateParallel.infoAppend(u);
         separator = "||";
       }
     }
-  
+    return u;
     
   }
   
   
   @Override public String toString(){ 
     StringBuilder u = new StringBuilder();
-    toString(u);
+    infoAppend(u);
     return u.toString();
   }
 

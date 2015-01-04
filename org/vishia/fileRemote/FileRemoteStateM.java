@@ -275,7 +275,14 @@ public class FileRemoteStateM implements EventConsumer
   }
   
   @Override public String getStateInfo() {
-    return statesCopy.toString();
+    if(stateThread !=null){
+      StringBuilder u = new StringBuilder();
+      if(statesCopy.toogleDebugState()){
+        u.append(" Log trans;");
+      }
+      statesCopy.infoAppend(u);
+      return u.toString();
+    } else  return statesCopy.toString();
   }
   
   
@@ -344,7 +351,7 @@ public class FileRemoteStateM implements EventConsumer
       for(Map.Entry<String, FileRemote> item: actData.src.children().entrySet()){
         FileRemote child = item.getValue();
       //for(FileRemote child: children){
-        if(child.exists() && child.isMarked(1)){
+        if(child.exists() && child.isMarked(FileMark.selectSomeInDir | FileMark.select)){
           String sName = child.getName();
           child.resetMarked(1);
           FileRemote childDst = actData.dst == null ? null : actData.dst.child(sName);
@@ -508,7 +515,7 @@ public class FileRemoteStateM implements EventConsumer
         mResult |= mAsk;
       }
     }
-    if((mResult & mAsk) ==0) {
+    if((mResult & (mAsk | mNextFile)) ==0) {
       sendEventInternal(CmdIntern.copyFileContent);  //Note: An abort event may be stored firstly, it has priority. Therefore don't use run to completion.
     }
     return mResult; 
@@ -613,7 +620,65 @@ public class FileRemoteStateM implements EventConsumer
   }
 
   
-  
+  /**Gets the next file from {@link #actData}.
+   * 
+   */
+  void execNextFile() {
+    boolean bCont;
+    //close currently file if this state is entered from stateAsk. The regular close() is executed on exit of stateCopyFile.
+    if(actData ==null) {
+      Debugutil.stop();
+    } else {
+      actData.src.resetMarked(1); ///
+    }
+    if(this.in !=null){
+      zFilesCopied +=1;
+      try{ FileRemoteStateM.this.in.close();
+      } catch(IOException exc){
+        System.err.printf("FileAccessorLocalJava7 -Copy close src while abort, unexpected error; %s\n", exc.getMessage());
+      }
+      FileRemoteStateM.this.in = null;
+    }
+    if(FileRemoteStateM.this.out !=null){
+      try{ FileRemoteStateM.this.out.close();
+      } catch(IOException exc){
+        System.err.printf("FileAccessorLocalJava7 -Copy close dst while abort, unexpected error; %s\n", exc.getMessage());
+      }
+      FileRemoteStateM.this.out = null;
+    }
+    do{
+      if(actData == null || actData.parent ==null) {
+        actData = null;
+        bCont = false;
+      } else {
+        DataSetCopy1Recurs nextChild;
+        actData = actData.parent;  //back to directory or parent directory.
+        if(! bAbortDirectory
+          && actData.listChildren !=null //-actData.listSrc !=null //copy a directory tree?
+          && (nextChild = actData.listChildren.poll()) !=null //-actData.iterChildren.hasNext() //-++actData.ixSrc < actData.listSrc.length
+          ){
+          actData = nextChild;
+          //-FileRemote src = actData.listSrc[actData.ixSrc];
+          //-FileRemote dst = new FileRemote(FileRemote.fromFile(actData.dst), src.getName());
+          //-newDataSetCopy(src, dst);
+          //-actData = actData.iterChildren.next();
+          //sendEv(CmdCpyIntern.dirFile);
+          bCont = false;
+        } else {
+          bCont = true;  //get parent till another actData is found
+          if(actData.src !=null){
+            actData.src.resetMarked(1);  //It is processed.
+          }
+        }
+      }
+      bAbortDirectory = false;  //don't abort its parent.
+    }while(bCont);
+    //return isConsumed | StateSimpleBase.mRunToComplete;
+    if(actData == null){
+      //actData = getNextCopyData();  //maybe more, maybe null
+    }
+  }//entry
+
   
   
   private DataSetCopy1Recurs getNextCopyData(){
@@ -652,51 +717,80 @@ public class FileRemoteStateM implements EventConsumer
   
 
   
+  /**This is the state machine of all FileRemote actions which needs interaction, therewith the processing may remain in any state 
+   * till the operator responded.
+   */
   public final class States  extends StateMachine
   {
     
     public States()
     {
-      super("FileRemoteCopy", stateThread, null);
+      super("FileRemoteCopy", stateThread, null);  //no timer necessary, use abort action
       super.permitException = true;
     }
     
     
+    /**Via operation from outside: Switch debug (printf for state transitions) on and off.
+     * @return true if it is on.
+     */
+    boolean toogleDebugState(){ return super.debugState = !super.debugState; }
+    
+    /* (non-Javadoc)
+     * @see org.vishia.states.StateMachine#eventToTopDebug(java.util.EventObject)
+     */
     @Override public int eventToTopDebug(EventObject ev) {
       return super.eventToTopDebug(ev);
     }
     
+    /**The idle state, ready for operation.
+     */
     final class Ready extends StateSimple
     {
       final boolean isDefault = true;
       
-      /**Start transition to {@link Process.DirOrFile} */
-      Trans start_dirOrFile(EventObject ev, Trans trans) {
-        if(trans == null) return new Trans(Process.DirOrFile.class);
-        if(!(ev instanceof FileRemote.CmdEvent)) return null;  //don't fire.
-        FileRemote.CmdEvent ev1 = (FileRemote.CmdEvent)ev;
-        FileRemote.Cmd cmdFile = ev1.getCmd();
-        if(cmdFile == FileRemote.Cmd.copyChecked || cmdFile == FileRemote.Cmd.moveChecked) {
-          FileRemoteStateM.this.cmdFile = cmdFile;
-          trans.retTrans = mEventConsumed;
-          trans.doExit();
-          //action:
-          FileRemoteStateM.this.modeCopyOper = ev1.modeCopyOper;
-          dirDst = ev1.filedst();
-          actData = getNextCopyData();
-          actData.dst = dirDst;
-          actData.src = ev1.filesrc();
-          //newDataSetCopy(ev.filesrc, ev.filedst);
-          evBackInfo = ev1.getOpponent();                 //available for all back information while this copying
-          timestart = System.currentTimeMillis();
-          zBytesAllCopied = zFilesCopied = 0;
-          //entry in DirOrFile.
+      /**Start transition for copy to {@link Process.DirOrFile} */
+      Trans transStart_DirOrFile = new Trans(Process.DirOrFile.class);
+      
+      
+      @Override protected Trans selectTrans(EventObject ev) {
+        Trans trans = null;
+        if((ev instanceof FileRemote.CmdEvent)) {
+          FileRemote.CmdEvent ev1 = (FileRemote.CmdEvent)ev;
+          FileRemote.Cmd cmdFile = ev1.getCmd();
+          if(cmdFile == FileRemote.Cmd.copyChecked || cmdFile == FileRemote.Cmd.moveChecked) {
+            trans = transStart_DirOrFile;
+            FileRemoteStateM.this.cmdFile = cmdFile;
+            trans.doExit();
+            //action:
+            FileRemoteStateM.this.modeCopyOper = ev1.modeCopyOper;
+            dirDst = ev1.filedst();
+            actData = getNextCopyData();
+            actData.dst = dirDst;
+            actData.src = ev1.filesrc();
+            //newDataSetCopy(ev.filesrc, ev.filedst);
+            evBackInfo = ev1.getOpponent();                 //available for all back information while this copying
+            timestart = System.currentTimeMillis();
+            zBytesAllCopied = zFilesCopied = 0;
+            //entry in DirOrFile.
+          }
         }
-        return null;
+        return trans;
       }
     }
     
     
+    /**Composite state for all actions of copy.
+     * <ul>
+     * <li>{@link Process#transAsk}: If the bit {@link FileRemoteStateM#mAsk} in {@link Process#mResult} is set from any inner action.
+     *   Instead special transitions from some states.
+     * <li>{@link Process#transNextFile}: If the bit {@link FileRemoteStateM#mNextFile} in {@link Process#mResult} is set from any inner action.
+     *   Instead special transitions from some states.
+     * <li>{@link Process#transAbort}: On event {@link FileRemote.Cmd#abortAll} received from operator. It should fire from any state, 
+     *   therefore originally in this state.
+     * </ul>
+     * @author hartmut
+     *
+     */
     final class Process extends StateComposite {
       
       /**Set in any sub state entry if the state {@link Ask} should be activated with run to complete. */
@@ -716,31 +810,18 @@ public class FileRemoteStateM implements EventConsumer
       
       
       @Override protected Trans selectTrans(EventObject ev){
-        if(ev instanceof FileRemote.CmdEvent && ((FileRemote.CmdEvent)ev).getCmd() == FileRemote.Cmd.abortAll) return transAbort;
-        else if((mResult & mAsk) !=0) return transAsk;
-        else if((mResult & mNextFile) !=0) return transNextFile;
-        else return null;
+        FileRemote.CmdEvent ev1 = null;
+        if(ev instanceof FileRemote.CmdEvent && ( ev1 = ((FileRemote.CmdEvent)ev)).getCmd() == FileRemote.Cmd.abortAll) {
+          return transAbort;
+        } else if(ev1 !=null && ev1.getCmd() == FileRemote.Cmd.abortCopyFile) { 
+          return transNextFile;
+        } else if((mResult & mAsk) !=0) { 
+          mResult &= ~mAsk; return transAsk; 
+        } else if((mResult & mNextFile) !=0)  { 
+          mResult &= ~mNextFile; return transNextFile; 
+        } else return null;
       }
       
-      /*
-      class TransAsk extends Trans {
-        TransAsk(){ super(2, Ask.class);}
-        @Override protected void check(EventObject ev){ if(bAsk){ retTrans |= mTransit;} }
-      }
-
-      class TransNextFile extends Trans {
-        TransNextFile(){ super(3, NextFile.class);}
-        @Override protected void check(EventObject ev){ if(bNextFile){ retTrans |= mTransit;} }
-      }
-
-      class TransAbort extends Trans {
-        TransAbort(){ super(1, States.Ready.class);}
-        @Override protected void check(EventObject ev){ 
-          if(ev instanceof FileRemote.CmdEvent && ((FileRemote.CmdEvent)ev).getCmd() == FileRemote.Cmd.abortAll) { 
-            retTrans |= mEventConsumed;} 
-        }
-      }
-      */
       
       /**sets {@link #bAsk} and {@link #bNextFile} to false because it is set in the states then.
        */
@@ -868,40 +949,31 @@ public class FileRemoteStateM implements EventConsumer
 
         final boolean isDefault = true;
 
-        Trans transCopySubdir(EventObject ev, Trans trans){
-          if(trans == null) return new Trans(1, Subdir.class);
-          if(actData.src.isDirectory()){
-            trans.retTrans = mTransit;
+        Trans transCopySubdir = new Trans(Subdir.class);
+        
+        Trans transDelFile = new Trans(DelFile.class);
+          
+        
+        Trans transMoveFile = new Trans(MoveFile.class);
+        
+        Trans transStartCopy = new Trans(CopyFile.class);
+        
+        @Override protected Trans selectTrans(EventObject ev) {
+          if(actData.src.isDirectory()) {
+            return transCopySubdir;     
+          } else if(cmdFile == FileRemote.Cmd.delChecked){
+            return transDelFile;
+          } else if(cmdFile == FileRemote.Cmd.move){
+            return transMoveFile;
+          } else {
+            return transStartCopy;
           }
-          return null;
         }
-        
-        Trans transDelFile(EventObject ev, Trans trans){
-          if(trans == null) return new Trans(2, DelFile.class);
-          if(cmdFile == FileRemote.Cmd.delChecked){
-            trans.retTrans = mTransit;
-          }
-          return null;
-        }
-        
-        Trans transMoveFile(EventObject ev, Trans trans){
-          if(trans == null) return new Trans(3, MoveFile.class);
-          if(cmdFile == FileRemote.Cmd.move){
-            trans.retTrans = mTransit;
-          }
-          return null;
-        }
-        
-        Trans transStartCopy(EventObject ev, Trans trans){
-          if(trans == null) return new Trans(4, CopyFile.class);
-          else trans.retTrans = mTransit;   //else transition.
-          return null;
-        }
-        
-        
         
       }
       
+      /**Prepares data for the subdir, calls {@link FileRemoteStateM#execCheckSubdir()} in its entry.
+       */
       class Subdir extends StateSimple {
   
         Trans transSubdir_DirOrFile = new Trans(DirOrFile.class);
@@ -919,6 +991,8 @@ public class FileRemoteStateM implements EventConsumer
         
       }
       
+      /**First state for copying a file, calls {@link FileRemoteStateM#startCopyFile()} in its entry.
+       */
       class CopyFile extends StateSimple {
         
         /**Transition to {@link CopyFileContent}. Note: See {@link Process#transAsk} and {@link Process#transNextFile}. */
@@ -942,12 +1016,23 @@ public class FileRemoteStateM implements EventConsumer
       
       
       /**The entry action of this state is used to execute the copy of content of one file.
-       * The copying of content is done for one whole file or for at maximum {@link #timeActionMax} milliseconds. Then a short delay is given
-       * with the self-generated event {@link FileRemoteStateM.CmdIntern#copyFileContent}.
+       * The copying of content is done for one whole file or for at maximum {@link #timeActionMax} milliseconds. Then a short interruption is given
+       * with the self-generated event {@link FileRemoteStateM.CmdIntern#copyFileContent}. An event to the operator (callback event)
+       * is sent to show the progress. An Abort-Event may received if it was stored before to skip the copying of this file or the whole rest of directory.
        * <br><br> 
        * The src and dst files are opened already either from copying content before or from the {@link FileRemoteStateM#startCopyFile()}
        * in the state {@link FileRemoteStateM.States.Process.CopyFile#entry(EventObject)}
        * <br><br>
+       * Transitions:
+       * <ul>
+       * <li>{@link CopyFileContent#transCopyContent_continue } on event {@link FileRemoteStateM.EventCpy}, {@link FileRemoteStateM.CmdIntern#copyFileContent}  
+       * <li>{@link CopyFileContent#transAbortFile } on event {@link FileRemote.CmdEvent}, {@link FileRemote.Cmd#abortCopyFile}  
+       * <li>{@link CopyFileContent#transAbortCopyDir } on event {@link FileRemote.CmdEvent}, {@link FileRemote.Cmd#abortCopyDir} 
+       * <li>On any exception while copying the bit {@link FileRemoteStateM#mAsk} is set in {@link FileRemoteStateM#execCopyFileContent()}. 
+       *   Therewith the transition {@link FileRemoteStateM.States.Process#transAsk} is fired to switch to {@link FileRemoteStateM.States.Process.Ask} 
+       * <li>If the copy is finished the bit {@link FileRemoteStateM#bCopyFinished} is set in {@link FileRemoteStateM#execCopyFileContent()}. 
+       *   Therewith the transition {@link FileRemoteStateM.States.Process#transNextFile} is fired to switch to {@link FileRemoteStateM.States.Process.NextFile} 
+       * </ul>
        * On exit the files are closed, except the self generated event {@link FileRemoteStateM.CmdIntern#copyFileContent} was fired
        * in its own transition.
        */
@@ -1002,91 +1087,52 @@ public class FileRemoteStateM implements EventConsumer
       
       
       
+      /**Gets the next file from {@link FileRemoteStateM#actData} in it entry action {@link FileRemoteStateM#execNextFile()}
+       * and switches to {@link FileRemoteStateM.States.Process.DirOrFile}.
+       * If the last file or sub directory of this directory is finished then {@link FileRemoteStateM#actData}==0.
+       * The switches to {@link FileRemoteStateM.States.Ready} whereby stored events in {@link FileRemoteStateM#storedCopyEvents}
+       * are sends to the event queue for further orders.   
+       * @author hartmut
+       *
+       */
       class NextFile extends StateSimple {
-        @Override protected int entry(EventObject ev) {
-          boolean bCont;
-          //close currently file if this state is entered from stateAsk. The regular close() is executed on exit of stateCopyFile.
-          actData.src.resetMarked(1); ///
-          if(FileRemoteStateM.this.in !=null){
-            zFilesCopied +=1;
-            try{ FileRemoteStateM.this.in.close();
-            } catch(IOException exc){
-              System.err.printf("FileAccessorLocalJava7 -Copy close src while abort, unexpected error; %s\n", exc.getMessage());
-            }
-            FileRemoteStateM.this.in = null;
-          }
-          if(FileRemoteStateM.this.out !=null){
-            try{ FileRemoteStateM.this.out.close();
-            } catch(IOException exc){
-              System.err.printf("FileAccessorLocalJava7 -Copy close dst while abort, unexpected error; %s\n", exc.getMessage());
-            }
-            FileRemoteStateM.this.out = null;
-          }
-          do{
-            if(actData == null || actData.parent ==null) {
-              actData = null;
-              bCont = false;
-            } else {
-              DataSetCopy1Recurs nextChild;
-              actData = actData.parent;  //back to directory or parent directory.
-              if(! bAbortDirectory
-                && actData.listChildren !=null //-actData.listSrc !=null //copy a directory tree?
-                && (nextChild = actData.listChildren.poll()) !=null //-actData.iterChildren.hasNext() //-++actData.ixSrc < actData.listSrc.length
-                ){
-                actData = nextChild;
-                //-FileRemote src = actData.listSrc[actData.ixSrc];
-                //-FileRemote dst = new FileRemote(FileRemote.fromFile(actData.dst), src.getName());
-                //-newDataSetCopy(src, dst);
-                //-actData = actData.iterChildren.next();
-                //sendEv(CmdCpyIntern.dirFile);
-                bCont = false;
-              } else {
-                bCont = true;  //get parent till another actData is found
-                if(actData.src !=null){
-                  actData.src.resetMarked(1);  //It is processed.
-                }
-              }
-            }
-            bAbortDirectory = false;  //don't abort its parent.
-          }while(bCont);
-          //return isConsumed | StateSimpleBase.mRunToComplete;
-          if(actData == null){
-            //actData = getNextCopyData();  //maybe more, maybe null
-          }
-          return mRunToComplete;
-        }//entry
         
-
-        Trans transReady(EventObject ev, Trans trans){ 
-          if(trans == null) return new Trans(1, States.Ready.class);
+        @Override protected int entry(EventObject ev) { execNextFile(); return mRunToComplete; }
+        
+        Trans transReady = new Trans(States.Ready.class);
+        
+        /**If another file or directory is found. else-Transition.
+         */
+        Trans transDirOrFile = new Trans(DirOrFile.class);
+   
+        @Override protected Trans selectTrans(EventObject ev) {
           if(actData == null){
-            trans.retTrans = mTransit;
             //send done Back
-            if(0 != evBackInfo.occupyRecall(1000, evSrc, false)){
+            if(evBackInfo.occupyRecall(1000, evSrc, false) !=0){
               evBackInfo.sendEvent(FileRemote.CallbackCmd.done);
               EventMsg2<?,?> ev1;
               while( (ev1 = storedCopyEvents.poll() ) !=null) {
                 ev1.sendEvent();
               }
-              
             }
-          } 
-          return null;
+            return transReady;
+          } else {
+            return transDirOrFile;
+          }
         }
-
-        /**If another file or directory is found. else-Transition.
-         */
-        Trans transDirOrFile(EventObject ev, Trans trans){ 
-          if(trans == null) return new Trans(2, DirOrFile.class);
-          trans.retTrans = mTransit;
-          return null; 
-        }
+        
 
       }//class NextFile
       
+      
+      
+      
+      /**State to wait for response for a operator.
+       */
       class Ask extends StateSimple {
 
         @Override protected int entry(EventObject ev) { 
+          mResult &= ~mAsk;
           closeCopyFileContent();  //it may be there are opened files.
           return 0;
         }
