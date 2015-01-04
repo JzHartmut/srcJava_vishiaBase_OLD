@@ -13,7 +13,7 @@ public interface EventConsumer
 {
   /**Version, history and license
    * <ul>
-   * <li>2013-05-11 Hartmut chg: With the method {@link #state()} any instance is able to quest for its state. 
+   * <li>2015-01-04 Hartmut chg: With the method {@link #getStateInfo()} any instance is able to quest for its state. 
    *   It may be an important method for debugging and showing.
    * <li>2013-05-11 Hartmut chg: It is an interface up to now. The idea to store a name for debugging on 
    *   anonymous overridden instances is able to implement with an <code>toString(){ return "name"}</code> alternatively.
@@ -54,10 +54,6 @@ public interface EventConsumer
    */
   public static final int version = 20130511;
 
-  //public final String name;
-
-  //public EventConsumer(String name){ this.name = name; }
-  
   /**This routine should be overwritten to processes an event. 
    * @param ev The event. It contains some data. The type of the event is not specified here. Any events
    *   can be processed.
@@ -68,12 +64,11 @@ public interface EventConsumer
   int processEvent(EventObject ev); //{ return false; }
   
   /**Returns the state of the consumer in a manual readable form. */
-  String state();
+  String getStateInfo();
   
   /**Bit in return value of a Statemachine's {@link #check(EventMsg)} or entry method for designation, 
    * that the given Event object was used to switch.
    */
   public final static int mEventConsumed =0x1;
   
-  //@Override public String toString(){ return name; }
 }

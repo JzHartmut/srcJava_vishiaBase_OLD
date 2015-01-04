@@ -314,7 +314,7 @@ public class StateMachine implements EventConsumer
     }
   }
   
-  @Override public String state(){ return toString(); }
+  @Override public String getStateInfo(){ return toString(); }
 
   
   /**Shows the name of the Statemachine and all active states.

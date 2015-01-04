@@ -77,7 +77,7 @@ public abstract class FileRemoteAccessor implements Closeable
    * Note: the {@link Copy#Copy(FileAccessorLocalJava7)} needs initialized references
    * of {@link #singleThreadForCommission} and {@link #executerCommission}.
    */
-  protected final FileRemoteCopy_NEW states = new FileRemoteCopy_NEW();  
+  protected final FileRemoteStateM states = new FileRemoteStateM();  
   
 
   protected FileRemoteAccessor(){

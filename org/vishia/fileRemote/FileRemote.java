@@ -2212,7 +2212,7 @@ public class FileRemote extends File implements MarkMask_ifc
   /**Returns the state of the device statemachine, to detect whether it is active or ready.
    * @return a String for debugging and show.
    */
-  public String getStateDevice(){ return (device == null) ? "no-device" : device.states.state(); }
+  public String getStateDevice(){ return (device == null) ? "no-device" : device.states.getStateInfo(); }
   
   public int ident(){ return _ident; }
   
@@ -2651,7 +2651,7 @@ public class FileRemote extends File implements MarkMask_ifc
       return 1;
     }
     
-    @Override public String state(){ return "no-state"; }
+    @Override public String getStateInfo(){ return "no-state"; }
 
   }
   

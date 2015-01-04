@@ -772,7 +772,7 @@ public class Copy_FileLocalAccJava6
       setDefaultState(stateReady);
     }
 
-    @Override public String state(){ return "no-state"; }
+    @Override public String getStateInfo(){ return "no-state"; }
 
   }
 

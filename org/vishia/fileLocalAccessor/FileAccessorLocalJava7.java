@@ -35,7 +35,7 @@ import org.vishia.fileRemote.FileRemote;
 import org.vishia.fileRemote.FileRemoteAccessor;
 import org.vishia.fileRemote.FileRemote.Cmd;
 import org.vishia.fileRemote.FileRemoteCallback;
-import org.vishia.fileRemote.FileRemoteCopy_NEW;
+import org.vishia.fileRemote.FileRemoteStateM;
 import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
 import org.vishia.util.SortedTreeWalkerCallback;
@@ -117,7 +117,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
    */
   EventConsumer executerCommission = new EventConsumer(){
     @Override public int processEvent(EventObject ev) {
-      if(ev instanceof FileRemoteCopy_NEW.EventCpy){ //internal Event
+      if(ev instanceof FileRemoteStateM.EventCpy){ //internal Event
         states.statesCopy.processEvent(ev);
         return 1;
       } else if(ev instanceof FileRemote.CmdEvent){  //event from extern
@@ -128,7 +128,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
       }
     }
     
-    @Override public String state(){ return "no-state"; }
+    @Override public String getStateInfo(){ return "no-state"; }
 
     @Override public String toString(){ return "FileRemoteAccessorLocal - executerCommision"; }
 

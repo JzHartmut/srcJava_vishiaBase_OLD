@@ -182,7 +182,8 @@ public final static int mStateLeaved = 0x8;
  */
 public final static int mRunToComplete =0x10;
 
-
+/**Use this designation for {@link Trans#retTrans} to signal that an event is not consumed in {@link #selectTrans(EventObject)}. */
+public final static int mEventNotConsumed = 0x20;
 
 public final static int mFlatHistory = 0x40;
 
@@ -424,15 +425,19 @@ public class Trans
   public Trans(Class<?> ...dst){ this(1000, dst); }
 
     
-  /**This constructor is used to initialize a derived anonymous class with one or more destination state of this transition
-   * or as super constructor for derived classes if a priority should be given. All transtions without priority are lower.
+  /**This constructor is used to initialize a Transition instance maybe for a derived anonymous class 
+   * with null, one or more destination state of this transition
+   * or as super constructor for derived classes if a priority should be given. All transitions without priority are lower.
    * This constructor should not be used if a transition class contains {@link #choice}-transitions.
    * @param priority Number starting from 1 (highest) for priority to max. 999. A more prior transition fires if more as one transition have the same condtions.
    *   The transitions are tested in order of its priority. If a transition fires all transitions with lesser priority are not tested.
+   * @param dst null, one ore more destination classes.
+   *   If the dst is null or not given, the transition is a inner-state-transition. If it fires the {@link StateSimple#exit()} and the entry is not executed.
+   *   If more as one dst is given this is a fork transition to more as one state, which should be states in parallel composite states.  
    */
   public Trans(int priority, Class<?> ...dst){
     this.priority = priority;
-    if(dst.length ==0) this.dst = null;
+    if(dst == null || dst.length ==0) this.dst = null;
     else {
       this.dst = new int[dst.length];
       for(int ix = 0; ix < dst.length; ++ix){
@@ -578,9 +583,10 @@ public class Trans
   public final void doExit()
   {
     retTrans |= mStateLeaved;
-    for(StateSimple state: exitStates){
-      state.exitTheState();
-    }
+    if(exitStates !=null) {
+      for(StateSimple state: exitStates){
+        state.exitTheState();
+    } }
     doneExit = true;
   }
   
@@ -604,11 +610,12 @@ public class Trans
    */
   public final void doEntry(EventObject ev, int history)
   { 
-    for(int ix = 0; ix < entryStates.length; ++ix) { //stateParallel) {
-      StateSimple state = entryStates[ix];
-      int hist1 = (ix == entryStates.length -1) ? history: 0;
-      retTrans |= state.entryTheState(ev, hist1);
-    }
+    if(entryStates !=null) {
+      for(int ix = 0; ix < entryStates.length; ++ix) { //stateParallel) {
+        StateSimple state = entryStates[ix];
+        int hist1 = (ix == entryStates.length -1) ? history: 0;
+        retTrans |= state.entryTheState(ev, hist1);
+    } }
     doneEntry = true;
   }
   
@@ -1180,9 +1187,18 @@ final int checkTransitions(EventObject ev) {
     //either the first time or overridden check method: Use it.
     Trans trans = selectTrans(ev);
     if(trans !=null){
+      /*
+      if(!trans.doneExit)   { trans.doExit(); }
+      if(!trans.doneAction) { trans.doAction(ev,0); }
+      if(!trans.doneEntry)  { trans.doEntry(ev); }
+      */
       trans.doExit();  //exit the current state(s)
       trans.doAction(ev, 0);
       trans.doEntry(ev,0);
+      if((trans.retTrans & mEventNotConsumed) ==0) {
+        trans.retTrans |= mEventConsumed;
+      }
+      trans.retTrans |= mTransit;
       return trans.retTrans;
     }
   }
@@ -1239,8 +1255,8 @@ final int entryTheState(EventObject ev, int history) { //int isConsumed){
   if(this.timeout !=0 && timeOrder !=null){
     timeOrder.activate(System.currentTimeMillis() + this.timeout);
   }
-  entry(ev);  //run the user's entry action.
-  return mStateEntered | modeTrans;
+  int entryVal = entry(ev);  //run the user's entry action.
+  return entryVal | mStateEntered | modeTrans;
   //return isConsumed | modeTrans;
 }
 

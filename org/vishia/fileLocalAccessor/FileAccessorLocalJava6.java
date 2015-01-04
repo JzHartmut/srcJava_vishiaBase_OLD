@@ -132,7 +132,7 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
       }
     }
     
-    @Override public String state(){ return "no-state"; }
+    @Override public String getStateInfo(){ return "no-state"; }
 
     @Override public String toString(){ return "FileRemoteAccessorLocal - executerCommision"; }
 
