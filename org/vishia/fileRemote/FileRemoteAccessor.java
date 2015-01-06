@@ -146,6 +146,7 @@ public abstract class FileRemoteAccessor implements Closeable
    * @param sMask Any filter which files will be accepted.
    * @param markMask TODO
    * @param depth at least 1 for enter in the first directory. Use 0 if all levels should enter.
+   *   If negative then the absolute is number of levels (maybe Integer.MAXVALUE) but uses the first level to enter only marked files.
    * @param callback this callback will be invoked on any file or directory.
    */
   public abstract void walkFileTree(FileRemote startDir, boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback);

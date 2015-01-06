@@ -392,21 +392,25 @@ public class StringFunctions {
   }
   
   
-  /**Compares two CharSequence (Strings, StringBuilder-content etc.
-   * It is the adequate functionality like {@link java.lang.String#compareTo(String)}.
-   * but it works proper with {@link java.lang.CharSequence}. See example on {@link #equals(Object)}.
+  /**Compares two CharSequence (Strings, StringBuilder-content etc.)
+   * It detects that position where the Strings are different. That is not done by {@link String#compareTo(String)}
+   * or {@link #compare(CharSequence, int, CharSequence, int, int)}
    *  
    * @param s1 left char sequence
    * @param from1 start position
    * @param s2 right char sequence
    * @param from2 start position
    * @param nrofChars maximal number of chars to compare. It can be negative or {@link java.lang.Integer#MAX_VALUE}
-   *   to compare all characters to the end. negative: it is ignored.
+   *   to compare all characters to the end. Use -1 to compare all characters is recommended.
    *   Note: if 0, the return value of this method is 0 because all (=0) characters are equal. This may be important for some extrem situations.
    * @return 0 if all characters are equal, positive if the part of s1 > s2,  negative if s1 < s2.
-   *   <br>The absolute of return is the number of equal characters +1. 
-   *   <br>-1 means, the first character is different whereby s1.charAt(0) < s2.charAt(0)
-   *   <br> 1 means, the first character is different whereby s1.charAt(0) > s2.charAt(0)
+   *   <br>The absolute of return is the number of equal characters +1.
+   *   <br>Note that the different character is charAt(returnValue -1) or the length of the shorter CharSeqence is returnVal -1.
+   *     This convention is necessary because 0 means equal. It should be distinguish from the result charAt(0) is different.
+   *   <br>-1 means, the first character is different whereby s1.charAt(0) < s2.charAt(0) or s1.length()==0 && s2.length() >0
+   *   <br> 1 means, the first character is different whereby s1.charAt(0) > s2.charAt(0) or s1.length() >= && s2.length()==0
+   *   <br> The comparison of "abcx" with "abcy" results -4 because 'x' < 'y' on the position 3.
+   *   <br> The comparison of "abc" with "abcy" results -4 because 'x' < 'y' on the position 3.
    *   
    */
   public static int comparePos(CharSequence s1, int from1, CharSequence s2, int from2, int nrofChars){
@@ -424,8 +428,8 @@ public class StringFunctions {
     } while(c1 == c2 && --zChars >0);
     if(zChars ==0){
       //all characters compared, maybe difference in length.
-      if(i2 < z2) return -(i1 - from1);  //s2 is longer, s1 is less.
-      else if(i1 < z1) return i1 - from1;  //positive value: s1 is greater because i1 < z2, is longer and c1==c2 
+      if(i2 < z2) return -(i1 - from1 +1);  //s2 is longer, s1 is less.
+      else if(i1 < z1) return i1 - from1 +1;  //positive value: s1 is greater because i1 < z2, is longer and c1==c2 
       else return 0;  //both equal, comparison to end. 
     } 
     else {

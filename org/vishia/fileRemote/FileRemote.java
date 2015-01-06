@@ -921,7 +921,7 @@ public class FileRemote extends File implements MarkMask_ifc
     if(device == null){
       device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    CallbackMark callbackMark = new CallbackMark(callbackUser, mark);
+    CallbackMark callbackMark = new CallbackMark(callbackUser); //, nLevelProcessOnlyMarked);  //negativ... TODO
     device.walkFileTree(this,  false, true, resetMark, mask, mark,  depth,  callbackMark);  //should work in an extra thread.
   }
   
@@ -2988,8 +2988,6 @@ public class FileRemote extends File implements MarkMask_ifc
     
     final FileRemoteCallback callbackUser;
     
-    final int XXXmark;
-    
     FileRemote startDir;
     
     long nrofBytes;
@@ -3003,10 +3001,10 @@ public class FileRemote extends File implements MarkMask_ifc
      * @param callbackUser This callback will be invoked after the child is registered in this.
      * @param updateThis true then remove and update #children.
      */
-    public CallbackMark(FileRemoteCallback callbackUser, int XXXmark)
+    public CallbackMark(FileRemoteCallback callbackUser)
     {
       this.callbackUser = callbackUser;
-      this.XXXmark = XXXmark;
+      //this.levelProcessMarked = levelProcessOnlyMarked;
     }
     
     

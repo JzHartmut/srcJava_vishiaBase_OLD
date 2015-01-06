@@ -165,6 +165,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
           System.out.println("FileRemoteCallbackCmp - offerDir, not exists; " + dir.getAbsolutePath());
           return Result.skipSubtree;  //if it is a directory, skip it.        
         } else {
+          dir2sub.resetMarked(FileMark.cmpAlone);
           dir2sub.device.walkFileTree(dir2sub, true, true, false, null, 0, 1, callbackMarkSecondAlone);
           System.out.println("FileRemoteCallbackCmp - offerDir, check; " + dir.getAbsolutePath());
           //waitfor

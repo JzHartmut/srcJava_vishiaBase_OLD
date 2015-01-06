@@ -141,13 +141,13 @@ public class FileCluster
       if(cmpPathCheck ==0){ //equal
         //it is found.
       }
-      else if(  cmpPathCheck == zDirCheck        //sDirCheck is a substring of sDir
+      else if(  cmpPathCheck -1 == zDirCheck        //sDirCheck is a substring of sDir
              && assumeChild
-             && sDir.charAt(zDirCheck) == '/'){  //it is a parent directory:
+             && sDir.length() >= zDirCheck && sDir.charAt(zDirCheck) == '/'){  //dirCheck is a parent directory of sDir:
         //any parent directory of the file was found. Create the child directory.
         StringPart pathchild = new StringPart(sDir, zDirCheck+1, sDir.length());
         dirCheck = dirCheck.subdir(pathchild);   //it calls this method recursively! It puts the directories. 
-      } else { //other directory name, maybe shorter for ex. "path" vs. "path2".
+      } else { //other directory name, maybe shorter for ex. "path" vs. "path2" or "path1" vs. "path2".
         dirCheck = new FileRemote(this, null, null, sDir, 0, 0, 0, 0, flagDir, null, true);
         idxPaths.put(sDir, dirCheck);  //Note: parents of the new FileRemote are recognized.
       }

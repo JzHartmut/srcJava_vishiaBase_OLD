@@ -42,7 +42,22 @@ public class TestStringFunctions
     String s1 = "a";
     String s2 = "b";
     int cmp = StringFunctions.comparePos(s1, 0, s2, 0, Integer.MAX_VALUE);
-    if(cmp !=-3) error("TestStringFunctions.comparePos e1");
+    if(cmp !=-1) error("TestStringFunctions.comparePos e1");
+    //
+    s1 = "abcx";
+    s2 = "abcy";
+    cmp = StringFunctions.comparePos(s1, 0, s2, 0, Integer.MAX_VALUE);
+    if(cmp !=-4) error("TestStringFunctions.comparePos abc ? abcx ");
+    //
+    s1 = "abc";
+    s2 = "abcy";
+    cmp = StringFunctions.comparePos(s1, 0, s2, 0, Integer.MAX_VALUE);
+    if(cmp !=-4) error("TestStringFunctions.comparePos abc ? abcx ");
+    //
+    s1 = "abcx";
+    s2 = "abc";
+    cmp = StringFunctions.comparePos(s1, 0, s2, 0, Integer.MAX_VALUE);
+    if(cmp != 4) error("TestStringFunctions.comparePos abc ? abcx ");
   }
 
   

@@ -1031,16 +1031,22 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       }
       aKeys[sizeBlock] = rootIdxTable.maxKey__;
       aValues[sizeBlock] = null;   //prevent dangling references!
-      if(sizeBlock == 0 && parent !=null){
-        //this sub-table is empty
-        //
-        //int ixParent = binarySearchFirstKey(parent.aKeys, 0, parent.sizeBlock, keydel); //, sizeBlock, key1);
-        //if(ixParent < 0)
-        //{ ixParent = -ixParent-1;  
-        //}
-        parent.delete(this.ixInParent);  //call recursively.
-        //it has delete the child table. The table may be referenced by an iterator still.
-        //But the iterator won't detect hasNext() and it continoues on its parent iterator too. 
+      ////
+      if(sizeBlock == 0) {
+        if(parent !=null){
+          //this sub-table is empty
+          //
+          //int ixParent = binarySearchFirstKey(parent.aKeys, 0, parent.sizeBlock, keydel); //, sizeBlock, key1);
+          //if(ixParent < 0)
+          //{ ixParent = -ixParent-1;  
+          //}
+          parent.delete(this.ixInParent);  //call recursively.
+          //it has delete the child table. The table may be referenced by an iterator still.
+          //But the iterator won't detect hasNext() and it continoues on its parent iterator too. 
+        } else {
+          //The root table is empty. If it was an Hypertable:
+          isHyperBlock = false; //elsewhere problems on next put.
+        }
       }
     }
 

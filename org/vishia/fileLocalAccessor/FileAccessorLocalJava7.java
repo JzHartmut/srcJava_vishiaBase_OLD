@@ -31,6 +31,7 @@ import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventThread;
 import org.vishia.fileRemote.FileCluster;
+import org.vishia.fileRemote.FileMark;
 import org.vishia.fileRemote.FileRemote;
 import org.vishia.fileRemote.FileRemoteAccessor;
 import org.vishia.fileRemote.FileRemote.Cmd;
@@ -329,10 +330,18 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
     if(bRefreshChildren) { // && filter == null) {
       startDir.internalAccess().newChildren();
     }
-    WalkFileTreeVisitor visitor = new WalkFileTreeVisitor(startDir.itsCluster, bRefreshChildren, resetMark, sMask, markMask, callback);
+    int nLevelProcessOnlyMarked = depth < 0 ? 2 : 0;
+    int depth1;
+    if(depth ==0){ depth1 = Integer.MAX_VALUE; }
+    else if(depth < 0){ depth1 = -depth; }
+    else { depth1 = depth; }
+
+    int markCheck = FileMark.select | FileMark.selectSomeInDir;
+    WalkFileTreeVisitor visitor = new WalkFileTreeVisitor(startDir.itsCluster, bRefreshChildren, resetMark, sMask
+        , markMask, nLevelProcessOnlyMarked, markCheck, callback);
     Set<FileVisitOption> options = new TreeSet<FileVisitOption>();
     try{ 
-      Files.walkFileTree(pathdir, options, depth <=0 ? Integer.MAX_VALUE : depth, visitor);  
+      Files.walkFileTree(pathdir, options, depth1, visitor);  
     } catch(IOException exc){
       System.err.println("FileAccessorLocalData.walkFileTree - unexpected IOException; " + exc.getMessage() );
     }
@@ -786,6 +795,8 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
       
       final FileRemoteCallback.Counters cnt = new FileRemoteCallback.Counters();
       
+      int levelProcessMarked;
+      
       /**parallel structure of all children.
        * The child entries are gotten from the dir via {@link FileCluster#getFile(CharSequence, CharSequence, boolean)}. It means, existing children
        * are gotten from the existing {@link FileRemote} instances. They are written in this map while walking through the directory.
@@ -798,6 +809,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
       
       CurrDirChildren(FileRemote dir, CurrDirChildren parent){
         this.dir = dir; this.parent = parent;
+        this.levelProcessMarked = (parent == null) ? 0: parent.levelProcessMarked -1;
         if(refresh){
           children = FileRemote.createChildrenList(); //new TreeMap<String,FileRemote>();
         }
@@ -811,6 +823,8 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
     private CurrDirChildren curr;
     
     final int markMask;
+    
+    final int markCheck;
     
     final String sStartName, sEndName;
     
@@ -829,13 +843,20 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
      * @param markMask Bits to select marked files
      * @param callback Callback interface to the user.
      */
-    public WalkFileTreeVisitor(FileCluster fileCluster, boolean refreshChildren, boolean resetMark, String sMask, int markMask, FileRemoteCallback callback)
+    public WalkFileTreeVisitor(FileCluster fileCluster, boolean refreshChildren, boolean resetMark, String sMask
+        , int markMask
+        , int levelProcessMarked
+        , int markCheck
+        , FileRemoteCallback callback)
     {
       this.fileCluster = fileCluster;
       this.refresh = refreshChildren;
       this.resetMark = resetMark;
+      this.markCheck = markCheck;
+      this.markMask = markMask;
       this.callback = callback;
       curr = new CurrDirChildren(null, null);  //starts without parent.
+      curr.levelProcessMarked = levelProcessMarked;
       if(sMask == null){
         sStartName = sEndName = sStartDir = sEndDir = null;
       } else {
@@ -853,7 +874,6 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
           sEndName = null;
         }
       }
-      this.markMask = markMask;
       reset();
     }
 
@@ -885,21 +905,26 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
       String name = namepath == null ? "/" : namepath.toString();
       CharSequence cPath = FileSystem.normalizePath(dir.toString());
       FileRemote dir1 = fileCluster.getDir(cPath);
-      if(resetMark){ 
-        dir1.resetMarked(0xffffffff); }
-      setAttributes(dir1, dir, attrs);
-      if(refresh && curr !=null){
-        dir1.internalAccess().clrFlagBit(FileRemote.mRefreshChildPending);
-        curr.children.put(name, dir1);
-      }
-      SortedTreeWalkerCallback.Result result = (callback !=null) ? callback.offerParentNode(dir1) : SortedTreeWalkerCallback.Result.cont;
-      if(result == SortedTreeWalkerCallback.Result.cont){
-        curr = new CurrDirChildren(dir1, curr);
-        if(debugout) System.out.println("FileRemoteAccessorLocalJava7 - callback - pre dir; " + curr.dir.getAbsolutePath());
+      if(curr.levelProcessMarked >0 && (dir1.getMark() & markCheck)==0) {
+        return FileVisitResult.SKIP_SUBTREE;      
       } else {
-        if(debugout) System.out.println("FileRemoteAccessorLocalJava7 - callback - pre dir don't entry; " + curr.dir.getAbsolutePath());
+        if(resetMark && curr.levelProcessMarked <= 0){ 
+          dir1.resetMarked(0xffffffff); 
+        }
+        setAttributes(dir1, dir, attrs);
+        if(refresh && curr !=null){
+          dir1.internalAccess().clrFlagBit(FileRemote.mRefreshChildPending);
+          curr.children.put(name, dir1);
+        }
+        SortedTreeWalkerCallback.Result result = (callback !=null) ? callback.offerParentNode(dir1) : SortedTreeWalkerCallback.Result.cont;
+        if(result == SortedTreeWalkerCallback.Result.cont){
+          curr = new CurrDirChildren(dir1, curr);
+          if(debugout) System.out.println("FileRemoteAccessorLocalJava7 - callback - pre dir; " + curr.dir.getAbsolutePath());
+        } else {
+          if(debugout) System.out.println("FileRemoteAccessorLocalJava7 - callback - pre dir don't entry; " + curr.dir.getAbsolutePath());
+        }
+        return translateResult(result);
       }
-      return translateResult(result);
     }
 
     
@@ -963,41 +988,45 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
         String sDir = file.getParent().toString();
         fileRemote = fileCluster.getFile(sDir, name);
       }
-      if(resetMark){ 
-        fileRemote.resetMarked(0xffffffff); }
-      setAttributes(fileRemote, file, attrs);
-      long size = attrs.size();
-      FileRemoteCallback.Result result;
-      if(callback !=null && callback.shouldAborted()){
-        result = SortedTreeWalkerCallback.Result.terminate;
+      if(curr.levelProcessMarked >0 && (fileRemote.getMark() & markCheck)==0) {
+        return FileVisitResult.CONTINUE;  //but does nothing with the file.      
       } else {
-        if(refresh){
-          if(curr.children !=null) { curr.children.put(name, fileRemote); }
-          fileRemote.internalAccess().clrFlagBit(FileRemote.mRefreshChildPending);
-          fileRemote.internalAccess().setRefreshed();
-  
-        }
-        if(callback !=null) {
-          //check mask:
-          if(selected) {
-            if(attrs.isDirectory()) { 
-              curr.cnt.nrofParentSelected +=1; 
-              cntTotal.nrofParentSelected +=1;
-            } else { 
-              curr.cnt.nrofLeafSelected +=1; 
-              cntTotal.nrofLeafSelected +=1;
+        if(resetMark){ 
+          fileRemote.resetMarked(0xffffffff); }
+        setAttributes(fileRemote, file, attrs);
+        long size = attrs.size();
+        FileRemoteCallback.Result result;
+        if(callback !=null && callback.shouldAborted()){
+          result = SortedTreeWalkerCallback.Result.terminate;
+        } else {
+          if(refresh){
+            if(curr.children !=null) { curr.children.put(name, fileRemote); }
+            fileRemote.internalAccess().clrFlagBit(FileRemote.mRefreshChildPending);
+            fileRemote.internalAccess().setRefreshed();
+    
+          }
+          if(callback !=null) {
+            //check mask:
+            if(selected) {
+              if(attrs.isDirectory()) { 
+                curr.cnt.nrofParentSelected +=1; 
+                cntTotal.nrofParentSelected +=1;
+              } else { 
+                curr.cnt.nrofLeafSelected +=1; 
+                cntTotal.nrofLeafSelected +=1;
+              }
+              curr.cnt.nrofBytes += size;
+              cntTotal.nrofBytes += size;
+              result = callback.offerLeafNode(fileRemote);
+            } else {
+              result = SortedTreeWalkerCallback.Result.cont;
             }
-            curr.cnt.nrofBytes += size;
-            cntTotal.nrofBytes += size;
-            result = callback.offerLeafNode(fileRemote);
-          } else {
+          } else { 
             result = SortedTreeWalkerCallback.Result.cont;
           }
-        } else { 
-          result = SortedTreeWalkerCallback.Result.cont;
         }
+        return translateResult(result);
       }
-      return translateResult(result);
     }
 
     @Override

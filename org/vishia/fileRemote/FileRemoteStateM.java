@@ -589,6 +589,15 @@ public class FileRemoteStateM implements EventConsumer
   
   
   
+  /**Closes maybe opened {@link #in} and {@link #out} from the last copy.
+   * Removes the {@link #actData}.{@link DataSetCopy1Recurs#dst} if the copy is not finished because aborted
+   * if {@link #bCopyFinished} is false. Sets the date of the dst file to the date of the source
+   * if it is successfully copied. Reset all mark bits.
+   * <br> 
+   * This method is called as exit of {@link States.Process.CopyFileContent} 
+   * and in the entry of {@link States.Process.Ask}. 
+   * 
+   */
   void closeCopyFileContent() {  
     try{
       if(this.in!=null){ 
@@ -611,6 +620,7 @@ public class FileRemoteStateM implements EventConsumer
           } else {
             long date = actData.src.lastModified();
             actData.dst.setLastModified(date);
+            actData.dst.resetMarked(0xffffffff); //unmark all bits.
           }
         }
       }
