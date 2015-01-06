@@ -553,7 +553,7 @@ public class StateComposite extends StateSimple implements InfoAppend
    * @return The enclosing state, which can used for entry immediately.
    * @see org.vishia.stateMachine.StateSimpleBase#exit()
    */
-  @Override public StateComposite exitTheState(){ 
+  @Override public void exitTheState(){ 
     if(isActive && stateAct !=null){
       stateAct.exitTheState();    //recursively call for all inner states which are yet active.
       isActive = false; //NOTE that StateSimpleBase.exit() sets isActive to false already. It is done twice.
@@ -563,7 +563,7 @@ public class StateComposite extends StateSimple implements InfoAppend
         parallelState.exitTheState();
       }
     }
-    return super.exitTheState();
+    super.exitTheState();
   }
 
   

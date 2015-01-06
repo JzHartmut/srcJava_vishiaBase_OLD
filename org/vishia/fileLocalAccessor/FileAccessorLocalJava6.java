@@ -121,10 +121,10 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
    */
   EventConsumer executerCommission = new EventConsumer(){
     @Override public int processEvent(EventObject ev) {
-      if(ev instanceof Copy_FileLocalAccJava6.EventCpy){ //internal Event
-        copy.stateCopy.processEvent(ev);
+      /*if(ev instanceof Copy_FileLocalAccJava6.EventCpy){ //internal Event
+        //copy.stateCopy.processEvent(ev);
         return 1;
-      } else if(ev instanceof FileRemote.CmdEvent){  //event from extern
+      } else*/ if(ev instanceof FileRemote.CmdEvent){  //event from extern
             execCommission((FileRemote.CmdEvent)ev);
         return 1;
       } else {
@@ -144,7 +144,7 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
    * Note: the {@link Copy#Copy(FileRemoteAccessorLocalFile)} needs initialized references
    * of {@link #singleThreadForCommission} and {@link #executerCommission}.
    */
-  private final Copy_FileLocalAccJava6 copy = new Copy_FileLocalAccJava6(this);  
+  //private final Copy_FileLocalAccJava6 copy = new Copy_FileLocalAccJava6(this);  
   
   private FileRemote workingDir;
   
@@ -438,9 +438,9 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
       case abortCopyFile:
       case delChecked:
       case moveChecked:
-      case copyChecked: 
-        copy.stateCopy.processEvent(commission); break;
-      case move: copy.execMove(commission); break;
+      //case copyChecked: 
+        //copy.stateCopy.processEvent(commission); break;
+      //case move: copy.execMove(commission); break;
       case chgProps:  execChgProps(commission); break;
       case chgPropsRecurs:  execChgPropsRecurs(commission); break;
       case countLength:  execCountLength(commission); break;

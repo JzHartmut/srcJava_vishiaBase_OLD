@@ -193,8 +193,8 @@ public class EventThread implements Runnable, Closeable, InfoAppend
           }
         }
       } catch(Exception exc){
-        System.out.println(Assert.exceptionInfo("EventThread - unexpected Exception; ", exc, 0, 7));
-        exc.printStackTrace(System.err);
+        CharSequence text = Assert.exceptionInfo("EventThread unexpected Exception - ", exc, 0, 50);
+        System.err.append(text);
       }
 
     } while(stateOfThread != 'c' && this.ctWaitEmptyQueue < this.maxCtWaitEmptyQueue);

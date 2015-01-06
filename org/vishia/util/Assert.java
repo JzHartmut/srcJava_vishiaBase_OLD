@@ -167,11 +167,10 @@ public class Assert
       u = new StringBuilder(500);
       u.append(startText);
     }
-    u.append("; ");
     if(bWithExceptiontext){
       u.append(exc.toString()).append("; ");
+      //u.append(exc.getMessage()).append("; ");
     }
-    //u.append(exc.getMessage()).append("; ");
     StackTraceElement[] stack = exc.getStackTrace();
     int zStack = stack.length;
     if(firstLevel >= zStack){ firstLevel = zStack-1; }

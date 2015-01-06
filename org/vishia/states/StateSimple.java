@@ -13,8 +13,6 @@ import java.util.Map;
 //import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventTimerMng;
-import org.vishia.stateMachine.StateCompositeBase;
-import org.vishia.stateMachine.StateParallelBase;
 import org.vishia.util.Assert;
 import org.vishia.util.DataAccess;
 import org.vishia.util.Debugutil;
@@ -77,7 +75,7 @@ import org.vishia.util.InfoAppend;
  * <b>How does it work</b>:<br> 
  * On startup all of this kinds of transitions are detected by reflection and stored in the private array {@link #aTransitions}.
  * On runtime the transitions are tested in the order of its priority. If any transition returns not 0 or null they do fire.
- * Either the {@link Trans#doExit()}, {@link Trans#doAction(EventMsg2, int)} and {@link Trans#doEntry(EventMsg2, int)} is programmed
+ * Either the {@link Trans#doExit()}, {@link Trans#doAction(EventObject, int)} and {@link Trans#doEntry(EventMsg2, int)} is programmed
  * in the if-branch of the condition before return, or that methods are executed from the state execution process automatically.
  * Manual programmed - it can be tested (step-debugger) in the users programm. Not manually, therefore automatically executed - 
  * one should set a breakpoint in the user-overridden {@link #exit()}, {@link #entry(EventMsg2)} or {@link Trans#action(EventMsg2)} methods
@@ -573,7 +571,18 @@ public class Trans
     if(parent !=null) {
       parent.doAction(ev, recurs+1);  //recursion to the first parent
     }
-    action(ev);  //maybe overridden, default checks whether a StateAction action is given.
+    try{ action(ev);  //maybe overridden, default checks whether a StateAction action is given.
+    } catch(Exception exc){
+      if(stateMachine.permitException){
+        StringBuilder u = new StringBuilder(1000);
+        u.append("StateSimple trans action exception - ").append(stateMachine.getStateInfo()).append(";");
+        if(ev !=null){ u.append("event: ").append(ev.toString()); }
+        CharSequence text = Assert.exceptionInfo(u, exc, 0, 50);
+        System.err.append(text);
+      } else {
+        throw new RuntimeException(exc); //forward it but without need of declaration of throws exception
+      }
+    }
     doneAction = true;
   }
   
@@ -1193,7 +1202,20 @@ final int checkTransitions(EventObject ev) {
   } }
   if(!bCheckTransitionArray) {
     //either the first time or overridden check method: Use it.
-    Trans trans = selectTrans(ev);
+    Trans trans;
+    try{ trans = selectTrans(ev); }
+    catch(Exception exc) {
+      if(stateMachine.permitException) {
+        StringBuilder u = new StringBuilder(1000);
+        u.append("StateSimple trans exception - ").append(stateMachine.getStateInfo()).append(";");
+        if(ev !=null){ u.append("event: ").append(ev.toString()); }
+        CharSequence text = Assert.exceptionInfo(u, exc, 0, 50);
+        System.err.append(text);
+        trans = null;
+      } else {
+        throw new RuntimeException(exc); //forward it but without need of declaration of throws exception
+      }
+    }
     if(trans !=null){
       if(!trans.doneExit)   { trans.doExit(); }
       if(!trans.doneAction) { trans.doAction(ev,0); }
@@ -1263,7 +1285,21 @@ final int entryTheState(EventObject ev, int history) { //int isConsumed){
   if(this.timeout !=0 && timeOrder !=null){
     timeOrder.activate(System.currentTimeMillis() + this.timeout);
   }
-  int entryVal = entry(ev);  //run the user's entry action.
+  int entryVal;
+  try { 
+    entryVal = entry(ev);  //run the user's entry action.
+  } catch(Exception exc){
+    if(stateMachine.permitException){
+      StringBuilder u = new StringBuilder(1000);
+      u.append("StateSimple entry exception - ").append(stateMachine.getStateInfo()).append(";");
+      if(ev !=null){ u.append("event: ").append(ev.toString()); }
+      CharSequence text = Assert.exceptionInfo(u, exc, 0, 50);
+      System.err.append(text);
+      entryVal = 0;
+    } else {
+      throw new RuntimeException(exc); //forward it but without need of declaration of throws exception
+    }
+  }
   return entryVal | mStateEntered | modeTrans;
   //return isConsumed | modeTrans;
 }
@@ -1275,14 +1311,24 @@ final int entryTheState(EventObject ev, int history) { //int isConsumed){
  * Override {@link #exitAction()} for user specific exit behavior.
  * @return The enclosing state, which can used for entry immediately.
  */
-StateComposite exitTheState(){ 
+void exitTheState(){ 
   durationLast = System.currentTimeMillis() - dateLastEntry;
   enclState.isActive = false;
   if(timeOrder !=null && timeOrder.used()) {
     stateMachine.theTimer.removeTimeOrder(timeOrder);
   }
-  exit();  //run the user's exit action.
-  return enclState; 
+  try{ 
+    exit();  //run the user's exit action.
+  } catch(Exception exc){
+    if(stateMachine.permitException){
+      StringBuilder u = new StringBuilder(1000);
+      u.append("StateSimple exit exception - ").append(stateMachine.getStateInfo()).append(";");
+      CharSequence text = Assert.exceptionInfo(u, exc, 0, 50);
+      System.err.append(text);
+    } else {
+      throw new RuntimeException(exc); //forward it but without need of declaration of throws exception
+    }
+  }
 }
 
 
