@@ -9,13 +9,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author Hartmut Schorrig
  *
  */
-public class OrderListExecuter
+public class TimeOrderMng
 {
   
   
   /**Version and history:
    * <ul>
-   * <li>
+   * <li>2015-01-10 Hartmut renamed from <code>OrderListExecuter</code>
    * <li>2014-02-23 Hartmut created: The algorithm is copied from {@link org.vishia.gral.base.GralGraphicThread},
    *   this class is the base class of them now. The algorithm is able to use outside of that graphic too.
    * </ul>
@@ -80,17 +80,17 @@ public class OrderListExecuter
    * is woken up and before the dispatching of graphic-system-event will be started.
    * An order may be run only one time, than it should delete itself from this queue in its run-method.
    * */
-  private final ConcurrentLinkedQueue<OrderForList> queueGraphicOrders = new ConcurrentLinkedQueue<OrderForList>();
+  private final ConcurrentLinkedQueue<TimeOrder> queueGraphicOrders = new ConcurrentLinkedQueue<TimeOrder>();
   
   /**Queue of orders which are executed with delay yet. */
-  private final ConcurrentLinkedQueue<OrderForList> queueDelayedGraphicOrders = new ConcurrentLinkedQueue<OrderForList>();
+  private final ConcurrentLinkedQueue<TimeOrder> queueDelayedGraphicOrders = new ConcurrentLinkedQueue<TimeOrder>();
   
   /**Temporary used instance of delayed orders while {@link #runTimer} organizes the delayed orders.
    * This queue is empty outside running one step of runTimer(). */
-  private final ConcurrentLinkedQueue<OrderForList> queueDelayedTempGraphicOrders = new ConcurrentLinkedQueue<OrderForList>();
+  private final ConcurrentLinkedQueue<TimeOrder> queueDelayedTempGraphicOrders = new ConcurrentLinkedQueue<TimeOrder>();
   
   /**Mutex mechanism: This variable is set true under mutex while the timer waits. Then it should
-   * be notified in {@link #addDispatchOrder(OrderForList)} with delayed order. */
+   * be notified in {@link #addDispatchOrder(TimeOrder)} with delayed order. */
   private boolean bTimeIsWaiting;
   
   /**Set if any external event is set. Then the dispatcher shouldn't sleep after finishing dispatching. 
@@ -98,7 +98,7 @@ public class OrderListExecuter
    */
   private final AtomicBoolean extEventSet = new AtomicBoolean(false);
 
-  public OrderListExecuter(ConnectionExecThread execThread){
+  public TimeOrderMng(ConnectionExecThread execThread){
     this.execThread = execThread;
     threadTimer = new Thread(runTimer, "graphictime");
   }
@@ -109,11 +109,11 @@ public class OrderListExecuter
   }
   
   /** Adds a method which will be called in anytime in the dispatch loop until the listener will remove itself.
-   * @deprecated: This method sholdn't be called by user, see {@link OrderForList#addToList(GralGraphicThread, int)}. 
-   * @see org.vishia.gral.ifc.GralWindowMng_ifc#addDispatchListener(org.vishia.gral.base.OrderForList)
+   * @deprecated: This method sholdn't be called by user, see {@link TimeOrder#addToList(GralGraphicThread, int)}. 
+   * @see org.vishia.gral.ifc.GralWindowMng_ifc#addDispatchListener(org.vishia.gral.base.TimeOrder)
    * @param order
    */
-  public void addDispatchOrder(OrderForList order){ 
+  public void addDispatchOrder(TimeOrder order){ 
     if(order.timeToExecution() >=0){
       queueDelayedGraphicOrders.offer(order);
       synchronized(runTimer){
@@ -136,11 +136,11 @@ public class OrderListExecuter
   
   
   /**Removes a order, which was called in the dispatch loop.
-   * Hint: Use {@link OrderForList#removeFromList(GralGraphicThread)}
+   * Hint: Use {@link TimeOrder#removeFromList(GralGraphicThread)}
    * to remove thread safe with signification. Don't call this routine yourself.
    * @param listener
    */
-  public void removeDispatchListener(OrderForList listener)
+  public void removeDispatchListener(TimeOrder listener)
   { queueGraphicOrders.remove(listener);
     queueDelayedGraphicOrders.remove(listener);
   }
@@ -155,7 +155,7 @@ public class OrderListExecuter
    * @return true then the execThread should not wait
    */
   public boolean step(int nrofOrders, long millisecAbs){
-    OrderForList listener;
+    TimeOrder listener;
     extEventSet.set(false); //the list will be tested!
     while( (listener = queueGraphicOrders.poll()) !=null){
     //for(OrderForList listener: queueGraphicOrders){
@@ -187,7 +187,7 @@ public class OrderListExecuter
       while(execThread.isRunning()){
         int timeWait = 1000;
         boolean bWake = false;
-        { OrderForList order;
+        { TimeOrder order;
           while( (order = queueDelayedGraphicOrders.poll()) !=null){
             int timeToExecution = order.timeToExecution();
             if(timeToExecution >=0){

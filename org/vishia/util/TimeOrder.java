@@ -1,14 +1,15 @@
 package org.vishia.util;
 
-/**This is the super class for orders, which should be added to a {@link OrderListExecuter} instance.
+/**This is the super class for orders, which should be added to a {@link TimeOrderMng} instance.
  * @author Hartmut Schorrig
  *
  */
-public abstract class OrderForList
+public abstract class TimeOrder
 {
 
   /**Version and history:
    * <ul>
+   * <li>2015-01-10 Hartmut renamed from <code>OrderForList</code>
    * <li>2014-02-23 Hartmut removed from the component srcJava_vishiaGui to the srcJava_vishiaBase 
    *   because it is commonly able to use.
    * <li>2012-02-14 Hartmut corr: {@link #addToList(GralGraphicThread, int)}:
@@ -76,7 +77,7 @@ public abstract class OrderForList
   private long timeExecution;
   
   
-  public OrderForList(String name)
+  public TimeOrder(String name)
   {
     this.name = name;
   }
@@ -112,7 +113,7 @@ public abstract class OrderForList
    * @param dst The graphic thread.
    * @param delay time in milliseconds for delayed execution or 0.
    */
-  synchronized public void addToList(OrderListExecuter dst, int delay){
+  synchronized public void addToList(TimeOrderMng dst, int delay){
     long timeExecution1 = System.currentTimeMillis() + delay;
     if(bAdded){
       long timediff = timeExecution1 - timeExecution();
@@ -140,7 +141,7 @@ public abstract class OrderForList
    * graphic thread.
    * @param graphicThread it is the singleton instance refered with {@link GralMng#gralDevice}.
    */
-  synchronized public void removeFromList(OrderListExecuter dst){
+  synchronized public void removeFromList(TimeOrderMng dst){
     bAdded = false;
     dst.removeDispatchListener(this);
   }
