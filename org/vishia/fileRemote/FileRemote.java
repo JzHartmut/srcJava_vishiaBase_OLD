@@ -556,7 +556,7 @@ public class FileRemote extends File implements MarkMask_ifc
    */
   private FileRemote child(CharSequence sPathChild, int flags, int length
       , long dateLastModified, long dateCreation, long dateLastAccess 
-      ) {
+      ) {                      //TODO: Test with path/path
     CharSequence pathchild1 = FileSystem.normalizePath(sPathChild);
     StringPart pathchild;
     int posSep1;
@@ -573,7 +573,7 @@ public class FileRemote extends File implements MarkMask_ifc
     StringBuilder uPath = new StringBuilder(100);
     do{
       uPath.setLength(0);
-      setPathTo(uPath).append('/').append(pathchild1);
+      file.setPathTo(uPath).append('/').append(pathchild1);
       child = file.children == null ? null : file.children.get(pathchild1); //search whether the child is known already.
       if(child == null && pathchild !=null){  //a sub directory child
         //maybe the child directory is registered already, take it.
@@ -1349,6 +1349,9 @@ public class FileRemote extends File implements MarkMask_ifc
   
   
   
+  /**TODO mFile is not set yet, use !isDirectory 2015-01-09
+   * @see java.io.File#isFile()
+   */
   @Override public boolean isFile(){ 
     if((flags & mTested) ==0){
       //The children are not known yet, get it:
@@ -1919,12 +1922,13 @@ public class FileRemote extends File implements MarkMask_ifc
    * @param evback The event for status messages and success.
    * @return The consumer of the event. The consumer can be ask about its state.
    */
-  public EventConsumer copyChecked(FileRemote dst, String nameDst, int mode, FileRemote.CallbackEvent evback){
+  public EventConsumer copyChecked(String pathDst, String nameModification, int mode, FileRemote.CallbackEvent evback){
     CmdEvent ev = evback.getOpponent();
     if(ev.occupy(evSrc, device.states, null, false)) {
       ev.filesrc = this;
-      ev.filedst = dst;
-      ev.nameDst = nameDst;
+      ev.filedst = null;
+      ev.nameDst = pathDst;
+      ev.newName = nameModification;
       ev.modeCopyOper = mode;
       ev.sendEvent(Cmd.copyChecked);
       return device.states;

@@ -311,7 +311,9 @@ public class StateMachine implements EventConsumer, InfoAppend
       return eventToTopDebug(ev); 
     } else {
       if(ev instanceof EventMsg){
-        ((EventMsg<?>)ev).donotRelinquish();
+        EventMsg<?> ev1 = (EventMsg<?>)ev;
+        ev1.donotRelinquish();
+        ev1.setDst(this);  //only this may be the destination of the event.
       }
       theThread.storeEvent(ev);
       return mEventConsumed;

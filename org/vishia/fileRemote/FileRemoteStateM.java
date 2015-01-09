@@ -259,7 +259,7 @@ public class FileRemoteStateM implements EventConsumer
   boolean bOnlyOneFile;
   
   /**The destination directory for all members in {@link #checkedFiles}.*/
-  FileRemote dirDst;
+  //FileRemote dirDst;
   
   /**Stored callback event when the state machine is in state {@link EStateCopy#Process}. 
    * 
@@ -773,10 +773,17 @@ public class FileRemoteStateM implements EventConsumer
             trans.doExit();
             //action:
             FileRemoteStateM.this.modeCopyOper = ev1.modeCopyOper;
-            dirDst = ev1.filedst();
             actData = getNextCopyData();
-            actData.dst = dirDst;
             actData.src = ev1.filesrc();
+            //TODO if srcFile is a file, fileCluster.getFile(dir, name). Done in other thread, String-Parameter for copyChecked(dirDst)!!
+            String sDirDst = ev1.nameDst;
+            String sNameDst = null;
+            if(!actData.src.isDirectory()) {
+              int sep = sDirDst.lastIndexOf('/');
+              sNameDst = sDirDst.substring(sep+1);
+              sDirDst = sep >0 ? sDirDst.substring(0, sep) : "";
+            }
+            actData.dst = actData.src.itsCluster.getFile(sDirDst, sNameDst); //new FileRemote(sDirSrc);
             //newDataSetCopy(ev.filesrc, ev.filedst);
             evBackInfo = ev1.getOpponent();                 //available for all back information while this copying
             timestart = System.currentTimeMillis();

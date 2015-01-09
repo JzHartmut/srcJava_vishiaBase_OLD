@@ -124,7 +124,7 @@ public class FileCluster
     int zDir = sDir1.length();
     if(sDir1.charAt(zDir-1) == '/' && zDir >3)
     { Debugutil.stop();
-      sDir = sDirP.subSequence(0, zDir-1).toString();
+      sDir = sDir1.subSequence(0, zDir-1).toString();
       zDir -=1;
     } else { sDir = sDir1.toString(); }
     //Sets the iterator after the exact found position or between a possible position:
@@ -145,7 +145,8 @@ public class FileCluster
              && assumeChild
              && sDir.length() >= zDirCheck && sDir.charAt(zDirCheck) == '/'){  //dirCheck is a parent directory of sDir:
         //any parent directory of the file was found. Create the child directory.
-        StringPart pathchild = new StringPart(sDir, zDirCheck+1, sDir.length());
+        StringPart pathchild = new StringPart(sDir + '/', zDirCheck+1, sDir.length()+1);
+        //pathchild.append('/');
         dirCheck = dirCheck.subdir(pathchild);   //it calls this method recursively! It puts the directories. 
       } else { //other directory name, maybe shorter for ex. "path" vs. "path2" or "path1" vs. "path2".
         dirCheck = new FileRemote(this, null, null, sDir, 0, 0, 0, 0, flagDir, null, true);
