@@ -175,23 +175,7 @@ public class EventTimerMng extends TimeOrderMng {
   private static EventTimerMng singleton;
   
   
-  //private boolean run;
-  
-  /**timestamp for a new time entry. It is set in synchronized operation between {@link #addTimeOrder(TimeEvent, long)}
-   * and the wait in the {@link #run()} operation.
-   * 
-   */
-  //long dateCheckNew;
-  
-  /**true if the wait operation runs in {@link #run()} */
-  //private boolean bWait;
-  
-  
   int identNrEvent;
-  
-  //ConcurrentLinkedQueue<TimeEventOrder> timeEntries = new ConcurrentLinkedQueue<TimeEventOrder>();
-  
-  //ConcurrentLinkedQueue<TimeEventOrder> timeEntriesNew = new ConcurrentLinkedQueue<TimeEventOrder>();
   
   
   /**The next time where the thread will be release its wait(millisec) routine without extra notifying.  
@@ -243,95 +227,4 @@ public class EventTimerMng extends TimeOrderMng {
   }
   
   
-  /*
-  private void addTimeOrder(TimeEventOrder order){
-    order.setUsed();
-    
-    timeEntriesNew.add(order);
-    //notify the run process to shorten the wait time.
-    synchronized(this){
-      if((order.dateEvent - dateCheck) < 0) { //this date is less than the next check date
-        if(bWait){  
-          notify();  //notify to add and accept this lesser date.
-        } else; //not necessary to notify, because it is active yet.
-      } else; //let it run, it will be waken up before date.
-    }
-  }*/
-  
-  /*
-  public boolean removeTimeOrder(TimeEventOrder order){
-    order.setUnused();
-    if(timeEntries.remove(order)) return true;
-    else return timeEntriesNew.remove(order);
-  }
-  */
-  /*
-  public void XXXrun(){
-    run = true;
-    while(run){
-      long timeAct = System.currentTimeMillis();
-      if((timeAct - dateCheck) >=0){
-        //woken up after dateCheck, now check all timer events.
-        long dateCheck1 = Long.MAX_VALUE;
-        Iterator<TimeEventOrder> iter = timeEntries.iterator();
-        while(iter.hasNext()){
-          TimeEventOrder entry = iter.next();
-          long wait = entry.dateEvent - timeAct;
-          if(wait <=0){
-            iter.remove();  //remove this entry
-            entry.setUnused();
-            executeTime(entry);
-          } else if(dateCheck1 > entry.dateEvent){ 
-            dateCheck1 = entry.dateEvent; 
-          }
-        }
-        this.dateCheck = dateCheck1;
-      }
-      TimeEventOrder entryNew;
-      while( (entryNew = timeEntriesNew.poll()) !=null) {
-        if((entryNew.dateEvent - dateCheck) < 0 ){
-          dateCheck = entryNew.dateEvent;
-        }
-        timeEntries.add(entryNew);
-      }
-      try{
-        synchronized(this){
-          long timeWait = dateCheck - timeAct;
-          if(timeWait > 0                     //if timeWait is more early than now, process it, don't wait.
-            && timeEntriesNew.peek() == null  //if any entry in the new-list, process it, don't wait.
-            && run
-            ){
-            bWait = true;
-            wait(timeWait);
-            bWait = false;
-          }
-        }
-      }catch(InterruptedException exc){
-        
-      }
-    }
-    
-  }
-  */
-
-  /*
-  private void executeTime(TimeEventOrder entry){
-    final TimeEvent ev = entry.event !=null ? entry.event: 
-      new TimeEvent(entry.dst, entry.threadDst, entry.identNrEvent);
-    ev.occupy(evSource, true);
-    ev.sendEvent(TimeEvent.Cmd.Time);
-  }
-  */
-  
-
-  /*
-  @Override public void close() throws IOException {
-    run = false;
-    synchronized(this){
-      if(bWait){
-        notify();
-      } else; //not necessary to notify, because it is active yet.
-    }    
-  }
-  */
 }

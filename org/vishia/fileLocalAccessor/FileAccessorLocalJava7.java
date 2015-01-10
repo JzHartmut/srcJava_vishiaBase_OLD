@@ -36,7 +36,7 @@ import org.vishia.fileRemote.FileRemote;
 import org.vishia.fileRemote.FileRemoteAccessor;
 import org.vishia.fileRemote.FileRemote.Cmd;
 import org.vishia.fileRemote.FileRemoteCallback;
-import org.vishia.fileRemote.FileRemoteStateM;
+import org.vishia.fileRemote.FileRemoteProgressTimeOrder;
 import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
 import org.vishia.util.SortedTreeWalkerCallback;
@@ -97,6 +97,12 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
   /**May be set to true with inspector, then System.out on file walking. */
   protected boolean debugout = false;
   
+  /**The state machine for executing over some directory trees is handled in this extra class.
+   * Note: the {@link Copy#Copy(FileAccessorLocalJava7)} needs initialized references
+   * of {@link #singleThreadForCommission} and {@link #executerCommission}.
+   */
+  protected final FileLocalAccessorCopyStateM states = new FileLocalAccessorCopyStateM();  
+  
   EventSource evSrc = new EventSource("FileLocalAccessor"){
     @Override public void notifyDequeued(){}
     @Override public void notifyConsumed(int ctConsumed){}
@@ -118,7 +124,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
    */
   EventConsumer executerCommission = new EventConsumer(){
     @Override public int processEvent(EventObject ev) {
-      if(ev instanceof FileRemoteStateM.EventCpy){ //internal Event
+      if(ev instanceof FileLocalAccessorCopyStateM.EventCpy){ //internal Event
         states.statesCopy.processEvent(ev);
         return 1;
       } else if(ev instanceof FileRemote.CmdEvent){  //event from extern
@@ -453,10 +459,20 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
   }
 
   
+  
+  @Override public void copyChecked(FileRemote fileSrc, String pathDst, String nameModification, int mode, FileRemoteCallback callbackUser, FileRemoteProgressTimeOrder timeOrderProgress)
+  {
+    states.copyChecked(fileSrc, pathDst, nameModification, mode, callbackUser, timeOrderProgress);
+    
+  }
+
+  
+  
   @Override public boolean isLocalFileSystem()
   {  return true;
   }
 
+  @Override public CharSequence getStateInfo(){ return states.getStateInfo(); }
   
   
   

@@ -26,6 +26,7 @@ import org.vishia.fileRemote.FileRemoteAccessor;
 import org.vishia.fileRemote.FileRemote.CallbackEvent;
 import org.vishia.fileRemote.FileRemote.Cmd;
 import org.vishia.fileRemote.FileRemoteCallback;
+import org.vishia.fileRemote.FileRemoteProgressTimeOrder;
 import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
 
@@ -100,6 +101,12 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
   
   private static FileRemoteAccessor instance;
   
+  /**The state machine for executing over some directory trees is handled in this extra class.
+   * Note: the {@link Copy#Copy(FileAccessorLocalJava7)} needs initialized references
+   * of {@link #singleThreadForCommission} and {@link #executerCommission}.
+   */
+  protected final FileLocalAccessorCopyStateM states = new FileLocalAccessorCopyStateM();  
+
   
   EventSource evSrc = new EventSource("FileLocalAccessor"){
     @Override public void notifyDequeued(){}
@@ -404,12 +411,21 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
   }
 
   
+  
+  @Override public void copyChecked(FileRemote fileSrc, String pathDst, String nameModification, int mode, FileRemoteCallback callbackUser, FileRemoteProgressTimeOrder timeOrderProgress)
+  {
+    states.copyChecked(fileSrc, pathDst, nameModification, mode, callbackUser, timeOrderProgress);
+  }
+
+  
   @Override public boolean isLocalFileSystem()
   {  return true;
   }
 
   
+  @Override public CharSequence getStateInfo(){ return ""; } //states.getStateInfo(); }
   
+
   
   /**Creates an CmdEvent if necessary, elsewhere uses the opponent of the given evBack and occupies it.
    * While occupying the Cmdevent is completed with the destination, it is {@link #executerCommission}.

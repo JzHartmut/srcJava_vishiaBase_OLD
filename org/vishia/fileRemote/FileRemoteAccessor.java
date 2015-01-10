@@ -10,6 +10,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.List;
 
 import org.vishia.event.EventMsg2;
+import org.vishia.fileLocalAccessor.FileLocalAccessorCopyStateM;
 
 /**Interface for instances, which organizes a remote access to files.
  * One instance per transfer protocol are need.
@@ -73,12 +74,6 @@ public abstract class FileRemoteAccessor implements Closeable
   //public final static int kOperation = 0xd00000, kFinishOk = 0xf10000, kFinishNok = 0xf10001
   //, kFinishError = 0xf1e3303, kNrofFilesAndBytes = 0xd00001, kCopyDir = 0xd0cd13;
 
-  /**The state machine for executing over some directory trees is handled in this extra class.
-   * Note: the {@link Copy#Copy(FileAccessorLocalJava7)} needs initialized references
-   * of {@link #singleThreadForCommission} and {@link #executerCommission}.
-   */
-  protected final FileRemoteStateM states = new FileRemoteStateM();  
-  
 
   protected FileRemoteAccessor(){
     
@@ -166,6 +161,18 @@ public abstract class FileRemoteAccessor implements Closeable
   
   public abstract boolean mkdir(FileRemote file, boolean subdirs, FileRemote.CallbackEvent callback);
   
+  
+  /**Copies all files which are checked before.
+   * @param fileSrc dir or file as root for copy to the given pathDst
+   * @param pathDst String given destination for the copy
+   * @param nameModification Modification for each name. null then no modification. TODO
+   * @param mode One of the bits {@link FileRemote#modeCopyCreateYes} etc.
+   * @param callbackUser Maybe null, elsewhere on every directory and file which is finished to copy a callback is invoked.
+   * @param timeOrderProgress may be null, to show the progress of copy.
+   */
+  public abstract void copyChecked(FileRemote fileSrc, String pathDst, String nameModification, int mode, FileRemoteCallback callbackUser, FileRemoteProgressTimeOrder timeOrderProgress);
+  
+  
   public abstract ReadableByteChannel openRead(FileRemote file, long passPhase);
   
   public abstract InputStream openInputStream(FileRemote file, long passPhase);
@@ -182,6 +189,8 @@ public abstract class FileRemoteAccessor implements Closeable
   
   public abstract boolean isLocalFileSystem();
 
+  
+  public abstract CharSequence getStateInfo();
   
   
   /**This class offers a Thread especially for {@link FileRemoteAccessor#walkFileTree(FileRemote, boolean, FileFilter, int, CallbackFile)}

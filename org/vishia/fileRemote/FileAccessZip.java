@@ -268,6 +268,13 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     return false;   // not implement: changing of file.
   }
   
+  
+  @Override public void copyChecked(FileRemote fileSrc, String pathDst, String nameModification, int mode, FileRemoteCallback callbackUser, FileRemoteProgressTimeOrder timeOrderProgress)
+  {
+    //TODO
+  }
+
+  
   @Override
   public ReadableByteChannel openRead(FileRemote file, long passPhase) {
     // TODO Auto-generated method stub
@@ -324,7 +331,9 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
   }
   
   
+  @Override public CharSequence getStateInfo(){ return ""; } //states.getStateInfo(); }
   
+
   
   
   static class FileZipData

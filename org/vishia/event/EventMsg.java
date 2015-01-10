@@ -374,7 +374,12 @@ public class EventMsg<CmdEnum extends Enum<CmdEnum>> extends EventObject
    * <li>If the event is occupied already and not found in any queue, then it seems to be processed in this moment.
    *   This method waits the given timeout till the event is free. If it will be free in the timeout period,
    *   the method occupies it and returns 1. 
-   * <li>If the timeout is expired, the method returns 0. That may be an unexpected situation, because the 
+   * <li>If the timeout is expired, it is checked whether the timestamp of the occupying of the event is lesser than the timestamp
+   *   on starting wait. If it is so, the event hangs. That is especially if the event process has thrown an exception and the 
+   *   event was not relinquished therefore. The event would hang forever. Therefore the {@link #dateCreation()} is forced to 0,
+   *   so the event is free now. Then it is occupied from this routine.
+   * <li>If that occupying fails too, it is only possible that another process has occupied it too.
+   * <li>If the event cannot be occupied the method returns 0. That may be an unexpected situation, because the 
    *   processing of an event should be a short non-blocking algorithm. It may be a hint to an software error. 
    *   one may try again occupy with an increased timeout. The processing may need more time.
    *   It is possible that the processing of the event hangs (deadlock). 
@@ -388,8 +393,14 @@ public class EventMsg<CmdEnum extends Enum<CmdEnum>> extends EventObject
    *   {@link EventConsumer#processEvent(EventMsg)} is invoked in the current thread. If dst ==null this parameter is not used.
    * @param expect If true and the event is not able to occupy, then the method {@link EventSource#notifyShouldOccupyButInUse()} 
    *   from the given source is invoked. It may cause an exception for example. 
-   * @return 0 if the event is blocked because it is in process for the timeout time, != 0 if the event is occupied.
-   *   1 if the event was free. 2 if the event is removed from another queue. It means the last one request is not done. 
+   * @return 
+   *   <ul>
+   *   <li>0 if the event is blocked because it is in process for the timeout time, 
+   *   <li>!= 0 if the event is occupied:
+   *   <li>1 if the event was free. 
+   *   <li>2 if the event is removed from another queue. It means the last one request is not done.
+   *   <li>3 if the event is forced relinguish because it was hanging.
+   *   </ul> 
    */
   public int occupyRecall(int timeout, EventSource source, EventConsumer dst, EventThread thread, boolean expect){
     int ok = 0;
@@ -408,12 +419,27 @@ public class EventMsg<CmdEnum extends Enum<CmdEnum>> extends EventObject
       }
     }
     if(!bOk){
+      long time1 = System.currentTimeMillis();
       synchronized(this){
         bAwaitReserve = true;
         try{ wait(timeout); } catch(InterruptedException exc){ }
         bAwaitReserve = false;
-        bOk = occupy(source, dst, thread, false);
-        if(bOk){ ok = 1; }
+      }//synchronized
+      bOk = occupy(source, dst, thread, false);
+      if(bOk){ ok = 1; }
+      else {
+        synchronized(this){
+          long timeCreation = dateCreation.get();
+          if(!bOk && timeCreation !=0 && (timeCreation - time1) < 0) {
+            //the event is not occupied newly. It means it hangs usual because an exception which has prevented relinquish():
+            //force new usage:
+            donotRelinquish = false;
+            bAwaitReserve = false;
+            relinquish();
+            bOk = occupy(source, dst, thread, false);
+          }
+        }//synchronized
+        if(bOk){ ok = 3; }
       }
     }
     if(!bOk && expect){

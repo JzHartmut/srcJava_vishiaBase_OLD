@@ -11,21 +11,15 @@ import java.util.EventObject;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.Queue;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.vishia.checkDeps_C.CheckAllDepFile;
-import org.vishia.commander.FcmdCopyCmd;
-import org.vishia.event.EventMsg;
 import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventThread;
 import org.vishia.fileLocalAccessor.FileAccessorLocalJava6;
-import org.vishia.fileRemote.FileRemoteCallback;
 import org.vishia.util.Assert;
 import org.vishia.util.Debugutil;
 import org.vishia.util.FileSystem;
@@ -100,7 +94,28 @@ import org.vishia.util.SortedTreeWalkerCallback.Result;
  * <li>Any reference to a this class can be store in a reference of type java.io.File. The user can deal with it
  *   without knowledge about the FileRemote concept in a part of its software. Only the refreshing
  *   should be regulated in the proper part of the application. 
+ * </ul>
+ * <br><br>
+ * <b>Concepts of callback</b>: <br>
+ * This class offers some methods to deal with directory trees:
+ * <ul>
+ * <li>{@link #refreshAndMark(int, boolean, String, int, int, FileRemoteCallback)} marks files for copy, move or delete.
+ * <li>{@link #refreshAndCompare(FileRemote, int, String, int, FileRemoteProgressTimeOrder)} compares two trees of files.
+ * <li>{@link #copyChecked(String, String, int, CallbackEvent)} copies some or all files in a tree.
+ * <li>{@link #deleteChecked(CallbackEvent, int)} deletes some or all files in a tree.
  * </ul> 
+ * This operations may need more seconds, sometimes till minutes if there are a lot of files in a remote device with network access.
+ * To show the progress two startegies are used:
+ * <ul>
+ * <li>{@link FileRemoteCallback}: It is a callback interface with methods for each file and each started and finished directory.
+ * <li>{@link FileRemoteProgressTimeOrder}: It is an instance which is filled with data. The time order is handled by a timer
+ *   which activates it for example in a cycle for 200 milliseconds. The user extends this base class with the showing method. 
+ *   In a time range of 200 milliseconds there can be executed some more files, for example 1000 if the file system is local. 
+ *   Not any file forces to be showed. Therewith calculation time is saved.  
+ * </ul>
+ * The user can provide one of that, both or no instance for showing. 
+ * Handling of a event driven communication need one event per file. It is too much effort if the file system is fast.
+ * That is tested in the past but not supported furthermore.
  * 
  * @author Hartmut Schorrig
  *
@@ -907,7 +922,7 @@ public class FileRemote extends File implements MarkMask_ifc
   
   
   
-  /**Refreshes a file tree and mark some files. This routine creates another thread usually which accesses the file system
+  /**Refreshes a file tree and mark some files. This routine creates another thread usually, which accesses the file system
    * and invokes the callback routines. A longer access time does not influence this thread. 
    * The result is given only if the {@link FileRemoteCallback#finished(FileRemote, org.vishia.util.SortedTreeWalkerCallback.Counters)}
    * will be invoked.
@@ -917,11 +932,11 @@ public class FileRemote extends File implements MarkMask_ifc
    * @param set or reset the bit.
    * @param callbackUser a user instance which will be informed on start, any file, any directory and the finish.
    */
-  public void refreshAndMark(int depth, boolean resetMark, String mask, int mark, int set, FileRemoteCallback callbackUser) {
+  public void refreshAndMark(int depth, boolean resetMark, String mask, int mark, int set, FileRemoteCallback callbackUser, FileRemoteProgressTimeOrder timeOrderProgress) {
     if(device == null){
       device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    CallbackMark callbackMark = new CallbackMark(callbackUser); //, nLevelProcessOnlyMarked);  //negativ... TODO
+    CallbackMark callbackMark = new CallbackMark(callbackUser, timeOrderProgress); //, nLevelProcessOnlyMarked);  //negativ... TODO
     device.walkFileTree(this,  false, true, resetMark, mask, mark,  depth,  callbackMark);  //should work in an extra thread.
   }
   
@@ -937,11 +952,11 @@ public class FileRemote extends File implements MarkMask_ifc
    * @param set or reset the bit.
    * @param callbackUser a user instance which will be informed on start, any file, any directory and the finish.
    */
-  public void refreshAndCompare(FileRemote dirCmp, int depth, String mask, int mark, FileRemote.CallbackEvent evCallback) { ////
+  public void refreshAndCompare(FileRemote dirCmp, int depth, String mask, int mark, FileRemoteCallback callbackUser, FileRemoteProgressTimeOrder timeOrderProgress) { //FileRemote.CallbackEvent evCallback) { ////
     if(device == null){
       device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
-    FileRemoteCallbackCmp callbackCmp = new FileRemoteCallbackCmp(this, dirCmp, evCallback);
+    FileRemoteCallbackCmp callbackCmp = new FileRemoteCallbackCmp(this, dirCmp, callbackUser, timeOrderProgress);  //evCallback);
     device.walkFileTree(this,  false, true, false, mask, mark,  depth,  callbackCmp);  //should work in an extra thread.
   }
   
@@ -1179,7 +1194,6 @@ public class FileRemote extends File implements MarkMask_ifc
    */
   public StringBuilder setPathTo(StringBuilder ret){
     int zFile = sFile == null ? 0 : sFile.length();
-    ret.setLength(0);
     if(zFile > 0){ 
       int zDir = sDir == null? 0: sDir.length();
       if(zDir >0){
@@ -1803,31 +1817,6 @@ public class FileRemote extends File implements MarkMask_ifc
 
   
   
-  /**Compare the both given file trees. The start files will be marked with {@link FileMark#markRoot}
-   * Any child file will be marked with the bits
-   * <ul>
-   * <li>{@link FileMark#cmpAlone}
-   * <li>{@link FileMark#cmpContentEqual}
-   * <li>{@link FileMark#cmpContentNotEqual}
-   * </ul>
-   * Any child directory and this directories will be marked with {@link FileMark#markDir}
-   * and conditional additional with 
-   * <ul>
-   * <li>{@link FileMark#cmpFileDifferences}
-   * <li>{@link FileMark#cmpMissingFiles}
-   * </ul>
-   * The application is responsible for removing the mark after them. The application may show the mark
-   * in any kind and then invoke {@link FileRemote#resetMarked(int)}.
-   * @param dir1 Start dir
-   * @param dir2 The other start dir for comparison.
-   */
-  public static void XXXXXXXXcmpFiles(FileRemote dir1, FileRemote dir2, FileRemote.CallbackEvent evCallback){ ////
-    //dir1 = file1; dir2 = file2;
-    FileRemoteCallbackCmp callback = new FileRemoteCallbackCmp(dir1, dir2, evCallback);
-    dir1.walkFileTreeThread(0, callback);
-    //dir1.device.walkFileTree(dir1, true, false, null, 0, Integer.MAX_VALUE, callback);
-  }
-  
   
 
   
@@ -1921,7 +1910,6 @@ public class FileRemote extends File implements MarkMask_ifc
    * @param nameDst maybe null, elsewhere it should contain 1 wildcard to specify an abbreviating name.
    * @param evback The event for status messages and success.
    * @return The consumer of the event. The consumer can be ask about its state.
-   */
   public EventConsumer copyChecked(String pathDst, String nameModification, int mode, FileRemote.CallbackEvent evback){
     CmdEvent ev = evback.getOpponent();
     if(ev.occupy(evSrc, device.states, null, false)) {
@@ -1937,8 +1925,27 @@ public class FileRemote extends File implements MarkMask_ifc
     }
   }
   
+   */
   
 
+  
+  /**Copies all files which are checked before.
+   * this is the dir or file as root for copy to the given pathDst
+   * @param pathDst String given destination for the copy
+   * @param nameModification Modification for each name. null then no modification. TODO
+   * @param mode One of the bits {@link FileRemote#modeCopyCreateYes} etc.
+   * @param callbackUser Maybe null, elsewhere on every directory and file which is finished to copy a callback is invoked.
+   * @param timeOrderProgress may be null, to show the progress of copy.
+   */
+  public void copyChecked(String pathDst, String nameModification, int mode, FileRemoteCallback callbackUser, FileRemoteProgressTimeOrder timeOrderProgress)
+  {
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
+    device.copyChecked(this, pathDst, nameModification, mode, callbackUser, timeOrderProgress);
+  }
+
+  
   
   
   /**Copies a file or directory tree to another file in the same device. The device is any file system maybe in a remote device.  
@@ -2220,7 +2227,7 @@ public class FileRemote extends File implements MarkMask_ifc
   /**Returns the state of the device statemachine, to detect whether it is active or ready.
    * @return a String for debugging and show.
    */
-  public String getStateDevice(){ return (device == null) ? "no-device" : device.states.getStateInfo(); }
+  public CharSequence getStateDevice(){ return (device == null) ? "no-device" : device.getStateInfo(); }
   
   public int ident(){ return _ident; }
   
@@ -2953,36 +2960,6 @@ public class FileRemote extends File implements MarkMask_ifc
     
   }
   
-
-  static class XXXCmpFilesThread extends Thread {
-    FileRemote dir1,dir2;
-    
-    FileRemote.CallbackEvent evCallback;
-    
-    XXXCmpFilesThread(FileRemote file1, FileRemote file2, FileRemote.CallbackEvent evCallback) { 
-      super("cmp Files"); this.dir1 = file1; this.dir2 = file2; this.evCallback = evCallback;
-    }
-    
-    public void run() {
-      if(dir1.device == null){
-        dir1.device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(dir1.getAbsolutePath());
-      }
-      if(dir2.device == null){
-        dir2.device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(dir2.getAbsolutePath());
-      }
-      int markReset = FileMark.markDir | FileMark.markDir | FileMark.cmpAlone | FileMark.cmpContentEqual
-        | FileMark.cmpFileDifferences | FileMark.cmpContentNotEqual | FileMark.cmpMissingFiles;
-      dir1.resetMarkedRecurs(markReset, null);
-      dir2.resetMarkedRecurs(markReset, null);
-      dir1.setMarked(FileMark.markRoot);
-      dir2.setMarked(FileMark.markRoot);
-      FileRemoteCallbackCmp callback = new FileRemoteCallbackCmp(dir1, dir2, evCallback);
-      dir1.device.walkFileTree(dir1, true, true, false, null, 0, Integer.MAX_VALUE, callback);
-      //after finish destroy this thread.
-    }
-  }
-
-  
   
   
   /**Callback for walkThroughFiles for {@link FileRemote#}.
@@ -2991,6 +2968,8 @@ public class FileRemote extends File implements MarkMask_ifc
   public class CallbackMark implements FileRemoteCallback {
     
     final FileRemoteCallback callbackUser;
+    
+    final FileRemoteProgressTimeOrder timeOrderProgress;
     
     FileRemote startDir;
     
@@ -3005,9 +2984,10 @@ public class FileRemote extends File implements MarkMask_ifc
      * @param callbackUser This callback will be invoked after the child is registered in this.
      * @param updateThis true then remove and update #children.
      */
-    public CallbackMark(FileRemoteCallback callbackUser)
+    public CallbackMark(FileRemoteCallback callbackUser, FileRemoteProgressTimeOrder timeOrderProgress)
     {
       this.callbackUser = callbackUser;
+      this.timeOrderProgress = timeOrderProgress;
       //this.levelProcessMarked = levelProcessOnlyMarked;
     }
     

@@ -205,7 +205,7 @@ public class TimeOrderMng implements Closeable
   public void addTimeOrder(TimeOrderBase order){ 
     if(order.timeToExecution() >=0){
       queueDelayedOrders.offer(order);
-      if(order.timeExecution < timeCheckNew - 20) {
+      if(order.timeExecution < timeCheckNew - 2) {  //an imprecision of 2 ms are admissible, don't wakeup because calculation imprecisions.
         boolean notified;
         synchronized(runTimer){
           notified = stateThreadTimer == 'W';
