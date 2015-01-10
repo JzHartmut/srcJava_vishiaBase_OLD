@@ -2,8 +2,10 @@ package org.vishia.event;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.EventObject;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.vishia.util.Assert;
 import org.vishia.util.InfoAppend;
@@ -16,6 +18,8 @@ public class EventThread implements Runnable, Closeable, InfoAppend
 {
   /**Version, history and license.
    * <ul>
+   * <li>2015-01-11 Hartmut chg: Now a statemachine can be {@link #shouldRun(boolean)} to force run for condition check.
+   *   This class knows {@link #registerConsumer(EventConsumer)} and {@link #shouldRun(int)} for that.
    * <li>2015-01-04 Hartmut chg: Now uses the Java-standard {@link EventObject} instead a specific one,
    *   but some methods are supported for {@link EventMsg}, especially {@link EventMsg#notifyDequeued()} and {@link EventMsg#stateOfEvent}.  
    * <li>2013-05-12 Hartmut chg: Now the thread starts and ends automatically if {@link #startThread()}
@@ -55,6 +59,12 @@ public class EventThread implements Runnable, Closeable, InfoAppend
   
   protected final ConcurrentLinkedQueue<EventObject> queueEvents = new ConcurrentLinkedQueue<EventObject>();
 
+  
+  private final ArrayList<EventConsumer> listConsumer = new ArrayList<EventConsumer>();
+  
+  private int[] consumerShouldRun = new int[20];  //up to 320 consumer. TODO increase with greater listConsumer. 
+  
+  
   /**The state of the thread
    * <ul>
    * <li>'.' non initialized.
@@ -97,9 +107,42 @@ public class EventThread implements Runnable, Closeable, InfoAppend
   }
   
   
+  /**Registers a consumer that can be run in this thread without storing an event.
+   * @param obj the consumer, it should be override {@link EventConsumer#shouldRun(boolean)} which should call 
+   *   {@link #shouldRun(int)} of this class with the index which is returned from this method. See example in 
+   *   {@link org.vishia.states.StateMachine#shouldRun(boolean)}.
+   * @return The index of registering.
+   */
+  public synchronized int registerConsumer(EventConsumer obj) {
+    listConsumer.add(obj);
+    return listConsumer.size()-1;  //the add position.
+  }
+  
+  
+  /**Activates one time running of the registered {@link EventConsumer} without an event.
+   * @param ixRegisteredConsumer
+   * @see #registerConsumer(EventConsumer)
+   */
+  public synchronized void shouldRun(int ixRegisteredConsumer) {
+    int ix = ixRegisteredConsumer >>5;
+    int bit = 1 << (ixRegisteredConsumer - ix);
+    consumerShouldRun[ix] |= bit;
+    startOrNotify();
+  }
+  
+  
+  
+  /**Stores an event in the queue, able to invoke from any thread.
+   * @param ev
+   */
   public void storeEvent(EventObject ev){
     if(ev instanceof EventMsg) { ((EventMsg)ev).stateOfEvent = 'q'; }
     queueEvents.offer(ev);
+    startOrNotify();
+  }
+  
+
+  private void startOrNotify(){
     if(thread == null){
       startThread();
       startOnDemand = true;
@@ -116,10 +159,10 @@ public class EventThread implements Runnable, Closeable, InfoAppend
   
   
   
-  /**Removes this element from its queue if it is in the queue.
-   * If the element is found in the queue, it is designated with 
+  /**Removes this event from its queue if it is in the queue.
+   * If the element is found in the queue, it is designated with stateOfEvent = 'a'
    * @param ev
-   * @return
+   * @return true if found.
    */
   public boolean removeFromQueue(EventMsg ev){
     boolean found = queueEvents.remove(ev);
@@ -157,6 +200,51 @@ public class EventThread implements Runnable, Closeable, InfoAppend
   
   
   
+  private boolean checkEventAndRun()
+  { boolean processedOne = false;
+    try{ //never let the thread crash
+      EventObject event;
+      if( (event = queueEvents.poll()) !=null){
+        this.ctWaitEmptyQueue = 0;
+        synchronized(this){
+          if(stateOfThread != 'x'){
+            stateOfThread = 'b'; //busy
+          }
+        }
+        if(stateOfThread == 'b'){
+          applyEvent(event);
+          processedOne = true;
+        }
+      } else {
+        //all events processed:
+        for(int ix = 0; ix < consumerShouldRun.length; ++ix){
+          int bits = consumerShouldRun[ix];
+          int ixConsumer = ix <<5;
+          int bitReset = 0xfffffffe;
+          while(bits !=0){
+            if( (bits & 1)!=0 ){
+              EventConsumer consumer = listConsumer.get(ixConsumer);
+              if(consumer !=null){
+                consumer.processEvent(null);  //run it without event. To execute conditions.
+                processedOne = true;
+              }
+            }
+            synchronized(this){
+              consumerShouldRun[ix] &= bitReset;
+            }
+            bitReset <<=1;
+            bits = (bits >>1) & 0x7fffffff;  //shift without sign!
+          }
+        }
+      }
+    } catch(Exception exc){
+      CharSequence text = Assert.exceptionInfo("EventThread unexpected Exception - ", exc, 0, 50);
+      System.err.append(text);
+    }
+    return processedOne;
+  }
+  
+  
   
   
   /**Run method of the thread.
@@ -165,38 +253,22 @@ public class EventThread implements Runnable, Closeable, InfoAppend
   @Override final public void run()
   { stateOfThread = 'r';
     do { 
-      try{ //never let the thread crash
-        EventObject event;
-        if( (event = queueEvents.poll()) !=null){
-          this.ctWaitEmptyQueue = 0;
+      if(!checkEventAndRun()) {
+        //wait if at least nothing was processed
+        if(!startOnDemand   //wait anytime 
+          || ++this.ctWaitEmptyQueue < this.maxCtWaitEmptyQueue //or count the empty wait cycles.
+          ){
           synchronized(this){
-            if(stateOfThread != 'x'){
-              stateOfThread = 'b'; //busy
-            }
-          }
-          if(stateOfThread == 'b'){
-            applyEvent(event);
-          }
-        } else {
-          if(!startOnDemand   //wait anytime 
-            || ++this.ctWaitEmptyQueue < this.maxCtWaitEmptyQueue //or count the empty wait cycles.
-            ){
-            synchronized(this){
-              if(stateOfThread != 'x'){  //exit?
-                stateOfThread = 'w';      //w = waiting, notify necessary
-                try{ wait(1000); } catch(InterruptedException exc){}
-                if(stateOfThread == 'w'){ //can be changed while waiting, set only to 'r' if 'w' is still present
-                  stateOfThread = 'r';
-                }
+            if(stateOfThread != 'x'){  //exit?
+              stateOfThread = 'w';      //w = waiting, notify necessary
+              try{ wait(1000); } catch(InterruptedException exc){}
+              if(stateOfThread == 'w'){ //can be changed while waiting, set only to 'r' if 'w' is still present
+                stateOfThread = 'r';
               }
             }
           }
         }
-      } catch(Exception exc){
-        CharSequence text = Assert.exceptionInfo("EventThread unexpected Exception - ", exc, 0, 50);
-        System.err.append(text);
       }
-
     } while(stateOfThread != 'c' && this.ctWaitEmptyQueue < this.maxCtWaitEmptyQueue);
     stateOfThread = 'x';
     thread = null;

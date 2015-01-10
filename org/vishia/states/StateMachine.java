@@ -90,11 +90,13 @@ import org.vishia.util.InfoAppend;
  * @author hartmut Schorrig
  *
  */
-public class StateMachine implements EventConsumer, InfoAppend
+public class StateMachine extends EventConsumer implements InfoAppend
 {
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-01-11 Hartmut chg: Now a statemachine can be {@link #shouldRun(boolean)} to force run for condition check. 
+   * <li>2014-12-30 Hartmut chg: test, gardening 
    * <li>2014-10-12 Hartmut chg: Not does not inherit from {@link StateComposite}, instance of {@link #topState}. 
    * <li>2014-09-28 Hartmut chg: Copied from org.vishia.stateMachine.TopState, changed concept: 
    *   Nested writing of states, less code, using reflection for missing instances and data. 
@@ -146,6 +148,8 @@ public class StateMachine implements EventConsumer, InfoAppend
    * But this aggregation may be null if the state machine will be processed in a users thread.
    */
   final EventThread theThread;
+  
+  final int ixInThread;
   
   /**Aggregation to the used timer for time events. See {@link #addTimeOrder(long)}.
    * It may be null if queued time events are not necessary for this.
@@ -205,6 +209,11 @@ public class StateMachine implements EventConsumer, InfoAppend
   { this.name = name;
     this.theThread = thread;
     this.theTimer = timer;
+    if(thread !=null){
+      ixInThread = thread.registerConsumer(this);
+    } else {
+      ixInThread = -1;
+    }
     final StateSimple[] aSubstates;
     Class<?>[] innerClasses = this.getClass().getDeclaredClasses();
     if(innerClasses.length ==0) throw new IllegalArgumentException("The StateMachine should have inner classes which are the states.");  //expected.
@@ -255,6 +264,7 @@ public class StateMachine implements EventConsumer, InfoAppend
    */
   protected StateMachine(String name, StateSimple[] aSubstates) {
     this.name = name;
+    ixInThread = -1;
     this.topState = new StateCompositeTop(this, aSubstates, null);
     theTimer = null;
     theThread = null;
@@ -262,6 +272,15 @@ public class StateMachine implements EventConsumer, InfoAppend
   
   
 
+  @Override public boolean shouldRun(boolean val){
+    if(val && ixInThread >=0) {
+      theThread.shouldRun(ixInThread);
+      return true;
+    }
+    else return false;
+  }
+  
+  
 
   /**Gets the state instance to the State class inside this state machine.
    * The state instance can be used to ask {@link StateSimple#isInState()} or for some statistically checks

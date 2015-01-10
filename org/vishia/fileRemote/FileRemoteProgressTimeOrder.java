@@ -1,5 +1,6 @@
 package org.vishia.fileRemote;
 
+import org.vishia.event.EventConsumer;
 import org.vishia.fileLocalAccessor.FileLocalAccessorCopyStateM;
 import org.vishia.util.TimeOrderBase;
 import org.vishia.util.TimeOrderMng;
@@ -27,6 +28,7 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrderBase
     this.delay = delay;
   }
   
+  
   /**Current processed file. */
   public FileRemote currFile, currDir;
   
@@ -45,7 +47,7 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrderBase
   /**Command for asking or showing somewhat. */
   public FileRemote.CallbackCmd cmd;
   
-  //public FileRemote.Cmd answer;
+  public FileRemote.Cmd answer;
   
   /**Mode of operation, see {@link FileRemote#modeCopyCreateAsk} etc. */
   public int modeCopyOper;
@@ -57,6 +59,9 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrderBase
   private FileRemote.CmdEvent eventAnswer;
   //FileLocalAccessorCopyStateM.EventCpy eventAnswer;
   
+  private EventConsumer consumerAnswer;
+  
+  
   public void show() {
     if(currFile == null || bDone){
       addToList(mng, delay);
@@ -64,10 +69,16 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrderBase
   }
   
   
-  public void requAnswer(FileRemote.CallbackCmd cmd, FileRemote.CmdEvent ev) {
+  public void XXXrequAnswer(FileRemote.CallbackCmd cmd, FileRemote.CmdEvent ev) {
     this.cmd = cmd;
     this.eventAnswer = ev;
     addToList(mng, delay);
+  }
+  
+  public void requAnswer(FileRemote.CallbackCmd cmd, EventConsumer evConsumer) {
+    this.cmd = cmd;
+    this.consumerAnswer = evConsumer;
+    addToList(mng, delay);   //to execute the request
   }
   
   
@@ -76,6 +87,10 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrderBase
     if(eventAnswer !=null){
       eventAnswer.modeCopyOper = modeCopyOper;
       eventAnswer.sendEvent(answer);
+    }
+    if(consumerAnswer !=null) {
+      this.answer = answer; 
+      consumerAnswer.shouldRun(true);
     }
   }
   

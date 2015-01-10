@@ -36,7 +36,7 @@ import org.vishia.util.StringFunctions;
  * @author Hartmut Schorrig
  *
  */
-public class FileLocalAccessorCopyStateM implements EventConsumer
+public class FileLocalAccessorCopyStateM extends EventConsumer
 {
   
   /**Version, history and license.
@@ -379,9 +379,8 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
       }
     } else if(copyOrder.timeOrderProgress !=null) {
       copyOrder.timeOrderProgress.currFile = pathShow;
-      FileRemote.CmdEvent ev = new FileRemote.CmdEvent(evSrc, statesCopy, null, null);  //a new occupied event.
-      copyOrder.timeOrderProgress.requAnswer(cmd, ev);
-      copyOrder.timeOrderProgress.cmd = cmd;
+      //FileRemote.CmdEvent ev = new FileRemote.CmdEvent(evSrc, statesCopy, null, null);  //a new occupied event.
+      copyOrder.timeOrderProgress.requAnswer(cmd, statesCopy);
     } else {
       assert(false);
     }
@@ -1269,12 +1268,18 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
         
         Trans transDirOrFile(EventObject ev, Trans trans){ 
           if(trans == null) return new Trans(2, DirOrFile.class);
-          if(!(ev instanceof FileRemote.CmdEvent)) return null;  //don't fire.
-          FileRemote.CmdEvent ev1 = (FileRemote.CmdEvent)ev;
-          if(ev1.getCmd() == FileRemote.Cmd.overwr){
-            modeCopyOper  = ev1.modeCopyOper;
+          if((ev instanceof FileRemote.CmdEvent)){  //don't fire.
+            FileRemote.CmdEvent ev1 = (FileRemote.CmdEvent)ev;
+            if(ev1.getCmd() == FileRemote.Cmd.overwr){
+              modeCopyOper  = ev1.modeCopyOper;
+              bOverwrfile = true;
+              trans.retTrans = mEventConsumed;
+            }
+          } else if(copyOrder.timeOrderProgress !=null && copyOrder.timeOrderProgress.answer == FileRemote.Cmd.overwr) {
+            modeCopyOper  = copyOrder.timeOrderProgress.modeCopyOper;
             bOverwrfile = true;
-            trans.retTrans = mEventConsumed;
+            copyOrder.timeOrderProgress.answer = FileRemote.Cmd.free;  //remove the cmd as event-like
+            trans.retTrans = mTransit;
           }
           return null; 
         }

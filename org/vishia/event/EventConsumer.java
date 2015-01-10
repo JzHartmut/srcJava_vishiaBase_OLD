@@ -9,10 +9,12 @@ import java.util.EventObject;
  * @author Hartmut Schorrig
  *
  */
-public interface EventConsumer
+public abstract class EventConsumer
 {
   /**Version, history and license
    * <ul>
+   * <li>2015-01-04 Hartmut chg:It is an abstract class instead an interface yet for new data, less effort for adaption.
+   *   New method {@link #shouldRun} which does not need to override in all implementation.
    * <li>2015-01-04 Hartmut chg: With the method {@link #getStateInfo()} any instance is able to quest for its state. 
    *   It may be an important method for debugging and showing.
    * <li>2013-05-11 Hartmut chg: It is an interface up to now. The idea to store a name for debugging on 
@@ -54,6 +56,8 @@ public interface EventConsumer
    */
   public static final int version = 20130511;
 
+  boolean shouldRun;
+  
   /**This routine should be overwritten to processes an event. 
    * @param ev The event. It contains some data. The type of the event is not specified here. Any events
    *   can be processed.
@@ -61,10 +65,23 @@ public interface EventConsumer
    *   It is possible to build a chain of responsibility. It is possible too to process a event from 
    *   more as one instance. 
    */
-  int processEvent(EventObject ev); //{ return false; }
+  public abstract int processEvent(EventObject ev); //{ return false; }
   
   /**Returns the state of the consumer in a manual readable form. */
-  String getStateInfo();
+  public abstract String getStateInfo();
+  
+  
+  /**Can be overridden to wakeup the thread which runs it.
+   * @param val
+   * @return
+   */
+  public boolean shouldRun(boolean val) {
+    boolean ret = shouldRun;
+    shouldRun = val;
+    return ret;
+  }
+  
+  
   
   /**Bit in return value of a Statemachine's {@link #check(EventMsg)} or entry method for designation, 
    * that the given Event object was used to switch.
