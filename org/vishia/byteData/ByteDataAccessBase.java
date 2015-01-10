@@ -670,9 +670,21 @@ public abstract class ByteDataAccessBase
   
 
   
+  /**Adds a child at any position. This method is usefully if the data structure is known and specific elements should be accessed.
+   * The child can be used to detect data in a sub structure.  
+   * @param idxChild The index from the position of this (from this.{@link #ixBegin}).
+   *   It is not the index inside the {@link #data}. 
+   *   If {@link #ixBegin} ==0 because this is the root ByteDataAccess instance, it is the index in data.
+   * @param child An empty instance for a child with given child.{@link #sizeHead}. Usual instances are re-used (especially in a C-environment). 
+   *   child will be filled completely. A content before is cleared except the child.{@link #sizeHead}. This value should be known in the child.
+   * @param sizeChild The size of the child. It may be 0, but >=0 (asserted)
+   * @throws IllegalArgumentException
+   */
   final public void addChildAt(int idxChild, ByteDataAccessBase child, int sizeChild) 
   throws IllegalArgumentException
-  { child.data = data;
+  { assert(child.sizeHead >=0);
+    assert(sizeChild >= child.sizeHead);
+    child.data = data;
     int idxBegin = this.ixBegin + idxChild;
     child.ixBegin = idxBegin;
     child.ixEnd = idxBegin + sizeChild;
@@ -686,6 +698,17 @@ public abstract class ByteDataAccessBase
   }
 
   
+  /**Adds a child at any position with its head size. 
+   * This method is usefully if the data structure is known and specific elements should be accessed.
+   * The child can be used to detect data in a sub structure.  
+   * @param idxChild The index from the position of this (from this.{@link #ixBegin}).
+   *   It is not the index inside the {@link #data}. 
+   *   If {@link #ixBegin} ==0 because this is the root ByteDataAccess instance, it is the index in data.
+   * @param child An empty instance for a child with given child.{@link #sizeHead}. Usual instances are re-used (especially in a C-environment). 
+   *   child will be filled completely. A content before is cleared except the child.{@link #sizeHead}. This value should be known in the child.
+   * @throws IllegalArgumentException
+   * @throws IllegalArgumentException
+   */
   @Java4C.Retinline
   final public void addChildAt(int idxChild, ByteDataAccessBase child) 
   throws IllegalArgumentException
@@ -702,7 +725,8 @@ public abstract class ByteDataAccessBase
    */
   public final void addChildInteger(int nrofBytes, long value) 
   throws IllegalArgumentException
-  { setIdxtoNextCurrentChild(nrofBytes);
+  { assert(nrofBytes >0);
+    setIdxtoNextCurrentChild(nrofBytes);
     if(data.length < ixChild + nrofBytes){
       @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (ixChild + nrofBytes);
       throw new IllegalArgumentException(msg);
@@ -863,6 +887,7 @@ public abstract class ByteDataAccessBase
   public final String getChildString(int nrofBytes) 
   throws IllegalArgumentException, UnsupportedEncodingException
   { //NOTE: there is no instance for this child, but it is the current child anyway.
+    assert(nrofBytes >=0);
     setIdxtoNextCurrentChild(nrofBytes);
     setIdxCurrentChildEnd(nrofBytes);
     //NOTE: to read from idxInChild = 0, build the difference as shown:
@@ -987,51 +1012,79 @@ public abstract class ByteDataAccessBase
 
 
 
-  /**sets the ixChild to the known ixChildEnd.
+  /**Prepares a new child for this. It sets the this.{@link #ixChild} (begin of the new child) 
+   * to the known this.{@link #ixChildEnd} (end of the last child) and sets the this.ixChildEnd to the new length.
+   * The size of the new child, at least its head size, should be known. It is given by the calling argument sizeChild.
+   * <br><br>
    * This method is called while addChild. The state before is:
-   * <ul><li>ixChild is the index of the up to now current Child, or -1 if no child was added before.
+   * <ul>
+   * <li>ixChild is the index of the till yet current Child, or -1 if no child was added before.
    * <li>ixChildEnd is the actual end index of the current Child, 
    *     or the index of the first child (after head, may be also 0 if the head has 0 bytes), 
-   *     if no child was added before.
-   * <ul>
+   *     if no child was added before. ixChildEnd is always positive and should be valid.
+   * </ul>
    * The state after is:    
-   * <ul><li>ixChild is set to the ixChildEnd from state before. 
-   * <li>ixChildEnd is set to -1, because it is not defined yet.
    * <ul>
-   * If ixChildEnd >= ixChild, it means that this operation respectively {@link next()}
-   * was called before. Than this operation is done already, a second call does nothing.
-   * <br>
-   * The length of the current child should be set after this operation and before this operation respectively the calling operation addChild() 
-   * will be called a second one.
-   * This is done in the calling routines. 
+   * <li>ixChild is set to the ixChildEnd from state before. 
+   * <li>ixChildEnd is set to the ixChild + argument sizeChild.
+   * </ul>
+   * The size of the child may be increased later by calling {@link #addChild(ByteDataAccessBase)} for an added child or by calling 
+   * {@link #setLengthElement(int)} for the child. Therefore an argument =0 is possible.
+   * <br><br>
+   * The method is package private because it should not invoked from the user directly. 
+   * 
+   * @argument sizeChild yet known size of the child to add. It have to be >=0. 
    */
   final void setIdxtoNextCurrentChild(int sizeChild) 
   //throws IllegalArgumentException
   { assert(sizeChild >=0);
-    if(ixChildEnd >= ixChild )
-    { //This is the standard case.
-      //NOTE: ixChild = -1 is assert if no child is added before.
-      ixChild = ixChildEnd;
+    assert(ixChildEnd >= ixChild );  //ixChild maybe -1, but it should be lesser or equal.
+    assert(ixChildEnd >=0);          //==0 os possible on an empty element without head.
+    ixChild = ixChildEnd;
+    ixChildEnd = ixChild + sizeChild;  
+    if(bExpand) { 
+      _expand(ixChildEnd); 
     }
-    else if(ixChildEnd == -2)
-    { //next() was called before:
-      //do nothing, because next() was performed before.
+    if(data.length < ixChildEnd){
+      throw new IllegalArgumentExceptionJc("ByteDataAccess: less data", ixChildEnd);
     }
-    else
-    { throw new RuntimeException("unexpected ixChildEnd"); //its a programming error.
-    }
-    if(sizeChild >0) { //given:
-      ixChildEnd = ixChild + sizeChild;  
-      if(bExpand) { 
-        _expand(ixChildEnd); 
-      }
-      if(data.length < ixChildEnd){
-        throw new IllegalArgumentExceptionJc("ByteDataAccess: less data", ixChildEnd);
-      }
 
-    } else {  //size of child is not given:
-      ixChildEnd = -1;  //it should be set after calling of next 
-    }
+  }
+
+
+
+
+  /**Prepares a new child with unknown length for this. It sets the this.{@link #ixChild} (begin of the new child) 
+   * to the known this.{@link #ixChildEnd} (end of the last child) and sets the this.ixChildEnd to -1.
+   * The size of the new child should be set after this method but before adding a next child. 
+   * The situation of the child is inconsistent after this method. It means a synchronized operation should be include
+   * an invocation of {@link #setLengthElement(int)} for the added child or setLengthCurrentChildElement(sizeChild) for this. 
+   * <br><br>
+   * The state before is:
+   * <ul>
+   * <li>ixChild is the index of the till yet current Child, or -1 if no child was added before.
+   * <li>ixChildEnd is the actual end index of the current Child, 
+   *     or the index of the first child (after head, may be also 0 if the head has 0 bytes), 
+   *     if no child was added before. ixChildEnd is always positive and should be valid.
+   * </ul>
+   * The state after is:    
+   * <ul>
+   * <li>ixChild is set to the ixChildEnd from state before. 
+   * <li>ixChildEnd = -1
+   * </ul>
+   * The length of the current child should be set after this operation and before this operation respectively the calling operation addChild() 
+   * will be called a second one.
+   * This is done in the calling routines. 
+   * <br><br>
+   * The method is package private because it should not invoked from the user directly. 
+   */
+  final void setIdxtoNextCurrentChildLengthUnknown() 
+  //throws IllegalArgumentException
+  { assert(ixChildEnd >= ixChild );  //ixChild maybe -1, but it should be lesser or equal.
+    assert(ixChildEnd >=0);          //==0 os possible on an empty element without head.
+    ixChild = ixChildEnd;
+    //size of child is not given:
+    ixChildEnd = -1;  //it should be set after calling of next 
   }
 
 

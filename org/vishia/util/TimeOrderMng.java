@@ -64,7 +64,7 @@ public class TimeOrderMng implements Closeable
    * 
    * 
    */
-  public final static String sVersion = "2014-02-23";
+  public final static String sVersion = "2015-01-11";
 
   
   /**This interface should be implemented by that thread, that cooperates with this order thread.
@@ -90,6 +90,14 @@ public class TimeOrderMng implements Closeable
     @Override public void run(){ TimeOrderMng.this.runThread(); }
   };
 
+  
+  
+  /**Bit variable to control some System.out.printf debug outputs. 
+   * 
+   * 
+   * */
+  private int debugPrint;
+  
 
   /**The thread which executes delayed wake up. */
   private final Thread threadTimer;
@@ -105,18 +113,14 @@ public class TimeOrderMng implements Closeable
    * is woken up and before the dispatching of graphic-system-event will be started.
    * An order may be run only one time, than it should delete itself from this queue in its run-method.
    * */
-  private final ConcurrentLinkedQueue<TimeOrderBase> queueGraphicOrders = new ConcurrentLinkedQueue<TimeOrderBase>();
+  private final ConcurrentLinkedQueue<TimeOrderBase> queueOrdersToExecute;
   
   /**Queue of orders which are executed with delay yet. */
-  private final ConcurrentLinkedQueue<TimeOrderBase> queueDelayedGraphicOrders = new ConcurrentLinkedQueue<TimeOrderBase>();
+  private final ConcurrentLinkedQueue<TimeOrderBase> queueDelayedOrders = new ConcurrentLinkedQueue<TimeOrderBase>();
   
   /**Temporary used instance of delayed orders while {@link #runTimer} organizes the delayed orders.
    * This queue is empty outside running one step of runTimer(). */
-  private final ConcurrentLinkedQueue<TimeOrderBase> queueDelayedTempGraphicOrders = new ConcurrentLinkedQueue<TimeOrderBase>();
-  
-  /**Mutex mechanism: This variable is set true under mutex while the timer waits. Then it should
-   * be notified in {@link #addTimeOrder(TimeOrderBase)} with delayed order. */
-  private boolean bTimeIsWaiting;
+  private final ConcurrentLinkedQueue<TimeOrderBase> queueDelayedTempOrders = new ConcurrentLinkedQueue<TimeOrderBase>();
   
   private boolean bThreadRun;
   
@@ -128,7 +132,9 @@ public class TimeOrderMng implements Closeable
 
   private final boolean bExecutesTheOrder;
   
-  private char stateThreadTimer;
+  /**State of the thread, used for debug and mutex mechanism. This variable is set 'W' under mutex while the timer waits. Then it should
+   * be notified in {@link #addTimeOrder(TimeOrderBase)} with delayed order. */
+  char stateThreadTimer = '?';
   
   
   
@@ -149,6 +155,7 @@ public class TimeOrderMng implements Closeable
     this.execThread = execThread;
     threadTimer = new Thread(runTimer, "TimeOrderMng");
     bExecutesTheOrder = false;
+    queueOrdersToExecute = new ConcurrentLinkedQueue<TimeOrderBase>();
   }
 
   
@@ -163,6 +170,11 @@ public class TimeOrderMng implements Closeable
     this.execThread = null;
     threadTimer = new Thread(runTimer, "TimeOrderMng");
     bExecutesTheOrder = executesTheOrder;
+    if(executesTheOrder){
+      queueOrdersToExecute = null;  //unnecessary.
+    } else {
+      queueOrdersToExecute = new ConcurrentLinkedQueue<TimeOrderBase>();
+    }
   }
 
   
@@ -181,6 +193,7 @@ public class TimeOrderMng implements Closeable
    */
   @Override public void close(){
     bThreadRun = false;
+    notifyTimer();
   }
 
 
@@ -191,35 +204,38 @@ public class TimeOrderMng implements Closeable
    */
   public void addTimeOrder(TimeOrderBase order){ 
     if(order.timeToExecution() >=0){
-      queueDelayedGraphicOrders.offer(order);
+      queueDelayedOrders.offer(order);
       if(order.timeExecution < timeCheckNew - 20) {
         boolean notified;
         synchronized(runTimer){
-          notified = bTimeIsWaiting;
+          notified = stateThreadTimer == 'W';
           if(notified){
             runTimer.notify();  
           }
         }
         if(notified){
-          //System.out.printf("TimeOrderMng notify %d\n", order.timeExecution - timeCheckNew);
+          if((debugPrint & 0x100)!=0) System.out.printf("TimeOrderMng notify %d\n", order.timeExecution - timeCheckNew);
         } else {
-          //System.out.printf("TimeOrderMng not notified because checking %d\n", order.timeExecution - timeCheckNew);
+          if((debugPrint & 0x200)!=0) System.out.printf("TimeOrderMng not notified because checking %d\n", order.timeExecution - timeCheckNew);
         }
       } else {
         //don't notify because the time order is later than the planned check time (or not so far sooner)
-        //System.out.printf("TimeOrderMng not notified, future %d\n", order.timeExecution - timeCheckNew);
+        if((debugPrint & 0x400)!=0) System.out.printf("TimeOrderMng not notified, future %d\n", order.timeExecution - timeCheckNew);
       }
     } else {
-      System.out.printf("TimeOrderMng yet %d\n", order.timeExecution - timeCheckNew);
-      queueGraphicOrders.add(order);
-      //it is possible that the GUI is busy with dispatching and doesn't sleep yet.
-      //therefore:
-      extEventSet.getAndSet(true);
-      if(execThread !=null && execThread.isRunning()){
-        
-        execThread.wakeup();  //to wake up the GUI-thread, to run the listener at least one time.
+      if((debugPrint & 0x800)!=0) System.out.printf("TimeOrderMng yet %d\n", order.timeExecution - timeCheckNew);
+      if(bExecutesTheOrder) {
+        order.executeOrder();             //executes immediately in this thread.
+      } else {
+        queueOrdersToExecute.add(order);  //stores to execute contemporarry.
+        //it is possible that the GUI is busy with dispatching and doesn't sleep yet.
+        //therefore:
+        extEventSet.getAndSet(true);
+        if(execThread !=null && execThread.isRunning()){
+          
+          execThread.wakeup();  //to wake up the GUI-thread, to run the listener at least one time.
+        }
       }
-  
     }
   }
   
@@ -230,8 +246,8 @@ public class TimeOrderMng implements Closeable
    * @param order
    */
   public void removeTimeOrder(TimeOrderBase order)
-  { queueDelayedGraphicOrders.remove(order);
-    queueGraphicOrders.remove(order);
+  { queueDelayedOrders.remove(order);
+    if(!bExecutesTheOrder) {queueOrdersToExecute.remove(order); }
   }
   
   
@@ -244,11 +260,12 @@ public class TimeOrderMng implements Closeable
     bThreadRun = true;
     while(bThreadRun && (execThread == null || execThread.isRunning())){
       //int timeWait = 1000;
+      stateThreadTimer = 'c';
       long timeNow = System.currentTimeMillis();
       timeCheckNew = timeNow + 10000;
       boolean bWake = false;
       { TimeOrderBase order;
-        while( (order = queueDelayedGraphicOrders.poll()) !=null){
+        while( (order = queueDelayedOrders.poll()) !=null){
           if(order.timeExecution < timeCheckNew){
             timeCheckNew = order.timeExecution;   //prior to 
           }
@@ -256,20 +273,20 @@ public class TimeOrderMng implements Closeable
           if(order.timeExecution > timeNow) { //timeToExecution >=0){
             //not yet to proceed
             //if(timeWait > timeToExecution){ timeWait = timeToExecution; }
-            queueDelayedTempGraphicOrders.offer(order);
+            queueDelayedTempOrders.offer(order);
           } else {
             if(bExecutesTheOrder) {
               order.executeOrder();             //executes immediately in this thread.
             } else {
-              queueGraphicOrders.offer(order);  //stores to execute contemporarry.
+              queueOrdersToExecute.offer(order);  //stores to execute contemporarry.
               bWake = execThread != null;
             }
           }
         }
         //delayedChangeRequest is tested and empty now.
         //offer the requ back from the temp queue
-        while( (order = queueDelayedTempGraphicOrders.poll()) !=null){
-          queueDelayedGraphicOrders.offer(order); 
+        while( (order = queueDelayedTempOrders.poll()) !=null){
+          queueDelayedOrders.offer(order); 
         }
       }
       if(bWake){
@@ -277,20 +294,21 @@ public class TimeOrderMng implements Closeable
       }
       int timeWait = (int) (timeCheckNew - System.currentTimeMillis());  //the time now to the next order.
       if(timeWait > 2) { //for 2 milliseconds don't wait!
-        //System.out.printf("TimeOrderMng wait %d\n", timeWait);
+        if((debugPrint & 0x0001)!=0) System.out.printf("TimeOrderMng wait %d\n", timeWait);
         synchronized(runTimer){
-          bTimeIsWaiting = true;
+          stateThreadTimer = 'W';
           if(timeWait < 10){
             timeWait = 10; //at least 10 ms, especially prevent usage of 0 and negative values.
           }
           try{ runTimer.wait(timeWait);} catch(InterruptedException exc){}
-          bTimeIsWaiting = false;
+          stateThreadTimer = 'r';
         }
       } else {
-        //System.out.printf("TimeOrderMng not wait %d\n", timeWait);
+        //else: check the orders newly. One of them is near to execute.
+        if((debugPrint & 0x0002)!=0) System.out.printf("TimeOrderMng not wait %d\n", timeWait);
       }
-      //else: check the orders newly. One of them is near to execute.
-    }
+    } //while runs
+    stateThreadTimer = 'f';
   }
   
   
@@ -303,9 +321,10 @@ public class TimeOrderMng implements Closeable
    * @return true then the execThread should not wait
    */
   public boolean step(int nrofOrders, long millisecAbs){
+    if(bExecutesTheOrder) return false;  //does nothing.
     TimeOrderBase listener;
     extEventSet.set(false); //the list will be tested!
-    while( (listener = queueGraphicOrders.poll()) !=null){
+    while( (listener = queueOrdersToExecute.poll()) !=null){
     //for(OrderForList listener: queueGraphicOrders){
           //use isWakedUpOnly for run as parameter?
       try{
@@ -323,7 +342,7 @@ public class TimeOrderMng implements Closeable
    */
   public void notifyTimer(){
     synchronized(runTimer){
-      if(bTimeIsWaiting){
+      if(stateThreadTimer == 'W'){
         runTimer.notify();  
       }
     }
