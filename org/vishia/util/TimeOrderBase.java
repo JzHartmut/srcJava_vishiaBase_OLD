@@ -4,7 +4,7 @@ package org.vishia.util;
  * @author Hartmut Schorrig
  *
  */
-public abstract class TimeOrder
+public abstract class TimeOrderBase
 {
 
   /**Version and history:
@@ -74,19 +74,18 @@ public abstract class TimeOrder
   private boolean bAdded;
   
   /**If not 0, it is the first time to execute it. Elsewhere it should be delayed. */
-  private long timeExecution;
+  protected long timeExecution;
   
   
-  public TimeOrder(String name)
+  public TimeOrderBase(String name)
   {
     this.name = name;
   }
   
   
-  /**Handle any request in the graphic thread before the system's dispatching routine starts.
-   * @param onlyWakeup
+  /**Executes the order. In a graphic thread it handles any request before the system's dispatching routine starts.
    */
-  public abstract void doBeforeDispatching(boolean onlyWakeup);
+  public abstract void executeOrder();
   
   /**Checks whether it should be executed.
    * @return time in milliseconds for first execution or value <0 to execute immediately.
@@ -98,6 +97,8 @@ public abstract class TimeOrder
   public void timeExecution(long time){ timeExecution = time; }
   
   public long timeExecution(){ return timeExecution; }
+ 
+  
   /**Runs the handling of delayed requests inside this.
    * Any graphic order can have a queue of delayed requests.
    * @param timeDelay The up to now delay in milliseconds, when the timer thread
@@ -121,7 +122,7 @@ public abstract class TimeOrder
         return;            //do nothing, it is added already.
       }
       //remove and add new, because its state added in queue or not may be false.
-      dst.removeDispatchListener(this);
+      dst.removeTimeOrder(this);
     }
     //if(!bAdded){
     //}
@@ -131,9 +132,13 @@ public abstract class TimeOrder
     } else {
       timeExecution(0);  //execute at next possible time.
     }
-    dst.addDispatchOrder(this);
+    dst.addTimeOrder(this);
     bAdded = true;
   }
+  
+  
+  
+  public boolean used(){ return bAdded; }
   
   
   
@@ -143,7 +148,7 @@ public abstract class TimeOrder
    */
   synchronized public void removeFromList(TimeOrderMng dst){
     bAdded = false;
-    dst.removeDispatchListener(this);
+    dst.removeTimeOrder(this);
   }
   
   
@@ -176,7 +181,8 @@ public abstract class TimeOrder
    * @param millisec delay.
    */
   private long delayExecution(int millisec){
-    return System.currentTimeMillis() + millisec;
+    timeExecution = System.currentTimeMillis() + millisec;
+    return timeExecution;
   }
   
 

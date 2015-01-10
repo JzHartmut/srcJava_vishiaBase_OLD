@@ -126,6 +126,8 @@ public abstract class ByteDataAccessBase
    * @param sizeData number of significant bytes in data for all children.
    * */
   protected ByteDataAccessBase(int sizeHead, int sizeData){
+    assert(sizeHead >=0);
+    assert(sizeData >0);
     this.sizeHead = sizeHead;
     ixBegin = 0;
     ixEnd = sizeData;
@@ -674,8 +676,8 @@ public abstract class ByteDataAccessBase
     int idxBegin = this.ixBegin + idxChild;
     child.ixBegin = idxBegin;
     child.ixEnd = idxBegin + sizeChild;
-    child.ixChild = idxBegin + child.sizeHead;
-    child.ixChildEnd = -1;
+    child.ixChildEnd = idxBegin + child.sizeHead;
+    child.ixChild = -1;
     child.bBigEndian = bBigEndian;
     child.bExpand = bExpand;
     child.parent = this;
@@ -795,15 +797,16 @@ public abstract class ByteDataAccessBase
 
   /**Adds a child for 1 integer value without a child instance, but returns the value as integer.
    * 
-   * @param nrofBytes of the integer
+   * @param nrofBytes of the integer, if negative then gets as signed integer, elsewhere as unsigned
    * @return value in long format, cast it to (int) if you read only 4 bytes etc.
    * @throws IllegalArgumentException if not data has not enaught bytes.
    */
   public final long getChildInteger(int nrofBytes) 
   throws IllegalArgumentException
   { //NOTE: there is no instance for this child, but it is the current child anyway.
-    setIdxtoNextCurrentChild(nrofBytes);
-    setIdxCurrentChildEnd(Math.abs(nrofBytes));
+    int bytes1 = nrofBytes < 0 ? -nrofBytes : nrofBytes;
+    setIdxtoNextCurrentChild(bytes1);
+    setIdxCurrentChildEnd(bytes1);
     { //NOTE: to read from idxInChild = 0, build the difference as shown:
       long value = _getLong(ixChild - ixBegin, nrofBytes);  
       return value;
@@ -880,6 +883,7 @@ public abstract class ByteDataAccessBase
   throws IllegalArgumentException
   { //if(bExpand) throw new RuntimeException("don't call it in expand mode");
     //revert the current child.
+    assert(ixChild >= sizeHead);
     ixChildEnd = ixChild;
     ixChild = -1;
   }
@@ -1003,7 +1007,7 @@ public abstract class ByteDataAccessBase
    */
   final void setIdxtoNextCurrentChild(int sizeChild) 
   //throws IllegalArgumentException
-  {
+  { assert(sizeChild >=0);
     if(ixChildEnd >= ixChild )
     { //This is the standard case.
       //NOTE: ixChild = -1 is assert if no child is added before.
@@ -1026,7 +1030,7 @@ public abstract class ByteDataAccessBase
       }
 
     } else {  //size of child is not given:
-      ixChildEnd = -1;
+      ixChildEnd = -1;  //it should be set after calling of next 
     }
   }
 

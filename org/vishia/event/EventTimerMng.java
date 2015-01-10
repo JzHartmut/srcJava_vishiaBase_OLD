@@ -6,16 +6,18 @@ import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.vishia.util.Assert;
+import org.vishia.util.TimeOrderBase;
+import org.vishia.util.TimeOrderMng;
 
 
-public class EventTimerMng extends Thread implements Closeable{
+public class EventTimerMng extends TimeOrderMng {
 
   
   /**Version, history and license.
    * <ul>
-   * <li>2014-10-17 Hartmut chg: {@link TimeOrder} now non-static, knows it EventTimeMng. Possible static usage of instance. 
-   * <li>2013-05-12 Hartmut new: {@link #identNrEvent} and {@link TimeEvent#isMatchingto(TimeOrder)}
-   * <li>2013-05-11 Hartmut new: {@link #addTimeOrder(TimeOrder)} not only for singleton.
+   * <li>2014-10-17 Hartmut chg: {@link TimeEventOrder} now non-static, knows it EventTimeMng. Possible static usage of instance. 
+   * <li>2013-05-12 Hartmut new: {@link #identNrEvent} and {@link TimeEvent#isMatchingto(TimeEventOrder)}
+   * <li>2013-05-11 Hartmut new: {@link #addTimeOrder(TimeEventOrder)} not only for singleton.
    * <li>2012...improved
    * <li>2011-12-27 Hartmut creation for event concept.
    * </ul>
@@ -95,61 +97,74 @@ public class EventTimerMng extends Thread implements Closeable{
      * @param order
      * @return true if it is the proper event to the time order.
      */
-    public boolean isMatchingto(TimeOrder order){ return identNrEvent == order.identNrEvent; }
+    public boolean isMatchingto(TimeEventOrder order){ return identNrEvent == order.identNrEvent; }
     
   }
 
 
-  public class TimeOrder{
+  public class TimeEventOrder extends TimeOrderBase
+  {
     /**Absolute time when the event should be occurred. */
-    long dateEvent;
+    //long dateEvent;
    
     final int identNrEvent;
     
     final TimeEvent event;
     
-    final EventConsumer dst;
+    //final EventConsumer dst;
     
-    final EventThread threadDst;
+    //final EventThread threadDst;
     
-    private boolean used;
+    //private boolean used;
     
-    TimeOrder(TimeEvent ev, long date, int identNrEvent){
-      this.dateEvent = date;
+    TimeEventOrder(TimeEvent ev, long date, int identNrEvent){
+      super("EventTimeOrder " + identNrEvent);
+      this.timeExecution = date;
       this.event = ev;
-      this.dst = null;  //stored in ev
-      this.threadDst = null;
+      //this.dst = null;  //stored in ev
+      //this.threadDst = null;
       this.identNrEvent = identNrEvent;
     }
 
-    TimeOrder(long date, EventConsumer dst, EventThread dstThread, int identNrEvent){
-      this.dateEvent = date;
-      this.event = null;  //should be create if need.
-      this.dst = dst;  //stored in ev
-      this.threadDst = dstThread;
+    TimeEventOrder(long date, EventConsumer dst, EventThread dstThread, int identNrEvent){
+      super("EventTimeOrder " + identNrEvent);
+      this.timeExecution = date;
+      this.event = new TimeEvent(dst, dstThread, identNrEvent);  //should be create if need.
+      //this.dst = dst;  //stored in ev
+      //this.threadDst = dstThread;
       this.identNrEvent = identNrEvent;
     }
 
-    public TimeOrder(EventConsumer dst, EventThread dstThread){
-      this.dateEvent = 0;
+    public TimeEventOrder(EventConsumer dst, EventThread dstThread){
+      super("EventTimeOrder ");
+      this.timeExecution = 0;
       this.event = new TimeEvent(dst, dstThread, 0);
-      this.dst = dst;  //stored in ev
-      this.threadDst = dstThread;
+      //this.dst = dst;  //stored in ev
+      //this.threadDst = dstThread;
       this.identNrEvent = 0;
     }
 
     
     public void activate(long date) {
-      this.dateEvent = date;
+      this.timeExecution = date;
       EventTimerMng.this.addTimeOrder(this);
     }
     
-    void setUsed() { used = true; }
+    //void setUsed() { used = true; }
     
-    void setUnused(){ used = false; } 
+    //void setUnused(){ used = false; } 
     
-    public boolean used() { return used; }
+    //public boolean used() { return used; }
     
+    
+    /**Sends the time event to its destination maybe in the queue of the destination thread.
+     * The source of occupy is the @link {@link EventSource} of this instance.
+     */
+    public void executeOrder(){
+      event.occupy(evSource, true);
+      event.sendEvent(TimeEvent.Cmd.Time);
+    }
+
   }
   
   
@@ -159,39 +174,40 @@ public class EventTimerMng extends Thread implements Closeable{
   
   private static EventTimerMng singleton;
   
-  private boolean run;
+  
+  //private boolean run;
   
   /**timestamp for a new time entry. It is set in synchronized operation between {@link #addTimeOrder(TimeEvent, long)}
    * and the wait in the {@link #run()} operation.
    * 
    */
-  long dateCheckNew;
+  //long dateCheckNew;
   
   /**true if the wait operation runs in {@link #run()} */
-  private boolean bWait;
+  //private boolean bWait;
   
   
   int identNrEvent;
   
-  ConcurrentLinkedQueue<TimeOrder> timeEntries = new ConcurrentLinkedQueue<TimeOrder>();
+  //ConcurrentLinkedQueue<TimeEventOrder> timeEntries = new ConcurrentLinkedQueue<TimeEventOrder>();
   
-  ConcurrentLinkedQueue<TimeOrder> timeEntriesNew = new ConcurrentLinkedQueue<TimeOrder>();
+  //ConcurrentLinkedQueue<TimeEventOrder> timeEntriesNew = new ConcurrentLinkedQueue<TimeEventOrder>();
   
   
   /**The next time where the thread will be release its wait(millisec) routine without extra notifying.  
    * If a new order will be added which's end time is before that, the timer thread will be notified
    * to accept this early timestamp. 
    */
-  long dateCheck;
+  //long dateCheck;
   
   
   public EventTimerMng(String sNameThread){
-    super(sNameThread);
+    super(true);
     start();
   }
   
   
-  public static TimeOrder addGlobalTimeOrder(long date, TimeEvent evTime){
+  public static TimeEventOrder addGlobalTimeOrder(long date, TimeEvent evTime){
     if(singleton == null){
       singleton = new EventTimerMng("EventTimerMng");
     }
@@ -199,7 +215,7 @@ public class EventTimerMng extends Thread implements Closeable{
   }
   
   
-  public static TimeOrder addGlobalTimeOrder(long date, EventConsumer dst, EventThread thread){
+  public static TimeEventOrder addGlobalTimeOrder(long date, EventConsumer dst, EventThread thread){
     if(singleton == null){
       singleton = new EventTimerMng("EventTimerMng");
     }
@@ -207,28 +223,30 @@ public class EventTimerMng extends Thread implements Closeable{
   }
   
 
-  public TimeOrder addTimeOrder(long date, EventConsumer dst, EventThread dstThread){
-    TimeOrder order = new TimeOrder(date, dst, dstThread, ++this.identNrEvent);
+  public TimeEventOrder addTimeOrder(long date, EventConsumer dst, EventThread dstThread){
+    TimeEventOrder order = new TimeEventOrder(date, dst, dstThread, ++this.identNrEvent);
     addTimeOrder(order);
     return order;
   }
 
   
   
-  public TimeOrder addTimeOrder(long date, TimeEvent evTime){
+  public TimeEventOrder addTimeOrder(long date, TimeEvent evTime){
     if(evTime !=null){
       Assert.checkMsg (evTime instanceof TimeEvent, "The Event should be a org.vishia.util.EventTimerMng.TimeEvent");
       Assert.checkMsg (evTime.hasDst(), "The Event must have a destination.");
       Assert.checkMsg (evTime.isOccupied(), "The Event must be occupied.");
     }
-    TimeOrder entry = new TimeOrder(evTime, date, ++this.identNrEvent);
+    TimeEventOrder entry = new TimeEventOrder(evTime, date, ++this.identNrEvent);
     addTimeOrder(entry);
     return entry;
   }
   
   
-  private void addTimeOrder(TimeOrder order){
+  /*
+  private void addTimeOrder(TimeEventOrder order){
     order.setUsed();
+    
     timeEntriesNew.add(order);
     //notify the run process to shorten the wait time.
     synchronized(this){
@@ -238,26 +256,26 @@ public class EventTimerMng extends Thread implements Closeable{
         } else; //not necessary to notify, because it is active yet.
       } else; //let it run, it will be waken up before date.
     }
-  }
+  }*/
   
-  
-  public boolean removeTimeOrder(TimeOrder order){
+  /*
+  public boolean removeTimeOrder(TimeEventOrder order){
     order.setUnused();
     if(timeEntries.remove(order)) return true;
     else return timeEntriesNew.remove(order);
   }
-  
-  
-  @Override public void run(){
+  */
+  /*
+  public void XXXrun(){
     run = true;
     while(run){
       long timeAct = System.currentTimeMillis();
       if((timeAct - dateCheck) >=0){
         //woken up after dateCheck, now check all timer events.
         long dateCheck1 = Long.MAX_VALUE;
-        Iterator<TimeOrder> iter = timeEntries.iterator();
+        Iterator<TimeEventOrder> iter = timeEntries.iterator();
         while(iter.hasNext()){
-          TimeOrder entry = iter.next();
+          TimeEventOrder entry = iter.next();
           long wait = entry.dateEvent - timeAct;
           if(wait <=0){
             iter.remove();  //remove this entry
@@ -269,7 +287,7 @@ public class EventTimerMng extends Thread implements Closeable{
         }
         this.dateCheck = dateCheck1;
       }
-      TimeOrder entryNew;
+      TimeEventOrder entryNew;
       while( (entryNew = timeEntriesNew.poll()) !=null) {
         if((entryNew.dateEvent - dateCheck) < 0 ){
           dateCheck = entryNew.dateEvent;
@@ -294,18 +312,19 @@ public class EventTimerMng extends Thread implements Closeable{
     }
     
   }
+  */
 
-
-  
-  private void executeTime(TimeOrder entry){
+  /*
+  private void executeTime(TimeEventOrder entry){
     final TimeEvent ev = entry.event !=null ? entry.event: 
       new TimeEvent(entry.dst, entry.threadDst, entry.identNrEvent);
     ev.occupy(evSource, true);
     ev.sendEvent(TimeEvent.Cmd.Time);
   }
-  
+  */
   
 
+  /*
   @Override public void close() throws IOException {
     run = false;
     synchronized(this){
@@ -314,4 +333,5 @@ public class EventTimerMng extends Thread implements Closeable{
       } else; //not necessary to notify, because it is active yet.
     }    
   }
+  */
 }

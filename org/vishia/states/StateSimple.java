@@ -219,7 +219,7 @@ int timeout;
 //EventTimerMng.TimeEvent evTimeout;
 
 /**Set so long a timeout is active. */
-EventTimerMng.TimeOrder timeOrder;
+EventTimerMng.TimeEventOrder timeOrder;
 
 /**It is either 0 or {@link #mRunToComplete}. Or to the return value of entry. */
 protected final int modeTrans;
@@ -1133,7 +1133,7 @@ private void searchOrCreateTimerEvent() {
   }
   //parent is either the top state or a StateAddParallel
   if(parent.timeOrder == null) {
-    parent.timeOrder = stateMachine.theTimer.new TimeOrder(stateMachine, stateMachine.theThread);
+    parent.timeOrder = stateMachine.theTimer.new TimeEventOrder(stateMachine, stateMachine.theThread);
   }
   this.timeOrder = parent.timeOrder;
 }
