@@ -1,6 +1,7 @@
 package org.vishia.util;
 
 import java.io.Closeable;
+import java.util.EventObject;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -71,6 +72,11 @@ public class TimeOrderMng implements Closeable
    */
   public interface ConnectionExecThread {
     
+    
+    /**Adds one order as Event object.
+     * @param event
+     */
+    void addEvent(EventObject event);
     
     /**Wakes up the execution thread. Usual it is a notify() for a wait. But for graphic or other
      * system depending usage it may be another routine. */
@@ -324,6 +330,7 @@ public class TimeOrderMng implements Closeable
     if(bExecutesTheOrder) return false;  //does nothing.
     TimeOrderBase listener;
     extEventSet.set(false); //the list will be tested!
+    boolean bSleep = true;
     while( (listener = queueOrdersToExecute.poll()) !=null){
     //for(OrderForList listener: queueGraphicOrders){
           //use isWakedUpOnly for run as parameter?
@@ -333,8 +340,9 @@ public class TimeOrderMng implements Closeable
         System.err.println("GralGraphicThread-" + exc.getMessage());
         exc.printStackTrace();
       }
+      bSleep = false;
     }
-    return extEventSet.get();
+    return !bSleep;  //extEventSet.get();
   }
 
   /**Wakes up the {@link #runTimer} queue to execute delayed requests.

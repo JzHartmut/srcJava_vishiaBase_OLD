@@ -2,6 +2,7 @@ package org.vishia.fileRemote;
 
 import org.vishia.event.EventConsumer;
 import org.vishia.fileLocalAccessor.FileLocalAccessorCopyStateM;
+import org.vishia.states.StateMachine;
 import org.vishia.util.TimeOrderBase;
 import org.vishia.util.TimeOrderMng;
 
@@ -59,7 +60,7 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrderBase
   private FileRemote.CmdEvent eventAnswer;
   //FileLocalAccessorCopyStateM.EventCpy eventAnswer;
   
-  private EventConsumer consumerAnswer;
+  private StateMachine consumerAnswer;
   
   
   public void show() {
@@ -75,9 +76,9 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrderBase
     addToList(mng, delay);
   }
   
-  public void requAnswer(FileRemote.CallbackCmd cmd, EventConsumer evConsumer) {
+  public void requAnswer(FileRemote.CallbackCmd cmd, StateMachine stateM) {
     this.cmd = cmd;
-    this.consumerAnswer = evConsumer;
+    this.consumerAnswer = stateM;
     addToList(mng, delay);   //to execute the request
   }
   
@@ -90,7 +91,7 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrderBase
     }
     if(consumerAnswer !=null) {
       this.answer = answer; 
-      consumerAnswer.shouldRun(true);
+      consumerAnswer.triggerRun();
     }
   }
   

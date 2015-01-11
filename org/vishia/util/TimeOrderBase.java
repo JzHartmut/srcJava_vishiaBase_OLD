@@ -1,11 +1,20 @@
 package org.vishia.util;
 
+import java.util.EventObject;
+
+import org.vishia.event.EventConsumer;
+
 /**This is the super class for orders, which should be added to a {@link TimeOrderMng} instance.
+ * It is designated as EventObject because it can be stored in the same queue where events are stored.
+ * It is designated as EventConsumer because it can be triggered for run in a {@link TimeOrderMng#triggerRun()}
  * @author Hartmut Schorrig
  *
  */
-public abstract class TimeOrderBase
+public abstract class TimeOrderBase extends EventObject implements EventConsumer
 {
+
+  private static final long serialVersionUID = 1998821310413113722L;
+
 
   /**Version and history:
    * <ul>
@@ -78,10 +87,25 @@ public abstract class TimeOrderBase
   
   
   public TimeOrderBase(String name)
-  {
+  { super(name);
     this.name = name;
   }
   
+  
+  @Override public int processEvent(EventObject ev)
+  { executeOrder(); return 1; }
+  
+  /**Returns the state of the consumer in a manual readable form. */
+  @Override public String getStateInfo(){ 
+    StringBuilder u = new StringBuilder(100);
+    u.append(name);
+    if(timeExecution >0){
+      //TODO some information!
+    }
+    return u.toString();
+  }
+  
+
   
   /**Executes the order. In a graphic thread it handles any request before the system's dispatching routine starts.
    */
@@ -165,6 +189,17 @@ public abstract class TimeOrderBase
       this.ctDone = setCtDone; 
     }
     return ctDone;
+  }
+  
+  
+  /**This routine is invoked from the {@link TimeOrderMng} if the order should run.
+   * But it may not run in that thread instead in another thread.
+   * This routine can be overridden in the implementation, especially by a universal used base class
+   * which is derived from this class to enqueue the order in a queue for another thread.
+   * The default implementation will be process the order. 
+   */
+  protected void activateTimeOrder(){
+    processEvent(null);
   }
 
   protected synchronized void countExecution()

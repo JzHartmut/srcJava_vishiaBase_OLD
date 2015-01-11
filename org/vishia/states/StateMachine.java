@@ -90,7 +90,7 @@ import org.vishia.util.InfoAppend;
  * @author hartmut Schorrig
  *
  */
-public class StateMachine extends EventConsumer implements InfoAppend
+public class StateMachine implements EventConsumer, InfoAppend
 {
   
   /**Version, history and license.
@@ -272,12 +272,17 @@ public class StateMachine extends EventConsumer implements InfoAppend
   
   
 
-  @Override public boolean shouldRun(boolean val){
-    if(val && ixInThread >=0) {
+  /**Triggers a run cycle for the statemachine in the execution thread
+   * or runs the state machine immediately if the execution thread is this thread or the execution thread is not given.
+   * @param val
+   * @return
+   */
+  public boolean triggerRun(){
+    if(ixInThread >=0) {
       theThread.shouldRun(ixInThread);
       return true;
     }
-    else return false;
+    else return processEvent(null) !=0;
   }
   
   
@@ -328,7 +333,7 @@ public class StateMachine extends EventConsumer implements InfoAppend
   @Override public int processEvent(EventObject ev)
   { if(theThread == null || theThread.isCurrentThread()) {
       return eventToTopDebug(ev); 
-    } else {
+    } else if(ev !=null){
       if(ev instanceof EventMsg){
         EventMsg<?> ev1 = (EventMsg<?>)ev;
         ev1.donotRelinquish();
@@ -337,6 +342,7 @@ public class StateMachine extends EventConsumer implements InfoAppend
       theThread.storeEvent(ev);
       return mEventConsumed;
     }
+    else return 0;
   }
   
   @Override public String getStateInfo(){ return toString(); }

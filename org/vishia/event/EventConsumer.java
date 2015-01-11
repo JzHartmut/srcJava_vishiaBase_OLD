@@ -9,7 +9,7 @@ import java.util.EventObject;
  * @author Hartmut Schorrig
  *
  */
-public abstract class EventConsumer
+public interface EventConsumer
 {
   /**Version, history and license
    * <ul>
@@ -56,7 +56,6 @@ public abstract class EventConsumer
    */
   public static final int version = 20130511;
 
-  boolean shouldRun;
   
   /**This routine should be overwritten to processes an event. 
    * @param ev The event. It contains some data. The type of the event is not specified here. Any events
@@ -70,16 +69,6 @@ public abstract class EventConsumer
   /**Returns the state of the consumer in a manual readable form. */
   public abstract String getStateInfo();
   
-  
-  /**Can be overridden to wakeup the thread which runs it.
-   * @param val
-   * @return
-   */
-  public boolean shouldRun(boolean val) {
-    boolean ret = shouldRun;
-    shouldRun = val;
-    return ret;
-  }
   
   
   

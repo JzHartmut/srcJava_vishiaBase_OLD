@@ -36,7 +36,7 @@ import org.vishia.util.StringFunctions;
  * @author Hartmut Schorrig
  *
  */
-public class FileLocalAccessorCopyStateM extends EventConsumer
+public class FileLocalAccessorCopyStateM implements EventConsumer
 {
   
   /**Version, history and license.
@@ -1286,11 +1286,16 @@ public class FileLocalAccessorCopyStateM extends EventConsumer
         
         Trans transAbortFile(EventObject ev, Trans trans){ 
           if(trans == null) return new Trans(2, NextFile.class);
-          if(!(ev instanceof FileRemote.CmdEvent)) return null;  //don't fire.
-          FileRemote.CmdEvent ev1 = (FileRemote.CmdEvent)ev;
-          if(ev1.getCmd() == FileRemote.Cmd.abortCopyFile){
-            modeCopyOper  = ev1.modeCopyOper;
-            trans.retTrans = mEventConsumed;
+          if(ev instanceof FileRemote.CmdEvent) {
+            FileRemote.CmdEvent ev1 = (FileRemote.CmdEvent)ev;
+            if(ev1.getCmd() == FileRemote.Cmd.abortCopyFile){
+              modeCopyOper  = ev1.modeCopyOper;
+              trans.retTrans = mEventConsumed;
+            }
+          } else if(copyOrder.timeOrderProgress !=null && copyOrder.timeOrderProgress.answer == FileRemote.Cmd.abortCopyFile) {
+            modeCopyOper  = copyOrder.timeOrderProgress.modeCopyOper;
+            copyOrder.timeOrderProgress.answer = FileRemote.Cmd.free;  //remove the cmd as event-like
+            trans.retTrans = mTransit;
           }
           return null; 
         }

@@ -2655,7 +2655,7 @@ public class FileRemote extends File implements MarkMask_ifc
   }
 
   
-  protected class CallbackWait extends EventConsumer{
+  protected class CallbackWait implements EventConsumer{
     public CallbackWait(){  }
 
     @Override public int processEvent(EventObject ev)
