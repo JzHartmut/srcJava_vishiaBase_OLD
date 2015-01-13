@@ -8,7 +8,7 @@ import java.util.EventObject;
  * @author Hartmut Schorrig
  *
  */
-public abstract class TimeOrderBase extends EventWithDst //Object //implements EventConsumer
+public abstract class TimeOrderBase extends EventTimeout //Object //implements EventConsumer
 {
 
   private static final long serialVersionUID = 1998821310413113722L;
@@ -80,14 +80,34 @@ public abstract class TimeOrderBase extends EventWithDst //Object //implements E
 
   private boolean bAdded;
   
-  /**If not 0, it is the first time to execute it. Elsewhere it should be delayed. */
-  protected long timeExecution;
-  
   
   public TimeOrderBase(String name)
-  { super(name);
+  { super();
     this.name = name;
   }
+  
+  
+  /**Creates an event as dynamic object for usage. Use {@link #relinquish()} after the event is used and it is not referenced
+   * anymore. 
+   * @param source Source of the event. If null then the event is not occupied, especially the {@link #dateCreation()} 
+   *   is set to 0.
+   * @param refData Associated data to the event. It is the source of the event.
+   * @param consumer The destination object for the event.
+   * @param thread an optional thread to store the event in an event queue, maybe null.
+   */
+  public TimeOrderBase(String name, EventThreadIfc thread){
+    super(null, null, thread);  //no EventSource necessary, no eventConsumer because this is an order.
+    this.name = name;
+  }
+  
+
+  public TimeOrderBase(String name, EventConsumer dst){
+    super(null, dst, null);  //no EventSource necessary, no eventConsumer because this is an order.
+    this.name = name;
+  }
+  
+
+  
   
   
   //@Override public int processEvent(EventObject ev)
@@ -109,13 +129,6 @@ public abstract class TimeOrderBase extends EventWithDst //Object //implements E
   /**Executes the order. In a graphic thread it handles any request before the system's dispatching routine starts.
    */
   public abstract void executeOrder();
-  
-  /**Checks whether it should be executed.
-   * @return time in milliseconds for first execution or value <0 to execute immediately.
-   */
-  public int timeToExecution(){ 
-    return timeExecution == 0 ? -1 : (int)( timeExecution - System.currentTimeMillis()); 
-  }
   
   public void timeExecution(long time){ timeExecution = time; }
   

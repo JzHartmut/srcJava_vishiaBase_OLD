@@ -14,7 +14,7 @@ import org.vishia.util.InfoAppend;
  * @author Hartmut Schorrig
  *
  */
-public class EventThread implements Runnable, Closeable, InfoAppend
+public class EventThread implements EventThreadIfc, Runnable, Closeable, InfoAppend
 {
   /**Version, history and license.
    * <ul>

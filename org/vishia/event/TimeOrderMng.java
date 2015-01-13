@@ -10,7 +10,7 @@ import org.vishia.states.StateMachine;
 import org.vishia.util.Assert;
 import org.vishia.util.InfoAppend;
 
-/**Class to manage {@link TimeOrderBase} with an extra thread.
+/**Class to manage all events, especially {@link EventTimeout} with an extra thread.
  * This class can be used in twice forms:
  * <ul>
  * <li>The thread executes the time orders. This may be a thread for @link {@link StateMachine}
@@ -31,7 +31,7 @@ import org.vishia.util.InfoAppend;
  * @author Hartmut Schorrig
  *
  */
-public class TimeOrderMng implements Closeable, InfoAppend
+public class TimeOrderMng implements EventThreadIfc, Closeable, InfoAppend
 {
   
   
@@ -119,17 +119,17 @@ public class TimeOrderMng implements Closeable, InfoAppend
    * is woken up and before the dispatching of graphic-system-event will be started.
    * An order may be run only one time, than it should delete itself from this queue in its run-method.
    * */
-  private final ConcurrentLinkedQueue<TimeOrderBase> queueOrdersToExecute;
+  private final ConcurrentLinkedQueue<EventTimeout> queueOrdersToExecute;
   
   /**Queue of orders which are executed with delay yet. */
   private final ConcurrentLinkedQueue<EventObject> queueEvents = new ConcurrentLinkedQueue<EventObject>();
   
   /**Queue of orders which are executed with delay yet. */
-  private final ConcurrentLinkedQueue<TimeOrderBase> queueDelayedOrders = new ConcurrentLinkedQueue<TimeOrderBase>();
+  private final ConcurrentLinkedQueue<EventTimeout> queueDelayedOrders = new ConcurrentLinkedQueue<EventTimeout>();
   
   /**Temporary used instance of delayed orders while {@link #runTimer} organizes the delayed orders.
    * This queue is empty outside running one step of runTimer(). */
-  private final ConcurrentLinkedQueue<TimeOrderBase> queueDelayedTempOrders = new ConcurrentLinkedQueue<TimeOrderBase>();
+  private final ConcurrentLinkedQueue<EventTimeout> queueDelayedTempOrders = new ConcurrentLinkedQueue<EventTimeout>();
   
   private final ArrayList<EventConsumer> listConsumer = new ArrayList<EventConsumer>();
   
@@ -146,7 +146,7 @@ public class TimeOrderMng implements Closeable, InfoAppend
   private final boolean bExecutesTheOrder;
   
   /**State of the thread, used for debug and mutex mechanism. This variable is set 'W' under mutex while the timer waits. Then it should
-   * be notified in {@link #addTimeOrder(TimeOrderBase)} with delayed order. */
+   * be notified in {@link #addTimeOrder(EventTimeout)} with delayed order. */
   char stateThreadTimer = '?';
   
   /**Set if any external event is set. Then the dispatcher shouldn't sleep after finishing dispatching. 
@@ -176,7 +176,7 @@ public class TimeOrderMng implements Closeable, InfoAppend
     this.threadName = "TimeOrderMng";
     //threadTimer = new Thread(runTimer, threadName);
     bExecutesTheOrder = false;
-    queueOrdersToExecute = new ConcurrentLinkedQueue<TimeOrderBase>();
+    queueOrdersToExecute = new ConcurrentLinkedQueue<EventTimeout>();
   }
 
   
@@ -195,7 +195,7 @@ public class TimeOrderMng implements Closeable, InfoAppend
     if(executesTheOrder){
       queueOrdersToExecute = null;  //unnecessary.
     } else {
-      queueOrdersToExecute = new ConcurrentLinkedQueue<TimeOrderBase>();
+      queueOrdersToExecute = new ConcurrentLinkedQueue<EventTimeout>();
     }
   }
 
@@ -293,11 +293,11 @@ public class TimeOrderMng implements Closeable, InfoAppend
 
 
   /**Adds a method which will be called in anytime in the dispatch loop until the listener will remove itself.
-   * @deprecated: This method sholdn't be called by user, see {@link TimeOrderBase#addToList(GralGraphicThread, int)}. 
+   * @deprecated: This method sholdn't be called by user, see {@link EventTimeout#addToList(GralGraphicThread, int)}. 
    * @see org.vishia.gral.ifc.GralWindowMng_ifc#addDispatchListener(org.vishia.gral.base.EventTimeOrder)
    * @param order
    */
-  public void addTimeOrder(TimeOrderBase order){ 
+  public void addTimeOrder(EventTimeout order){ 
     if(order.timeToExecution() >=0){
       queueDelayedOrders.offer(order);
       if((order.timeExecution - timeCheckNew) < -2) {  //an imprecision of 2 ms are admissible, don't wakeup because calculation imprecisions.
@@ -321,7 +321,7 @@ public class TimeOrderMng implements Closeable, InfoAppend
     } else {
       if((debugPrint & 0x800)!=0) System.out.printf("TimeOrderMng yet %d\n", order.timeExecution - timeCheckNew);
       if(bExecutesTheOrder) {
-        order.executeOrder();             //executes immediately in this thread.
+        executeOrEnqueuTimeOrder(order);
       } else {
         queueOrdersToExecute.add(order);  //stores to execute contemporarry.
         //it is possible that the GUI is busy with dispatching and doesn't sleep yet.
@@ -337,11 +337,11 @@ public class TimeOrderMng implements Closeable, InfoAppend
   
   
   /**Removes a order, which was called in the dispatch loop.
-   * Hint: Use {@link TimeOrderBase#removeFromList(GralGraphicThread)}
+   * Hint: Use {@link EventTimeout#removeFromList(GralGraphicThread)}
    * to remove thread safe with signification. Don't call this routine yourself.
    * @param order
    */
-  public void removeTimeOrder(TimeOrderBase order)
+  public void removeTimeOrder(EventTimeout order)
   { boolean found = queueDelayedOrders.remove(order);
     if(!found){ removeFromQueue(order); }  //it is possible that it hangs in the event queue.
     if(!bExecutesTheOrder) {queueOrdersToExecute.remove(order); }
@@ -440,18 +440,31 @@ public class TimeOrderMng implements Closeable, InfoAppend
   
   
 
+  private void executeOrEnqueuTimeOrder(EventTimeout ev) {
+    if(ev.evDstThread !=null) { //any other thread to execute.
+      //the order should be executed in any other thread, store it there:
+      ev.evDstThread.storeEvent(ev);
+    } else if(ev.evDst !=null){
+      ev.evDst.processEvent(ev);  //especially if it is a timeout.
+    } else if(ev instanceof TimeOrderBase){
+      ((TimeOrderBase)ev).executeOrder();   //executes immediately in this thread.
+    }
+  }
+  
+  
+  
   
   private int checkTimeOrders(){
     boolean bWake = false;
     int timeWait = 10000; //10 seconds.
     timeCheckNew = System.currentTimeMillis() + timeWait;  //the next check time in 10 seconds.
-    { TimeOrderBase order;
+    { EventTimeout order;
       long timeNow = System.currentTimeMillis();
       while( (order = queueDelayedOrders.poll()) !=null){
         long delay = order.timeExecution - timeNow; 
         if((delay) < 3){  //if it is expired in 2 milliseconds, execute now.
           if(bExecutesTheOrder) {
-            order.executeOrder();   //executes immediately in this thread.
+            executeOrEnqueuTimeOrder(order);
             timeNow = System.currentTimeMillis();  //it may be later.
           } else {
             queueOrdersToExecute.offer(order);  //stores to execute contemporarry.
@@ -557,14 +570,14 @@ public class TimeOrderMng implements Closeable, InfoAppend
    */
   public boolean step(int nrofOrders, long millisecAbs){
     if(bExecutesTheOrder) return false;  //does nothing.
-    TimeOrderBase listener;
+    EventTimeout listener;
     extEventSet.set(false); //the list will be tested!
     boolean bSleep = true;
     while( (listener = queueOrdersToExecute.poll()) !=null){
     //for(OrderForList listener: queueGraphicOrders){
           //use isWakedUpOnly for run as parameter?
       try{
-        listener.executeOrder();
+        ((TimeOrderBase)listener).executeOrder();
       } catch(Exception exc){
         System.err.println("GralGraphicThread-" + exc.getMessage());
         exc.printStackTrace();

@@ -94,7 +94,7 @@ public class EventWithDst extends EventObject
   /**The queue for events of the {@link EventThread} if this event should be used
    * in a really event driven system (without directly callback). 
    * If it is null, the dst. {@link EventConsumer#processEvent(EventMsg)} should be called immediately. */
-  EventThread evDstThread;
+  EventThreadIfc evDstThread;
   
   
   /**The destination instance for the Event. If the event is stored in a common queue, 
@@ -168,7 +168,7 @@ public class EventWithDst extends EventObject
    * @param consumer The destination object for the event.
    * @param thread an optional thread to store the event in an event queue, maybe null.
    */
-  public EventWithDst(EventSource source, EventConsumer consumer, EventThread thread){
+  public EventWithDst(EventSource source, EventConsumer consumer, EventThreadIfc thread){
     super(EventSource.nullSource);
     if(source == null){
       this.dateCreation.set(0);
