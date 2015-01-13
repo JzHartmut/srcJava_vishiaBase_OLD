@@ -15,8 +15,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.vishia.event.EventMsg;
-import org.vishia.event.EventMsg2;
+import org.vishia.event.EventCmdType;
+import org.vishia.event.EventCmdPingPongType;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventThread;
@@ -49,7 +49,7 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
    * <li>2012-08-05 Hartmut new: If the oFile reference is null, the java.io.File instance for the local file will be created anyway.
    * <li>2012-08-03 Hartmut chg: Usage of Event in FileRemote. 
    *   The FileRemoteAccessor.Commission is removed yet. The same instance FileRemote.Callback, now named FileRemote.FileRemoteEvent is used for forward event (commision) and back event.
-   * <li>2012-07-30 Hartmut new: execution of {@link #refreshFileProperties(FileRemote, EventMsg2)} and {@link #refreshFilePropertiesAndChildren(FileRemote, EventMsg2)}
+   * <li>2012-07-30 Hartmut new: execution of {@link #refreshFileProperties(FileRemote, EventCmdPingPongType)} and {@link #refreshFilePropertiesAndChildren(FileRemote, EventCmdPingPongType)}
    *   in an extra thread if a callback is given. It is substantial for a fluently working with files, if an access
    *   for example in network hangs.
    * <li>2012-07-28 Hartmut new: Concept of remote files enhanced with respect to {@link FileAccessZip},
@@ -431,7 +431,7 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
    * While occupying the Cmdevent is completed with the destination, it is {@link #executerCommission}.
    * @see org.vishia.fileRemote.FileRemoteAccessor#prepareCmdEvent(org.vishia.fileRemote.FileRemote.CallbackEvent)
    */
-  @Override public FileRemote.CmdEvent prepareCmdEvent(int timeout, EventMsg2<?, FileRemote.Cmd>  evBack){
+  @Override public FileRemote.CmdEvent prepareCmdEvent(int timeout, EventCmdPingPongType<?, FileRemote.Cmd>  evBack){
     FileRemote.CmdEvent cmdEvent1;
     if(evBack !=null && (cmdEvent1 = (FileRemote.CmdEvent)evBack.getOpponent()) !=null){
       if(!cmdEvent1.occupy(timeout, evSrc, executerCommission, singleThreadForCommission)){

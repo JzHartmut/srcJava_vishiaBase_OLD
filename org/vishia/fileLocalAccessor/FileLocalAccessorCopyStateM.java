@@ -11,7 +11,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.vishia.event.EventConsumer;
-import org.vishia.event.EventMsg2;
+import org.vishia.event.EventCmdPingPongType;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventThread;
 import org.vishia.fileRemote.FileMark;
@@ -102,12 +102,12 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
   
   /**The event type for intern events. One permanent instance of this class will be created. 
    * The opponent will be used alternately because 2 instances may need contemporary. */
-  public final class EventCpy extends EventMsg2<CmdIntern, CmdIntern>{
+  public final class EventCpy extends EventCmdPingPongType<CmdIntern, CmdIntern>{
     
     private static final long serialVersionUID = 2904627756828656797L;
   
   
-    /**The simple constructor calls {@link EventMsg2#Event(Object, EventConsumer, EventThread)}
+    /**The simple constructor calls {@link EventCmdPingPongType#Event(Object, EventConsumer, EventThread)}
      * with the {@link FileAccessorLocalJava7#executerCommission}
      * and the {@link FileAccessorLocalJava7#singleThreadForCommission}
      * because the event should be send to that.
@@ -273,7 +273,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
   /**More as one order to check and copy is executed after {@link StateCheckProcess} or {@link StateCopyProcess}
    * is leaved. The event is kept for future execution in the state {@link StateCopyReady}
    */
-  final ConcurrentLinkedQueue<EventMsg2<FileRemote.Cmd, FileRemote.CallbackCmd>> storedCopyEvents = new ConcurrentLinkedQueue<EventMsg2<FileRemote.Cmd, FileRemote.CallbackCmd>>();
+  final ConcurrentLinkedQueue<EventCmdPingPongType<FileRemote.Cmd, FileRemote.CallbackCmd>> storedCopyEvents = new ConcurrentLinkedQueue<EventCmdPingPongType<FileRemote.Cmd, FileRemote.CallbackCmd>>();
   
   /**The actual handled file set with source file, destination file, list files
    *  while running any state or switching between states while check or copy.
@@ -1227,7 +1227,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
             //send done Back
             if(evBackInfo !=null && evBackInfo.occupyRecall(1000, evSrc, false) !=0){
               evBackInfo.sendEvent(FileRemote.CallbackCmd.done);
-              EventMsg2<?,?> ev1;
+              EventCmdPingPongType<?,?> ev1;
               while( (ev1 = storedCopyEvents.poll() ) !=null) {
                 ev1.sendEvent();
               }

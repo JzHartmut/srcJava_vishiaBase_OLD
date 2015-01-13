@@ -1,13 +1,7 @@
 package org.vishia.event;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.vishia.util.Assert;
-import org.vishia.util.TimeOrderBase;
-import org.vishia.util.TimeOrderMng;
 
 
 public class EventTimerMng extends TimeOrderMng {
@@ -48,14 +42,14 @@ public class EventTimerMng extends TimeOrderMng {
    */
   public static final int version = 20130513;
 
-  public static class TimeEvent extends EventMsg<TimeEvent.Cmd>{
+  public static class TimeEvent extends EventCmdType<TimeEvent.Cmd>{
     enum Cmd{Time};
     
     final int identNrEvent;
     
     /**The constructor
      * @param dst A destination object should be given
-     * @param thread The destination thread may be null, then the {@link EventConsumer#processEvent(EventMsg)} method
+     * @param thread The destination thread may be null, then the {@link EventConsumer#processEvent(EventCmdType)} method
      *   is called in the timer thread.
      */
     public TimeEvent(EventConsumer dst, EventThread thread, int identNrEvent){
@@ -67,7 +61,7 @@ public class EventTimerMng extends TimeOrderMng {
      * @param ev The untyped event
      * @return null if the event does not match the type, elsewhere the casted event.
      */
-    public static TimeEvent typeof(EventMsg<?> ev){
+    public static TimeEvent typeof(EventCmdType<?> ev){
       if(ev instanceof TimeEvent){
         return (TimeEvent)(ev);
       } else {

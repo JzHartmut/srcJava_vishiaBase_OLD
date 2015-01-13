@@ -1,5 +1,7 @@
 package org.vishia.util;
 
+import org.vishia.event.TimeOrderBase;
+
 /**Deprecated older class instead TimeOrder
  * @author Hartmut Schorrig
  * @deprecated use {@link TimeOrderBase}

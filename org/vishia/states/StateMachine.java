@@ -6,7 +6,7 @@ import java.util.EventObject;
 import java.util.HashMap;
 
 import org.vishia.event.EventConsumer;
-import org.vishia.event.EventMsg;
+import org.vishia.event.EventCmdType;
 import org.vishia.event.EventThread;
 import org.vishia.event.EventTimerMng;
 import org.vishia.util.DataAccess;
@@ -25,7 +25,7 @@ import org.vishia.util.InfoAppend;
  * <br><br>
  * Any state can contain an entry- and an exit action which can be build either ... or with:
  * <ul>
- * <li>Overriding the method {@link org.vishia.states.StateSimple#entry(org.vishia.event.EventMsg2)} respectively {@link StateSimple#exit()}.
+ * <li>Overriding the method {@link org.vishia.states.StateSimple#entry(org.vishia.event.EventCmdPingPongType)} respectively {@link StateSimple#exit()}.
  * <li>Set the association {@link org.vishia.states.StateSimple#entry} respectively {@link org.vishia.states.StateSimple#exit} 
  * with an Implementation of {@link org.vishia.states.StateAction}
  *   respectively {@link java.lang.Runnable} which can be located in any other class, usual as inner anonymous class. 
@@ -37,9 +37,9 @@ import org.vishia.util.InfoAppend;
  * <li>An inner class derived from {@link org.vishia.states.StateSimple.Trans}.
  * <li>An instance of an anonymous inner derived class of {@link org.vishia.states.StateSimple.Trans}.
  * <li>An method with return value {@link org.vishia.states.StateSimple.Trans} 
- *   and 2 arguments {@link org.vishia.event.EventMsg2} and {@link org.vishia.states.StateSimple.Trans}
+ *   and 2 arguments {@link org.vishia.event.EventCmdPingPongType} and {@link org.vishia.states.StateSimple.Trans}
  *   which contains the creation of a StateTrans object, the condition test, an action and the {@link org.vishia.states.StateSimple.Trans#doExit()}
- *   and {@link org.vishia.states.StateSimple.Trans#doEntry(org.vishia.event.EventMsg2)} invocation. This form shows only a simple method
+ *   and {@link org.vishia.states.StateSimple.Trans#doEntry(org.vishia.event.EventCmdPingPongType)} invocation. This form shows only a simple method
  *   in a browser tree of the source code (outline in Eclipse).  
  * </ul>
  * The three forms of transition phrases gives possibilities for more or less complex transitions:
@@ -328,14 +328,14 @@ public class StateMachine implements EventConsumer, InfoAppend
   /**Applies an event to this state machine. This method is invoked from {@link EventMsg2#sendEvent(Enum)} if this class is given
    * as {@link EventConsumer}. If the statemachine is aggregated with a {@link EventThread} and this routine is invoked from another thread
    * then the event will be stored in {@link #theThread}. It is done if the transmitter of the event does not know about the EventThread.
-   * @see org.vishia.event.EventConsumer#processEvent(org.vishia.event.EventMsg2)
+   * @see org.vishia.event.EventConsumer#processEvent(org.vishia.event.EventCmdPingPongType)
    */
   @Override public int processEvent(EventObject ev)
   { if(theThread == null || theThread.isCurrentThread()) {
       return eventToTopDebug(ev); 
     } else if(ev !=null){
-      if(ev instanceof EventMsg){
-        EventMsg<?> ev1 = (EventMsg<?>)ev;
+      if(ev instanceof EventCmdType){
+        EventCmdType<?> ev1 = (EventCmdType<?>)ev;
         ev1.donotRelinquish();
         ev1.setDst(this);  //only this may be the destination of the event.
       }

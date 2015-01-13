@@ -15,7 +15,7 @@ import java.util.TreeMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import org.vishia.event.EventMsg2;
+import org.vishia.event.EventCmdPingPongType;
 import org.vishia.fileRemote.FileRemote.Cmd;
 import org.vishia.fileRemote.FileRemote.CmdEvent;
 import org.vishia.util.Assert;
@@ -317,7 +317,7 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
   }
 
   
-  @Override public FileRemote.CmdEvent prepareCmdEvent(int timeout, EventMsg2<?, FileRemote.Cmd> evBack){
+  @Override public FileRemote.CmdEvent prepareCmdEvent(int timeout, EventCmdPingPongType<?, FileRemote.Cmd> evBack){
     return null; //TODO
   }
 

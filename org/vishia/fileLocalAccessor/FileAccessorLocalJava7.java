@@ -25,8 +25,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.vishia.event.EventMsg;
-import org.vishia.event.EventMsg2;
+import org.vishia.event.EventCmdType;
+import org.vishia.event.EventCmdPingPongType;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventThread;
@@ -480,7 +480,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
    * While occupying the Cmdevent is completed with the destination, it is {@link #executerCommission}.
    * @see org.vishia.fileRemote.FileRemoteAccessor#prepareCmdEvent(org.vishia.fileRemote.FileRemote.CallbackEvent)
    */
-  @Override public FileRemote.CmdEvent prepareCmdEvent(int timeout, EventMsg2<?, FileRemote.Cmd>  evBack){
+  @Override public FileRemote.CmdEvent prepareCmdEvent(int timeout, EventCmdPingPongType<?, FileRemote.Cmd>  evBack){
     FileRemote.CmdEvent cmdEvent1;
     if(evBack !=null && (cmdEvent1 = (FileRemote.CmdEvent)evBack.getOpponent()) !=null){
       if(!cmdEvent1.occupy(timeout, evSrc, executerCommission, singleThreadForCommission)){

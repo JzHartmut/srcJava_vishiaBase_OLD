@@ -2,7 +2,7 @@ package org.vishia.states.example;
 
 import java.util.EventObject;
 
-import org.vishia.event.EventMsg2;
+import org.vishia.event.EventCmdPingPongType;
 import org.vishia.event.EventThread;
 import org.vishia.event.EventTimerMng;
 import org.vishia.states.StateParallel;
@@ -32,7 +32,7 @@ public class StatesNestedParallel
   enum CmdEvent { start, ready, cyclic};
   
   /**An event type reuseable for the state machine animation. */
-  class EventA extends EventMsg2<CmdEvent, EventMsg2.NoOpponent>{}
+  class EventA extends EventCmdPingPongType<CmdEvent, EventCmdPingPongType.NoOpponent>{}
   
   /**Some conditions for transition in this example. */
   Conditions cond = new Conditions();

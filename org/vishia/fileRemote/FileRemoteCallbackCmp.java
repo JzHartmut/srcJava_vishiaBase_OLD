@@ -7,13 +7,13 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.vishia.event.TimeOrderBase;
+import org.vishia.event.TimeOrderMng;
 import org.vishia.util.Assert;
 import org.vishia.util.Debugutil;
 import org.vishia.util.FileSystem;
 import org.vishia.util.SortedTreeWalkerCallback;
 import org.vishia.util.StringFunctions;
-import org.vishia.util.TimeOrderBase;
-import org.vishia.util.TimeOrderMng;
 
 /**This class supports comparison of files in a callback routine.
  * @author Hartmut Schorrig

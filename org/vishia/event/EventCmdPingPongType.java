@@ -100,7 +100,7 @@ import org.vishia.util.DateOrder;
  * A request should be called with an reference to an instance to this Event class as parameter. 
  * This Event class contains the reference to the callback instance {@link #callback}. 
  * The callback instance implements the {@link EventConsumer}-interface. In this manner the request receiver
- * can invoke a callback using {@link #callback}.{@link EventConsumer#processEvent(EventMsg2)}. Note that this callback
+ * can invoke a callback using {@link #callback}.{@link EventConsumer#processEvent(EventCmdPingPongType)}. Note that this callback
  * is executed in the request receiver's thread.
  * <br><pre>
  *   Thread                     class             another Thread             
@@ -217,7 +217,7 @@ import org.vishia.util.DateOrder;
  * The event object is created on demand with {@link #Event(Object, EventConsumer, EventThread)}
  * and send via {@link #sendEvent(int)} to the destination or it is stored in the queue of the {@link EventThread}
  * and then processed. Alternatively it may created with {@link #Event(Enum)} and applied to any 
- * {@link EventConsumer#processEvent(EventMsg2)}. <br>
+ * {@link EventConsumer#processEvent(EventCmdPingPongType)}. <br>
  * While processing, the data are gotten from the event. After them it is no longer necessary. 
  * Because it is not referenced any more, the garbage collector will be removed it from memory.
  * <br><br>
@@ -230,7 +230,7 @@ import org.vishia.util.DateOrder;
  * <br><br>
  * It is a convention to <b>process events without blocking</b> (waiting for any resource) <b>in a short time</b>. 
  * Events are often used in a cyclic loop maybe for a state machine operation or inside interrupts. 
- * Therefore the calculation time between dequeue the event and start the {@link EventConsumer#processEvent(EventMsg2)} 
+ * Therefore the calculation time between dequeue the event and start the {@link EventConsumer#processEvent(EventCmdPingPongType)} 
  * and the end of this routine respectively the time to call 
  * {@link #relinquish()} is short. Short means a few milliseconds or less.
  * 
@@ -297,19 +297,19 @@ import org.vishia.util.DateOrder;
  *   to get the next event. Only then the Event is processed overall. Then it can be relinquished.
  * <li>or the event is processed by only one routine immediately called in the {@link #sendEvent(Enum)} routine
  *   because no queuing is done. Then only this routine is called with the event. Therefore the Event is relinquished
- *   automatically in the {@link #sendEvent(Enum)} routine after calling {@link EventConsumer#processEvent(EventMsg2)}.      
+ *   automatically in the {@link #sendEvent(Enum)} routine after calling {@link EventConsumer#processEvent(EventCmdPingPongType)}.      
  * </ul> 
  * It is possible that the event is stored in any other queue ('deferred events') inside the 
- * {@link EventConsumer#processEvent(EventMsg2)}. Then the method {@link #donotRelinquish()} can be called therefore
+ * {@link EventConsumer#processEvent(EventCmdPingPongType)}. Then the method {@link #donotRelinquish()} can be called therefore
  * which prevents the relinguish from the event after processing.
  * 
  * <br><br>
  * <b>Exceptions while processing the event</b>:<br>
  * If an exception occurs, the whole process of execution should not be stopped. Especially the {@link #relinquish()}
  * of the event should be done nevertheless. Therefore the exception is caught both in the {@link #sendEvent(Enum)} routine
- * if {@link EventConsumer#processEvent(EventMsg2)} is called immediately and in the {@link EventThread} loop. The exception
+ * if {@link EventConsumer#processEvent(EventCmdPingPongType)} is called immediately and in the {@link EventThread} loop. The exception
  * is reported to the System.err output stream. An application can use its own try and catch constructs inside the 
- * {@link EventConsumer#processEvent(EventMsg2)} routine. This caught has only its effect when an error is not caught elsewhere.
+ * {@link EventConsumer#processEvent(EventCmdPingPongType)} routine. This caught has only its effect when an error is not caught elsewhere.
  * 
  * <br><br>
  * <b>Opponent event and reusing</b>:<br>
@@ -451,8 +451,8 @@ import org.vishia.util.DateOrder;
  * <br>
  * @param <CmdEnum> The type of Cmd for this enum, see {@link #getCmd()}
  * @param <CmdBack> The type of the Cmd of the opponent Event, see {@link #getOpponent()}. 
- *   Use {@link EventMsg2.NoOpponent} for this generic parameter if the event has not a opponent.
- *   See {@link #Event(EventSource, Object, EventConsumer, EventThread, EventMsg2)}, the last parameter should be null then. 
+ *   Use {@link EventCmdPingPongType.NoOpponent} for this generic parameter if the event has not a opponent.
+ *   See {@link #Event(EventSource, Object, EventConsumer, EventThread, EventCmdPingPongType)}, the last parameter should be null then. 
  * @author Hartmut Schorrig
  *
  */
@@ -524,7 +524,7 @@ import org.vishia.util.DateOrder;
  * 
  * 
  */
-public class EventMsg2<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>> extends EventMsg<CmdEnum>
+public class EventCmdPingPongType<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>> extends EventCmdType<CmdEnum>
 {
   
   /**Version, history and license
@@ -569,13 +569,13 @@ public class EventMsg2<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBa
 
   /**An event can have an opponent or counterpart for return information. The event and its counterpart may refer one together.
    */
-  private EventMsg2<CmdBack, CmdEnum> opponent;
+  private EventCmdPingPongType<CmdBack, CmdEnum> opponent;
   
   /**Creates an event as a static object for re-usage. Use {@link #occupy(Object, EventConsumer, EventThread)}
    * before first usage. Use {@link #relinquish()} to release the usage. 
    * 
    */
-  public EventMsg2(){
+  public EventCmdPingPongType(){
     super(); //EventSource.nullSource);
   }
   
@@ -589,7 +589,7 @@ public class EventMsg2<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBa
    * @param cmd a given Command. It may be null, it can be overwritten later with {@link #setCmd(Enum)}
    *   or using {@link #sendEvent(Enum)}.
    */
-  public EventMsg2(CmdEnum cmd){
+  public EventCmdPingPongType(CmdEnum cmd){
     super(cmd);
   }
   
@@ -602,7 +602,7 @@ public class EventMsg2<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBa
    * @param consumer The destination object for the event.
    * @param thread an optional thread to store the event in an event queue, maybe null.
    */
-  public EventMsg2(EventSource source, EventConsumer consumer, EventThread thread){
+  public EventCmdPingPongType(EventSource source, EventConsumer consumer, EventThread thread){
     super(source, consumer, thread);
     this.opponent = null;
   }
@@ -617,8 +617,8 @@ public class EventMsg2<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBa
    * @param thread an optional thread to store the event in an event queue, maybe null.
    * @param callback Another event to interplay with the source of this event.
    */
-  public EventMsg2(EventSource source, EventConsumer consumer, EventThread thread
-      , EventMsg2<CmdBack, CmdEnum> callback){
+  public EventCmdPingPongType(EventSource source, EventConsumer consumer, EventThread thread
+      , EventCmdPingPongType<CmdBack, CmdEnum> callback){
     super(); //EventSource.nullSource);
     if(source == null || consumer == null){
       this.dateCreation.set(0);
@@ -640,9 +640,9 @@ public class EventMsg2<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBa
    * @param cmd any admissible command
    * @return this to concatenate
    */
-  public EventMsg2<CmdEnum, CmdBack> setCmd(CmdEnum cmd){ cmde = cmd; return this; }
+  public EventCmdPingPongType<CmdEnum, CmdBack> setCmd(CmdEnum cmd){ cmde = cmd; return this; }
   
-  public EventMsg2<CmdBack, CmdEnum> getOpponent(){ return opponent; }
+  public EventCmdPingPongType<CmdBack, CmdEnum> getOpponent(){ return opponent; }
   
   public boolean hasOpponent(){ return opponent !=null; }
   

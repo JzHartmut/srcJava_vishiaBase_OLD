@@ -1,11 +1,14 @@
-package org.vishia.util;
+package org.vishia.event;
 
 import java.io.Closeable;
+import java.util.ArrayList;
 import java.util.EventObject;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.vishia.states.StateMachine;
+import org.vishia.util.Assert;
+import org.vishia.util.InfoAppend;
 
 /**Class to manage {@link TimeOrderBase} with an extra thread.
  * This class can be used in twice forms:
@@ -28,7 +31,7 @@ import org.vishia.states.StateMachine;
  * @author Hartmut Schorrig
  *
  */
-public class TimeOrderMng implements Closeable
+public class TimeOrderMng implements Closeable, InfoAppend
 {
   
   
@@ -92,21 +95,18 @@ public class TimeOrderMng implements Closeable
   
   
   
-  public Runnable runTimer = new Runnable(){
-    @Override public void run(){ TimeOrderMng.this.runThread(); }
-  };
 
-  
-  
+
   /**Bit variable to control some System.out.printf debug outputs. 
    * 
    * 
    * */
   private int debugPrint;
   
+  protected final String threadName;
 
   /**The thread which executes delayed wake up. */
-  private final Thread threadTimer;
+  private Thread threadTimer;
 
 
 
@@ -122,19 +122,26 @@ public class TimeOrderMng implements Closeable
   private final ConcurrentLinkedQueue<TimeOrderBase> queueOrdersToExecute;
   
   /**Queue of orders which are executed with delay yet. */
+  private final ConcurrentLinkedQueue<EventObject> queueEvents = new ConcurrentLinkedQueue<EventObject>();
+  
+  /**Queue of orders which are executed with delay yet. */
   private final ConcurrentLinkedQueue<TimeOrderBase> queueDelayedOrders = new ConcurrentLinkedQueue<TimeOrderBase>();
   
   /**Temporary used instance of delayed orders while {@link #runTimer} organizes the delayed orders.
    * This queue is empty outside running one step of runTimer(). */
   private final ConcurrentLinkedQueue<TimeOrderBase> queueDelayedTempOrders = new ConcurrentLinkedQueue<TimeOrderBase>();
   
+  private final ArrayList<EventConsumer> listConsumer = new ArrayList<EventConsumer>();
+  
+  private int[] consumerShouldRun = new int[20];  //up to 320 consumer. TODO increase with greater listConsumer. 
+
   private boolean bThreadRun;
   
   /**timestamp for a new time entry. It is set in synchronized operation between {@link #addTimeOrder(TimeEvent, long)}
    * and the wait in the {@link #run()} operation.
    * 
    */
-  private long timeCheckNew;
+  private long timeCheckNew = System.currentTimeMillis() + 1000 * 3600 * 24;
 
   private final boolean bExecutesTheOrder;
   
@@ -142,12 +149,19 @@ public class TimeOrderMng implements Closeable
    * be notified in {@link #addTimeOrder(TimeOrderBase)} with delayed order. */
   char stateThreadTimer = '?';
   
-  
-  
   /**Set if any external event is set. Then the dispatcher shouldn't sleep after finishing dispatching. 
    * This is important if the external event occurs while the GUI is busy in the operation-system-dispatching loop.
    */
   private final AtomicBoolean extEventSet = new AtomicBoolean(false);
+
+  private boolean startOnDemand;
+  
+  private int ctWaitEmptyQueue;
+  
+  protected int maxCtWaitEmptyQueue = 5;
+  
+  
+  private boolean preserveRecursiveInfoAppend;
 
   /**Creates the Manager for time orders with a given thread which may be for example the graphic thread in a graphic application
    * or another cyclic thread.
@@ -159,7 +173,8 @@ public class TimeOrderMng implements Closeable
    */
   public TimeOrderMng(ConnectionExecThread execThread){
     this.execThread = execThread;
-    threadTimer = new Thread(runTimer, "TimeOrderMng");
+    this.threadName = "TimeOrderMng";
+    //threadTimer = new Thread(runTimer, threadName);
     bExecutesTheOrder = false;
     queueOrdersToExecute = new ConcurrentLinkedQueue<TimeOrderBase>();
   }
@@ -174,7 +189,8 @@ public class TimeOrderMng implements Closeable
    */
   public TimeOrderMng(boolean executesTheOrder){
     this.execThread = null;
-    threadTimer = new Thread(runTimer, "TimeOrderMng");
+    this.threadName = "TimeOrderMng";
+    //threadTimer = new Thread(runTimer, threadName);
     bExecutesTheOrder = executesTheOrder;
     if(executesTheOrder){
       queueOrdersToExecute = null;  //unnecessary.
@@ -184,11 +200,84 @@ public class TimeOrderMng implements Closeable
   }
 
   
-  public void start(){
-    if(!bThreadRun) {
-      threadTimer.start();
+  public TimeOrderMng(String threadName)
+  {
+    this.threadName = threadName;
+    queueOrdersToExecute = null;  //unnecessary.
+    execThread = null;
+    bExecutesTheOrder = false;
+  }
+  
+
+  
+  public void start(){ startThread(); }
+  
+
+  /**Creates and starts the thread. If this routine is called from the user, the thread runs
+   * till the close() method was called. If this method is not invoked from the user,
+   * the thread is created and started automatically if {@link #storeEvent(EventCmdType)} was called.
+   * In that case the thread stops its execution if the event queue is empty and about 5 seconds
+   * are gone.  */
+  public void startThread(){ 
+    if(threadTimer == null && !bThreadRun) {
+      threadTimer = new Thread(runTimer, threadName);
+      startOnDemand = false;
+      threadTimer.start(); 
     }
   }
+  
+
+  
+  /**Activates one time running of the registered {@link EventConsumer} without an event.
+   * @param ixRegisteredConsumer
+   * @see #registerConsumer(EventConsumer)
+   */
+  public synchronized void shouldRun(int ixRegisteredConsumer) {
+    int ix = ixRegisteredConsumer >>5;
+    int bit = 1 << (ixRegisteredConsumer - ix);
+    consumerShouldRun[ix] |= bit;
+    startOrNotify();
+  }
+  
+  
+  
+  /**Stores an event in the queue, able to invoke from any thread.
+   * @param ev
+   */
+  public void storeEvent(EventObject ev){
+    if(ev instanceof EventWithDst) { ((EventWithDst)ev).stateOfEvent = 'q'; }
+    queueEvents.offer(ev);
+    startOrNotify();
+  }
+  
+
+  private void startOrNotify(){
+    if(threadTimer == null){
+      startThread();
+      startOnDemand = true;
+    } else {
+      synchronized(this){
+        if(stateThreadTimer == 'w'){
+          notify();
+        } else {
+          //stateOfThread = 'c';
+        }
+      }
+    }
+  }
+
+
+  /**Registers a consumer that can be run in this thread without storing an event.
+   * @param obj the consumer, it should be override {@link EventConsumer#shouldRun(boolean)} which should call 
+   *   {@link #shouldRun(int)} of this class with the index which is returned from this method. See example in 
+   *   {@link org.vishia.states.StateMachine#shouldRun(boolean)}.
+   * @return The index of registering.
+   */
+  public synchronized int registerConsumer(EventConsumer obj) {
+    listConsumer.add(obj);
+    return listConsumer.size()-1;  //the add position.
+  }
+  
   
   /**Should only be called on end of the whole application to finish the timer thread. This method does not need to be called
    * if a @link {@link ConnectionExecThread} is given as Argument of @link {@link TimeOrderMng#TimeOrderMng(ConnectionExecThread)}
@@ -211,7 +300,8 @@ public class TimeOrderMng implements Closeable
   public void addTimeOrder(TimeOrderBase order){ 
     if(order.timeToExecution() >=0){
       queueDelayedOrders.offer(order);
-      if(order.timeExecution < timeCheckNew - 2) {  //an imprecision of 2 ms are admissible, don't wakeup because calculation imprecisions.
+      if((order.timeExecution - timeCheckNew) < -2) {  //an imprecision of 2 ms are admissible, don't wakeup because calculation imprecisions.
+        timeCheckNew = order.timeExecution;  //earlier.
         boolean notified;
         synchronized(runTimer){
           notified = stateThreadTimer == 'W';
@@ -252,73 +342,212 @@ public class TimeOrderMng implements Closeable
    * @param order
    */
   public void removeTimeOrder(TimeOrderBase order)
-  { queueDelayedOrders.remove(order);
+  { boolean found = queueDelayedOrders.remove(order);
+    if(!found){ removeFromQueue(order); }  //it is possible that it hangs in the event queue.
     if(!bExecutesTheOrder) {queueOrdersToExecute.remove(order); }
   }
   
   
-
-  /**The core run routine for the timer thread.
-   * The timer thread is in an delay till 
+  /**Removes this event from its queue if it is in the queue.
+   * If the element is found in the queue, it is designated with stateOfEvent = 'a'
+   * @param ev
+   * @return true if found.
    */
-  private void runThread()
+  public boolean removeFromQueue(EventObject ev){
+    boolean found = queueEvents.remove(ev);
+    if(found && ev instanceof EventWithDst){ 
+      ((EventWithDst)ev).stateOfEvent = 'a'; 
+    }
+    return found;
+  }
+  
+
+  
+  
+  /**Applies an event from the queue to the destination in the event thread. 
+   * This method should be overridden if other events then {@link EventCmdType} are used because the destination of an event
+   * is not defined for a java.util.EventObject. Therefore it should be defined in a user-specific way in the overridden method.
+   * This method is proper for events of type {@link EventCmdType} which knows their destination.
+   * @param ev
+   */
+  protected void applyEvent(EventObject ev)
   {
-    bThreadRun = true;
-    while(bThreadRun && (execThread == null || execThread.isRunning())){
-      //int timeWait = 1000;
-      stateThreadTimer = 'c';
-      long timeNow = System.currentTimeMillis();
-      timeCheckNew = timeNow + 10000;
-      boolean bWake = false;
-      { TimeOrderBase order;
-        while( (order = queueDelayedOrders.poll()) !=null){
-          if(order.timeExecution < timeCheckNew){
-            timeCheckNew = order.timeExecution;   //prior to 
-          }
-          //int timeToExecution = order.timeToExecution();
-          if(order.timeExecution > timeNow) { //timeToExecution >=0){
-            //not yet to proceed
-            //if(timeWait > timeToExecution){ timeWait = timeToExecution; }
-            queueDelayedTempOrders.offer(order);
-          } else {
-            if(bExecutesTheOrder) {
-              order.executeOrder();             //executes immediately in this thread.
-            } else {
-              queueOrdersToExecute.offer(order);  //stores to execute contemporarry.
-              bWake = execThread != null;
-            }
-          }
-        }
-        //delayedChangeRequest is tested and empty now.
-        //offer the requ back from the temp queue
-        while( (order = queueDelayedTempOrders.poll()) !=null){
-          queueDelayedOrders.offer(order); 
-        }
+    if(ev instanceof EventWithDst){
+      EventWithDst event = (EventWithDst) ev;
+      event.stateOfEvent = 'e';
+      event.notifyDequeued();
+      try{
+        event.donotRelinquish = false;   //may be overridden in processEvent if the event is stored in another queue
+        event.evDst().processEvent(event);
+      } catch(Exception exc) {
+        CharSequence excMsg = Assert.exceptionInfo("EventThread.applyEvent exception", exc, 0, 50);
+        System.err.append(excMsg);
+        //exc.printStackTrace(System.err);
       }
-      if(bWake){
-        execThread.wakeup(); //process changeRequests in the graphic thread.
-      }
-      int timeWait = (int) (timeCheckNew - System.currentTimeMillis());  //the time now to the next order.
-      if(timeWait > 2) { //for 2 milliseconds don't wait!
-        if((debugPrint & 0x0001)!=0) System.out.printf("TimeOrderMng wait %d\n", timeWait);
-        synchronized(runTimer){
-          stateThreadTimer = 'W';
-          if(timeWait < 10){
-            timeWait = 10; //at least 10 ms, especially prevent usage of 0 and negative values.
-          }
-          try{ runTimer.wait(timeWait);} catch(InterruptedException exc){}
-          stateThreadTimer = 'r';
-        }
-      } else {
-        //else: check the orders newly. One of them is near to execute.
-        if((debugPrint & 0x0002)!=0) System.out.printf("TimeOrderMng not wait %d\n", timeWait);
-      }
-    } //while runs
-    stateThreadTimer = 'f';
+      event.relinquish();  //the event can be reused, a waiting thread will be notified.
+    }
   }
   
   
   
+
+  /**
+   * @return true if any action was done because an event was found. false if the queue is empty.
+   */
+  private boolean checkEventAndRun()
+  { boolean processedOne = false;
+    try{ //never let the thread crash
+      EventObject event;
+      if( (event = queueEvents.poll()) !=null){
+        this.ctWaitEmptyQueue = 0;
+        synchronized(this){
+          if(stateThreadTimer != 'x'){
+            stateThreadTimer = 'b'; //busy
+          }
+        }
+        if(stateThreadTimer == 'b'){
+          applyEvent(event);
+          processedOne = true;
+        }
+      } else {
+        //all events processed:
+        for(int ix = 0; ix < consumerShouldRun.length; ++ix){
+          int bits = consumerShouldRun[ix];
+          int ixConsumer = ix <<5;
+          int bitReset = 0xfffffffe;
+          while(bits !=0){
+            if( (bits & 1)!=0 ){
+              EventConsumer consumer = listConsumer.get(ixConsumer);
+              if(consumer !=null){
+                consumer.processEvent(null);  //run it without event. To execute conditions.
+                processedOne = true;
+              }
+            }
+            synchronized(this){
+              consumerShouldRun[ix] &= bitReset;
+            }
+            bitReset <<=1;
+            bits = (bits >>1) & 0x7fffffff;  //shift without sign!
+          }
+        }
+      }
+    } catch(Exception exc){
+      CharSequence text = Assert.exceptionInfo("EventThread unexpected Exception - ", exc, 0, 50);
+      System.err.append(text);
+    }
+    return processedOne;
+  }
+  
+  
+
+  
+  private int checkTimeOrders(){
+    boolean bWake = false;
+    int timeWait = 10000; //10 seconds.
+    timeCheckNew = System.currentTimeMillis() + timeWait;  //the next check time in 10 seconds.
+    { TimeOrderBase order;
+      long timeNow = System.currentTimeMillis();
+      while( (order = queueDelayedOrders.poll()) !=null){
+        long delay = order.timeExecution - timeNow; 
+        if((delay) < 3){  //if it is expired in 2 milliseconds, execute now.
+          if(bExecutesTheOrder) {
+            order.executeOrder();   //executes immediately in this thread.
+            timeNow = System.currentTimeMillis();  //it may be later.
+          } else {
+            queueOrdersToExecute.offer(order);  //stores to execute contemporarry.
+            bWake = execThread != null;
+          }
+        }
+        else {
+          //not yet to proceed
+          if(delay < timeWait) {
+            timeCheckNew = order.timeExecution;  //earlier
+            timeWait = (int) delay;
+          }
+          queueDelayedTempOrders.offer(order);
+        }
+      }
+      //delayedChangeRequest is tested and empty now.
+      //copy the non-expired orders back to queueDelayedOrders.
+      while( (order = queueDelayedTempOrders.poll()) !=null){
+        queueDelayedOrders.offer(order); 
+      }
+    }
+    if(bWake){
+      execThread.wakeup(); //process changeRequests in the graphic thread.
+    }
+    return timeWait;
+  }
+  
+  
+  
+  /**The core run routine for the timer thread.
+   * The timer thread is in an delay till
+   * @return time to wait. 
+   */
+  private int stepThread()
+  {
+    boolean bExecute;
+    int timeWait;
+    do {
+      stateThreadTimer = 'c';
+      long timeNow = System.currentTimeMillis();
+      timeWait = (int)(timeCheckNew - timeNow);
+      if(timeWait < 0){ //firstly check all time orders if one of them is expired.
+        timeWait = checkTimeOrders();
+      }
+      bExecute = false;
+      while(checkEventAndRun()){
+        bExecute = true;
+      }
+      if(bExecute){
+        //else: check the orders and events newly. One of them may near to execute.
+        if((debugPrint & 0x0002)!=0) System.out.printf("TimeOrderMng not wait %d\n", timeWait);
+      }
+      //if any event was executed, it should be supposed that 2.. milliseconds have elapsed.
+      //therefore check time newly. don't wait, run in this loop.
+    } while(bExecute);
+    //wait only the calculated timeWait if no additional event has executed.
+    return timeWait;
+  }
+  
+  
+  
+  /**Instance as Runnable contains invocation of {@link TimeOrderMng#stepThread()}
+   * and the {@link Object#wait()} with the calculated timeWait.
+   * 
+   */
+  //NOTE: On debugging and changing the stepThread can be repeated because the CPU stays in the wait or breaks here.
+  // This routine cannot be changed on the fly.
+  public Runnable runTimer = new Runnable(){
+    @Override public void run(){ 
+      bThreadRun = true;
+      stateThreadTimer = 'r';
+      while(stateThreadTimer == 'r' && bThreadRun && (execThread == null || execThread.isRunning())){
+        int timeWait = TimeOrderMng.this.stepThread();
+        if((debugPrint & 0x0001)!=0) System.out.printf("TimeOrderMng wait %d\n", timeWait);
+        synchronized(runTimer){
+          stateThreadTimer = 'W';
+          try{ runTimer.wait(timeWait);} catch(InterruptedException exc){}
+          if(stateThreadTimer == 'W'){ //can be changed while waiting, set only to 'r' if 'w' is still present
+            stateThreadTimer = 'r';
+          }
+        } //synchronized
+      } //while runs
+      stateThreadTimer = 'f';
+    }
+  };
+
+  /**Returns true if the current thread is the thread which is aggregate to this EventThread.
+   * It means the {@link #run()} method has called this method.
+   * @return false if a statement in another thread checks whether this EventThread runs.
+   */
+  public boolean isCurrentThread() {
+    return threadTimer == Thread.currentThread();
+  }
+  
+  public char getState(){ return stateThreadTimer; }
+
 
   
   /**Executes the orders called from any thread which also does other things.
@@ -356,6 +585,18 @@ public class TimeOrderMng implements Closeable
     }
   }
   
+  
+  
+  @Override public CharSequence infoAppend(StringBuilder u) {
+    if(u == null) { u = new StringBuilder(); }
+    u.append("Thread ");
+    u.append("; ");
+    return u;
+  }
+
+  /*no: Returns only the thread name. Note: Prevent recursively call for gathering info.
+   */
+  @Override public String toString() { if(preserveRecursiveInfoAppend) return threadName; else return infoAppend(null).toString(); } 
   
   
 }

@@ -1,8 +1,6 @@
-package org.vishia.util;
+package org.vishia.event;
 
 import java.util.EventObject;
-
-import org.vishia.event.EventConsumer;
 
 /**This is the super class for orders, which should be added to a {@link TimeOrderMng} instance.
  * It is designated as EventObject because it can be stored in the same queue where events are stored.
@@ -10,7 +8,7 @@ import org.vishia.event.EventConsumer;
  * @author Hartmut Schorrig
  *
  */
-public abstract class TimeOrderBase extends EventObject implements EventConsumer
+public abstract class TimeOrderBase extends EventWithDst //Object //implements EventConsumer
 {
 
   private static final long serialVersionUID = 1998821310413113722L;
@@ -92,11 +90,12 @@ public abstract class TimeOrderBase extends EventObject implements EventConsumer
   }
   
   
-  @Override public int processEvent(EventObject ev)
-  { executeOrder(); return 1; }
+  //@Override public int processEvent(EventObject ev)
+  //{ executeOrder(); return 1; }
   
   /**Returns the state of the consumer in a manual readable form. */
-  @Override public String getStateInfo(){ 
+  //@Override 
+  public String getStateInfo(){ 
     StringBuilder u = new StringBuilder(100);
     u.append(name);
     if(timeExecution >0){
@@ -198,8 +197,8 @@ public abstract class TimeOrderBase extends EventObject implements EventConsumer
    * which is derived from this class to enqueue the order in a queue for another thread.
    * The default implementation will be process the order. 
    */
-  protected void activateTimeOrder(){
-    processEvent(null);
+  protected void XXXactivateTimeOrder(){
+    executeOrder();
   }
 
   protected synchronized void countExecution()

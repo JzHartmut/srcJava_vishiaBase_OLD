@@ -21,7 +21,7 @@ public class EventThread implements Runnable, Closeable, InfoAppend
    * <li>2015-01-11 Hartmut chg: Now a statemachine can be {@link #shouldRun(boolean)} to force run for condition check.
    *   This class knows {@link #registerConsumer(EventConsumer)} and {@link #shouldRun(int)} for that.
    * <li>2015-01-04 Hartmut chg: Now uses the Java-standard {@link EventObject} instead a specific one,
-   *   but some methods are supported for {@link EventMsg}, especially {@link EventMsg#notifyDequeued()} and {@link EventMsg#stateOfEvent}.  
+   *   but some methods are supported for {@link EventCmdType}, especially {@link EventCmdType#notifyDequeued()} and {@link EventCmdType#stateOfEvent}.  
    * <li>2013-05-12 Hartmut chg: Now the thread starts and ends automatically if {@link #startThread()}
    *   is not invoked.
    * <li>2012...improved
@@ -97,7 +97,7 @@ public class EventThread implements Runnable, Closeable, InfoAppend
   
   /**Creates and starts the thread. If this routine is called from the user, the thread runs
    * till the close() method was called. If this method is not invoked from the user,
-   * the thread is created and started automatically if {@link #storeEvent(EventMsg)} was called.
+   * the thread is created and started automatically if {@link #storeEvent(EventCmdType)} was called.
    * In that case the thread stops its execution if the event queue is empty and about 5 seconds
    * are gone.  */
   public void startThread(){ 
@@ -136,7 +136,7 @@ public class EventThread implements Runnable, Closeable, InfoAppend
    * @param ev
    */
   public void storeEvent(EventObject ev){
-    if(ev instanceof EventMsg) { ((EventMsg)ev).stateOfEvent = 'q'; }
+    if(ev instanceof EventCmdType) { ((EventCmdType)ev).stateOfEvent = 'q'; }
     queueEvents.offer(ev);
     startOrNotify();
   }
@@ -157,6 +157,19 @@ public class EventThread implements Runnable, Closeable, InfoAppend
     }
   }
   
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  ////continue
+  
   
   
   /**Removes this event from its queue if it is in the queue.
@@ -164,10 +177,10 @@ public class EventThread implements Runnable, Closeable, InfoAppend
    * @param ev
    * @return true if found.
    */
-  public boolean removeFromQueue(EventMsg ev){
+  public boolean removeFromQueue(EventObject ev){
     boolean found = queueEvents.remove(ev);
-    if(found){ 
-      ev.stateOfEvent = 'a'; 
+    if(found && ev instanceof EventWithDst){ 
+      ((EventWithDst)ev).stateOfEvent = 'a'; 
     }
     return found;
   }
@@ -175,15 +188,15 @@ public class EventThread implements Runnable, Closeable, InfoAppend
   
   
   /**Applies an event from the queue to the destination in the event thread. 
-   * This method should be overridden if other events then {@link EventMsg} are used because the destination of an event
+   * This method should be overridden if other events then {@link EventCmdType} are used because the destination of an event
    * is not defined for a java.util.EventObject. Therefore it should be defined in a user-specific way in the overridden method.
-   * This method is proper for events of type {@link EventMsg} which knows their destination.
+   * This method is proper for events of type {@link EventCmdType} which knows their destination.
    * @param ev
    */
   protected void applyEvent(EventObject ev)
   {
-    if(ev instanceof EventMsg){
-      EventMsg<?> event = (EventMsg<?>) ev;
+    if(ev instanceof EventCmdType){
+      EventCmdType<?> event = (EventCmdType<?>) ev;
       event.stateOfEvent = 'e';
       event.notifyDequeued();
       try{

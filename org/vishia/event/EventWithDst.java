@@ -7,13 +7,19 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.vishia.util.DateOrder;
 
-public class EventMsg<CmdEnum extends Enum<CmdEnum>> extends EventObject
+public class EventWithDst extends EventObject
 {
-  private static final long serialVersionUID = -137947223084491817L;
+
+  private static final long serialVersionUID = 3976120105528632683L;
+  
+  
+  public EventWithDst(Object source)
+  { super(source);
+  }
 
   /**Version, history and license
    * <ul>
-   * <li>2015-01-03 Hartmut chg: Separated in 2 classes: {@link EventMsg2} with opponent and this class.
+   * <li>2015-01-03 Hartmut chg: Separated in 2 classes: {@link EventCmdPingPongType} with opponent and this class.
    * <li>2015-01-03 Hartmut chg: Renamed to EventMsg: more significant name. Derived from EventObject: A basicly Java concept.
    * <li>2013-10-06 Hartmut chg: Some checks for thread safety.
    * <li>2013-10-06 Hartmut chg: {@link #occupy(int, EventSource, EventConsumer, EventThread)} with timeout
@@ -123,13 +129,6 @@ public class EventMsg<CmdEnum extends Enum<CmdEnum>> extends EventObject
   
   boolean bAwaitReserve;
   
-  /**Any number to identify. It is dst-specific. */
-  //private final AtomicInteger cmd = new AtomicInteger();
-  
-  //private final AtomicReference<Cmd> cmde = new AtomicReference<Cmd>();
-  
-  CmdEnum cmde;
-  
   //protected int answer;
   
   protected int ctConsumed;
@@ -154,25 +153,9 @@ public class EventMsg<CmdEnum extends Enum<CmdEnum>> extends EventObject
    * before first usage. Use {@link #relinquish()} to release the usage. 
    * 
    */
-  public EventMsg(){
+  public EventWithDst(){
     super(EventSource.nullSource);
     dateCreation.set(0);
-  }
-  
-  
-  /**Creates an event as a dynamic object for direct usage without a given {@link EventConsumer}.
-   * This event should be used as parameter immediately for an event consuming routine.
-   * The event is set as occupied already after creation. 
-   * Don't call {@link #occupy(EventSource, boolean)} or {@link #occupy(EventSource, EventConsumer, EventThread, boolean)} should be use
-   * Don't call {@link #sendEvent()} because a destination is not given.
-   * 
-   * @param cmd a given Command. It may be null, it can be overwritten later with {@link #setCmd(Enum)}
-   *   or using {@link #sendEvent(Enum)}.
-   */
-  public EventMsg(CmdEnum cmd){
-    super(EventSource.nullSource);
-    dateCreation.set(System.currentTimeMillis());
-    this.cmde = cmd;
   }
   
   
@@ -185,7 +168,7 @@ public class EventMsg<CmdEnum extends Enum<CmdEnum>> extends EventObject
    * @param consumer The destination object for the event.
    * @param thread an optional thread to store the event in an event queue, maybe null.
    */
-  public EventMsg(EventSource source, EventConsumer consumer, EventThread thread){
+  public EventWithDst(EventSource source, EventConsumer consumer, EventThread thread){
     super(EventSource.nullSource);
     if(source == null){
       this.dateCreation.set(0);
@@ -204,8 +187,6 @@ public class EventMsg<CmdEnum extends Enum<CmdEnum>> extends EventObject
   public void setOrderId(long order){ orderId = order; }
   
   
-  
-  public CmdEnum getCmd(){ return cmde; }
   
   
   /**Prevent that the event is relinquished after processing.
@@ -260,7 +241,6 @@ public class EventMsg<CmdEnum extends Enum<CmdEnum>> extends EventObject
       dateOrder = date.order;
       super.source = this.sourceMsg = source;
       this.ctConsumed =0;
-      this.cmde = null;
       //if(refData !=null || dst !=null) { this.refData = refData; }
       if(dst != null) { 
         this.evDst = dst;
@@ -499,7 +479,6 @@ public class EventMsg<CmdEnum extends Enum<CmdEnum>> extends EventObject
       source1.notifyRelinquished(ctConsumed);
     }
     this.stateOfEvent= 'a';
-    this.cmde = null;
     this.orderId = 0;
     //data1 = data2 = 0;
     this.sourceMsg = null;
@@ -524,41 +503,6 @@ public class EventMsg<CmdEnum extends Enum<CmdEnum>> extends EventObject
   
   
 
-  /**Sends this event to its destination instance.
-   * The event is used to send only if it is not in use yet. See <a href="#lifecycle">Life cycle of an event object</a>.
-   * <ul>
-   * <li>Either the element {@link #evDstThread} is not null, then the event is put in the queue
-   *   and the event thread is notified.
-   * <li>Or the dstQueue is null, then the {@link #evDst}.{@link EventConsumer#processEvent(Event this)}
-   *   is invoked. After them this event itself is relinquished because it was applicated.
-   * </ul>
-   * <br><br>
-   * 
-   * @param cmd The cmd to complete the event.
-   * @return true if the event was sent.
-   */
-  public boolean sendEvent(CmdEnum cmd){
-    cmde = cmd;
-    return sendEvent();
-    /*
-    if(source == null)
-      source = null;
-    CmdEnum cmd1 = this.cmde.get();
-    //int value = cmd1.ordinal();
-    boolean bOk = (cmd1 == null); 
-    if(bOk) {
-      bOk = this.cmde.compareAndSet(cmd1, cmd);
-      if(bOk){
-        sendEventAgain();
-      } else {
-        notifyShouldSentButInUse();
-      }
-    } else {
-      notifyShouldSentButInUse();
-    }
-    return bOk;
-    */
-  }
   
 
   
