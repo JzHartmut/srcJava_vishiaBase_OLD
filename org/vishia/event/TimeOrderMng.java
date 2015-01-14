@@ -447,7 +447,7 @@ public class TimeOrderMng implements EventThreadIfc, Closeable, InfoAppend
     } else if(ev.evDst !=null){
       ev.evDst.processEvent(ev);  //especially if it is a timeout.
     } else if(ev instanceof TimeOrderBase){
-      ((TimeOrderBase)ev).executeOrder();   //executes immediately in this thread.
+      ((TimeOrderBase)ev).execute();   //executes immediately in this thread.
     }
   }
   
@@ -539,8 +539,12 @@ public class TimeOrderMng implements EventThreadIfc, Closeable, InfoAppend
       while(stateThreadTimer == 'r' && bThreadRun && (execThread == null || execThread.isRunning())){
         int timeWait = TimeOrderMng.this.stepThread();
         if((debugPrint & 0x0001)!=0) System.out.printf("TimeOrderMng wait %d\n", timeWait);
+        if(timeWait <2){
+          timeWait = 2;  //should not 0  
+        }
         synchronized(runTimer){
           stateThreadTimer = 'W';
+          //====>wait
           try{ runTimer.wait(timeWait);} catch(InterruptedException exc){}
           if(stateThreadTimer == 'W'){ //can be changed while waiting, set only to 'r' if 'w' is still present
             stateThreadTimer = 'r';
@@ -577,7 +581,7 @@ public class TimeOrderMng implements EventThreadIfc, Closeable, InfoAppend
     //for(OrderForList listener: queueGraphicOrders){
           //use isWakedUpOnly for run as parameter?
       try{
-        ((TimeOrderBase)listener).executeOrder();
+        ((TimeOrderBase)listener).execute();
       } catch(Exception exc){
         System.err.println("GralGraphicThread-" + exc.getMessage());
         exc.printStackTrace();

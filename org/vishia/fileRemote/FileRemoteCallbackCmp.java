@@ -209,7 +209,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
       if(timeOrderProgress !=null){
         timeOrderProgress.currFile = file;
         timeOrderProgress.nrFilesProcessed +=1;
-        timeOrderProgress.show();
+        timeOrderProgress.show(FileRemote.CallbackCmd.nrofFilesAndBytes, null);
       }
       /*
       if(evCallback.occupy(null, file, false)) {
@@ -404,7 +404,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
   {
     if(timeOrderProgress !=null){
       timeOrderProgress.bDone = true; 
-      timeOrderProgress.show();
+      timeOrderProgress.show(FileRemote.CallbackCmd.done, null);
     }
     /*
     if(evCallback !=null && evCallback.occupyRecall(500, null, true) !=0){

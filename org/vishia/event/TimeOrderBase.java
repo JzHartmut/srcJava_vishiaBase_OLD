@@ -78,7 +78,9 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
   /**True if a thread waits, see {@link #awaitExecution(int, int)}. */
   private boolean reqCtDone = false;
 
-  private boolean bAdded;
+  //private boolean bAdded;
+  
+  private long timeExecutionLast;
   
   
   public TimeOrderBase(String name)
@@ -127,22 +129,33 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
 
   
   /**Executes the order. In a graphic thread it handles any request before the system's dispatching routine starts.
+   * This method should not be called. Only overridden. It is called from {@link #execute()} with freeing the order.
    */
   public abstract void executeOrder();
+  
+  /**Executes and sets the execute state to false.
+   * Therewith it is added newly on new invocation of {@link #addToList(TimeOrderMng, int)} and {@link #addToList(TimeOrderMng, int, int)}.
+   */
+  public final void execute(){ 
+    timeExecutionLast = 0; //set first before timeExecution = 0. Thread safety.
+    timeExecution = 0;     //forces new adding if requested. Before execution itself!
+    executeOrder(); 
+    dbgctDone +=1;
+    ctDone +=1;
+    if(reqCtDone){
+      synchronized(this){
+        notify();
+      }
+    }
+  }
   
   public void timeExecution(long time){ timeExecution = time; }
   
   public long timeExecution(){ return timeExecution; }
  
   
-  /**Runs the handling of delayed requests inside this.
-   * Any graphic order can have a queue of delayed requests.
-   * @param timeDelay The up to now delay in milliseconds, when the timer thread
-   *   should be waked up to handle a delayed request.
-   * @return The new delay in milliseconds maybe less than the input timeDelay
-   *   to execute the next call of this method. It is less or equal the inputed timeDelay.
-   */
-  public int runTimer(int timeDelay){ return timeDelay; }
+  
+  public void addToList(TimeOrderMng dst, int delay){ addToList(dst, delay, 0); }
   
   
   /**Adds to the graphic thread or sets a new delay if is added already.
@@ -150,31 +163,31 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
    * @param dst The graphic thread.
    * @param delay time in milliseconds for delayed execution or 0.
    */
-  synchronized public void addToList(TimeOrderMng dst, int delay){
-    long timeExecution1 = System.currentTimeMillis() + delay;
-    if(bAdded){
-      long timediff = timeExecution1 - timeExecution();
-      if(timediff >0 && timediff < 5){ //later, max 5 ms difference,
-        return;            //do nothing, it is added already.
-      }
+  synchronized public void addToList(TimeOrderMng dst, int delay, int delayMax){
+    long time = System.currentTimeMillis();
+    long timeExecution1 = time + delay;
+    if(timeExecutionLast ==0 && delayMax >0) {
+      timeExecutionLast = time + delayMax;  //set it only one time if requested.
+    }
+    if(timeExecution !=0 && ((timeExecution - time) < -1000)){ 
+      //should be executed since 1 second, it hangs or countExecution was not called:
+      timeExecution = 0;  //remove.
+    }
+    if(timeExecution !=0 ){ //already added:
+      if(timeExecutionLast !=0 && (timeExecution1 - timeExecutionLast) >0 ) return;  //do nothing because new after last execution.
+      if((timeExecution1 - timeExecution) >0) return;  //do nothing because don't shift
+      dbgctWindup +=1;
+      //else: shift order to future:
       //remove and add new, because its state added in queue or not may be false.
       dst.removeTimeOrder(this);
     }
-    //if(!bAdded){
-    //}
-    if(delay >0){
-      dbgctWindup +=1;
-      delayExecution(delay);
-    } else {
-      timeExecution(0);  //execute at next possible time.
-    }
+    timeExecution = timeExecution1;  //set it.
     dst.addTimeOrder(this);
-    bAdded = true;
   }
   
   
   
-  public boolean used(){ return bAdded; }
+  public boolean used(){ return timeExecution !=0; }
   
   
   
@@ -183,7 +196,7 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
    * @param graphicThread it is the singleton instance refered with {@link GralMng#gralDevice}.
    */
   synchronized public void removeFromList(TimeOrderMng dst){
-    bAdded = false;
+    timeExecution = 0;
     dst.removeTimeOrder(this);
   }
   
@@ -204,33 +217,14 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
   }
   
   
-  /**This routine is invoked from the {@link TimeOrderMng} if the order should run.
-   * But it may not run in that thread instead in another thread.
-   * This routine can be overridden in the implementation, especially by a universal used base class
-   * which is derived from this class to enqueue the order in a queue for another thread.
-   * The default implementation will be process the order. 
+  /**
+   * @deprecated it is unnecessary now because {@link #execute()} does the work.
    */
-  protected void XXXactivateTimeOrder(){
-    executeOrder();
-  }
-
   protected synchronized void countExecution()
-  { dbgctDone +=1;
-    ctDone +=1;
-    if(reqCtDone){
-      notify();
-    }
-    
+  { timeExecution = timeExecutionLast = 0;
+    timeExecution = 0;
   }
   
-  
-  /**Sets the delay to execute. It can be set newly whenever this instance isn't used to execute yet.
-   * @param millisec delay.
-   */
-  private long delayExecution(int millisec){
-    timeExecution = System.currentTimeMillis() + millisec;
-    return timeExecution;
-  }
   
 
   

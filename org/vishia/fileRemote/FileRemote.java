@@ -2264,7 +2264,8 @@ public class FileRemote extends File implements MarkMask_ifc
     /**Gets the children. */
     getChildren,
     /**Last. */
-    last
+    last,
+    docontinue
   }
   
   
