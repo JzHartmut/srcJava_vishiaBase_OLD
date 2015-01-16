@@ -15,7 +15,7 @@ package org.vishia.event;
     @Override public void notifyRelinquished(){}
   };
  * </pre>
- * The bodies of the methods may access to any data of the environment class.
+ * The bodies of the methods may access any data of the environment class.
  * @author Hartmut Schorrig
  *
  */
@@ -72,6 +72,7 @@ public abstract class EventSource
    */
   public EventSource(String name){ this.name = name; }
   
+  /**It is called if the event is dequeued from the {@link EventWithDst#evDstThread} queue and attempt to processed. */
   public void notifyDequeued(){}
   
   public void notifyConsumed(int ctConsumed){}

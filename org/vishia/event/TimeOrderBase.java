@@ -14,7 +14,7 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
   private static final long serialVersionUID = 1998821310413113722L;
 
 
-  /**Version and history:
+  /**Version and history.
    * <ul>
    * <li>2015-01-10 Hartmut renamed from <code>OrderForList</code>
    * <li>2014-02-23 Hartmut removed from the component srcJava_vishiaGui to the srcJava_vishiaBase 
@@ -45,7 +45,7 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
    * <li> You can redistribute copies of this source to everybody.
    * <li> Every user of this source, also the user of redistribute copies
    *    with or without payment, must accept this license for further using.
-   * <li> But the LPGL ist not appropriate for a whole software product,
+   * <li> But the LPGL is not appropriate for a whole software product,
    *    if this source is only a part of them. It means, the user
    *    must publish this part of source,
    *    but don't need to publish the whole source of the own product.
@@ -61,7 +61,7 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
    * 
    * 
    */
-  public final static int version = 0x20120303;
+  public final static String version = "2015-01-17";
 
   
   /**The name of the dispatch worker, used for debug at least. */
@@ -139,7 +139,7 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
   public final void execute(){ 
     timeExecutionLast = 0; //set first before timeExecution = 0. Thread safety.
     timeExecution = 0;     //forces new adding if requested. Before execution itself!
-    executeOrder(); 
+    executeOrder();
     dbgctDone +=1;
     ctDone +=1;
     if(reqCtDone){

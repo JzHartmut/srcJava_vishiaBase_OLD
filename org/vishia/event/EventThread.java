@@ -197,17 +197,20 @@ public class EventThread implements EventThreadIfc, Runnable, Closeable, InfoApp
   {
     if(ev instanceof EventCmdType){
       EventCmdType<?> event = (EventCmdType<?>) ev;
-      event.stateOfEvent = 'e';
+      //event.stateOfEvent = 'e';
       event.notifyDequeued();
       try{
-        event.donotRelinquish = false;   //may be overridden in processEvent if the event is stored in another queue
+        //event.donotRelinquish = false;   //may be overridden in processEvent if the event is stored in another queue
+        event.stateOfEvent = 'r';
         event.evDst().processEvent(event);
       } catch(Exception exc) {
         CharSequence excMsg = Assert.exceptionInfo("EventThread.applyEvent exception", exc, 0, 50);
         System.err.append(excMsg);
         //exc.printStackTrace(System.err);
       }
-      event.relinquish();  //the event can be reused, a waiting thread will be notified.
+      if(event.stateOfEvent == 'r') {  //doNotRelinquish was not invoked inside processEvent().
+        event.relinquish();  //the event can be reused, a waiting thread will be notified.
+      }
     }
   }
   

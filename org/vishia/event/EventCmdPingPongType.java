@@ -624,7 +624,7 @@ public class EventCmdPingPongType<CmdEnum extends Enum<CmdEnum>, CmdBack extends
       this.dateCreation.set(0);
     } else {
       super.source = source;
-      DateOrder date = new DateOrder();
+      DateOrder date = DateOrder.get();
       this.dateCreation.set(date.date);
       this.dateOrder = date.order;
     }

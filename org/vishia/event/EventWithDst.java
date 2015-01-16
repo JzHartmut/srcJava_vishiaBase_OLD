@@ -1,5 +1,6 @@
 package org.vishia.event;
 
+import java.nio.channels.IllegalSelectorException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.EventObject;
@@ -125,7 +126,7 @@ public class EventWithDst extends EventObject
    */
   public char stateOfEvent;
   
-  /**package private*/ boolean donotRelinquish;
+  ///**package private*/ boolean donotRelinquish;
   
   boolean bAwaitReserve;
   
@@ -174,7 +175,7 @@ public class EventWithDst extends EventObject
       this.dateCreation.set(0);
     } else {
       super.source = source;
-      DateOrder date = new DateOrder();
+      DateOrder date = DateOrder.get();
       this.dateCreation.set(date.date);
       this.dateOrder = date.order;
     }
@@ -191,16 +192,19 @@ public class EventWithDst extends EventObject
   
   /**Prevent that the event is relinquished after processing.
    * This method should be called in the processing routine of an event
-   * only if the event will be stored in another queue to execute delayed.
+   * only if the event is stored in another queue to execute delayed.
    */
-  public void donotRelinquish(){ donotRelinquish = true;}
+  public void donotRelinquish(){ 
+    if(stateOfEvent !='r') throw new IllegalStateException("donotRelinquish() should be called only in a processEvent-routine.");
+    stateOfEvent = 'p';  //secondary queued. donotRelinquish = true;
+  }
   
   /**This method should only be called if the event should be processed.
    * The {@link #donotRelinquish()} will be set to false, so that the event will be relinquished
    * except {@link #donotRelinquish()} is called while processing the event. 
    * @return The event consumer to call {@link EventConsumer#processEvent(EventMsg)}.
    */
-  public EventConsumer evDst() { donotRelinquish = false; return evDst; }
+  public EventConsumer evDst() { return evDst; }
   
   
   /**Returns the time stamp of creation or occupying the event.
@@ -236,7 +240,7 @@ public class EventWithDst extends EventObject
    * @return true if the event instance is occupied and ready to use.
    */
   public boolean occupy(EventSource source, EventConsumer dst, EventThread thread, boolean expect){ 
-    DateOrder date = new DateOrder();
+    DateOrder date = DateOrder.get();
     if(dateCreation.compareAndSet(0, date.date)){
       dateOrder = date.order;
       super.source = this.sourceMsg = source;
@@ -413,8 +417,9 @@ public class EventWithDst extends EventObject
           if(!bOk && timeCreation !=0 && (timeCreation - time1) < 0) {
             //the event is not occupied newly. It means it hangs usual because an exception which has prevented relinquish():
             //force new usage:
-            donotRelinquish = false;
+            //donotRelinquish = false;
             bAwaitReserve = false;
+            stateOfEvent = 'r';
             relinquish();
             bOk = occupy(source, dst, thread, false);
           }
@@ -459,6 +464,21 @@ public class EventWithDst extends EventObject
   public boolean isOccupied(){ return dateCreation.get() !=0; }
   
   
+  public EventThreadIfc getDstThread(){ return evDstThread; }
+  
+  
+  public EventConsumer getDst(){ return evDst; }
+  
+  /**Try to remove the event from the queue of the destination thread.
+   * @return true if it was in the queue and it is removed successfully.
+   *   false if the event was not found in the queue or the destination thread is not set.
+   */
+  public boolean removeFromQueue(){
+    if(evDstThread !=null) return evDstThread.removeFromQueue(this);
+    else return false;
+  }
+  
+  
   
   /**Relinquishes the event object. It is the opposite to the {@link #occupy(Object, EventConsumer, EventThread)} method.
    * The {@link #dateCreation} is set to 0 especially to designate the free-state of the Event instance.
@@ -473,12 +493,15 @@ public class EventWithDst extends EventObject
    * this method return without effect. This is helpfully if the event was stored in another queue for any reason.
    */
   public void relinquish(){
-    if(donotRelinquish) return;
+    if(stateOfEvent == 'f'){
+      return;
+    }
+    if(stateOfEvent != 'r') throw new IllegalStateException("relinquish should only be called in stateOfEvent == 'r'");
     EventSource source1 = this.sourceMsg;
     if(source1 !=null){
       source1.notifyRelinquished(ctConsumed);
     }
-    this.stateOfEvent= 'a';
+    //this.stateOfEvent= 'a';
     this.orderId = 0;
     //data1 = data2 = 0;
     this.sourceMsg = null;
@@ -487,6 +510,7 @@ public class EventWithDst extends EventObject
     if(bAwaitReserve){
       synchronized(this){ notify(); }
     }
+    stateOfEvent = 'f';
   }
 
   
@@ -516,13 +540,15 @@ public class EventWithDst extends EventObject
       evDstThread.storeEvent(this);
     } else {
       try{
-        donotRelinquish = false;  //it is possible that the processEvent sets donotRelinquish to true.
+        stateOfEvent = 'r';  //it is possible that the processEvent sets donotRelinquish to true.
         evDst.processEvent(this);
       } catch(Exception exc) {
         System.err.println("Exception while processing an event: " + exc.getMessage());
         exc.printStackTrace(System.err);
       }
-      relinquish();
+      if(stateOfEvent == 'r') {
+        relinquish();
+      }
     }
     return true;
   }
