@@ -143,6 +143,10 @@ public class TimeOrderMng implements EventThreadIfc, Closeable, InfoAppend
    */
   private long timeCheckNew = System.currentTimeMillis() + 1000 * 3600 * 24;
 
+  /**The time on start waiting*/
+  private long timeSleep;
+
+  
   private final boolean bExecutesTheOrder;
   
   /**State of the thread, used for debug and mutex mechanism. This variable is set 'W' under mutex while the timer waits. Then it should
@@ -205,7 +209,7 @@ public class TimeOrderMng implements EventThreadIfc, Closeable, InfoAppend
     this.threadName = threadName;
     queueOrdersToExecute = null;  //unnecessary.
     execThread = null;
-    bExecutesTheOrder = false;
+    bExecutesTheOrder = true;
   }
   
 
@@ -256,9 +260,9 @@ public class TimeOrderMng implements EventThreadIfc, Closeable, InfoAppend
       startThread();
       startOnDemand = true;
     } else {
-      synchronized(this){
-        if(stateThreadTimer == 'w'){
-          notify();
+      synchronized(runTimer){
+        if(stateThreadTimer == 'W'){
+          runTimer.notify();
         } else {
           //stateOfThread = 'c';
         }
@@ -298,9 +302,11 @@ public class TimeOrderMng implements EventThreadIfc, Closeable, InfoAppend
    * @param order
    */
   public void addTimeOrder(EventTimeout order){ 
-    if(order.timeToExecution() >=0){
+    long delay = order.timeToExecution(); 
+    if(delay >=0){
       queueDelayedOrders.offer(order);
-      if((order.timeExecution - timeCheckNew) < -2) {  //an imprecision of 2 ms are admissible, don't wakeup because calculation imprecisions.
+      long delayAfterCheckNew = order.timeExecution - timeCheckNew;
+      if((delayAfterCheckNew) < -2) {  //an imprecision of 2 ms are admissible, don't wakeup because calculation imprecisions.
         timeCheckNew = order.timeExecution;  //earlier.
         boolean notified;
         synchronized(runTimer){
@@ -310,16 +316,16 @@ public class TimeOrderMng implements EventThreadIfc, Closeable, InfoAppend
           }
         }
         if(notified){
-          if((debugPrint & 0x100)!=0) System.out.printf("TimeOrderMng notify %d\n", order.timeExecution - timeCheckNew);
+          if((debugPrint & 0x100)!=0) System.out.printf("TimeOrderMng notify %d\n", delayAfterCheckNew);
         } else {
-          if((debugPrint & 0x200)!=0) System.out.printf("TimeOrderMng not notified because checking %d\n", order.timeExecution - timeCheckNew);
+          if((debugPrint & 0x200)!=0) System.out.printf("TimeOrderMng not notified because checking %d\n", delayAfterCheckNew);
         }
       } else {
         //don't notify because the time order is later than the planned check time (or not so far sooner)
-        if((debugPrint & 0x400)!=0) System.out.printf("TimeOrderMng not notified, future %d\n", order.timeExecution - timeCheckNew);
+        if((debugPrint & 0x400)!=0) System.out.printf("TimeOrderMng not notified, future %d\n", delayAfterCheckNew);
       }
     } else {
-      if((debugPrint & 0x800)!=0) System.out.printf("TimeOrderMng yet %d\n", order.timeExecution - timeCheckNew);
+      if((debugPrint & 0x800)!=0) System.out.printf("TimeOrderMng yet %d\n", delay);
       if(bExecutesTheOrder) {
         executeOrEnqueuTimeOrder(order);
       } else {
@@ -507,8 +513,8 @@ public class TimeOrderMng implements EventThreadIfc, Closeable, InfoAppend
     int timeWait;
     do {
       stateThreadTimer = 'c';
-      long timeNow = System.currentTimeMillis();
-      timeWait = (int)(timeCheckNew - timeNow);
+      timeSleep = System.currentTimeMillis();
+      timeWait = (int)(timeCheckNew - timeSleep);
       if(timeWait < 0){ //firstly check all time orders if one of them is expired.
         timeWait = checkTimeOrders();
       }
@@ -549,7 +555,7 @@ public class TimeOrderMng implements EventThreadIfc, Closeable, InfoAppend
           stateThreadTimer = 'W';
           //====>wait
           try{ runTimer.wait(timeWait);} catch(InterruptedException exc){}
-          if(stateThreadTimer == 'W'){ //can be changed while waiting, set only to 'r' if 'w' is still present
+          if(stateThreadTimer == 'W'){ //can be changed while waiting, set only to 'r' if 'W' is still present
             stateThreadTimer = 'r';
           }
         } //synchronized

@@ -14,4 +14,5 @@ public interface EventThreadIfc
    */
   public boolean removeFromQueue(EventObject ev);
   
+  void addTimeOrder(EventTimeout order);
 }

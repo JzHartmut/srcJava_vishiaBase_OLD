@@ -195,8 +195,10 @@ public class EventWithDst extends EventObject
    * only if the event is stored in another queue to execute delayed.
    */
   public void donotRelinquish(){ 
-    if(stateOfEvent !='r') throw new IllegalStateException("donotRelinquish() should be called only in a processEvent-routine.");
-    stateOfEvent = 'p';  //secondary queued. donotRelinquish = true;
+    //if(stateOfEvent !='r') throw new IllegalStateException("donotRelinquish() should be called only in a processEvent-routine.");
+    if(stateOfEvent == 'r'){
+      stateOfEvent = 'p';  //secondary queued. donotRelinquish = true;
+    }
   }
   
   /**This method should only be called if the event should be processed.

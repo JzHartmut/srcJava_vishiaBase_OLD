@@ -9,6 +9,7 @@ import org.vishia.event.EventConsumer;
 import org.vishia.event.EventCmdType;
 import org.vishia.event.EventThread;
 import org.vishia.event.EventTimerMng;
+import org.vishia.event.EventWithDst;
 import org.vishia.util.DataAccess;
 import org.vishia.util.InfoAppend;
 
@@ -149,12 +150,15 @@ public class StateMachine implements EventConsumer, InfoAppend
    */
   final EventThread theThread;
   
+  
+  final EventWithDst triggerEvent;
+  
   final int ixInThread;
   
   /**Aggregation to the used timer for time events. See {@link #addTimeOrder(long)}.
    * It may be null if queued time events are not necessary for this.
    */
-  final EventTimerMng theTimer;
+  //final EventTimerMng theTimer;
   
   //EventTimerMng.TimeEvent evTime;
   
@@ -179,10 +183,10 @@ public class StateMachine implements EventConsumer, InfoAppend
   
   
   
-  /**Creates a state machine which is executed directly by {@link #applyEvent(EventMsg2)}. {@link StateSimple.Timeout} is not possible.
+  /**Creates a state machine which is executed directly by {@link #processEvent}. {@link StateSimple.Timeout} is not possible.
    * 
    */
-  public StateMachine(String name) { this(name, null, null);}
+  public StateMachine(String name) { this(name, null);}
   
   /**Constructs a state machine with a given thread and a given timer manager.
    * The constructor of the whole stateMachine does the same as the {@link StateComposite#StateComposite()}: 
@@ -205,13 +209,15 @@ public class StateMachine implements EventConsumer, InfoAppend
    * @param thread if given all events are stored in the thread's event queue, the state machine is executed only in that thread.
    * @param if given timer events can be created. 
    */
-  public StateMachine(String name, EventThread thread, EventTimerMng timer)
+  public StateMachine(String name, EventThread thread) //, EventTimerMng timer)
   { this.name = name;
     this.theThread = thread;
-    this.theTimer = timer;
+    //this.theTimer = timer;
     if(thread !=null){
+      triggerEvent = new EventWithDst(null, this, theThread);
       ixInThread = thread.registerConsumer(this);
     } else {
+      triggerEvent = null;
       ixInThread = -1;
     }
     final StateSimple[] aSubstates;
@@ -262,11 +268,12 @@ public class StateMachine implements EventConsumer, InfoAppend
   /**Special constructor for StateMGen, with given topState, without reflection analysis. 
    * @param topState
    */
-  protected StateMachine(String name, StateSimple[] aSubstates) {
-    this.name = name;
+  protected StateMachine(StateSimple[] aSubstates) {
+    this.name = "StateMachine";
     ixInThread = -1;
     this.topState = new StateCompositeTop(this, aSubstates, null);
-    theTimer = null;
+    //theTimer = null;
+    triggerEvent = null;
     theThread = null;
   }
   
@@ -278,11 +285,14 @@ public class StateMachine implements EventConsumer, InfoAppend
    * @return
    */
   public boolean triggerRun(){
+    return processEvent(triggerEvent) !=0;  //runs immediately if theThread ==null, then triggerEvent == null is not used.
+    /*
     if(ixInThread >=0) {
       theThread.shouldRun(ixInThread);
       return true;
     }
     else return processEvent(null) !=0;
+    */
   }
   
   
@@ -334,8 +344,8 @@ public class StateMachine implements EventConsumer, InfoAppend
   { if(theThread == null || theThread.isCurrentThread()) {
       return eventToTopDebug(ev); 
     } else if(ev !=null){
-      if(ev instanceof EventCmdType){
-        EventCmdType<?> ev1 = (EventCmdType<?>)ev;
+      if(ev instanceof EventWithDst){
+        EventWithDst ev1 = (EventWithDst)ev;
         ev1.donotRelinquish();
         ev1.setDst(this);  //only this may be the destination of the event.
       }

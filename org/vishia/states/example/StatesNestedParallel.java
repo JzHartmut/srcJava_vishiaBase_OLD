@@ -45,14 +45,14 @@ public class StatesNestedParallel
   EventThread thread = new EventThread("thread");
 
   /**Timer organisation. */
-  EventTimerMng timer = new EventTimerMng("timer");
+  //EventTimerMng timer = new EventTimerMng("timer");
 
   /**The state machine. It is an inner class because it should not contain any other things as states. This class is analysed by reflection
    * to complete the data for state machine execution. 
    */
   class States extends StateMachine
   {
-    States(EventThread thread, EventTimerMng timer){ super("ExampleNestedParallel", thread, timer); }
+    States(EventThread thread){ super("ExampleNestedParallel", thread); }
 
     class StateOff extends StateSimple
     {
@@ -267,14 +267,14 @@ public class StatesNestedParallel
   
   
   private StatesNestedParallel(){
-    states = new States(thread, timer);
+    states = new States(thread);
   }
   
   private void executeCondions() {
     cond.on = true;
     cond.start3 = true;
     cond.offAfterRunning = true;
-    if(event.occupy(null, states, null, true)){
+    if(event.occupy(null, states, thread, true)){
       event.sendEvent(CmdEvent.start);
       //instead:
       //states.processEvent(event);
@@ -283,12 +283,12 @@ public class StatesNestedParallel
     while(!states.isInState(States.StateOff.class)) {
       try{ Thread.sleep(100);
       } catch(InterruptedException exc) {}
-      if(event.occupy(null, states, null, true)){
+      if(event.occupy(null, states, thread, true)){
         event.sendEvent(CmdEvent.cyclic);  //animate the state machine cyclically to check some conditions.
       }
     }
     try{
-      timer.close();
+      //timer.close();
       thread.close();
     } catch(Exception exc){}
   }

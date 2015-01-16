@@ -10,8 +10,10 @@ import java.util.List;
 import java.util.Map;
 
 
+
 //import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
+import org.vishia.event.EventTimeout;
 import org.vishia.event.EventTimerMng;
 import org.vishia.util.Assert;
 import org.vishia.util.DataAccess;
@@ -212,14 +214,19 @@ protected StateSimple[] statePath;
 protected String stateId;
 
 /**If set, on state entry the timer for timeout is set. */
-int timeout;
+int millisectimeout;
 
+
+/**A timeout transition created in the application. */
+private Timeout transTimeout;
 
 /**The timeout event set if necessary. This is a static instance, reused. It is the same instance in all non-parallel states. */
 //EventTimerMng.TimeEvent evTimeout;
 
 /**Set so long a timeout is active. */
-EventTimerMng.TimeEventOrder timeOrder;
+//EventTimerMng.TimeEventOrder timeOrder;
+EventTimeout evTimeout;
+
 
 /**It is either 0 or {@link #mRunToComplete}. Or to the return value of entry. */
 protected final int modeTrans;
@@ -1017,6 +1024,15 @@ void createTransitionList(Object encl, Trans parent, int nRecurs){
         String sFieldName = field.getName();
         if(!DataAccess.isReferenceToEnclosing(field)) { //don't test the enclosing instance, it is named this$0 etc. 
           Trans trans = (Trans) oField;
+          /*
+          if(trans instanceof Timeout){
+            if(sFieldName == "timeout"){
+              searchOrCreateTimerEvent();
+            } else {
+              throw new IllegalArgumentException("Timeout transition should assign only to the timeout field.");
+            }
+          }
+          */
           trans.transId = sFieldName;
           //transitions.add(trans);
           String priority = String.format("%04d", trans.priority);
@@ -1109,9 +1125,9 @@ private void checkBuiltTransition(Trans trans, int nRecurs) {
     trans.buildTransitionPath();
   }
   if(trans instanceof Timeout) {
-    Timeout timeoutTrans = (Timeout)trans;
-    trans.check = new ConditionTimeout();
-    this.timeout = timeoutTrans.millisec;
+    transTimeout = (Timeout)trans;
+    //trans.check = new ConditionTimeout();
+    this.millisectimeout = transTimeout.millisec;
     searchOrCreateTimerEvent();
   }
   createTransitionList(trans, trans, nRecurs+1);  //for choices
@@ -1125,17 +1141,18 @@ private void checkBuiltTransition(Trans trans, int nRecurs) {
  * All non-parallel states need only one timeout event instance because only one of them is used.
  */
 private void searchOrCreateTimerEvent() {
-  if(stateMachine.theTimer == null || stateMachine.theThread == null) 
+  if(stateMachine.theThread == null) 
     throw new IllegalArgumentException("This statemachine needs a thread and a timer manager because timeouts are used. Use StateMachine(thread, timer); to construct it");
   StateSimple parent = this;
   while(parent.enclState !=null && !(parent instanceof StateParallel)) {
     parent = parent.enclState;
   }
   //parent is either the top state or a StateAddParallel
-  if(parent.timeOrder == null) {
-    parent.timeOrder = stateMachine.theTimer.new TimeEventOrder(stateMachine, stateMachine.theThread);
+  if(parent.evTimeout == null) {
+    parent.evTimeout = new EventTimeout(null, stateMachine, stateMachine.theThread);
+    //parent.evTimeout = stateMachine.theThread.new TimeEventOrder(stateMachine, stateMachine.theThread);
   }
-  this.timeOrder = parent.timeOrder;
+  this.evTimeout = parent.evTimeout;
 }
 
 
@@ -1200,10 +1217,31 @@ final int checkTransitions(EventObject ev) {
       trans1.doneExit = trans1.doneAction = trans1.doneEntry = false;
       trans1.retTrans = 0;
   } }
-  if(!bCheckTransitionArray) {
+  Trans trans = null;
+  if(transTimeout !=null && ev == evTimeout && ev !=null) { //the own timeout event is expected and received
+    trans = transTimeout;  
+  }
+  if(trans !=null || !bCheckTransitionArray) {
     //either the first time or overridden check method: Use it.
-    Trans trans;
-    try{ trans = selectTrans(ev); }
+    try{ 
+      if(trans ==null){
+        trans = selectTrans(ev); 
+      }
+      if(trans !=null){
+        if(!trans.doneExit)   { trans.doExit(); }
+        if(!trans.doneAction) { trans.doAction(ev,0); }
+        if(!trans.doneEntry)  { trans.doEntry(ev); }
+        /*
+        trans.doExit();  //exit the current state(s)
+        trans.doAction(ev, 0);
+        trans.doEntry(ev,0);
+        */
+        if((trans.retTrans & mEventNotConsumed) ==0) {
+          trans.retTrans |= mEventConsumed;
+        }
+        trans.retTrans |= mTransit;
+        return trans.retTrans;
+    } }
     catch(Exception exc) {
       if(stateMachine.permitException) {
         StringBuilder u = new StringBuilder(1000);
@@ -1216,21 +1254,7 @@ final int checkTransitions(EventObject ev) {
         throw new RuntimeException(exc); //forward it but without need of declaration of throws exception
       }
     }
-    if(trans !=null){
-      if(!trans.doneExit)   { trans.doExit(); }
-      if(!trans.doneAction) { trans.doAction(ev,0); }
-      if(!trans.doneEntry)  { trans.doEntry(ev); }
-      /*
-      trans.doExit();  //exit the current state(s)
-      trans.doAction(ev, 0);
-      trans.doEntry(ev,0);
-      */
-      if((trans.retTrans & mEventNotConsumed) ==0) {
-        trans.retTrans |= mEventConsumed;
-      }
-      trans.retTrans |= mTransit;
-      return trans.retTrans;
-    }
+    
   }
   if(bCheckTransitionArray && aTransitions !=null) {
     //not overridden check method.
@@ -1282,8 +1306,8 @@ final int entryTheState(EventObject ev, int history) { //int isConsumed){
       cthis.isActive = true;
     }
   }
-  if(this.timeout !=0 && timeOrder !=null){
-    timeOrder.activate(System.currentTimeMillis() + this.timeout);
+  if(this.transTimeout !=null && evTimeout !=null){
+    evTimeout.activate(System.currentTimeMillis() + this.millisectimeout);
   }
   int entryVal;
   try { 
@@ -1314,8 +1338,8 @@ final int entryTheState(EventObject ev, int history) { //int isConsumed){
 void exitTheState(){ 
   durationLast = System.currentTimeMillis() - dateLastEntry;
   enclState.isActive = false;
-  if(timeOrder !=null && timeOrder.used()) {
-    stateMachine.theTimer.removeTimeOrder(timeOrder);
+  if(evTimeout !=null && evTimeout.used()) {
+    stateMachine.theThread.removeTimeOrder(evTimeout);
   }
   try{ 
     exit();  //run the user's exit action.

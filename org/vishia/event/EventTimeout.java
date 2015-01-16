@@ -27,6 +27,15 @@ public class EventTimeout extends EventWithDst
   }
   
   
+  public void activate(long date) {
+    this.timeExecution = date;
+    super.evDstThread.addTimeOrder(this);
+  }
+  
+  public boolean used(){ return timeExecution !=0; }
+  
+
+  
   /**Checks whether it should be executed.
    * @return time in milliseconds for first execution or value <0 to execute immediately.
    */

@@ -810,7 +810,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
     
     public States()
     {
-      super("FileRemoteCopy", stateThread, null);  //no timer necessary, use abort action
+      super("FileRemoteCopy", stateThread);  //no timer necessary, use abort action
       super.permitException = true;
     }
     

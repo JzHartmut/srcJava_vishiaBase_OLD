@@ -172,6 +172,7 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
     if(timeExecution !=0 && ((timeExecution - time) < -1000)){ 
       //should be executed since 1 second, it hangs or countExecution was not called:
       timeExecution = 0;  //remove.
+      dst.removeTimeOrder(this);
     }
     if(timeExecution !=0 ){ //already added:
       if(timeExecutionLast !=0 && (timeExecution1 - timeExecutionLast) >0 ) return;  //do nothing because new after last execution.
@@ -186,8 +187,6 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
   }
   
   
-  
-  public boolean used(){ return timeExecution !=0; }
   
   
   
