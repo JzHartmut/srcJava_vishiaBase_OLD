@@ -1,17 +1,17 @@
 package org.vishia.util;
 
-import org.vishia.event.TimeOrderMng;
+import org.vishia.event.EventThread;
 
 /**Deprecated older class instead TimeOrderMng
  * @author Hartmut Schorrig
- * @deprecated use {@link TimeOrderMng}
+ * @deprecated use {@link EventThread}
  */
-@Deprecated public class OrderListExecuter extends TimeOrderMng
+@Deprecated public class OrderListExecuter extends EventThread
 {
 
-  public OrderListExecuter(TimeOrderMng.ConnectionExecThread execThread)
+  public OrderListExecuter(String name)
   {
-    super(execThread);
+    super(name);
   }
   
 }

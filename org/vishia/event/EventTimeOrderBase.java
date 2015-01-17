@@ -2,13 +2,13 @@ package org.vishia.event;
 
 import java.util.EventObject;
 
-/**This is the super class for orders, which should be added to a {@link TimeOrderMng} instance.
+/**This is the super class for orders, which should be added to a {@link EventThread} instance.
  * It is designated as EventObject because it can be stored in the same queue where events are stored.
- * It is designated as EventConsumer because it can be triggered for run in a {@link TimeOrderMng#triggerRun()}
+ * It is designated as EventConsumer because it can be triggered for run in a {@link EventThread#triggerRun()}
  * @author Hartmut Schorrig
  *
  */
-public abstract class TimeOrderBase extends EventTimeout //Object //implements EventConsumer
+public abstract class EventTimeOrderBase extends EventTimeout //Object //implements EventConsumer
 {
 
   private static final long serialVersionUID = 1998821310413113722L;
@@ -83,7 +83,7 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
   private long timeExecutionLast;
   
   
-  public TimeOrderBase(String name)
+  public EventTimeOrderBase(String name)
   { super();
     this.name = name;
   }
@@ -97,13 +97,13 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
    * @param consumer The destination object for the event.
    * @param thread an optional thread to store the event in an event queue, maybe null.
    */
-  public TimeOrderBase(String name, EventThreadIfc thread){
+  public EventTimeOrderBase(String name, EventThreadIfc thread){
     super(null, null, thread);  //no EventSource necessary, no eventConsumer because this is an order.
     this.name = name;
   }
   
 
-  public TimeOrderBase(String name, EventConsumer dst){
+  public EventTimeOrderBase(String name, EventConsumer dst){
     super(null, dst, null);  //no EventSource necessary, no eventConsumer because this is an order.
     this.name = name;
   }
@@ -134,7 +134,7 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
   public abstract void executeOrder();
   
   /**Executes and sets the execute state to false.
-   * Therewith it is added newly on new invocation of {@link #addToList(TimeOrderMng, int)} and {@link #addToList(TimeOrderMng, int, int)}.
+   * Therewith it is added newly on new invocation of {@link #addToList(EventThread, int)} and {@link #addToList(EventThread, int, int)}.
    */
   public final void execute(){ 
     timeExecutionLast = 0; //set first before timeExecution = 0. Thread safety.
@@ -155,7 +155,7 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
  
   
   
-  public void addToList(TimeOrderMng dst, int delay){ addToList(dst, delay, 0); }
+  public void addToList(EventThread dst, int delay){ addToList(dst, delay, 0); }
   
   
   /**Adds to the graphic thread or sets a new delay if is added already.
@@ -163,7 +163,7 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
    * @param dst The graphic thread.
    * @param delay time in milliseconds for delayed execution or 0.
    */
-  synchronized public void addToList(TimeOrderMng dst, int delay, int delayMax){
+  synchronized public void addToList(EventThread dst, int delay, int delayMax){
     long time = System.currentTimeMillis();
     long timeExecution1 = time + delay;
     if(timeExecutionLast ==0 && delayMax >0) {
@@ -194,7 +194,7 @@ public abstract class TimeOrderBase extends EventTimeout //Object //implements E
    * graphic thread.
    * @param graphicThread it is the singleton instance refered with {@link GralMng#gralDevice}.
    */
-  synchronized public void removeFromList(TimeOrderMng dst){
+  synchronized public void removeFromList(EventThread dst){
     timeExecution = 0;
     dst.removeTimeOrder(this);
   }

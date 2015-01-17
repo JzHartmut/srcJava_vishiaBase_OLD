@@ -14,7 +14,6 @@ import java.util.Map;
 //import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventTimeout;
-import org.vishia.event.EventTimerMng;
 import org.vishia.util.Assert;
 import org.vishia.util.DataAccess;
 import org.vishia.util.Debugutil;
@@ -1482,20 +1481,6 @@ private class StateTransitionMethod implements StateAction {
 }
 
 
-
-/**An instance of this class is used for {@link StateSimple.Trans#check} to check whether it is a timeout.
- * @author hartmut
- *
- */
-private class ConditionTimeout implements StateAction {
-
-  @Override public int exec(EventObject event)
-  {
-    // TODO Auto-generated method stub
-    return event instanceof EventTimerMng.TimeEvent ? mEventConsumed : 0;
-  }
-  
-}
 
 
   

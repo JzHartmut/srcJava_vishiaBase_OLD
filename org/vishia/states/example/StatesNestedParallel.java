@@ -4,7 +4,6 @@ import java.util.EventObject;
 
 import org.vishia.event.EventCmdPingPongType;
 import org.vishia.event.EventThread;
-import org.vishia.event.EventTimerMng;
 import org.vishia.states.StateParallel;
 import org.vishia.states.StateComposite;
 import org.vishia.states.StateSimple;

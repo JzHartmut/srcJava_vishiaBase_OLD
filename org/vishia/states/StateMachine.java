@@ -8,7 +8,6 @@ import java.util.HashMap;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventCmdType;
 import org.vishia.event.EventThread;
-import org.vishia.event.EventTimerMng;
 import org.vishia.event.EventWithDst;
 import org.vishia.util.DataAccess;
 import org.vishia.util.InfoAppend;
