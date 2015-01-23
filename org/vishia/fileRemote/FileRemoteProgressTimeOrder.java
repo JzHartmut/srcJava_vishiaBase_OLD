@@ -24,7 +24,7 @@ public abstract class FileRemoteProgressTimeOrder  extends EventTimeOrderBase
    * @param delay The delay to start the oder execution after #show()
    */
   protected FileRemoteProgressTimeOrder(String name, EventThread mng, int delay){ 
-    super(name); 
+    super(name, mng); 
     this.mng = mng;
     this.delay = delay;
   }

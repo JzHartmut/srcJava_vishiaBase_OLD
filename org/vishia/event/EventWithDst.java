@@ -151,7 +151,7 @@ public class EventWithDst extends EventObject
 
   
   /**Creates an event as a static object for re-usage. Use {@link #occupy(Object, EventConsumer, EventThread)}
-   * before first usage. Use {@link #relinquish()} to release the usage. 
+   * before first usage. {@link #relinquish()} will be called on release the usage. 
    * 
    */
   public EventWithDst(){
@@ -161,10 +161,9 @@ public class EventWithDst extends EventObject
   
   
   
-  /**Creates an event as dynamic object for usage. Use {@link #relinquish()} after the event is used and it is not referenced
-   * anymore. 
+  /**Creates an event as static or dynamic object for usage.  
    * @param source Source of the event. If null then the event is not occupied, especially the {@link #dateCreation()} 
-   *   is set to 0.
+   *   is set to 0. Use {@link #occupy(EventSource, boolean)} before usage. That is for a static instance.
    * @param refData Associated data to the event. It is the source of the event.
    * @param consumer The destination object for the event.
    * @param thread an optional thread to store the event in an event queue, maybe null.

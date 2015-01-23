@@ -72,15 +72,11 @@ public abstract class EventTimeOrderBase extends EventTimeout //Object //impleme
   /**It is counted only. Used for debug. Possible to set. */
   public int dbgctDone = 0;
   
-  /**It is counted only. Used for debug. Possible to set. */
-  public int dbgctWindup = 0;
-  
   /**True if a thread waits, see {@link #awaitExecution(int, int)}. */
   private boolean reqCtDone = false;
 
   //private boolean bAdded;
   
-  private long timeExecutionLast;
   
   
   public EventTimeOrderBase(String name)
@@ -103,8 +99,8 @@ public abstract class EventTimeOrderBase extends EventTimeout //Object //impleme
   }
   
 
-  public EventTimeOrderBase(String name, EventConsumer dst){
-    super(null, dst, null);  //no EventSource necessary, no eventConsumer because this is an order.
+  public EventTimeOrderBase(String name, EventConsumer dst, EventThread thread){
+    super(null, dst, thread);  //no EventSource necessary, no eventConsumer because this is an order.
     this.name = name;
   }
   
@@ -129,15 +125,16 @@ public abstract class EventTimeOrderBase extends EventTimeout //Object //impleme
 
   
   /**Executes the order. In a graphic thread it handles any request before the system's dispatching routine starts.
-   * This method should not be called. Only overridden. It is called from {@link #execute()} with freeing the order.
+   * This method should not be called. Only overridden. It is called from {@link #doExecute()} with freeing the order
+   * if the order's time is expired. The user should activate the execution with 
    */
-  public abstract void executeOrder();
+  protected abstract void executeOrder();
   
   /**Executes and sets the execute state to false.
    * Therewith it is added newly on new invocation of {@link #addToList(EventThread, int)} and {@link #addToList(EventThread, int, int)}.
    */
-  public final void execute(){ 
-    timeExecutionLast = 0; //set first before timeExecution = 0. Thread safety.
+  protected final void doExecute(){ 
+    timeExecutionLatest = 0; //set first before timeExecution = 0. Thread safety.
     timeExecution = 0;     //forces new adding if requested. Before execution itself!
     executeOrder();
     dbgctDone +=1;
@@ -163,27 +160,11 @@ public abstract class EventTimeOrderBase extends EventTimeout //Object //impleme
    * @param dst The graphic thread.
    * @param delay time in milliseconds for delayed execution or 0.
    */
-  synchronized public void addToList(EventThread dst, int delay, int delayMax){
+  @Deprecated synchronized public void addToList(EventThread dst, int delay, int delayMax){
+    assert(dst == evDstThread);
     long time = System.currentTimeMillis();
-    long timeExecution1 = time + delay;
-    if(timeExecutionLast ==0 && delayMax >0) {
-      timeExecutionLast = time + delayMax;  //set it only one time if requested.
-    }
-    if(timeExecution !=0 && ((timeExecution - time) < -1000)){ 
-      //should be executed since 1 second, it hangs or countExecution was not called:
-      timeExecution = 0;  //remove.
-      dst.removeTimeOrder(this);
-    }
-    if(timeExecution !=0 ){ //already added:
-      if(timeExecutionLast !=0 && (timeExecution1 - timeExecutionLast) >0 ) return;  //do nothing because new after last execution.
-      if((timeExecution1 - timeExecution) >0) return;  //do nothing because don't shift
-      dbgctWindup +=1;
-      //else: shift order to future:
-      //remove and add new, because its state added in queue or not may be false.
-      dst.removeTimeOrder(this);
-    }
-    timeExecution = timeExecution1;  //set it.
-    dst.addTimeOrder(this);
+    activateAt(time + delay, delayMax == 0 ? 0 : time + delayMax);
+    
   }
   
   
@@ -217,10 +198,10 @@ public abstract class EventTimeOrderBase extends EventTimeout //Object //impleme
   
   
   /**
-   * @deprecated it is unnecessary now because {@link #execute()} does the work.
+   * @deprecated it is unnecessary now because {@link #doExecute()} does the work.
    */
   protected synchronized void countExecution()
-  { timeExecution = timeExecutionLast = 0;
+  { timeExecution = timeExecutionLatest = 0;
     timeExecution = 0;
   }
   

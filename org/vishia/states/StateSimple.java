@@ -1306,7 +1306,7 @@ final int entryTheState(EventObject ev, int history) { //int isConsumed){
     }
   }
   if(this.transTimeout !=null && evTimeout !=null){
-    evTimeout.activate(System.currentTimeMillis() + this.millisectimeout);
+    evTimeout.activateAt(System.currentTimeMillis() + this.millisectimeout);
   }
   int entryVal;
   try { 

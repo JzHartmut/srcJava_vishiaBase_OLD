@@ -267,24 +267,30 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
   }
   
   
-  /**Removes a order, which was called in the dispatch loop.
-   * Hint: Use {@link EventTimeout#removeFromList(GralGraphicThread)}
-   * to remove thread safe with signification. Don't call this routine yourself.
+  /**Removes a time order, which was activated but it is not in the event execution queue.
+   * If the time order is expired and it is in the event execution queue already, it is not removed.
+   * This operation is thread safe. Either the event is found and removed, or it is not found because it is
+   * either in execution yet or it is not queued. The event queue is a {@link ConcurrentLinkedQueue}.
+   * 
    * @param order
    */
-  public void removeTimeOrder(EventTimeout order)
+  public boolean removeTimeOrder(EventTimeout order)
   { boolean found = queueDelayedOrders.remove(order);
-    if(!found){ removeFromQueue(order); }  //it is possible that it hangs in the event queue.
+    //do not: if(!found){ removeFromQueue(order); }  //it is possible that it hangs in the event queue.
+    return found;
   }
   
   
-  /**Removes this event from its queue if it is in the queue.
-   * If the element is found in the queue, it is designated with stateOfEvent = 'a'
-   * @param ev
-   * @return true if found.
+  /**Removes this event from its queue if it is in the event queue.
+   * If the element of type {@link EventWithDst} is found in the queue, it is designated with stateOfEvent = 'a'
+   * This operation is thread safe. Either the event is found and removed, or it is not found because it is
+   * either in execution yet or it is not queued. The event queue is a {@link ConcurrentLinkedQueue}.
+   * @param ev The event which should be dequeued
+   * @return true if found. 
    */
   public boolean removeFromQueue(EventObject ev){
-    boolean found = queueEvents.remove(ev);
+    boolean found;
+    found= queueEvents.remove(ev);
     if(found && ev instanceof EventWithDst){ 
       ((EventWithDst)ev).stateOfEvent = 'a'; 
     }
@@ -380,7 +386,7 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
     } else if(ev.evDst !=null){
       ev.evDst.processEvent(ev);  //especially if it is a timeout.
     } else if(ev instanceof EventTimeOrderBase){
-      ((EventTimeOrderBase)ev).execute();   //executes immediately in this thread.
+      ((EventTimeOrderBase)ev).doExecute();   //executes immediately in this thread.
     }
   }
   
