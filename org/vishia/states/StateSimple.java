@@ -1148,7 +1148,7 @@ private void searchOrCreateTimerEvent() {
   }
   //parent is either the top state or a StateAddParallel
   if(parent.evTimeout == null) {
-    parent.evTimeout = new EventTimeout(null, stateMachine, stateMachine.theThread);
+    parent.evTimeout = new EventTimeout(stateMachine, stateMachine.theThread);
     //parent.evTimeout = stateMachine.theThread.new TimeEventOrder(stateMachine, stateMachine.theThread);
   }
   this.evTimeout = parent.evTimeout;

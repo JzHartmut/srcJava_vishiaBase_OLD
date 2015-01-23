@@ -1,7 +1,7 @@
 package org.vishia.fileRemote;
 
 import org.vishia.event.EventConsumer;
-import org.vishia.event.EventTimeOrderBase;
+import org.vishia.event.EventTimeOrder;
 import org.vishia.event.EventThread;
 import org.vishia.fileLocalAccessor.FileLocalAccessorCopyStateM;
 import org.vishia.states.StateMachine;
@@ -9,7 +9,7 @@ import org.vishia.states.StateMachine;
 /**This TimeOrder is used for progress showing in the callers area. It should be extended from the application
  * to start any showing process for the progress.  The extension should override the method {@link #executeOrder()} from the super class. 
  */
-public abstract class FileRemoteProgressTimeOrder  extends EventTimeOrderBase
+public abstract class FileRemoteProgressTimeOrder  extends EventTimeOrder
 {
   /**The manager for this time order to execute it for showing, often a graphic thread adaption.
    */
@@ -79,14 +79,15 @@ public abstract class FileRemoteProgressTimeOrder  extends EventTimeOrderBase
   public void show(FileRemote.CallbackCmd state, StateMachine stateM) {
     this.consumerAnswer = stateM;
     this.quest = state;
-    addToList(mng, delay);  //Note: it does not add twice if it is added already.
+    System.out.println("FileRemote.show");
+    activateAt(System.currentTimeMillis() + delay);  //Note: it does not add twice if it is added already.
   }
   
   
   public void XXXrequAnswer(FileRemote.CallbackCmd cmd, FileRemote.CmdEvent ev) {
     this.quest = cmd;
     this.eventAnswer = ev;
-    addToList(mng, delay);
+    activateAt(System.currentTimeMillis() + delay);
   }
   
   /**Invoked from any FileRemote operation, provides the state with requiring an answer.
@@ -97,7 +98,7 @@ public abstract class FileRemoteProgressTimeOrder  extends EventTimeOrderBase
   public void requAnswer(FileRemote.CallbackCmd quest, StateMachine stateM) {
     this.quest = quest;
     this.consumerAnswer = stateM;
-    addToList(mng, delay);   //to execute the request
+    activateAt(System.currentTimeMillis() + delay);   //to execute the request
   }
   
   

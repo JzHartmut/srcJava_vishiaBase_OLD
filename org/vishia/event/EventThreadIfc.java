@@ -2,6 +2,12 @@ package org.vishia.event;
 
 import java.util.EventObject;
 
+/**This interface should only be used for an alternative implementation of a event thread. 
+ * The methods are used by the event processing. Of this package.
+ *  
+ * @author Hartmut Schorrig
+ *
+ */
 public interface EventThreadIfc
 {
   void storeEvent(EventObject ev);
@@ -16,6 +22,9 @@ public interface EventThreadIfc
    */
   public boolean removeFromQueue(EventObject ev);
   
+  /**Adds a time order with given timeout time.
+   * @param order
+   */
   void addTimeOrder(EventTimeout order);
   
   /**Removes a time order, which was activated but it is not in the event execution queue.

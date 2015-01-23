@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.vishia.event.EventTimeOrderBase;
+import org.vishia.event.EventTimeOrder;
 import org.vishia.event.EventThread;
 import org.vishia.util.Assert;
 import org.vishia.util.Debugutil;

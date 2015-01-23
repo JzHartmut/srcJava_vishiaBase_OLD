@@ -98,10 +98,6 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
    * This queue is empty outside running one step of runTimer(). */
   private final ConcurrentLinkedQueue<EventTimeout> queueDelayedTempOrders = new ConcurrentLinkedQueue<EventTimeout>();
   
-  private final ArrayList<EventConsumer> listConsumer = new ArrayList<EventConsumer>();
-  
-  private int[] consumerShouldRun = new int[20];  //up to 320 consumer. TODO increase with greater listConsumer. 
-
   private boolean bThreadRun;
   
   /**timestamp for a new time entry. It is set in synchronized operation between {@link #addTimeOrder(TimeEvent, long)}
@@ -168,18 +164,6 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
   
 
   
-  /**Activates one time running of the registered {@link EventConsumer} without an event.
-   * @param ixRegisteredConsumer
-   * @see #registerConsumer(EventConsumer)
-   */
-  public synchronized void shouldRun(int ixRegisteredConsumer) {
-    int ix = ixRegisteredConsumer >>5;
-    int bit = 1 << (ixRegisteredConsumer - ix);
-    consumerShouldRun[ix] |= bit;
-    startOrNotify();
-  }
-  
-  
   
   /**Stores an event in the queue, able to invoke from any thread.
    * @param ev
@@ -207,18 +191,6 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
   }
 
 
-  /**Registers a consumer that can be run in this thread without storing an event.
-   * @param obj the consumer, it should be override {@link EventConsumer#shouldRun(boolean)} which should call 
-   *   {@link #shouldRun(int)} of this class with the index which is returned from this method. See example in 
-   *   {@link org.vishia.states.StateMachine#shouldRun(boolean)}.
-   * @return The index of registering.
-   */
-  public synchronized int registerConsumer(EventConsumer obj) {
-    listConsumer.add(obj);
-    return listConsumer.size()-1;  //the add position.
-  }
-  
-  
   /**Should only be called on end of the whole application to finish the timer thread. This method does not need to be called
    * if a @link {@link ConnectionExecThread} is given as Argument of @link {@link EventThread#TimeOrderMng(ConnectionExecThread)}
    * and this instance implements the @link {@link ConnectionExecThread#isRunning()} method. If that method returns false
@@ -232,14 +204,15 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
   }
 
 
-  /**Adds a method which will be called in anytime in the dispatch loop until the listener will remove itself.
-   * @deprecated: This method sholdn't be called by user, see {@link EventTimeout#addToList(GralGraphicThread, int)}. 
-   * @see org.vishia.gral.ifc.GralWindowMng_ifc#addDispatchListener(org.vishia.gral.base.EventTimeOrder)
-   * @param order
+  /* (non-Javadoc)
+   * @see org.vishia.event.EventThreadIfc#addTimeOrder(org.vishia.event.EventTimeout)
    */
   public void addTimeOrder(EventTimeout order){ 
     long delay = order.timeToExecution(); 
     if(delay >=0){
+      String sorder = order.toString();
+      if(sorder.equals("showFilesProcessing"))
+        System.out.println("addTimeOrder;" + order.toString());
       queueDelayedOrders.offer(order);
       long delayAfterCheckNew = order.timeExecution - timeCheckNew;
       if((delayAfterCheckNew) < -2) {  //an imprecision of 2 ms are admissible, don't wakeup because calculation imprecisions.
@@ -315,7 +288,12 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
       try{
         //event.donotRelinquish = false;   //may be overridden in processEvent if the event is stored in another queue
         event.stateOfEvent = 'r';
-        event.evDst().processEvent(event);
+        EventConsumer dst = event.evDst;
+        if(dst == null && ev instanceof EventTimeOrder) {
+          ((EventTimeOrder)ev).executeOrder(); 
+        } else {
+          dst.processEvent(event);
+        }
       } catch(Exception exc) {
         CharSequence excMsg = Assert.exceptionInfo("EventThread.applyEvent exception", exc, 0, 50);
         System.err.append(excMsg);
@@ -348,27 +326,6 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
           applyEvent(event);
           processedOne = true;
         }
-      } else {
-        //all events processed:
-        for(int ix = 0; ix < consumerShouldRun.length; ++ix){
-          int bits = consumerShouldRun[ix];
-          int ixConsumer = ix <<5;
-          int bitReset = 0xfffffffe;
-          while(bits !=0){
-            if( (bits & 1)!=0 ){
-              EventConsumer consumer = listConsumer.get(ixConsumer);
-              if(consumer !=null){
-                consumer.processEvent(null);  //run it without event. To execute conditions.
-                processedOne = true;
-              }
-            }
-            synchronized(this){
-              consumerShouldRun[ix] &= bitReset;
-            }
-            bitReset <<=1;
-            bits = (bits >>1) & 0x7fffffff;  //shift without sign!
-          }
-        }
       }
     } catch(Exception exc){
       CharSequence text = Assert.exceptionInfo("EventThread unexpected Exception - ", exc, 0, 50);
@@ -380,13 +337,14 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
   
 
   private void executeOrEnqueuTimeOrder(EventTimeout ev) {
-    if(ev.evDstThread !=null) { //any other thread to execute.
+    /*if(ev.evDstThread !=null) { //any other thread to execute.
       //the order should be executed in any other thread, store it there:
       ev.evDstThread.storeEvent(ev);
-    } else if(ev.evDst !=null){
+    } else*/ 
+    if(ev.evDst !=null){
       ev.evDst.processEvent(ev);  //especially if it is a timeout.
-    } else if(ev instanceof EventTimeOrderBase){
-      ((EventTimeOrderBase)ev).doExecute();   //executes immediately in this thread.
+    } else if(ev instanceof EventTimeOrder){
+      ((EventTimeOrder)ev).doExecute();   //executes immediately in this thread.
     }
   }
   

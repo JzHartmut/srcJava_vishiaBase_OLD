@@ -169,7 +169,7 @@ public class EventWithDst extends EventObject
    * @param thread an optional thread to store the event in an event queue, maybe null.
    */
   public EventWithDst(EventSource source, EventConsumer consumer, EventThreadIfc thread){
-    super(EventSource.nullSource);
+    super(EventSource.nullSource);   //EventObject does not allow null pointer.
     if(source == null){
       this.dateCreation.set(0);
     } else {
@@ -178,8 +178,9 @@ public class EventWithDst extends EventObject
       this.dateCreation.set(date.date);
       this.dateOrder = date.order;
     }
-    this.sourceMsg = source;
-    this.evDst = consumer; this.evDstThread = thread;
+    this.sourceMsg = source;    //maybe null
+    this.evDst = consumer; 
+    this.evDstThread = thread;  //maybe null
   }
   
   

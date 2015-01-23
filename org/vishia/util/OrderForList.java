@@ -1,12 +1,12 @@
 package org.vishia.util;
 
-import org.vishia.event.EventTimeOrderBase;
+import org.vishia.event.EventTimeOrder;
 
 /**Deprecated older class instead TimeOrder
  * @author Hartmut Schorrig
- * @deprecated use {@link EventTimeOrderBase}
+ * @deprecated use {@link EventTimeOrder}
  */
-@Deprecated public abstract class OrderForList extends EventTimeOrderBase
+@Deprecated public abstract class OrderForList extends EventTimeOrder
 {
 
   @Deprecated public OrderForList(String name)

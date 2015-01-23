@@ -95,7 +95,7 @@ public class StateMachine implements EventConsumer, InfoAppend
   
   /**Version, history and license.
    * <ul>
-   * <li>2015-01-11 Hartmut chg: Now a statemachine can be {@link #shouldRun(boolean)} to force run for condition check. 
+   * <li>2015-01-11 Hartmut chg:  
    * <li>2014-12-30 Hartmut chg: test, gardening 
    * <li>2014-10-12 Hartmut chg: Not does not inherit from {@link StateComposite}, instance of {@link #topState}. 
    * <li>2014-09-28 Hartmut chg: Copied from org.vishia.stateMachine.TopState, changed concept: 
@@ -152,7 +152,6 @@ public class StateMachine implements EventConsumer, InfoAppend
   
   final EventWithDst triggerEvent;
   
-  final int ixInThread;
   
   /**Aggregation to the used timer for time events. See {@link #addTimeOrder(long)}.
    * It may be null if queued time events are not necessary for this.
@@ -214,10 +213,8 @@ public class StateMachine implements EventConsumer, InfoAppend
     //this.theTimer = timer;
     if(thread !=null){
       triggerEvent = new EventWithDst(null, this, theThread);
-      ixInThread = thread.registerConsumer(this);
     } else {
       triggerEvent = null;
-      ixInThread = -1;
     }
     final StateSimple[] aSubstates;
     Class<?>[] innerClasses = this.getClass().getDeclaredClasses();
@@ -269,7 +266,6 @@ public class StateMachine implements EventConsumer, InfoAppend
    */
   protected StateMachine(StateSimple[] aSubstates) {
     this.name = "StateMachine";
-    ixInThread = -1;
     this.topState = new StateCompositeTop(this, aSubstates, null);
     //theTimer = null;
     triggerEvent = null;

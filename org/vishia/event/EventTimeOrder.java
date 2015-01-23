@@ -8,7 +8,7 @@ import java.util.EventObject;
  * @author Hartmut Schorrig
  *
  */
-public abstract class EventTimeOrderBase extends EventTimeout //Object //implements EventConsumer
+public abstract class EventTimeOrder extends EventTimeout //Object //implements EventConsumer
 {
 
   private static final long serialVersionUID = 1998821310413113722L;
@@ -79,28 +79,40 @@ public abstract class EventTimeOrderBase extends EventTimeout //Object //impleme
   
   
   
-  public EventTimeOrderBase(String name)
+  public EventTimeOrder(String name)
   { super();
     this.name = name;
   }
   
   
-  /**Creates an event as dynamic object for usage. Use {@link #relinquish()} after the event is used and it is not referenced
-   * anymore. 
-   * @param source Source of the event. If null then the event is not occupied, especially the {@link #dateCreation()} 
-   *   is set to 0.
-   * @param refData Associated data to the event. It is the source of the event.
-   * @param consumer The destination object for the event.
-   * @param thread an optional thread to store the event in an event queue, maybe null.
+  /**Initializes an time order for usage. The time order can be created dynamically on demand
+   * or as permanent instance. Use {@link #activate(int)} etc. to activate it.
+   * <br><br>
+   * If the time is expired after {@link #activateAt(long, long)} then the {@link #executeOrder()}
+   * is invoked in the thread. Note: Use {@link EventTimeOrder#EventTimeOrderBase(String, EventConsumer, EventThread)}
+   * if you want to execute the {@link #executeOrder()} routine in another thread. 
+   * 
+   * @param name the TimeOrder should have a name for debugging. 
+   * @param thread thread to handle the time order. It is obligatory.
    */
-  public EventTimeOrderBase(String name, EventThreadIfc thread){
-    super(null, null, thread);  //no EventSource necessary, no eventConsumer because this is an order.
+  public EventTimeOrder(String name, EventThread thread){
+    super(null, thread);  //no EventSource necessary, no eventConsumer because this is an order.
     this.name = name;
   }
   
 
-  public EventTimeOrderBase(String name, EventConsumer dst, EventThread thread){
-    super(null, dst, thread);  //no EventSource necessary, no eventConsumer because this is an order.
+  /**Initializes an time order for usage. The time order can be created dynamically on demand
+   * or as permanent instance. Use {@link #activate(int)} etc. to activate it.
+   * <br><br>
+   * If the time is expired after {@link #activateAt(long, long)} then the {@link EventConsumer#processEvent(EventObject)}
+   * is invoked in the thread. This routine can store this instance in another queue of any other thread
+   * to execute the {@link #executeOrder()} in any other thread.
+   *  
+   * @param name the TimeOrder should have a name for debugging. 
+   * @param thread thread to handle the time order. It is obligatory.
+   */
+  public EventTimeOrder(String name, EventConsumer dst, EventThread thread){
+    super(dst, thread);  //no EventSource necessary, no eventConsumer because this is an order.
     this.name = name;
   }
   
@@ -130,8 +142,11 @@ public abstract class EventTimeOrderBase extends EventTimeout //Object //impleme
    */
   protected abstract void executeOrder();
   
-  /**Executes and sets the execute state to false.
-   * Therewith it is added newly on new invocation of {@link #addToList(EventThread, int)} and {@link #addToList(EventThread, int, int)}.
+  /**Executes and sets the execute state to false. This routine should be invoked instead {@link #executeOrder()},
+   * it wraps it.
+   * If this routine is started then it is added newly on new invocation of {@link #activate(int)} etc.
+   * This routine is called by the package private {@link EventThread} or from a special derived instance
+   * which will be invoke {@link #executeOrder()}.
    */
   protected final void doExecute(){ 
     timeExecutionLatest = 0; //set first before timeExecution = 0. Thread safety.
@@ -146,44 +161,11 @@ public abstract class EventTimeOrderBase extends EventTimeout //Object //impleme
     }
   }
   
-  public void timeExecution(long time){ timeExecution = time; }
   
-  public long timeExecution(){ return timeExecution; }
- 
-  
-  
-  public void addToList(EventThread dst, int delay){ addToList(dst, delay, 0); }
-  
-  
-  /**Adds to the graphic thread or sets a new delay if is added already.
-   * If it is added already and the new time to execution is in range max 5 ms later, this routine does nothing.
-   * @param dst The graphic thread.
-   * @param delay time in milliseconds for delayed execution or 0.
-   */
-  @Deprecated synchronized public void addToList(EventThread dst, int delay, int delayMax){
-    assert(dst == evDstThread);
-    long time = System.currentTimeMillis();
-    activateAt(time + delay, delayMax == 0 ? 0 : time + delayMax);
-    
-  }
-  
-  
-  
-  
-  
-  /**Remove this from the queue of dispatch callbacks which are executed in any loop of the
-   * graphic thread.
-   * @param graphicThread it is the singleton instance refered with {@link GralMng#gralDevice}.
-   */
-  synchronized public void removeFromList(EventThread dst){
-    timeExecution = 0;
-    dst.removeTimeOrder(this);
-  }
   
   
   /**Gets the information, how many times the routine is executed.
    * Especially it is for quest, whether it is executed 1 time if it is a single-execution-routine.
-   * Note that the method should be thread-safe, use synchronized in the implementation.
    * @param setCtDone set the count for a new execution-counting. For example 0.
    * @return The number of times of execution after initializing or after last call of this method.
    */
@@ -197,18 +179,9 @@ public abstract class EventTimeOrderBase extends EventTimeout //Object //impleme
   }
   
   
-  /**
-   * @deprecated it is unnecessary now because {@link #doExecute()} does the work.
-   */
-  protected synchronized void countExecution()
-  { timeExecution = timeExecutionLatest = 0;
-    timeExecution = 0;
-  }
-  
-  
 
   
-  /**waits for execution. This method can be called in any thread, especially in that thread, 
+  /**Waits for execution in any other thread. This method can be called in any thread, especially in that thread, 
    * which initializes the request.
    * @param ctDoneRequested Number of executions requested.
    * @param timeout maximal waiting time in millisec, 0 means wait for ever for execution.
