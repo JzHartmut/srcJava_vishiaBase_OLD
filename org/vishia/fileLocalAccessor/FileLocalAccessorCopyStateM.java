@@ -325,7 +325,8 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
 
   
   
-  @Override public String getStateInfo() {
+  //@Override 
+  public String getStateInfo() {
     if(stateThread !=null){
       StringBuilder u = new StringBuilder();
       if(statesCopy.toogleDebugState()){

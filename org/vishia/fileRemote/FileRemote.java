@@ -2667,8 +2667,6 @@ public class FileRemote extends File implements MarkMask_ifc
       return 1;
     }
     
-    @Override public String getStateInfo(){ return "no-state"; }
-
   }
   
   

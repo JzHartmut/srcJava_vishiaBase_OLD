@@ -581,7 +581,9 @@ public class Trans
     } catch(Exception exc){
       if(stateMachine.permitException){
         StringBuilder u = new StringBuilder(1000);
-        u.append("StateSimple trans action exception - ").append(stateMachine.getStateInfo()).append(";");
+        u.append("StateSimple trans action exception - ");
+        stateMachine.infoAppend(u);
+        u.append(";");
         if(ev !=null){ u.append("event: ").append(ev.toString()); }
         CharSequence text = Assert.exceptionInfo(u, exc, 0, 50);
         System.err.append(text);
@@ -1244,7 +1246,7 @@ final int checkTransitions(EventObject ev) {
     catch(Exception exc) {
       if(stateMachine.permitException) {
         StringBuilder u = new StringBuilder(1000);
-        u.append("StateSimple trans exception - ").append(stateMachine.getStateInfo()).append(";");
+        u.append("StateSimple trans exception - "); stateMachine.infoAppend(u); u.append(";");
         if(ev !=null){ u.append("event: ").append(ev.toString()); }
         CharSequence text = Assert.exceptionInfo(u, exc, 0, 50);
         System.err.append(text);
@@ -1314,7 +1316,7 @@ final int entryTheState(EventObject ev, int history) { //int isConsumed){
   } catch(Exception exc){
     if(stateMachine.permitException){
       StringBuilder u = new StringBuilder(1000);
-      u.append("StateSimple entry exception - ").append(stateMachine.getStateInfo()).append(";");
+      u.append("StateSimple entry exception - "); stateMachine.infoAppend(u); u.append(";");
       if(ev !=null){ u.append("event: ").append(ev.toString()); }
       CharSequence text = Assert.exceptionInfo(u, exc, 0, 50);
       System.err.append(text);
@@ -1345,7 +1347,7 @@ void exitTheState(){
   } catch(Exception exc){
     if(stateMachine.permitException){
       StringBuilder u = new StringBuilder(1000);
-      u.append("StateSimple exit exception - ").append(stateMachine.getStateInfo()).append(";");
+      u.append("StateSimple exit exception - "); stateMachine.infoAppend(u); u.append(";");
       CharSequence text = Assert.exceptionInfo(u, exc, 0, 50);
       System.err.append(text);
     } else {

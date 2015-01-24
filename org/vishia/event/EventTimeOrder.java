@@ -2,9 +2,53 @@ package org.vishia.event;
 
 import java.util.EventObject;
 
-/**This is the super class for orders, which should be added to a {@link EventThread} instance.
- * It is designated as EventObject because it can be stored in the same queue where events are stored.
- * It is designated as EventConsumer because it can be triggered for run in a {@link EventThread#triggerRun()}
+
+/**This is the base class for time orders.
+ * To define a time order a derived class of this should be written which overrides the method 
+ * {@link #executeOrder()}. An instance of this class can be created statically as persistent reference
+ * or on demand with new {@link EventTimeOrder#EventTimeOrder(String, EventThread)}. The {@link EventThread} should 
+ * be existing as instance before an instance of this class is created.
+ * <br><br>
+ * <b>Pattern for application</b>:<br><pre>
+ * EventThread thread = new EventThread("name");
+ * ...
+ * //a time order as inner anonymous class:
+ * EventTimeOrder order = new EventTimeOrder("name", thread) {
+ *   QOverride protected void executeOrder(){
+ *     ...code for time order
+ *   }
+ * }
+ * ...
+ * thread.start();
+ * order.activate(100); //the order will be executed in the thread in 100 ms.
+ * </pre>
+ * <b>An EventTimeOrder can be enqueued in the EventThread but executed in another thread.</b> 
+ * It uses an {@link EventConsumer}, see {@link org.vishia.event.test.TestTimeOrder}, with the following pattern</b>:
+ * <pre>
+ *  
+ * private static class EnqueueInGraphicThread implements EventConsumer {
+ *   QOverride public int processEvent(EventObject ev)
+ *   { execThread.queueOrders.put((<EventTimeOrder>)ev);  //casting admissible because special using.
+ *     return mEventConsumed;
+ *   }
+ * }
+ * </pre>
+ * This class is designated as EventObject because it can be used as event immediately after 
+ * or independent whether it is handled by the timer.
+ * <br><br>
+ * <ul>
+ * <li>Constructors: {@link EventTimeOrder#EventTimeOrder(String, EventThread)},
+ *   {@link EventTimeOrder#EventTimeOrder(String, EventConsumer, EventThread)}, {@link EventTimeOrder#EventTimeOrder(String)} .
+ * <li>methods to activate from {@link EventTimeout}: {@link #activate(int)}, {@link #activateAt(long)}, {@link #activateAt(long, long)}
+ * <li>Remove a currently timeout: {@link #deactivate()}
+ * <li>Check from {@link EventTimeout}: {@link #timeExecution()}, {@link #timeExecutionLatest()}, {@link #timeToExecution()} {@link #used()}
+ * <li>Check: {@link #getCtDone(int)}
+ * <li>Execute: {@link #doExecute()} will be called from the {@link EventThread}, only call by application in a special thread. 
+ * <li>Wait for execution in another thread: {@link #awaitExecution(int, int)}.
+ * <li>see {@link EventTimeout}.
+ * <li>see {@link EventThread}
+ * <li>see {@link org.vishia.states.StateMachine}
+ * </ul>
  * @author Hartmut Schorrig
  *
  */
@@ -61,7 +105,7 @@ public abstract class EventTimeOrder extends EventTimeout //Object //implements 
    * 
    * 
    */
-  public final static String version = "2015-01-17";
+  public final static String version = "2015-01-25";
 
   
   /**The name of the dispatch worker, used for debug at least. */
@@ -118,11 +162,6 @@ public abstract class EventTimeOrder extends EventTimeout //Object //implements 
   
 
   
-  
-  
-  //@Override public int processEvent(EventObject ev)
-  //{ executeOrder(); return 1; }
-  
   /**Returns the state of the consumer in a manual readable form. */
   //@Override 
   public String getStateInfo(){ 
@@ -142,15 +181,16 @@ public abstract class EventTimeOrder extends EventTimeout //Object //implements 
    */
   protected abstract void executeOrder();
   
-  /**Executes and sets the execute state to false. This routine should be invoked instead {@link #executeOrder()},
-   * it wraps it.
+  /**Executes and sets the execute state to false. A user should not invoke this method. 
+   * Use {@link #activate(int)} etc. to activate the time order for execution.
+   * <br>
+   * This routine is invoked instead {@link #executeOrder()}, it wraps it.
+   * It is called inside the package private {@link EventThread} or from a special derived instance
+   * which will be invoke {@link #executeOrder()} in any other thread.
+   * <br>
    * If this routine is started then it is added newly on new invocation of {@link #activate(int)} etc.
-   * This routine is called by the package private {@link EventThread} or from a special derived instance
-   * which will be invoke {@link #executeOrder()}.
    */
-  protected final void doExecute(){ 
-    timeExecutionLatest = 0; //set first before timeExecution = 0. Thread safety.
-    timeExecution = 0;     //forces new adding if requested. Before execution itself!
+  public final void doExecute(){ 
     executeOrder();
     dbgctDone +=1;
     ctDone +=1;

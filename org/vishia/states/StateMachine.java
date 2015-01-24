@@ -350,9 +350,7 @@ public class StateMachine implements EventConsumer, InfoAppend
     else return 0;
   }
   
-  @Override public String getStateInfo(){ return toString(); }
-
-  
+    
   @Override public CharSequence infoAppend(StringBuilder u){
     if(u == null){ u = new StringBuilder(200); }
     u.append(name).append(':');

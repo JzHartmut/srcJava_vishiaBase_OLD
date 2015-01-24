@@ -51,10 +51,30 @@ public interface InfoAppend
    */
   public static final String version = "2015-01-04";
 
-  /**Appends or returns the info.
+  /**Appends or returns tan information about the instance. It is similar Object.toString() but it works
+   * with a given StringBuilder. 
+   * <br>Application pattern:<pre>
+   * StringBuilder u = new StringBulder(1000);
+   * u.append(something_else);
    * 
+   * myInstance.infoAppend(u);     //uses this interface
+   * 
+   * u.append(some_more);
+   * System.out.append(u);             //output the information
+   * String savedInfo = u.toString();  //save permanent.
+   * </pre>
+   * Implementing pattern<pre>
+   * QOverride public infoAppend(StringBuilder u) {
+   *   if(u == null){ u = new StringBuilder(); }  //it can be null!
+   *   u.append(special_information).append(": ").append(somewhatElse);
+   *   return u;
+   * }
+   * </pre>
+   * Contiguity with toString: It uses the same information, assembled in a StringBuilder:<pre>
+   * QOverride public String toString(){ return infoAppend(null).toString()); } 
+   * </pre>
    * @param u if not null then the info is appended to u, u is returned.
-   *   if null then a String can be returned if it is sufficient.
+   *   <br>if null then a String can be returned if it is sufficient.
    * @return u if given or a new StringBuilder instance which contains the info or a String if it is sufficient.
    */
   CharSequence infoAppend(StringBuilder u);

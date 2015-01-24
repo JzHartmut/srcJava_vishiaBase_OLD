@@ -66,10 +66,6 @@ public interface EventConsumer
    */
   public abstract int processEvent(EventObject ev); //{ return false; }
   
-  /**Returns the state of the consumer in a manual readable form. */
-  public abstract String getStateInfo();
-  
-  
   
   
   /**Bit in return value of a Statemachine's {@link #check(EventMsg)} or entry method for designation, 

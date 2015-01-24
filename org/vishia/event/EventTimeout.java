@@ -1,7 +1,66 @@
 package org.vishia.event;
 
+/**This class is a ready-to-use timeout event for state machines or the base class for time orders.
+ * <br>
+ * An EventTimeout is used inside {@link org.vishia.states.StateMachine} as persistent instance 
+ * of a parallel state machine or of the top state if timeouts are used in the states.
+ * <br>
+ * Instantiation pattern:<pre>
+ *   EventThread thread = new EventThread("stateThread");
+ *   //uses the thread as timer manager and as event executer
+ *   EventTimeout timeout = new EventTimeout(stateMachine, thread);
+ * </pre>
+ * Activate the timeout event:<pre>
+ *   timeout.activate(7000);  //in 7 seconds.
+ * </pre>
+ * <ul>
+ * <li>Constructors: {@link EventTimeout#EventTimeout(EventConsumer, EventThread)}, {@link EventTimeout#EventTimeout()}.
+ * <li>methods to activate: {@link #activate(int)}, {@link #activateAt(long)}, {@link #activateAt(long, long)}
+ * <li>Remove a currently timeout: {@link #deactivate()}
+ * <li>Check: {@link #timeExecution()}, {@link #timeExecutionLatest()}, {@link #timeToExecution()} {@link #used()}
+ * <li>see {@link EventTimeOrder}.
+ * <li>see {@link EventThread}
+ * <li>see {@link org.vishia.states.StateMachine}
+ * </ul>
+ * @author Hartmut Schorrig
+ *
+ */
 public class EventTimeout extends EventWithDst
 {
+  
+  /**Version and history:
+   * <ul>
+   * <li>2015-01-02 Hartmut created: as super class of {@link EventTimeOrder} and as event for timeout for state machines.
+   * </ul>
+   * 
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL is not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are indent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   * 
+   */
+  public final static String version = "2015-01-11";
+
+
   private static final long serialVersionUID = 2695620140769906847L;
 
   /**If not 0, it is the time to execute it. Elsewhere it should be delayed. */
@@ -114,6 +173,33 @@ public class EventTimeout extends EventWithDst
   public boolean used(){ return timeExecution !=0; }
 
 
+  /**Processes the event or timeOrder. This routine is called in the {@link EventThread} if the time is elapsed.
+   * <br><br>
+   * If the {@link #evDst()} is given the {@link EventConsumer#processEvent(java.util.EventObject)} is called
+   * though this instance may be a timeOrder. This method can enqueue this instance in another queue for execution
+   * in any other thread which invokes then {@link EventTimeOrder#doExecute()}.
+   * <br><br> 
+   * It this is a {@link EventTimeOrder} and the #evDst is not given by constructor
+   * then the {@link EventTimeOrder#doExecute()} is called to execute the time order.
+   * <br><br>
+   * If this routine is started then an invocation of {@link #activate(int)} etc. enqueues this instance newly
+   * with a new time for elapsing. It is executed newly therefore.
+   */
+  protected final void processEvent() {
+    timeExecutionLatest = 0; //set first before timeExecution = 0. Thread safety.
+    timeExecution = 0;     //forces new adding if requested. Before execution itself!
+    if(evDst !=null){
+      evDst.processEvent(this);  //especially if it is a timeout.
+    } else if(this instanceof EventTimeOrder){
+      ((EventTimeOrder)this).doExecute();   //executes immediately in this thread.
+    }
+  }
+  
+  
+  
+
+  
+  
   /**Checks whether it should be executed.
    * @return time in milliseconds for first execution or value <0 to execute immediately.
    */

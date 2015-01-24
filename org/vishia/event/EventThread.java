@@ -35,7 +35,7 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
 {
   
   
-  /**Version and history:
+  /**Version and history.
    * <ul>
    * <li>2015-01-10 Hartmut chg: Better algorithm with {@link #timeCheckNew}
    * <li>2015-01-10 Hartmut renamed from <code>OrderListExecuter</code>
@@ -52,7 +52,7 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
    * <li> You can redistribute copies of this source to everybody.
    * <li> Every user of this source, also the user of redistribute copies
    *    with or without payment, must accept this license for further using.
-   * <li> But the LPGL ist not appropriate for a whole software product,
+   * <li> But the LPGL is not appropriate for a whole software product,
    *    if this source is only a part of them. It means, the user
    *    must publish this part of source,
    *    but don't need to publish the whole source of the own product.
@@ -68,7 +68,7 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
    * 
    * 
    */
-  public final static String sVersion = "2015-01-11";
+  public final static String version = "2015-01-11";
 
   
   
@@ -235,7 +235,7 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
       }
     } else {
       if((debugPrint & 0x800)!=0) System.out.printf("TimeOrderMng yet %d\n", delay);
-      executeOrEnqueuTimeOrder(order);
+      order.processEvent();
     }
   }
   
@@ -336,20 +336,6 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
   
   
 
-  private void executeOrEnqueuTimeOrder(EventTimeout ev) {
-    /*if(ev.evDstThread !=null) { //any other thread to execute.
-      //the order should be executed in any other thread, store it there:
-      ev.evDstThread.storeEvent(ev);
-    } else*/ 
-    if(ev.evDst !=null){
-      ev.evDst.processEvent(ev);  //especially if it is a timeout.
-    } else if(ev instanceof EventTimeOrder){
-      ((EventTimeOrder)ev).doExecute();   //executes immediately in this thread.
-    }
-  }
-  
-  
-  
   
   private int checkTimeOrders(){
     int timeWait = 10000; //10 seconds.
@@ -359,7 +345,7 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
       while( (order = queueDelayedOrders.poll()) !=null){
         long delay = order.timeExecution - timeNow; 
         if((delay) < 3){  //if it is expired in 2 milliseconds, execute now.
-          executeOrEnqueuTimeOrder(order);
+          order.processEvent();;
           timeNow = System.currentTimeMillis();  //it may be later.
         }
         else {
