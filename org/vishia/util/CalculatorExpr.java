@@ -485,6 +485,7 @@ public class CalculatorExpr
     
     @Override public ExpressionType checkArgument(Value accu, Value val2) throws Exception {
       switch(val2.type){
+        case 'L': val2.doubleVal = val2.longVal; return this; 
         case 'C': case 'I': val2.doubleVal = val2.intVal; return this; 
         case 'J': val2.doubleVal = val2.longVal; return this; 
         case 'F': val2.doubleVal = val2.floatVal; return this; 

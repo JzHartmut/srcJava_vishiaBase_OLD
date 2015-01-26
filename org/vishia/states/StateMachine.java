@@ -341,7 +341,7 @@ public class StateMachine implements EventConsumer, InfoAppend
     } else if(ev !=null){
       if(ev instanceof EventWithDst){
         EventWithDst ev1 = (EventWithDst)ev;
-        ev1.donotRelinquish();
+        ev1.donotRelinquish();  //because it is stored here. Relinquishes after dequeueing!
         ev1.setDst(this);  //only this may be the destination of the event.
       }
       theThread.storeEvent(ev);

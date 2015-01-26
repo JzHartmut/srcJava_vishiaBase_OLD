@@ -993,7 +993,7 @@ public class FileSystem
    * <ul>
    * <li>-1 if src does not exists. Don't make.
    * <li>0: if src is older than dst. Don't make.
-   * <li>1: if src is newer and dst is not existent. make.
+   * <li>1: if dst does not exists. Make.
    * <li>2: if src is newer, dst is existent but should not deleted. removeDstIfOlder is given as false.
    * <li>3: if src is newer, dst is deleted.
    * <li>4: if src is newer, dst should be deleted but the deletion fails. There is a problem on dst.  
