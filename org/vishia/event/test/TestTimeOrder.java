@@ -33,7 +33,6 @@ public class TestTimeOrder
     { execThread.addOrder((EventTimeOrder)ev);  //casting admissible because special using.
       return mEventConsumed;
     }
-
   };
   
   /**The timer thread to organize the time order. It can be used for some other time orders or state machines

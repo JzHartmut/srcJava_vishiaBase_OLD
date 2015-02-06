@@ -60,6 +60,7 @@ public class StringFormatter implements Appendable, Closeable, Flushable
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-01-31: Hartmut {@link #add(String)} additional to {@link #add(CharSequence)} only for Java2C-translation. In Java it is equal. 
    * <li>2014-08-10: Hartmut bugfix: {@link #append(char)}: if more as one line feed 0d 0a 0d 0a follows, it was recognized as only one line feed. 
    * <li>2014-05-10: Hartmut new: implements Closeable, {@link #close()}, 
    *   ctor {@link #StringFormatter(Appendable, boolean, String, int)} to close the aggregated appendable.
@@ -329,16 +330,31 @@ public class StringFormatter implements Appendable, Closeable, Flushable
   * @param str String
   * @return this
   */
- public StringFormatter add(CharSequence str)
- { int nrofChars = str.length();
-   prepareBufferPos(nrofChars);
-   buffer.delete(pos, pos + nrofChars);
-   buffer.insert(pos, str, 0, nrofChars);
-   //buffer.replace(this.pos, pos + nrofChars, str);
-   pos += nrofChars;
-   return this;
- }
- 
+  public StringFormatter add(CharSequence str)
+  { int nrofChars = str.length();
+    prepareBufferPos(nrofChars);
+    buffer.delete(pos, pos + nrofChars);
+    buffer.insert(pos, str, 0, nrofChars);
+    //buffer.replace(this.pos, pos + nrofChars, str);
+    pos += nrofChars;
+    return this;
+  }
+  
+  /** Adds at the current position a string.
+   * It is extra for Java2C-translation, elsewhere the same like {@link #add(CharSequence)}
+   * @param str String
+   * @return this
+   */
+  public StringFormatter add(String str)
+  { int nrofChars = str.length();
+    prepareBufferPos(nrofChars);
+    buffer.delete(pos, pos + nrofChars);
+    buffer.insert(pos, str, 0, nrofChars);
+    //buffer.replace(this.pos, pos + nrofChars, str);
+    pos += nrofChars;
+    return this;
+  }
+
  
  /**Adds the given str at the current position but replaces line feed characters by given one.
  *  This method can be used proper if a part of a multi-line-text should be presented in one line for example for logs.

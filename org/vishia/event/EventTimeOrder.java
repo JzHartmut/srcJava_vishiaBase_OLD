@@ -175,9 +175,8 @@ public abstract class EventTimeOrder extends EventTimeout //Object //implements 
   
 
   
-  /**Executes the order. In a graphic thread it handles any request before the system's dispatching routine starts.
-   * This method should not be called. Only overridden. It is called from {@link #doExecute()} with freeing the order
-   * if the order's time is expired. The user should activate the execution with 
+  /**Executes the order. This abstract method should be implemented in a user's instance.    
+   * This method should not be called directly. It is called from {@link #doExecute()}. 
    */
   protected abstract void executeOrder();
   

@@ -2,7 +2,6 @@ package org.vishia.util;
 
 import java.text.ParseException;
 
-import org.vishia.util.CalculatorExpr.Value;
 
 /**This class extends the capability of StringPartBase for scanning capability.
  * In opposite to the {@link StringPart#seek(int)} functionality with several conditions 

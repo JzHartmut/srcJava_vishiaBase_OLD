@@ -89,7 +89,7 @@ public class EventWithDst extends EventObject
   
   /**The current owner of the event. It is that instance, which has gotten the event instance.
    */
-  EventSource sourceMsg;
+  //EventSource sourceMsg;
   
   
   /**The queue for events of the {@link EventThread} if this event should be used
@@ -171,14 +171,14 @@ public class EventWithDst extends EventObject
   public EventWithDst(EventSource source, EventConsumer consumer, EventThreadIfc thread){
     super(EventSource.nullSource);   //EventObject does not allow null pointer.
     if(source == null){
+      //uses nullSource
       this.dateCreation.set(0);
     } else {
-      super.source = source;
+      super.source = source; 
       DateOrder date = DateOrder.get();
       this.dateCreation.set(date.date);
       this.dateOrder = date.order;
     }
-    this.sourceMsg = source;    //maybe null
     this.evDst = consumer; 
     this.evDstThread = thread;  //maybe null
   }
@@ -194,7 +194,7 @@ public class EventWithDst extends EventObject
    * This method should be called in the processing routine of an event
    * only if the event is stored in another queue to execute delayed.
    */
-  public void donotRelinquish(){ 
+  @Deprecated public void XXXdonotRelinquish(){ 
     //if(stateOfEvent !='r') throw new IllegalStateException("donotRelinquish() should be called only in a processEvent-routine.");
     if(stateOfEvent == 'r'){
       stateOfEvent = 'p';  //secondary queued. donotRelinquish = true;
@@ -245,7 +245,7 @@ public class EventWithDst extends EventObject
     DateOrder date = DateOrder.get();
     if(dateCreation.compareAndSet(0, date.date)){
       dateOrder = date.order;
-      super.source = this.sourceMsg = source;
+      super.source = source == null ? EventSource.nullSource : source;  //don't use null pointer.
       this.ctConsumed =0;
       //if(refData !=null || dst !=null) { this.refData = refData; }
       if(dst != null) { 
@@ -286,7 +286,7 @@ public class EventWithDst extends EventObject
         bAwaitReserve = true;
         try{ wait(timeout); } catch(InterruptedException exc){ }
         bAwaitReserve = false;
-        bOk = occupy(sourceMsg, dst, thread, false);
+        bOk = occupy(((EventSource)source), dst, thread, false);
       }
     }
     return bOk;
@@ -495,18 +495,14 @@ public class EventWithDst extends EventObject
    * this method return without effect. This is helpfully if the event was stored in another queue for any reason.
    */
   public void relinquish(){
-    if(stateOfEvent == 'f'){
-      return;
-    }
-    if(stateOfEvent != 'r') throw new IllegalStateException("relinquish should only be called in stateOfEvent == 'r'");
-    EventSource source1 = this.sourceMsg;
+    //if(stateOfEvent != 'r') throw new IllegalStateException("relinquish should only be called in stateOfEvent == 'r'");
+    EventSource source1 = ((EventSource)source);
     if(source1 !=null){
       source1.notifyRelinquished(ctConsumed);
     }
     //this.stateOfEvent= 'a';
     this.orderId = 0;
     //data1 = data2 = 0;
-    this.sourceMsg = null;
     super.source = EventSource.nullSource;
     dateCreation.set(0);
     if(bAwaitReserve){
@@ -541,14 +537,17 @@ public class EventWithDst extends EventObject
     if(evDstThread !=null){
       evDstThread.storeEvent(this);
     } else {
+      int retProcess = 0;  //check doNotRelinquish, relinquishes it in case of exception too!
       try{
         stateOfEvent = 'r';  //it is possible that the processEvent sets donotRelinquish to true.
-        evDst.processEvent(this);
+        retProcess = evDst.processEvent(this);  //may set bit doNotRelinquish
       } catch(Exception exc) {
         System.err.println("Exception while processing an event: " + exc.getMessage());
         exc.printStackTrace(System.err);
       }
-      if(stateOfEvent == 'r') {
+      //if(stateOfEvent == 'r') {
+      if( (retProcess & EventConsumer.mEventDonotRelinquish) ==0) {
+        //Note: relinquishes it in case of exception too!
         relinquish();
       }
     }
@@ -559,7 +558,7 @@ public class EventWithDst extends EventObject
   
   public void consumed(){
     ctConsumed +=1;
-    EventSource source1 = this.sourceMsg;
+    EventSource source1 = ((EventSource)source);
     if(source1 !=null){
       source1.notifyConsumed(ctConsumed);
     }
@@ -567,21 +566,21 @@ public class EventWithDst extends EventObject
   
 
   /*package private*/ void notifyDequeued(){
-    EventSource source1 = this.sourceMsg;
+    EventSource source1 = ((EventSource)source);
     if(source1 !=null){
       source1.notifyDequeued();
     }
   }
 
   private void notifyShouldSentButInUse(){
-    EventSource source1 = this.sourceMsg;
+    EventSource source1 = ((EventSource)source);
     if(source1 !=null){
       source1.notifyShouldSentButInUse();
     }
   }
 
   private void notifyShouldOccupyButInUse(){
-    EventSource source1 = this.sourceMsg;
+    EventSource source1 = ((EventSource)source);
     if(source1 !=null){
       source1.notifyShouldOccupyButInUse();
     }

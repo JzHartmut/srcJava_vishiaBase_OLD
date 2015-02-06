@@ -651,7 +651,7 @@ public class EventCmdPingPongType<CmdEnum extends Enum<CmdEnum>, CmdBack extends
     if(nDate == 0) return "Event not occupied";
     Date date = new Date(nDate);
     String sCmd = cmde == null ? "null" : cmde.toString();
-    EventSource source1 = this.sourceMsg;
+    EventSource source1 = ((EventSource)source);  
     return "Event cmd=" + sCmd + "; " + (nDate == 0 ? "nonOccupied" : toStringDateFormat.format(date) + "." + dateOrder) + "; src=" + (source1 !=null ? source1.toString() : " noSrc") + "; dst="+ (evDst !=null ? evDst.toString() : " noDst"); 
   }
   

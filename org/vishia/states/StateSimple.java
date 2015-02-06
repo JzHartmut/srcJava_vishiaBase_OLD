@@ -157,38 +157,45 @@ public final static int notTransit =0x0;
  */
 public final static int mEventConsumed = EventConsumer.mEventConsumed; //== 0x1
 
+/**Bit in return value of the {@link #processEvent(EventObject)}
+ * for designation, that the given Event object is stored in another queue, therefore it should not relinquished yet.
+ * See {@link EventConsumer.mEventDonotRelinquish}
+ */
+public final static int mEventDonotRelinquish = EventConsumer.mEventDonotRelinquish;
+
+private final static int mMaskReservedInEventConsumer = EventConsumer.mMaskReservedHere; 
 
 /**Bit in return value of a Statemachine's trans method for designation, 
  * that the given Transition is true. The bit should be set together with {@link #mEventConsumed} if the event forces true.
  * If this bit is set without {@link #mEventConsumed} though an event is given the transition has not tested the event.
  * In that case the event may be used in the following run-to-complete transitions.
  */
-public final static int mTransit = 0x2;
+public final static int mTransit = 0x20000;
 
 
 /**Bit in return value of a Statemachine's trans and entry method for designation, 
  * that the given State has entered yet. If this bit is not set, an {@link #entry(EventMsg2)} action is not called.
  * It means a state switch has not occurred. Used for debug.
  */
-public final static int mStateEntered = 0x4;
+public final static int mStateEntered = 0x40000;
 
 
 /**If a composite state is leaved, any other parallel composite states don't processed then. */
-public final static int mStateLeaved = 0x8;
+public final static int mStateLeaved = 0x80000;
 
 
 /**Bit in return value of a Statemachine's trans and entry method for designation, 
  * that the given State has non-event-driven transitions, therefore the trans method should be called
  * in the same cycle.
  */
-public final static int mRunToComplete =0x10;
+public final static int mRunToComplete =0x100000;
 
 /**Use this designation for {@link Trans#retTrans} to signal that an event is not consumed in {@link #selectTrans(EventObject)}. */
-public final static int mEventNotConsumed = 0x20;
+public final static int mEventNotConsumed = 0x200000;
 
-public final static int mFlatHistory = 0x40;
+public final static int mFlatHistory = 0x400000;
 
-public final static int mDeepHistory = 0x80;
+public final static int mDeepHistory = 0x800000;
 
 /**Aggregation to the whole state machine. Note: it cannot be final because it will be set on preparing only. */
 protected StateMachine stateMachine;
@@ -222,8 +229,10 @@ private Timeout transTimeout;
 /**The timeout event set if necessary. This is a static instance, reused. It is the same instance in all non-parallel states. */
 //EventTimerMng.TimeEvent evTimeout;
 
-/**Set so long a timeout is active. */
-//EventTimerMng.TimeEventOrder timeOrder;
+/**The timeout event for this state stored also in the top state or a {@link StateParallel}. 
+ * This reference is null if this state has not a timeout transition. 
+ * If this state is the top state or a StateParallel this refers the same instance for all states of this Composite.
+ * More as one parallel states have differen timeouts. */
 EventTimeout evTimeout;
 
 
@@ -1142,17 +1151,21 @@ private void checkBuiltTransition(Trans trans, int nRecurs) {
  * All non-parallel states need only one timeout event instance because only one of them is used.
  */
 private void searchOrCreateTimerEvent() {
-  if(stateMachine.theThread == null) 
+  if(stateMachine.theThread == null) {
     throw new IllegalArgumentException("This statemachine needs a thread and a timer manager because timeouts are used. Use StateMachine(thread, timer); to construct it");
+  }
+  //Search in the most superior StateComposite which is either the top state (has not a enclState)
+  //or which is a StateParallel.
   StateSimple parent = this;
   while(parent.enclState !=null && !(parent instanceof StateParallel)) {
     parent = parent.enclState;
   }
-  //parent is either the top state or a StateAddParallel
+  //parent is either the top state or a StateParallel
   if(parent.evTimeout == null) {
     parent.evTimeout = new EventTimeout(stateMachine, stateMachine.theThread);
     //parent.evTimeout = stateMachine.theThread.new TimeEventOrder(stateMachine, stateMachine.theThread);
   }
+  //Store the reference to the evTimeout in this state too to detect the own timeout event.
   this.evTimeout = parent.evTimeout;
 }
 

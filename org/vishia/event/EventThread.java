@@ -235,7 +235,7 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
       }
     } else {
       if((debugPrint & 0x800)!=0) System.out.printf("TimeOrderMng yet %d\n", delay);
-      order.processEvent();
+      order.doTimeElapsed();
     }
   }
   
@@ -285,21 +285,24 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
       EventWithDst event = (EventWithDst) ev;
       event.stateOfEvent = 'e';
       event.notifyDequeued();
+      int retProcess = 0;  //check doNotRelinquish, relinquishes it in case of exception too!
       try{
         //event.donotRelinquish = false;   //may be overridden in processEvent if the event is stored in another queue
         event.stateOfEvent = 'r';
         EventConsumer dst = event.evDst;
         if(dst == null && ev instanceof EventTimeOrder) {
-          ((EventTimeOrder)ev).executeOrder(); 
+          ((EventTimeOrder)ev).executeOrder();   //relinquish it.
         } else {
-          dst.processEvent(event);
+          retProcess = dst.processEvent(event);  //may set bit doNotRelinquish 
         }
       } catch(Exception exc) {
         CharSequence excMsg = Assert.exceptionInfo("EventThread.applyEvent exception", exc, 0, 50);
         System.err.append(excMsg);
         //exc.printStackTrace(System.err);
       }
-      if(event.stateOfEvent == 'r') {  //doNotRelinquish was not invoked inside processEvent().
+      //if(event.stateOfEvent == 'r') {  //doNotRelinquish was not invoked inside processEvent().
+      if( (retProcess & EventConsumer.mEventDonotRelinquish) ==0) {
+        //Note: relinquishes it in case of exception too!
         event.relinquish();  //the event can be reused, a waiting thread will be notified.
       }
     }
@@ -345,7 +348,7 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
       while( (order = queueDelayedOrders.poll()) !=null){
         long delay = order.timeExecution - timeNow; 
         if((delay) < 3){  //if it is expired in 2 milliseconds, execute now.
-          order.processEvent();;
+          order.doTimeElapsed();
           timeNow = System.currentTimeMillis();  //it may be later.
         }
         else {

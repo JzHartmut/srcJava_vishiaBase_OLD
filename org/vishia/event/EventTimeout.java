@@ -185,11 +185,11 @@ public class EventTimeout extends EventWithDst
    * If this routine is started then an invocation of {@link #activate(int)} etc. enqueues this instance newly
    * with a new time for elapsing. It is executed newly therefore.
    */
-  protected final void processEvent() {
+  protected final void doTimeElapsed() {
     timeExecutionLatest = 0; //set first before timeExecution = 0. Thread safety.
     timeExecution = 0;     //forces new adding if requested. Before execution itself!
     if(evDst !=null){
-      evDst.processEvent(this);  //especially if it is a timeout.
+      evDst.processEvent(this);  //especially if it is a timeout. Executed in the timer respectively event thread.
     } else if(this instanceof EventTimeOrder){
       ((EventTimeOrder)this).doExecute();   //executes immediately in this thread.
     }

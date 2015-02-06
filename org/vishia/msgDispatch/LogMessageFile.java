@@ -105,9 +105,11 @@ public class LogMessageFile implements LogMessage
   
   
   /**@java2c=fixStringBuffer. */
-  final StringBuffer sFilenameBuffer = new StringBuffer(120);
+  final StringBuilder sFilenameBuffer = new StringBuilder(120);
   
-  /**StringBuffer to store the converted timeStamp for file time. @java2c=fixStringBuffer. */
+  /**StringBuilder to store the converted timeStamp for file time. 
+   * Note: Need a StringBuffer instead StringBuilder because {@link SimpleDateFormat#format(java.util.Date, StringBuffer, FieldPosition)}
+   * @java2c=fixStringBuffer. */
   final StringBuffer sDateformatBuffer = new StringBuffer(32);
   
   /**TODO  */

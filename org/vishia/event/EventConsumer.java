@@ -60,17 +60,27 @@ public interface EventConsumer
   /**This routine should be overwritten to processes an event. 
    * @param ev The event. It contains some data. The type of the event is not specified here. Any events
    *   can be processed.
-   * @return true if this method can process this type of event. False if the event doesn't match.
+   * @return 0 or {@link #mEventConsumed} or some other designation bits.
    *   It is possible to build a chain of responsibility. It is possible too to process a event from 
    *   more as one instance. 
    */
-  public abstract int processEvent(EventObject ev); //{ return false; }
+  public abstract int processEvent(EventObject ev); 
   
   
   
-  /**Bit in return value of a Statemachine's {@link #check(EventMsg)} or entry method for designation, 
-   * that the given Event object was used to switch.
+  /**Bit in return value of the {@link #processEvent(EventObject)}
+   * for designation, that the given Event object was used to switch.
    */
   public final static int mEventConsumed =0x1;
+  
+  
+  /**Bit in return value of the {@link #processEvent(EventObject)}
+   * for designation, that the given Event object is stored in another queue, therefore it should not relinquished yet..
+   */
+  public final static int mEventDonotRelinquish =0x2;
+  
+  
+  public final static int mMaskReservedHere = 0xfffc;  
+  
   
 }
