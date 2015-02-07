@@ -4,12 +4,12 @@ import java.util.EventObject;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.vishia.event.EventConsumer;
-import org.vishia.event.EventThread;
-import org.vishia.event.EventTimeOrder;
+import org.vishia.event.EventTimerThread;
+import org.vishia.event.TimeOrder;
 import org.vishia.event.EventWithDst;
 
 /**This class creates a time order and executes it in an extra thread.
- * Two threads were used, an {@link EventThread} only for the timer organization
+ * Two threads were used, an {@link EventTimerThread} only for the timer organization
  * and the 
  * @author hartmut
  *
@@ -30,19 +30,19 @@ public class TestTimeOrder
    */
   private EventConsumer enqueue = new EventConsumer()  {
     @Override public int processEvent(EventObject ev)
-    { execThread.addOrder((EventTimeOrder)ev);  //casting admissible because special using.
+    { execThread.addOrder((TimeOrder)ev);  //casting admissible because special using.
       return mEventConsumed;
     }
   };
   
   /**The timer thread to organize the time order. It can be used for some other time orders or state machines
    * additionally. */
-  EventThread threadTimer = new EventThread("timer thread");
+  EventTimerThread threadTimer = new EventTimerThread("timer thread");
   
   
   /**a time order as inner anonymous class with its executOrder-method. */
   @SuppressWarnings("serial") 
-  EventTimeOrder order = new EventTimeOrder("name", enqueue, threadTimer) {
+  TimeOrder order = new TimeOrder("name", enqueue, threadTimer) {
     int counter = 5;
     @Override protected void executeOrder(){
       if(--counter <0) { 

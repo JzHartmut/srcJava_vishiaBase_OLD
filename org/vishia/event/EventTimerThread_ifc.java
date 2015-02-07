@@ -8,8 +8,15 @@ import java.util.EventObject;
  * @author Hartmut Schorrig
  *
  */
-public interface EventThreadIfc
+public interface EventTimerThread_ifc
 {
+  /**Adds an event to execute it in the thread of the implementor of this interface. 
+   * if a {@link EventWithDst} is used it has an aggregation to the implementor of this and ivokes this method
+   * in its {@link EventWithDst#sendEvent()}. 
+   * In that case this method should not be called by an application directly. It is only a rule to implement. 
+   * But this method should be used if another event type is used. Then the implementor should know what to do with the event.
+   * @param order
+   */
   void storeEvent(EventObject ev);
   
   
@@ -22,7 +29,9 @@ public interface EventThreadIfc
    */
   public boolean removeFromQueue(EventObject ev);
   
-  /**Adds a time order with given timeout time.
+  /**Adds a timeout event or a time order with given execution time. The time should be set in the event already
+   * using its method {@link EventTimeout#activateAt(long)} etc. That routines calls this method internally already.
+   * Therefore this method should not be called by an application directly. It is only a rule to implement. 
    * @param order
    */
   void addTimeOrder(EventTimeout order);

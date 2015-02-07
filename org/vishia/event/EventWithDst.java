@@ -23,7 +23,7 @@ public class EventWithDst extends EventObject
    * <li>2015-01-03 Hartmut chg: Separated in 2 classes: {@link EventCmdPingPongType} with opponent and this class.
    * <li>2015-01-03 Hartmut chg: Renamed to EventMsg: more significant name. Derived from EventObject: A basicly Java concept.
    * <li>2013-10-06 Hartmut chg: Some checks for thread safety.
-   * <li>2013-10-06 Hartmut chg: {@link #occupy(int, EventSource, EventConsumer, EventThread)} with timeout
+   * <li>2013-10-06 Hartmut chg: {@link #occupy(int, EventSource, EventConsumer, EventTimerThread)} with timeout
    * <li>2013-10-06 Hartmut chg: {@link #occupyRecall(EventSource, boolean)} return 0,1,2, not boolean.
    *   The state whether the recalled event is processed or it is only removed from the queued, may
    *   be important for usage. 
@@ -92,10 +92,10 @@ public class EventWithDst extends EventObject
   //EventSource sourceMsg;
   
   
-  /**The queue for events of the {@link EventThread} if this event should be used
+  /**The queue for events of the {@link EventTimerThread} if this event should be used
    * in a really event driven system (without directly callback). 
    * If it is null, the dst. {@link EventConsumer#processEvent(EventMsg)} should be called immediately. */
-  EventThreadIfc evDstThread;
+  EventTimerThread_ifc evDstThread;
   
   
   /**The destination instance for the Event. If the event is stored in a common queue, 
@@ -115,7 +115,7 @@ public class EventWithDst extends EventObject
   /**State of the event: 
    * <ul>
    * <li>0 or '.': unused.
-   * <li>a: requested or allocated. The {@link EventConsumer} and the {@link EventThread} is set, but the event 
+   * <li>a: requested or allocated. The {@link EventConsumer} and the {@link EventTimerThread} is set, but the event 
    *   is not in send to the consumer. It is not in a queue and not in process.
    * <li>q: queued in dstThread
    * <li>e: executing
@@ -150,7 +150,7 @@ public class EventWithDst extends EventObject
   
 
   
-  /**Creates an event as a static object for re-usage. Use {@link #occupy(Object, EventConsumer, EventThread)}
+  /**Creates an event as a static object for re-usage. Use {@link #occupy(Object, EventConsumer, EventTimerThread)}
    * before first usage. {@link #relinquish()} will be called on release the usage. 
    * 
    */
@@ -168,7 +168,7 @@ public class EventWithDst extends EventObject
    * @param consumer The destination object for the event.
    * @param thread an optional thread to store the event in an event queue, maybe null.
    */
-  public EventWithDst(EventSource source, EventConsumer consumer, EventThreadIfc thread){
+  public EventWithDst(EventSource source, EventConsumer consumer, EventTimerThread_ifc thread){
     super(EventSource.nullSource);   //EventObject does not allow null pointer.
     if(source == null){
       //uses nullSource
@@ -241,7 +241,7 @@ public class EventWithDst extends EventObject
    *   from the given source is invoked. It may cause an exception for example. 
    * @return true if the event instance is occupied and ready to use.
    */
-  public boolean occupy(EventSource source, EventConsumer dst, EventThread thread, boolean expect){ 
+  public boolean occupy(EventSource source, EventConsumer dst, EventTimerThread thread, boolean expect){ 
     DateOrder date = DateOrder.get();
     if(dateCreation.compareAndSet(0, date.date)){
       dateOrder = date.order;
@@ -279,7 +279,7 @@ public class EventWithDst extends EventObject
    * @param thread
    * @return true if occupied, false if the other thread which should process the event hangs.
    */
-  public boolean occupy(int timeout, EventSource evSrc, EventConsumer dst, EventThread thread){
+  public boolean occupy(int timeout, EventSource evSrc, EventConsumer dst, EventTimerThread thread){
     boolean bOk = occupy(evSrc, dst, thread, false);
     if(!bOk){
       synchronized(this){
@@ -307,7 +307,7 @@ public class EventWithDst extends EventObject
    *   then occupied for this new usage. The method returns imediately with true.
    * <li>If it is used and not found in any queue, then it is processed in this moment.
    *   Then this method returns false. The method doesn't wait. 
-   *   See {@link #occupyRecall(int, Object, EventConsumer, EventThread)}.   
+   *   See {@link #occupyRecall(int, Object, EventConsumer, EventTimerThread)}.   
    * </ul>
    * @param source Source instance able to use for monitoring the event life cycle. null is admissible.
    * @param dst The destination instance which should receive this event.
@@ -318,7 +318,7 @@ public class EventWithDst extends EventObject
    *   from the given source is invoked. It may cause an exception for example. 
    * @return true if the event is occupied.
    */
-  public boolean occupyRecall(EventSource source, EventConsumer dst, EventThread thread, boolean expect){ 
+  public boolean occupyRecall(EventSource source, EventConsumer dst, EventTimerThread thread, boolean expect){ 
     boolean bOk = occupy(source, dst, thread, false);
     if(!bOk){
       if(evDstThread !=null){
@@ -370,7 +370,7 @@ public class EventWithDst extends EventObject
    *   one may try again occupy with an increased timeout. The processing may need more time.
    *   It is possible that the processing of the event hangs (deadlock). 
    * </ul>
-   * See {@link #occupyRecall(Object, EventConsumer, EventThread)}.   
+   * See {@link #occupyRecall(Object, EventConsumer, EventTimerThread)}.   
    * @param timeout maximal millisecond to wait if the event is yet in processing.
    * @param source Source instance able to use for monitoring the event life cycle. null is admissible.
    * @param dst The destination instance which should receive this event.
@@ -388,7 +388,7 @@ public class EventWithDst extends EventObject
    *   <li>3 if the event is forced relinguish because it was hanging.
    *   </ul> 
    */
-  public int occupyRecall(int timeout, EventSource source, EventConsumer dst, EventThread thread, boolean expect){
+  public int occupyRecall(int timeout, EventSource source, EventConsumer dst, EventTimerThread thread, boolean expect){
     int ok = 0;
     boolean bOk = occupy(source, dst, thread, false);
     if(bOk){ ok = 1; }
@@ -437,7 +437,7 @@ public class EventWithDst extends EventObject
   
   
   /**Try to occupy the event for usage, recall it if it is in stored in an event queue, wait till it is available.
-   * Same as {@link #occupyRecall(int, EventSource, EventConsumer, EventThread, boolean)} but left the destination unchanged.
+   * Same as {@link #occupyRecall(int, EventSource, EventConsumer, EventTimerThread, boolean)} but left the destination unchanged.
    * @param timeout maximal millisecond to wait if the event is yet in processing.
    * @param source Source instance able to use for monitoring the event life cycle. null is admissible.
    * @param expect If true and the event is not able to occupy, then the method {@link EventSource#notifyShouldOccupyButInUse()} 
@@ -466,7 +466,7 @@ public class EventWithDst extends EventObject
   public boolean isOccupied(){ return dateCreation.get() !=0; }
   
   
-  public EventThreadIfc getDstThread(){ return evDstThread; }
+  public EventTimerThread_ifc getDstThread(){ return evDstThread; }
   
   
   public EventConsumer getDst(){ return evDst; }
@@ -482,14 +482,14 @@ public class EventWithDst extends EventObject
   
   
   
-  /**Relinquishes the event object. It is the opposite to the {@link #occupy(Object, EventConsumer, EventThread)} method.
+  /**Relinquishes the event object. It is the opposite to the {@link #occupy(Object, EventConsumer, EventTimerThread)} method.
    * The {@link #dateCreation} is set to 0 especially to designate the free-state of the Event instance.
    * The {@link #refData}, {@link #evDst()}, {@link #evDstThread} and {@link #opponent} are not changed
    * because the event may be reused in the same context.
    * All other data are reseted, so no unused references are hold. 
    * <br><br>
    * If any thread waits for this Event object, a {@link Object#notify()} is called. See {@link #occupyRecall(int)}
-   * and {@link #occupyRecall(int, Object, EventConsumer, EventThread)}.
+   * and {@link #occupyRecall(int, Object, EventConsumer, EventTimerThread)}.
    * <br><br> 
    * If {@link #donotRelinquish()} was called inside the {@link EventConsumer#processEvent(EventMsg)} for this event,
    * this method return without effect. This is helpfully if the event was stored in another queue for any reason.

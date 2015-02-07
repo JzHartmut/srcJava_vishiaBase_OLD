@@ -2,7 +2,7 @@ package org.vishia.states.example;
 
 import java.util.EventObject;
 
-import org.vishia.event.EventCmdPingPongType;
+import org.vishia.event.EventCmdtype;
 import org.vishia.states.StateComposite;
 import org.vishia.states.StateSimple;
 import org.vishia.states.StateMachine;
@@ -14,7 +14,7 @@ public class StateExampleSimple
 
   enum Ecmd{Step};
   
-  EventCmdPingPongType<Ecmd, EventCmdPingPongType.NoOpponent> ev = new EventCmdPingPongType<Ecmd, EventCmdPingPongType.NoOpponent>();
+  EventCmdtype<Ecmd> ev = new EventCmdtype<Ecmd>();
   
   
   //class States extends StateTop
@@ -61,7 +61,7 @@ public class StateExampleSimple
         };
      
         
-        Trans trans2_Idle(EventCmdPingPongType<?,?> ev, Trans trans){
+        Trans trans2_Idle(EventCmdtype<?> ev, Trans trans){
           if(trans == null){
             return new Trans(StateIdle.class);
           } 

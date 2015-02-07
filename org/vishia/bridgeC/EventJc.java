@@ -1,15 +1,16 @@
 package org.vishia.bridgeC;
 
-import org.vishia.event.EventCmdPingPongType;
+import org.vishia.event.EventCmdtypeWithBackEvent;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
-import org.vishia.event.EventThread;
+import org.vishia.event.EventTimerThread;
 
 /**This class extends the {@link EventCmdPingPongType} only with the capability of deletion from Memory for non-Garbage-Collecting C/C++ usage.
  * @author Hartmut Schorrig
  *
  */
-public class EventJc<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>> extends EventCmdPingPongType<CmdEnum, CmdBack>
+public class EventJc<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack>> 
+extends EventCmdtypeWithBackEvent<CmdEnum, EventJc<CmdBack, CmdEnum >>
 {
   
   
@@ -48,7 +49,7 @@ public class EventJc<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack
   final boolean bPermanent;
   
   
-  /**Creates an event as a static object for re-usage. Use {@link #occupy(Object, EventConsumer, EventThread)}
+  /**Creates an event as a static object for re-usage. Use {@link #occupy(Object, EventConsumer, EventTimerThread)}
    * before first usage. Use {@link #relinquish()} to release the usage. 
    * 
    */
@@ -63,7 +64,7 @@ public class EventJc<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack
    * @param consumer The destination object for the event.
    * @param thread an optional thread to store the event in an event queue, maybe null.
    */
-  public EventJc(boolean permanentInstance, EventSource evSrc, EventConsumer consumer, EventThread thread){
+  public EventJc(boolean permanentInstance, EventSource evSrc, EventConsumer consumer, EventTimerThread thread){
     super(evSrc, consumer, thread);
     bPermanent = permanentInstance;
   }
@@ -76,7 +77,7 @@ public class EventJc<CmdEnum extends Enum<CmdEnum>, CmdBack extends Enum<CmdBack
    * @param thread an optional thread to store the event in an event queue, maybe null.
    * @param callback Another event to interplay with the source of this event.
    */
-  public EventJc(boolean permanentInstance, EventSource evSrc, EventConsumer consumer, EventThread thread, EventCmdPingPongType<CmdBack, CmdEnum> callback){
+  public EventJc(boolean permanentInstance, EventSource evSrc, EventConsumer consumer, EventTimerThread thread, EventJc<CmdBack, CmdEnum > callback){
     super(evSrc, consumer, thread, callback);
     bPermanent = permanentInstance;
   }

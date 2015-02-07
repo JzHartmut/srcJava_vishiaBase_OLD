@@ -6,7 +6,7 @@ import java.util.EventObject;
 /**This is the base class for time orders.
  * To define a time order a derived class of this should be written which overrides the method 
  * {@link #executeOrder()}. An instance of this class can be created statically as persistent reference
- * or on demand with new {@link EventTimeOrder#EventTimeOrder(String, EventThread)}. The {@link EventThread} should 
+ * or on demand with new {@link TimeOrder#TimeOrder(String, EventTimerThread)}. The {@link EventTimerThread} should 
  * be existing as instance before an instance of this class is created.
  * <br><br>
  * <b>Pattern for application</b>:<br><pre>
@@ -28,7 +28,7 @@ import java.util.EventObject;
  *  
  * private static class EnqueueInGraphicThread implements EventConsumer {
  *   QOverride public int processEvent(EventObject ev)
- *   { execThread.queueOrders.put((<EventTimeOrder>)ev);  //casting admissible because special using.
+ *   { execThread.queueOrders.put((< EventTimeOrder >)ev);  //casting admissible because special using.
  *     return mEventConsumed;
  *   }
  * }
@@ -37,22 +37,22 @@ import java.util.EventObject;
  * or independent whether it is handled by the timer.
  * <br><br>
  * <ul>
- * <li>Constructors: {@link EventTimeOrder#EventTimeOrder(String, EventThread)},
- *   {@link EventTimeOrder#EventTimeOrder(String, EventConsumer, EventThread)}, {@link EventTimeOrder#EventTimeOrder(String)} .
+ * <li>Constructors: {@link TimeOrder#TimeOrder(String, EventTimerThread)},
+ *   {@link TimeOrder#TimeOrder(String, EventConsumer, EventTimerThread)}, {@link TimeOrder#TimeOrder(String)} .
  * <li>methods to activate from {@link EventTimeout}: {@link #activate(int)}, {@link #activateAt(long)}, {@link #activateAt(long, long)}
  * <li>Remove a currently timeout: {@link #deactivate()}
  * <li>Check from {@link EventTimeout}: {@link #timeExecution()}, {@link #timeExecutionLatest()}, {@link #timeToExecution()} {@link #used()}
  * <li>Check: {@link #getCtDone(int)}
- * <li>Execute: {@link #doExecute()} will be called from the {@link EventThread}, only call by application in a special thread. 
+ * <li>Execute: {@link #doExecute()} will be called from the {@link EventTimerThread}, only call by application in a special thread. 
  * <li>Wait for execution in another thread: {@link #awaitExecution(int, int)}.
  * <li>see {@link EventTimeout}.
- * <li>see {@link EventThread}
+ * <li>see {@link EventTimerThread}
  * <li>see {@link org.vishia.states.StateMachine}
  * </ul>
  * @author Hartmut Schorrig
  *
  */
-public abstract class EventTimeOrder extends EventTimeout //Object //implements EventConsumer
+public abstract class TimeOrder extends EventTimeout //Object //implements EventConsumer
 {
 
   private static final long serialVersionUID = 1998821310413113722L;
@@ -123,7 +123,7 @@ public abstract class EventTimeOrder extends EventTimeout //Object //implements 
   
   
   
-  public EventTimeOrder(String name)
+  public TimeOrder(String name)
   { super();
     this.name = name;
   }
@@ -133,13 +133,13 @@ public abstract class EventTimeOrder extends EventTimeout //Object //implements 
    * or as permanent instance. Use {@link #activate(int)} etc. to activate it.
    * <br><br>
    * If the time is expired after {@link #activateAt(long, long)} then the {@link #executeOrder()}
-   * is invoked in the thread. Note: Use {@link EventTimeOrder#EventTimeOrderBase(String, EventConsumer, EventThread)}
+   * is invoked in the thread. Note: Use {@link TimeOrder#EventTimeOrderBase(String, EventConsumer, EventTimerThread)}
    * if you want to execute the {@link #executeOrder()} routine in another thread. 
    * 
    * @param name the TimeOrder should have a name for debugging. 
    * @param thread thread to handle the time order. It is obligatory.
    */
-  public EventTimeOrder(String name, EventThread thread){
+  public TimeOrder(String name, EventTimerThread thread){
     super(null, thread);  //no EventSource necessary, no eventConsumer because this is an order.
     this.name = name;
   }
@@ -155,7 +155,7 @@ public abstract class EventTimeOrder extends EventTimeout //Object //implements 
    * @param name the TimeOrder should have a name for debugging. 
    * @param thread thread to handle the time order. It is obligatory.
    */
-  public EventTimeOrder(String name, EventConsumer dst, EventThread thread){
+  public TimeOrder(String name, EventConsumer dst, EventTimerThread thread){
     super(dst, thread);  //no EventSource necessary, no eventConsumer because this is an order.
     this.name = name;
   }
@@ -184,7 +184,7 @@ public abstract class EventTimeOrder extends EventTimeout //Object //implements 
    * Use {@link #activate(int)} etc. to activate the time order for execution.
    * <br>
    * This routine is invoked instead {@link #executeOrder()}, it wraps it.
-   * It is called inside the package private {@link EventThread} or from a special derived instance
+   * It is called inside the package private {@link EventTimerThread} or from a special derived instance
    * which will be invoke {@link #executeOrder()} in any other thread.
    * <br>
    * If this routine is started then it is added newly on new invocation of {@link #activate(int)} etc.
@@ -221,9 +221,10 @@ public abstract class EventTimeOrder extends EventTimeout //Object //implements 
 
   
   /**Waits for execution in any other thread. This method can be called in any thread, especially in that thread, 
-   * which initializes the request.
+   * which initializes the request. Note that {@link #doExecute()} should be invoked to execute the time order
+   * and notify this waiting routine. That is done if the {@link EventTimerThread} is used.
    * @param ctDoneRequested Number of executions requested.
-   * @param timeout maximal waiting time in millisec, 0 means wait for ever for execution.
+   * @param timeout maximal waiting time in milliseconds, 0 means wait forever.
    * @return true if it is executed the requested number of.
    */
   public synchronized boolean awaitExecution(int ctDoneRequested, int timeout)
@@ -244,6 +245,8 @@ public abstract class EventTimeOrder extends EventTimeout //Object //implements 
   }
   
 
+  /**Returns the name of this to show it for debugging.
+   */
   @Override public String toString(){ return name; }  
 
   

@@ -22,7 +22,6 @@
  *******************************************************************************/ 
 package org.vishia.byteData;
 
-import org.vishia.event.EventCmdPingPongType;
 
 
 /**This interface defines the access to search a variable in any container. 

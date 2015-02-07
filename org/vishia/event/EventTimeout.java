@@ -14,12 +14,12 @@ package org.vishia.event;
  *   timeout.activate(7000);  //in 7 seconds.
  * </pre>
  * <ul>
- * <li>Constructors: {@link EventTimeout#EventTimeout(EventConsumer, EventThread)}, {@link EventTimeout#EventTimeout()}.
+ * <li>Constructors: {@link EventTimeout#EventTimeout(EventConsumer, EventTimerThread)}, {@link EventTimeout#EventTimeout()}.
  * <li>methods to activate: {@link #activate(int)}, {@link #activateAt(long)}, {@link #activateAt(long, long)}
  * <li>Remove a currently timeout: {@link #deactivate()}
  * <li>Check: {@link #timeExecution()}, {@link #timeExecutionLatest()}, {@link #timeToExecution()} {@link #used()}
- * <li>see {@link EventTimeOrder}.
- * <li>see {@link EventThread}
+ * <li>see {@link TimeOrder}.
+ * <li>see {@link EventTimerThread}
  * <li>see {@link org.vishia.states.StateMachine}
  * </ul>
  * @author Hartmut Schorrig
@@ -30,7 +30,7 @@ public class EventTimeout extends EventWithDst
   
   /**Version and history:
    * <ul>
-   * <li>2015-01-02 Hartmut created: as super class of {@link EventTimeOrder} and as event for timeout for state machines.
+   * <li>2015-01-02 Hartmut created: as super class of {@link TimeOrder} and as event for timeout for state machines.
    * </ul>
    * 
    * <b>Copyright/Copyleft</b>:
@@ -75,7 +75,7 @@ public class EventTimeout extends EventWithDst
   public int dbgctWindup = 0;
   
 
-  /**Creates an event as a static object for re-usage. Use {@link #occupy(EventSource, EventConsumer, EventThread, boolean)}
+  /**Creates an event as a static object for re-usage. Use {@link #occupy(EventSource, EventConsumer, EventTimerThread, boolean)}
    * before first usage. Use {@link #relinquish()} to release the usage.
    * Usual the parameterized method {@link EventTimeout#EventTimeout(EventSource, EventConsumer, EventThreadIfc)} 
    * should be used.
@@ -89,7 +89,7 @@ public class EventTimeout extends EventWithDst
    * @param consumer The destination object for the event. If it is null nothing will be executed if the event is expired.
    * @param thread thread to handle the time order. It is obligatory.
    */
-  public EventTimeout(EventConsumer consumer, EventThread thread){
+  public EventTimeout(EventConsumer consumer, EventTimerThread thread){
     super(null, consumer, thread);
   }
   
@@ -173,14 +173,14 @@ public class EventTimeout extends EventWithDst
   public boolean used(){ return timeExecution !=0; }
 
 
-  /**Processes the event or timeOrder. This routine is called in the {@link EventThread} if the time is elapsed.
+  /**Processes the event or timeOrder. This routine is called in the {@link EventTimerThread} if the time is elapsed.
    * <br><br>
    * If the {@link #evDst()} is given the {@link EventConsumer#processEvent(java.util.EventObject)} is called
    * though this instance may be a timeOrder. This method can enqueue this instance in another queue for execution
-   * in any other thread which invokes then {@link EventTimeOrder#doExecute()}.
+   * in any other thread which invokes then {@link TimeOrder#doExecute()}.
    * <br><br> 
-   * It this is a {@link EventTimeOrder} and the #evDst is not given by constructor
-   * then the {@link EventTimeOrder#doExecute()} is called to execute the time order.
+   * It this is a {@link TimeOrder} and the #evDst is not given by constructor
+   * then the {@link TimeOrder#doExecute()} is called to execute the time order.
    * <br><br>
    * If this routine is started then an invocation of {@link #activate(int)} etc. enqueues this instance newly
    * with a new time for elapsing. It is executed newly therefore.
@@ -190,8 +190,8 @@ public class EventTimeout extends EventWithDst
     timeExecution = 0;     //forces new adding if requested. Before execution itself!
     if(evDst !=null){
       evDst.processEvent(this);  //especially if it is a timeout. Executed in the timer respectively event thread.
-    } else if(this instanceof EventTimeOrder){
-      ((EventTimeOrder)this).doExecute();   //executes immediately in this thread.
+    } else if(this instanceof TimeOrder){
+      ((TimeOrder)this).doExecute();   //executes immediately in this thread.
     }
   }
   

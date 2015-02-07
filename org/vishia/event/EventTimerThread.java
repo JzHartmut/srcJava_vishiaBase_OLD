@@ -10,28 +10,78 @@ import org.vishia.states.StateMachine;
 import org.vishia.util.Assert;
 import org.vishia.util.InfoAppend;
 
-/**Class to manage all events, especially {@link EventTimeout} with an extra thread.
- * This class can be used in twice forms:
- * <ul>
- * <li>The thread executes the time orders. This may be a thread for @link {@link StateMachine}
- *   especially. 
- * <li>The thread manages only the time for the orders. If the time is expired for any order
- *   that order is copied in a List of ready-to-run orders which can be executed from another thread
- *   which does some other things elsewhere too.  For this working principle the method {@link #step(int, long)} is given
- *   which should be called in the other thread usual cyclically. 
- * </ul>
- * For the second form with an extra execution thread the execution thread may implement the interface @link {@link ConnectionExecThread}. 
- * That is necessary if the thread may sleep a longer time, waits for work. But that is not necessary. 
- * The constructor @link {@link EventThread#TimeOrderMng(ConnectionExecThread)} can be called with null for this argument. 
- * But in that case the method {@link #close()} have to be called on end of the application.
+/**This class stores events, starts the processing of the events in one thread and manages and executes time orders in the same thread. 
+ * An instance of this class is the main instance to execute state machines in one thread. 
+ * The methods of this class except {@link #start()} and {@link #close()} are used from instances of {@link EventWithDst}, 
+ * {@link EventTimeout} and {@link TimeOrder} internally.
+ * They should not be invoked by an application directly. 
+ * But if any other event derived from {@link java.util.EventObject} is used then the methods 
+ * {@link #setStdEventProcessor(EventConsumer)}, {@link #storeEvent(EventObject)} and maybe {@link #removeFromQueue(EventObject)}
+ * should be used. 
  * <br><br>
- * This class contains a list of orders which can be run immediately or delayed. <br>
- * The class has a {@link #step(long)} method which should be invoked cyclically.
- * New  
+ * To instantiate and start use 
+ * <pre>
+ * 
+  EventTimerThread myExecutionThread = new EventTimerThread("thread-name");
+  myExecutionThread.start();
+ * </pre>
+ * On end of the application {@link #close()} should be invoked to end the thread.
+ * <br><br>
+ * To add any event of derived type of {@link EventWithDst} from any other thread use this instance as argument for the event: 
+ * <pre>
+ * 
+  MyEventWithDst event = new MyEventWithDst(source, dst, myExecutionThread);
+  //or:
+  event.occupy(source, dst, myExecutionThread, ...)
+  event.sendEvent();
+ * </pre>
+ * To add any other type of {@link java.util.EventObject} you should set a {@link #setStdEventProcessor(EventConsumer)}. 
+ * Then use 
+ * <pre>
+ * 
+  myExecutionThread.storeEvent(eventObject);
+ * </pre>
+ * This class is used as time manager too. It manages and executes {@link EventTimeout} 
+ * which are used especially for {@link org.vishia.states.StateMachine},
+ * but it can execute {@link TimeOrder} in this thread too. To add a timeout event or a time order 
+ * use the methods of the {@link EventTimeout#activateAt(long)} etc:
+ * <pre>
+ * 
+  TimeOrder myTimeOrder = new TimeOrder("name", myExecutionThread) {
+    QOverride protected void executeOrder(){ ...execution of the time order ...}
+  };
+  ...
+  myTimeOrder.activate(100);  //in 100 milliseconds.
+ * </pre> 
+ * That routine invokes the routine {@link #addTimeOrder(EventTimeout)} of this class.
+ * <br><br>
+ * This class starts a thread. The thread sleeps if no event or time order is given. 
+ * <br><br>
+ * Events are stored in a {@link java.util.concurrent.ConcurrentLinkedQueue} which is thread-safe to enqueue events
+ * from any thread with the method {@link #storeEvent(EventObject)}.
+ * Then {@link Object#notify()} is called to weak up the thread if it sleeps. Then the all stored events are dequeued
+ * and its execution routine of {@link EventConsumer#processEvent(EventObject)} is invoked. The events are processed one after another.
+ * The execution routine is usual a {@link org.vishia.states.StateMachine} but any other {@link EventConsumer} is able to use too. 
+ * <br><br>
+ * {@link TimeOrder} or {@link EventTimeout} are stored in another {@link java.util.concurrent.ConcurrentLinkedQueue}. 
+ * The absolute time of the next execution is stored in the internal value of {@link #timeCheckNew}. The thread sleeps either
+ * till this time is expired or till an event is given. If the time is expired all stored time orders are checked
+ * whether its time is elapsed. Then either the {@link EventConsumer#processEvent(EventObject)} is invoked 
+ * if an {@link EventTimeout} is given or a {@link TimeOrder} has a destination. Elsewhere the {@link TimeOrder#doExecute} 
+ * is invoked to execute the {@link TimeOrder#executeOrder()} in this thread.
+ * <br><br>
+ * An event can be removed from the queue if it is not executed up to now. The routine {@link #removeFromQueue(EventObject)}
+ * is invoked if an event should be {@link EventWithDst#occupyRecall(EventSource, boolean)}. That is if the event should be used
+ * newly.
+ * <br><br>
+ * A time order or timeout event can be removed from execution with the method EventTimeout  {@link EventTimeout#deactivate()}.
+ * This routine calls {@link #removeTimeOrder(EventTimeout)}.
+ * 
+ *   
  * @author Hartmut Schorrig
  *
  */
-public class EventThread implements EventThreadIfc, Closeable, InfoAppend
+public class EventTimerThread implements EventTimerThread_ifc, Closeable, InfoAppend
 {
   
   
@@ -86,7 +136,7 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
   private Thread threadTimer;
 
 
-
+  private EventConsumer eventProcessor;
   
   /**Queue of orders which are executed with delay yet. */
   private final ConcurrentLinkedQueue<EventObject> queueEvents = new ConcurrentLinkedQueue<EventObject>();
@@ -139,11 +189,23 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
    *   <br>
    *   false then the {@link #step(int, long)} have to be called cyclically from any other thread.
    */
-  public EventThread(String threadName)
+  public EventTimerThread(String threadName)
   {
     this.threadName = threadName;
   }
   
+  
+  /**Sets the event processor for all events which are not type of {@link EventWithDst}. That events are executed with
+   * the given eventProcessor's method {@link EventConsumer#processEvent(EventObject)}.
+   * This eventProcessor is not used for {@link EventWithDst}. They need a destination or they should be a {@link TimeOrder}.
+   * <br>
+   * This routine should be invoked usual one time before start. But the changing of the eventProcessor is possible.
+   * 
+   * @param eventProcessor the event processor.
+   */
+  public final void setStdEventProcessor(EventConsumer eventProcessor) {
+    this.eventProcessor = eventProcessor;
+  }
 
   
   public void start(){ startThread(); }
@@ -151,7 +213,7 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
 
   /**Creates and starts the thread. If this routine is called from the user, the thread runs
    * till the close() method was called. If this method is not invoked from the user,
-   * the thread is created and started automatically if {@link #storeEvent(EventCmdType)} was called.
+   * the thread is created and started automatically if {@link #storeEvent(EventCmdtype)} was called.
    * In that case the thread stops its execution if the event queue is empty and about 5 seconds
    * are gone.  */
   public void startThread(){ 
@@ -192,7 +254,7 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
 
 
   /**Should only be called on end of the whole application to finish the timer thread. This method does not need to be called
-   * if a @link {@link ConnectionExecThread} is given as Argument of @link {@link EventThread#TimeOrderMng(ConnectionExecThread)}
+   * if a @link {@link ConnectionExecThread} is given as Argument of @link {@link EventTimerThread#TimeOrderMng(ConnectionExecThread)}
    * and this instance implements the @link {@link ConnectionExecThread#isRunning()} method. If that method returns false
    * then the timer thread is finished too.
    * 
@@ -274,12 +336,12 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
   
   
   /**Applies an event from the queue to the destination in the event thread. 
-   * This method should be overridden if other events then {@link EventCmdType} are used because the destination of an event
+   * This method should be overridden if other events then {@link EventCmdtype} are used because the destination of an event
    * is not defined for a java.util.EventObject. Therefore it should be defined in a user-specific way in the overridden method.
-   * This method is proper for events of type {@link EventCmdType} which knows their destination.
+   * This method is proper for events of type {@link EventCmdtype} which knows their destination.
    * @param ev
    */
-  protected void applyEvent(EventObject ev)
+  private final void applyEvent(EventObject ev)
   {
     if(ev instanceof EventWithDst){
       EventWithDst event = (EventWithDst) ev;
@@ -290,8 +352,8 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
         //event.donotRelinquish = false;   //may be overridden in processEvent if the event is stored in another queue
         event.stateOfEvent = 'r';
         EventConsumer dst = event.evDst;
-        if(dst == null && ev instanceof EventTimeOrder) {
-          ((EventTimeOrder)ev).executeOrder();   //relinquish it.
+        if(dst == null && ev instanceof TimeOrder) {
+          ((TimeOrder)ev).executeOrder();   //relinquish it.
         } else {
           retProcess = dst.processEvent(event);  //may set bit doNotRelinquish 
         }
@@ -305,6 +367,12 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
         //Note: relinquishes it in case of exception too!
         event.relinquish();  //the event can be reused, a waiting thread will be notified.
       }
+    }
+    else if(eventProcessor !=null) {
+      eventProcessor.processEvent(ev);
+    } 
+    else {
+      throw new IllegalStateException("destination for event execution is unknown. Use setStdEventProcessor(...). ");
     }
   }
   
@@ -403,7 +471,7 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
   
   
   
-  /**Instance as Runnable contains invocation of {@link EventThread#stepThread()}
+  /**Instance as Runnable contains invocation of {@link EventTimerThread#stepThread()}
    * and the {@link Object#wait()} with the calculated timeWait.
    * 
    */
@@ -414,7 +482,7 @@ public class EventThread implements EventThreadIfc, Closeable, InfoAppend
       bThreadRun = true;
       stateThreadTimer = 'r';
       while(stateThreadTimer == 'r' && bThreadRun ){
-        int timeWait = EventThread.this.stepThread();
+        int timeWait = EventTimerThread.this.stepThread();
         if((debugPrint & 0x0001)!=0) System.out.printf("TimeOrderMng wait %d\n", timeWait);
         if(timeWait <2){
           timeWait = 2;  //should not 0  

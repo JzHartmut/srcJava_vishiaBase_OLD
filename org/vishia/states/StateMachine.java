@@ -6,8 +6,8 @@ import java.util.EventObject;
 import java.util.HashMap;
 
 import org.vishia.event.EventConsumer;
-import org.vishia.event.EventCmdType;
-import org.vishia.event.EventThread;
+import org.vishia.event.EventCmdtype;
+import org.vishia.event.EventTimerThread;
 import org.vishia.event.EventWithDst;
 import org.vishia.util.DataAccess;
 import org.vishia.util.InfoAppend;
@@ -74,15 +74,15 @@ import org.vishia.util.InfoAppend;
  *   Events to trigger the state machine are possible but not necessary. The user should have control over mutual exclusion access to data 
  *   if some more threads are used.  
  * </ul>
- * In the first case an instance of {@link EventThread#EventThread(String)} are necessary which is a parameter for the constructor
- * {@link #StateMachine(EventThread, EventTimerMng)}.
+ * In the first case an instance of {@link EventTimerThread#EventThread(String)} are necessary which is a parameter for the constructor
+ * {@link #StateMachine(EventTimerThread, EventTimerMng)}.
  * <br><br>
- * If an {@link EventThread} is used an instance of {@link EventTimerMng} is possible and recommended . 
+ * If an {@link EventTimerThread} is used an instance of {@link EventTimerMng} is possible and recommended . 
  * The timer manager can manage any number of time orders.
  * It sends an {@link EventTimerMng.TimeEvent} to this StateMachine it the time is expired.
  * <br><br>
  * The state machine can be animated using {@link org.vishia.states.StateMachine#applyEvent(EventMsg2)} with or without events
- * by given a null argument, for example cyclically if an {@link EventThread} is not used.
+ * by given a null argument, for example cyclically if an {@link EventTimerThread} is not used.
  * <br><br>
  * 
  * To see how transitions and timeouts should be written see on {@link StateSimple.Trans} and {@link StateSimple.Timeout}.
@@ -147,7 +147,7 @@ public class StateMachine implements EventConsumer, InfoAppend
    * The state machine should processed in only one thread.
    * But this aggregation may be null if the state machine will be processed in a users thread.
    */
-  final EventThread theThread;
+  final EventTimerThread theThread;
   
   
   final EventWithDst triggerEvent;
@@ -207,7 +207,7 @@ public class StateMachine implements EventConsumer, InfoAppend
    * @param thread if given all events are stored in the thread's event queue, the state machine is executed only in that thread.
    * @param if given timer events can be created. 
    */
-  public StateMachine(String name, EventThread thread) //, EventTimerMng timer)
+  public StateMachine(String name, EventTimerThread thread) //, EventTimerMng timer)
   { this.name = name;
     this.theThread = thread;
     //this.theTimer = timer;
@@ -331,7 +331,7 @@ public class StateMachine implements EventConsumer, InfoAppend
   
 
   /**Applies an event to this state machine. This method is invoked from {@link EventMsg2#sendEvent(Enum)} if this class is given
-   * as {@link EventConsumer}. If the statemachine is aggregated with a {@link EventThread} and this routine is invoked from another thread
+   * as {@link EventConsumer}. If the statemachine is aggregated with a {@link EventTimerThread} and this routine is invoked from another thread
    * then the event will be stored in {@link #theThread}. It is done if the transmitter of the event does not know about the EventThread.
    * @see org.vishia.event.EventConsumer#processEvent(org.vishia.event.EventCmdPingPongType)
    */

@@ -2,8 +2,8 @@ package org.vishia.states.example;
 
 import java.util.EventObject;
 
-import org.vishia.event.EventCmdPingPongType;
-import org.vishia.event.EventThread;
+import org.vishia.event.EventCmdtype;
+import org.vishia.event.EventTimerThread;
 import org.vishia.states.StateParallel;
 import org.vishia.states.StateComposite;
 import org.vishia.states.StateSimple;
@@ -31,7 +31,7 @@ public class StatesNestedParallel
   enum CmdEvent { start, ready, cyclic};
   
   /**An event type reuseable for the state machine animation. */
-  class EventA extends EventCmdPingPongType<CmdEvent, EventCmdPingPongType.NoOpponent>{}
+  class EventA extends EventCmdtype<CmdEvent>{}
   
   /**Some conditions for transition in this example. */
   Conditions cond = new Conditions();
@@ -41,7 +41,7 @@ public class StatesNestedParallel
   
   
   /**The thread to execute the state machine. */
-  EventThread thread = new EventThread("thread");
+  EventTimerThread thread = new EventTimerThread("thread");
 
   /**Timer organisation. */
   //EventTimerMng timer = new EventTimerMng("timer");
@@ -51,7 +51,7 @@ public class StatesNestedParallel
    */
   class States extends StateMachine
   {
-    States(EventThread thread){ super("ExampleNestedParallel", thread); }
+    States(EventTimerThread thread){ super("ExampleNestedParallel", thread); }
 
     class StateOff extends StateSimple
     {

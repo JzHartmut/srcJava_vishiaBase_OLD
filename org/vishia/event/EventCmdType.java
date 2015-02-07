@@ -1,7 +1,7 @@
 package org.vishia.event;
 
 
-public class EventCmdType<CmdEnum extends Enum<CmdEnum>> extends EventWithDst
+public class EventCmdtype<CmdEnum extends Enum<CmdEnum>> extends EventWithDst
 {
   private static final long serialVersionUID = -137947223084491817L;
 
@@ -15,24 +15,24 @@ public class EventCmdType<CmdEnum extends Enum<CmdEnum>> extends EventWithDst
   /**Creates an event as a dynamic object for direct usage without a given {@link EventConsumer}.
    * This event should be used as parameter immediately for an event consuming routine.
    * The event is set as occupied already after creation. 
-   * Don't call {@link #occupy(EventSource, boolean)} or {@link #occupy(EventSource, EventConsumer, EventThread, boolean)} should be use
+   * Don't call {@link #occupy(EventSource, boolean)} or {@link #occupy(EventSource, EventConsumer, EventTimerThread, boolean)} should be use
    * Don't call {@link #sendEvent()} because a destination is not given.
    * 
    * @param cmd a given Command. It may be null, it can be overwritten later with {@link #setCmd(Enum)}
    *   or using {@link #sendEvent(Enum)}.
    */
-  public EventCmdType(CmdEnum cmd){
+  public EventCmdtype(CmdEnum cmd){
     super(EventSource.nullSource);
     dateCreation.set(System.currentTimeMillis());
     this.cmde = cmd;
   }
   
   
-  /**Creates an event as a static object for re-usage. Use {@link #occupy(Object, EventConsumer, EventThread)}
+  /**Creates an event as a static object for re-usage. Use {@link #occupy(Object, EventConsumer, EventTimerThread)}
    * before first usage. Use {@link #relinquish()} to release the usage. 
    * 
    */
-  public EventCmdType(){ super(); }
+  public EventCmdtype(){ super(); }
   
   
   
@@ -44,10 +44,11 @@ public class EventCmdType<CmdEnum extends Enum<CmdEnum>> extends EventWithDst
    * @param consumer The destination object for the event.
    * @param thread an optional thread to store the event in an event queue, maybe null.
    */
-  public EventCmdType(EventSource source, EventConsumer consumer, EventThread thread){ super(source, consumer, thread);}
+  public EventCmdtype(EventSource source, EventConsumer consumer, EventTimerThread thread){ super(source, consumer, thread);}
   
   
 
+  public void setCmd(CmdEnum cmd){ this.cmde = cmd; }
   
   
   

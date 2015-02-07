@@ -15,11 +15,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.vishia.event.EventCmdType;
-import org.vishia.event.EventCmdPingPongType;
+import org.vishia.event.EventCmdtype;
+import org.vishia.event.EventCmdtypeWithBackEvent;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
-import org.vishia.event.EventThread;
+import org.vishia.event.EventTimerThread;
 import org.vishia.fileRemote.FileAccessZip;
 import org.vishia.fileRemote.FileRemote;
 import org.vishia.fileRemote.FileRemoteAccessor;
@@ -121,7 +121,7 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
   
 
   
-  EventThread singleThreadForCommission = new EventThread("FileAccessor-local");
+  EventTimerThread singleThreadForCommission = new EventTimerThread("FileAccessor-local");
   
   /**Destination for all events which forces actions in the execution thread.
    * 
@@ -429,7 +429,7 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
    * While occupying the Cmdevent is completed with the destination, it is {@link #executerCommission}.
    * @see org.vishia.fileRemote.FileRemoteAccessor#prepareCmdEvent(org.vishia.fileRemote.FileRemote.CallbackEvent)
    */
-  @Override public FileRemote.CmdEvent prepareCmdEvent(int timeout, EventCmdPingPongType<?, FileRemote.Cmd>  evBack){
+  @Override public FileRemote.CmdEvent prepareCmdEvent(int timeout, EventCmdtypeWithBackEvent<?, FileRemote.CmdEvent>  evBack){
     FileRemote.CmdEvent cmdEvent1;
     if(evBack !=null && (cmdEvent1 = (FileRemote.CmdEvent)evBack.getOpponent()) !=null){
       if(!cmdEvent1.occupy(timeout, evSrc, executerCommission, singleThreadForCommission)){
@@ -461,18 +461,13 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
       case delete:  execDel(commission); break;
       case mkDir: mkdir(false, commission); break;
       case mkDirs: mkdir(true, commission); break;
-      case getChildren: getChildren(commission); break;
-
+ 
       
     }
   }
   
   
   
-  private void getChildren(FileRemote.CmdEvent ev){
-    FileRemote.ChildrenEvent evback = ev.getOpponentChildrenEvent();
-    walkFileTree(ev.filesrc(), false, true, false, null, 0 , evback.depth, evback.callbackChildren);
-  }
   
   
   

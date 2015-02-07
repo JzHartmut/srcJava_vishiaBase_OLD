@@ -15,10 +15,10 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.vishia.event.EventCmdPingPongType;
+import org.vishia.event.EventCmdtypeWithBackEvent;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
-import org.vishia.event.EventThread;
+import org.vishia.event.EventTimerThread;
 import org.vishia.fileLocalAccessor.FileAccessorLocalJava6;
 import org.vishia.util.Assert;
 import org.vishia.util.Debugutil;
@@ -190,7 +190,7 @@ public class FileRemote extends File implements MarkMask_ifc
    *   for example {@link CallbackEvent#copyOverwriteFile(int)} etc.
    * <li>2013-03-31 Hartmut chg: Event<Type>
    * <li>2012-11-16 Hartmut chg: Usage of {@link CmdEvent#filesrc} and filedst and {@link CallbackEvent#filedst} and dst
-   *   instead {@link EventCmdPingPongType#getRefData()}.
+   *   instead {@link EventCmdtypeWithBackEvent#getRefData()}.
    * <li>2012-11-11 Hartmut chg: The flag bit {@link #mDirectory} should be set always, especially also though {@link #mTested} is false.
    *   That should be assured by the {@link FileRemoteAccessor} implementation.
    * <li>2012-10-01 Hartmut chg: {@link #children} is now of super type File, not FileRemote. Nevertheless FileRemote objects
@@ -227,7 +227,7 @@ public class FileRemote extends File implements MarkMask_ifc
    *     for more as some 100 milliseconds. It is better to clear a table and continue working in graphic. 
    *     If the properties are gotten from the remote system then the table will be filled.
    *     That may be invoked from another thread, the communication thread for the remote device
-   *     or by an event mechanism (see {@link FileRemote.CallbackEvent} respectively {@link org.vishia.event.EventCmdPingPongType}.
+   *     or by an event mechanism (see {@link FileRemote.CallbackEvent} respectively {@link org.vishia.event.EventCmdtypeWithBackEvent}.
    *   <li>The routine {@link #fromFile(File)} reads are properties of a local file if one is given.
    *     In that case the {@link #refreshProperties(CallbackEvent)} need not be invoked additionally.
    *   <li>{@link #openRead(long)} and {@link #openWrite(long)} accepts a non-given device.
@@ -246,7 +246,7 @@ public class FileRemote extends File implements MarkMask_ifc
    *   <li>{@link #listFiles()} now returns the {@link #children} only. If the user has not called
    *     {@link #refreshPropertiesAndChildren(CallbackEvent)}, it is empty.           
    *   </ul>
-   * <li>2012-07-21 Hartmut new: {@link #delete(String, boolean, EventCmdPingPongType)} with given mask. TODO: It should done in 
+   * <li>2012-07-21 Hartmut new: {@link #delete(String, boolean, EventCmdtypeWithBackEvent)} with given mask. TODO: It should done in 
    *   {@link org.vishia.fileLocalAccessor.FileAccessorLocalJava7} in an extra thread.
    * <li>2012-03-10 Hartmut new: {@link #chgProps(String, int, int, long, CallbackEvent)}, {@link #countAllFileLength(CallbackEvent)}.
    *   Enhancements.
@@ -1495,28 +1495,6 @@ public class FileRemote extends File implements MarkMask_ifc
   
   
   
-  /**Gets the children of this directory maybe as part of them if the access needs more time.
-   * The routine ends immediately (does not block for file access), because the access is done
-   * in an extra FileRemoteAccessor-Thread. The result is supplied by the callback event.
-   * @param evback This event will be used to send files after a less time (300 ms yet)
-   * TODO
-   * @param time The time for event.
-   * @return true if the cmd was send. false if anything hangs.
-   */
-  public boolean getChildren(ChildrenEvent evback){
-    if(device == null){
-      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
-    }
-    CmdEvent ev = evback.prepareCmd(1000, this, device);
-    if(ev!=null){
-      ev.filesrc = this;
-      ev.filedst = null;
-      ev.sendEvent(Cmd.getChildren);
-      return true;
-    }
-    else return false;
-  }
-  
   
   
   
@@ -1804,7 +1782,7 @@ public class FileRemote extends File implements MarkMask_ifc
    *   operation fails it may have succeeded in creating some of the necessary
    *   parent directories.
    * @param evback If given this routine does not wait. Instead the success will be sent with the given evback
-   *  to the given destination routine given in its constructor {@link CallbackEvent#CallbackEvent(EventConsumer, EventThread, EventSource)}.
+   *  to the given destination routine given in its constructor {@link CallbackEvent#CallbackEvent(EventConsumer, EventTimerThread, EventSource)}.
    *  If not given this routine waits till execution, see {@link #mkdir()}
    * @return false if unsuccessfully, true if evback !=null or successfully. 
    */
@@ -2261,8 +2239,6 @@ public class FileRemote extends File implements MarkMask_ifc
     abortCopyFile,
     /**Overwrite a read-only file. */
     overwr,
-    /**Gets the children. */
-    getChildren,
     /**Last. */
     last,
     docontinue
@@ -2284,7 +2260,7 @@ public class FileRemote extends File implements MarkMask_ifc
   /**Event object for all commands to a remote device or other thread for file operations. It should be used for implementations
    * of {@link FileRemoteAccessor}.
    */
-  public static class CmdEvent extends EventCmdPingPongType<FileRemote.Cmd, FileRemote.CallbackCmd>
+  public static class CmdEvent extends EventCmdtypeWithBackEvent<FileRemote.Cmd, FileRemote.CallbackEvent>
   {
     /**Source and destination files for copy, rename, move or the only one filesrc. filedst may remain null then. */
     public FileRemote filesrc, filedst;
@@ -2322,7 +2298,7 @@ public class FileRemote extends File implements MarkMask_ifc
      * @param thread
      * @param callback
      */
-    public CmdEvent(EventSource evSrc, EventConsumer dst, EventThread thread, CallbackEvent callback){ 
+    public CmdEvent(EventSource evSrc, EventConsumer dst, EventTimerThread thread, CallbackEvent callback){ 
       super(evSrc, dst, thread, callback); 
     }
     
@@ -2337,26 +2313,23 @@ public class FileRemote extends File implements MarkMask_ifc
      * The event is non-occupied if either the evSrc is null or the dst is null.
      * If both are given, the event is occupied and can be {@link #sendEvent(Cmd)}.
      * A non-occupied event can be created as static data and re-used. 
-     * Use {@link #occupy(EventSource, Object, EventConsumer, EventThread, boolean)} before {@link #sendEvent(Cmd)} then.
+     * Use {@link #occupy(EventSource, Object, EventConsumer, EventTimerThread, boolean)} before {@link #sendEvent(Cmd)} then.
      * @param evSrc
      * @param fileSrc
      * @param fileDst
      * @param dst
      * @param thread
      */
-    public CmdEvent(EventSource evSrc, FileRemote fileSrc, FileRemote fileDst, EventConsumer dst, EventThread thread){ 
+    public CmdEvent(EventSource evSrc, FileRemote fileSrc, FileRemote fileDst, EventConsumer dst, EventTimerThread thread){ 
       super(evSrc, dst, thread, null); 
     }
 
     /** Gets the callback event which is given on construction.
-     * @see org.vishia.event.EventCmdPingPongType#getOpponent()
+     * @see org.vishia.event.EventCmdtypeWithBackEvent#getOpponent()
      */
     @Override public CallbackEvent getOpponent(){ return (CallbackEvent)super.getOpponent(); }
     
-    public ChildrenEvent getOpponentChildrenEvent(){ return (ChildrenEvent)super.getOpponent(); }
-    
-
-    
+        
     @Override public boolean sendEvent(FileRemote.Cmd cmd){ return super.sendEvent(cmd); }
     
     @Override public FileRemote.Cmd getCmd(){ return super.getCmd(); }
@@ -2407,9 +2380,9 @@ public class FileRemote extends File implements MarkMask_ifc
    * The callback type contains an opponent {@link CmdEvent} object which is not occupied initially
    * to use for forward notification of the action. But the application need not know anything about it,
    * the application should only concern with this object. 
-   * See {@link CallbackEvent#CallbackEvent(Object, EventConsumer, EventThread)}.
+   * See {@link CallbackEvent#CallbackEvent(Object, EventConsumer, EventTimerThread)}.
    */
-  public static class CallbackEvent extends EventCmdPingPongType<FileRemote.CallbackCmd, FileRemote.Cmd>
+  public static class CallbackEvent extends EventCmdtypeWithBackEvent<FileRemote.CallbackCmd, FileRemote.CmdEvent>
   {
     private FileRemote filesrc, filedst;
 
@@ -2449,7 +2422,7 @@ public class FileRemote extends File implements MarkMask_ifc
      * @param thread
      * @param evSrcCmd
      */
-    public CallbackEvent(EventConsumer dst, EventThread thread, EventSource evSrcCmd){ 
+    public CallbackEvent(EventConsumer dst, EventTimerThread thread, EventSource evSrcCmd){ 
       super(null, dst, thread, new CmdEvent()); 
       this.evSrcCmd = evSrcCmd;
     }
@@ -2465,7 +2438,7 @@ public class FileRemote extends File implements MarkMask_ifc
      *   in the transmitters thread.
      */
     public CallbackEvent(EventSource evSrc, FileRemote filesrc, FileRemote fileDst
-        , EventConsumer dst, EventThread thread, EventSource evSrcCmd){ 
+        , EventConsumer dst, EventTimerThread thread, EventSource evSrcCmd){ 
       super(null, dst, thread, new CmdEvent(evSrc,filesrc, fileDst, null, null)); 
       this.filesrc = filesrc;
       this.filedst = fileDst;
@@ -2784,11 +2757,11 @@ public class FileRemote extends File implements MarkMask_ifc
   
   /**Event class to send children files of a directory.
    * Internally the event creates a proper {@link CmdEvent} to forward the request to the execution thread.
-   * An event instance can be held persistent. It is {@link EventCmdPingPongType#occupy(EventSource, boolean)}
+   * An event instance can be held persistent. It is {@link EventCmdtypeWithBackEvent#occupy(EventSource, boolean)}
    * if it is used as callback.
    * 
    */
-  public static class ChildrenEvent extends EventCmdPingPongType<FileRemote.CallbackCmd, FileRemote.Cmd>
+  public static class ChildrenEvent extends EventCmdtypeWithBackEvent<FileRemote.CallbackCmd, FileRemote.CmdEvent>
   {
     private final Queue<FileRemote> newChildren = new ConcurrentLinkedQueue<FileRemote>();
 
@@ -2814,7 +2787,7 @@ public class FileRemote extends File implements MarkMask_ifc
      * @param thread A thread to store this callback event, or null if the callback should be execute in the source thread.
      * @param evSrcCmd The event source for the opponent command event.
      */
-    public ChildrenEvent(EventConsumer dst, EventThread thread, EventSource evSrcCmd){ 
+    public ChildrenEvent(EventConsumer dst, EventTimerThread thread, EventSource evSrcCmd){ 
       super(null, dst, thread, new CmdEvent()); 
       this.evSrcCmd = evSrcCmd;
     }

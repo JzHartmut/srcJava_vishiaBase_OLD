@@ -3,12 +3,12 @@ package org.vishia.event.test;
 import java.io.Closeable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.vishia.event.EventTimeOrder;
+import org.vishia.event.TimeOrder;
 
 public class ExecThread extends Thread 
 { 
   
-  private ConcurrentLinkedQueue<EventTimeOrder> queueOrders = new ConcurrentLinkedQueue<EventTimeOrder>();
+  private ConcurrentLinkedQueue<TimeOrder> queueOrders = new ConcurrentLinkedQueue<TimeOrder>();
   
   private boolean bRunning;
   private boolean bWaiting;
@@ -18,7 +18,7 @@ public class ExecThread extends Thread
   @Override public void run(){
     bRunning = true;
     do {
-      EventTimeOrder order;
+      TimeOrder order;
       if( (order = queueOrders.poll())!=null) {
         order.doExecute();
       }
@@ -31,7 +31,7 @@ public class ExecThread extends Thread
   }
   
   
-  public void addOrder(EventTimeOrder order) {
+  public void addOrder(TimeOrder order) {
     queueOrders.offer(order);
     synchronized(this){
       if(bWaiting) notify();

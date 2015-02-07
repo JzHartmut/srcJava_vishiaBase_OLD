@@ -9,8 +9,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
 
-import org.vishia.event.EventCmdPingPongType;
-import org.vishia.fileLocalAccessor.FileLocalAccessorCopyStateM;
+import org.vishia.event.EventCmdtypeWithBackEvent;
 
 /**Interface for instances, which organizes a remote access to files.
  * One instance per transfer protocol are need.
@@ -184,7 +183,7 @@ public abstract class FileRemoteAccessor implements Closeable
   /**Creates or prepares a CmdEvent to send to the correct destination. The event is ready to use but not  occupied yet. 
    * If the evBack contains a CmdEvent as its opponent, it is used. In that way a non-dynamic event management
    * is possible. */
-  public abstract FileRemote.CmdEvent prepareCmdEvent(int timeout, EventCmdPingPongType<?, FileRemote.Cmd> evBack);
+  public abstract FileRemote.CmdEvent prepareCmdEvent(int timeout, EventCmdtypeWithBackEvent<?, FileRemote.CmdEvent> evBack);
 
   
   public abstract boolean isLocalFileSystem();

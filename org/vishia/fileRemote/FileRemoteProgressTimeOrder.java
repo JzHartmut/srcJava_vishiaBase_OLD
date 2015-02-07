@@ -1,19 +1,19 @@
 package org.vishia.fileRemote;
 
 import org.vishia.event.EventConsumer;
-import org.vishia.event.EventTimeOrder;
-import org.vishia.event.EventThread;
+import org.vishia.event.TimeOrder;
+import org.vishia.event.EventTimerThread;
 import org.vishia.fileLocalAccessor.FileLocalAccessorCopyStateM;
 import org.vishia.states.StateMachine;
 
 /**This TimeOrder is used for progress showing in the callers area. It should be extended from the application
  * to start any showing process for the progress.  The extension should override the method {@link #executeOrder()} from the super class. 
  */
-public abstract class FileRemoteProgressTimeOrder  extends EventTimeOrder
+public abstract class FileRemoteProgressTimeOrder  extends TimeOrder
 {
   /**The manager for this time order to execute it for showing, often a graphic thread adaption.
    */
-  final EventThread mng;
+  final EventTimerThread mng;
   
   protected int delay;
 
@@ -23,7 +23,7 @@ public abstract class FileRemoteProgressTimeOrder  extends EventTimeOrder
    *  For example use {@link org.vishia.gral.base.GralMng#gralDevice()} and there {@link org.vishia.gral.base.GralGraphicThread#orderList()}. 
    * @param delay The delay to start the oder execution after #show()
    */
-  protected FileRemoteProgressTimeOrder(String name, EventThread mng, int delay){ 
+  protected FileRemoteProgressTimeOrder(String name, EventTimerThread mng, int delay){ 
     super(name, mng); 
     this.mng = mng;
     this.delay = delay;
