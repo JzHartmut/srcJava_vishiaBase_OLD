@@ -2213,9 +2213,9 @@ public class FileRemote extends File implements MarkMask_ifc
   @Override public String toString(){ return super.toString(); } //sDir + sFile + " @" + ident; }
   
   public enum Cmd {
-    /**Ordinary value=0, same as {@link Event.Cmd#free}. */
-    free ,
-    /**Ordinary value=1, same as {@link Event.Cmd#reserve}. */
+    /**Ordinary value=0. */
+    noCmd ,
+    /**Ordinary value=1. */
     reserve,  //first 2 ordinaries from Event.Cmd
     /**Check files. */
     check,

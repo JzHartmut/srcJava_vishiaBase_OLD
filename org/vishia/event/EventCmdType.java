@@ -44,7 +44,7 @@ public class EventCmdtype<CmdEnum extends Enum<CmdEnum>> extends EventWithDst
    * @param consumer The destination object for the event.
    * @param thread an optional thread to store the event in an event queue, maybe null.
    */
-  public EventCmdtype(EventSource source, EventConsumer consumer, EventTimerThread thread){ super(source, consumer, thread);}
+  public EventCmdtype(EventSource source, EventConsumer consumer, EventTimerThread_ifc thread){ super(source, consumer, thread);}
   
   
 

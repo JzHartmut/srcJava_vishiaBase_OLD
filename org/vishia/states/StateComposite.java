@@ -455,12 +455,12 @@ public class StateComposite extends StateSimple implements InfoAppend
     //this composite has own substates, not only a container for parallel states:
     EventObject evTrans = ev;
     int catastrophicalCount =  maxStateSwitchesInLoop;
-    int contLoop;
+    int contLoop = 0;
     do{
 
       //
       //
-      contLoop = 0;
+      contLoop &= ~mRunToComplete;  //only this is checked for any state transition. Left all other bits especially mEventConsumed.
       if(stateAct == null){
         contLoop |= entryDefaultState();  //regards also Parallel states.
         if(stateMachine.debugState && (contLoop & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(null, evTrans, contLoop); }

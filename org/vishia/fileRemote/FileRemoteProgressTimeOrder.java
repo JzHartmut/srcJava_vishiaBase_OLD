@@ -1,6 +1,7 @@
 package org.vishia.fileRemote;
 
 import org.vishia.event.EventConsumer;
+import org.vishia.event.EventSource;
 import org.vishia.event.TimeOrder;
 import org.vishia.event.EventTimerThread;
 import org.vishia.fileLocalAccessor.FileLocalAccessorCopyStateM;
@@ -70,7 +71,7 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrder
   
   public FileRemote.Cmd cmd(){ return cmd; }
   
-  public void clearAnswer(){ answer = FileRemote.Cmd.free; } //remove the cmd as event-like; }
+  public void clearAnswer(){ answer = FileRemote.Cmd.noCmd; } //remove the cmd as event-like; }
   
   /**Invoked from any FileRemote operation, to show the state.
    * 
@@ -104,22 +105,22 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrder
   
   /**An answer if somewhat is ask. 
    * This method should be called from the operator. */
-  public void answer(FileRemote.Cmd answer) {
+  public void answer(EventSource source, FileRemote.Cmd answer) {
     if(eventAnswer !=null){
       eventAnswer.modeCopyOper = modeCopyOper;
       eventAnswer.sendEvent(answer);
     }
     if(consumerAnswer !=null) {
       this.answer = answer; 
-      consumerAnswer.triggerRun();
+      consumerAnswer.triggerRun(source);
     }
   }
   
   
-  public void triggerStateMachine(FileRemote.Cmd cmd){
+  public void triggerStateMachine(EventSource source, FileRemote.Cmd cmd){
     if(consumerAnswer !=null) {
       this.cmd = cmd;
-      consumerAnswer.triggerRun();
+      consumerAnswer.triggerRun(source);
     }
   }
   

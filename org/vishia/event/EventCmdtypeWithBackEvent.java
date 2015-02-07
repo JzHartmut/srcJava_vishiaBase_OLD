@@ -84,7 +84,7 @@ public class EventCmdtypeWithBackEvent<CmdEnum extends Enum<CmdEnum>, EventBack 
    * @param consumer The destination object for the event.
    * @param thread an optional thread to store the event in an event queue, maybe null.
    */
-  public EventCmdtypeWithBackEvent(EventSource source, EventConsumer consumer, EventTimerThread thread){
+  public EventCmdtypeWithBackEvent(EventSource source, EventConsumer consumer, EventTimerThread_ifc thread){
     super(source, consumer, thread);
     this.opponent = null;
   }
@@ -99,7 +99,7 @@ public class EventCmdtypeWithBackEvent<CmdEnum extends Enum<CmdEnum>, EventBack 
    * @param thread an optional thread to store the event in an event queue, maybe null.
    * @param callback Another event to interplay with the source of this event.
    */
-  public EventCmdtypeWithBackEvent(EventSource source, EventConsumer consumer, EventTimerThread thread
+  public EventCmdtypeWithBackEvent(EventSource source, EventConsumer consumer, EventTimerThread_ifc thread
       , EventBack callback){
     super(); //EventSource.nullSource);
     if(source == null || consumer == null){

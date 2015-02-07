@@ -471,6 +471,17 @@ public class Trans
   }
   
 
+  /**Set the state of transition execution to {@link EventConsumer#mEventConsumed} and return this.
+   * This method should be used in {@link StateSimple#selectTrans(EventObject)} if an event is the trigger:
+   * <pre>
+   *  QOverride public Trans selectTransition(EventObject ev) {
+   *   if(ev == expectedEv) return myTrans.eventConsumed();
+   *   ...
+   * </pre>  
+   */
+  public Trans eventConsumed(){ retTrans |= mEventConsumed; return this; }
+  
+  
   
   /**Builds the transition path from given state to all dst states. Called on startup.
    * 
@@ -581,7 +592,7 @@ public class Trans
    * @param ev The given event.
    * @param recurs recursion count. throws IllegalArgumentException if > 20 
    */
-  public final void doAction(EventObject ev, int recurs) {
+  final void doAction(EventObject ev, int recurs) {
     if(recurs > 20) throw new IllegalArgumentException("too many recursions");
     if(parent !=null) {
       parent.doAction(ev, recurs+1);  //recursion to the first parent
@@ -1245,14 +1256,6 @@ final int checkTransitions(EventObject ev) {
         if(!trans.doneExit)   { trans.doExit(); }
         if(!trans.doneAction) { trans.doAction(ev,0); }
         if(!trans.doneEntry)  { trans.doEntry(ev); }
-        /*
-        trans.doExit();  //exit the current state(s)
-        trans.doAction(ev, 0);
-        trans.doEntry(ev,0);
-        */
-        if((trans.retTrans & mEventNotConsumed) ==0) {
-          trans.retTrans |= mEventConsumed;
-        }
         trans.retTrans |= mTransit;
         return trans.retTrans;
     } }

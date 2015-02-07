@@ -7,6 +7,7 @@ import java.util.HashMap;
 
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventCmdtype;
+import org.vishia.event.EventSource;
 import org.vishia.event.EventTimerThread;
 import org.vishia.event.EventWithDst;
 import org.vishia.util.DataAccess;
@@ -279,15 +280,17 @@ public class StateMachine implements EventConsumer, InfoAppend
    * @param val
    * @return
    */
-  public boolean triggerRun(){
-    return processEvent(triggerEvent) !=0;  //runs immediately if theThread ==null, then triggerEvent == null is not used.
-    /*
-    if(ixInThread >=0) {
-      theThread.shouldRun(ixInThread);
+  public boolean triggerRun(EventSource source){
+    if(theThread == null) {
+      processEvent(null);   //runs immediately if theThread ==null, then triggerEvent == null.
       return true;
+    } else {
+      if(triggerEvent.occupy(source, false)){
+        triggerEvent.sendEvent();
+      }
+      //else: if it is occupied, then it is in processing or in the queue, do nothing. Don't disturb.
+      return false;
     }
-    else return processEvent(null) !=0;
-    */
   }
   
   

@@ -19,21 +19,21 @@ public class TestEventCmdWithEventBack
   
   
   
-  /**defines the class for the callback event. */
+  /**defines the class for the callback event. The opponent type is MyEvent. */
   class MyEventBack extends EventCmdtypeWithBackEvent< EnumCmdBack, MyEvent>
   {
     private static final long serialVersionUID = 1L;
 
     /**package private or private constructor. */
     private MyEventBack(EventConsumer callback) {
-      super(null, callback, null, null);
+      super(null, callback, null, null); //here without opponent, just unknown.
     }
 
   }
 
   
   
-  /**defines the class for the forward event. */
+  /**defines the class for the forward event. The opponent type is MyEventBack. */
   class MyEvent extends EventCmdtypeWithBackEvent < EnumCmd, MyEventBack>
   {
     private static final long serialVersionUID = 1L;

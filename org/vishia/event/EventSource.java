@@ -19,7 +19,7 @@ package org.vishia.event;
  * @author Hartmut Schorrig
  *
  */
-public abstract class EventSource
+public class EventSource
 {
   /**Version, history and license
    * <ul>

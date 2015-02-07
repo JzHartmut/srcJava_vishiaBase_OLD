@@ -124,7 +124,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
    */
   EventConsumer executerCommission = new EventConsumer(){
     @Override public int processEvent(EventObject ev) {
-      if(ev instanceof FileLocalAccessorCopyStateM.EventCpy){ //internal Event
+      if(ev instanceof FileLocalAccessorCopyStateM.EventInternal){ //internal Event
         states.statesCopy.processEvent(ev);
         return 1;
       } else if(ev instanceof FileRemote.CmdEvent){  //event from extern
