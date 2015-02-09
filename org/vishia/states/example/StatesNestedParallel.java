@@ -4,8 +4,8 @@ import java.util.EventObject;
 
 import org.vishia.event.EventCmdtype;
 import org.vishia.event.EventTimerThread;
-import org.vishia.states.StateParallel;
 import org.vishia.states.StateComposite;
+import org.vishia.states.StateParallel;
 import org.vishia.states.StateSimple;
 import org.vishia.states.StateMachine;
 
@@ -53,6 +53,8 @@ public class StatesNestedParallel
   {
     States(EventTimerThread thread){ super("ExampleNestedParallel", thread); }
 
+    @Override protected int eventDebug(EventObject ev){ return super.eventDebug(ev); }
+    
     class StateOff extends StateSimple
     {
       boolean isDefault;
@@ -179,13 +181,13 @@ public class StatesNestedParallel
       }
       
       
-      class StateActive extends StateComposite
+      class StateActive extends StateParallel
       {
         @Override protected int entry(EventObject ev){ System.out.println("entry " + stateId); return 0; }
 
         @Override protected void exit(){ System.out.println(" exit " + stateId); }
 
-       class StateActive1 extends StateParallel
+        class StateActive1 extends StateComposite
         {
           @Override protected int entry(EventObject ev){ System.out.println("entry " + stateId); return 0; }
 
@@ -227,7 +229,7 @@ public class StatesNestedParallel
         } 
         
         
-        class StateActive2 extends StateParallel
+        class StateActive2 extends StateComposite
         { @Override protected int entry(EventObject ev){ System.out.println("entry " + stateId); return 0; }
 
           @Override protected void exit(){ System.out.println(" exit " + stateId); }

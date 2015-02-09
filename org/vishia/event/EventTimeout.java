@@ -89,7 +89,7 @@ public class EventTimeout extends EventWithDst
    * @param consumer The destination object for the event. If it is null nothing will be executed if the event is expired.
    * @param thread thread to handle the time order. It is obligatory.
    */
-  public EventTimeout(EventConsumer consumer, EventTimerThread thread){
+  public EventTimeout(EventConsumer consumer, EventTimerThread_ifc thread){
     super(null, consumer, thread);
   }
   

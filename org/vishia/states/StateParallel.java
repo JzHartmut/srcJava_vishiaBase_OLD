@@ -1,14 +1,24 @@
 package org.vishia.states;
 
+import java.lang.reflect.Constructor;
+import java.util.EventObject;
+import java.util.LinkedList;
+import java.util.List;
 
-/**Base class for a composite state which is a parallel state inside another composite state.
+import org.vishia.util.DataAccess;
+
+/**Base class for a state which contains more as one {@link StateComposite} which are executed parallel if this state is active.
+ * 
  * @author Hartmut Schorrig
  *
  */
-public abstract class StateParallel extends StateComposite
+public class StateParallel extends StateSimple
 {
+  
   /**Version, history and license.
    * <ul>
+   * <li>2015-02-10 Hartmut chg: Up to now this is the container for parallel {@link StateComposite}, not one of the parallel composites.
+   *   It is more simple and logical.
    * <li>2014-09-28 Hartmut chg: Copied from {@link org.vishia.stateMachine.StateAdditionalParallelBase}, changed concept: 
    *   Nested writing of states, less code, using reflection for missing instances and data. 
    * <li>2012-09-17 Hartmut improved.
@@ -39,26 +49,211 @@ public abstract class StateParallel extends StateComposite
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20120917;
-
+  public static final String version = "2015-02-10";
   
-  /**Only for the {@link StateMachine#topState} and GenStm*/
-  public StateParallel(StateMachine stateMachine, StateSimple[] aSubstates, StateComposite[] aParallelstates){
-    super(stateMachine, aSubstates, aParallelstates);
+  
+  
+  /**Array of all composite states which are executed parallel if this state is active.
+   */
+  final StateComposite[] aParallelstates;
+  
+  /**Special constructor to build a state machine from other data. See org.vishia.stateMGen.StateMGen. */
+  public StateParallel(StateMachine stateMachine, StateComposite[] aParallelstates){
+    this.aParallelstates = aParallelstates;
+    this.stateMachine = stateMachine;
+    this.stateId = "parallel";
+  };
+  
+  
+  
+  
+  /**The constructor of any StateParallel checks the class for inner classes which are the parallel states.
+   * Each inner class which is instance of {@link StateComposite} is instantiated and stored both in the {@link StateMachine#stateMap} 
+   * to find all states by its class.hashCode
+   * and in {@link #aParallelstates} for debugging only.
+   * <br><br>
+   * After them {@link #buildStatePathSubstates()} is invoked to store the state path in all states.
+   * Then {@link #createTransitionListSubstate(int)} is invoked which checks the transition of all states recursively. 
+   * Therewith all necessary data for the state machines's processing are created on construction. 
+   * 
+   * @see StateMachine#StateMachine()
+   * @see StateParallel#buildStatePathSubstates(StateComposite, int)
+   * @see StateSimple#buildStatePath(StateComposite)
+   * @see StateParallel#createTransitionListSubstate(int)
+   * @see StateSimple#createTransitionList()
+   */
+  public StateParallel() {
+    super();
+    Class<?> clazz = this.getClass();
+    Object env = this;
+    do {
+      Class<?> clazzTop2 = env.getClass();
+      if(DataAccess.isOrExtends(clazzTop2, StateMachine.class)){
+        this.stateMachine = (StateMachine)env;
+        //firstly create the stateMap. Note: This is called in constructor of the StateTop-superclass.
+      } else {
+        env = DataAccess.getEnclosingInstance(env);
+      }
+    } while(stateMachine == null && env !=null);
+    //
+    Class<?>[] innerClasses = clazz.getDeclaredClasses();
+    if(innerClasses.length >0) {  //it is a composite state.
+      List<StateComposite> listParallelstates = null;
+      try{
+        for(Class<?> clazz1: innerClasses) {  //check all inner classes
+          if(DataAccess.isOrExtends(clazz1, StateComposite.class)) {
+            Constructor<?>[] ctor1 = clazz1.getDeclaredConstructors();
+            //assert only one constructor, the default one.
+            ctor1[0].setAccessible(true);
+            final Object oState = ctor1[0].newInstance(this);   //creates the instance and all sub states of a maybe StateComposite or a StateSimple.
+            //Note that the inner states are processed already in the yet called constructor.
+            final StateSimple state;
+            if(listParallelstates ==null) { listParallelstates = new LinkedList<StateComposite>(); }
+            final StateComposite stateParallel = (StateComposite)oState;
+            listParallelstates.add(stateParallel);
+            state = stateParallel;
+            state.stateId = clazz1.getSimpleName();
+            state.stateMachine = this.stateMachine;
+            state.enclState = this.enclState;           //TODO the enclosing state is not the StateParallel ? the outer.
+            int idState = clazz1.hashCode();
+            stateMachine.stateMap.put(idState, state);
+          }
+        }
+      } catch(Exception exc){
+        throw new RuntimeException(exc);
+      }
+      if(listParallelstates !=null ){
+        this.aParallelstates = listParallelstates.toArray(new StateComposite[listParallelstates.size()]); 
+      } else {
+        this.aParallelstates = null;
+      }
+    } else { //no inner states
+      this.aParallelstates = null;
+    }
   }
-
-  
-  public StateParallel(){ super(); }
   
   
-  /**package private*/ final void XXXentryAdditionalParallelBase(){
-    ctEntry +=1;
-    dateLastEntry = System.currentTimeMillis();
-    durationLast = 0;
+  
+  /**Special method to build a state machine from other data. See org.vishia.stateMGen.StateMGen. */
+  public void addState(int key, StateComposite state){
+    int ix = 0;
+    while(ix < aParallelstates.length && aParallelstates[ix] !=null){ ix +=1; } //search next free
+    if(ix >= aParallelstates.length) throw new IllegalArgumentException("too many parallel states to add");
+    aParallelstates[ix] = (StateComposite)state;
   }
   
   
- 
   
-
+  /**Sets the path to the state for this and all {@link #aParallelstates}, recursively call.
+   * This method is invoked in the constructor of the state machine only one time.
+   * @param enclState
+   * @param recurs
+   */
+  @Override void buildStatePathSubstates(StateSimple enclState, int recurs) {
+    if(recurs > 1000) throw new IllegalArgumentException("recursion faulty");
+    this.buildStatePath(enclState);
+    if(aParallelstates !=null) {
+      for(StateComposite parallelState: this.aParallelstates){
+        parallelState.buildStatePathSubstates(this, recurs +1);
+      }
+    }
+  }
+  
+  
+  /**Create all transition list for this state and all {@link #aParallelstates}, recursively call.
+   * This method is invoked in the constructor of the state machine only one time.
+   * It is not for application.
+   * @param recurs
+   */
+  void createTransitionListSubstate(int recurs){
+    if(recurs > 1000) throw new IllegalArgumentException("recursion faulty, too many subStates; state=" + stateId);
+    this.createTransitionList(this, null, 0);  
+    if(aParallelstates !=null) {
+      for(StateSimple subState: this.aParallelstates){
+        subState.createTransitionListSubstate(recurs+1);
+      } 
+    }
+  }
+  
+  
+  /**This method is used to entry the default state of all parallel composites.  */
+  final int entryDefaultState(){ 
+    int ret = 0;
+    if(aParallelstates !=null) {
+      for(StateComposite state: aParallelstates){
+        ret |= state.entryDefaultState();
+      }
+    }
+    return ret;
+  }
+  
+  
+  /**Processes the event for all composite states.
+   * First the event is applied to all parallel composite states {@link #aParallelstates} one after another 
+   * invoking its {@link StateComposite#processEvent(EventObject)} which calls this method recursively.
+   * <br><br>
+   * Then the {@link #checkTransitions(EventObject)} of this state is invoked but only if the event is not processed
+   * or the state contains non-event triggered (conditional) transitions. Last one is signified by the {@link #modeTrans}.
+   * <br><br>
+   * This method overrides the {@link StateSimple#processEvent(EventObject)} which is overridden by {@link StateComposite#processEvent(EventObject)}
+   * too to provide one method for event processing for all state kinds with the necessary different handling.
+   * 
+   * @param evP The event.
+   * @return Some bits especially {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #checkTransitions(EventObject)}.
+   */
+  /*package private*/ @Override int processEvent(final EventObject evP){  //NOTE: should be protected.
+    int cont = 0;
+    EventObject evTrans = evP;
+    //Process for all parallel states
+    if(aParallelstates !=null) {
+      for(StateComposite stateParallel : aParallelstates) {
+        cont |= stateParallel.processEvent(evTrans);
+      }
+    }
+    if((cont & StateSimple.mEventConsumed) != 0){
+      evTrans = null;
+    }
+    if(  evTrans != null   //evTrans is null if it was consumed in inner transitions. 
+        || (modeTrans & StateSimple.mRunToComplete) !=0  //state has only conditional transitions
+        ){
+      //process the own transition. Do it after processing the inner state (omg.org)
+      //and only if either an event is present or the state has only conditional transitions.
+      int trans = checkTransitions(evTrans); 
+      cont |= trans;
+    }
+    
+    return cont;
+  }
+  
+  
+  
+  
+  /**Exits all actual sub state (and that exits its actual sub state) of all parallel states. After them this state is exited.
+   * It calls {@link StateSimple#exitTheState()} which invokes the maybe application overridden {@link StateSimple#exit()} routine.
+   */
+  @Override void exitTheState(){ 
+    if(aParallelstates !=null) {
+      for(StateComposite parallelState : aParallelstates) {
+        parallelState.exitTheState();
+      }
+    }
+    super.exitTheState();
+  }
+  
+  
+  
+  @Override public CharSequence infoAppend(StringBuilder u) {
+    if(u == null) { u = new StringBuilder(200); }
+    String separator = "";
+    if(aParallelstates !=null) {
+      for(StateComposite stateParallel: aParallelstates){
+        u.append(separator);
+        stateParallel.infoAppend(u);
+        separator = "||";
+      }
+    }
+    return u;
+    
+  }
+  
 }

@@ -170,7 +170,7 @@ public class StateMachine implements EventConsumer, InfoAppend
 
   protected static class StateCompositeTop extends StateComposite
   {
-    StateCompositeTop(StateMachine stateMachine, StateSimple[] aSubstates, StateComposite[] aParallelstates) { super(stateMachine, aSubstates, aParallelstates); } 
+    StateCompositeTop(StateMachine stateMachine, StateSimple[] aSubstates) { super(stateMachine, aSubstates); } 
     
     
     public void prepare() {
@@ -221,7 +221,7 @@ public class StateMachine implements EventConsumer, InfoAppend
     Class<?>[] innerClasses = this.getClass().getDeclaredClasses();
     if(innerClasses.length ==0) throw new IllegalArgumentException("The StateMachine should have inner classes which are the states.");  //expected.
     aSubstates = new StateSimple[innerClasses.length];  //assume that all inner classes are states. Elsewhere the rest of elements are left null.
-    topState = new StateCompositeTop(this, aSubstates, null);
+    topState = new StateCompositeTop(this, aSubstates);
     int ixSubstates = -1;
     try{
       for(Class<?> clazz1: innerClasses) {
@@ -267,13 +267,28 @@ public class StateMachine implements EventConsumer, InfoAppend
    */
   protected StateMachine(StateSimple[] aSubstates) {
     this.name = "StateMachine";
-    this.topState = new StateCompositeTop(this, aSubstates, null);
+    this.topState = new StateCompositeTop(this, aSubstates);
     //theTimer = null;
     triggerEvent = null;
     theThread = null;
   }
   
   
+
+  /**This method can be overridden if applying an event should be debugged
+   * or for example logged in the derived class. It should be done with the pattern:
+   * <pre>
+   * (at)Override public int eventToTopDebug(EventObject ev) {
+   *   //any statements ...
+   *   return super.eventToTopDebug(ev);
+   * }
+   * </pre>
+   * @param ev The event from user or from queue
+   * @return the return value of {@link StateComposite#processEvent}
+   */
+  protected int eventDebug(EventObject ev) {
+    return topState.processEvent(ev); 
+  }
 
   /**Triggers a run cycle for the statemachine in the execution thread
    * or runs the state machine immediately if the execution thread is this thread or the execution thread is not given.
@@ -317,22 +332,6 @@ public class StateMachine implements EventConsumer, InfoAppend
 
 
   
-  /**This method can be overridden if the moment of applying an event should be debugged
-   * or for example logged in the derived class. It should be done with the pattern:
-   * <pre>
-   * (at)Override public int eventToTopDebug(EventObject ev) {
-   *   //any statements ...
-   *   return super.eventToTopDebug(ev);
-   * }
-   * </pre>
-   * @param ev The event from user or from queue
-   * @return the return value of {@link StateComposite#processEvent}
-   */
-  public int eventToTopDebug(EventObject ev) {
-    return topState._processEvent(ev); 
-  }
-  
-
   /**Applies an event to this state machine. This method is invoked from {@link EventMsg2#sendEvent(Enum)} if this class is given
    * as {@link EventConsumer}. If the statemachine is aggregated with a {@link EventTimerThread} and this routine is invoked from another thread
    * then the event will be stored in {@link #theThread}. It is done if the transmitter of the event does not know about the EventThread.
@@ -340,7 +339,7 @@ public class StateMachine implements EventConsumer, InfoAppend
    */
   @Override public int processEvent(EventObject ev)
   { if(theThread == null || theThread.isCurrentThread()) {
-      return eventToTopDebug(ev); 
+      return eventDebug(ev); 
     } else if(ev !=null){
       if(ev instanceof EventWithDst){
         EventWithDst ev1 = (EventWithDst)ev;

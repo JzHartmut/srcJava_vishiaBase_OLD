@@ -205,7 +205,7 @@ protected StateMachine stateMachine;
  * The State knows its enclosing state to set and check the state identification there. 
  * Note: it cannot be final because it will be set on preparing only. 
  */
-protected StateComposite enclState;
+protected StateSimple enclState;
 
 
 /**Any additional information. Used for special cases. */
@@ -983,7 +983,10 @@ protected void exit() {
 
 
 
-
+/**It is overridden package-local in all derived {@link StateComposite}, {@link StateParallel}.
+ * @param enclState
+ */
+void buildStatePathSubstates(StateSimple enclState, int recurs) { buildStatePath(enclState); }
 
 
 
@@ -991,7 +994,7 @@ protected void exit() {
  * @param enclState
  * @param recurs
  */
-void buildStatePath(StateComposite enclState) {
+final void buildStatePath(StateSimple enclState) {
   if(enclState == null) { 
     //special handling for TopState
     statePath = new StateSimple[1];
@@ -1005,6 +1008,13 @@ void buildStatePath(StateComposite enclState) {
   }
 }
 
+
+
+/**Create all transition list for this state and all {@link #aSubstates}, recursively call.
+ * It is overridden package-local in all derived {@link StateComposite}, {@link StateParallel}.
+ * @param recurs
+ */
+void createTransitionListSubstate(int recurs){ this.createTransitionList(this, null, 0); }
 
 
 /**Creates the list of all transitions for this state, invoked one time after constructing the statemachine.
@@ -1188,8 +1198,14 @@ private void searchOrCreateTimerEvent() {
  * @return
  */
 public final boolean isInState(){
-  return enclState == null           //it is the top state.
-       || enclState.isInState(this);  //the enclosing state has this as active one.
+  if(enclState == null) return true;   //it is the top state.
+  else if(enclState instanceof StateComposite){
+    StateComposite enclc = (StateComposite)enclState;
+    return enclc.isActive && enclc.isInState(this);  //the enclosing state has this as active one.
+  } else {
+    //encl is a StateParallel
+    return enclState.isInState();  //check whether it is active.
+  }
 }
 
 
@@ -1227,6 +1243,10 @@ public final boolean isInState(){
  * @return The transition which should be fired or null.
  */
 protected Trans selectTrans(EventObject ev) { bCheckTransitionArray = true; return null; }
+
+
+
+int processEvent(EventObject ev){ return checkTransitions(ev); }
 
 
 /**Check all transitions and fire one transition if true.
@@ -1302,8 +1322,11 @@ final int checkTransitions(EventObject ev) {
  * @return
  */
 final int entryTheState(EventObject ev, int history) { //int isConsumed){
-  enclState.stateAct = this;
-  enclState.isActive = true;
+  if(enclState instanceof StateComposite) { 
+    StateComposite encl1 = (StateComposite)enclState;
+    encl1.stateAct = this;
+    encl1.isActive = true;
+  }
   //
   ctEntry +=1;
   dateLastEntry = System.currentTimeMillis();
@@ -1349,16 +1372,19 @@ final int entryTheState(EventObject ev, int history) { //int isConsumed){
 
 
 /**Exit the state. This method must not be overridden by the user, only the {@link StateCompositeBase} overrides it.
- * Override {@link #exitAction()} for user specific exit behavior.
+ * Override {@link #exit()} for user specific exit behavior.
  * @return The enclosing state, which can used for entry immediately.
  */
 void exitTheState(){ 
   durationLast = System.currentTimeMillis() - dateLastEntry;
-  enclState.isActive = false;
+  if(enclState instanceof StateComposite) { 
+    ((StateComposite)enclState).isActive = false; 
+  }
   if(evTimeout !=null && evTimeout.used()) {
     stateMachine.theThread.removeTimeOrder(evTimeout);
   }
   try{ 
+    //==>>
     exit();  //run the user's exit action.
   } catch(Exception exc){
     if(stateMachine.permitException){

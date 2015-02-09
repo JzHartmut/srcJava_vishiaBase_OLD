@@ -19,6 +19,7 @@ import org.vishia.event.EventCmdtypeWithBackEvent;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventTimerThread;
+import org.vishia.event.EventTimerThread_ifc;
 import org.vishia.fileLocalAccessor.FileAccessorLocalJava6;
 import org.vishia.util.Assert;
 import org.vishia.util.Debugutil;
@@ -1907,8 +1908,17 @@ public class FileRemote extends File implements MarkMask_ifc
   
 
   
-  /**Copies all files which are checked before.
-   * this is the dir or file as root for copy to the given pathDst
+  /**Copies all files which are checked before. 
+   * <code>this</code> is the dir or file as root for copy to the given pathDst. 
+   * The files to copy are marked in this directory or it is this file.
+   * <br><br>
+   * The copying process is interactive. It is possible to ask whether files should be override etc, the progress is shown.
+   * For that the {@link FileRemoteProgressTimeOrder} is used. This timeOrder should be created as overridden time order
+   * in the applications space with the application specific {@link EventTimerThread_ifc} instance. Especially it can be used
+   * in a graphical environment. See there to show a sequence diagram.
+   * <br><br>
+   * The 
+   * 
    * @param pathDst String given destination for the copy
    * @param nameModification Modification for each name. null then no modification. TODO
    * @param mode One of the bits {@link FileRemote#modeCopyCreateYes} etc.
@@ -2234,14 +2244,14 @@ public class FileRemote extends File implements MarkMask_ifc
     /**Abort the currently action. */
     abortAll,
     /**Abort the copy process of the current directory or skip this directory if it is asking a file. */
-    abortCopyDir,
+    //abortCopyDir,
     /**Abort the copy process of the current file or skip this file if it is asking. */
-    abortCopyFile,
+    //abortCopyFile,
     /**Overwrite a read-only file. */
-    overwr,
+    //overwr,
     /**Last. */
     last,
-    docontinue
+    //docontinue
   }
   
   
@@ -2495,7 +2505,6 @@ public class FileRemote extends File implements MarkMask_ifc
 
      * @param associatedCallback
      * @param modeCopyOper
-     */
     public void copySkipFile(int modeCopyOper){
       FileRemote.CmdEvent evcmd = getOpponent();
       if(evcmd.occupy(evSrcCmd, true)){
@@ -2505,12 +2514,12 @@ public class FileRemote extends File implements MarkMask_ifc
       }
 
     }
+     */
     
     
     /**Designates that the requested file which's name was received by the callback event should be overwritten. 
      * @param associatedCallback
      * @param modeCopyOper
-     */
     public void copyOverwriteFile(int modeCopyOper){
       FileRemote.CmdEvent evcmd = getOpponent();
       if(evcmd.occupy(evSrcCmd, true)){
@@ -2520,6 +2529,7 @@ public class FileRemote extends File implements MarkMask_ifc
       }
 
     }
+     */
     
     
 
@@ -2528,8 +2538,7 @@ public class FileRemote extends File implements MarkMask_ifc
      * before this event was received are not removed. 
      * @param associatedCallback
      * @param modeCopyOper
-     */
-    public void copySkipDir(int modeCopyOper){
+     public void copySkipDir(int modeCopyOper){
       FileRemote.CmdEvent evcmd = getOpponent();
       if(evcmd.occupy(evSrcCmd, true)){
         evcmd.setOrderId(orderId);
@@ -2538,6 +2547,7 @@ public class FileRemote extends File implements MarkMask_ifc
       }
 
     }
+    */
     
     
 
@@ -2545,7 +2555,6 @@ public class FileRemote extends File implements MarkMask_ifc
      * @param associatedCallback
      * @param modeCopyOper
      * @return true if the forward event was sent.
-     */
     public boolean copyAbortAll(){
       FileRemote.CmdEvent ev = getOpponent();
       FileRemote fileSrc;
@@ -2563,6 +2572,7 @@ public class FileRemote extends File implements MarkMask_ifc
       }
       
     }
+     */
     
     
   }

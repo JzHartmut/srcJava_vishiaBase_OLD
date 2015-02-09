@@ -10,6 +10,7 @@ import java.util.Queue;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.vishia.event.EventCmdtype;
 import org.vishia.event.EventCmdtypeWithBackEvent;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
@@ -118,7 +119,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
     
     /**Sends either with this or the opponent, one of them is able to occupy always.
      * The other one may in use yet. */
-    public boolean sendEvent(CmdIntern cmd, boolean requested) {
+    public boolean sendInternalEvent(CmdIntern cmd, boolean requested) {
       final EventInternal ev;
       boolean bOk;                  //evSrc from outer class.
       if(bOk = this.occupy(evSrc, false)) {
@@ -325,11 +326,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
     order.pathDst = pathDst;
     order.timeOrderProgress = timeOrderProgress;
     copyOrders.add(order);
-    if(evCpy.occupy(evSrc, false)){
-      evCpy.sendEvent(CmdIntern.start);  //only to weak up the state machine
-      //The event will be ignored if the state machine is in any other state.
-      //Then it will be take the copyOrder if it switches to Ready on finishing the current copy process.
-    }
+    evCpy.sendInternalEvent(CmdIntern.start, false);
     
   }
 
@@ -428,7 +425,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
     //-actData.ixSrc = 0;
     if(actData.listChildren == null || actData.listChildren.size() ==0) { //-actData.listSrc.length ==0){
       //an empty directory:
-      evCpy.sendEvent(CmdIntern.emptyDir, true);
+      evCpy.sendInternalEvent(CmdIntern.emptyDir, true);
     } else {
       //-FileRemote srcInDir = actData.listSrc[0];
       //-FileRemote dstDir = FileRemote.fromFile(actData.dst);
@@ -439,7 +436,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
       //-actData.iterChildren = actData.listChildren.iterator();
       //-actData = actData.iterChildren.next();
       actData = actData.listChildren.poll();
-      evCpy.sendEvent(CmdIntern.subDir, true);  //continue with stateCopyDirOrFile
+      evCpy.sendInternalEvent(CmdIntern.subDir, true);  //continue with stateCopyDirOrFile
     }
     //return consumed;  //return to the queue
 
@@ -579,7 +576,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
       }
     }
     if((mResult & (mAsk | mNextFile)) ==0) {
-      evCpy.sendEvent(CmdIntern.copyFileContent, true);  //Note: An abort event may be stored firstly, it has priority. Therefore don't use run to completion.
+      evCpy.sendInternalEvent(CmdIntern.copyFileContent, true);  //Note: An abort event may be stored firstly, it has priority. Therefore don't use run to completion.
     }
     return mResult; 
   }//entry
@@ -631,7 +628,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
               copyOrder.timeOrderProgress.nrofBytesFile = zBytesFileCopied;
               copyOrder.timeOrderProgress.show(FileRemote.CallbackCmd.nrofFilesAndBytes, statesCopy);
             }
-            evCpy.sendEvent(CmdIntern.copyFileContent, true); //keep alive the copy process.
+            evCpy.sendInternalEvent(CmdIntern.copyFileContent, true); //keep alive the copy process.
             bCont = false;
           } 
         } else if(zBytes == -1){
@@ -818,8 +815,8 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
     /* (non-Javadoc)
      * @see org.vishia.states.StateMachine#eventToTopDebug(java.util.EventObject)
      */
-    @Override public int eventToTopDebug(EventObject ev) {
-      return super.eventToTopDebug(ev);
+    @Override public int eventDebug(EventObject ev) {
+      return super.eventDebug(ev);
     }
     
     /**The idle state, ready for operation.
@@ -923,7 +920,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
         FileRemote.CmdEvent ev1 = null;
         if(ev instanceof FileRemote.CmdEvent && ( ev1 = ((FileRemote.CmdEvent)ev)).getCmd() == FileRemote.Cmd.abortAll) {
           return transAbort;
-        } else if(ev1 !=null && ev1.getCmd() == FileRemote.Cmd.abortCopyFile) { 
+        } else if(ev == copyOrder.timeOrderProgress.evAnswer && copyOrder.timeOrderProgress.evAnswer.getCmd() == FileRemoteProgressTimeOrder.Answer.abortFile) { 
           return transNextFile;
         } else if((mResult & mAsk) !=0) { 
           mResult &= ~mAsk; return transAsk; 
@@ -1179,16 +1176,21 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
         
         
         @Override protected Trans selectTrans(EventObject ev) {
-          FileRemote.CmdEvent ev1 = null;
+          //prepare event to check:
+          final FileRemoteProgressTimeOrder.Answer cmd;
+          if(ev == copyOrder.timeOrderProgress.evAnswer) {
+            cmd = copyOrder.timeOrderProgress.evAnswer.getCmd();
+            modeCopyOper = copyOrder.timeOrderProgress.evAnswer.modeCopyOper;
+          } else {
+             cmd = FileRemoteProgressTimeOrder.Answer.noCmd;
+          }
+          //test
           if(ev instanceof EventInternal && ((EventInternal)ev).getCmd() == CmdIntern.copyFileContent) {
             bContinue_dontClose = true;
             return transCopyContent_continue.eventConsumed(); 
-          } else if(ev instanceof FileRemote.CmdEvent && (ev1 = ((FileRemote.CmdEvent)ev)).getCmd() == FileRemote.Cmd.abortCopyFile) {  
-            modeCopyOper  = ev1.modeCopyOper;
-            return transAbortFile.eventConsumed();
-          } else if(ev instanceof FileRemote.CmdEvent && ev1.getCmd() == FileRemote.Cmd.abortCopyDir) {  
-            return transAbortCopyDir.eventConsumed();
-          } else return null;   //Note: ask and next file are regarded on Process.selectTrans().
+          } else if(cmd == FileRemoteProgressTimeOrder.Answer.abortFile) return transAbortFile.eventConsumed();
+          else if(cmd == FileRemoteProgressTimeOrder.Answer.abortDir) return transAbortCopyDir.eventConsumed();
+          else return null;   //Note: ask and next file are regarded on Process.selectTrans().
         }
 
       }
@@ -1289,20 +1291,18 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
         
         @Override protected Trans selectTrans(EventObject ev) {
           //prepare event to check:
-          final FileRemote.CmdEvent ev1; 
-          final FileRemote.Cmd cmd;
-          if(ev instanceof FileRemote.CmdEvent) {
-            ev1 = (FileRemote.CmdEvent)ev;
-            cmd = ev1.getCmd();
+          final FileRemoteProgressTimeOrder.Answer cmd;
+          if(ev == copyOrder.timeOrderProgress.evAnswer) {
+            cmd = copyOrder.timeOrderProgress.evAnswer.getCmd();
+            modeCopyOper = copyOrder.timeOrderProgress.evAnswer.modeCopyOper;
           } else {
-            ev1 = null;
-            cmd = FileRemote.Cmd.noCmd;
+             cmd = FileRemoteProgressTimeOrder.Answer.noCmd;
           }
           //test
-          if(cmd == FileRemote.Cmd.abortAll) return transAbortAll.eventConsumed();
-          else if(cmd == FileRemote.Cmd.abortCopyDir) return transAbortDir.eventConsumed();
-          else if(copyOrder.timeOrderProgress.answer() == FileRemote.Cmd.abortCopyFile) return transAbortFile;
-          else if(copyOrder.timeOrderProgress.answer() == FileRemote.Cmd.overwr) return transDirOrFile;
+          if(cmd == FileRemoteProgressTimeOrder.Answer.abortAll) return transAbortAll.eventConsumed();
+          else if(cmd == FileRemoteProgressTimeOrder.Answer.abortDir) return transAbortDir.eventConsumed();
+          else if(cmd == FileRemoteProgressTimeOrder.Answer.abortFile) return transAbortFile;
+          else if(cmd == FileRemoteProgressTimeOrder.Answer.overwrite) return transDirOrFile;
           else return null;
         }
       }

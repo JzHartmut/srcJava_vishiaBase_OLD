@@ -1,7 +1,9 @@
 package org.vishia.fileRemote;
 
+import org.vishia.event.EventCmdtype;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
+import org.vishia.event.EventTimerThread_ifc;
 import org.vishia.event.TimeOrder;
 import org.vishia.event.EventTimerThread;
 import org.vishia.fileLocalAccessor.FileLocalAccessorCopyStateM;
@@ -12,9 +14,26 @@ import org.vishia.states.StateMachine;
  */
 public abstract class FileRemoteProgressTimeOrder  extends TimeOrder
 {
-  /**The manager for this time order to execute it for showing, often a graphic thread adaption.
-   */
-  final EventTimerThread mng;
+  
+  public enum Answer{
+    noCmd, cont, overwrite, skip, abortFile, abortDir, abortAll
+  }
+  
+  public final class EventCopyCtrl extends EventCmdtype<Answer> {
+    
+    public int modeCopyOper;
+    
+    public void send(Answer cmd, int modeCopyOper) {
+      if(occupyRecall(srcAnswer, consumerAnswer, null, false)) {  //recall it for another decision if it is not processed yet.
+        this.modeCopyOper = modeCopyOper;
+        sendEvent(cmd);
+      } //else: if the event is processed yet, it is not send.
+    }
+  }
+  
+  public final EventCopyCtrl evAnswer = new EventCopyCtrl();
+  
+  private final EventSource srcAnswer;
   
   protected int delay;
 
@@ -24,9 +43,9 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrder
    *  For example use {@link org.vishia.gral.base.GralMng#gralDevice()} and there {@link org.vishia.gral.base.GralGraphicThread#orderList()}. 
    * @param delay The delay to start the oder execution after #show()
    */
-  protected FileRemoteProgressTimeOrder(String name, EventTimerThread mng, int delay){ 
-    super(name, mng); 
-    this.mng = mng;
+  protected FileRemoteProgressTimeOrder(String name, EventSource srcAnswer, EventTimerThread_ifc mng, int delay){ 
+    super(name, mng);
+    this.srcAnswer = srcAnswer;
     this.delay = delay;
   }
   
@@ -105,25 +124,26 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrder
   
   /**An answer if somewhat is ask. 
    * This method should be called from the operator. */
-  public void answer(EventSource source, FileRemote.Cmd answer) {
-    if(eventAnswer !=null){
-      eventAnswer.modeCopyOper = modeCopyOper;
-      eventAnswer.sendEvent(answer);
+  public void XXXanswer(Answer answer) {
+    if(evAnswer.occupyRecall(srcAnswer, false)) {
+      evAnswer.sendEvent(answer);
     }
+    /*
     if(consumerAnswer !=null) {
       this.answer = answer; 
       consumerAnswer.triggerRun(source);
     }
+    */
   }
   
-  
+  /*
   public void triggerStateMachine(EventSource source, FileRemote.Cmd cmd){
     if(consumerAnswer !=null) {
       this.cmd = cmd;
       consumerAnswer.triggerRun(source);
     }
   }
-  
+  */
   
   
 }

@@ -139,7 +139,7 @@ public abstract class TimeOrder extends EventTimeout //Object //implements Event
    * @param name the TimeOrder should have a name for debugging. 
    * @param thread thread to handle the time order. It is obligatory.
    */
-  public TimeOrder(String name, EventTimerThread thread){
+  public TimeOrder(String name, EventTimerThread_ifc thread){
     super(null, thread);  //no EventSource necessary, no eventConsumer because this is an order.
     this.name = name;
   }
@@ -155,7 +155,7 @@ public abstract class TimeOrder extends EventTimeout //Object //implements Event
    * @param name the TimeOrder should have a name for debugging. 
    * @param thread thread to handle the time order. It is obligatory.
    */
-  public TimeOrder(String name, EventConsumer dst, EventTimerThread thread){
+  public TimeOrder(String name, EventConsumer dst, EventTimerThread_ifc thread){
     super(dst, thread);  //no EventSource necessary, no eventConsumer because this is an order.
     this.name = name;
   }

@@ -446,10 +446,7 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
     FileRemote.Cmd cmd = commission.getCmd();
     switch(cmd){
       case check: //copy.checkCopy(commission); break;
-      case overwr:
       case abortAll:     //should abort the state machine!
-      case abortCopyDir:
-      case abortCopyFile:
       case delChecked:
       case moveChecked:
       //case copyChecked: 

@@ -82,15 +82,11 @@ public class StateComposite extends StateSimple implements InfoAppend
   
   
   
-  /**A composite state can contain either only parallel states, or one or more additional parallel state.
-   * In the second case the {@link #aSubstates} of this are the first parallel state composition.
+  /**Only used for the {@link StateMachine#topState} 
+   * and as special constructor to build a state machine from other data. See org.vishia.stateMGen.StateMGen. 
    */
-  final StateComposite[] aParallelstates;
-  
-  /**Only for the {@link StateMachine#topState} and GenStm*/
-  public StateComposite(StateMachine stateMachine, StateSimple[] aSubstates, StateComposite[] aParallelstates){
+  public StateComposite(StateMachine stateMachine, StateSimple[] aSubstates){
     this.aSubstates = aSubstates;
-    this.aParallelstates = aParallelstates;
     this.stateMachine = stateMachine;
     this.stateId = "";
   };
@@ -134,7 +130,6 @@ public class StateComposite extends StateSimple implements InfoAppend
     Class<?>[] innerClasses = clazz.getDeclaredClasses();
     if(innerClasses.length >0) {  //it is a composite state.
       List<StateSimple> listSubstates = null;
-      List<StateParallel> listParallelstates = null;
       int ixSubstates = -1;
       try{
         for(Class<?> clazz1: innerClasses) {
@@ -145,16 +140,9 @@ public class StateComposite extends StateSimple implements InfoAppend
             final Object oState = ctor1[0].newInstance(this);   //creates the instance, maybe a StateComposite or a StateAddParallel.
             //Note that the inner states are processed already in the yet called constructor.
             final StateSimple state;
-            if(oState instanceof StateParallel) {
-              if(listParallelstates ==null) { listParallelstates = new LinkedList<StateParallel>(); }
-              final StateParallel stateParallel = (StateParallel)oState;
-              listParallelstates.add(stateParallel);
-              state = stateParallel;
-            } else {
-              if(listSubstates ==null) { listSubstates = new LinkedList<StateSimple>(); }
-              state = (StateSimple)oState;
-              listSubstates.add(state);
-            }
+            if(listSubstates ==null) { listSubstates = new LinkedList<StateSimple>(); }
+            state = (StateSimple)oState;
+            listSubstates.add(state);
             state.stateId = clazz1.getSimpleName();
             state.stateMachine = this.stateMachine;
             state.enclState = this;
@@ -180,14 +168,8 @@ public class StateComposite extends StateSimple implements InfoAppend
       if(stateDefault == null && aSubstates !=null){ 
         throw new IllegalArgumentException("StateMachine - a default state is necessary. Define \"final boolean isDefault = true\" in one of an inner class State;" + stateId); 
       }
-      if(listParallelstates !=null ){
-        this.aParallelstates = listParallelstates.toArray(new StateParallel[listParallelstates.size()]); 
-      } else {
-        this.aParallelstates = null;
-      }
     } else { //no inner states
       this.aSubstates = null;
-      this.aParallelstates = null;
     }
   }
   
@@ -199,15 +181,9 @@ public class StateComposite extends StateSimple implements InfoAppend
    */
   public void addState(int key, StateSimple state){
     int ix = 0;
-    if(state instanceof StateParallel) {
-      while(ix < aParallelstates.length && aParallelstates[ix] !=null){ ix +=1; } //search next free
-      if(ix >= aParallelstates.length) throw new IllegalArgumentException("too many parallel states to add");
-      aParallelstates[ix] = (StateParallel)state;
-    } else {
-      while(ix < aSubstates.length && aSubstates[ix] !=null){ ix +=1; } //search next free
-      if(ix >= aSubstates.length) throw new IllegalArgumentException("too many states to add");
-      aSubstates[ix] = state;
-    }
+    while(ix < aSubstates.length && aSubstates[ix] !=null){ ix +=1; } //search next free
+    if(ix >= aSubstates.length) throw new IllegalArgumentException("too many states to add");
+    aSubstates[ix] = state;
     stateMachine.stateMap.put(state.hashCode(), state);
     if(stateDefault ==null){
       stateDefault = state;  //the first state is the default state.
@@ -218,24 +194,17 @@ public class StateComposite extends StateSimple implements InfoAppend
   
   
   /**Sets the path to the state for this and all {@link #aSubstates}, recursively call.
+   * This method is invoked in the constructor of the state machine only one time.
+   * It is not for application.
    * @param enclState
    * @param recurs
    */
-  void buildStatePathSubstates(StateComposite enclState, int recurs) {
+  @Override void buildStatePathSubstates(StateSimple enclState, int recurs) {
     if(recurs > 1000) throw new IllegalArgumentException("recursion faulty");
     this.buildStatePath(enclState);
     if(aSubstates !=null) {
       for(StateSimple subState: this.aSubstates){
-        if(subState instanceof StateComposite){
-          ((StateComposite) subState).buildStatePathSubstates(this, recurs +1);
-        } else {
-          subState.buildStatePath(this);
-        }
-      }
-    }
-    if(aParallelstates !=null) {
-      for(StateComposite parallelState: this.aParallelstates){
-        parallelState.buildStatePathSubstates(this, recurs +1);
+        subState.buildStatePathSubstates(this, recurs +1);
       }
     }
   }
@@ -245,6 +214,8 @@ public class StateComposite extends StateSimple implements InfoAppend
   
   
   /**Create all transition list for this state and all {@link #aSubstates}, recursively call.
+   * This method is invoked in the constructor of the state machine only one time.
+   * It is not for application.
    * @param recurs
    */
   void createTransitionListSubstate(int recurs){
@@ -252,16 +223,7 @@ public class StateComposite extends StateSimple implements InfoAppend
     this.createTransitionList(this, null, 0);  
     if(aSubstates !=null) {
       for(StateSimple subState: this.aSubstates){
-        if(subState instanceof StateComposite){
-          ((StateComposite)subState).createTransitionListSubstate(recurs+1);
-        } else {
-          subState.createTransitionList(subState, null,0);  //simple state.
-        }
-      } 
-    }
-    if(aParallelstates !=null) {
-      for(StateComposite parallelState: this.aParallelstates){
-        parallelState.createTransitionListSubstate(recurs+1);
+        subState.createTransitionListSubstate(recurs+1);
       } 
     }
   }
@@ -273,18 +235,6 @@ public class StateComposite extends StateSimple implements InfoAppend
   
 
 
-  /**Sets the default state of this composite. 
-   * This routine has to be called in the constructor of the derived state after calling the super constructor.
-   * @param stateDefault The state which will be set if the composite class was selected 
-   *   but an inner state was not set. The {@link #entryTheState(EventMsg2)} to the default state is invoked
-   *   if this state will be {@link #processEvent(EventMsg2)}.
-   */
-  public void XXXsetDefaultState(StateSimple stateDefault ){
-    assert(stateDefault == null);  //invoke only one time.
-    this.stateDefault = stateDefault;
-  }
-  
-  
   /**Check whether this composite state has the given state as direct actual sub state
    * @param state Only states of the own composite are advisable. It is checked in compile time
    *   with the strong type check with the generic type of state. 
@@ -297,24 +247,14 @@ public class StateComposite extends StateSimple implements InfoAppend
            );   
   }
   
-  /**This method is used to entry the default state if the actual state is null (first invocation).  */
+  
+  
+  /**This method is used to entry the default state of this composite if the actual state is null (first invocation).  */
   /*package private*/ final int entryDefaultState(){ 
     int ret = 0;
-    if(aParallelstates !=null) {
-      for(StateComposite state: aParallelstates){
-        ret |= state.entryDefaultState();
-      }
-    }
     if(stateDefault !=null) {
       ret |= stateDefault.entryTheState(null,0);
     }
-    /*
-    if(this instanceof StateParallel){
-      return ((StateParallel)this).entryDefaultParallelStates();
-    } else {
-      return stateDefault.entryTheState(null);
-    }
-    */
     return ret;
   }
 
@@ -352,84 +292,63 @@ public class StateComposite extends StateSimple implements InfoAppend
   
 
   
-  /**This method sets this state in the enclosing composite state and sets the own {@link #stateAct} to null 
-   * to force entry of the default state if {@link #process(Event)} is running firstly after them.
-   * If this method will be called recursively in an {@link #entry(int)} of an inner state,
-   * that entry sets the {@link #stateAct} in {@link #setState(StateSimpleBase)} after them so it is not null.
-   * <br><br> 
-   * This method should be overridden if a entry action is necessary in any state. 
-   * The overridden form should call this method in form super.entry(isConsumed):
-   * <pre>
-  public int entry(isConsumed){
-    super.entry(0);
-    //statements of entry action.
-    return isConsumed | runToComplete;  //if the trans action should be entered immediately after the entry.
-    return isConsumed | complete;       //if the trans action should not be tested.
-  }
-   * </pre>  
-   * 
-   * @param isConsumed Information about the usage of an event in a transition, given as input and returned as output.
-   * @return The parameter isConsumed may be completed with the bit {@link #mRunToComplete} if this state's {@link #trans(Event)}-
-   *   method has non-event but conditional state transitions. Setting of this bit {@link #mRunToComplete} causes
-   *   the invocation of the {@link #trans(Event)} method in the control flow of the {@link StateCompositeBase#process(Event)} method.
-   *   This method sets {@link #mRunToComplete}.
-   */
-  //@Override 
-  /**package private*/ final void XXXentryComposite(){
-    //super.entry(isConsumed);
-    stateAct = null;
-    isActive = true;
-    //return isConsumed | mRunToComplete;
-  }
-  
-
-  
-  
-  public final int XXXentry(Class state, EventObject ev){
-    int id = state.hashCode();
-    StateSimple entryState = stateMachine.stateMap.get(new Integer(id));
-    return entryState.entryTheState(ev,0);
-  }
-
-  
-  
-  
   /**Processes the event for the states of this composite state.
-   * First the event is applied to the own (inner) states invoking either its {@link StateComposite#_processEvent(EventMsg2)}
-   * or its {@link #checkTransitions(EventMsg2)} method.
-   * If this method returns {@link StateSimpleBase#mRunToComplete} that invocation is repeated in a loop, to call
+   * First the event is applied to the own (inner) states invoking either its {@link StateComposite#processEvent(EventObject)}
+   * which calls this method recursively.
+   * <br><br>
+   * If this method returns with {@link StateSimpleBase#mRunToComplete} that invocation is repeated in a loop, to call
    * the transition of the new state too. But if the event was consumed by the last invocation, it is not supplied again
    * in the loop, the event parameter is set to null instead. It means only conditional transitions are possible.
    * This behavior is conform with the UML definition.
+   * <br><br>
    * If the loop would not terminate because any state have a valid transition and the state machine switches forever,
    * the loop is terminated with an exception for a number of {@link #maxStateSwitchesInLoop}. This exception occurs
    * if the user stateMachine conditions are faulty only.
    * <br><br>
-   * This method is not attempt to override by the user. Only the class {@link StateParallelBase} overrides it
-   * to invoke the processing of all parallel boughs.
-   * @param evP The event supplied to the {@link #checkTransitions(EventMsg2)} method.
-   * @return The bits {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #checkTransitions(EventMsg2)}.
-   *   Note that if an event is consumed in an inner state, it should not be applied to its enclosing state transitions. 
+   * At least the {@link #checkTransitions(EventObject)} of this state is invoked but only if the event is not processed
+   * or the state contains non-event triggered (conditional) transitions. Last one is signified by the {@link #modeTrans}.
+   * <br><br>
+   * This method overrides the {@link StateSimple#processEvent(EventObject)} which is overridden by {@link StateParallel#processEvent(EventObject)}
+   * too to provide one method for event processing for all state kinds with the necessary different handling.
+   * 
+   * @param evP The event.
+   * @return Some bits especially {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #checkTransitions(EventObject)}.
    */
-  /*package private*/ int _processEvent(final EventObject evP){  //NOTE: should be protected.
+  /*package private*/ @Override int processEvent(final EventObject evP){  //NOTE: should be protected.
     int cont = 0;
+    EventObject evTrans = evP;
     if(aSubstates !=null) {
-      cont = processEventOwnStates(evP);
-    }
-    //
-    //Process for all parallel states
-    if(aParallelstates !=null) {
-      for(StateComposite stateParallel : aParallelstates) {
-        cont |= stateParallel._processEvent(evP);
+      int catastrophicalCount =  maxStateSwitchesInLoop;
+      int contLoop = 0;
+      do{
+        contLoop &= ~mRunToComplete;  //only this is checked for any state transition. Left all other bits especially mEventConsumed.
+        if(stateAct == null){
+          contLoop |= entryDefaultState();  //regards also Parallel states.
+          if(stateMachine.debugState && (contLoop & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(null, evTrans, contLoop); }
+        } 
+        StateSimple statePrev = stateAct;
+        int trans = stateAct.processEvent(evTrans);
+        if(stateMachine.debugState && statePrev instanceof StateSimple && (trans & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, trans); }
+        contLoop |= trans;
+        //
+        if((contLoop & StateSimple.mEventConsumed) != 0){
+          evTrans = null;
+        }
+        if(catastrophicalCount == 4) {
+          catastrophicalCount = 3;  //set break point! to debug the loop
+        }
+      } while(isActive   //leave the loop if this composite state is exited.
+          && (contLoop & mRunToComplete) !=0    //loop if runToComplete-bit is set, the new state should be checked.
+          && --catastrophicalCount >=0
+          );
+      if(catastrophicalCount <0) {
+        throw new RuntimeException("unterminated loop in state switches");
       }
+      cont |= contLoop;
     }
-    //
-    //cont &= mEventConsumed;
-    //
     //Process to leave this state.
     //
-    //If the event was consumed in any inner transition, it is not present for the own transitions. UML-conform.
-    EventObject evTrans = (cont & StateSimple.mEventConsumed)==0 ? evP: null;  
+    //evTrans: If the event was consumed in any inner transition, it is not present for the own transitions. UML-conform.
     //
     if(  evTrans != null   //evTrans is null if it was consumed in inner transitions. 
       || (modeTrans & StateSimple.mRunToComplete) !=0  //state has only conditional transitions
@@ -446,51 +365,6 @@ public class StateComposite extends StateSimple implements InfoAppend
 
   
   
-  
-  /**Applies the event or switch transition for this composite state and sub states, not for parallel ones.
-   * @param ev
-   * @return Bits {@link StateSimple#mEventConsumed} etc.
-   */
-  private int processEventOwnStates(EventObject ev) {
-    //this composite has own substates, not only a container for parallel states:
-    EventObject evTrans = ev;
-    int catastrophicalCount =  maxStateSwitchesInLoop;
-    int contLoop = 0;
-    do{
-
-      //
-      //
-      contLoop &= ~mRunToComplete;  //only this is checked for any state transition. Left all other bits especially mEventConsumed.
-      if(stateAct == null){
-        contLoop |= entryDefaultState();  //regards also Parallel states.
-        if(stateMachine.debugState && (contLoop & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(null, evTrans, contLoop); }
-      } 
-      if(stateAct instanceof StateComposite){
-        //recursively call for the composite inner state
-        contLoop |= ((StateComposite)stateAct)._processEvent(evTrans); 
-      } else {
-        StateSimple statePrev = stateAct;
-        int trans = stateAct.checkTransitions(evTrans);
-        if(stateMachine.debugState && (trans & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, trans); }
-        contLoop |= trans;
-      }
-      //
-      if((contLoop & StateSimple.mEventConsumed) != 0){
-        evTrans = null;
-      }
-      if(catastrophicalCount == 4) {
-        catastrophicalCount = 3;  //set break point! to debug the loop
-      }
-    } while(isActive   //leave the loop if this composite state is exited.
-        && (contLoop & mRunToComplete) !=0    //loop if runToComplete-bit is set, the new state should be checked.
-        && --catastrophicalCount >=0
-        );
-    if(catastrophicalCount <0) {
-      throw new RuntimeException("unterminated loop in state switches");
-    }
-    return contLoop;
-    
-  }
   
   
   
@@ -530,54 +404,20 @@ public class StateComposite extends StateSimple implements InfoAppend
   
 
 
-  /**Sets the state of the composite state.
-   * This method should be called
-   * @param stateSimple Only states of the own composite are advisable. It is checked in compile time
-   *   with the strong type check with the generic type of state. 
-   * @return true if it is in state.
-   */
-  /*package private*/ final void XXXsetStateParallel(StateSimple stateSimple) { //, EnumState stateNr) {
-   this.stateAct = stateSimple;
-   this.isActive = true;
-  }
-
   /**Exits first the actual sub state (and that exits its actual sub state), after them this state is exited.
-  /**This method may be overridden with exit actions:
-   * <pre>
-  public EnclosingStateType exit(){
-    TypeOfEnclosingState enclState = super.exit(); //call firstly! It exits sub states.
-    statementsOfExit();
-    return enclSate;
-  }
-   * </pre> 
-   * @return The enclosing state, which can used for entry immediately.
-   * @see org.vishia.stateMachine.StateSimpleBase#exit()
+   * It calls {@link StateSimple#exitTheState()} which invokes the maybe application overridden {@link StateSimple#exit()} routine.
    */
-  @Override public void exitTheState(){ 
+  @Override void exitTheState(){ 
     if(isActive && stateAct !=null){
       stateAct.exitTheState();    //recursively call for all inner states which are yet active.
       isActive = false; //NOTE that StateSimpleBase.exit() sets isActive to false already. It is done twice.
-    }
-    if(aParallelstates !=null) {
-      for(StateComposite parallelState : aParallelstates) {
-        parallelState.exitTheState();
-      }
     }
     super.exitTheState();
   }
 
   
-  /**Returns the name of the active state of this composite state or the active state of any other state in the chart.
-   * @return
-   */
-  protected String getActiveState(){
-    if(isActive) return getStatePath().toString();
-    else if(enclState !=null){ return enclState.getActiveState(); }
-    else return "--inactive--";
-  }
   
-  
-  @Override   public CharSequence getStatePath(){
+  @Override public CharSequence getStatePath(){
     StringBuilder uPath = new StringBuilder(120);
     StateSimple state = this;
     while((state = state.enclState) !=null){
@@ -602,19 +442,12 @@ public class StateComposite extends StateSimple implements InfoAppend
     String separator = "";
     if(aSubstates !=null) {
       u.append(stateId);
-      u.append('-');
+      u.append(separator);
       if(isActive) {
         stateAct.infoAppend(u);
         //u.append(stateAct.toString());
       }
-      separator = "||";  //for parallel states
-    }
-    if(aParallelstates !=null) {
-      for(StateComposite stateParallel: aParallelstates){
-        u.append(separator);
-        stateParallel.infoAppend(u);
-        separator = "||";
-      }
+      separator = "-"; 
     }
     return u;
     
