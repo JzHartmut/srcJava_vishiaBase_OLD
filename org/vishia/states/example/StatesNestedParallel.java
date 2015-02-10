@@ -4,6 +4,7 @@ import java.util.EventObject;
 
 import org.vishia.event.EventCmdtype;
 import org.vishia.event.EventTimerThread;
+import org.vishia.event.EventWithDst;
 import org.vishia.states.StateComposite;
 import org.vishia.states.StateParallel;
 import org.vishia.states.StateSimple;
@@ -18,7 +19,7 @@ public class StatesNestedParallel
     boolean on;  
   
   
-    boolean start1, start2, start3;
+    boolean start;
     
     boolean offAfterRunning;
     
@@ -132,53 +133,16 @@ public class StatesNestedParallel
         
         @Override protected void exit(){ System.out.println(" exit " + stateId); }
 
-        Trans start1 = new Trans(1, StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class){ 
-          @Override protected void check(EventObject ev) {
-            if(cond.start1) { 
-              retTrans = mEventConsumed;
-              doExit();
-              doEntry(ev);
-            }
-          }
-          
-        };
+        Trans start_Running = new Trans( StateActive.StateActive1.StateRunning.StateRunning1.class
+                                       , StateActive.StateActive1.StateRunning.StateRunning2.StateRunning21.class
+                                       , StateActive.StateActive2.StateRemainOn.class);
         
-        class Start2 extends Trans 
-        { Start2(){ super(3, StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class); } 
-          
-          @Override protected void check(EventObject ev) {
-            if(cond.start2) {
-              retTrans = mEventConsumed;
-              doExit();
-              doEntry(ev);
-            }
-          }
-          
-          @Override protected void action(EventObject ev){
-          }
-        } //class Start
-        
-        
-        
-        
-        
-        Trans start3(EventObject ev, Trans transP){
-          if(transP == null){
-            return new Trans(2, StateActive.StateActive1.StateRunning.class, StateActive.StateActive2.StateRemainOn.class);
-          } 
-          else if(cond.start3) {
-            transP.retTrans =  StateSimple.mEventConsumed;
-            transP.doExit();
-            //no action
-            transP.doEntry(ev);
-            return transP;
-          }
+        @Override protected Trans selectTrans(EventObject ev){
+          if(cond.start) return start_Running;
           else return null;
-          
         }
-        
-        
-      }
+          
+      }//StateReady
       
       
       class StateActive extends StateParallel
@@ -193,7 +157,7 @@ public class StatesNestedParallel
 
           @Override protected void exit(){ System.out.println(" exit " + stateId); }
 
-          class StateRunning extends StateSimple
+          class StateRunning extends StateParallel
           { final boolean isDefault = true;
             @Override protected int entry(EventObject ev){ System.out.println("entry " + stateId); return 0; }
 
@@ -204,6 +168,20 @@ public class StatesNestedParallel
                 System.err.println("timeout");
               }
             };
+            
+            class StateRunning1 extends StateSimple {
+              @Override protected int entry(EventObject ev){ System.out.println("entry " + stateId); return 0; }
+              @Override protected void exit(){ System.out.println(" exit " + stateId); }
+            }
+            
+            class StateRunning2 extends StateComposite {
+              class StateRunning21 extends StateSimple {
+                final boolean isDefault = true;
+                @Override protected int entry(EventObject ev){ System.out.println("entry " + stateId); return 0; }
+                @Override protected void exit(){ System.out.println(" exit " + stateId); }
+              }
+              
+            }
           }
           
           
@@ -212,19 +190,7 @@ public class StatesNestedParallel
 
             @Override protected void exit(){ System.out.println(" exit " + stateId); }
 
-            Trans to_off(EventObject ev, Trans trans) {
-              if(trans == null) return new Trans(StateOff.class);
-              if(stateMachine.isInState(StateActive1.StateFinit.class) && stateMachine.isInState(StateActive2.StateShouldOff.class)) {
-                trans.retTrans |= mTransit;
-              } 
-              return null;
-            }
-            
-
-          }
-          
-          //StateSimple stateFinit = new StateSimple(){
-          //};
+          }//StateFinit
           
         } 
         
@@ -241,10 +207,11 @@ public class StatesNestedParallel
   
             @Override protected void exit(){ System.out.println(" exit " + stateId); }
  
-            Trans toShouldOff(EventObject ev, Trans trans){
-              if(trans == null) return new Trans(StateShouldOff.class);
-              else if(cond.offAfterRunning) {trans.retTrans |= mTransit; }
-              return null;
+            Trans toShouldOff = new Trans(StateShouldOff.class);
+            
+            @Override protected Trans selectTrans(EventObject ev){
+              if(cond.offAfterRunning) return toShouldOff;
+              else return null;
             }
             
           }
@@ -258,7 +225,16 @@ public class StatesNestedParallel
             
           }
         }
+
+        Trans to_off = new Trans(StateOff.class);
         
+        @Override protected Trans selectTrans(EventObject ev){
+          if(stateMachine.isInState(StateActive1.StateFinit.class) && stateMachine.isInState(StateActive2.StateShouldOff.class)) {
+            return to_off;
+          } 
+          else return null;
+        }
+  
       }//class StateActive
     }
   }
@@ -271,9 +247,9 @@ public class StatesNestedParallel
     states = new States(thread);
   }
   
-  private void executeCondions() {
+  private void execute() {
     cond.on = true;
-    cond.start3 = true;
+    cond.start = true;
     cond.offAfterRunning = true;
     if(event.occupy(null, states, thread, true)){
       event.sendEvent(CmdEvent.start);
@@ -298,7 +274,8 @@ public class StatesNestedParallel
   
   public static void main(String[] args){
     StatesNestedParallel main = new StatesNestedParallel();
-    main.executeCondions();
+    main.execute();
   }
+
   
 }

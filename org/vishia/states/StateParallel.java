@@ -55,7 +55,7 @@ public class StateParallel extends StateSimple
   
   /**Array of all composite states which are executed parallel if this state is active.
    */
-  final StateComposite[] aParallelstates;
+  final StateSimple[] aParallelstates;
   
   /**Special constructor to build a state machine from other data. See org.vishia.stateMGen.StateMGen. */
   public StateParallel(StateMachine stateMachine, StateComposite[] aParallelstates){
@@ -98,23 +98,21 @@ public class StateParallel extends StateSimple
     //
     Class<?>[] innerClasses = clazz.getDeclaredClasses();
     if(innerClasses.length >0) {  //it is a composite state.
-      List<StateComposite> listParallelstates = null;
+      List<StateSimple> listParallelstates = null;
       try{
         for(Class<?> clazz1: innerClasses) {  //check all inner classes
-          if(DataAccess.isOrExtends(clazz1, StateComposite.class)) {
+          if(DataAccess.isOrExtends(clazz1, StateSimple.class)) {
             Constructor<?>[] ctor1 = clazz1.getDeclaredConstructors();
             //assert only one constructor, the default one.
             ctor1[0].setAccessible(true);
             final Object oState = ctor1[0].newInstance(this);   //creates the instance and all sub states of a maybe StateComposite or a StateSimple.
             //Note that the inner states are processed already in the yet called constructor.
-            final StateSimple state;
-            if(listParallelstates ==null) { listParallelstates = new LinkedList<StateComposite>(); }
-            final StateComposite stateParallel = (StateComposite)oState;
-            listParallelstates.add(stateParallel);
-            state = stateParallel;
+            final StateSimple state = (StateSimple)oState;
+            if(listParallelstates ==null) { listParallelstates = new LinkedList<StateSimple>(); }
+            listParallelstates.add(state);
             state.stateId = clazz1.getSimpleName();
             state.stateMachine = this.stateMachine;
-            state.enclState = this.enclState;           //TODO the enclosing state is not the StateParallel ? the outer.
+            state.enclState = this;           
             int idState = clazz1.hashCode();
             stateMachine.stateMap.put(idState, state);
           }
@@ -123,7 +121,7 @@ public class StateParallel extends StateSimple
         throw new RuntimeException(exc);
       }
       if(listParallelstates !=null ){
-        this.aParallelstates = listParallelstates.toArray(new StateComposite[listParallelstates.size()]); 
+        this.aParallelstates = listParallelstates.toArray(new StateSimple[listParallelstates.size()]); 
       } else {
         this.aParallelstates = null;
       }
@@ -153,7 +151,7 @@ public class StateParallel extends StateSimple
     if(recurs > 1000) throw new IllegalArgumentException("recursion faulty");
     this.buildStatePath(enclState);
     if(aParallelstates !=null) {
-      for(StateComposite parallelState: this.aParallelstates){
+      for(StateSimple parallelState: this.aParallelstates){
         parallelState.buildStatePathSubstates(this, recurs +1);
       }
     }
@@ -180,8 +178,12 @@ public class StateParallel extends StateSimple
   final int entryDefaultState(){ 
     int ret = 0;
     if(aParallelstates !=null) {
-      for(StateComposite state: aParallelstates){
-        ret |= state.entryDefaultState();
+      for(StateSimple state: aParallelstates){
+        if(state instanceof StateComposite) {
+          ret |= ((StateComposite)state).entryDefaultState();
+        } else {
+          ret |= state.entryTheState(null, 0);
+        }
       }
     }
     return ret;
@@ -206,7 +208,7 @@ public class StateParallel extends StateSimple
     EventObject evTrans = evP;
     //Process for all parallel states
     if(aParallelstates !=null) {
-      for(StateComposite stateParallel : aParallelstates) {
+      for(StateSimple stateParallel : aParallelstates) {
         cont |= stateParallel.processEvent(evTrans);
       }
     }
@@ -233,7 +235,7 @@ public class StateParallel extends StateSimple
    */
   @Override void exitTheState(){ 
     if(aParallelstates !=null) {
-      for(StateComposite parallelState : aParallelstates) {
+      for(StateSimple parallelState : aParallelstates) {
         parallelState.exitTheState();
       }
     }
@@ -245,15 +247,18 @@ public class StateParallel extends StateSimple
   @Override public CharSequence infoAppend(StringBuilder u) {
     if(u == null) { u = new StringBuilder(200); }
     String separator = "";
+    u.append(stateId).append(":");
     if(aParallelstates !=null) {
-      for(StateComposite stateParallel: aParallelstates){
+      for(StateSimple stateParallel: aParallelstates){
         u.append(separator);
-        stateParallel.infoAppend(u);
+        stateParallel.infoAppend(u);  //writes -inactive if it is not active.
         separator = "||";
       }
     }
     return u;
     
   }
-  
+
+  @Override public String toString(){ return infoAppend(null).toString(); }
+
 }

@@ -440,25 +440,20 @@ public class StateComposite extends StateSimple implements InfoAppend
   @Override public CharSequence infoAppend(StringBuilder u) {
     if(u == null) { u = new StringBuilder(200); }
     String separator = "";
-    if(aSubstates !=null) {
-      u.append(stateId);
-      u.append(separator);
-      if(isActive) {
-        stateAct.infoAppend(u);
-        //u.append(stateAct.toString());
-      }
-      separator = "-"; 
+    u.append(stateId);
+    if(isActive) {
+      u.append(".");
+      stateAct.infoAppend(u);
+    } else {
+      u.append(" - inactive");
     }
+    separator = "-"; 
     return u;
     
   }
   
   
-  @Override public String toString(){ 
-    StringBuilder u = new StringBuilder();
-    infoAppend(u);
-    return u.toString();
-  }
+  @Override public String toString(){ return infoAppend(null).toString(); }
 
 
 }
