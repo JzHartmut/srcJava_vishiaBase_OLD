@@ -58,10 +58,10 @@ public class StateParallel extends StateSimple
   final StateSimple[] aParallelstates;
   
   /**Special constructor to build a state machine from other data. See org.vishia.stateMGen.StateMGen. */
-  public StateParallel(StateMachine stateMachine, StateComposite[] aParallelstates){
+  public StateParallel(String stateName, StateMachine stateMachine, StateSimple[] aParallelstates){
     this.aParallelstates = aParallelstates;
     this.stateMachine = stateMachine;
-    this.stateId = "parallel";
+    this.stateId = stateName;
   };
   
   
@@ -130,10 +130,11 @@ public class StateParallel extends StateSimple
     }
   }
   
+ 
   
   
   /**Special method to build a state machine from other data. See org.vishia.stateMGen.StateMGen. */
-  public void addState(int key, StateComposite state){
+  public void addState(int key, StateSimple state){
     int ix = 0;
     while(ix < aParallelstates.length && aParallelstates[ix] !=null){ ix +=1; } //search next free
     if(ix >= aParallelstates.length) throw new IllegalArgumentException("too many parallel states to add");

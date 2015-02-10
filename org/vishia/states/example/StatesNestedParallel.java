@@ -6,6 +6,7 @@ import org.vishia.event.EventCmdtype;
 import org.vishia.event.EventTimerThread;
 import org.vishia.event.EventWithDst;
 import org.vishia.states.StateComposite;
+import org.vishia.states.StateCompositeFlat;
 import org.vishia.states.StateParallel;
 import org.vishia.states.StateSimple;
 import org.vishia.states.StateMachine;
@@ -68,7 +69,7 @@ public class StatesNestedParallel
       
       //Trans history = new Trans(StateWork.StateActive.class);
       
-      @Override protected Trans selectTrans(EventObject ev) { return super.selectTrans(ev); }
+      //@Override protected Trans selectTrans(EventObject ev) { return super.selectTrans(ev); }
       /*
       if(cond.on) {
           //choice
@@ -81,45 +82,35 @@ public class StatesNestedParallel
       
       public Choice on = new Choice() { 
         
-        @Override protected void check(EventObject ev) {
-          if(  ev instanceof EventA 
-            && ((EventA)ev).getCmd() == CmdEvent.start) { 
-            retTrans = mEventConsumed;
-          }
-        } 
         
-        Trans cont = new Trans(StateWork.class){ 
-          @Override protected void check(EventObject ev) {
-            if(cond.cont) retTrans = mDeepHistory;
-          } 
-        };
- 
-        Trans hist = new Trans(StateWork.StateReady.class){ 
-          @Override protected void check(EventObject ev) {
-             retTrans = mTransit;
-          } 
-        };
+        Trans cont_history = new TransDeepHistory(StateWork.class); 
+        Trans ready = new Trans(StateWork.StateReady.class);
+          
+        @Override public Trans checkTrans() {
+          if(cond.cont) return cont_history;
+          else return ready;
+        }
+        
       };
       
       
       
-      Trans on_Ready(EventA ev, Trans trans) {
-        if(trans == null) return new Trans(StateWork.StateReady.class); 
-        //Class<? extends StateSimple> dst = StateWork.StateReady.class;
-        //int id = StateWork.class.hashCode();
-        if(cond.on){
-          trans.retTrans |= mEventConsumed;
-          trans.doExit();
-          
-          trans.doEntry(ev);
+      Trans on_Ready = new Trans(StateWork.StateReady.class); 
+      
+      
+      @Override protected Trans selectTrans(EventObject ev) {
+        if(  ev instanceof EventA 
+            && ((EventA)ev).getCmd() == CmdEvent.start ){
+          return on.checkTrans().eventConsumed();
         }
-        return trans;
+        //else if(cond.on) return on_Ready;
+        else return null;
       }
       
     };
     
     
-    class StateWork extends StateComposite
+    class StateWork extends StateCompositeFlat
     {
       @Override protected int entry(EventObject ev){ System.out.println("entry " + stateId); return 0; }
       
@@ -157,7 +148,7 @@ public class StatesNestedParallel
 
           @Override protected void exit(){ System.out.println(" exit " + stateId); }
 
-          class StateRunning extends StateParallel
+          class StateRunning extends StateCompositeFlat
           { final boolean isDefault = true;
             @Override protected int entry(EventObject ev){ System.out.println("entry " + stateId); return 0; }
 
@@ -165,16 +156,17 @@ public class StatesNestedParallel
 
             Timeout timeout = new Timeout(5000, StateFinit.class) {
               @Override protected void action(EventObject ev){
-                System.err.println("timeout");
+                System.out.println("  timeout");
               }
             };
             
             class StateRunning1 extends StateSimple {
+              final boolean isDefault = true;
               @Override protected int entry(EventObject ev){ System.out.println("entry " + stateId); return 0; }
               @Override protected void exit(){ System.out.println(" exit " + stateId); }
             }
             
-            class StateRunning2 extends StateComposite {
+            class StateRunning2 extends StateCompositeFlat {
               class StateRunning21 extends StateSimple {
                 final boolean isDefault = true;
                 @Override protected int entry(EventObject ev){ System.out.println("entry " + stateId); return 0; }
@@ -257,13 +249,13 @@ public class StatesNestedParallel
       //states.processEvent(event);
     }
     //cond.on = false;
-    while(!states.isInState(States.StateOff.class)) {
+    do {
       try{ Thread.sleep(100);
       } catch(InterruptedException exc) {}
       if(event.occupy(null, states, thread, true)){
         event.sendEvent(CmdEvent.cyclic);  //animate the state machine cyclically to check some conditions.
       }
-    }
+    } while(!states.isInState(States.StateOff.class));
     try{
       //timer.close();
       thread.close();

@@ -207,6 +207,8 @@ protected StateMachine stateMachine;
  */
 protected StateSimple enclState;
 
+/**The state which controls this state. */
+protected StateComposite stateCtrl;
 
 /**Any additional information. Used for special cases. */
 private Object auxInfo;
@@ -388,8 +390,6 @@ public class Trans
   final int[] dst;
   
   
-  final int priority;
-  
   /**If a condition instance is given, its {@link StateAction#exec(EventMsg2)}-method is called to test whether the transition should fire.
    * The condition can contain action statements. But that is not allowed, if some {@link #choice} conditions are set.
    * if the condition contains only a condition, it should return 0 if it is false and not {@link StateSimple#mEventConsumed}, if it is true.
@@ -474,25 +474,16 @@ public class Trans
    * If a {@link #check(EventMsg2)} method has not invoked this methods, they are invoked from the {@link StateSimple#checkTransitions(EventMsg2)}. */
   boolean doneExit, doneAction, doneEntry;
   
-  /**This constructor is used to initialize a derived anonymous class with one or more destination state of this transition
-   * or as super constructor for derived classes.
-   * This constructor should not be used if a transition class contains {@link #choice}-transitions.
-   */
-  public Trans(Class<?> ...dst){ this(1000, dst); }
-
     
   /**This constructor is used to initialize a Transition instance maybe for a derived anonymous class 
    * with null, one or more destination state of this transition
    * or as super constructor for derived classes if a priority should be given. All transitions without priority are lower.
    * This constructor should not be used if a transition class contains {@link #choice}-transitions.
-   * @param priority Number starting from 1 (highest) for priority to max. 999. A more prior transition fires if more as one transition have the same condtions.
-   *   The transitions are tested in order of its priority. If a transition fires all transitions with lesser priority are not tested.
    * @param dst null, one ore more destination classes.
    *   If the dst is null or not given, the transition is a inner-state-transition. If it fires the {@link StateSimple#exit()} and the entry is not executed.
    *   If more as one dst is given this is a fork transition to more as one state, which should be states in parallel composite states.  
    */
-  public Trans(int priority, Class<?> ...dst){
-    this.priority = priority;
+  public Trans(Class<?> ...dst){
     if(dst == null || dst.length ==0) this.dst = null;
     else {
       this.dst = new int[dst.length];
@@ -503,11 +494,12 @@ public class Trans
   }
   
   
+  
+  
   /**This constructor should be used if the destination states are given from an outer algorithm.
    * @param dstKeys
    */
-  public Trans(int priority, int[] dstKeys){
-    this.priority = priority;
+  public Trans(int[] dstKeys){
     this.dst = dstKeys;
   }
   
@@ -856,8 +848,20 @@ public class Trans
 
 
 
-public class Choice extends Trans
+public class TransDeepHistory extends Trans {
+  public TransDeepHistory(Class<?> ...dst){ super(dst); retTrans |= mDeepHistory; }
+}
+
+
+public class TransFlatHistory extends Trans {
+  public TransFlatHistory(Class<?> ...dst){ super(dst); retTrans |= mFlatHistory; }
+}
+
+
+
+public abstract class Choice extends Trans
 {
+  protected Trans nullTrans = new Trans();
   
   /**Constructs a transition with {@link #choice} sub-transitions.
    */
@@ -865,7 +869,7 @@ public class Choice extends Trans
     super();
   }
   
-  
+  public abstract Trans checkTrans();
 
 }
 
@@ -976,6 +980,15 @@ final void buildStatePath(StateSimple enclState) {
     statePath = new StateSimple[1];
     statePath[0] = this;              //first element is the top state.
   } else {
+    //search the control StateComposite:
+    StateSimple enclState1 = this.enclState;
+    while(enclState1 !=null && !(enclState1 instanceof StateComposite) &&  !(enclState1 instanceof StateParallel)) {
+      enclState1 = enclState1.enclState;
+    }
+    if(enclState1 instanceof StateComposite) { 
+      stateCtrl = (StateComposite)enclState1;
+    } //else: It is a StateSimple in a StateParallel.
+    //
     //copy the path from the top state to the new dst state. It is one element lengths.
     int topPathLength = enclState.statePath.length;
     this.statePath = new StateSimple[topPathLength +1];
@@ -1017,8 +1030,7 @@ void createTransitionList(Object encl, Trans parent, int nRecurs){
         Trans trans = (Trans)ctor1.newInstance(this);
         trans.transId = clazz1.getSimpleName();
         //transitions.add(trans);
-        String priority = String.format("%04d", trans.priority);
-        transitions1.add(priority, trans);
+        transitions1.add("", trans);
         trans.parent = parent;  //null for a state transition
         checkBuiltTransition(trans, nRecurs);
       }
@@ -1042,8 +1054,7 @@ void createTransitionList(Object encl, Trans parent, int nRecurs){
           */
           trans.transId = sFieldName;
           //transitions.add(trans);
-          String priority = String.format("%04d", trans.priority);
-          transitions1.add(priority, trans);
+          transitions1.add("", trans);
           trans.parent = parent;  //null for a state transition
           checkBuiltTransition(trans, nRecurs);
         }
@@ -1066,8 +1077,7 @@ void createTransitionList(Object encl, Trans parent, int nRecurs){
           trans.buildTransitionPath();
           trans.parent = parent;  //null for a state transition
           //transitions.add(trans);
-          String priority = String.format("%04d", trans.priority);
-          transitions1.add(priority, trans);
+          transitions1.add("", trans);
         } catch(Exception exc){ throw new IllegalArgumentException("stateTrans-method failure"); }
       }
     }
@@ -1137,7 +1147,9 @@ private void checkBuiltTransition(Trans trans, int nRecurs) {
     this.millisectimeout = transTimeout.millisec;
     searchOrCreateTimerEvent();
   }
-  createTransitionList(trans, trans, nRecurs+1);  //for choices
+  if(trans instanceof Choice) {
+    createTransitionList(trans, trans, nRecurs+1);  //for choices
+  }
 }
 
 
@@ -1174,6 +1186,14 @@ private void searchOrCreateTimerEvent() {
  * @return
  */
 public final boolean isInState(){
+  if(stateCtrl !=null) {
+    return stateCtrl.isActive && stateCtrl.isInState(this);
+  } else {
+    //it is the top state or a StateSimple inside a StateParallel
+    if(enclState == null) return true; //it is the top state.
+    else return enclState.isInState();
+  }
+  /*
   if(enclState == null) return true;   //it is the top state.
   else if(enclState instanceof StateComposite){
     StateComposite enclc = (StateComposite)enclState;
@@ -1182,6 +1202,7 @@ public final boolean isInState(){
     //encl is a StateParallel
     return enclState.isInState();  //check whether it is active.
   }
+  */
 }
 
 
@@ -1298,11 +1319,21 @@ final int checkTransitions(EventObject ev) {
  * @return
  */
 final int entryTheState(EventObject ev, int history) { //int isConsumed){
-  if(enclState instanceof StateComposite) { 
-    StateComposite encl1 = (StateComposite)enclState;
+  /*
+  StateSimple enclState1 = this.enclState;
+  while(enclState1 !=null && !(enclState1 instanceof StateComposite) &&  !(enclState1 instanceof StateParallel)) {
+    enclState1 = enclState1.enclState;
+  }
+  if(enclState1 instanceof StateComposite) { 
+    StateComposite encl1 = (StateComposite)enclState1;
     encl1.stateAct = this;
     encl1.isActive = true;
-  }
+  } //else: It is a StateSimple in a StateParallel.
+  */
+  if(stateCtrl !=null) {
+    stateCtrl.stateAct = this;
+    stateCtrl.isActive = true;
+  } //else only null on a StateSimple in a StateParallel.
   //
   ctEntry +=1;
   dateLastEntry = System.currentTimeMillis();

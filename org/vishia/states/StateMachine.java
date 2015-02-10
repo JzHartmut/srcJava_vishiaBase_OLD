@@ -170,7 +170,7 @@ public class StateMachine implements EventConsumer, InfoAppend
 
   protected static class StateCompositeTop extends StateComposite
   {
-    StateCompositeTop(StateMachine stateMachine, StateSimple[] aSubstates) { super(stateMachine, aSubstates); } 
+    StateCompositeTop(StateMachine stateMachine, StateSimple[] aSubstates) { super("top", stateMachine, aSubstates); } 
     
     
     public void prepare() {
