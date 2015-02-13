@@ -139,6 +139,7 @@ public class StateParallel extends StateSimple
     while(ix < aParallelstates.length && aParallelstates[ix] !=null){ ix +=1; } //search next free
     if(ix >= aParallelstates.length) throw new IllegalArgumentException("too many parallel states to add");
     aParallelstates[ix] = (StateComposite)state;
+    stateMachine.stateMap.put(state.hashCode(), state);
   }
   
   

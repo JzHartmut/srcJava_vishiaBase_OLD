@@ -7,8 +7,59 @@ import java.util.List;
 import org.vishia.util.DataAccess;
 import org.vishia.util.InfoAppend;
 
+/**Super class for a composite state which does not contain a history. Therefore it can use the state variable
+ * of its enclosing {@link StateComposite}. A composite state has two core properties:
+ * <ul>
+ * <li>can have a history, if necessary
+ * <li>transitions from the composite are the same as one transition per inner state, but in lower priority.
+ * </ul>
+ * The last one property is provided from this StateCompositeFlat by the {@link StateComposite#processEvent(java.util.EventObject)}
+ * which checks whether the state {@link StateComposite#stateAct} refers a {@link StateSimple#enclState} as StateCompositeFlat.
+ * Then its transitions are checked after checking the transitions of the actual state.
+ * <br><br>
+ * This class is the super class of {@link StateComposite} because it provides half of its properties. 
+ * The top state or a composite state inside a {@link StateParallel} should be of type {@link StateComposite} because
+ * it needs a {@link StateComposite#stateAct} to control the state processing. 
+ *  
+ * @author Hartmut Schorrig
+ *
+ */
 public class StateCompositeFlat extends StateSimple implements InfoAppend
 {
+  /**Version, history and license.
+   * <ul>
+   * <li>2015-02-09 Hartmut created, copied parts from {@link StateComposite}. 
+   *   Reason: Too many recursions while using StateComposite, not well for debugging.
+   *   States in C should not use one state variable per composite if it is not necessary. A own state variable
+   *   per composite state is only necessary if the composite should store a history state.
+   * </ul>
+   * <br><br>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL is not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   */
+  public static final int version = 20150211;
+
   StateSimple stateDefault;
 
   /**List of all sub states of this composite state. This list is necessary to build the transition paths on startup.
