@@ -528,6 +528,10 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
       dst = co.filesrc;
     }
     ok = chgFile(dst, co.maskFlags(), co.newFlags(), ok);
+    long date =co.newDate();
+    if(date !=0) {
+      ok &= dst.setLastModified(date);
+    }
     FileRemote.CallbackCmd cmd;
     if(ok){
       cmd = FileRemote.CallbackCmd.done; 

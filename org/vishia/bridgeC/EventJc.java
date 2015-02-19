@@ -5,7 +5,7 @@ import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventTimerThread;
 
-/**This class extends the {@link EventCmdPingPongType} only with the capability of deletion from Memory for non-Garbage-Collecting C/C++ usage.
+/**This class extends the {@link EventCmdtypeWithBackEvent} only with the capability of deletion from Memory for non-Garbage-Collecting C/C++ usage.
  * @author Hartmut Schorrig
  *
  */

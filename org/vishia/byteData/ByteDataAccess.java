@@ -29,7 +29,7 @@ import org.vishia.util.Java4C;
 
 
 
-/**This class is a base class to control the access to binary data.
+/**Deprecated: Use {@link ByteDataAccessBase} This class is a base class to control the access to binary data.
  * The binary data may typically used or produced from a part of software written in C or C++.
  * There the binary data are struct-constructs. Another example - build of datagram structures.
  * <br>
@@ -117,7 +117,7 @@ import org.vishia.util.Java4C;
  *  +-------------+     |specifyLengthCurrentChild()    |
  *                      +-------------------------------+
  * </pre>
- *
+ * @deprecated since 2014-11, use {@link ByteDataAccessBase}
  */
 public abstract class ByteDataAccess extends ByteDataAccessBase
 {

@@ -142,6 +142,16 @@ public class StatesNestedParallel
 
         @Override protected void exit(){ System.out.println(" exit " + stateId); }
 
+        Join to_off = join(new Join(StateOff.class), StateActive1.StateFinit.class, StateActive2.StateShouldOff.class);
+
+        @Override protected Trans selectTrans(EventObject ev){
+          if(to_off.joined()) {
+          //if(stateMachine.isInState(StateActive1.StateFinit.class) && stateMachine.isInState(StateActive2.StateShouldOff.class)) {
+            return to_off;
+          } 
+          else return null;
+        }
+
         class StateActive1 extends StateComposite
         {
           @Override protected int entry(EventObject ev){ System.out.println("entry " + stateId); return 0; }
@@ -216,15 +226,6 @@ public class StatesNestedParallel
 
             
           }
-        }
-
-        Trans to_off = new Trans(StateOff.class);
-        
-        @Override protected Trans selectTrans(EventObject ev){
-          if(stateMachine.isInState(StateActive1.StateFinit.class) && stateMachine.isInState(StateActive2.StateShouldOff.class)) {
-            return to_off;
-          } 
-          else return null;
         }
   
       }//class StateActive

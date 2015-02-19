@@ -113,7 +113,10 @@ public class EventCmdtypeWithBackEvent<CmdEnum extends Enum<CmdEnum>, EventBack 
     this.evDst = consumer; this.evDstThread = thread;
     this.opponent = callback;
     if(callback !=null && callback instanceof EventCmdtypeWithBackEvent) {
-      //((EventCmdWithBackEvent<?,?>)callback).opponent = (EventCmdWithBackEvent<?,?>)this;  //Refer this in the callback event. 
+      //only if the callback is type of EventCmdtypeWithBackEvent too, refer both vice versa:
+      @SuppressWarnings("unchecked") 
+      EventCmdtypeWithBackEvent<?,EventCmdtypeWithBackEvent<?,?>> callbackTyped = ((EventCmdtypeWithBackEvent<?,EventCmdtypeWithBackEvent<?,?>>)callback);
+      callbackTyped.opponent = this;  //Refer this in the callback event. 
     }
   }
   

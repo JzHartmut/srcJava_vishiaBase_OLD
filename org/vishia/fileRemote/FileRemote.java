@@ -2272,6 +2272,8 @@ public class FileRemote extends File implements MarkMask_ifc
    */
   public static class CmdEvent extends EventCmdtypeWithBackEvent<FileRemote.Cmd, FileRemote.CallbackEvent>
   {
+    private static final long serialVersionUID = 1L;
+
     /**Source and destination files for copy, rename, move or the only one filesrc. filedst may remain null then. */
     public FileRemote filesrc, filedst;
 
@@ -2394,6 +2396,8 @@ public class FileRemote extends File implements MarkMask_ifc
    */
   public static class CallbackEvent extends EventCmdtypeWithBackEvent<FileRemote.CallbackCmd, FileRemote.CmdEvent>
   {
+    private static final long serialVersionUID = 1L;
+
     private FileRemote filesrc, filedst;
 
     /**Source of the forward event, the oppenent of this. It is the instance which creates the event. */
@@ -2447,9 +2451,9 @@ public class FileRemote extends File implements MarkMask_ifc
      * @param thread The thread which stores the event in its queue, or null if the dst can be called
      *   in the transmitters thread.
      */
-    public CallbackEvent(EventSource evSrc, FileRemote filesrc, FileRemote fileDst
+    public CallbackEvent(EventSource evSrcCallback, FileRemote filesrc, FileRemote fileDst
         , EventConsumer dst, EventTimerThread thread, EventSource evSrcCmd){ 
-      super(null, dst, thread, new CmdEvent(evSrc,filesrc, fileDst, null, null)); 
+      super(null, dst, thread, new CmdEvent(evSrcCmd, filesrc, fileDst, null, null)); 
       this.filesrc = filesrc;
       this.filedst = fileDst;
       this.evSrcCmd = evSrcCmd;

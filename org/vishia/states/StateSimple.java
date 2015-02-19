@@ -468,6 +468,8 @@ public class Trans
    * */
   StateSimple[] entryStates;
   
+  
+  /**Identification String for the transition, for debug. */
   String transId;
   
   /**Set it to false on start of check this transition. The methods {@link #doEntry(EventMsg2)}, {@link #doAction(Trans, EventMsg2, int)} and {@link #doExit()} sets it to true. 
@@ -499,7 +501,8 @@ public class Trans
   /**This constructor should be used if the destination states are given from an outer algorithm.
    * @param dstKeys
    */
-  public Trans(int[] dstKeys){
+  public Trans(String name, int[] dstKeys){
+    this.transId = name;
     this.dst = dstKeys;
   }
   
@@ -802,6 +805,8 @@ public class Trans
       StateSimple[] stateFork = new StateSimple[dstStates.length];
       if(stateFork.length == 3)
         Debugutil.stop();
+      if(transId.equals("Trans_Running0"))
+        Debugutil.stop();
       List<StateSimple> listEntries = new LinkedList<StateSimple>();
       int ixStatePath = ixInStatePath[0];  //start with the states after the common state. All ixDstPath[...] are the same yet.
       int dstNotReached;  // if 0 then all reached.
@@ -896,6 +901,45 @@ public class Timeout extends Trans
 
 
 
+public class Join extends Trans
+{
+  /**If not null then it is a join transitions. All of this states should be active to fire the transition. */
+  StateSimple[] joinStates;
+
+  /**Filled with {@link StateParallel#join(Join, Class...)}
+   * which should be used to construct a Join transition. 
+   * Used by {@link #buildJoinStates()}. */
+  Class<?>[] joinStateClasses;
+  
+  public Join(Class<?> ...dstStates) {
+    super(dstStates);
+    transId = "join";
+  }
+  
+  
+  protected void buildJoinStates() {
+    joinStates = new StateSimple[joinStateClasses.length];
+    int ix =-1;
+    for(Class<?> joinState: joinStateClasses) {
+      @SuppressWarnings("unchecked") 
+      Class<StateSimple>joinState1 = (Class<StateSimple>)joinState;
+      StateSimple state = stateMachine.getState(joinState1);
+      joinStates[++ix] = state;
+    }
+  }
+  
+  
+  /**Checks this transition, returns true if all join states are {@link StateSimple#isInState()}. */
+  public boolean joined() {
+    for(StateSimple state: joinStates) {
+      if(! state.isInState()) return false;
+    }
+    return true;
+  }
+  
+}
+
+
 
 protected StateSimple(){
   this.modeTrans = mRunToComplete;  //default: call trans(), it has not disadvantages
@@ -934,6 +978,12 @@ public void setAuxInfo(Object info) { auxInfo = info; }
 
 public Object auxInfo() { return auxInfo; }
 
+/**Returns that state which is the composite state which controls the activity of that independent part of the StateMachine.
+ * Note: If a composite state is only used to build a pool of simple states which have common transition(s) the pool-building state
+ * is a {@link StateCompositeFlat} and it is not the stateCtrl.
+ * 
+ */
+public StateComposite stateCtrl(){ return stateCtrl; }
 
 
 /**This method may be overridden for a entry action. In that case the {@link #entry} or {@link #entryMethod} is either not used
@@ -1101,7 +1151,10 @@ void createTransitionList(Object encl, Trans parent, int nRecurs){
 
 
 
-protected void prepareTransitions() {
+/**Prepares all transitions. This method is public only for usage TODO
+ * 
+ */
+public void prepareTransitions() {
   if(aTransitions !=null) {
     for(Trans trans: aTransitions) {
       checkBuiltTransition(trans, 0);
@@ -1305,7 +1358,7 @@ final int checkTransitions(EventObject ev) {
           CharSequence excText = Assert.exceptionInfo("StateSimple -" + stateId, exc, 0, 20);
           System.err.append(excText);
         } else {
-          throw exc;
+          throw new RuntimeException(exc);
         }
       }
   } }

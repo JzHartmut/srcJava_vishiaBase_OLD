@@ -26,7 +26,7 @@ package org.vishia.byteData;
 import org.vishia.util.Java4C;
 import org.vishia.util.StringFormatter;
 
-public abstract class ByteDataAccessDbg extends ByteDataAccess
+@Deprecated public abstract class ByteDataAccessDbg extends ByteDataAccess
 {
 
 

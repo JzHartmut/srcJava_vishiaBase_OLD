@@ -130,8 +130,25 @@ public class StateParallel extends StateSimple
     }
   }
   
+  /**Used to construct a Join transition in a {@link StateParallel} in the source code of the transition.
+   * Usage:
+   * <pre>
+   * Join joinTransition = join(new Join(DstState.class, DstState2.class), SrcState.class, SrcState2.class);
+   * 
+   *      DstState <-----|<----- SrcState
+   *      DstState1 <----|<----- SrcState2
+   * </pre>
+   * Check the transition with {@link StateSimple.Join#joined()}.
+   *      
+   * @param joinTrans The transition created with new Join(...)
+   * @param joinStates Two or more source states which are to joined. 
+   * @return The joinTrans
+   */
+  public Join join(Join joinTrans, Class<?>... joinStates){
+    joinTrans.joinStateClasses = joinStates;
+    return joinTrans;
+  }
  
-  
   
   /**Special method to build a state machine from other data. See org.vishia.stateMGen.StateMGen. */
   public void addState(int key, StateSimple state){

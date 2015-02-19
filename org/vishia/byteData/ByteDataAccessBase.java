@@ -9,10 +9,106 @@ import org.vishia.util.Debugutil;
 import org.vishia.util.Java4C;
 import org.vishia.util.StringFormatter;
 
-/**This class is the base class for ByteDataAccess. It works without dynamic methods proper for C usage.
+/**This class is a base class to control the access to binary data.
+ * The binary data may typically used or produced from a part of software written in C or C++.
+ * Therewith the binary data are struct-constructs. Another example - build of datagram structures.
+ * <br>
+ * This class is a base class which should be derived for user's necessities. 
+ * The methods {@link #getInt16(int)} etc. are protected. That should prevent erratic free accesses to data 
+ * on application level. A derived class of this class structures the software for byte data access.
+ * <br><br> 
+ * It is able to support several kinds of structured data access:<ul>
+ * <li>Simple C-like <code>struct</code> are adequate mapped with a simple derived class of this class, 
+ *     using the protected commonly access methods like {@link #_getLong(int, int)} with predefined indexes 
+ *     in special methods like getValueXyz().
+ * <li>Complex <code>struct</code> with nested <code>struct</code> inside are mapped 
+ *     with one derived class per <code>struct</code>, define one reference per nested struct 
+ * <li>Base <code>struct</code> inside a <code>struct</code> (inheritance in C) can be mapped with 
+ *     extra derived classes for the base struct and usind the
+ *     {@link #assignCasted_i(ByteDataAccessBase, int, int)}-method.
+ * <li>A pack of data with several struct may be mapped using the {@link #addChild(ByteDataAccessBase)}-method.
+ *     Thereby a parent should be defined, and the structs of the pack are children of this parent. 
+ *     That structures need not be from the same type.
+ * <li>packs of struct with parent are able to nesting, it is able to construct as a tree of pack of structures. 
+ *     The parent of the pack is the tree node. It is likewise a XML tree. 
+ *     The data may be also transformed to a XML data representation
+ *     or the data structure may be explained with a XML tree, but they are not
+ *     XML data straight.
+ * </ul>
+ * This application possibilities show a capable of development system to access binary data. 
+ * The other, hand made way was calculate with indices of the byte[idx] specially user programmed. 
+ * This class helps to make such complex index calculation needlessly. 
+ * One struct at C level corresponds with one derivated class of ByteDataAccessBase. 
+ * But last also a generation of the java code from C/C++-header files containing the structs is able to.
+ * So the definition of byte positions are made only on one source. The C/C++ is primary thereby. 
+ *      
+ * <br>
+ * The UML structure of such an class in a environment may be shown with the
+ * followed object model diagram, <br>
+ * <code> <+>---> </code>is a composition,
+ * <code> <>---> </code>is a aggregation, <code> <|---- </code>is a inherition.
+ *  <pre>
+ *                      +-------------------------------+                 +----------+
+ *                      | ByteDataAccessBase(sizeHead)  |----data-------->| byte[]   |
+ *                      |-------------------------------|                 |          |
+ *                      |- idxBegin:int                 |                 | d a t a  |
+ *                      |- idxChild:int                 |                 +----------+
+ *  +-------------+     |- idxEnd:int                   |
+ *  | derivated   |     |-------------------------------|<---------------+ a known parent
+ *  | user        |---|>|+ addChild(child)              |                |
+ *  | classes     |     |+ addChildFloat()              |---parent-------+ set in addChild()
+ *  +-------------+     |% getInt32()                   |
+ *                      +-------------------------------+
+ * </pre>
+ *
+ * This class is the base class for ByteDataAccess. It works without dynamic methods proper for C usage.
  * All variables are package private because they should be changed only with methods of this class.
- * Only the derived Class {@link ByteDataAccess} uses the variables direct.
+ * <br><br>
+ * <h2>Initialization and instances</h2>
+ * The root instance of data should be initialized with
+ * <pre>
+ * MyByteDataAccessRoot accessRoot = new MyByteDataAccessRoot(); 
+ *   //... invokes super.ByteDataAccessBase(lengthHead);
+ * accessRoot.assign(myData, dataLength);
+ * </pre>  
+ * Any instances which represents a sub structure in data can be created as re-useable instances, which can be added
+ * as child of the root instance or as child of any already added child on demand:
+ * <pre>
+ * MySubStruct subStruct = new SubStruct();  //an instance for accessing 
+ *   ....
+ *   accessRoot.addChild(subStruct);       //adds on current position.
+ *   int value = subStruct.getValuexyz();  //now can access the data.
+ * </pre>
+ * 
+ * 
+ * 
+ * <br>  
+ * <h2>children, currentChild, addChild</h2>
+ * Children are used to evaluate or write different data structures after a known structure. 
+ * The children may be from several derived types of this class. 
+ * With children and children inside children a tree of different data can be built or evaluated.
+ * 
+ * If no child is added yet, the indices have the following values:
+ * <ul>
+ * <li>ixChild = -1.
+ * <li>ixChildEnd = index after known (head-) data.
+ * </ul>
+ * A call of {@link addChild()} or its adequate addChildXY() sets the indices to the given current child:
+ * <ul>
+ * <li>ixChild = the index after known (first head-) data, the index of the child.
+ * <li>ixChildEnd = ixChild + {@link #sizeHead} of the child.     
+ * </ul>
+ * The length of the current Child may be set while evaluating the child's data. 
+ * The user should call {@link #setLengthElement(int)} with the child 
+ * <ul>
+ * <li>ixChild = is still the index of the child.
+ * <li>ixChildEnd = ixChild + given length.
+ * </ul>
+ * 
+ * 
+ * 
  * @java2c = noObject.
+ * 
  * @author Hartmut Schorrig
  *
  */
