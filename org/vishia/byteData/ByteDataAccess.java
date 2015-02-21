@@ -24,6 +24,7 @@ package org.vishia.byteData;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 
+import org.vishia.util.Java4C.Inline;
 import org.vishia.util.StringFormatter;
 import org.vishia.util.Java4C;
 
@@ -117,13 +118,15 @@ import org.vishia.util.Java4C;
  *  +-------------+     |specifyLengthCurrentChild()    |
  *                      +-------------------------------+
  * </pre>
- *
+ * @deprecated use {@link ByteDataAccessBase} for new Algorithm. This is the original code from 2014-01-13, only formally adapted.
+ *   The ByteDataAccessBase contains the same wideness, but with the concept of prevent using virtual methods and with a given size of head.
+ *   That is better than the {@link #specifyLengthElementHead()} as virtual method especially for usage in C.
  */
-public abstract class ByteDataAccess
+@Deprecated public abstract class ByteDataAccess
 {
   /**The version. 
    * <ul>
-   * <li>2014-01-12 Hartmut new: Java4C.inline for C-compilation. 
+   * <li>2014-01-12 Hartmut new: Java4C.Inline for C-compilation. 
    * <li>2013-12-08 Hartmut new: {@link #ByteDataAccess(int, int)} as super constructor with given head and data size.
    *   {@link #addChild(ByteDataAccess)} accepts an initialized not used child. Uses {@link #kInitializedWithLength}.
    *   That is the possibility to work without dynamic linked methods {@link #specifyLengthElement()} etc. for proper work
@@ -200,7 +203,6 @@ public abstract class ByteDataAccess
   
   /**Use especially for test, only used in toString(). 
    * @java2c=instanceType:"StringFormatter". It is never a derived class.*/
-  @Java4C.exclude
   StringFormatter toStringformatter = null;
 
 
@@ -280,7 +282,7 @@ public abstract class ByteDataAccess
    * of the derived class. But this method returns the difference between (idxFirstChild - idxBegin),
    * which is initialized in construction or {@link #assignData(byte[], int)}-invocations and not changed normally.
    */ 
-  @Java4C.inline
+  @Inline
   public final int getLengthHead(){ return idxFirstChild - idxBegin; }
   
 
@@ -509,7 +511,7 @@ public abstract class ByteDataAccess
    * @param index
    * @throws IllegalArgumentException
    */
-  @Java4C.inline
+  @Java4C.Inline
   public final void assignData(byte[] data, int lengthData, int index) 
   throws IllegalArgumentException
   { assignData(data, -1, lengthData, index);
@@ -533,7 +535,7 @@ public abstract class ByteDataAccess
    *               in any state of the evaluation.
    * @throws IllegalArgumentException if the length is > data.length
    */
-  @Java4C.inline
+  @Java4C.Inline
   public final void assignData(byte[] data, int length) 
   throws IllegalArgumentException
   { if(length == 0)
@@ -576,7 +578,7 @@ public abstract class ByteDataAccess
   /**Remove all children. Let the head unchanged.
    * @since 2010-11-16
    */
-  @Java4C.inline
+  @Java4C.Inline
   public final void removeChildren()
   { 
     idxCurrentChildEnd = idxFirstChild;
@@ -594,7 +596,7 @@ public abstract class ByteDataAccess
   
   
   /**Remove all connections. Especially for children. */
-  @Java4C.inline
+  @Java4C.Inline
   final public void detach()
   { /*
     if(currentChild !=null){ 
@@ -624,7 +626,7 @@ public abstract class ByteDataAccess
    * @throws IllegalArgumentException if a length of the new type is specified but the byte[]-data are shorter. 
    *                         The length of byte[] is tested. 
    */
-  @Java4C.inline
+  @Java4C.Inline
   final protected void assignCasted_i(ByteDataAccess src, int offsetCastToInput, int lengthDst)
   throws IllegalArgumentException
   { this.bBigEndian = src.bBigEndian;
@@ -645,7 +647,7 @@ public abstract class ByteDataAccess
    * @param input
    * @throws IllegalArgumentException
    */
-  @Java4C.inline
+  @Java4C.Inline
   final protected void assignDowncast_i(ByteDataAccess input)
   throws IllegalArgumentException
   { assignCasted_i(input, 0, -1);
@@ -804,7 +806,7 @@ public abstract class ByteDataAccess
    *        orginal from {@link specifyLengthElement()}.
    * @deprecated use addChild()
    */
-  @Java4C.inline
+  @Java4C.Inline
   @Deprecated
   final public void assignAsChild(ByteDataAccess parent)
   throws IllegalArgumentException
@@ -821,7 +823,7 @@ public abstract class ByteDataAccess
    * @param child
    * @throws IllegalArgumentException
    */
-  @Java4C.inline
+  @Java4C.Inline
   final public void removeChild() 
   throws IllegalArgumentException
   { if(bExpand) throw new RuntimeException("don't call it in expand mode");
@@ -909,7 +911,7 @@ public abstract class ByteDataAccess
    *              to add some content.
    * @throws IllegalArgumentException 
    */
-  @Java4C.inline
+  @Java4C.Inline
   final public void addChildEmpty(ByteDataAccess child) 
   throws IllegalArgumentException
   { addChild(child);
@@ -1153,7 +1155,7 @@ public abstract class ByteDataAccess
    * @param value String to add, @pjava2c=nonPersistent.
    * @throws IllegalArgumentException
    */
-  @Java4C.inline
+  @Java4C.Inline
   public final void addChildString(CharSequence value) throws IllegalArgumentException
   { try{ addChildString(value, null); } 
     catch(UnsupportedEncodingException exc){ throw new RuntimeException(exc);} //it isn't able.
@@ -1166,7 +1168,7 @@ public abstract class ByteDataAccess
    * The calling of next() after them supplies the first child element.
    *
    */
-  @Java4C.inline
+  @Java4C.Inline
   public final void rewind()
   { idxCurrentChild = -1;
   }
@@ -1219,7 +1221,7 @@ public abstract class ByteDataAccess
    *                  to the end of data determines by calling assingData(...)
    *                  or by calling addChild() with a known size of child or setLengthElement() .
    */ 
-  @Java4C.inline
+  @Java4C.Inline
   final public int getMaxNrofBytes()
   { return data.length - idxBegin;
   }
@@ -1231,7 +1233,7 @@ public abstract class ByteDataAccess
    * @return The number of bytes of the actual element in the buffer.
    *         It is (idxEnd - idxBegin).
    */
-  @Java4C.inline
+  @Java4C.Inline
   final public int getLength()
   { return idxEnd - idxBegin;
   }
@@ -1242,7 +1244,7 @@ public abstract class ByteDataAccess
    * @return The number of bytes of data in the buffer.
    *         It is idxEnd.
    */
-  @Java4C.inline
+  @Java4C.Inline
   final public int getLengthTotal()
   { return idxEnd;
   } 
@@ -1252,7 +1254,7 @@ public abstract class ByteDataAccess
   /** Returns the data buffer itself. The actual total length is getted with getLengthTotal().
    * @return The number of bytes of the data in the buffer.
    */
-  @Java4C.inline
+  @Java4C.Inline
   final public byte[] getData()
   { return data;
   }
@@ -1261,7 +1263,7 @@ public abstract class ByteDataAccess
    * 
    * @return index of this element in the data buffer.
    */  
-  @Java4C.inline
+  @Java4C.Inline
   final public int getPositionInBuffer()
   { return idxBegin;
   }
@@ -1272,7 +1274,7 @@ public abstract class ByteDataAccess
    * 
    * @return index of the current child of this element in the data buffer.
    */  
-  @Java4C.inline
+  @Java4C.Inline
   final public int getPositionNextChildInBuffer()
   { return idxCurrentChildEnd;
   }
@@ -1343,7 +1345,7 @@ public abstract class ByteDataAccess
    * 
    * @param length The length of data of this current (last) child.
    */
-  @Java4C.inline
+  @Java4C.Inline
   final public void setLengthElement(int length)
   { //if(!bExpand && )
     expand(idxBegin + length);
@@ -1641,7 +1643,7 @@ public abstract class ByteDataAccess
   }
 
   
-  @Java4C.inline
+  @Java4C.Inline
   public final int getUint32(int idx)
   { return getInt32(idx);
   }
@@ -1780,7 +1782,7 @@ public abstract class ByteDataAccess
    * according to the IEEE 754 floating-point "single format" bit layout, preserving Not-a-Number (NaN) values,
    * like converted from java.lang.Float.floatToRawIntBits().
    */
-  @Java4C.inline
+  @Java4C.Inline
   protected final void setFloat(int idx, float value)
   {
     int intRepresentation = Float.floatToRawIntBits(value);
@@ -1793,7 +1795,7 @@ public abstract class ByteDataAccess
    * according to the IEEE 754 floating-point "double format" bit layout, preserving Not-a-Number (NaN) values,
    * like converted from java.lang.Double.doubleToRawLongBits().
    */
-  @Java4C.inline
+  @Java4C.Inline
   protected final void setDouble(int idx, double value)
   {
     long intRepresentation = Double.doubleToRawLongBits(value);
@@ -1830,7 +1832,7 @@ public abstract class ByteDataAccess
    *            This is not the absolute position in data, idxBegin is added.<br/>
    * @param value The value in range 0..65535. The value is taken modulo 0xffff.
    * */
-  @Java4C.inline
+  @Java4C.Inline
   protected final void setInt8(int idx, int value)
   { data[idxBegin + idx] = (byte)(value & 0xff);
   }
@@ -1843,7 +1845,7 @@ public abstract class ByteDataAccess
   *            This is not the absolute position in data, idxBegin is added.<br/>
   * @param value The value in range 0..65535. The value is taken modulo 0xff.
   * */
-  @Java4C.inline
+  @Java4C.Inline
   protected final void setUint8(int idx, int value)
   { setInt8(idx, value);  //its the same because modulo!
   }
@@ -1898,35 +1900,35 @@ public abstract class ByteDataAccess
   *            This is not the absolute position in data, idxBegin is added.<br/>
   * @param value The value in range 0..65535. The value is taken modulo 0xffff.
   * */
-  @Java4C.inline
+  @Java4C.Inline
   protected final void setUint16(int idx, int value)
   { setInt16(idx, value);  //its the same because modulo!
   }
 
 
   
-  @Java4C.inline
+  @Java4C.Inline
   protected final void setUint32(int idxBytes, int idxArray, int lengthArray, int val)
   { /** @Java4C.StringBuilderInThreadCxt TestRest */
     if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("setUint32:" + idxArray);
     setUint32(idxBytes + 4*idxArray, val);
   }
   
-  @Java4C.inline
+  @Java4C.Inline
   protected final void setInt32(int idxBytes, int idxArray, int lengthArray, int val)
   { /** @Java4C.StringBuilderInThreadCxt*/
     if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("setInt32:" + idxArray);
     setInt32(idxBytes + 4*idxArray, val);
   }
   
-  @Java4C.inline
+  @Java4C.Inline
   protected final void setInt16(int idxBytes, int idxArray, int lengthArray, int val)
   { /** @Java4C.StringBuilderInThreadCxt*/
     if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
     setInt16(idxBytes + 2*idxArray, val);
   }
   
-  @Java4C.inline
+  @Java4C.Inline
   protected final void setInt8(int idxBytes, int idxArray, int lengthArray, int val)
   { /** @Java4C.StringBuilderInThreadCxt*/
     if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
@@ -1934,21 +1936,21 @@ public abstract class ByteDataAccess
   }
   
   
-  @Java4C.inline
+  @Java4C.Inline
   protected final void setUint16(int idxBytes, int idxArray, int lengthArray, int val)
   { /** @Java4C.StringBuilderInThreadCxt*/
     if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
     setUint16(idxBytes + 2*idxArray, val);
   }
   
-  @Java4C.inline
+  @Java4C.Inline
   protected final void setUint8(int idxBytes, int idxArray, int lengthArray, int val)
   { /** @Java4C.StringBuilderInThreadCxt*/
     if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
     setUint8(idxBytes + idxArray, val);
   }
   
-  @Java4C.inline
+  @Java4C.Inline
   protected final void setFloat(int idxBytes, int idxArray, int lengthArray, float val)
   { /** @Java4C.StringBuilderInThreadCxt*/
     if(idxArray >= lengthArray || idxArray < 0) throw new IndexOutOfBoundsException("getInt16:" + idxArray);
@@ -2002,7 +2004,7 @@ public abstract class ByteDataAccess
    * It shows the first bytes of head, the position of child and the first bytes of the child.
    */
   @Override
-  @Java4C.exclude
+  @Java4C.Exclude
   public String toString() 
   { //NOTE: do not create a new object in every call, it is uneffective.
     if(data==null){ return "no data"; }
