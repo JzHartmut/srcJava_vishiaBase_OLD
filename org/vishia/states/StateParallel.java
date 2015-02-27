@@ -130,25 +130,6 @@ public class StateParallel extends StateSimple
     }
   }
   
-  /**Used to construct a Join transition in a {@link StateParallel} in the source code of the transition.
-   * Usage:
-   * <pre>
-   * Join joinTransition = join(new Join(DstState.class, DstState2.class), SrcState.class, SrcState2.class);
-   * 
-   *      DstState <-----|<----- SrcState
-   *      DstState1 <----|<----- SrcState2
-   * </pre>
-   * Check the transition with {@link StateSimple.Join#joined()}.
-   *      
-   * @param joinTrans The transition created with new Join(...)
-   * @param joinStates Two or more source states which are to joined. 
-   * @return The joinTrans
-   */
-  public Join join(Join joinTrans, Class<?>... joinStates){
-    joinTrans.joinStateClasses = joinStates;
-    return joinTrans;
-  }
- 
   
   /**Special method to build a state machine from other data. See org.vishia.stateMGen.StateMGen. */
   public void addState(int key, StateSimple state){
@@ -182,7 +163,7 @@ public class StateParallel extends StateSimple
    * It is not for application.
    * @param recurs
    */
-  void createTransitionListSubstate(int recurs){
+  @Override void createTransitionListSubstate(int recurs){
     if(recurs > 1000) throw new IllegalArgumentException("recursion faulty, too many subStates; state=" + stateId);
     this.createTransitionList(this, null, 0);  
     if(aParallelstates !=null) {
@@ -192,6 +173,17 @@ public class StateParallel extends StateSimple
     }
   }
   
+  
+  
+  @Override void prepareTransitionsSubstate(int recurs) {
+    if(recurs > 1000) throw new IllegalArgumentException("recursion faulty, too many subStates; state=" + stateId);
+    this.prepareTransitions(null, 0);  
+    if(aParallelstates !=null) {
+      for(StateSimple subState: this.aParallelstates){
+        subState.prepareTransitionsSubstate(recurs+1);
+      } 
+    }
+  }
   
   /**This method is used to entry the default state of all parallel composites.  */
   final int entryDefaultState(){ 

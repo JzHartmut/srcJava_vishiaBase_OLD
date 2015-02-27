@@ -228,6 +228,13 @@ int millisectimeout;
 /**A timeout transition created in the application. */
 private Timeout transTimeout;
 
+
+/**If set this state has one or more join transitions with other states.
+ * Note that the join transition is noted only on one (the first) of the join states.
+ * The other states are tested from here with {@link #isInState()}.
+ */
+private TransJoin[] transJoins;
+
 /**The timeout event set if necessary. This is a static instance, reused. It is the same instance in all non-parallel states. */
 //EventTimerMng.TimeEvent evTimeout;
 
@@ -268,6 +275,12 @@ private Method entryMethod, exitMethod;
 /**Set to true if the {@link #selectTrans(EventMsg2)} is not overridden. Then check the {@link #aTransitions} -list */
 private boolean bCheckTransitionArray;
 
+/**This array contains all transitions to handle it commonly. 
+ * The transitions are given as instances in the derived classes from {@link StateSimple} in a Java written state machine. 
+ * The transitions may be given with {@link #addTransition(Trans)} instead in a State machine which is parsed and translated
+ * for another language.
+ * 
+ */
 private Trans[] aTransitions;
 
 
@@ -875,6 +888,21 @@ public abstract class Choice extends Trans
   }
   
   public abstract Trans checkTrans();
+  
+  /**Prepares all transitions. This method is public only for usage from StateMGen
+   * 
+   */
+  public void prepareTransitions(int nRecurs) {
+    if(nRecurs > 1000) throw new RuntimeException("too many recursions");
+    if(choice !=null) {
+      for(Trans trans: choice) {
+        prepareTransition(trans, nRecurs +1);
+      }
+    }
+  }
+
+
+
 
 }
 
@@ -901,21 +929,41 @@ public class Timeout extends Trans
 
 
 
-public class Join extends Trans
+public class TransJoin extends Trans
 {
   /**If not null then it is a join transitions. All of this states should be active to fire the transition. */
   StateSimple[] joinStates;
 
-  /**Filled with {@link StateParallel#join(Join, Class...)}
+  /**Filled with {@link StateParallel#join(TransJoin, Class...)}
    * which should be used to construct a Join transition. 
    * Used by {@link #buildJoinStates()}. */
   Class<?>[] joinStateClasses;
   
-  public Join(Class<?> ...dstStates) {
+  public TransJoin(Class<?> ...dstStates) {
     super(dstStates);
     transId = "join";
   }
   
+  
+  /**Invoked with the constructor to set the source states of the join transition. Pattern:
+   * <pre>
+   * TransJoin myTransJoin = (new TransJoin(DstState.class, DstState2.class)).srcStates(SrcState1.class, SrcState2.class);
+   * 
+   *      DstState <-----|<----- SrcState1
+   *      DstState2 <----|<----- SrcState2
+   * </pre>
+   * Check the transition with {@link StateSimple.TransJoin#joined()}.
+   * </pre>
+   * The constructor argument(s) is/are the destination state(s), more as one for a fork in the join transition.
+   * This method names the source states to join.
+   * 
+   * @param joinStateClassesArg
+   * @return
+   */
+  public TransJoin srcStates(Class<?> ... joinStateClassesArg){
+    this.joinStateClasses = joinStateClassesArg;
+    return this;
+  }
   
   protected void buildJoinStates() {
     joinStates = new StateSimple[joinStateClasses.length];
@@ -1012,6 +1060,31 @@ protected void exit() {
 
 
 
+/**Creates the empty yet array of transitions. 
+ * Invoked if transitions should be defined from any Java program outside, not from the Source of this class. Used for StateMgen.
+ * @param nrofTransitions Number should be the number of transitions to add, see {@link #addTransition(Trans)}
+ */
+public void createTransitions(int nrofTransitions) {
+  aTransitions = new Trans[nrofTransitions];
+}
+
+
+/**Adds a transition.
+ * Invoked if transitions should be defined from any Java program outside, not from the Source of this class. Used for StateMgen.
+ * @param trans
+ */
+public void addTransition(StateSimple.Trans trans) {
+  int ix = 0;
+  while(ix < aTransitions.length && aTransitions[ix] !=null){ ix +=1; } //search next free
+  if(ix >= aTransitions.length) throw new IllegalArgumentException("too many states to add");
+  aTransitions[ix] = trans;
+
+}
+
+
+
+
+
 
 /**It is overridden package-local in all derived {@link StateComposite}, {@link StateParallel}.
  * @param enclState
@@ -1059,10 +1132,10 @@ void createTransitionListSubstate(int recurs){ this.createTransitionList(this, n
 /**Creates the list of all transitions for this state, invoked one time after constructing the statemachine.
  * 
  */
-void createTransitionList(Object encl, Trans parent, int nRecurs){
+void createTransitionList(Object stateInstance, Trans parent, int nRecurs){
   IndexMultiTable<String, Trans> transitions1 = new IndexMultiTable<String, Trans>(IndexMultiTable.providerString);
   //List<Trans>transitions = new LinkedList<Trans>();
-  Class<?> clazz = encl.getClass();
+  Class<?> clazz = stateInstance.getClass();
   if(nRecurs > 2) {
     Debugutil.stop();
   }
@@ -1070,7 +1143,9 @@ void createTransitionList(Object encl, Trans parent, int nRecurs){
   try{
     Class<?>[] clazzs = clazz.getDeclaredClasses();
     for(Class<?> clazz1: clazzs){
+      //it is deprecated, don't use!
       if(DataAccess.isOrExtends(clazz1, Trans.class)){
+        System.err.println("The possibility of writing a Transition as class should not use furthermore. ");
         @SuppressWarnings("unused")  //only test
         Constructor<?>[] ctora = clazz1.getDeclaredConstructors();
         //Note: the constructor needs the enclosing class as one parameter because it is non-static.
@@ -1082,15 +1157,21 @@ void createTransitionList(Object encl, Trans parent, int nRecurs){
         //transitions.add(trans);
         transitions1.add("", trans);
         trans.parent = parent;  //null for a state transition
-        checkBuiltTransition(trans, nRecurs);
+        if(trans instanceof Choice) {
+          createTransitionList(trans, trans, nRecurs+1);  //for choices
+        }
+        //checkBuiltTransition(trans, nRecurs);
       }
     }
     Field[] fields = clazz.getDeclaredFields();
     for(Field field: fields){
       field.setAccessible(true);
-      Object oField = field.get(encl);
+      Object oField = field.get(stateInstance);
       if(oField !=null && DataAccess.isOrExtends(oField.getClass(), Trans.class)) {
         String sFieldName = field.getName();
+        if(sFieldName.equals("timeout")){
+          Debugutil.stop();
+        }
         if(!DataAccess.isReferenceToEnclosing(field)) { //don't test the enclosing instance, it is named this$0 etc. 
           Trans trans = (Trans) oField;
           /*
@@ -1102,11 +1183,14 @@ void createTransitionList(Object encl, Trans parent, int nRecurs){
             }
           }
           */
-          trans.transId = sFieldName;
+          trans.transId = sFieldName;  //automatic set the name of the transition.
           //transitions.add(trans);
           transitions1.add("", trans);
           trans.parent = parent;  //null for a state transition
-          checkBuiltTransition(trans, nRecurs);
+          if(trans instanceof Choice) {
+            createTransitionList(trans, trans, nRecurs+1);  //for choices
+          }
+          //checkBuiltTransition(trans, nRecurs);
         }
       }
     }
@@ -1117,10 +1201,11 @@ void createTransitionList(Object encl, Trans parent, int nRecurs){
       Class<?> retType = method.getReturnType();
       if(argTypes.length==2 && argTypes[0] == EventObject.class && retType == Trans.class && argTypes[1] == Trans.class) {
         //a transition method
+        System.err.println("The possibility of writing a Transition as method should not use furthermore. ");
         Trans trans = null;
         try{ 
           method.setAccessible(true);
-          Object oTrans = method.invoke(encl,  null, null); 
+          Object oTrans = method.invoke(stateInstance,  null, null); 
           trans = (Trans)oTrans;
           trans.transId = method.getName();
           trans.check = new StateTransitionMethod(trans, method);
@@ -1151,13 +1236,23 @@ void createTransitionList(Object encl, Trans parent, int nRecurs){
 
 
 
-/**Prepares all transitions. This method is public only for usage TODO
+/**Prepare the own transitions. This method is overridden for {@link StateCompositeFlat} etc
+ * which checks the sub states too.
+ * @param recurs recursion for sub states.
+ */
+void prepareTransitionsSubstate(int recurs) {
+  prepareTransitions(null, 0);  //prepare the own transitions. recurs =0, used for choice transitions.
+}
+
+
+
+/**Prepares all transitions. This method is public only for usage from StateMGen
  * 
  */
-public void prepareTransitions() {
+void prepareTransitions(Trans parent, int nRecurs) {
   if(aTransitions !=null) {
     for(Trans trans: aTransitions) {
-      checkBuiltTransition(trans, 0);
+      prepareTransition(trans, 0);
     }
   }
 }
@@ -1165,44 +1260,86 @@ public void prepareTransitions() {
 
 
 
-/**Creates the empty yet array of transitions. 
- * Invoked if transitions should be defined from any Java program outside, not from the Source of this class. Used for StateMgen.
- * @param nrofTransitions Number should be the number of transitions to add, see {@link #addTransition(Trans)}
- */
-public void createTransitions(int nrofTransitions) {
-  aTransitions = new Trans[nrofTransitions];
-}
 
 
-/**Adds a transition.
- * Invoked if transitions should be defined from any Java program outside, not from the Source of this class. Used for StateMgen.
- * @param trans
- */
-public void addTransition(StateSimple.Trans trans) {
-  int ix = 0;
-  while(ix < aTransitions.length && aTransitions[ix] !=null){ ix +=1; } //search next free
-  if(ix >= aTransitions.length) throw new IllegalArgumentException("too many states to add");
-  aTransitions[ix] = trans;
-
-}
-
-
-
-
-
-private void checkBuiltTransition(Trans trans, int nRecurs) {
+private void prepareTransition(Trans trans, int nRecurs) {
+  if(trans.transId.equals("timeout")) {
+    Debugutil.stop();
+  }
   if(trans.dst !=null) {
     trans.buildTransitionPath();
   }
+  
   if(trans instanceof Timeout) {
     transTimeout = (Timeout)trans;
     //trans.check = new ConditionTimeout();
     this.millisectimeout = transTimeout.millisec;
     searchOrCreateTimerEvent();
   }
-  if(trans instanceof Choice) {
-    createTransitionList(trans, trans, nRecurs+1);  //for choices
+  if(trans instanceof TransJoin) {
+    createJoinTransitionInTheFirstJoinState((TransJoin)trans);
   }
+  if(trans instanceof Choice) {
+    ((Choice)trans).prepareTransitions(nRecurs+1);
+    //createTransitionList(trans, trans, nRecurs+1);  //for choices
+  }
+}
+
+
+
+/**Enters the instance of a join transition in the first join state's {@link StateSimple#transJoins}.
+ * Before that the {@link Trans#exitStates} where replaced by all necessary exit states.
+ * Before this operation was called, the {@link Trans#exitStates} contains only that exit states from that state
+ * which defines the {@link TransJoin}. But the exit states form all source states are necessary. 
+ * 
+ * @param trans The found join transition in a parallel state.
+ */
+private void createJoinTransitionInTheFirstJoinState(TransJoin trans)
+{
+  trans.joinStates = new StateSimple[trans.joinStateClasses.length];
+  int ixSrcStates =-1;
+  int ixExitStates = 0;
+  for(Class<?> joinStateClass: trans.joinStateClasses){
+    StateSimple srcState = stateMachine.stateMap.get(new Integer(joinStateClass.hashCode()));
+    if(ixExitStates < srcState.statePath.length) {
+      ixExitStates = srcState.statePath.length;
+    }
+    trans.joinStates[++ixSrcStates] = srcState;  
+  }
+  List<StateSimple> listExitStates = new LinkedList<StateSimple>();
+  StateSimple stateCommon = trans.exitStates[trans.exitStates.length -1].enclState;  //the last, its parent
+  StateSimple stateExit3 = null;
+  do {
+    ixExitStates -=1;
+    StateSimple stateExit2 = null;
+    for(ixSrcStates = 0; ixSrcStates < trans.joinStates.length; ++ixSrcStates){
+      StateSimple srcState = trans.joinStates[ixSrcStates];
+      if(srcState.statePath.length > ixExitStates) {
+        stateExit3 = srcState.statePath[ixExitStates];
+        if(stateExit3 != stateCommon){
+          if(stateExit2 == null) { 
+            stateExit2 = stateExit3;
+            listExitStates.add(stateExit2);
+          } else { //stateExit2 is set for this level already:
+            if(stateExit3 != stateExit2) {
+              listExitStates.add(stateExit3);
+            }
+          }
+        }
+      }
+    }
+  } while(stateExit3 != stateCommon);  
+  //change the exit States to the exit states of all join source states:
+  trans.exitStates = listExitStates.toArray(new StateSimple[listExitStates.size()]);
+  StateSimple srcState1 = trans.joinStates[0];
+  if(srcState1.transJoins == null) {
+    srcState1.transJoins = new TransJoin[1];
+  } else {
+    TransJoin[] transJoins = new TransJoin[srcState1.transJoins.length +1];
+    System.arraycopy(srcState1.transJoins, 0, transJoins, 0, srcState1.transJoins.length);
+    srcState1.transJoins = transJoins;
+  }
+  srcState1.transJoins[srcState1.transJoins.length -1] = trans;
 }
 
 
@@ -1313,37 +1450,50 @@ final int checkTransitions(EventObject ev) {
       trans1.retTrans = 0;
   } }
   Trans trans = null;
-  if(transTimeout !=null && ev == evTimeout && ev !=null) { //the own timeout event is expected and received
-    trans = transTimeout;  
-  }
-  if(trans !=null || !bCheckTransitionArray) {
-    //either the first time or overridden check method: Use it.
-    try{ 
-      if(trans ==null){
-        trans = selectTrans(ev); 
-      }
-      if(trans !=null){
-        if(!trans.doneExit)   { trans.doExit(); }
-        if(!trans.doneAction) { trans.doAction(ev,0); }
-        if(!trans.doneEntry)  { trans.doEntry(ev); }
-        trans.retTrans |= mTransit;
-        return trans.retTrans;
-    } }
-    catch(Exception exc) {
-      if(stateMachine.permitException) {
-        StringBuilder u = new StringBuilder(1000);
-        u.append("StateSimple trans exception - "); stateMachine.infoAppend(u); u.append(";");
-        if(ev !=null){ u.append("event: ").append(ev.toString()); }
-        CharSequence text = Assert.exceptionInfo(u, exc, 0, 50);
-        System.err.append(text);
-        trans = null;
-      } else {
-        throw new RuntimeException(exc); //forward it but without need of declaration of throws exception
-      }
+  //either the first time or overridden check method: Use it.
+  try{ 
+    trans = selectTrans(ev); 
+    if(trans ==null && transJoins !=null) {
+      //check all join transitions.
+      int ixTransJoin = 0;
+      TransJoin transJoin = null;
+      do {  
+        transJoin = transJoins[ixTransJoin];   
+        int ixSrcState = 1; 
+        do {
+          if(!transJoin.joinStates[ixSrcState].isInState()) {
+            transJoin = null;  //not to fire.
+          }
+        } while(transJoin !=null && ++ixSrcState < transJoin.joinStates.length);
+          
+      } while( transJoin == null && ++ixTransJoin < transJoins.length);
+      trans = transJoin;  //maybe null, not null if join fires.
+    } //if transJoins
+    if(trans == null && transTimeout !=null && ev == evTimeout) { //the own timeout event is expected and received
+      trans = transTimeout;  
     }
-    
+    if(trans !=null){
+      if(!trans.doneExit)   { trans.doExit(); }
+      if(!trans.doneAction) { trans.doAction(ev,0); }
+      if(!trans.doneEntry)  { trans.doEntry(ev); }
+      trans.retTrans |= mTransit;
+      return trans.retTrans;
+    }
   }
-  if(bCheckTransitionArray && aTransitions !=null) {
+  catch(Exception exc) {
+    if(stateMachine.permitException) {
+      StringBuilder u = new StringBuilder(1000);
+      u.append("StateSimple trans exception - "); stateMachine.infoAppend(u); u.append(";");
+      if(ev !=null){ u.append("event: ").append(ev.toString()); }
+      CharSequence text = Assert.exceptionInfo(u, exc, 0, 50);
+      System.err.append(text);
+      trans = null;
+    } else {
+      throw new RuntimeException(exc); //forward it but without need of declaration of throws exception
+    }
+  }
+    
+  if(trans == null && bCheckTransitionArray && aTransitions !=null) {
     //not overridden check method.
     for(Trans trans1: aTransitions){ //check all transitions
       trans1.doneExit = trans1.doneAction = trans1.doneEntry = false;

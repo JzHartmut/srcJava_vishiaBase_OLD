@@ -43,7 +43,7 @@ public class StatesNestedParallel
   
   
   /**The thread to execute the state machine. */
-  EventTimerThread thread = new EventTimerThread("thread");
+  EventTimerThread threadEventTimer = new EventTimerThread("thread");
 
   /**Timer organisation. */
   //EventTimerMng timer = new EventTimerMng("timer");
@@ -142,14 +142,15 @@ public class StatesNestedParallel
 
         @Override protected void exit(){ System.out.println(" exit " + stateId); }
 
-        Join to_off = join(new Join(StateOff.class), StateActive1.StateFinit.class, StateActive2.StateShouldOff.class);
+        TransJoin to_off = (new TransJoin(StateOff.class)).srcStates(StateActive1.StateFinit.class, StateActive2.StateShouldOff.class);
 
         @Override protected Trans selectTrans(EventObject ev){
-          if(to_off.joined()) {
+          //if(to_off.joined()) {
           //if(stateMachine.isInState(StateActive1.StateFinit.class) && stateMachine.isInState(StateActive2.StateShouldOff.class)) {
-            return to_off;
-          } 
-          else return null;
+          //  return to_off;
+          //} 
+          //else 
+            return null;
         }
 
         class StateActive1 extends StateComposite
@@ -237,14 +238,14 @@ public class StatesNestedParallel
   
   
   private StatesNestedParallel(){
-    states = new States(thread);
+    states = new States(threadEventTimer);
   }
   
   private void execute() {
     cond.on = true;
     cond.start = true;
     cond.offAfterRunning = true;
-    if(event.occupy(null, states, thread, true)){
+    if(event.occupy(null, states, threadEventTimer, true)){
       event.sendEvent(CmdEvent.start);
       //instead:
       //states.processEvent(event);
@@ -253,14 +254,17 @@ public class StatesNestedParallel
     do {
       try{ Thread.sleep(100);
       } catch(InterruptedException exc) {}
-      if(event.occupy(null, states, thread, true)){
+      if(event.occupy(null, states, threadEventTimer, true)){
         event.sendEvent(CmdEvent.cyclic);  //animate the state machine cyclically to check some conditions.
       }
     } while(!states.isInState(States.StateOff.class));
     try{
       //timer.close();
-      thread.close();
+      threadEventTimer.close();
     } catch(Exception exc){}
+    try{ Thread.sleep(100);  //wait for end of the threadEventTimer.
+    } catch(InterruptedException exc) {}
+
   }
   
   

@@ -112,6 +112,8 @@ public class StringPart implements CharSequence, Comparable<CharSequence>, Close
 {
   /**Version, history and license.
    * <ul>
+   * <li>2015-02-28 Hartmut new: {@link #lentoLineEnd()}, {@link #seekBack(String)}, {@link #seekBackToAnyChar(String)}
+   *   more simple for calling in a JZcmd script.
    * <li>2014-09-05 Hartmut new: Twice methods {@link #indexOf(CharSequence)} and {@link #indexOf(String)}. 
    *   The methods are the same in Java. But in C the handling of reference is different. In Java2C translation a StringJc does not base on CharSequence
    *   because it is a simple reference to char[] and a length only. CharSequence needs ObjectJc and virtual methods. 
@@ -1075,6 +1077,46 @@ that is a liststring and his part The associated String
   }
 
 
+  
+  /**Seeks back form the current end to the end of the given String starting from the end of the current part.
+   * If the String was found, the start of the current part is changed to the end of the found String.
+   * Sets {@link #found()} to false if the String is not contained in the current part.
+   * Then the current part is not changed.
+   * @java2c=return-this.
+   * @param sSeek The string to seek backward.
+   * @return
+   */
+  public final StringPart seekBack(String sSeek){
+    int pos = StringFunctions.lastIndexOf(content, begin, end, sSeek);
+    if(pos <0) bFound = false;
+    else {
+      begin = pos + sSeek.length();
+    }
+    return this;
+  }
+  
+  
+  
+  
+  /**Seeks back from the current end to one of the characters contained in chars, starting from the end of the current part.
+   * If a character was found, the start of the current part is changed to that character.
+   * Sets {@link #found()} to false if a character of chars is not contained in the current part.
+   * Then the current part is not changed.
+   * @param sSeek The string to seek backward.
+   * @return this to concatenate
+   */
+  public final StringPart seekBackToAnyChar(String chars ){
+    int pos = StringFunctions.lastIndexOfAnyChar(content, begin, end, chars);
+    if(pos <0) bFound = false;
+    else {
+      begin = pos;
+    }
+    return this;
+  }
+  
+  
+  
+  
   /**Seeks to the given String, result is left side of the string.
    * @param sSeek
    * @return
@@ -1785,6 +1827,33 @@ public final StringPart lentoQuotionEnd(char sEndQuotion, int maxToTest)
 }
 
 
+
+/**Sets the length of the current part to the end of the current line.
+ * Note The current part is empty if the position is on end of a line yet.
+ * @java2c=return-this.
+ * @return this itself to concatenate. 
+ */
+@Java4C.Retinline
+public final StringPart lentoLineEnd(){ return lentoAnyChar("\n\r\f"); }
+
+
+/**Increments the begin of the current part over maybe found whitespaces
+ * and decrements the end of the current part over maybe found whitespaces.
+ * The {@link #found()} returns false if the current part has no content.
+ * The {@link #getCurrentPart()} returns an empty String if the current part has no content
+ * The method invokes {@link #seekNoWhitespace()} and {@link #lenBacktoNoChar(String)} with " \t\r\n\f".
+ * @java2c=return-this.
+ * @return this to concatenate.
+ */
+@Java4C.Retinline
+public final StringPart trimWhiteSpaces() {
+  seekNoWhitespace();
+  lenBacktoNoChar(" \t\r\n\f");
+  return this;
+}
+
+
+
 /** Sets the length of the current part to any char content in sChars (terminate chars). 
 * If a terminate char is not found, the length of the current part is set to 0.
 * The same result occurs, if a terminate char is found at begin of the current part.
@@ -1835,9 +1904,9 @@ public final StringPart len0end()
   */
   public final StringPart lenBacktoNoChar(String sChars)
   { endLast = end;
-    while( (--end) >= begin && sChars.indexOf(content.charAt(end)) >=0);
-    if(end < begin)
-    { end = begin; bFound = false;
+    while( end > begin && sChars.indexOf(content.charAt(end-1)) >=0){ end = end -1; }
+    if(end <= begin)
+    { end = begin; bFound = false;  //all chars skipped to left.
     }
     else bFound = true;
     return this;

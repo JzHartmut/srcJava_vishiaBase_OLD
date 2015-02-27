@@ -710,9 +710,34 @@ public abstract class ByteDataAccessBase
    * Some children can be added after a parent like following sample:
    * <pre>
    * ByteAccessDerivation child = new ByteAccessDerivation();  //empty and unassigned.
+   * ...
    * parent.addChild(child);        //The byte[] data of parent are assigned, index after current child index of parent.
    * child.addChild(grandchild);    //By adding a child to this child, also the parent's index is corrected.
    * </pre>
+   * <b>Indices in the parent and child</b>:<br>
+   * A new assigned instance of ByteDataAccessBase which has not added a child, only the head data are known, 
+   * the indices are set to following:
+   * <ul>
+   * <li>parent.ixChild = -1.
+   * <li>parent.ixChildEnd = index after known (head-) data.
+   * <li>parent.ixEnd = ... end of data
+   * </ul>
+   * A call of this method {@link #addChild(ByteDataAccessBase, int)} or its adequate addChildXY() sets the indices 
+   * to the given current child:
+   * <ul>
+   * <li>parent.ixChild = the index after known (first head-) data, the index of the child.
+   * <li>parent.ixChildEnd = ixChild + {@link #sizeHead} of the child.
+   * <li>parent.ixEnd = ... >= ixChildEnd, incremented if necessary and {@link #bExpand} is true.     
+   * <li>child.ixChild = -1.
+   * <li>child.ixChildEnd = index after known (head-) data of the child.
+   * <li>child.ixEnd = 
+   * </ul>
+   * The length of the current Child may be set while evaluating the child's data. 
+   * The user should call {@link #setLengthElement(int)} with the child 
+   * <ul>
+   * <li>ixChild = is still the index of the child.
+   * <li>ixChildEnd = ixChild + given length.
+   * </ul>
    *
    * @param child The child will be assigned with the data of this at index after the current child's end-index.
    *   Note that the child's sizeHead should be set correctly.

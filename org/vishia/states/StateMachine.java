@@ -173,10 +173,13 @@ public class StateMachine implements EventConsumer, InfoAppend
     StateCompositeTop(StateMachine stateMachine, StateSimple[] aSubstates) { super("top", stateMachine, aSubstates); } 
     
     
+    /**Prepares the top state if it is created from a outside parsed State machine (StateMGen).
+     * 
+     */
     public void prepare() {
       buildStatePathSubstates(null,0);  //for all states recursively
-      
-      //createTransitionListSubstate(0);
+      //the transitions are added already. Don't invoke createTransitionListSubstate(0); 
+      prepareTransitionsSubstate(0);
     }
   }
   
@@ -252,6 +255,7 @@ public class StateMachine implements EventConsumer, InfoAppend
       topState.stateId = "StateTop";
       topState.buildStatePathSubstates(null,0);  //for all states recursively
       topState.createTransitionListSubstate(0);
+      topState.prepareTransitionsSubstate(0);
     } catch(InvocationTargetException exc){
       Throwable exc1 = exc.getCause();
       if(exc1 !=null) throw new RuntimeException(exc1);

@@ -203,12 +203,28 @@ public class StateCompositeFlat extends StateSimple implements InfoAppend
    * It is not for application.
    * @param recurs
    */
-  void createTransitionListSubstate(int recurs){
+  @Override void createTransitionListSubstate(int recurs){
     if(recurs > 1000) throw new IllegalArgumentException("recursion faulty, too many subStates; state=" + stateId);
     this.createTransitionList(this, null, 0);  
     if(aSubstates !=null) {
       for(StateSimple subState: this.aSubstates){
         subState.createTransitionListSubstate(recurs+1);
+      } 
+    }
+  }
+
+
+  /**Prepare all transitions for this state and all {@link #aSubstates}, recursively call.
+   * This method is invoked in the constructor of the state machine only one time.
+   * It is not for application.
+   * @param recurs
+   */
+  @Override protected void prepareTransitionsSubstate(int recurs){
+    if(recurs > 1000) throw new IllegalArgumentException("recursion faulty, too many subStates; state=" + stateId);
+    this.prepareTransitions(null, 0);  
+    if(aSubstates !=null) {
+      for(StateSimple subState: this.aSubstates){
+        subState.prepareTransitionsSubstate(recurs+1);
       } 
     }
   }
