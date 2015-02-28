@@ -226,14 +226,14 @@ int millisectimeout;
 
 
 /**A timeout transition created in the application. */
-private Timeout transTimeout;
+Timeout transTimeout;
 
 
 /**If set this state has one or more join transitions with other states.
  * Note that the join transition is noted only on one (the first) of the join states.
  * The other states are tested from here with {@link #isInState()}.
  */
-private TransJoin[] transJoins;
+TransJoin[] transJoins;
 
 /**The timeout event set if necessary. This is a static instance, reused. It is the same instance in all non-parallel states. */
 //EventTimerMng.TimeEvent evTimeout;
@@ -285,110 +285,35 @@ private Trans[] aTransitions;
 
 
 /**An instance of this class represents a transition of the enclosing SimpleState to one or more destination states.
- * There are three forms to program transitions in a state class:
- * <br><br>
- * <b>Simple transition method in a state class:</b><br>
- * The user can write a method with the following form: <pre>
+ * The application should build an instance of Trans maybe as derived anonymous classes of {@link Trans}
+ * for each transition, which should be initialized with the destination state classes.
+ * <pre>
  *   class MyState_A extends StateSimple
  *   {
- *     Trans trans1_State2(Event<?,?> ev, Trans trans) {
- *       if(trans == null) return new Trans(MyState_B.class);
- *       else if(a_condition && ev instanceof MyEvent && (ev.getCmd() == MyCmd) {
- *         trans.retTrans =  mEventConsumed
- *         doExit();
- *         myAction();
- *         doEntry();
- *         return trans;
- *       }
- *       else return null;
- *     }  
- * </pre>
- * <ul>
- * <li><code>if(trans == null)</code>: The transition method have to be create a <code>new Trans(dststate(s))</code> if <code>trans==null</code> is given as argument. 
- * That is only in the startup phase. 
- * <li><code>else if(</code>: The method should check a condition with or without checking the given {@link EventMsg2} instance (maybe null). 
- * If it is true then the trans should be returned. The {@link #doExit()} etc. can be called or not, see there. 
- * <li><code>else</code>: If the transition should not be fired because the condition is false null should be returned.
- * </ul>
- * <br><br>
- * How does it works:
- * <ul>
- * <li>The method will be detected by checking the State class content via reflection.
- * <li>The Trans instance will be build by invoking this method with the argument null for ev and trans.
- *   Therefore a new Trans(dstStates, ...) should be programmed for that case. This is only done in the startup phase.
- * <li>The transition instance is stored in the private {@link StateSimple#aTransitions} array.
- * <li>The given method detected as <code>java.lang.reflect.Method</code> is used via an instance of {@link StateTransitionMethod}.
- *   which is used as {@link #check} in the transition instance.
- * <li>While checking transitions calling the non-overridden {@link #check(EventMsg2)} this method will be called with this Trans-instance.
- *   The {@link #check(EventMsg2)} uses the {@link #check} action, which is the instance of {@link StateTransitionMethod}.
- * <li>If the method returns null, the transition is not fired, elsewhere it is fired.
- * <li>The {@link #doExit()} and {@link #doEntry(EventMsg2)} to execute the stateSwitch will be called
- *   only if they are not be called inside the {@link #check(EventMsg2)} method. There are markers {@link #doneExit} etc.  
- * <li>The {@link #doAction(EventMsg2, int)} is invoked but it is empty because the {@link #action} == null and the {@link #action(EventMsg2)}
- *   is not overridden.   
- * </ul> 
- * <br><br>
- * <b>Transition class:</b><br>
- * The user can write a class derived from this class for each transition. 
- * The parameterless constructor of this should invoke the super constructor with the destination state(s) class which should be initialized with the destination state classes.
- * The user should override the method {@link #check(EventMsg2)} which should contain the condition and actions: <pre>
- *   class MyState_A extends StateSimple
- *   {
- *     class MyTrans extends Trans {
- *       MyTrans(){ super((MyState_B.class)); }
- *       
- *       QOverride int check(Event<?,?> ev) {
- *         if(condition && ev instanceof MyEvent && (ev.getCmd == MyCmd){
- *           retTrans = StateSimple.mEventConsumed;
- *           doExit();
- *           myAction();
- *           doEntry();
- *         }
- *       }  
+ *      Trans cause_State1 = new Trans(MyState1.class);
+ *   
+ *      Trans trans1_State2 = new Trans(MyState_B.class) {
+ *        (at)Override void action(EventObject ev) {
+ *          ...any action
+ *        } 
  *     }; 
  * </pre>
- * In this class some other things can be programmed for example set {@link #check} and/or {@link #action} with references to any other instances
- * or override the {@link #action(EventMsg2)}, see examples there.
- * <br><br>
- * <b>Transition class or transition instance:</b><br>
- * The user can build either a class derived from {@link Trans} or as instance with a derived anonymous classes of {@link Trans}
- * for each transition. which should be initialized with the destination state classes.
- * The user should override the method {@link #check(EventMsg2)} which should contain the condition and actions: <pre>
- *   class MyState_A extends StateSimple
- *   {
- *     Trans trans1_State2 = new Trans(MyState_B.class) {
- *       QOverride int check(Event<?,?> ev) {
- *         if(condition && ev instanceof MyEvent && (ev.getCmd == MyCmd){
- *           retTrans = StateSimple.mEventConsumed;
- *           doExit();
- *           myAction();
- *           doEntry();
- *         }
- *       }  
- *     }; 
- * </pre>
+ * The method {@link #action(EventObject)} in the transition instance is optional.
+ * The state should override the method {@link StateSimple#selectTrans(EventObject)} which contains the check of all transition conditions
+ * except for given {@link Timeout} and {@link TransJoin}. That transitions are selected without user code only because they are existing
+ * as instances.
+ * 
+ * <br><br> 
  * The method {@link #buildTransitionPath()} is invoked only on startup of the statemachine. 
  * It creates the {@link #exitStates} and {@link #entryStates} -list.
- * The inner class BuildTransitionPath is used only inside that method {@link #buildTransitionPath()}.
  * <br><br>
  * How does it works:
  * <ul>
  * <li>The derived Trans class or the element of type Trans will be detected by checking the State class content via reflection.
- * <li>If a class is found the instance is build with the reflection method {@link java.lang.Class#newInstance()}.
- * <li>If a Trans instance is used directly. 
  * <li>The transition instance is stored in the private {@link StateSimple#aTransitions} array.
- * <li>While checking transitions the maybe overridden {@link #check(EventMsg2)} method will be called with this Trans-instance.
- * <li>If the check method returns 0, the transition is not fired, elsewhere it is fired.
+ * <li>The entry and exit states are completed.
  * </ul>
  * <br><br>
- * Further possibilities:
- * <ul>
- * <li>The {@link #doExit()} and {@link #doEntry(EventMsg2)} need not be called in a {@link #check(EventMsg2)} method. It is executed after it too,
- *   controlled by the variables {@link #doneExit} and {@link #doneEntry}. If any statements are programmed as action, they are executed
- *   after {@link #doExit()}. That is not exactly UML-conform, but in most cases not relevant.
- * <li>Don't override the {@link #check(EventMsg2)}, instead set the {@link #check} aggregation, see there.
- * <li>{@link #action(EventMsg2)} can be overridden, then the {@link #doEntry(EventMsg2)} and any actions should not be invoked in the check method.
- * </ul> 
  */
 public class Trans
 {
@@ -399,7 +324,6 @@ public class Trans
   /**All destination classes from constructor. They are not necessary furthermore after {@link #buildTransitionPath()}
    * because they are processed in the {@link #exitStates} and {@link #entryStates} lists.
    */
-  //final Class<?>[] dst;
   final int[] dst;
   
   
@@ -538,13 +462,13 @@ public class Trans
   void buildTransitionPath(){
     if(choice !=null) {
       for(Trans choice1: choice) {
-        BuildTransitionPath d = choice1.new BuildTransitionPath(this.exitStates);
+        PrepareTransition d = new PrepareTransition(StateSimple.this, choice1, this.exitStates);
         d.execute();
       }
-    } else {
-      BuildTransitionPath d = new BuildTransitionPath(this.exitStates);
-      d.execute();
-    }
+    } //else {
+    PrepareTransition d = new PrepareTransition(StateSimple.this, this, this.exitStates);
+    d.execute();
+    //}
   }
   
 
@@ -711,155 +635,6 @@ public class Trans
 
 
 
-  /**An instance of this class is created only temporary to build the transition path, set the #exitStates
-   * and #entryStates.
-   */
-  private class BuildTransitionPath {
-    /**The destination states filled with {@link #buildDstStates()} with the length of {@link #dst}.
-     * Left null if no dst states are given, especially on existing {@link Trans#choice}.
-     */
-    final StateSimple[] dstStates = Trans.this.dst == null ? null : new StateSimple[Trans.this.dst.length];
-    
-    final StateSimple[] exitStates;
-    
-    /**List of 'same path'.
-     * If the samePaths[ix] == ixDst then it is the tested path.
-     * if samePaths[ix] == ixDst then this path in dstStates[ixDst] is the same like in dstStates[ix].
-     * 
-     */
-    int[] XXXsamePaths = this.dstStates == null ? null : new int[this.dstStates.length];  //all filled with 0
-  
-    /**The current indices in {@link #dstStates}.{@link StateSimple#statePath} while evaluating the entry path. */
-    int[] ixInStatePath = (this.dstStates == null) ? null : new int[this.dstStates.length];
-    
-    /**Current index to write {@link Trans#entryStatesOld}. Pre-increment. */
-    int ixEntryStatesOld = -1;
-    
-    
-    public BuildTransitionPath(StateSimple[] exitStates)
-    {
-      this.exitStates = exitStates;
-    }
-    
-    void execute(){
-      if(stateId.equals("Ready"))
-        Debugutil.stop();
-  
-      buildDstStates();
-      searchStateCommon(); //after them ixDstPath was set.
-      buildExitPath();
-      buildEntryStates();      
-      
-    }
-    
-    private void buildDstStates() {
-      //search all dst state instances from the given class. In constructor only the class is known.
-      if(dst !=null) for(int ixdst = 0; ixdst < dst.length; ++ixdst){
-        dstStates[ixdst] = enclState.stateMachine.stateMap.get(new Integer(dst[ixdst]/*.hashCode()*/));
-      }
-    }
-    
-    /**Searches the common state between all {@link #dstStates} and the source state.
-     * All states till the common state should be exited. All states from the common state should be entered.
-     * As result the {@link #ixInStatePath} is set with the index after the found stateCommon 
-     */
-    private void searchStateCommon() {
-      //search the common state for all transitions. 
-      StateSimple stateCommon;  //the common state between this and all dstState.
-      int zStatePath =1;
-      int ixSrcPath = statePath.length -2;  //Note: the commonState is never this itself, at least one exit.
-      do {
-        stateCommon = StateSimple.this.statePath[ixSrcPath];  
-        int ixdst = -1;
-        //check all dst states whether the common state is in that state path. If it is not in the statePath, set stateCommon = null to abort the search.
-        //If the stateCommon is in the statePath of all dstStates then ixDstPath[] is set with the index of the stateCommon in the dstPath.
-        //It should the same index for all states because the statePath starts from the stateTop for all.
-        while(stateCommon !=null && ++ixdst < dstStates.length) {  //commonSearch: abort this while if at least one 
-          //check all dstStates down to either the exitState or down to to top state.
-          //If the exit state is equal any entry enclosing state or both are null (top state), then it is the common state.
-          StateSimple dstState = dstStates[ixdst];
-          ixInStatePath[ixdst] = dstState.statePath.length-1;  //Note: start with dstState itself because (dst    (src)---->) transition from this to its enclosing state
-          while(stateCommon !=null && dstState.statePath[ixInStatePath[ixdst]] != stateCommon){
-            if(--ixInStatePath[ixdst] < 0) { //end is reached without found stateCommon
-              stateCommon = null;  //abort test.
-            }
-          }
-        }
-      } while(stateCommon == null && --ixSrcPath >=0); //continue if the stateCommon is not member of all dst state paths.    
-      if(stateCommon == null){
-        throw new IllegalArgumentException("no common state found");
-      }
-      Trans.this.exitStates = new StateSimple[StateSimple.this.statePath.length - (ixSrcPath +1)];  //don't exit the stateCommon
-      for(int ixdst = 0; ixdst < dst.length; ++ixdst){
-        ixInStatePath[ixdst] +=1;  //first entry in state after stateCommon.  
-      }
-    }
-    
-    
-    
-    private void buildExitPath() {
-      int ixSrcPath = StateSimple.this.statePath.length;
-      for(int ixExitStates = 0; ixExitStates < Trans.this.exitStates.length; ++ixExitStates){
-        Trans.this.exitStates[ixExitStates] = StateSimple.this.statePath[--ixSrcPath];  //copy the statePath from this backward to exitStates-List.
-      }
-      
-    }
-    
-    
-    
-    /**Builds the {@link Trans#entryStates} with given found common state and given {@link Trans#dstStates} and their {@link StateSimple#statePath}.
-     * The first entry state is the StateSimple.statePath[{@link #ixInStatePath}[0]], the first entry state of the first fork-branch.
-     * Then the ixInStatePath[..] is incremented for all fork-branches. All states are written in {@link Trans#entryStates} parallel for all branches
-     * but states there are the same in the branches are not written twice. Example see {@link Trans#entryStates}.
-     */
-    private void buildEntryStates() 
-    {
-      //int[] entries1 = new int[dstStates.length];
-      StateSimple[] stateFork = new StateSimple[dstStates.length];
-      if(stateFork.length == 3)
-        Debugutil.stop();
-      if(transId.equals("Trans_Running0"))
-        Debugutil.stop();
-      List<StateSimple> listEntries = new LinkedList<StateSimple>();
-      int ixStatePath = ixInStatePath[0];  //start with the states after the common state. All ixDstPath[...] are the same yet.
-      int dstNotReached;  // if 0 then all reached.
-      do {
-        dstNotReached = ixInStatePath.length;  // if 0 then all reached.
-        int ixForkBranch, ixCheckExistingForkBranch;
-        for(ixForkBranch = 0; ixForkBranch < ixInStatePath.length; ++ixForkBranch) { /*entries1[ixForkBranch] = 0; */ stateFork[ixForkBranch] = null; } //clean
-        //
-        for(ixForkBranch = 0; ixForkBranch < ixInStatePath.length; ++ixForkBranch) {  //check all branches of a fork.
-          StateSimple[] statePath = dstStates[ixForkBranch].statePath;
-          if(ixStatePath < statePath.length ) { // if >=, it is reached
-            StateSimple entryState = statePath[ixStatePath];
-            //search whether this state is processed already:
-            //int hashEntryState = entryState.hashCode();
-            if(ixForkBranch == 0) { 
-              ixCheckExistingForkBranch = stateFork.length;       //first is the first: add the state.
-            } else {
-              ixCheckExistingForkBranch = 0;  //search whether the entryState is in the list of stateFork, which are entered already.
-              while(ixCheckExistingForkBranch < stateFork.length && stateFork[ixCheckExistingForkBranch] != entryState) { //entries1[ixForkBranch2] != hashEntryState) {
-                ixCheckExistingForkBranch +=1;  //search in short array.
-              } //isForkBranch2 == entries.length if the entryState is not found, if it is not entered already.
-            }
-            if(ixCheckExistingForkBranch == stateFork.length) { //not found or first
-              //entries1[ixForkBranch] = hashEntryState;   //set it to the place for this dstState.
-              stateFork[ixForkBranch] = entryState;
-              listEntries.add(entryState);
-            }
-          }
-          else {
-            dstNotReached -=1;  //dst state was reached.
-          }
-        }
-        ixStatePath +=1;
-      } while( dstNotReached >0);
-      Trans.this.entryStates = listEntries.toArray(new StateSimple[listEntries.size()]);
-    }
-    
-    
-  }//class BuildTransitionPath 
-    
 
   
 }
@@ -931,19 +706,24 @@ public class Timeout extends Trans
 
 public class TransJoin extends Trans
 {
+  
+  int[] joinStateHashes;
   /**If not null then it is a join transitions. All of this states should be active to fire the transition. */
   StateSimple[] joinStates;
 
   /**Filled with {@link StateParallel#join(TransJoin, Class...)}
    * which should be used to construct a Join transition. 
    * Used by {@link #buildJoinStates()}. */
-  Class<?>[] joinStateClasses;
+  //Class<?>[] joinStateClasses;
   
   public TransJoin(Class<?> ...dstStates) {
     super(dstStates);
     transId = "join";
   }
   
+  
+  
+  public TransJoin(String name, int[] dstKeys) { super(name, dstKeys); }
   
   /**Invoked with the constructor to set the source states of the join transition. Pattern:
    * <pre>
@@ -961,17 +741,29 @@ public class TransJoin extends Trans
    * @return
    */
   public TransJoin srcStates(Class<?> ... joinStateClassesArg){
-    this.joinStateClasses = joinStateClassesArg;
+    if(joinStateClassesArg == null || joinStateClassesArg.length ==0) this.joinStateHashes = null;
+    else {
+      this.joinStateHashes = new int[joinStateClassesArg.length];
+      for(int ix = 0; ix < joinStateHashes.length; ++ix){
+        this.joinStateHashes[ix] = joinStateClassesArg[ix].hashCode();     //store the hashcode to find it.
+      }
+    }
+    //this.joinStateClasses = joinStateClassesArg;
     return this;
   }
   
+  
+  
+  public void srcStates(int[] stateHashes) { this.joinStateHashes = stateHashes; }
+  
+  
   protected void buildJoinStates() {
-    joinStates = new StateSimple[joinStateClasses.length];
+    joinStates = new StateSimple[joinStateHashes.length];
     int ix =-1;
-    for(Class<?> joinState: joinStateClasses) {
+    for(int joinState: joinStateHashes) {
       @SuppressWarnings("unchecked") 
-      Class<StateSimple>joinState1 = (Class<StateSimple>)joinState;
-      StateSimple state = stateMachine.getState(joinState1);
+      //Class<StateSimple>joinState1 = (Class<StateSimple>)joinState;
+      StateSimple state = stateMachine.stateMap.get(joinState);  //getState(joinState1);
       joinStates[++ix] = state;
     }
   }
@@ -1133,6 +925,7 @@ void createTransitionListSubstate(int recurs){ this.createTransitionList(this, n
  * 
  */
 void createTransitionList(Object stateInstance, Trans parent, int nRecurs){
+  //Use a sorted list if the transitions needs priorities.
   IndexMultiTable<String, Trans> transitions1 = new IndexMultiTable<String, Trans>(IndexMultiTable.providerString);
   //List<Trans>transitions = new LinkedList<Trans>();
   Class<?> clazz = stateInstance.getClass();
@@ -1174,19 +967,13 @@ void createTransitionList(Object stateInstance, Trans parent, int nRecurs){
         }
         if(!DataAccess.isReferenceToEnclosing(field)) { //don't test the enclosing instance, it is named this$0 etc. 
           Trans trans = (Trans) oField;
-          /*
-          if(trans instanceof Timeout){
-            if(sFieldName == "timeout"){
-              searchOrCreateTimerEvent();
-            } else {
-              throw new IllegalArgumentException("Timeout transition should assign only to the timeout field.");
-            }
-          }
-          */
           trans.transId = sFieldName;  //automatic set the name of the transition.
           //transitions.add(trans);
           transitions1.add("", trans);
           trans.parent = parent;  //null for a state transition
+          if(trans instanceof TransJoin) {
+            //getJoinSrcStateHash((TransJoin)trans);
+          }
           if(trans instanceof Choice) {
             createTransitionList(trans, trans, nRecurs+1);  //for choices
           }
@@ -1209,7 +996,6 @@ void createTransitionList(Object stateInstance, Trans parent, int nRecurs){
           trans = (Trans)oTrans;
           trans.transId = method.getName();
           trans.check = new StateTransitionMethod(trans, method);
-          trans.buildTransitionPath();
           trans.parent = parent;  //null for a state transition
           //transitions.add(trans);
           transitions1.add("", trans);
@@ -1266,110 +1052,19 @@ private void prepareTransition(Trans trans, int nRecurs) {
   if(trans.transId.equals("timeout")) {
     Debugutil.stop();
   }
-  if(trans.dst !=null) {
+  //if(trans.dst !=null) {
     trans.buildTransitionPath();
-  }
+  //}
   
-  if(trans instanceof Timeout) {
-    transTimeout = (Timeout)trans;
-    //trans.check = new ConditionTimeout();
-    this.millisectimeout = transTimeout.millisec;
-    searchOrCreateTimerEvent();
-  }
-  if(trans instanceof TransJoin) {
-    createJoinTransitionInTheFirstJoinState((TransJoin)trans);
-  }
   if(trans instanceof Choice) {
     ((Choice)trans).prepareTransitions(nRecurs+1);
-    //createTransitionList(trans, trans, nRecurs+1);  //for choices
   }
 }
 
 
 
-/**Enters the instance of a join transition in the first join state's {@link StateSimple#transJoins}.
- * Before that the {@link Trans#exitStates} where replaced by all necessary exit states.
- * Before this operation was called, the {@link Trans#exitStates} contains only that exit states from that state
- * which defines the {@link TransJoin}. But the exit states form all source states are necessary. 
- * 
- * @param trans The found join transition in a parallel state.
- */
-private void createJoinTransitionInTheFirstJoinState(TransJoin trans)
-{
-  trans.joinStates = new StateSimple[trans.joinStateClasses.length];
-  int ixSrcStates =-1;
-  int ixExitStates = 0;
-  for(Class<?> joinStateClass: trans.joinStateClasses){
-    StateSimple srcState = stateMachine.stateMap.get(new Integer(joinStateClass.hashCode()));
-    if(ixExitStates < srcState.statePath.length) {
-      ixExitStates = srcState.statePath.length;
-    }
-    trans.joinStates[++ixSrcStates] = srcState;  
-  }
-  List<StateSimple> listExitStates = new LinkedList<StateSimple>();
-  StateSimple stateCommon = trans.exitStates[trans.exitStates.length -1].enclState;  //the last, its parent
-  StateSimple stateExit3 = null;
-  do {
-    ixExitStates -=1;
-    StateSimple stateExit2 = null;
-    for(ixSrcStates = 0; ixSrcStates < trans.joinStates.length; ++ixSrcStates){
-      StateSimple srcState = trans.joinStates[ixSrcStates];
-      if(srcState.statePath.length > ixExitStates) {
-        stateExit3 = srcState.statePath[ixExitStates];
-        if(stateExit3 != stateCommon){
-          if(stateExit2 == null) { 
-            stateExit2 = stateExit3;
-            listExitStates.add(stateExit2);
-          } else { //stateExit2 is set for this level already:
-            if(stateExit3 != stateExit2) {
-              listExitStates.add(stateExit3);
-            }
-          }
-        }
-      }
-    }
-  } while(stateExit3 != stateCommon);  
-  //change the exit States to the exit states of all join source states:
-  trans.exitStates = listExitStates.toArray(new StateSimple[listExitStates.size()]);
-  StateSimple srcState1 = trans.joinStates[0];
-  if(srcState1.transJoins == null) {
-    srcState1.transJoins = new TransJoin[1];
-  } else {
-    TransJoin[] transJoins = new TransJoin[srcState1.transJoins.length +1];
-    System.arraycopy(srcState1.transJoins, 0, transJoins, 0, srcState1.transJoins.length);
-    srcState1.transJoins = transJoins;
-  }
-  srcState1.transJoins[srcState1.transJoins.length -1] = trans;
-}
 
 
-
-
-/**Gets the timeout event from the top state or the {@link StateParallel} 
- * or creates that event.
- * All non-parallel states need only one timeout event instance because only one of them is used.
- */
-private void searchOrCreateTimerEvent() {
-  if(stateMachine.theThread == null) {
-    throw new IllegalArgumentException("This statemachine needs a thread and a timer manager because timeouts are used. Use StateMachine(thread, timer); to construct it");
-  }
-  //Search in the most superior StateComposite which is either the top state (has not a enclState)
-  //or which is a StateParallel.
-  StateSimple topParallel = this;
-  while(topParallel.enclState !=null && !(topParallel.enclState instanceof StateParallel)) {
-    topParallel = topParallel.enclState;
-  }
-  //parent is either the top state or a StateParallel
-  if(topParallel.evTimeout == null) {
-    topParallel.evTimeout = new EventTimeout(stateMachine, stateMachine.theThread);
-    //parent.evTimeout = stateMachine.theThread.new TimeEventOrder(stateMachine, stateMachine.theThread);
-  }
-  //Store the reference to the evTimeout in this state too to detect the own timeout event.
-  this.evTimeout = topParallel.evTimeout;
-}
-
-
-//public static int id(){ return .hashCode(); }
 
 
 /**Check and returns true if the enclosing state has this state as active one.
@@ -1468,6 +1163,10 @@ final int checkTransitions(EventObject ev) {
           
       } while( transJoin == null && ++ixTransJoin < transJoins.length);
       trans = transJoin;  //maybe null, not null if join fires.
+      if(trans !=null) {
+        trans.doneExit = trans.doneAction = trans.doneEntry = false;
+        trans.retTrans = 0;
+      }
     } //if transJoins
     if(trans == null && transTimeout !=null && ev == evTimeout) { //the own timeout event is expected and received
       trans = transTimeout;  

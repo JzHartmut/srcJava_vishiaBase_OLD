@@ -142,7 +142,7 @@ public class StatesNestedParallel
 
         @Override protected void exit(){ System.out.println(" exit " + stateId); }
 
-        TransJoin to_off = (new TransJoin(StateOff.class)).srcStates(StateActive1.StateFinit.class, StateActive2.StateShouldOff.class);
+        TransJoin to_off = (new TransJoin(StateOff.class)).srcStates(StateActive2.StateShouldOff.class, StateActive1.StateFinit.class);
 
         @Override protected Trans selectTrans(EventObject ev){
           //if(to_off.joined()) {
@@ -170,6 +170,9 @@ public class StatesNestedParallel
                 System.out.println("  timeout");
               }
             };
+            
+            @Override protected Trans selectTrans(EventObject ev){ return null; }
+            
             
             class StateRunning1 extends StateSimple {
               final boolean isDefault = true;
