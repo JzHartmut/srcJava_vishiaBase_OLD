@@ -80,13 +80,12 @@ public class StatesNestedParallel
       */
       
       
-      public Choice on = new Choice() { 
-        
+      public TransChoice on = new TransChoice() { 
         
         Trans cont_history = new TransDeepHistory(StateWork.class); 
         Trans ready = new Trans(StateWork.StateReady.class);
           
-        @Override public Trans checkTrans() {
+        @Override public Trans choice() {
           if(cond.cont) return cont_history;
           else return ready;
         }
@@ -98,10 +97,10 @@ public class StatesNestedParallel
       Trans on_Ready = new Trans(StateWork.StateReady.class); 
       
       
-      @Override protected Trans selectTrans(EventObject ev) {
+      @Override protected Trans checkTrans(EventObject ev) {
         if(  ev instanceof EventA 
             && ((EventA)ev).getCmd() == CmdEvent.start ){
-          return on.checkTrans().eventConsumed();
+          return on.choice().eventConsumed();
         }
         //else if(cond.on) return on_Ready;
         else return null;
@@ -128,7 +127,7 @@ public class StatesNestedParallel
                                        , StateActive.StateActive1.StateRunning.StateRunning2.StateRunning21.class
                                        , StateActive.StateActive2.StateRemainOn.class);
         
-        @Override protected Trans selectTrans(EventObject ev){
+        @Override protected Trans checkTrans(EventObject ev){
           if(cond.start) return start_Running;
           else return null;
         }
@@ -144,7 +143,7 @@ public class StatesNestedParallel
 
         TransJoin to_off = (new TransJoin(StateOff.class)).srcStates(StateActive2.StateShouldOff.class, StateActive1.StateFinit.class);
 
-        @Override protected Trans selectTrans(EventObject ev){
+        @Override protected Trans checkTrans(EventObject ev){
           //if(to_off.joined()) {
           //if(stateMachine.isInState(StateActive1.StateFinit.class) && stateMachine.isInState(StateActive2.StateShouldOff.class)) {
           //  return to_off;
@@ -171,7 +170,7 @@ public class StatesNestedParallel
               }
             };
             
-            @Override protected Trans selectTrans(EventObject ev){ return null; }
+            @Override protected Trans checkTrans(EventObject ev){ return null; }
             
             
             class StateRunning1 extends StateSimple {
@@ -215,7 +214,7 @@ public class StatesNestedParallel
  
             Trans toShouldOff = new Trans(StateShouldOff.class);
             
-            @Override protected Trans selectTrans(EventObject ev){
+            @Override protected Trans checkTrans(EventObject ev){
               if(cond.offAfterRunning) return toShouldOff;
               else return null;
             }

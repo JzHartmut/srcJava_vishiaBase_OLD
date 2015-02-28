@@ -190,7 +190,7 @@ public final static int mStateLeaved = 0x80000;
  */
 public final static int mRunToComplete =0x100000;
 
-/**Use this designation for {@link Trans#retTrans} to signal that an event is not consumed in {@link #selectTrans(EventObject)}. */
+/**Use this designation for {@link Trans#retTrans} to signal that an event is not consumed in {@link #checkTrans(EventObject)}. */
 public final static int mEventNotConsumed = 0x200000;
 
 public final static int mFlatHistory = 0x400000;
@@ -272,7 +272,7 @@ protected Runnable exit;
 
 private Method entryMethod, exitMethod;
 
-/**Set to true if the {@link #selectTrans(EventMsg2)} is not overridden. Then check the {@link #aTransitions} -list */
+/**Set to true if the {@link #checkTrans(EventMsg2)} is not overridden. Then check the {@link #aTransitions} -list */
 private boolean bCheckTransitionArray;
 
 /**This array contains all transitions to handle it commonly. 
@@ -299,7 +299,7 @@ private Trans[] aTransitions;
  *     }; 
  * </pre>
  * The method {@link #action(EventObject)} in the transition instance is optional.
- * The state should override the method {@link StateSimple#selectTrans(EventObject)} which contains the check of all transition conditions
+ * The state should override the method {@link StateSimple#checkTrans(EventObject)} which contains the check of all transition conditions
  * except for given {@link Timeout} and {@link TransJoin}. That transitions are selected without user code only because they are existing
  * as instances.
  * 
@@ -445,7 +445,7 @@ public class Trans
   
 
   /**Set the state of transition execution to {@link EventConsumer#mEventConsumed} and return this.
-   * This method should be used in {@link StateSimple#selectTrans(EventObject)} if an event is the trigger:
+   * This method should be used in {@link StateSimple#checkTrans(EventObject)} if an event is the trigger:
    * <pre>
    *  QOverride public Trans selectTransition(EventObject ev) {
    *   if(ev == expectedEv) return myTrans.eventConsumed();
@@ -652,17 +652,20 @@ public class TransFlatHistory extends Trans {
 
 
 
-public abstract class Choice extends Trans
+public abstract class TransChoice extends Trans
 {
   protected Trans nullTrans = new Trans();
   
   /**Constructs a transition with {@link #choice} sub-transitions.
    */
-  public Choice(){
+  public TransChoice(){
     super();
   }
   
-  public abstract Trans checkTrans();
+  /**This method is used to check all transitions of this choice. It need be overridden by the application.
+   * @return the choice branch inside this derived class with them the transition should be fired.
+   */
+  public abstract Trans choice();
   
   /**Prepares all transitions. This method is public only for usage from StateMGen
    * 
@@ -814,8 +817,16 @@ protected StateSimple(){
 }
 
 
+/**Sets any auxiliary information to that state. This method is used especially in {@link org.vishia.stateMGen.StateMGen} in the component srcJava_Zbnf
+ * to help generate a state machine for C language. But it can be used in the user's application in any way too. 
+ * @param info Any object referred from this state.
+ */
 public void setAuxInfo(Object info) { auxInfo = info; }
 
+/**Gets the auxiliary information to that state which is set with {@link #setAuxInfo(Object)}. This method is used especially in {@link org.vishia.stateMGen.StateMGen} in the component srcJava_Zbnf
+ * to help generate a state machine for C language. But it can be used in the user's application in any way too. 
+ * @return Any object referred from this state.
+ */
 public Object auxInfo() { return auxInfo; }
 
 /**Returns that state which is the composite state which controls the activity of that independent part of the StateMachine.
@@ -850,28 +861,6 @@ protected void exit() {
   if(exit !=null) { exit.run(); }
 }
 
-
-
-/**Creates the empty yet array of transitions. 
- * Invoked if transitions should be defined from any Java program outside, not from the Source of this class. Used for StateMgen.
- * @param nrofTransitions Number should be the number of transitions to add, see {@link #addTransition(Trans)}
- */
-public void createTransitions(int nrofTransitions) {
-  aTransitions = new Trans[nrofTransitions];
-}
-
-
-/**Adds a transition.
- * Invoked if transitions should be defined from any Java program outside, not from the Source of this class. Used for StateMgen.
- * @param trans
- */
-public void addTransition(StateSimple.Trans trans) {
-  int ix = 0;
-  while(ix < aTransitions.length && aTransitions[ix] !=null){ ix +=1; } //search next free
-  if(ix >= aTransitions.length) throw new IllegalArgumentException("too many states to add");
-  aTransitions[ix] = trans;
-
-}
 
 
 
@@ -950,7 +939,7 @@ void createTransitionList(Object stateInstance, Trans parent, int nRecurs){
         //transitions.add(trans);
         transitions1.add("", trans);
         trans.parent = parent;  //null for a state transition
-        if(trans instanceof Choice) {
+        if(trans instanceof TransChoice) {
           createTransitionList(trans, trans, nRecurs+1);  //for choices
         }
         //checkBuiltTransition(trans, nRecurs);
@@ -974,7 +963,7 @@ void createTransitionList(Object stateInstance, Trans parent, int nRecurs){
           if(trans instanceof TransJoin) {
             //getJoinSrcStateHash((TransJoin)trans);
           }
-          if(trans instanceof Choice) {
+          if(trans instanceof TransChoice) {
             createTransitionList(trans, trans, nRecurs+1);  //for choices
           }
           //checkBuiltTransition(trans, nRecurs);
@@ -1056,8 +1045,8 @@ private void prepareTransition(Trans trans, int nRecurs) {
     trans.buildTransitionPath();
   //}
   
-  if(trans instanceof Choice) {
-    ((Choice)trans).prepareTransitions(nRecurs+1);
+  if(trans instanceof TransChoice) {
+    ((TransChoice)trans).prepareTransitions(nRecurs+1);
   }
 }
 
@@ -1124,7 +1113,7 @@ public final boolean isInState(){
  * @param ev The event to test.
  * @return The transition which should be fired or null.
  */
-protected Trans selectTrans(EventObject ev) { bCheckTransitionArray = true; return null; }
+protected Trans checkTrans(EventObject ev) { bCheckTransitionArray = true; return null; }
 
 
 
@@ -1147,7 +1136,7 @@ final int checkTransitions(EventObject ev) {
   Trans trans = null;
   //either the first time or overridden check method: Use it.
   try{ 
-    trans = selectTrans(ev); 
+    trans = checkTrans(ev); 
     if(trans ==null && transJoins !=null) {
       //check all join transitions.
       int ixTransJoin = 0;
@@ -1343,6 +1332,40 @@ public CharSequence infoAppend(StringBuilder u) {
  * @see java.lang.Object#toString()
  */
 @Override public String toString(){ return stateId; } //return getStatePath().toString(); }
+
+
+
+
+/**This class is used especially in {@link org.vishia.stateMGen.StateMGen} in the component srcJava_Zbnf
+ * to help generate a state machine for C language. It is public for such approaches. 
+ * This class should not be used by an application which deals with states only in a Java context. 
+ * The class is a non-static inner class to access private methods from its outer class.
+ */
+public class PlugStateSimpleToGenState
+{
+  /**Creates the empty yet array of transitions. 
+   * Invoked if transitions should be defined from any Java program outside, not from the Source of this class. Used for StateMgen.
+   * @param nrofTransitions Number should be the number of transitions to add, see {@link #addTransition(Trans)}
+   */
+  public void createTransitions(int nrofTransitions) {
+    aTransitions = new Trans[nrofTransitions];
+  }
+
+
+  /**Adds a transition.
+   * Invoked if transitions should be defined from any Java program outside, not from the Source of this class. Used for StateMgen.
+   * @param trans
+   */
+  public void addTransition(StateSimple.Trans trans) {
+    int ix = 0;
+    while(ix < aTransitions.length && aTransitions[ix] !=null){ ix +=1; } //search next free
+    if(ix >= aTransitions.length) throw new IllegalArgumentException("too many states to add");
+    aTransitions[ix] = trans;
+
+  }
+  
+}
+
 
 
 private class EntryMethodAction implements StateAction {

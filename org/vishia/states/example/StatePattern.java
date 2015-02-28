@@ -46,7 +46,7 @@ public class StatePattern
         }
       };
       
-      @Override protected Trans selectTrans(EventObject ev){
+      @Override protected Trans checkTrans(EventObject ev){
         if(ev == evA) return transTo_B1.eventConsumed();
         else if(ev instanceof EvCmdX && ((EvCmdX)ev).getCmd() == CmdX.cmdY)
           return transParallel.eventConsumed();
@@ -71,7 +71,7 @@ public class StatePattern
         
         Trans toStateA = new Trans(StateA.class);
         
-        @Override protected Trans selectTrans(EventObject ev){
+        @Override protected Trans checkTrans(EventObject ev){
           if(  stateMachine.isInState(StateP1.StateP1A.class) 
             && stateMachine.isInState(StateP2.StateP2X.class)) return toStateA;
           else return null;

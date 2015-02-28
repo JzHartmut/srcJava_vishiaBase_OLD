@@ -829,7 +829,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
       Trans transStart_DirOrFile = new Trans(Process.DirOrFile.class);
       
       
-      @Override protected Trans selectTrans(EventObject ev) {
+      @Override protected Trans checkTrans(EventObject ev) {
         Trans trans = null;
         if(copyOrders.size() >0){
           copyOrder = copyOrders.poll();
@@ -916,7 +916,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
       Trans transAbort = new Trans(States.Ready.class);
       
       
-      @Override protected Trans selectTrans(EventObject ev){
+      @Override protected Trans checkTrans(EventObject ev){
         FileRemote.CmdEvent ev1 = null;
         if(ev instanceof FileRemote.CmdEvent && ( ev1 = ((FileRemote.CmdEvent)ev)).getCmd() == FileRemote.Cmd.abortAll) {
           return transAbort;
@@ -1065,7 +1065,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
         
         Trans transStartCopy = new Trans(CopyFile.class);
         
-        @Override protected Trans selectTrans(EventObject ev) {
+        @Override protected Trans checkTrans(EventObject ev) {
           if(actData.src.isDirectory()) {
             return transCopySubdir;     
           } else if(cmdFile == FileRemote.Cmd.delChecked){
@@ -1088,7 +1088,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
         
         @Override protected int entry(EventObject ev) { mResult = execCheckSubdir(); return mRunToComplete; }
         
-        @Override protected Trans selectTrans(EventObject ev) {
+        @Override protected Trans checkTrans(EventObject ev) {
           if(ev instanceof EventInternal && ((EventInternal)ev).getCmd() == CmdIntern.subDir){
             return transSubdir_DirOrFile.eventConsumed();
           } else if(ev instanceof EventInternal && ((EventInternal)ev).getCmd() == CmdIntern.emptyDir){
@@ -1109,7 +1109,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
          */
         @Override protected int entry(EventObject ev) { mResult = startCopyFile(); return mRunToComplete; }
           
-        @Override protected Trans selectTrans(EventObject ev) {
+        @Override protected Trans checkTrans(EventObject ev) {
           if(ev instanceof EventInternal && ((EventInternal)ev).getCmd() == CmdIntern.copyFileContent) { 
             return trans_CopyFileContent.eventConsumed();
           } else return null;
@@ -1175,7 +1175,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
         Trans transNextFile = new Trans(NextFile.class);
         
         
-        @Override protected Trans selectTrans(EventObject ev) {
+        @Override protected Trans checkTrans(EventObject ev) {
           //prepare event to check:
           final FileRemoteProgressTimeOrder.Answer cmd;
           if(ev == copyOrder.timeOrderProgress.evAnswer) {
@@ -1236,7 +1236,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
          */
         Trans transDirOrFile = new Trans(DirOrFile.class);
    
-        @Override protected Trans selectTrans(EventObject ev) {
+        @Override protected Trans checkTrans(EventObject ev) {
           if(actData == null) return transReady;
           else return transDirOrFile;
         }
@@ -1289,7 +1289,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
         };
         
         
-        @Override protected Trans selectTrans(EventObject ev) {
+        @Override protected Trans checkTrans(EventObject ev) {
           //prepare event to check:
           final FileRemoteProgressTimeOrder.Answer cmd;
           if(ev == copyOrder.timeOrderProgress.evAnswer) {

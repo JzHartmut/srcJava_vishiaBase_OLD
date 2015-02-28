@@ -182,7 +182,9 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
     StateSimple stateActPrev;
     do {
       int contLoop = 0;
-      do {
+      //
+      //
+      do { //Run to complete loop
         contLoop &= ~mRunToComplete;  //only this is checked for any state transition. Left all other bits especially mEventConsumed.
         if(stateAct == null){
           contLoop |= entryDefaultState();  //regards also Parallel states.
@@ -204,21 +206,25 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
           && (contLoop & mRunToComplete) !=0    //loop if runToComplete-bit is set, the new state should be checked.
           && --catastrophicalCount >=0
           );
+      //
+      //
       if(catastrophicalCount <0) {
         throw new RuntimeException("unterminated loop in state switches");
       }
       cont |= contLoop;
-      //check all StateCompositeFlat too!
+      //check the transitions of this StateComposite and all superior StateCompositeFlat too!
       StateSimple stateEncl1 = stateAct;
       stateActPrev = stateAct;
-      while( stateActPrev == stateAct && (stateEncl1 = stateEncl1.enclState) instanceof StateCompositeFlat) {
+      while( stateActPrev == stateAct   //repeat so long the stateAct was not changed if the composite transition fires. 
+        && (stateEncl1 = stateEncl1.enclState) instanceof StateCompositeFlat  //repeat for this and all composite states.
+        ) {
         if(evTrans !=null || (stateEncl1.modeTrans & StateSimple.mRunToComplete) !=0 ) { //state has only conditional transitions
           //==>>
           int trans = stateEncl1.checkTransitions(evTrans);
           if(stateMachine.debugState && stateActPrev instanceof StateSimple && (trans & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(stateActPrev, evTrans, trans); }
         }
       }
-    } while(stateActPrev != stateAct
+    } while(stateActPrev != stateAct    //repeat it for run to completion if the stateAct was changed by an transition of the composite.
         && --catastrophicalCount >=0 );
     //Process to leave this state.
     //
