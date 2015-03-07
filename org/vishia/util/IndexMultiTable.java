@@ -85,6 +85,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-03-07 Hartmut bugfix false instanceof check, sub-tables has not worked.
    * <li>2014-12-21 Hartmut chg structure: Now a {@link Table} is an own instance. Improved and simplified. 
    * <li>2014-12-20 Hartmut new The iterator is a ListIterator now with {@link ListIterator#hasPrevious()} etc.
    *   The advantage and usage: Set the iterator to a expected point with {@link #iterator(Comparable)} and traverse back- and forward.
@@ -842,7 +843,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
      * @param value value to insert.
      */
     private void sortin(int ix, Key sortkey, Object value)
-    { check();
+    { //assert(value instanceof Type || value instanceof Table);
+      check();
       if(sizeBlock == maxBlock)
       { //divide the block:
         if(isHyperBlock)
@@ -869,8 +871,9 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         sizeBlock +=1;
         aKeys[ix] = sortkey;
         aValues[ix] = value;
-        if(value instanceof IndexMultiTable<?, ?>){
-          @SuppressWarnings("unchecked")
+        //if(value instanceof IndexMultiTable<?, ?>){
+        if(value instanceof Table){  //a sub table is either an instance of IndexMultiTable.Table or any other Object
+           @SuppressWarnings("unchecked")
           Table<Key,Type> childTable = (Table<Key,Type>)value;
           childTable.ixInParent = ix;
           childTable.parent = this;
@@ -900,7 +903,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         sibling.sizeAll = movein(this, sibling, newSize, 0, idx - newSize);
         sibling.aKeys[ix1] = key1;
         sibling.aValues[ix1] = obj1;
-        if(obj1 instanceof IndexMultiTable<?,?>){
+        if(obj1 instanceof Table){
           @SuppressWarnings("unchecked")
           Table<Key,Type> childTable = (Table<Key,Type>)obj1;
           childTable.ixInParent = ix1;
@@ -927,7 +930,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           }
           this.aKeys[idx] = key1;
           this.aValues[idx] = obj1;
-          if(obj1 instanceof IndexMultiTable<?,?>){
+          if(obj1 instanceof Table){
             @SuppressWarnings("unchecked")
             Table<Key,Type> childTable = (Table<Key,Type>)obj1;
             childTable.ixInParent = idx;
@@ -1161,7 +1164,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         }
         if(isHyperBlock)
         { for(int ii=0; ii < sizeBlock; ii++)
-          { rootIdxTable.assert1(aValues[ii] instanceof IndexMultiTable<?,?>);
+          { rootIdxTable.assert1(aValues[ii] instanceof Table);
             Table<Key, Type> childtable = (Table<Key, Type>)aValues[ii]; 
             rootIdxTable.assert1(aKeys[ii].equals(childtable.aKeys[0])); 
             rootIdxTable.assert1(childtable.ixInParent == ii);
@@ -1192,12 +1195,12 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       for(int ix = 0; ix < sizeBlock; ++ix){
         rootIdxTable.assert1(compare(aKeys[ix], keylast) >= 0);
         if(isHyperBlock){
-          rootIdxTable.assert1(aValues[ix] instanceof IndexMultiTable<?,?>);
+          rootIdxTable.assert1(aValues[ix] instanceof Table);
           @SuppressWarnings("unchecked")
           Table<Key,Type> childTable = (Table<Key,Type>)aValues[ix];
           keylast = childTable.checkTable(this, aKeys[ix], ix, keylast);
         } else {
-          rootIdxTable.assert1(!(aValues[ix] instanceof IndexMultiTable<?,?>));
+          rootIdxTable.assert1(!(aValues[ix] instanceof Table));
           keylast = aKeys[ix];
         }
       }
@@ -1595,7 +1598,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       int ix1 = idx - newSize;
       right.aKeys[ix1] = key1;
       right.aValues[ix1] = obj1;
-      if(obj1 instanceof IndexMultiTable<?,?>){
+      if(obj1 instanceof Table){
         @SuppressWarnings("unchecked")
         Table<Key,Type> childTable = (Table<Key,Type>)obj1;
         childTable.ixInParent = ix1;
@@ -1612,7 +1615,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         left.sizeAll = root.movein(root, left, 0, 0, idx);
         left.aKeys[idx] = key1;
         left.aValues[idx] = obj1;
-        if(obj1 instanceof IndexMultiTable<?,?>){
+        if(obj1 instanceof Table){
           @SuppressWarnings("unchecked")
           Table<Key,Type> childTable = (Table<Key,Type>)obj1;
           childTable.ixInParent = idx;

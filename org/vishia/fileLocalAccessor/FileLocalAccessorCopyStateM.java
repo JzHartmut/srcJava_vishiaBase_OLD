@@ -1276,14 +1276,14 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
         
         Trans transAbortDir = new Trans(NextFile.class) {
           @Override protected void action(EventObject ev) {
-            modeCopyOper  = ((FileRemote.CmdEvent)ev).modeCopyOper;
+            modeCopyOper  = copyOrder.timeOrderProgress.modeCopyOper;
             bAbortDirectory = true;
           }
         };
         
         Trans transAbortAll = new Trans(NextFile.class){
           @Override protected void action(EventObject ev) {
-            modeCopyOper  = ((FileRemote.CmdEvent)ev).modeCopyOper;
+            modeCopyOper  = copyOrder.timeOrderProgress.modeCopyOper;
             copyAbort();
           }
         };

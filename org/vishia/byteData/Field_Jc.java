@@ -206,7 +206,7 @@ public  class Field_Jc extends ByteDataAccessBase
       public  String getValue(Object_Jc Data)
       {
           String sResult = "";
-          int idxOffset= (Data.ixChild - Data.ixBegin) + this.getPosValue();//Data.idxChild - Data.idxBegin; //DataStart + offset
+          int idxOffset= (Data.getLengthHead()) + this.getPosValue();//Data.idxChild - Data.idxBegin; //DataStart + offset
           
           switch (getType())
           {
