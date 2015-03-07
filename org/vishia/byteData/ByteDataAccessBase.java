@@ -6,6 +6,7 @@ import java.util.Arrays;
 
 import org.vishia.bridgeC.IllegalArgumentExceptionJc;
 import org.vishia.util.Debugutil;
+import org.vishia.util.InfoFormattedAppend;
 import org.vishia.util.Java4C;
 import org.vishia.util.StringFormatter;
 
@@ -112,10 +113,10 @@ import org.vishia.util.StringFormatter;
  * @author Hartmut Schorrig
  *
  */
-public abstract class ByteDataAccessBase
+public abstract class ByteDataAccessBase implements InfoFormattedAppend
 {
   
-  /**The version. 
+  /**The version, history and license. 
    * <ul>
    * <li>2014-09-05 Hartmut chg: ixChild removed, unnecessary, instead {@link #currentChild}, proper for debug. 
    * <li>2014-09-05 Hartmut chg: Some problems fixed in C-Application. Runs in Java. Meaning of {@link #bExpand} = TODO Store this version as well running.
@@ -157,14 +158,39 @@ public abstract class ByteDataAccessBase
    * <li>2005..2009: Hartmut: some changes
    * <li>2005 Hartmut created
    * </ul>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL is not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are indent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
    * 
    */
-  public static final String sVersion = "2014-08-26";
+  public final static String version = "2015-03-08";
+  
+  
   
   /**Number of Memory locations (usual bytes) for the head of this instance's Type.  
    * Set on construction.
    */
-  private int sizeHead;
+  protected final int sizeHead;
   
   /** The array containing the binary data.*/
   protected @Java4C.PtrVal byte[] data;
@@ -250,21 +276,6 @@ public abstract class ByteDataAccessBase
     charset = Charset.forName(value);
   }
   
-  
-  /**This method is package private because it is only used for the methodes of ByteDataAccess (with virtual methods).
-   * @param size The element {@link #sizeHead} is changed (should be final).
-   */
-  @Java4C.Inline
-  /*package private*/ final void _setSizeHead(int size){
-    if(sizeHead < 0){
-      sizeHead = size;
-    } else if(sizeHead == size){
-      //do nothing.      
-    } else {
-      assert(false);  //don't change the sizeHead.
-    }
-    
-  }
   
   
   /**Resets the view to the buffer. The data in the buffer may be set newly. Either they are declared
@@ -782,7 +793,7 @@ public abstract class ByteDataAccessBase
     child.ixEnd = bExpand ? child.ixChildEnd : this.ixEnd;  //use the full data range maybe for child.
     currentChild = child;
     assert(child.ixEnd <= data.length);
-    if(bExpand){ _expand(child.ixEnd); }  
+    _expand(child.ixEnd);  
     //return bExpand;
   }
 
@@ -1688,9 +1699,9 @@ public abstract class ByteDataAccessBase
     assert(ixChildEnd >=0);          //==0 os possible on an empty element without head.
     int ixChild1 = ixChildEnd;
     ixChildEnd += sizeChild;  
-    if(bExpand) { 
-      _expand(ixChildEnd); 
-    }
+    //if(bExpand) { 
+      _expand(ixChildEnd);    //expand always the ixChildEnd
+    //}
     if(data.length < ixChildEnd){
       throw new IllegalArgumentExceptionJc("ByteDataAccess: less data", ixChildEnd);
     }
@@ -1699,39 +1710,32 @@ public abstract class ByteDataAccessBase
 
 
   
-  /**Helper routine to show indices and content.
-   * @param obj
-   */
-  private void addToString(ByteDataAccessBase obj, int recurs)
-  {
-    toStringformatter.addint(obj.ixBegin, "33331")
-    .add("..").addint(obj.ixBegin + obj.sizeHead,"333331")
-    .add("..").addint(obj.ixChildEnd,"333331")
-    .add(obj.bExpand ? '+' : ':').addint(obj.ixEnd,"333331").add(":");
+  
+  @Override public void infoFormattedAppend(StringFormatter u)
+  { 
+    u.addint(ixBegin, "33331")
+    .add("..").addint(ixBegin + sizeHead,"333331")
+    .add("..").addint(ixChildEnd,"333331")
+    .add(bExpand ? '+' : ':').addint(ixEnd,"333331").add(":");
     //show content of head
-    int bytesHex = obj.getLengthHead();
+    int bytesHex = getLengthHead();
     if(bytesHex > 16){ bytesHex = 16; }
     if(bytesHex <0){ bytesHex = 0; }
-    if(obj.ixBegin + bytesHex > data.length){ bytesHex = data.length - obj.ixBegin; }  
-    toStringformatter.addHexLine(data, obj.ixBegin, bytesHex, bBigEndian? StringFormatter.k4left: StringFormatter.k4right);
-    if(bytesHex < 24 && obj.currentChild ==null) {
-      int bytesHexChild = obj.ixEnd - obj.ixBegin - obj.sizeHead;
+    if(ixBegin + bytesHex > data.length){ bytesHex = data.length - ixBegin; }  
+    u.addHexLine(data, ixBegin, bytesHex, bBigEndian? StringFormatter.k4left: StringFormatter.k4right);
+    if(bytesHex < 24 && currentChild ==null) {
+      int bytesHexChild = ixEnd - ixBegin - sizeHead;
       if(bytesHexChild >(24 - bytesHex)) { bytesHexChild = (24 - bytesHex); }  //don't show more as 24 bytes in sum.
       if(bytesHexChild >0) {
-        toStringformatter.add(": ").addHexLine(data, obj.ixBegin + obj.sizeHead, bytesHexChild, bBigEndian? StringFormatter.k4left: StringFormatter.k4right);
+        u.add(": ").addHexLine(data, ixBegin + sizeHead, bytesHexChild, bBigEndian? StringFormatter.k4left: StringFormatter.k4right);
       }
     }
-    else if(obj.currentChild !=null) {
-      if(recurs > 10){
-        toStringformatter.add(", too many children");
-      } else {
-        toStringformatter.add(", child ");
-        addToString(obj.currentChild, recurs+1);
-      }
+    else if(currentChild !=null && u.length() < 200) {
+      u.add(", child ");
+      currentChild.infoFormattedAppend(u);  //it is possible that it is overridden.
     }
   }
-  
-  
+
  
 
   /**This method is especially usefully to debug in eclipse. 
@@ -1745,7 +1749,9 @@ public abstract class ByteDataAccessBase
      else
      { if(toStringformatter == null){ toStringformatter = new StringFormatter(); }
        else { toStringformatter.reset(); }
-       addToString(this,0);  //recursively call for all children, limitaded with recursCount.
+       
+       //addToString(this,0);  //recursively call for all children, limitaded with recursCount.
+       infoFormattedAppend(toStringformatter);
        final String ret = toStringformatter.toString();
        return ret;
      }  
