@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.vishia.event.EventCmdtype;
 import org.vishia.event.EventCmdtypeWithBackEvent;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
@@ -41,6 +40,7 @@ import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
 import org.vishia.util.SortedTreeWalkerCallback;
 
+@SuppressWarnings("synthetic-access") 
 public class FileAccessorLocalJava7 extends FileRemoteAccessor
 {
   /**Version, history and license.
@@ -299,17 +299,18 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
   
   /**Routine for walk through all really files of the file system for PC file systems and Java7 or higher. 
    * It calls {@link Files#walkFileTree(Path, Set, int, FileVisitor)} in an extra thread.
-   * defined in {@link FileRemoteAccessor#walkFileTree(FileRemote, boolean boolean, boolean, String, int, int, FileRemoteCallback)} 
+   * defined in {@link FileRemoteAccessor#walkFileTree(FileRemote, boolean, boolean, boolean, String, long, int, FileRemoteCallback)} 
    */
-  @Override public void walkFileTree(FileRemote startDir, boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback)
+  @Override public void walkFileTree(FileRemote startDir, final boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMask, long bMarkCheck, int depth, FileRemoteCallback callback)
   { if(bWait){
       //execute it in this thread, therewith wait for success.
-      walkFileTreeExecInThisThread(startDir, bRefreshChildren, resetMark, sMask, markMask, depth, callback);
+      walkFileTreeExecInThisThread(startDir, bRefreshChildren, resetMark, sMask, bMarkCheck, depth, callback);
     } else {
-      FileRemoteAccessor.FileWalkerThread thread = new FileRemoteAccessor.FileWalkerThread(startDir, bRefreshChildren, resetMark, depth, sMask, markMask, callback) {
+      //creates a new Thread with instance of FileWalkerThread for the run routine and the arguments saving:
+      FileRemoteAccessor.FileWalkerThread thread = new FileRemoteAccessor.FileWalkerThread(startDir, bRefreshChildren, resetMark, depth, sMask, bMarkCheck, callback) {
         @Override public void run() {
           try{
-            walkFileTreeExecInThisThread(startDir, bRefresh, resetMark, sMask, markMask, depth, callback);
+            FileAccessorLocalJava7.this.walkFileTreeExecInThisThread(startDir, bRefresh, resetMark, sMask, bMarkCheck, depth, callback);
           } 
           catch(Exception exc){
             CharSequence text = Assert.exceptionInfo("FileAccessorLocalJava7 - RefreshThread Exception; ", exc, 0, 20, true);
@@ -324,7 +325,18 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
 
   
   
-  private void walkFileTreeExecInThisThread(FileRemote startDir, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback)
+  /**See {@link #walkFileTree(FileRemote, boolean, boolean, boolean, String, long, int, FileRemoteCallback)}, inner routine.
+   * @param startDir
+   * @param bRefreshChildren if true than gets all files in a directory and builds the {@link FileRemote#children()} newly.
+   * @param resetMark true than removes all mark bits in {@link FileRemote#mark}
+   * @param sMask selection mask.
+   * @param markMask Bit to be set to mark a file in its 
+   * @param depth Depth of walking through the directory tree. If <=0 then walk through all levels. >0 limited walk.
+   *   if <0 then only marked files and directories with {@link FileMark#select} or {@link FileMark#selectSomeInDir} 
+   *   in the first sub directory level are processed and checked. This is to handle pre-selected files of one level.
+   * @param callback invoked for any directory entry and finsih and for any file.
+   */
+  private void walkFileTreeExecInThisThread(FileRemote startDir, boolean bRefreshChildren, boolean resetMark, String sMask, long bMarkCheck, int depth, FileRemoteCallback callback)
   {
     if(callback !=null) { callback.start(startDir); }
     String sPath = startDir.getAbsolutePath();
@@ -334,15 +346,13 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
     if(bRefreshChildren) { // && filter == null) {
       startDir.internalAccess().newChildren();
     }
-    int nLevelProcessOnlyMarked = depth < 0 ? 2 : 0;
     int depth1;
     if(depth ==0){ depth1 = Integer.MAX_VALUE; }
     else if(depth < 0){ depth1 = -depth; }
     else { depth1 = depth; }
 
-    int markCheck = FileMark.select | FileMark.selectSomeInDir;
     WalkFileTreeVisitor visitor = new WalkFileTreeVisitor(startDir.itsCluster, bRefreshChildren, resetMark, sMask
-        , markMask, nLevelProcessOnlyMarked, markCheck, callback);
+        , bMarkCheck, callback);
     Set<FileVisitOption> options = new TreeSet<FileVisitOption>();
     try{ 
       Files.walkFileTree(pathdir, options, depth1, visitor);  
@@ -775,8 +785,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
    * It will be created on demand if any request is proceeded with the given {@link FileRemoteCallback} callback interface.
    * The callback {@link FileRemoteCallback#offerLeafNode(FileRemote)} and {@link FileRemoteCallback#offerParentNode(FileRemote)} 
    * is processed only for selected files and directories, 
-   * see 4. String parameter of {@link WalkFileTreeVisitor#WalkFileTreeVisitor(FileCluster, boolean, boolean, String, int, FileRemoteCallback)}
-   * and the 5. mask parameter.
+   * see 4. and 5. parameter of {@link WalkFileTreeVisitor#WalkFileTreeVisitor(FileCluster, boolean, boolean, String, int, FileRemoteCallback)}
    * <br><br>
    * <b>FileRemote instance delivered</b>:<br>
    * On callback anytime a FileRemote instance is delivered which wraps the operation systems file. 
@@ -831,8 +840,6 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
     
     private CurrDirChildren curr;
     
-    final int markMask;
-    
     final int markCheck;
     
     final String sStartName, sEndName;
@@ -846,26 +853,26 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
     
     /**Constructs the instance.
      * @param fileCluster The cluster where all FileRemote are able to found by its path.
-     * @param refresh true then refreshes the FileRemote which are processed 
+     * @param refreshChildren true then refreshes the FileRemote which are processed 
      * @param resetMark true then resets a {@link FileRemote#resetMarked(int)} of any processed file and directory.
      * @param sMask A mask "path/ ** /subdir/pre*post"
-     * @param markMask Bits to select marked files
+     * @param bMarkCheck Bits 31..0 to select marked files, Bits 63..32: Number of levels to process this check, 
+     *   especially 2 (0x200000000L) if marked files in a directory should be checked.
+     * @param levelProcessMarked
+     * @param markCheck
      * @param callback Callback interface to the user.
      */
     public WalkFileTreeVisitor(FileCluster fileCluster, boolean refreshChildren, boolean resetMark, String sMask
-        , int markMask
-        , int levelProcessMarked
-        , int markCheck
+        , long bMarkCheck
         , FileRemoteCallback callback)
     {
       this.fileCluster = fileCluster;
       this.refresh = refreshChildren;
       this.resetMark = resetMark;
-      this.markCheck = markCheck;
-      this.markMask = markMask;
+      this.markCheck = (int)(bMarkCheck & 0xffffffff);
       this.callback = callback;
       curr = new CurrDirChildren(null, null);  //starts without parent.
-      curr.levelProcessMarked = levelProcessMarked;
+      curr.levelProcessMarked = (int)(bMarkCheck >>32); // levelProcessMarked;
       if(sMask == null){
         sStartName = sEndName = sStartDir = sEndDir = null;
       } else {
@@ -914,9 +921,9 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
       String name = namepath == null ? "/" : namepath.toString();
       CharSequence cPath = FileSystem.normalizePath(dir.toString());
       FileRemote dir1 = fileCluster.getDir(cPath);
-      if(curr.levelProcessMarked >0 && (dir1.getMark() & markCheck)==0) {
+      if(curr.levelProcessMarked ==1 && (dir1.getMark() & markCheck)==0) {  //If it is the check level, check directories too.
         return FileVisitResult.SKIP_SUBTREE;      
-      } else {
+      } else { //enter in directory always if curr.levelProcessMarked !=1
         if(resetMark && curr.levelProcessMarked <= 0){ 
           dir1.resetMarked(0xffffffff); 
         }

@@ -812,7 +812,9 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
    */
   final public void addChild(ByteDataAccessBase child, int sizeChild) 
   throws IllegalArgumentException
-  { if(child.parent !=null && child.parent.currentChild == child){ child.parent.currentChild = null; } //detatch
+  { if(child.parent !=null && child.parent.currentChild == child){ 
+      child.parent.currentChild = null;  //detatch
+    }
     assert(sizeChild == 0 || sizeChild >= child.sizeHead);
     assert(child.sizeHead >=0);
     child.ixBegin = setIdxtoNextCurrentChild(sizeChild ==0 ? child.sizeHead: sizeChild);
@@ -1755,7 +1757,7 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
         u.add(": ").addHexLine(data, ixBegin + sizeHead, bytesHexChild, bBigEndian? StringFormatter.k4left: StringFormatter.k4right);
       }
     }
-    else if(currentChild !=null && u.length() < 200) {
+    else if(currentChild !=null && u.length() < 2200) {
       u.add(", child ");
       currentChild.infoFormattedAppend(u);  //it is possible that it is overridden.
     }

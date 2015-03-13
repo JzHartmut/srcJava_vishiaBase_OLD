@@ -402,7 +402,7 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
   }
 
   @Override
-  public void walkFileTree(FileRemote file, boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback)
+  public void walkFileTree(FileRemote file, boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMask, long bMarkCheck, int depth, FileRemoteCallback callback)
   {
     // TODO Auto-generated method stub
     

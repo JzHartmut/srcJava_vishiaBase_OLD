@@ -137,13 +137,15 @@ public abstract class FileRemoteAccessor implements Closeable
    * @param bRefresh if true then refreshes all entries in file and maybe found children. If false then let file unchanged.
    *   If filter is not null, only the filtered children will be updated,
    *   all other children remain unchanged. It means it is possible that non exists files are remain as children.
-   * @param sMask Any filter which files will be accepted.
-   * @param markMask TODO
+   * @param sMaskCheck Any filter which files will be accepted.
+   * @param bMarkCheck Bits 31..0 which are used to select files to mark if this mark bits are set. Additional (AND) to the sMask.
+   *    If 0 all files, marked or non marked are checked. The Bits 63..32 contains the number of levels to process. 
+   *    It is especially 2 (0x200000000 in argument) if the first level of a directory should be checked. 
    * @param depth at least 1 for enter in the first directory. Use 0 if all levels should enter.
    *   If negative then the absolute is number of levels (maybe Integer.MAXVALUE) but uses the first level to enter only marked files.
    * @param callback this callback will be invoked on any file or directory.
    */
-  public abstract void walkFileTree(FileRemote startDir, boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMask, int markMask, int depth, FileRemoteCallback callback);
+  public abstract void walkFileTree(FileRemote startDir, boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMaskCheck, long bMarkCheck, int depth, FileRemoteCallback callback);
   
 
   protected abstract boolean setLastModified(FileRemote file, long time);
@@ -201,12 +203,12 @@ public abstract class FileRemoteAccessor implements Closeable
     final protected FileRemote startDir; 
     //final protected FileFilter filter; 
     final protected String sMask;
-    final protected int markMask;
+    final protected long bMarkCheck;
     final protected FileRemoteCallback callback;
     final protected boolean bRefresh, resetMark;
     final protected int depth;
     
-    public FileWalkerThread(FileRemote startDir, boolean bRefreshChildren, boolean resetMark, int depth, String sMask, int markMask, FileRemoteCallback callback)
+    public FileWalkerThread(FileRemote startDir, boolean bRefreshChildren, boolean resetMark, int depth, String sMask, long bMarkCheck, FileRemoteCallback callback)
     { super("FileRemoteRefresh");
       this.startDir = startDir;
       this.bRefresh = bRefreshChildren;
@@ -214,7 +216,7 @@ public abstract class FileRemoteAccessor implements Closeable
       this.depth = depth;
       //this.filter = filter;
       this.sMask = sMask;
-      this.markMask = markMask;
+      this.bMarkCheck = bMarkCheck;
       this.callback = callback;
     }
     

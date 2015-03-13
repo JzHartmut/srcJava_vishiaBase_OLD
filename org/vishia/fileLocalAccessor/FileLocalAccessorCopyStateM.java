@@ -10,7 +10,6 @@ import java.util.Queue;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.vishia.event.EventCmdtype;
 import org.vishia.event.EventCmdtypeWithBackEvent;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
@@ -38,6 +37,7 @@ import org.vishia.util.StringFunctions;
  * @author Hartmut Schorrig
  *
  */
+@SuppressWarnings("synthetic-access") 
 public class FileLocalAccessorCopyStateM implements EventConsumer
 {
   
@@ -196,7 +196,9 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
     @Override public void notifyRelinquished(int ctConsumed){}
     @Override public void notifyShouldSentButInUse(){ throw new RuntimeException("event usage error"); }
 
-    @Override public void notifyShouldOccupyButInUse(){throw new RuntimeException("event usage error"); }
+    @Override public void notifyShouldOccupyButInUse(){
+      throw new RuntimeException("event usage error"); 
+    }
 
   };
   
@@ -909,19 +911,54 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
       /**Set in any sub state entry if the state {@link Ask} or {@link NextFile} should be activated with run to complete. */
       int mResult;
       
+      /**This transition is disposed here because more as one state inside will switch to {@link Ask}. It is checked in the superior state here. */
       Trans transAsk = new Trans(Ask.class);
-      
+
+      /**This transition is disposed here because more as one state inside will switch to {@link NextFile}. It is checked in the superior state here. */
       Trans transNextFile = new Trans(NextFile.class);
+
+      /**This transition is disposed here. It is either expected in the state {@link Ask} but it may be expected in any state
+       * to abort a currently running copy process if the operator give the event. */
+      Trans transAbortFile = new Trans(NextFile.class);
       
-      Trans transAbort = new Trans(States.Ready.class);
+      /**This transition is disposed here. It is either expected in the state {@link Ask} but it may be expected in any state
+       * to abort a currently running copy process if the operator give the event. */
+      Trans transAbortDir = new Trans(NextFile.class) {
+        @Override protected void action(EventObject ev) {
+          bAbortDirectory = true;
+        }
+      };
+      
+      /**This transition is disposed here. It is either expected in the state {@link Ask} but it may be expected in any state
+       * to abort a currently running copy process if the operator give the event. */
+      Trans transAbortAll = new Trans(NextFile.class){
+        @Override protected void action(EventObject ev) {
+          copyAbort();
+        }
+      };
       
       
+      
+      /**This transition checks events from the operator to abort a currently copying process independent of the {@link Ask} state.
+       */
+      @SuppressWarnings("synthetic-access") 
       @Override protected Trans checkTrans(EventObject ev){
-        FileRemote.CmdEvent ev1 = null;
-        if(ev instanceof FileRemote.CmdEvent && ( ev1 = ((FileRemote.CmdEvent)ev)).getCmd() == FileRemote.Cmd.abortAll) {
-          return transAbort;
-        } else if(ev == copyOrder.timeOrderProgress.evAnswer && copyOrder.timeOrderProgress.evAnswer.getCmd() == FileRemoteProgressTimeOrder.Answer.abortFile) { 
-          return transNextFile;
+        //prepare event to check:
+        final FileRemoteProgressTimeOrder.Answer cmd;
+        if(ev == copyOrder.timeOrderProgress.evAnswer) {
+          cmd = copyOrder.timeOrderProgress.evAnswer.getCmd();
+          copyOrder.timeOrderProgress.clearAnswer();  //remove the cmd as event-like
+          modeCopyOper = copyOrder.timeOrderProgress.evAnswer.modeCopyOper;
+        } else {
+           cmd = FileRemoteProgressTimeOrder.Answer.noCmd;
+        }
+        //test
+        if(cmd == FileRemoteProgressTimeOrder.Answer.abortAll) { 
+          return transAbortAll.eventConsumed();
+        } else if(cmd == FileRemoteProgressTimeOrder.Answer.abortDir) {
+          return transAbortDir.eventConsumed();
+        } else if(cmd == FileRemoteProgressTimeOrder.Answer.abortFile) {
+          return transAbortFile.eventConsumed();
         } else if((mResult & mAsk) !=0) { 
           mResult &= ~mAsk; return transAsk; 
         } else if((mResult & mNextFile) !=0)  { 
@@ -1107,7 +1144,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
         
         /**Checks the file.
          */
-        @Override protected int entry(EventObject ev) { mResult = startCopyFile(); return mRunToComplete; }
+        @Override protected int entry(EventObject ev) { mResult = startCopyFile(); return 0; }
           
         @Override protected Trans checkTrans(EventObject ev) {
           if(ev instanceof EventInternal && ((EventInternal)ev).getCmd() == CmdIntern.copyFileContent) { 
@@ -1267,42 +1304,20 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
           }
         };
         
-        Trans transAbortFile = new Trans(NextFile.class) {
-          @Override protected void action(EventObject ev) {
-            modeCopyOper  = copyOrder.timeOrderProgress.modeCopyOper;
-            copyOrder.timeOrderProgress.clearAnswer();  //remove the cmd as event-like
-          }
-        };
         
-        Trans transAbortDir = new Trans(NextFile.class) {
-          @Override protected void action(EventObject ev) {
-            modeCopyOper  = copyOrder.timeOrderProgress.modeCopyOper;
-            bAbortDirectory = true;
-          }
-        };
-        
-        Trans transAbortAll = new Trans(NextFile.class){
-          @Override protected void action(EventObject ev) {
-            modeCopyOper  = copyOrder.timeOrderProgress.modeCopyOper;
-            copyAbort();
-          }
-        };
-        
-        
+        @SuppressWarnings("synthetic-access") 
         @Override protected Trans checkTrans(EventObject ev) {
           //prepare event to check:
           final FileRemoteProgressTimeOrder.Answer cmd;
           if(ev == copyOrder.timeOrderProgress.evAnswer) {
             cmd = copyOrder.timeOrderProgress.evAnswer.getCmd();
+            copyOrder.timeOrderProgress.clearAnswer();
             modeCopyOper = copyOrder.timeOrderProgress.evAnswer.modeCopyOper;
           } else {
              cmd = FileRemoteProgressTimeOrder.Answer.noCmd;
           }
           //test
-          if(cmd == FileRemoteProgressTimeOrder.Answer.abortAll) return transAbortAll.eventConsumed();
-          else if(cmd == FileRemoteProgressTimeOrder.Answer.abortDir) return transAbortDir.eventConsumed();
-          else if(cmd == FileRemoteProgressTimeOrder.Answer.abortFile) return transAbortFile;
-          else if(cmd == FileRemoteProgressTimeOrder.Answer.overwrite) return transDirOrFile;
+          if(cmd == FileRemoteProgressTimeOrder.Answer.overwrite) return transDirOrFile.eventConsumed();
           else return null;
         }
       }

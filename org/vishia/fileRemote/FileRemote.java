@@ -771,10 +771,12 @@ public class FileRemote extends File implements MarkMask_ifc
     else return 0;
   }
   
-  /**Resets the mark bits of this file and all children.
-   * @param mask Mask to reset mark bits.
+  /**Resets the mark bits of this file and all children ({@link #children()})  which are referred in the FileRemote instance.
+   * This method does not access the files on the file system. It works only with the FileRemote instances.
+   * 
+   * @param bit mask Mask to reset mark bits.
    * @param nrofFiles Output reference, will be incremented for all files which's mark are reseted.
-   *   Maybe null, the unused.
+   *   Maybe null, then unused.
    * @return Sum of all bytes (file length) of the reseted files.
    */
   public long resetMarkedRecurs(int mask, int[] nrofFiles){
@@ -783,6 +785,12 @@ public class FileRemote extends File implements MarkMask_ifc
   
   
   
+  /**Recursively called method for {@link #resetMarkedRecurs(int, int[])}
+   * @param mask
+   * @param nrofFiles
+   * @param recursion
+   * @return
+   */
   private long resetMarkedRecurs(int mask, int[] nrofFiles, int recursion){
     long bytes = length();
     if(nrofFiles !=null){ nrofFiles[0] +=1; }
@@ -927,18 +935,19 @@ public class FileRemote extends File implements MarkMask_ifc
    * and invokes the callback routines. A longer access time does not influence this thread. 
    * The result is given only if the {@link FileRemoteCallback#finished(FileRemote, org.vishia.util.SortedTreeWalkerCallback.Counters)}
    * will be invoked.
+   * @param resetMark true then remove existing mark to create a new marking. false: Existing marked files left marked independent of mask.
+   * @param sMaskSelection a mask to select directory and files
+   * @param bMarkSelection bits to select mark, hi bits above 32 is depth.
    * @param depth at least 1 for enter in the first directory. Use 0 if all levels should enter.
-   * @param mask a mask to select directory and files
-   * @param mark bits to select mark
-   * @param set or reset the bit.
    * @param callbackUser a user instance which will be informed on start, any file, any directory and the finish.
+   * @param timeOrderProgress instance for callback.
    */
-  public void refreshAndMark(int depth, boolean resetMark, String mask, int mark, int set, FileRemoteCallback callbackUser, FileRemoteProgressTimeOrder timeOrderProgress) {
+  public void refreshAndMark(boolean resetMark, String sMaskSelection, long bMarkSelection, int depth, FileRemoteCallback callbackUser, FileRemoteProgressTimeOrder timeOrderProgress) {
     if(device == null){
       device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
     CallbackMark callbackMark = new CallbackMark(callbackUser, timeOrderProgress); //, nLevelProcessOnlyMarked);  //negativ... TODO
-    device.walkFileTree(this,  false, true, resetMark, mask, mark,  depth,  callbackMark);  //should work in an extra thread.
+    device.walkFileTree(this,  false, true, resetMark, sMaskSelection, bMarkSelection,  depth,  callbackMark);  //should work in an extra thread.
   }
   
   

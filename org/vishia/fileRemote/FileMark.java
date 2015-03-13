@@ -69,7 +69,7 @@ public class FileMark extends SelectMask
   public static final int selectSomeInDir = 0x00000002;
 
   /**Flags for the root directory for selecting. */
-  public static final int selectRoot = 0x00000008;
+  //public static final int selectRoot = 0x00000008;
 
   /**Flags means that this file is the root of mark. */
   public static final int markRoot = 0x00100000;
@@ -193,6 +193,10 @@ public class FileMark extends SelectMask
   }
   
   
+  /**Sets a mark to all parents of this till the {@link #markRoot} is found.
+   * @param mask
+   * @param count TODO
+   */
   public void setMarkParent(int mask, boolean count){
     FileRemote parent = itsFile;
     List<FileRemote> parents = null;

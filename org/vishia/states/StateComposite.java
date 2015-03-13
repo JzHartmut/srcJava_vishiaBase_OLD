@@ -1,13 +1,10 @@
 package org.vishia.states;
 
-import java.lang.reflect.Constructor;
+
+
+
 import java.util.EventObject;
-import java.util.LinkedList;
-import java.util.List;
 
-
-
-import org.vishia.util.DataAccess;
 import org.vishia.util.InfoAppend;
 
 public class StateComposite extends StateCompositeFlat implements InfoAppend
@@ -171,16 +168,25 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
    * <br><br>
    * This method overrides the {@link StateSimple#processEvent(EventObject)} which is overridden by {@link StateParallel#processEvent(EventObject)}
    * too to provide one method for event processing for all state kinds with the necessary different handling.
+   * <br><br>
+   * <b>Return bits</b>:
+   * <ul>
+   * <li> {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #checkTransitions(EventObject)}
+   *   to remove the event for further usage in an enclosing state processing.
+   * <li> {@link StateSimpleBase#mRunToComplete} is not delivered because it has no sense outside.
+   * <li> {@link StateSimpleBase#mRunToComplete} 
+   * </ul>  
+   * 
    * 
    * @param evP The event.
-   * @return Some bits especially {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #checkTransitions(EventObject)}.
+   * @return Some bits  
    */
   /*package private*/ @Override int processEvent(final EventObject evP){  //NOTE: should be protected.
     int cont = 0;
     EventObject evTrans = evP;
     int catastrophicalCount =  maxStateSwitchesInLoop;
     StateSimple stateActPrev;
-    do {
+    do { //Run to complete loop of a transition of a flat composite state, repeat if the state of this is change by firing a superior transition.
       int contLoop = 0;
       //
       //
@@ -194,11 +200,11 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
         //==>>
         int trans = stateAct.processEvent(evTrans);
         if(stateMachine.debugState && statePrev instanceof StateSimple && (trans & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, trans); }
-        contLoop |= trans;
-        //
-        if((contLoop & StateSimple.mEventConsumed) != 0){
+        if((trans & StateSimple.mEventConsumed) != 0){
           evTrans = null;
         }
+        contLoop |= trans;
+        //
         if(catastrophicalCount == 4) {
           catastrophicalCount = 3;  //set break point! to debug the loop
         }
@@ -215,13 +221,16 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
       //check the transitions of this StateComposite and all superior StateCompositeFlat too!
       StateSimple stateEncl1 = stateAct;
       stateActPrev = stateAct;
-      while( stateActPrev == stateAct   //repeat so long the stateAct was not changed if the composite transition fires. 
-        && (stateEncl1 = stateEncl1.enclState) instanceof StateCompositeFlat  //repeat for this and all composite states.
+      while( stateActPrev == stateAct   //repeat so long the stateAct was not changed if a composite transition fires. 
+        && (stateEncl1 = stateEncl1.enclState) instanceof StateCompositeFlat  //repeat for all enclosing flat composite states of this.
         ) {
         if(evTrans !=null || (stateEncl1.modeTrans & StateSimple.mRunToComplete) !=0 ) { //state has only conditional transitions
           //==>>
           int trans = stateEncl1.checkTransitions(evTrans);
           if(stateMachine.debugState && stateActPrev instanceof StateSimple && (trans & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(stateActPrev, evTrans, trans); }
+          if((trans & StateSimple.mEventConsumed) != 0){
+            evTrans = null;
+          }
         }
       }
     } while(stateActPrev != stateAct    //repeat it for run to completion if the stateAct was changed by an transition of the composite.

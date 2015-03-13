@@ -11,6 +11,8 @@ import java.util.Map;
 
 
 
+
+
 //import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventTimeout;
@@ -1341,6 +1343,7 @@ public CharSequence infoAppend(StringBuilder u) {
  * This class should not be used by an application which deals with states only in a Java context. 
  * The class is a non-static inner class to access private methods from its outer class.
  */
+@SuppressWarnings("synthetic-access") 
 public class PlugStateSimpleToGenState
 {
   /**Creates the empty yet array of transitions. 
