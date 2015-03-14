@@ -120,6 +120,9 @@ public class FileCluster
 
   FileRemote getFile( final CharSequence sDirP, final CharSequence sName, boolean assumeChild){
     CharSequence sDir1 = FileSystem.normalizePath(sDirP); //sPath.replace('\\', '/');
+    if(!FileSystem.isAbsolutePath(sDir1)) {
+      throw new IllegalArgumentException("absolute path expected, " + sDir1);
+    }
     final String sDir;
     int zDir = sDir1.length();
     if(sDir1.charAt(zDir-1) == '/' && zDir >3)

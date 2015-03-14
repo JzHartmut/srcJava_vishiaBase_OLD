@@ -64,6 +64,9 @@ public interface Java4C {
   public final static String sVersion = "2014-01-12"; 
 
 
+  /**Only a help for forcing a Java2C parsing error especially for sophisticated Java2XMI conversion behaviour, only for test. */ 
+  public @interface ParseError{}
+
   
   /**Defines that the <code>class Type{ ... }</code> does not base on ObjectJc in C. It is a simple struct without ObjectJc head data.
    * Note that such an instance does not support overridden methods and does not support Reflection of derived types with a base reference. 

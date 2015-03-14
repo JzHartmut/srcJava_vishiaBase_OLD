@@ -624,7 +624,8 @@ public class FileSystem
 
   
   
-  /**Returns true if the String which describes a file path is recognized as an absolute path.
+  /**Returns true if the String which describes a file path is recognized as an absolute path or as a path with drive letter
+   * which may be relative on the drive.
    * The conditions to recognize as absolute path are:
    * <ul>
    * <li>Start with slash or backslash

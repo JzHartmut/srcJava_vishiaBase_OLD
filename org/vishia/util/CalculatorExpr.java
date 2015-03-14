@@ -404,7 +404,7 @@ public class CalculatorExpr
           else if(val2.oVal instanceof Boolean)  { val2.boolVal = ((Boolean)val2.oVal).booleanValue(); accu.boolVal = accu.intVal !=0; return booleanExpr; }
           else if(val2.oVal instanceof Character){ val2.intVal = ((Character)val2.oVal).charValue();   return this; }
           else throw new IllegalArgumentException("the value should be of a numeric type");
-        case 'e': throw (Exception)val2.oVal;
+        case 'e': throw (Exception)val2.oVal;  //the oVal refers an exception instance.
         case 't': {
           try{ val2.longVal = Long.parseLong(val2.stringVal.toString());
             return this; 

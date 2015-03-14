@@ -1,28 +1,28 @@
 package org.vishia.fileRemote;
 
 import org.vishia.event.EventCmdtype;
-import org.vishia.event.EventConsumer;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventTimerThread_ifc;
 import org.vishia.event.TimeOrder;
-import org.vishia.event.EventTimerThread;
-import org.vishia.fileLocalAccessor.FileLocalAccessorCopyStateM;
 import org.vishia.states.StateMachine;
 
 /**This TimeOrder is used for progress showing in the callers area. It should be extended from the application
  * to start any showing process for the progress.  The extension should override the method {@link #executeOrder()} from the super class. 
  */
+@SuppressWarnings("synthetic-access")  
 public abstract class FileRemoteProgressTimeOrder  extends TimeOrder
 {
-  
+  private static final long serialVersionUID = 1L;
+
+
   public enum Answer{
     noCmd, cont, overwrite, skip, abortFile, abortDir, abortAll
   }
   
+  @SuppressWarnings("serial")  
   public final class EventCopyCtrl extends EventCmdtype<Answer> {
     
     public int modeCopyOper;
-    
     public void send(Answer cmd, int modeCopyOper) {
       if(occupyRecall(srcAnswer, consumerAnswer, null, false)) {  //recall it for another decision if it is not processed yet.
         this.modeCopyOper = modeCopyOper;
@@ -78,10 +78,6 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrder
   public boolean bDone;
 
   
-  /**If not null the state machine waits for an answer. */
-  private FileRemote.CmdEvent eventAnswer;
-  //FileLocalAccessorCopyStateM.EventCpy eventAnswer;
-  
   private StateMachine consumerAnswer;
   
   public FileRemote.CallbackCmd quest(){ return quest; }
@@ -104,12 +100,6 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrder
   }
   
   
-  public void XXXrequAnswer(FileRemote.CallbackCmd cmd, FileRemote.CmdEvent ev) {
-    this.quest = cmd;
-    this.eventAnswer = ev;
-    activateAt(System.currentTimeMillis() + delay);
-  }
-  
   /**Invoked from any FileRemote operation, provides the state with requiring an answer.
    * The information in this instance should be filled actually.
    * @param cmd The quest
@@ -121,29 +111,6 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrder
     activateAt(System.currentTimeMillis() + delay);   //to execute the request
   }
   
-  
-  /**An answer if somewhat is ask. 
-   * This method should be called from the operator. */
-  public void XXXanswer(Answer answer) {
-    if(evAnswer.occupyRecall(srcAnswer, false)) {
-      evAnswer.sendEvent(answer);
-    }
-    /*
-    if(consumerAnswer !=null) {
-      this.answer = answer; 
-      consumerAnswer.triggerRun(source);
-    }
-    */
-  }
-  
-  /*
-  public void triggerStateMachine(EventSource source, FileRemote.Cmd cmd){
-    if(consumerAnswer !=null) {
-      this.cmd = cmd;
-      consumerAnswer.triggerRun(source);
-    }
-  }
-  */
   
   
 }

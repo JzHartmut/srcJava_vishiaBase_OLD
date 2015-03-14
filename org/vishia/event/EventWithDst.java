@@ -1,6 +1,5 @@
 package org.vishia.event;
 
-import java.nio.channels.IllegalSelectorException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.EventObject;
@@ -572,12 +571,13 @@ public class EventWithDst extends EventObject
     }
   }
 
+  /*
   private void notifyShouldSentButInUse(){
     EventSource source1 = ((EventSource)source);
     if(source1 !=null){
       source1.notifyShouldSentButInUse();
     }
-  }
+  }*/
 
   private void notifyShouldOccupyButInUse(){
     EventSource source1 = ((EventSource)source);
