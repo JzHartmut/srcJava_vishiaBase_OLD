@@ -15,7 +15,7 @@ public class TestFileCluster
   FileCluster fileCluster = new FileCluster();
   
   public void execute(){
-  
+    
     FileRemote file1 = fileCluster.getDir("D:/vishia/Java/docuSrcJava_Zbnf_priv/org");
     FileRemote file2 = fileCluster.getDir("D:/vishia/Java/docuSrcJava_vishiaBase/org/vishia/zbnf");
     FileRemote file0 = fileCluster.getDir("D:/vishia/Java");
@@ -30,11 +30,23 @@ public class TestFileCluster
   }
   
   
+  public void execute2(){
+    
+    FileRemote file1 = fileCluster.getDir("D:/vishia/Java/docuSrcJavaPriv_Zbnf/org/vishia/zbnf");
+    FileRemote file3 = fileCluster.getDir("D:/vishia/Java/docuSrcJavaPriv_Zbnf/org/vishia/zcmd");
+    FileRemote file2 = fileCluster.getDir("D:/vishia/Java/docuSrcJavaPriv_Zbnf");
+    FileRemote file0 = file2.child("org/vishia");
+
+    Assert.check(file0 == file1);
+
+  }
+  
+  
   public static final void main(String[] args){ test();}
   
   public static final void test(){
     TestFileCluster main = new TestFileCluster();
-    main.execute();
+    main.execute2();
   }
   
 }

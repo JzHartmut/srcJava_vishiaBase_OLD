@@ -34,7 +34,7 @@ public interface VariableContainer_ifc
   /**Version, history and license
    * <ul>
    * <li>2012-03-31 Hartmut new: {@link #setCallbackOnReceivedData(Runnable)}. It is used for the
-   *   {@link org.vishia.inspectorAccessor.InspcMng} and {@link org.vishia.guiInspc.InspcGui} now. 
+   *   {@link org.vishia.inspcPC.mng.InspcMng} and {@link org.vishia.guiInspc.InspcGui} now. 
    * <li>2010-06-00 Hartmut created. 
    * </ul>
    * <br><br>

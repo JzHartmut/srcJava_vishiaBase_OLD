@@ -104,6 +104,15 @@ public class JZcmdFileset
    * @return
    * @throws NoSuchFieldException
    */
+  public List<JZcmdFilepath> listFiles() throws NoSuchFieldException { return listFiles(null, false); }
+
+    
+  /**Returns a new list of all {@link JZcmdFilepath} with all files which are found in the file system
+   *   in the given environment. The base path and local path is build from the members of the fileset
+   *   in that kind, that the shortest given local path is valid.
+   * @return
+   * @throws NoSuchFieldException
+   */
   public List<JZcmdFilepath> listFilesExpanded() throws NoSuchFieldException { return listFiles(null, true); }
 
     

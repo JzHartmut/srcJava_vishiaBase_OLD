@@ -940,10 +940,11 @@ public class FilePath
    *   It is a StringBuilder if the path is assembled from more as one parts.
    *   It is a String if uRet is null and the basepath is simple.
    *   A returned StringBuilder may be used to append some other parts furthermore.
-   * @throws NoSuchFieldException 
+   * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    *  
    */
-  public CharSequence basepath(StringBuilder uRetP, FilePath commonPath, FilePath accessPath, FilePathEnvAccess env) throws NoSuchFieldException 
+  public CharSequence basepath(StringBuilder uRetP, FilePath commonPath, FilePath accessPath, FilePathEnvAccess env)
+      throws NoSuchFieldException 
   { 
     //if(generalPath == null){ generalPath = emptyParent; }
     //first check singularly conditions

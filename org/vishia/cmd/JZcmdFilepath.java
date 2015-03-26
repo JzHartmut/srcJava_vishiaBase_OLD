@@ -112,7 +112,7 @@ public final class JZcmdFilepath {
    * @param src The source (clone source)
    * @param basepath An additional basepath usual stored as <code>basepath=path, ...</code> in a fileset, maybe null
    * @param pathbase0 additional pre-pathbase before base, maybe null
-   * @throws NoSuchFieldException 
+   * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    *  
    */
   JZcmdFilepath(JZcmdExecuter.ExecuteLevel zgenlevel, JZcmdFilepath src, JZcmdFilepath commonPath, JZcmdFilepath accessPath) throws NoSuchFieldException {
@@ -129,7 +129,7 @@ public final class JZcmdFilepath {
   
   /**Assembles and returns the designated part from this Filepath as String or StringBuilder:: <&absbasepath()>. 
    * @return the whole path inclusive a given general path in a {@link UserFileSet} as absolute path.
-   * @throws NoSuchFieldException 
+   * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    *  
    */
   public CharSequence absbasepath() throws NoSuchFieldException { return data.absbasepath(zgenlevel); }
@@ -141,7 +141,7 @@ public final class JZcmdFilepath {
   /**Assembles and returns the designated part from this Filepath as String or StringBuilder:: <&path.absdir()>. 
    * @return the whole path to the parent of this file inclusive a given general path in a {@link UserFileSet}.
    *   The path is absolute. If it is given as relative path, the general current directory of the script is used.
-   * @throws NoSuchFieldException 
+   * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    *   
    */
   public CharSequence absdir() throws NoSuchFieldException  { return data.absdir(zgenlevel); } 
@@ -152,7 +152,7 @@ public final class JZcmdFilepath {
   /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&data.absname()>. 
    * @return the whole path with file name but without extension inclusive a given general path in a {@link UserFileSet}.
    *   Either as absolute or as relative path.
-   * @throws NoSuchFieldException 
+   * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    */
   public CharSequence absname() throws NoSuchFieldException{ return data.absname(zgenlevel); }
   
@@ -164,7 +164,7 @@ public final class JZcmdFilepath {
   /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&path.absfile()>. 
    * @return the whole path inclusive a given general path .
    *   The path is absolute. If it is given as relative path, the general current directory of the script is used.
-   * @throws NoSuchFieldException 
+   * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    */
   public CharSequence absfile() throws NoSuchFieldException{ return data.absfile(zgenlevel); }
   
@@ -176,7 +176,7 @@ public final class JZcmdFilepath {
    * @return the whole base path inclusive a given general path in a {@link UserFileSet}.
    *   till a ':' in the input path or an empty string.
    *   Either as absolute or as relative path how it is given.
-   * @throws NoSuchFieldException 
+   * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    */
   public CharSequence basepath() throws NoSuchFieldException{ return data.basepath(zgenlevel); }
    
@@ -190,7 +190,7 @@ public final class JZcmdFilepath {
   /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&path.dir()>. 
    * @return the whole path to the parent of this file inclusive a given general path in a {@link UserFileSet}.
    *   The path is absolute or relative like it is given.
-   * @throws NoSuchFieldException 
+   * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    */
   public CharSequence dir() throws NoSuchFieldException{ return data.dir(zgenlevel); } 
   
@@ -200,7 +200,7 @@ public final class JZcmdFilepath {
   /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&data.pathname()>. 
    * @return the whole path with file name but without extension inclusive a given general path in a {@link UserFileSet}.
    *   The path is absolute or relative like it is given.
-   * @throws NoSuchFieldException 
+   * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    */
   public CharSequence pathname() throws NoSuchFieldException{ return data.pathname(zgenlevel); }
   
@@ -210,7 +210,7 @@ public final class JZcmdFilepath {
   /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&data.file()>. 
    * @return the whole path with file name and extension.
    *   The path is absolute or relative like it is given.
-   * @throws NoSuchFieldException 
+   * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    */
   public CharSequence file() throws NoSuchFieldException{ return data.file(zgenlevel); } 
   
@@ -230,7 +230,7 @@ public final class JZcmdFilepath {
   /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&data.base_localdir()>. 
    * @return the basepath:localpath in a {@link UserFileSet} with given wildcards 
    *   inclusive a given general path. The path is absolute or relative like it is given.
-   * @throws NoSuchFieldException 
+   * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    */
   public CharSequence base_localdir() throws NoSuchFieldException{ return data.base_localdir(zgenlevel); } 
   
@@ -240,7 +240,7 @@ public final class JZcmdFilepath {
   /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&data.base_localfile()>. 
    * @return the basepath:localpath/name.ext in a {@link UserFileSet} with given wildcards 
    *   inclusive a given general path. The path is absolute or relative like it is given.
-   * @throws NoSuchFieldException 
+   * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    */
   public CharSequence base_localfile() throws NoSuchFieldException{ return data.base_localfile(zgenlevel); }
   
@@ -252,13 +252,13 @@ public final class JZcmdFilepath {
   /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&path.localdir()>. 
    * @return the local path part of the directory of the file without ending slash. 
    *   If no directory is given in the local part, it returns ".". 
-   * @throws NoSuchFieldException 
+   * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    */
   public CharSequence localdir() throws NoSuchFieldException{ return data.localdir(zgenlevel); }
   
   /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&path.localDir()>. 
    * @return the local path part with file without extension.
-   * @throws NoSuchFieldException 
+   * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    */
   public CharSequence localdirW() throws NoSuchFieldException{ return data.localdirW(zgenlevel); }
   
@@ -266,7 +266,7 @@ public final class JZcmdFilepath {
   
   /**Assembles and returns the designated part from this Filepath as String or StringBuilder: <&path.localname()>. 
    * @return the local path part with file without extension.
-   * @throws NoSuchFieldException 
+   * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    */
   public CharSequence localname() throws NoSuchFieldException{ return data.localname(zgenlevel); }
   

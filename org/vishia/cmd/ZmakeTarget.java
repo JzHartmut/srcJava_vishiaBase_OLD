@@ -110,6 +110,14 @@ public class ZmakeTarget
     return files;
   }
   
+  
+  @Override public String toString(){ 
+    StringBuilder u = new StringBuilder(200);
+    u.append(name).append("=:");
+    try{ u.append(output.absfile()); }
+    catch(NoSuchFieldException exc) { u.append("output - scriptVariable not found"); }
+    return u.toString();
+  }
 
 }
 

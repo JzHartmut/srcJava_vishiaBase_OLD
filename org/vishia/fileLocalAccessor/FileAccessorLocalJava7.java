@@ -44,7 +44,9 @@ import org.vishia.util.SortedTreeWalkerCallback;
 public class FileAccessorLocalJava7 extends FileRemoteAccessor
 {
   /**Version, history and license.
-   * <ul>  
+   * <ul>
+   * <li>2015-03-27 Hartmut now children in {@link WalkFileTreeVisitor.CurrDirChildren} is deactivate because not used before.
+   *   A seldom error of twice instances for the same children of a directory was watched.  
    * <li>2014-12-21 Hartmut chg: The {@link WalkFileTreeVisitor.CurrDirChildren#children} is not used any more, the refreshing of children is done
    *   in the Map instance of {@link FileRemote#children()} with marking the children with {@link FileRemote#mRefreshChildPending} as flag bit
    *   while refreshing is pending and removing the files which's mark is remain after refresh. With them a new instance of a Map is not necessary.
@@ -821,7 +823,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
        * After walking, in {@link WalkFileTreeVisitor#postVisitDirectory(Path, IOException)}, the {@link #dir}.{@link FileRemote#children()}
        * are replaced by this instance because it contains only existing children. {@link FileRemote} instances for non existing children are removed then.
        */
-      Map<String,FileRemote> children;
+      //Map<String,FileRemote> children;
       /**The parent. null on first parent. */
       CurrDirChildren parent;
       
@@ -829,7 +831,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
         this.dir = dir; this.parent = parent;
         this.levelProcessMarked = (parent == null) ? 0: parent.levelProcessMarked -1;
         if(refresh){
-          children = FileRemote.createChildrenList(); //new TreeMap<String,FileRemote>();
+          //children = FileRemote.createChildrenList(); //new TreeMap<String,FileRemote>();
         }
       }
     }
@@ -930,7 +932,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
         setAttributes(dir1, dir, attrs);
         if(refresh && curr !=null){
           dir1.internalAccess().clrFlagBit(FileRemote.mRefreshChildPending);
-          curr.children.put(name, dir1);
+          //curr.children.put(name, dir1);
         }
         SortedTreeWalkerCallback.Result result = (callback !=null) ? callback.offerParentNode(dir1) : SortedTreeWalkerCallback.Result.cont;
         if(result == SortedTreeWalkerCallback.Result.cont){
@@ -1016,7 +1018,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
           result = SortedTreeWalkerCallback.Result.terminate;
         } else {
           if(refresh){
-            if(curr.children !=null) { curr.children.put(name, fileRemote); }
+            //if(curr.children !=null) { curr.children.put(name, fileRemote); }
             fileRemote.internalAccess().clrFlagBit(FileRemote.mRefreshChildPending);
             fileRemote.internalAccess().setRefreshed();
     

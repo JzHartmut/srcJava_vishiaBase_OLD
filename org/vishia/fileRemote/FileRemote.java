@@ -420,10 +420,10 @@ public class FileRemote extends File implements MarkMask_ifc
   FileRemote parent;
   
   /**The content of a directory. It contains all files, proper for return {@link #listFiles()} without filter. 
-   * The content is valid at the time of calling {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, EventCmdPingPongType)}.
+   * The content is valid at the time of calling {@link #refreshPropertiesAndChildren(FileRemoteCallback, boolean)} or its adequate.
    * It is possible that the content of the physical directory is changed meanwhile.
    * If this field should be returned without null, especially on {@link #listFiles()} and the file is a directory, 
-   * the {@link FileRemoteAccessor#refreshFilePropertiesAndChildren(FileRemote, EventCmdPingPongType)} will be called.  
+   * the {@link #refreshPropertiesAndChildren()} will be called.  
    * */
   private Map<String,FileRemote> children;
   
@@ -583,34 +583,37 @@ public class FileRemote extends File implements MarkMask_ifc
     } else {
       pathchild = null; //only one child level.
     }
-    FileRemote file = this, child;
+    FileRemote dir1 = this;  //the parent dir of child
+    FileRemote child;
     boolean bCont = true;
     int flagNewFile = 0; //FileRemote.mDirectory;
     StringBuilder uPath = new StringBuilder(100);
     do{
       uPath.setLength(0);
-      file.setPathTo(uPath).append('/').append(pathchild1);
-      child = file.children == null ? null : file.children.get(pathchild1); //search whether the child is known already.
-      if(child == null && pathchild !=null){  //a sub directory child
-        //maybe the child directory is registered already, take it.
-        child = itsCluster.getFile(uPath, null, false);
-      } 
-      if(child == null){
-        if((flags & mDirectory)!=0){
-          child = itsCluster.getFile(uPath, null, false);  //create the instance.
-          child.length = length;
-          child.date = dateLastModified;
-          child.dateLastAccess = dateLastAccess;
-          child.dateCreation = dateCreation;
-          child.flags = flagNewFile;
-        } else {
-          //assumed: a file.
-          child = new FileRemote(itsCluster, device, file, pathchild1, length
-              , dateLastModified,dateCreation,dateLastAccess, flags, null, true);
+      dir1.setPathTo(uPath).append('/').append(pathchild1);
+      child = dir1.children == null ? null : dir1.children.get(pathchild1); //search whether the child is known already.
+      if(child == null) {
+        if( pathchild !=null){  //a child given with a pathchild/name
+          //maybe the child directory is registered already, take it.
+          child = itsCluster.getFile(uPath, null, false);  //try to get the child from the cluster.
+        } 
+        else { //if(child == null){ //not found, not a pathchild/name 
+          if((flags & mDirectory)!=0){
+            child = itsCluster.getFile(uPath, null, false);  //create the instance.
+            child.length = length;
+            child.date = dateLastModified;
+            child.dateLastAccess = dateLastAccess;
+            child.dateCreation = dateCreation;
+            child.flags = flagNewFile;
+          } else {
+            //it is a file, not a directory not found as child up to now, create a new instance:
+            child = new FileRemote(itsCluster, device, dir1, pathchild1, length
+                , dateLastModified,dateCreation,dateLastAccess, flags, null, true);
+          }
         }
       }
       if(pathchild !=null){
-        file = child;
+        dir1 = child;
         pathchild1 = pathchild.fromEnd().seek(1).lento('/');
         if(!pathchild.found()){
           //no slash on end:
@@ -624,7 +627,7 @@ public class FileRemote extends File implements MarkMask_ifc
       } else {
         bCont = false;  //set in the next loop after pathchild = null.
       }
-    }while(bCont);
+    } while(bCont);
     return child;
   }
   
@@ -2750,7 +2753,7 @@ public class FileRemote extends File implements MarkMask_ifc
     }
     
     /**Creates a new file as child of this file. It does not add the child itself because it may be gathered
-     * in an seconst container and then exchanged. Only for internal use.
+     * in an second container and then exchanged. Only for internal use.
      * @return The new child, contains this as parent, but not added to this.
      */
     public FileRemote newChild(final CharSequence sPath
@@ -2762,10 +2765,6 @@ public class FileRemote extends File implements MarkMask_ifc
     
     public void putNewChild(FileRemote child){ FileRemote.this.putNewChild(child); }
 
-    
-    public void setChildren(Map<String,FileRemote> children){
-      FileRemote.this.children = children; //simple replace, the FileRemoteAccessor supplies it correct.
-    }
     
   }
   
