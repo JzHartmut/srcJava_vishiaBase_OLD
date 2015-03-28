@@ -4,8 +4,6 @@ import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 
-import org.vishia.bridgeC.IllegalArgumentExceptionJc;
-import org.vishia.util.Debugutil;
 import org.vishia.util.InfoFormattedAppend;
 import org.vishia.util.Java4C;
 import org.vishia.util.StringFormatter;
@@ -456,7 +454,7 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
     }
     
     {//@Java4C.Exclude
-      assignDataToFixChildren();
+      ////TODO assignDataToFixChildren();
     }
   }
   
@@ -680,7 +678,7 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
    * @return
    */
   @Java4C.Retinline
-  public boolean checkLengthElement(int size)
+  public final boolean checkLengthElement(int size)
   { return size >= sizeHead && getMaxNrofBytes() >=size;
   }
   
@@ -1170,7 +1168,7 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
 
 
   /**Remove all connections. Especially for children. */
-  @Java4C.Inline
+  //@ J ava4C.Inline
   final public void detach()
   { if(parent !=null && parent.currChild == this){ 
       parent.currChild = null;  //detach in parent
@@ -1742,13 +1740,18 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
   }
 
 
-  protected int ixBegin(){ return ixBegin; }
+  protected final int ixBegin(){ return ixBegin; }
   
-  protected int ixNextChild(){ return ixNextChild; }
+  protected final int ixNextChild(){ return ixNextChild; }
   
-  protected int ixEnd(){ return ixEnd; }
+  protected final int ixEnd(){ return ixEnd; }
   
-  @Override public void infoFormattedAppend(StringFormatter u)
+  /**Appends the information about the indices and the current Children.
+   * @see org.vishia.util.InfoFormattedAppend#infoFormattedAppend(org.vishia.util.StringFormatter)
+   */
+  @Java4C.Exclude
+  @Override 
+  public void infoFormattedAppend(StringFormatter u)
   { 
     u.addint(ixBegin, "33331")
     .add("..").addint(ixBegin + sizeHead,"333331")

@@ -117,19 +117,21 @@ public class CmdStore
       if(zgenSub !=null){
         getterFiles.prepareFileSelection();
         Map<String, DataAccess.Variable<Object>> args = new TreeMap<String, DataAccess.Variable<Object>>();
-        try{
-          for(JZcmdScript.DefVariable arg :zgenSub.formalArgs){
-            String name1 = arg.getVariableIdent();
-            if(name1.equals("file1")){ DataAccess.createOrReplaceVariable(args, "file1", 'O', getterFiles.getFile1(), true); }
-            else if(name1.equals("file2")){ DataAccess.createOrReplaceVariable(args, "file2", 'O', getterFiles.getFile2(), true); }
-            else if(name1.equals("file3")){ DataAccess.createOrReplaceVariable(args, "file3", 'O', getterFiles.getFile3(), true); }
-            else if(name1.equals("dir1")){ DataAccess.createOrReplaceVariable(args, "dir1", 'O', getterFiles.getFile1().getParentFile(), true); }
-            else if(name1.equals("dir2")){ DataAccess.createOrReplaceVariable(args, "dir2", 'O', getterFiles.getFile2().getParentFile(), true); }
-            else if(name1.equals("dir3")){ DataAccess.createOrReplaceVariable(args, "dir3", 'O', getterFiles.getFile3().getParentFile(), true); }
+        if(zgenSub.formalArgs !=null) {
+          try{
+            for(JZcmdScript.DefVariable arg :zgenSub.formalArgs){
+              String name1 = arg.getVariableIdent();
+              if(name1.equals("file1")){ DataAccess.createOrReplaceVariable(args, "file1", 'O', getterFiles.getFile1(), true); }
+              else if(name1.equals("file2")){ DataAccess.createOrReplaceVariable(args, "file2", 'O', getterFiles.getFile2(), true); }
+              else if(name1.equals("file3")){ DataAccess.createOrReplaceVariable(args, "file3", 'O', getterFiles.getFile3(), true); }
+              else if(name1.equals("dir1")){ DataAccess.createOrReplaceVariable(args, "dir1", 'O', getterFiles.getFile1().getParentFile(), true); }
+              else if(name1.equals("dir2")){ DataAccess.createOrReplaceVariable(args, "dir2", 'O', getterFiles.getFile2().getParentFile(), true); }
+              else if(name1.equals("dir3")){ DataAccess.createOrReplaceVariable(args, "dir3", 'O', getterFiles.getFile3().getParentFile(), true); }
+            }
+          } catch(IllegalAccessException exc){
+            //It is not able to expect that file1 etc. are not accessible.
+            throw new IllegalArgumentException(exc);
           }
-        } catch(IllegalAccessException exc){
-          //It is not able to expect that file1 etc. are not accessible.
-          throw new IllegalArgumentException(exc);
         }
         return args;
       } else {
