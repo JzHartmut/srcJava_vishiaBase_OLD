@@ -203,22 +203,19 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
    */
   protected TreeNodeBase<DerivedNode, Data, IfcType> parent;
   
-  /**The parent, the siblings, the last child. */
-  protected DerivedNode prev, next; //, lastChild;
-  //public TreeNodeBase<DerivedNode,Data, ?> parent, prev, next; //, lastChild;
-  
   /**The List of child nodes in order of adding. All nodes in this list are type of the DerivedNode. 
+   * This order may be different from the sorted order in idxChildren. The sub nodes have to sorting orders.
+   * The order of adding and insertion with this elements and the order with a key. This is the primary list.
    */
-  //public List<DerivedNode> childNodes;
-  
-  protected DerivedNode firstChild, lastChild;
+  protected DerivedNode prev, next, firstChild, lastChild;
   
   /**The child nodes sorted to the key. The key is given with the child itself, attribute {@link #key}.
    * This index can contain a so named 'meta node' which holds more as one child with the same key.
    * Note that the meta node is not registered in the {@link #childNodes}.
+   * The sorting with key may not be necessary in some kinds, then this element is null. Don't use it
+   * to get a list of children. Use {@link #firstChild} etc. instead. 
    */
   protected Map<String, TreeNodeBase<DerivedNode, Data, IfcType>> idxChildren;
-  //protected Map<String, TreeNodeBase<DerivedNode,Data,IfcType>> idxChildren;
 
   
   /**Instances which are a leaf of this node. That leafs should not need a node to wrap it. 
@@ -378,8 +375,8 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
   }
 
 
-  /**Adds a new node behind the given node as sibling of this respectively child of this parent.
-   * @param childNode
+  /**Adds a new node before the given node as sibling of this respectively child of this parent.
+   * @param childNode The yet not added new instance of node.
    */
   public void addSiblingPrev(DerivedNode childNode){
     if(childNode.parent !=null){
