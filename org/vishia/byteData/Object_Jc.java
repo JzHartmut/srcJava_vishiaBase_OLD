@@ -229,7 +229,7 @@ public class Object_Jc  extends ByteDataAccessBase
    * @param dst The destination ByteDataAccess.
    */
   public void castToRawDataAccess(RawDataAccess dst) 
-  { assignCasted_i(dst, 0, -1);  
+  { assignCasted(dst, 0, -1);  
     //catch(AccessException exc){throw new RuntimeException("unexpected AccessException");}; //it should be never thrown
   }
   

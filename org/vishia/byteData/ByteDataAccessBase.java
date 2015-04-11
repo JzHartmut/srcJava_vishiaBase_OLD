@@ -24,7 +24,7 @@ import org.vishia.util.StringFormatter;
  *     with one derived class per <code>struct</code>, define one reference per nested struct 
  * <li>Base <code>struct</code> inside a <code>struct</code> (inheritance in C) can be mapped with 
  *     extra derived classes for the base struct and usind the
- *     {@link #assignCasted_i(ByteDataAccessBase, int, int)}-method.
+ *     {@link #assignCasted(ByteDataAccessBase, int, int)}-method.
  * <li>A pack of data with several struct may be mapped using the {@link #addChild(ByteDataAccessBase)}-method.
  *     Thereby a parent should be defined, and the structs of the pack are children of this parent. 
  *     That structures need not be from the same type.
@@ -65,7 +65,7 @@ import org.vishia.util.StringFormatter;
  * All variables are package private because they should be changed only with methods of this class.
  * <br><br>
  * <h2>Initialization and instances</h2>
- * The root instance of data should be initialized with
+ * The root instance to access to data should be initialized with
  * <pre>
  MyByteDataAccessRoot accessRoot = new MyByteDataAccessRoot(); 
    //... invokes super.ByteDataAccessBase(lengthHead);
@@ -79,10 +79,11 @@ import org.vishia.util.StringFormatter;
    accessRoot.addChild(subStruct);         //adds on current position.
    int value = subStruct.getValuexyz();    //now can access the data.
    ....  //later on code:
-   accessOther.accChild(subStruct);        //reuse the instance for access
+   accessOther.addChild(subStruct);        //reuse the instance for access
    int value = subStruct.getValueAbc();    //access other data.
  * </pre>
- * 
+ * The instances of this derived class are helper to access to the data, they are not container for the data. 
+ * The data are stored in a <code>byte[]</code>-array 
  * 
  * 
  * <br>  
@@ -107,14 +108,24 @@ import org.vishia.util.StringFormatter;
  * 
  * 
  * <h2>Expand, check</h2>
- * If an instance is set for read, a given number of valid data bytes are known. The data should be assigned with
+ * If an instance is set for read or change, a given number of valid data bytes are known. The instance is marked as 'non expandable', see
+ * The data should be assigned with
  * <ul>
  * <li>{@link #assign(byte[], int)} with given length, not expandable
+ * <li>{@link #assign(byte[], int, int)} at a defined position in the data usefull for special cases.
+ * With the given length >= the sizehead of the {@link ByteDataAccessBase#ByteDataAccessBase(int)} 
+ * the internal flag {@link #bExpand} is set to false.
+ * </ul>
+ * If an instance is set for write, the maximal number of bytes is limited by the size of data (byte[]).
+ * The data should be assigned with:
+ * <ul>
  * <li>{@link #assignClear(byte[])} as empty instance, the data are cleared in its whole length.
  * <li>{@link #assign(byte[], int)} with 0 as length argument as instance which only knows the head data, but the data are not cleared.
- * <li>{@link #assign(byte[], int, int)} at a defined position in the data.
  * </ul>
- * The property expandable or non expandable is set from the given number of valid data. If an instance of this is set to non expandable,
+ * In both cases the internal flag {@link #bExpand} is set to true. It means that the {@link #ixEnd()} which is set initially to the {@link #sizeHead}
+ * is increased if a child is added.
+ * <br><br>
+ * If an instance of this is set to non expandable,
  * an exception is thrown if a children is added after the given length. If an instance is designated as 'expandable' the end index
  * #ixEnd is increased by adding children till the length of data as its maximal value.
  * <br><br>
@@ -122,19 +133,25 @@ import org.vishia.util.StringFormatter;
  * with its known length.   
  * <br>
  * 
- * 
+ * <h2>Examples</h2>
+ * See 
+ * <ul>
+ * <li>{@link org.vishia.byteData.test.TestByteDataAccessBase}
+ * <li>{@link org.vishia.byteData.test.ExampleStringOrInt}
+ * </ul> 
  * @java2c = noObject.
  * 
  * @author Hartmut Schorrig
  *
  */
-public abstract class ByteDataAccessBase implements InfoFormattedAppend
+public class ByteDataAccessBase implements InfoFormattedAppend
 {
   
   /**The version, history and license. 
    * <ul>
-   * <li>2014-09-05 Hartmut chg: ixChild removed, unnecessary, instead {@link #currChild}, proper for debug. 
-   * <li>2014-09-05 Hartmut chg: Some problems fixed in C-Application. Runs in Java. Meaning of {@link #bExpand} = TODO Store this version as well running.
+   * <li>2015-04-12 Hartmut docu and fineTuning: 
+   * <li>2015-03-08 Hartmut chg: ixChild removed, unnecessary, instead {@link #currChild}, proper for debug. 
+   * <li>2014-09-05 Hartmut chg: Some problems fixed in C-Application. Runs in Java. Meaning of {@link #bExpand}
    * <li>2014-09-05 Hartmut chg: Designation with some Java4C annotation.
    * <li>2014-09-05 Hartmut chg: now based on a {@link #charset} of type {@link java.nio.charset.Charset}. In C it is a dummy yet.
    *  In Java the Charset can be used immediately, more simple.
@@ -207,7 +224,9 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
    */
   protected final int sizeHead;
   
-  /** The array containing the binary data.*/
+  /** The array containing the binary data. Note this reference should be private, not protected because the kind of access
+   * may be changed or held more flexible for newer versions. The usage should not deal with this reference immediately.
+   * Use addChild etc. to adapt to data. */
   protected @Java4C.PtrVal byte[] data;
   
   /**Index of the beginning of the actual element in data*/
@@ -225,7 +244,7 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
   private int ixEnd;
 
   /**True if the {@link #ixEnd} should not be set to the {@link #sizeHead} on removing children. */
-  protected boolean bExpand;
+  private boolean bExpand;
 
   /** Flag is set or get data in big endian or little endian (if false)*/
   protected boolean bBigEndian;
@@ -255,13 +274,16 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
    * That class defines a method {@link ByteDataAccess#specifyLengthElementHead()} to get the head's size.
    * @param sizeHead The size of head data, it is the number of bytes.
    */
-  protected ByteDataAccessBase(int sizeHead){
+  public ByteDataAccessBase(int sizeHead){
     this.sizeHead = sizeHead;
   }
   
   
   /**Constructs a new empty instance with a given head size and a given size for children.
-   * That instance is not expandable. 
+   * That instance is not expandable.
+   * @deprecated Remark: Because {@link #assign(byte[], int)} decides on the size of data, and {@link #addChild(ByteDataAccessBase, int)}
+   * decides on the size of data of a child, this constructor makes no sense. Jchartmut 2015-04-12
+   *  
    * @param sizeHead The size of head data, it is the number of bytes.
    * @param sizeData number of significant bytes in data for all children.
    * */
@@ -271,6 +293,7 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
     this.sizeHead = sizeHead;
     ixBegin = 0;
     ixEnd = sizeData;
+    bExpand = false;
     ixNextChild = sizeHead;
     parent = null;
   }
@@ -418,7 +441,7 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
   protected void assignDataToFixChildren(){}
 
   /**Assigns new data to this element at given index in data. This method should be used only for an root element.  
-   * If the element are using before, its connection to an other parent is dissolved.
+   * If the element was used before, its connection to an other parent is dissolved.
    * The position of the next child {@link #ixNextChild} is set always after the known head data of this derived type
    * stored in the final {@link #sizeHead}.
    * <br>
@@ -427,7 +450,7 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
    *   <ul>
    *   <li>If length is > data.length, an exception is thrown.
    *   <li>If the length is < sizeHead (especially 0), then the access is expand-able. {@link #bExpand} = true.
-   *   <li>If the length is >0, it defines the size of this access. Between the head and this length
+   *   <li>If the length is >={@link #sizeHead()}, it defines the size of this access. Between the head and this length
    *     some children can be added to access that data. The access is not expanded. Adding a child after this given length
    *     throws an exception.
    *   </ul>  
@@ -458,15 +481,16 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
     }
   }
   
-  /**Assigns data with a given length. This method is used to read data. This method should be used only for an root element
-   * respectively this is a root element after calling this method.
-   * If the element are using before, its connection to an other parent is dissolved.
+  /**Assigns data with a given length. This method is used usual to read data. Writing as 'changing' is possible too.
+   * The expand flag is set to false if the given lengthData is >= the {@link #sizeHead()}. 
+   * This method should be used only for an root element respectively this is a root element after calling this method.
+   * If the element was used before, its connection to an other parent is dissolved.
    *
-   * @param dataP
-   * @param lengthData The known length of data.
+   * @param data The data which are accessed with this instance
+   * @param lengthData The known length of data. If 0 then the instance is expandable, see {@link #isExpandable()}.
    */
   @Java4C.Inline
-  public final void assign(@Java4C.PtrVal byte[] dataP, int lengthData){ assign(dataP, lengthData, 0); } 
+  public final void assign(@Java4C.PtrVal byte[] data, int lengthData){ assign(data, lengthData, 0); } 
   
   
   
@@ -520,7 +544,7 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
    * All other indices are set calling {@link specifyLengthElementHead()}: idxChild
    * and {@link specifyLengthElement()}: idxEnd.
    * <br>
-   * If the element are using before, its connection to an other parent is dissolved.
+   * If the element was used before, its connection to an other parent is dissolved.
    * @param parent The parent. It should reference data.
    * @param lengthChild Number of the bytes of the free child.
    * @param idxChildInParent The index of the free child in the data.
@@ -559,22 +583,34 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
    * in different views.
    * @param src The known data access
    * @param offsetCastToInput typical 0 if single inherition is used.
+   * @param lengthDst it is the same like {@link #assign(byte[], int)}: If 0 then the child is set to expandable
+   *   and its {@link #ixEnd()} is set to the {@link #sizeHead()}. If >= sizeHead then this instance is not expandable
+   *   and this value determines the valid number of data which are able to access via it.
    * @throws IllegalArgumentException if a length of the new type is specified but the byte[]-data are shorter. 
    *                         The length of byte[] is tested. 
    */
   @Java4C.Inline
-  final protected void assignCasted_i(ByteDataAccessBase src, int offsetCastToInput, int lengthDst)
+  final protected void assignCasted(ByteDataAccessBase src, int offsetCastToInput, int lengthDst)
   throws IllegalArgumentException
   { this.bBigEndian = src.bBigEndian;
     bExpand = src.bExpand;
-    //assignData(src.data, src.idxBegin + lengthDst + offsetCastToInput, src.idxBegin + offsetCastToInput);
     assign(src.data, src.ixEnd, src.ixBegin + offsetCastToInput);
+    bExpand = src.bExpand;
+    bBigEndian = src.bBigEndian;
+    _expand(lengthDst, lengthDst); //if lengthDst ==0 it does nothing.
     //lengthDst is unsused, not necessary because lengthElementHead is knwon!
   }
 
 
-  
+  /**Returns true if the instance is set as expandable, see {@link #assign(byte[], int)}
+   */
+  public boolean isExpandable(){ return bExpand; }
 
+  /**Returns the given head size, which is set on constructor respectively which is a determined value of an derived instance of this.
+   * @return the number of head bytes defined by construction of {@link ByteDataAccessBase#ByteDataAccessBase(int)}.
+   */
+  public int sizeHead() { return sizeHead; }
+  
   
   /** Returns the data buffer itself. The actual total length is getted with getLengthTotal().
    * @return The number of bytes of the data in the buffer.
@@ -1753,16 +1789,12 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
   @Override 
   public void infoFormattedAppend(StringFormatter u)
   { 
-    u.addint(ixBegin, "33331")
-    .add("..").addint(ixBegin + sizeHead,"333331")
-    .add("..").addint(ixNextChild,"333331")
-    .add(bExpand ? '+' : ':').addint(ixEnd,"333331").add(":");
     //show content of head
     int bytesHex = getLengthHead();
     if(bytesHex > 16){ bytesHex = 16; }
     if(bytesHex <0){ bytesHex = 0; }
     if(ixBegin + bytesHex > data.length){ bytesHex = data.length - ixBegin; }  
-    u.addHexLine(data, ixBegin, bytesHex, bBigEndian? StringFormatter.k4left: StringFormatter.k4right);
+    infoAppendHead(u, bytesHex);
     if(bytesHex < 24 && currChild ==null) {
       int bytesHexChild = ixEnd - ixBegin - sizeHead;
       if(bytesHexChild >(24 - bytesHex)) { bytesHexChild = (24 - bytesHex); }  //don't show more as 24 bytes in sum.
@@ -1774,6 +1806,19 @@ public abstract class ByteDataAccessBase implements InfoFormattedAppend
       u.add(", child ");
       currChild.infoFormattedAppend(u);  //it is possible that it is overridden.
     }
+  }
+  
+  
+  /**Appends information about the head of the given element.
+   * @param u The destination buffer
+   * @param bytesHex Number of shown bytes of data as hexa line.
+   */
+  protected void infoAppendHead(StringFormatter u, int bytesHex){
+    u.addint(ixBegin, "33331")
+    .add("..").addint(ixBegin + sizeHead,"333331")
+    .add("..").addint(ixNextChild,"333331")
+    .add(bExpand ? '+' : ':').addint(ixEnd,"333331").add(":");
+    u.addHexLine(data, ixBegin, bytesHex, bBigEndian? StringFormatter.k4left: StringFormatter.k4right);
   }
 
  

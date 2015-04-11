@@ -586,8 +586,10 @@ public class JZcmdExecuter {
    * All of the script variables are known in the subroutine. Additional the args are given.
    * The time measurements {@link #startmilli} and {@link #startnano} starts newly.
    * @param statement The subroutine in the script.
+   * @param args Some variables which are stored as argument values.
    * @param accessPrivate
    * @param out The text output.
+   * @param currdir if not null, then this directory is used as {@link ExecuteLevel#changeCurrDir(CharSequence)} for this subroutine.
    * @return
    * @throws Throwable 
    * @throws IOException

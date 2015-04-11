@@ -4,7 +4,14 @@ import java.text.ParseException;
 import java.util.Iterator;
 import java.util.Vector;
 
-
+/**This class is never used yet. It is necessary to analyze a data image with given reflection as data image. Both can be stored
+ * from a target system and analyzed in Java after them.
+ * This class is deactivated yet, because the usage of {@link ByteDataAccessBase} is sophisticated. If it is need activate it
+ * and rewrite the access.
+ * 
+ * @author Hartmut Schorrig
+ *
+ */
 public class ObjectArraySet_Jc extends ObjectArray_Jc
 {
   
@@ -65,21 +72,26 @@ public class ObjectArraySet_Jc extends ObjectArray_Jc
         objectArrays.removeAllElements(); 
         //objectarrays einlesen
         
+        
+        /*TODO redesign
         while ( ixBegin() < ixEnd() )
         {
           if(getReflectionClass() != 0)//ObjectArray Class
           {
               ObjectArray_Jc newItem = new ObjectArray_Jc();
               objectArrays.add(newItem );
+              //The newItem should be a child of the whole data accessed with this.
+              //use addChild(newItem, length). The length can be gotten from information in the child itself.
               newItem.assign(data, data.length, ixBegin());
            }
 
               int lengthCurrentElement = getLength();
               if (lengthCurrentElement == 0) 
                 throw new ParseException("Position: " + ixBegin(), ixBegin());
-                 
+              //it is the rest of data. This seems an unnecessary operation   
               assign(data, data.length, ixBegin() + lengthCurrentElement);
          }
+         */
       } //setImageData(byte[])
 
   

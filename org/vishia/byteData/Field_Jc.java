@@ -186,7 +186,9 @@ public  class Field_Jc extends ByteDataAccessBase
        * 
        * @return The name of the field.
        */
-      public String getName() 
+      public String getName() { return getString(kPosName, kLengthName); } 
+      /* the same, but with private access:
+
       { String ret; 
         int idxName = ixBegin() + kPosName;
         int idxEnd =  idxName + kLengthName;
@@ -194,7 +196,7 @@ public  class Field_Jc extends ByteDataAccessBase
         try{ ret = new String(data, ixBegin() + kPosName, idxEnd - idxName +1, "ISO-8859-1"); }
         catch(UnsupportedEncodingException exc){ throw new RuntimeException("ISO-8859-1 encoding is not supported.");};
         return ret;
-      }
+      }*/
  
   public void setName(String sName)
   {

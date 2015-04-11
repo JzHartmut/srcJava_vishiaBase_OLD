@@ -54,7 +54,7 @@ public class ObjectArray_Jc extends Object_Jc {
    * The byte[] have to be containing valid data.
    */
   public void assignDataUpcast(Object_Jc base)
-  { assignCasted_i(base, 0, sizeof_ObjectArray_Jc);  //kIdxAfterLast); 
+  { assignCasted(base, 0, sizeof_ObjectArray_Jc);  //kIdxAfterLast); 
     //catch(AccessException exc){} //it's never thrown.
   }
     

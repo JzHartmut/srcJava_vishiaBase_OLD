@@ -66,7 +66,7 @@ public class Class_Jc extends Object_Jc
      * The byte[] have to be containing valid data.
      */
     public void assignDataUpcast(Object_Jc base)
-    { assignCasted_i(base, 0, kPos_Vtbl);
+    { assignCasted(base, 0, kPos_Vtbl);
       //catch(Illegal exc){} //it's never thrown.
     }
     
@@ -174,7 +174,8 @@ public class Class_Jc extends Object_Jc
    * 
    * @return The name of the class.
    */
-  public String getName() 
+  public String getName(){ return getString(kPosName, kLengthName); } 
+  /* the same, but with private access:
   { String ret; 
     int idxName = ixBegin() + kPosName;
     int idxEnd =  idxName + kLengthName;
@@ -182,7 +183,7 @@ public class Class_Jc extends Object_Jc
     try{ ret = new String(data, ixBegin() + kPosName, idxEnd - idxName +1, "ISO-8859-1"); }
     catch(UnsupportedEncodingException exc){ throw new RuntimeException("ISO-8859-1 encoding is not supported.");};
     return ret;
-  }
+  } */
   
   
   public void setName(String sName)

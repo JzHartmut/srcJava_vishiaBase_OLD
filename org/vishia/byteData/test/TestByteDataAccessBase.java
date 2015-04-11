@@ -1,5 +1,7 @@
+//Note: Test with jzcmd: call jzcmd with this java file with its full path:
 //D:/vishia/Java/srcJava_vishiaBase/org/vishia/byteData/test/TestByteDataAccessBase.java
 //==JZcmd==
+//Note: The JZcmd detect its code after //JZcmd too. It starts on the //==JZcmd== label.
 //JZcmd Obj a = java org.vishia.byteData.test.TestByteDataAccessBase.main();
 //==endJZcmd==
 

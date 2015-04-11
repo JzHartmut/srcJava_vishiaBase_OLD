@@ -10,11 +10,12 @@ import org.vishia.byteData.ByteDataAccessBase;
  *     struct ( int16 s0; int8 strlen; char str[1]; } string;
  *   } TheUnion; 
  * </pre>
- * whereby the number of character in <code>str</code> are depending of the <code>strlen</code>. 
+ * whereby the number of character in <code>str</code> are depending of the <code>strlen</code>.
+ * Both variants will be distinguish with the value of the first integer s1. A value 0 means, it is a String. That's only an example. 
  * In C the <code>str</code> may be used as <code>char*</code> in a </code>strncpy(dst, data.string.str, data.string.strlen)</code>.
  * a pointer arithmetic sets a next pointer to the end of that data calculated with the <code>strlen</code>.
  * That may be middle level sophisticated. In C it may be recommended to use the ByteDataAccess in the same way
- * as in Java. It is available in the CRuntimeJavalike liberary.
+ * as in Java. It is available in the CRuntimeJavalike library.
  * 
  * @author hartmut Schorrig
  *
