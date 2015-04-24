@@ -61,6 +61,32 @@ public class Inspcitem
   , returnType:methodName(arg1Typ,arg2Typ)
   
   Der Index im Head der Antwort zaehlt die uebergebenen Informationen.
+  
+  * One Answer for the request {@link #kGetFields} or kGetMethods (not yet ready) for one field or one method. 
+  * For one request some more answer items are produced which were send all with one sequence number 
+  * maybe with more as one answer datagram with incremented {@link InspcDatagram.SeqEntrant#answer()} number. 
+  * All that answer items are associated to the only one request.
+  * <br><br>
+  * The answer contains a {@link HeadOrder} following by a String. The String should be end with 0..3 zero-Bytes
+  * for 4-byte-boundary (tolerable if not). The String has the following syntax (ZBNF)
+  * <pre>
+  * nameType::= <*:?name> : <*:\[\.?type> [ \[\] <?container> | \[ <#?arrayLen> \] |] [\.\.\.<?hasSubstructure>].
+  * <pre>
+  * The String consists of two parts separated by a colon: <code>name:type</code>. The type is given as String. 
+  * It can have some additional information about array, container, sub struct. The type is the type of the reference.
+  * Note: If inheritance is used, the type of the associated instance can be an derived type which's fields and methods can be evaluated
+  * by an invocation of {@value #kGetFields} with that path as address.
+  * <br><br>
+  * Examples for that syntax:
+  * <ul>
+  * <li><code>name:typ</code>: for simple fields.
+  * <li><code>name:typ...</code>: for a struct type. In the target system it may be a reference or a embedded structure in C.
+  * <li><code>name:typ[99]</code>: with the number of array elements if it is a static array with known number of elements.
+  * <li><code>name:typ[99]...</code>: Array of pointers or instances which are a struct.
+  * <li><code>name:typ[]</code>: Array with dynamic size or any other container. Its size ...TODO
+  * 
+  * </ul>
+  * 
   */
   
   public final static int kAnswerFieldMethod = 0x14;
@@ -216,6 +242,10 @@ public class Inspcitem
       assignCasted(head, 0, 0);
     }
   }
+  
+  
+  
+  
   
   
 }

@@ -20,6 +20,7 @@ import org.vishia.util.DataAccess;
 import org.vishia.util.Debugutil;
 import org.vishia.util.FilePath;
 import org.vishia.util.FileSet;
+import org.vishia.util.GetTypeToUse;
 import org.vishia.util.SetLineColumn_ifc;
 import org.vishia.util.StringFunctions;
 import org.vishia.xmlSimple.XmlNode;
@@ -40,7 +41,10 @@ import org.vishia.xmlSimple.XmlNode;
 public class JZcmdScript extends CompiledScript 
 {
   /**Version, history and license.
-   * <ul>2014-12-14 Hartmut new: supports <+out:n> to write a newline on start of that output.
+   * 
+   * <ul>
+   * <li>2014-12-14 Hartmut adapt: uses GetTypeToUse, adapted to changed ZbnfJavaOutput.
+   * <li>2014-12-14 Hartmut new: supports <+out:n> to write a newline on start of that output.
    * <li>2014-11-16 Hartmut chg: enhancement of capability of set text column: <:@ nr> nr can be an expression. Not only a constant.   
    * <li>2014-11-15 Hartmut new: instanceof as compare operator.   
    * <li>2014-10-19 Hartmut chg: {@link JZcmditem#add_dataStruct(StatementList)} with 'M' instead 'X' adequate to change in JZcmdExecuter.
@@ -326,6 +330,9 @@ public class JZcmdScript extends CompiledScript
     
     
     @Override public void setLineColumnFile(int line, int column, String sFile){
+      if(srcFile !=null && !srcFile.equals("")){
+        Debugutil.stop();
+      }
       srcLine = line; srcColumn = column; srcFile = sFile; 
     }
 
@@ -623,19 +630,20 @@ public class JZcmdScript extends CompiledScript
  
 
   
-  public static class JZcmdDataAccess extends DataAccess.DataAccessSet {
+  public static class JZcmdDataAccess extends DataAccess.DataAccessSet 
+  implements GetTypeToUse
+  {
 
     //protected String filepath;
     
     public JZcmdDataAccess(){ super(); }
     
-    public void XXXset_file(String text){
-      Debugutil.stop();
-      //filepath = text;
-    }
+    @Override public Class<?> getTypeToUse(){ return JZcmdDataAccess.class; }
+    
 
+    
     @Override public SetDatapathElement new_startDatapath(){ return new JZcmdDatapathElement(); }
-
+    
     /**Returns the derived instance of {@link DataAccess.DatapathElement} which supports JZcmd.
      * It is invoked by semantic datapathElement.
      * @see org.vishia.util.DataAccess.DataAccessSet#new_datapathElement()
@@ -657,15 +665,15 @@ public class JZcmdScript extends CompiledScript
      */
     @Override public final JZcmdDatapathElementClass newDatapathElementClass(){ return new JZcmdDatapathElementClass(); }
 
-    
+
   }
   
   
   
   
-  public static class JZcmdDatapathElement extends DataAccess.SetDatapathElement {
-
-    
+  public static class JZcmdDatapathElement extends DataAccess.SetDatapathElement 
+  implements GetTypeToUse 
+  {
     /**For ZbnfJavaOutput: Expressions to calculate the {@link #fnArgs} for a method or constructor arguments.
      * Maybe null if not arguments are necessary.
      */
@@ -676,6 +684,8 @@ public class JZcmdScript extends CompiledScript
     protected JZcmdDataAccess indirectDatapath;
     
     public JZcmdDatapathElement(){ super(); }
+    
+    @Override public Class<?> getTypeToUse(){ return JZcmdDatapathElement.class; }
     
     /**For ZbnfJavaOutput: Creates a new item for an argument of a method or constructor. */
     public JZcmditem new_argument(){ return new JZcmditem(null, 'A'); }
@@ -720,7 +730,8 @@ public class JZcmdScript extends CompiledScript
 
   
   
-  public static class JZcmdDatapathElementClass extends DataAccess.DatapathElementClass {
+  public static class JZcmdDatapathElementClass extends DataAccess.DatapathElementClass 
+  implements GetTypeToUse {
 
     /**The name of that variable which is used as Loader for classes. null if not used (it is optional). 
      * It should refer instanceof {@link java.lang.Classloader}*/
@@ -734,6 +745,8 @@ public class JZcmdScript extends CompiledScript
     /**Access to data which describes the class. null if not used. 
      * It should refer instanceof {@link java.lang.Class}. */
     protected JZcmdDataAccess dpathClass;
+    
+    @Override public Class<?> getTypeToUse(){ return JZcmdDatapathElementClass.class; }
     
     /**For ZbnfJavaOutput: Creates a new item for an argument of a method or constructor. */
     public JZcmditem new_argument(){ return new JZcmditem(null, 'A'); }
@@ -760,9 +773,15 @@ public class JZcmdScript extends CompiledScript
   
   
   
-  public static class JZcmdCalculatorExpr extends CalculatorExpr.SetExpr {
+  public static class JZcmdCalculatorExpr extends CalculatorExpr.SetExpr 
+  implements GetTypeToUse
+  {
     
     JZcmdCalculatorExpr(Object dbgParent){ super(true, dbgParent); }
+    
+    @Override public Class<?> getTypeToUse(){ return JZcmdCalculatorExpr.class; }
+    
+
     
     /**It creates an {@link JZcmdDataAccess} because overridden {@link #newDataAccessSet()}
      * of {@link CalculatorExpr.SetExpr#newDataAccessSet()} 
@@ -1388,7 +1407,7 @@ public class JZcmdScript extends CompiledScript
     
     //char type;
     
-    Subroutine(StatementList parentList){
+    Subroutine(JZcmdClass parentList){
       super(parentList, 'X');
     }
     

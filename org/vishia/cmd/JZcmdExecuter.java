@@ -85,6 +85,7 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-04-25 Hartmut chg: scriptdir is the really script dir on included scripts. 
    * <li>2014-12-14 Hartmut new: {@link ExecuteLevel#jzClass} stores the current class statement. Not call of own class methods without the class name is possible. TODO instances  
    * <li>2014-12-12 Hartmut new: If a subroutine's argument has the type 'F': {@link JZcmdFilepath}, then the argument is converted into this type if necessary.
    *   TODO: do so for all non-Obj argument types. It is probably to work with a simple String as argument if a Filepath is expected. Therefore new {@link ExecuteLevel#convert2FilePath(Object)}. 
@@ -725,13 +726,28 @@ public class JZcmdExecuter {
         for(Map.Entry<String, DataAccess.Variable<Object>> e: scriptLevel.localVariables.entrySet()){
           DataAccess.Variable<Object> var = e.getValue();
           String key = e.getKey();
-          if(key.equals("jzcmdsub")){
-            
+          if(key.equals("scriptdir")){
+            String scriptFileClass = jzClass.srcFile;
+            CharSequence scriptdir = FileSystem.normalizePath(FileSystem.getDir(new File(scriptFileClass)));
+            int posName = scriptFileClass.lastIndexOf('/')+1;
+            String scriptfile = scriptFileClass.substring(posName);
+            //create a new scriptdir and scriptfile variable
+            DataAccess.Variable<Object> var2 = new DataAccess.Variable<Object>('S', "scriptdir", scriptdir, true);
+            localVariables.put("scriptdir", var2);
+            //create a new scriptdir and scriptfile variable
+            DataAccess.Variable<Object> varScriptfile = new DataAccess.Variable<Object>('S', "scriptfile", scriptfile, true);
+            localVariables.put("scriptfile", var2);
           }
+          else if(key.equals("scriptfile")){
+            //do nothing, already done
+          } 
           else if(var.isConst()){
+            //Scriptvariables which are designated as const cannot be changed in the sub level.
+            //Therefore it is enough to refer it.
             localVariables.put(key, var);
-          } else {
-            //build a new independent variable, which can be changed.
+          } 
+          else {
+            //build a new independent variable, which can be changed in the sub level.
             DataAccess.Variable<Object> var2 = new DataAccess.Variable<Object>(var);
             localVariables.put(key, var2);
           }
@@ -1464,6 +1480,14 @@ public class JZcmdExecuter {
 
     
     
+    /**This routine is called only from org.vishia.zcmd.JZcmd#evalSub(....) which may be not used in praxis?.
+     * @param substatement
+     * @param args
+     * @param out
+     * @param indentOut
+     * @return
+     * @throws ScriptException
+     */
     public Object evalSubroutine(JZcmdScript.Subroutine substatement
         , Map<String, DataAccess.Variable<Object>> args
         , StringFormatter out, int indentOut
@@ -1485,7 +1509,8 @@ public class JZcmdExecuter {
     
     
     
-    /**Executes a subroutine invoked from outside of this class
+    /**Executes a subroutine invoked from outside of this class.
+     * It calls the private {@link #execSubroutine(org.vishia.cmd.JZcmdScript.Subroutine, ExecuteLevel, List, List, StringFormatter, int, int)}.
      * @param substatement Statement of the subroutine
      * @param args Any given arguments in form of a map.
      * @param out output
@@ -1524,6 +1549,17 @@ public class JZcmdExecuter {
     }
     
     
+    /**Core routine to execute a sub routine.
+     * @param subtextScript
+     * @param sublevel
+     * @param actualArgs
+     * @param additionalArgs
+     * @param out
+     * @param indentOut
+     * @param nDebug
+     * @return
+     * @throws Exception
+     */
     private short execSubroutine(JZcmdScript.Subroutine subtextScript
         , ExecuteLevel sublevel
         , List<JZcmdScript.Argument> actualArgs

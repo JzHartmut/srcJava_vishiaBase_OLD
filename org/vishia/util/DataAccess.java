@@ -2036,6 +2036,9 @@ public class DataAccess {
     
     public void set_javapath(String text){ this.ident = text; }
     
+    public void set_ident(String text){ this.ident = text; }
+    
+    
 
   }
   

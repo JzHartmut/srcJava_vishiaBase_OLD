@@ -1963,6 +1963,13 @@ public class CalculatorExpr
   }
   
   
+  public long calcLong(long input)
+  { try{ calcDataAccess(null, input);
+    } catch(Exception exc){ throw new RuntimeException(exc); }
+    return (long)this.accu.doubleValue();
+  }
+  
+  
   /**Calculates the expression with only one integer input.
    * @param input The only one input value (used for all variables, simple version).
    * @return The result.
