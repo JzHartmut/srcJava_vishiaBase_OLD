@@ -1,36 +1,3 @@
-/****************************************************************************/
-/* Copyright/Copyleft:
- *
- * For this source the LGPL Lesser General Public License,
- * published by the Free Software Foundation is valid.
- * It means:
- * 1) You can use this source without any restriction for any desired purpose.
- * 2) You can redistribute copies of this source to everybody.
- * 3) Every user of this source, also the user of redistribute copies
- *    with or without payment, must accept this license for further using.
- * 4) But the LPGL ist not appropriate for a whole software product,
- *    if this source is only a part of them. It means, the user
- *    must publish this part of source,
- *    but don't need to publish the whole source of the own product.
- * 5) You can study and modify (improve) this source
- *    for own using or for redistribution, but you have to license the
- *    modified sources likewise under this LGPL Lesser General Public License.
- *    You mustn't delete this Copyright/Copyleft inscription in this source file.
- *
- * @author Hartmut Schorrig, Pinzberg, Germany: hartmut.schorrig@vishia.de
- * @version ...
- * list of changes:
- * 2009-12-29 Hartmut bugfix: addFilesWithBasePath(...): If the sPath contains a ':' on second pos (Windows Drive), than the method hadn't accepted a ':' inside, fixed.
- * 2009-12-29 Hartmut bugfix: mkDirPath(...): not it accepts '\' too (Windows)
- * 2009-12-29 Hartmut corr: addFileToList(...): uses now currentDir, if param dir== null.
- * 2009-12-29 Hartmut new: method relativatePath(String sInput, String sRefDir)
- * 2009-05-06 Hartmut new: writeFile(content, file);
- * 2009-05-06 Hartmut bugfix: addFileToList(): A directory was also added like a file if wildcards are used. It is false, now filtered file.isFile().
- * 2009-03-24 Hartmut new: isAbsolutePathOrDrive()
- * 2008-04-02 Hartmut corr: some changes
- * 2007-10-15 Hartmut: creation
- *
- ****************************************************************************/
 package org.vishia.util;
 
 import java.io.BufferedReader;
@@ -50,6 +17,19 @@ import java.io.FileFilter;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+
+
+/*Test with Jbat: call Jbat with this java file with its full path:
+D:/vishia/Java/srcJava_vishiaBase/org/vishia/util/FileSystem.java
+==JZcmd==
+currdir = scriptdir;
+Obj found = java org.vishia.util.FileSystem.searchInParent(File: ".", "_make/xgenjavadoc.bat", "ximg"); 
+==endJZcmd==
+*/
+
+
+
+
 
 /**This class supports some functions of file system access as enhancement of the class java.io.File
  * independently of other classes of vishia packages, only based on Java standard.
@@ -74,7 +54,8 @@ public class FileSystem
 
   /**Version, history and license.
    * Changes:
-   * <ul>
+   * <ul>   
+   * <li>2015-05-03 new {@link #searchInParent(File, String...)}
    * <li>2014-09-05 Hartmut bugfix: {@link #searchInFiles(List, String, Appendable)} missing close().  
    * <li>2014-08-01 Hartmut bugfix in {@link #grep1line(File, String)}: Should close the file. Nobody does it elsewhere.
    * <li>2014-06-03 Hartmut bugfix in {@link #normalizePath(CharSequence)}: it has not deleted
@@ -157,7 +138,7 @@ public class FileSystem
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public final static int version = 20131020;
+  public final static String sVersion = "2015-05-03";
 
   public interface AddFileToList
   {
@@ -679,14 +660,14 @@ public class FileSystem
    * <tr><td>a/b/c/d  </td><td>x/y      </td><td>../../a/b/c/d</td><td>If the sRefDirectory is parallel to sInput, ../ will be added and sRefDirectory will be added:</td></tr>  
    * <tr><td>a/b/c/d  </td><td>a/x      </td><td>../b/c/d</td><td>If the sRefDirectory is within sInput but parallel, ../ will be added and the rest of sInput will be shortened:</td></tr>  
    * @param sInput The given file path.
-   * @param sRefDir Reference from where the return value is built relative. 
+   * @param sRefPath Reference from where the return value is built relative. 
    *        A file-name of this reference file isn't relevant. 
    *        If only the directory should be given, a '/' on end have to be present.
    *        The reference directory may given with a relative path, 
    *        than it should be start at the same directory as the relative given sInput.
    * @return The file path relative to the sRefFile-directory.
    */
-  public static String relativatePath(String sInput, String sRefDir)
+  public static String relativatePath(String sInput, String sRefPath)
   { int posInput = 0;
     if(sInput.startsWith("../../../examples_XML"))
       FileSystem.stop();
@@ -719,9 +700,9 @@ public class FileSystem
     boolean bCont;
     int posSep = -1;
     do{
-      int posSep2 = sRefDir.indexOf('/', posSep +1);
+      int posSep2 = sRefPath.indexOf('/', posSep +1);
       if(posSep2 >=0){  //if path starts with '/', continue. It checks from the last '/' +1 or from 0.
-        bCont = sInput.length() >= posSep2 && sRefDir.substring(0, posSep2).equals(sInput.substring(0, posSep2));
+        bCont = sInput.length() >= posSep2 && sRefPath.substring(0, posSep2).equals(sInput.substring(0, posSep2));
       } else {
         bCont = false;
       }
@@ -737,14 +718,14 @@ public class FileSystem
     /**check path of reference dir, which is the source of the relative path.
      * Correct the path with necessary "../" to go out a directory.
      */ 
-    while( (posSepRefNext2 = sRefDir.indexOf('/', posSepRefNext) )>=0){ //another / found
-      if(posSepRefNext2 == posSepRefNext+2 && sRefDir.substring(posSepRefNext, posSepRefNext2).equals("..")){
+    while( (posSepRefNext2 = sRefPath.indexOf('/', posSepRefNext) )>=0){ //another / found
+      if(posSepRefNext2 == posSepRefNext+2 && sRefPath.substring(posSepRefNext, posSepRefNext2).equals("..")){
         int sBackLength = sBack.length();
           if(sBackLength >=3){ sBack = sBack.substring(0, sBackLength-3);} //shorten "../"
           else { pathdepth -=1; }
       } else if( posSepRefNext2 == posSepRefNext) {
           //do nothing, same depth, two "//" one after another
-      } else if( posSepRefNext2 == posSepRefNext+1 && sRefDir.substring(posSepRefNext, posSepRefNext2).equals(".")){
+      } else if( posSepRefNext2 == posSepRefNext+1 && sRefPath.substring(posSepRefNext, posSepRefNext2).equals(".")){
           //do nothing, same depth  
       } else
       { //deeper level of source of link:
@@ -1417,6 +1398,58 @@ public class FileSystem
   }
 
 
+  /**Searches a file given with local path in this directory and in all parent directories.
+   * @param start any start file or directory. If it is a file (for example a current one), its directory is used.
+   * @param path May be more as one local path. Simple it is only one "filename.ext" or "anyDirectory". Possible "path/to/file.ext".
+   *   More as one argument may be given, the first wins.
+   * @return null if nothing found. Elsewhere the found file.
+   */
+  public static File searchInParent(File start, String ... path)
+  { File found = null;
+    
+    File parent = start.isDirectory() ? start : start.getParentFile();
+    do {
+      File[] children = parent.listFiles(); 
+      for(String path1 : path){             //check all files with the search paths.
+        int sep = path1.indexOf('/');
+        String name = sep >0 ? path1.substring(0, sep) : path1;
+        for(File child: children) {         //check all files with this search path.
+          String fname = child.getName();
+          if(fname.equals(name)) {          //name found.
+            if(sep >0) {                    //if path/file
+              String subPath = path1;
+              File childDir = child;
+              while(sep >0 && childDir != null && childDir.isDirectory()) { //a new child is checked.
+                subPath = subPath.substring(sep+1);
+                sep = subPath.indexOf('/');
+                String subName = sep > 0 ? subPath.substring(sep) : subPath;
+                File[] subChildren = childDir.listFiles();
+                childDir = null;  //set newly, check in next loop
+                child = null;  //set on found.
+                for(File subChild1: subChildren) {
+                  if(subChild1.getName().equals(subName)) {
+                    childDir = subChild1;
+                    child = subChild1; 
+                    break;
+                  }
+                }//for check subchildren
+              }//while path/path
+              found = child;  //null or the found file.
+              //else not found!
+            } else { //no separator
+              found = child;                //no separator in path, found!
+            }//sep >0
+          }//fname.equals(name)
+          if(found !=null) break;
+        } //for
+        if(found !=null) break;
+      } //for
+      parent = parent.getParentFile();
+    } while(found == null && parent !=null);
+    return found;
+  }
+  
+  
 
 
   private static void stop()

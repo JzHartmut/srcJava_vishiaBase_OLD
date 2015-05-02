@@ -87,6 +87,8 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2014-10-19 Hartmut bugfix: {@link #invokeStaticMethod(DatapathElement)} with variable argument list but only 1 argument
+   *   has not worked. TODO okay if no argument?
    * <li>2014-10-19 Hartmut new: {@link #isReferenceToEnclosing(Field)} and {@link #isOrExtends(Class, Class)} 
    * <li>2014-06-15 Hartmut chg: {@link #access(List, Object, boolean, boolean, boolean, Dst)} 
    *   and {@link #access(CharSequence, Object, boolean, boolean, boolean, Dst)} now with only one dataRoot.
@@ -1143,7 +1145,7 @@ public class DataAccess {
         Object[] actArgs = checkAndConvertArgTypes(element.fnArgs, paramTypes);
         if(actArgs !=null){
           if((method.getModifiers() & Modifier.STATIC) ==0) { 
-            throw new IllegalArgumentException("DataAccess.invokeStateMethod - method is not static");
+            throw new IllegalArgumentException("DataAccess - invokeStaticMethod on non static method, " + sMethod);
           }
           bOk = true;
           try{ 
@@ -1159,7 +1161,12 @@ public class DataAccess {
     if(!bOk) {
       StringBuilder msg = new StringBuilder(1000);
       msg.append("DataAccess - static method not found: ")
-      .append(clazz.getName()).append(".") .append(element.ident) .append("(...)");
+      //.append(clazz.getName()).append(".") 
+      .append(element.ident) .append("(");
+      for(Object args: element.fnArgs) {
+        msg.append(args.getClass()).append(", ");
+      }
+      msg.append(")|, ");
       CharSequence stackInfo = Assert.stackInfo(msg, 3, 5);
       throw new NoSuchMethodException(stackInfo.toString());
     }
@@ -1245,6 +1252,7 @@ public class DataAccess {
         //
         //first check all types, do not convert, see next loop
         //
+        boolean bVarArg = false;  //variable argument list
         while(bOk && ++iProvideArgs < providedArgs.length) {                        
           Object actValue = providedArgs[iProvideArgs];              //iterate through provided arguments
           bOk = false;   //check for this arg
@@ -1258,10 +1266,14 @@ public class DataAccess {
             if(argTypes[iParam].isArray() && (actValue instanceof List<?>)
                 &&  istypeof(((List<?>)actValue).get(0), argTypes[iParam].getComponentType()) ){ 
               conv = Conversions.list2array; 
-            }else if(iParam == argTypes.length-1 && providedArgs.length > iParam+1 && argTypes[iParam].isArray()){
+            }else if(iParam == argTypes.length-1 && argTypes[iParam].isArray()
+                && (  providedArgs.length > iParam+1 
+                   || (providedArgs.length == iParam+1 && !actType.isArray())  //it is the last argument
+                )  ){
               //There are more given arguments and the last one is an array or a variable argument list.
               //store the rest in lastArrayArg instead.
               argType = argTypes[iParam].getComponentType();
+              bVarArg = true;
             } else {
               argType = argTypes[iParam];
             }
@@ -1282,7 +1294,8 @@ public class DataAccess {
           //
           //the last or only one Argument as array
           Object[] lastArrayArg;
-          if(argTypes.length < providedArgs.length){
+          //if(argTypes.length < providedArgs.length){
+          if(bVarArg) {
             Class<?> lastType = argTypes[argTypes.length-1].getComponentType();
             //create the appropriate array type:
             if(lastType == String.class){ 

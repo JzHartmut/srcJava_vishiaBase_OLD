@@ -247,7 +247,7 @@ public class JZcmdExecuter {
    */
   public boolean bAccessPrivate;
   
-  protected final MainCmdLogging_ifc log;
+  public final MainCmdLogging_ifc log;
   
   /**The text file output, the same for all threads. */
   StringFormatter textout;
@@ -673,8 +673,8 @@ public class JZcmdExecuter {
     final JZcmdScript.JZcmdClass jzClass;
     
     /**The current directory of this level. It is an absolute normalized but not Unix-canonical path. 
-     * Note that a canonical path resolved symbolic links. */
-    File currdir;
+     * Note that a Unix-canonical path have to resolved symbolic links. */
+    public File currdir;
     
     /**Flag, write error in the current output if set to true. */
     public boolean bWriteErrorInOutput;
@@ -1877,7 +1877,7 @@ public class JZcmdExecuter {
           this.currdir = new File("").getAbsoluteFile();
         }
         StringBuilder sCurrdir = new StringBuilder();
-        sCurrdir.append(currdir.getPath()).append(arg);
+        sCurrdir.append(currdir.getPath()).append('/').append(arg);
         arg1 = FileSystem.normalizePath(sCurrdir);
       }
       this.currdir = new File(arg1.toString());

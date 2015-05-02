@@ -24,10 +24,11 @@ public abstract class FileRemoteProgressTimeOrder  extends TimeOrder
     
     public int modeCopyOper;
     public void send(Answer cmd, int modeCopyOper) {
-      if(occupyRecall(srcAnswer, consumerAnswer, null, false)) {  //recall it for another decision if it is not processed yet.
+      if(occupyRecall(500, srcAnswer, consumerAnswer, null, false) !=0) {  //recall it for another decision if it is not processed yet.
         this.modeCopyOper = modeCopyOper;
         sendEvent(cmd);
       } //else: if the event is processed yet, it is not send.
+      else { System.err.println("FileRemoteProgressTimeOrder - event hangs"); }
     }
   }
   
