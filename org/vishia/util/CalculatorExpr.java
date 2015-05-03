@@ -41,6 +41,7 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-05-04 Hartmut new: {@link Value#type()} and {@link Value#longValue()}
    * <li>2014-12-06 Hartmut bugfix: If works with an "Num" Object in JZcmd resp if it gets an Object which is a {@link Value}
    *   the Object is used correct now. 
    * <li>2014-12-06 Hartmut chg: {@link #calc(float)} now uses the {@link #calcDataAccess(Map, Object...)} which is complete.
@@ -168,6 +169,9 @@ public class CalculatorExpr
     public Value(){ type = '?'; }
     
     
+    
+    public char type(){ return type; }
+    
     /**Copy all content from src to this.
      * @param src
      */
@@ -222,6 +226,21 @@ public class CalculatorExpr
         case 't': return Integer.parseInt(stringVal.toString());
         case 'o': throw new IllegalArgumentException("Double expected, object given.");
         case '?': return 7777777; //TODO throw new IllegalArgumentException("the type is not determined while operation.");
+        default: throw new IllegalArgumentException("unknown type char: " + type);
+      }//switch
+    }
+    
+    public long longValue()
+    { switch(type){
+        case 'I': return intVal;
+        case 'C': return intVal;
+        case 'J': return longVal;
+        case 'D': return (long)doubleVal;
+        case 'F': return (long)floatVal;
+        case 'Z': return boolVal ? 1 : 0;
+        case 't': return Long.parseLong(stringVal.toString());
+        case 'o': throw new IllegalArgumentException("Double expected, object given.");
+        case '?': return 777777777777L; //TODO throw new IllegalArgumentException("the type is not determined while operation.");
         default: throw new IllegalArgumentException("unknown type char: " + type);
       }//switch
     }
