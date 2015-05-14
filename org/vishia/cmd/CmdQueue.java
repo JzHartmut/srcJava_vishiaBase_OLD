@@ -26,7 +26,7 @@ public class CmdQueue implements Closeable
   
   /**Version, history and license.
    * <ul>
-   * <li>2013-09-08 Hartmut new: {@link #zgenExecuter} now included. TODO: it should use the {@link #executer}
+   * <li>2013-09-08 Hartmut new: {@link #jzcmdExecuter} now included. TODO: it should use the {@link #executer}
    *   instead create a new one per call.
    * <li>2013-02-09 Hartmut chg: {@link #abortCmd()} now clears the queue too. The clearing of the command queue is a good idea, because while a program execution hangs, some unnecessary requests
    * may be initiated. 
@@ -127,7 +127,7 @@ public class CmdQueue implements Closeable
   
   private final CmdExecuter executer = new CmdExecuter();
   
-  private final JZcmdExecuter zgenExecuter;
+  private final JZcmdExecuter jzcmdExecuter;
   
   //private final MainCmd_ifc mainCmd;
 
@@ -145,7 +145,7 @@ public class CmdQueue implements Closeable
   {
     this.log = log;
     MainCmdLoggingStream logMainCmd = new MainCmdLoggingStream(log, MainCmdLogging_ifc.info);
-    zgenExecuter = new JZcmdExecuter(logMainCmd);
+    jzcmdExecuter = new JZcmdExecuter(logMainCmd);
   }
   
 
@@ -164,7 +164,7 @@ public class CmdQueue implements Closeable
   
   
   public void initExecuter(JZcmdScript script, String sCurrdir) throws Throwable{
-    zgenExecuter.initialize(script, false, null, sCurrdir);
+    jzcmdExecuter.initialize(script, false, null, sCurrdir);
   }
   
   
@@ -252,7 +252,7 @@ public class CmdQueue implements Closeable
         }
         if(cmd1.jbat !=null){
           if(outStatus !=null){ outStatus.append(cmd1.jbat.toString()); }
-          zgenExecuter.execSub(cmd1.jbat, cmd1.args, false, log, cmd1.currentDir);
+          jzcmdExecuter.execSub(cmd1.jbat, cmd1.args, false, cmdOutput, cmd1.currentDir);
         } else {
           //a operation system command:
           String[] sCmd = cmd1.cmd.prepareCmd(cmd1);
@@ -292,7 +292,10 @@ public class CmdQueue implements Closeable
             
           }
         }
-      } catch(Throwable exc){ System.out.println("Exception " + exc.getMessage()); }
+      } catch(Throwable exc){ 
+        CharSequence msg = Assert.exceptionInfo("CmdQueue - exception,", exc, 0, 20);
+        System.err.append(msg); 
+      }
     }
     busy = false;
     if(someExecute && outStatus !=null){

@@ -55,6 +55,7 @@ public class FileSystem
   /**Version, history and license.
    * Changes:
    * <ul>   
+   * <li>2015-05-04 bugfix close in {@link #readFile(File)}
    * <li>2015-05-03 new {@link #searchInParent(File, String...)}
    * <li>2014-09-05 Hartmut bugfix: {@link #searchInFiles(List, String, Appendable)} missing close().  
    * <li>2014-08-01 Hartmut bugfix in {@link #grep1line(File, String)}: Should close the file. Nobody does it elsewhere.
@@ -282,6 +283,8 @@ public class FileSystem
       char[] content = new char[sizeFile];
       bReader.read(content);
       sContent = new String(content);
+      bReader.close();
+      reader.close();
     }
     catch(Exception exc)
     { sContent = null;   //on any exception, return null. Mostly file not found.

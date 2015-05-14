@@ -579,7 +579,9 @@ public class StringPartScan extends StringPart
   }
 
   
-  /**
+  /**Scans an identifier with start characters A..Z, a..z, _ and all characters 0..9 inside.
+   * If an identifier is not found, scanOk() returns false and the current position is preserved.
+   * The identifier can be gotten with call of {@link #getLastScannedString()}.
    * @java2c=return-this.
    * @return
    */
@@ -588,7 +590,10 @@ public class StringPartScan extends StringPart
   }
   
   
-  /**
+  /**Scans an identifier with start characters A..Z, a..z, _ and all characters 0..9 inside,
+   * and additional characters.
+   * If an identifier is not found, scanOk() returns false and the current position is preserved.
+   * The identifier can be gotten with call of {@link #getLastScannedString()}.
    * @java2c=return-this.
    * @param additionalStartChars
    * @param additionalChars

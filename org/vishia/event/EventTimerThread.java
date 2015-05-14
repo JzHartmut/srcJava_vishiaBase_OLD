@@ -81,12 +81,14 @@ import org.vishia.util.InfoAppend;
  * @author Hartmut Schorrig
  *
  */
+@SuppressWarnings("synthetic-access") 
 public class EventTimerThread implements EventTimerThread_ifc, Closeable, InfoAppend
 {
   
   
   /**Version and history.
    * <ul>
+   * <li>2015-05-03 Hartmut new: possibility to check {@link #isBusy()}
    * <li>2015-01-10 Hartmut chg: Better algorithm with {@link #timeCheckNew}
    * <li>2015-01-10 Hartmut renamed from <code>OrderListExecuter</code>
    * <li>2014-02-23 Hartmut created: The algorithm is copied from {@link org.vishia.gral.base.GralGraphicThread},
@@ -332,6 +334,9 @@ public class EventTimerThread implements EventTimerThread_ifc, Closeable, InfoAp
     return found;
   }
   
+  
+  @Override public boolean isBusy(){ return stateThreadTimer == 'c'; }
+  
 
   
   
@@ -508,6 +513,14 @@ public class EventTimerThread implements EventTimerThread_ifc, Closeable, InfoAp
     return threadTimer == Thread.currentThread();
   }
   
+  /**Returns the current state of the thread.
+   * <ul>
+   * <li>?: Thread never started
+   * <li>c: executes an order
+   * <li>W: waits, don't have the processor
+   * <li>f: finished
+   * </ul>
+   */
   public char getState(){ return stateThreadTimer; }
 
 

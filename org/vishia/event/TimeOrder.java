@@ -60,6 +60,8 @@ public abstract class TimeOrder extends EventTimeout //Object //implements Event
 
   /**Version and history.
    * <ul>
+   * <li>2015-05-03 Hartmut on {@link #awaitExecution(int, int)} wait if the thread is busy. It should be done
+   *   especially if the order is in debug. Not ready checked yet whether it is well running.
    * <li>2015-01-10 Hartmut renamed from <code>OrderForList</code>
    * <li>2014-02-23 Hartmut removed from the component srcJava_vishiaGui to the srcJava_vishiaBase 
    *   because it is commonly able to use.
@@ -235,7 +237,7 @@ public abstract class TimeOrder extends EventTimeout //Object //implements Event
       if(this.ctDone < ctDoneRequested ){
         reqCtDone = true;
         long waitingTime = timeEnd - System.currentTimeMillis();
-        if(waitingTime > 0 || timeout == 0){
+        if(waitingTime > 0 || timeout == 0 || evDstThread.isBusy()) { //should wait, or special: wait till end of routine.
           try{ wait(timeout); } catch(InterruptedException exc){}
           bWait = true;
         } else bWait = false;

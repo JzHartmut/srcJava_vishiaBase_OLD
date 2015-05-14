@@ -35,6 +35,7 @@ import javax.script.ScriptException;
 
 
 
+
 import org.vishia.cmd.CmdExecuter;
 import org.vishia.mainCmd.MainCmd;
 import org.vishia.mainCmd.MainCmdLoggingStream;
@@ -80,11 +81,15 @@ import org.vishia.xmlSimple.SimpleXmlOutputter;
  * @author Hartmut Schorrig
  *
  */
+@SuppressWarnings("synthetic-access") 
 public class JZcmdExecuter {
   
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-05-10 Hartmut chg: {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)}
+   *   uses the argumet out as textout for <code><+>text output<.+></code> now. It is adequate like 
+   *   {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)} 
    * <li>2015-04-25 Hartmut chg: scriptdir is the really script dir on included scripts. 
    * <li>2014-12-14 Hartmut new: {@link ExecuteLevel#jzClass} stores the current class statement. Not call of own class methods without the class name is possible. TODO instances  
    * <li>2014-12-12 Hartmut new: If a subroutine's argument has the type 'F': {@link JZcmdFilepath}, then the argument is converted into this type if necessary.
@@ -485,8 +490,8 @@ public class JZcmdExecuter {
    * @param accessPrivate 
    * @param bWaitForThreads should set to true if it is a command line invocation of Java,
    *   the exit should wait for all threads. May set to false if calling inside a long running application.
-   * @param out Any output. It is used for direct text output <:>text<.> and it is stored as variable "text"
-   *   to write "<+text>...<.+>" to output to it.
+   * @param out Any output for text generation using <code><+>text output<.>. 
+   *   It is used also for direct text output <:>text<.>.
    * @throws IOException only if out.append throws it.
    * @throws IllegalAccessException if a const scriptVariable are attempt to modify.
    */
@@ -589,7 +594,8 @@ public class JZcmdExecuter {
    * @param statement The subroutine in the script.
    * @param args Some variables which are stored as argument values.
    * @param accessPrivate
-   * @param out The text output.
+   * @param out Any output for text generation using <code><+>text output<.>. 
+   *   It is used also for direct text output <:>text<.>.
    * @param currdir if not null, then this directory is used as {@link ExecuteLevel#changeCurrDir(CharSequence)} for this subroutine.
    * @return
    * @throws Throwable 
@@ -610,6 +616,7 @@ public class JZcmdExecuter {
     startmilli = System.currentTimeMillis();
     startnano = System.nanoTime();
     StringFormatter outLines = new StringFormatter(out, out instanceof Closeable, "\n", 200);
+    this.textout = outLines;
     short ret = level.execute(statement.statementlist, outLines, 0, level.localVariables, -1);
     outLines.close();
     if(ret == kReturn || ret == kBreak){ ret = kSuccess; }

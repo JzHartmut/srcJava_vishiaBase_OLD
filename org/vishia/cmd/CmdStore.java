@@ -32,7 +32,7 @@ public class CmdStore
 
   /**Version, history and license.
    * <ul>
-   * <li>2013-09-08 Hartmut chg: {@link #addSubOfZgenclass(org.vishia.cmd.JZcmdScript.JZcmdClass, int)} now public
+   * <li>2013-09-08 Hartmut chg: {@link #addSubOfJZcmdClass(org.vishia.cmd.JZcmdScript.JZcmdClass, int)} now public
    *   because readCmdCfg(...) removed to {@link org.vishia.commander.FcmdExecuter}. It has dependencies
    *   to the Zbnf package {@link org.vishia.zcmd.JZcmd} which is not visible in this component by standalone compilation.
    *   The problem is: The {@link JZcmdScript} is visible here, but the used translator for the JZcmdScript needs ZBNF 
@@ -182,21 +182,22 @@ public class CmdStore
   
   
   
-  public void addSubOfZgenclass(JZcmdScript.JZcmdClass zgenClass, int level){
-    if(zgenClass.classes !=null) for(JZcmdScript.JZcmdClass zgenClassSub : zgenClass.classes){
+  public void addSubOfJZcmdClass(JZcmdScript.JZcmdClass jzcmdClass, int level){
+    if(jzcmdClass.classes !=null) for(JZcmdScript.JZcmdClass zgenClassSub : jzcmdClass.classes){
       CmdBlock cmdBlock = new CmdBlock();
       listCmds.add(cmdBlock); 
       cmdBlock.name = zgenClassSub.cmpnName;
       //cmdBlock.listSubCmds = new ArrayList<CmdBlock>();
       //addSubOfZgenclass(cmdBlock.listSubCmds, zgenClassSub, level+1);
-      addSubOfZgenclass(zgenClassSub, level+1);
+      addSubOfJZcmdClass(zgenClassSub, level+1);
     }
-    if(zgenClass.subroutines !=null) for(Map.Entry<String, JZcmdScript.Subroutine> e: zgenClass.subroutines.entrySet()){
+    if(jzcmdClass.subroutines !=null) for(Map.Entry<String, JZcmdScript.Subroutine> e: jzcmdClass.subroutines.entrySet()){
       JZcmdScript.Subroutine subRoutine = e.getValue();
-      CmdBlock cmdBlock = new CmdBlock(subRoutine, level);
-      listCmds.add(cmdBlock); 
-      idxCmd.put(cmdBlock.name, cmdBlock);
-      //add_CmdBlock(cmdBlock);
+      if(!subRoutine.name.startsWith("_")) { //ignore internal subroutines!
+        CmdBlock cmdBlock = new CmdBlock(subRoutine, level);
+        listCmds.add(cmdBlock); 
+        idxCmd.put(cmdBlock.name, cmdBlock);
+      }
     }
   }
   

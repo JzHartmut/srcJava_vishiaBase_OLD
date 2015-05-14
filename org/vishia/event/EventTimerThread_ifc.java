@@ -43,4 +43,10 @@ public interface EventTimerThread_ifc
    * @param order the timeout event or the time order.
    */
   boolean removeTimeOrder(EventTimeout order);
+  
+  /**Checks whether the thread is busy. This is used especially for debug,
+   * if a {@link TimeOrder} waits for its finishing. If an execution remains in process because debugging, this method returns true. 
+   * @return
+   */
+  boolean isBusy();
 }
