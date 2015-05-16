@@ -87,6 +87,7 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2015-05-17 Hartmut chg: Messages if methods not found.
    * <li>2014-10-19 Hartmut bugfix: {@link #invokeStaticMethod(DatapathElement)} with variable argument list but only 1 argument
    *   has not worked. TODO okay if no argument?
    * <li>2014-10-19 Hartmut new: {@link #isReferenceToEnclosing(Field)} and {@link #isOrExtends(Class, Class)} 
@@ -199,7 +200,7 @@ public class DataAccess {
    * 
    * 
    */
-  static final public String sVersion = "2014-06-16";
+  static final public String sVersion = "2015-05-17";
 
 
   private static final Class<?> ifcMainCmdLogging_ifc = getClass("org.vishia.mainCmd.MainCmdLogging_ifc");
@@ -846,7 +847,7 @@ public class DataAccess {
   { //final List<DatapathElement> datapath;
     Iterator<DatapathElement> iter = datapathArg.iterator();
     DatapathElement element = iter.next();
-    if("+%".indexOf(element.whatisit) <0 && element.ident.contains(".")){ //new and static needs . in datapath
+    if("+%".indexOf(element.whatisit) <0 && element.ident !=null && element.ident.contains(".")){ //new and static needs . in datapath
       final List<DatapathElement> datapath = expandElements(element.ident, element.whatisit);
       iter = datapath.iterator();  //use that. ignore all other elements of dataPathArg, they should not any.
       element = iter.next();
@@ -1014,8 +1015,12 @@ public class DataAccess {
     }
     if(!bOk) {
       StringBuilder msg = new StringBuilder(1000);
-      msg.append("DataAccess - constructor not found: ")
-         .append(clazz.getName()).append(".") .append(element.ident) .append("(...)");
+      msg.append("DataAccess - constructor not found in class, ")
+         .append(clazz.getName()).append(", ") .append(element.ident) .append("(");
+      for(Object arg: element.fnArgs) {
+        msg.append(arg.getClass()).append(", ");
+      }
+      msg.append(");, stackInfo: ");
       CharSequence stackInfo = Assert.stackInfo(msg, 3, 8);
       throw new NoSuchMethodException(stackInfo.toString());
     }
@@ -1092,14 +1097,16 @@ public class DataAccess {
     if(!bOk && !bNoExceptionifNotFound) {
       StringBuilder msg = new StringBuilder(1000);
       if(methodFound){
-        msg.append("DataAccess - method parameters don't match: ");
+        msg.append("DataAccess - method parameters don't match in class, ");
       } else {
-        msg.append("DataAccess - method not found: ");
+        msg.append("DataAccess - method not found in class, ");
       }
-      //msg.append(obj.getClass().getName());
-      msg.append(clazz.getName());
-      msg.append(".") .append(element.ident) .append("(...)");
-      CharSequence stackInfo = Assert.stackInfo(msg, 3, 5);
+      msg.append(clazz.getName()).append(", ") .append(element.ident) .append("(");
+      for(Object arg: element.fnArgs) {
+        msg.append(arg.getClass()).append(", ");
+      }
+     msg.append(");, stackInfo: ");
+     CharSequence stackInfo = Assert.stackInfo(msg, 3, 5);
       throw new NoSuchMethodException(stackInfo.toString());
     }
     //Method method = clazz.getDeclaredMethod(element.ident);

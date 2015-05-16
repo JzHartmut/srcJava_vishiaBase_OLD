@@ -87,6 +87,11 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-05-17 Hartmut new: syntax "File : <textValue>" is now able as start path of a DataPath.
+   *   Therefore it's possible to write <code>File: "myFile".exists()</code> or adequate. A relative filename
+   *   is related to the {@link JZcmdExecuter.ExecuteLevel#currdir()}. 
+   * <li>2015-05-17 Hartmut new: mkdir
+   * <li>2015-05-17 Hartmut new: <code>text = path/to/output</code> is able to set in the script yet too.
    * <li>2015-05-10 Hartmut chg: {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)}
    *   uses the argumet out as textout for <code><+>text output<.+></code> now. It is adequate like 
    *   {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)} 
@@ -509,9 +514,13 @@ public class JZcmdExecuter {
     short ret;
     //try
     {
+      if(out !=null) {
+        StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
+        textout = outFormatter;
+      }
       try{
         setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
-      } catch(IllegalAccessException exc){ throw new ScriptException("JZcmd.execute - IllegalAccessException; " + exc.getMessage()); }
+      } catch(IllegalAccessException exc){ throw new ScriptException("JZcmd.executer - IllegalAccessException; " + exc.getMessage()); }
       if(!bScriptVariableGenerated){
         genScriptVariables(jzcmdScript, accessPrivate, null, sCurrdir);
       }
@@ -549,15 +558,12 @@ public class JZcmdExecuter {
       //return execute(execFile, contentScript, true);
       startmilli = System.currentTimeMillis();
       startnano = System.nanoTime();
-      StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
-      textout = outFormatter;
       if(mainRoutine !=null) {
-        ret = execFile.execute(mainRoutine.statementlist, outFormatter, 0, execFile.localVariables, -1);
+        ret = execFile.execute(mainRoutine.statementlist, textout, 0, execFile.localVariables, -1);
       } else {
         System.out.println("JZcmdExecuter - main routine not found.");
         ret = 0;
       }
-      try{ outFormatter.close(); } catch(IOException exc){ throw new RuntimeException("unexpected exception on close", exc); }
       if(bWaitForThreads){
         boolean bWait = true;
         while(bWait){
@@ -569,7 +575,10 @@ public class JZcmdExecuter {
             }
           }
         }
-  
+      }
+      if(textout !=null) {
+        try{ textout.close(); } 
+        catch(IOException exc){ throw new RuntimeException("unexpected exception on close", exc); }
       }
     }
     //catch(Exception exc){
@@ -605,20 +614,25 @@ public class JZcmdExecuter {
       , boolean accessPrivate, Appendable out, File currdir) 
   throws Throwable
   {
+    if(out !=null) {
+      StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
+      textout = outFormatter;
+      setScriptVariable("text", 'A', out, true);
+    }
     ExecuteLevel level = new ExecuteLevel(jzcmdScript.scriptClass, scriptThread, scriptLevel, null);
     //The args should be added to the localVariables of the subroutines level:
     level.localVariables.putAll(args);
     if(currdir !=null){
       level.changeCurrDir(currdir.getPath());
     }
-    setScriptVariable("text", 'A', out, true);
     //Executes the statements of the sub routine:
     startmilli = System.currentTimeMillis();
     startnano = System.nanoTime();
-    StringFormatter outLines = new StringFormatter(out, out instanceof Closeable, "\n", 200);
-    this.textout = outLines;
-    short ret = level.execute(statement.statementlist, outLines, 0, level.localVariables, -1);
-    outLines.close();
+    short ret = level.execute(statement.statementlist, textout, 0, level.localVariables, -1);
+    if(textout !=null) {
+      try{ textout.close(); } 
+      catch(IOException exc){ throw new RuntimeException("unexpected exception on close", exc); }
+    }
     if(ret == kReturn || ret == kBreak){ ret = kSuccess; }
     if(ret == kException){
       throw scriptThread.exception;
@@ -926,6 +940,7 @@ public class JZcmdExecuter {
           case 'l': executeDelete((JZcmdScript.CallStatement)statement); break;             //copy
           case 'c': exec_cmdline((JZcmdScript.CmdInvoke)statement); break;              //cmd
           case 'd': ret = executeChangeCurrDir(statement); break;                              //cd
+          case '9': ret = executeMkDir(statement); break;                              //mkdir
           case 'f': ret = execForContainer((JZcmdScript.ForStatement)statement, out, indentOut, --nDebug1); break;  //for
           case 'B': ret = execNestedLevel(statement, out, indentOut, --nDebug1); break;              //statementBlock
           case 'i': ret = executeIfStatement((JZcmdScript.IfStatement)statement, out, indentOut, --nDebug1); break;
@@ -943,6 +958,7 @@ public class JZcmdExecuter {
           case '#': ret = execCmdError((JZcmdScript.Onerror)statement, out, indentOut); break;
           case 'F': ret = createFilepath(newVariables, (JZcmdScript.DefVariable) statement); break;
           case 'G': ret = createFileSet(newVariables, (JZcmdScript.UserFileset) statement); break;
+          case 'o': ret = execSetTextOut(statement); break;
           case 'Z': ret = exec_zmake((JZcmdScript.Zmake) statement, out, indentOut, --nDebug1); break;
           case 'D': break; // a second debug statement one after another or debug on end is ignored.
           default: throw new IllegalArgumentException("JZcmd.execute - unknown statement; ");
@@ -1867,6 +1883,45 @@ public class JZcmdExecuter {
     }
 
     
+    short executeMkDir(JZcmdScript.JZcmditem statement)
+    throws Exception
+    {
+      CharSequence arg = evalString(statement);
+      if(arg == JZcmdExecuter.retException){ return kException; }
+      else {
+        if(!FileSystem.isAbsolutePath(arg)){
+          arg = this.currdir() + "/" + arg;
+        }
+        FileSystem.mkDirPath(arg + "/");
+        return kSuccess;
+      }
+    }
+
+    
+    /**Closes an existing text out and opens a new one with the given name in the current directory.
+     * @param statement builds a path
+     * @return
+     * @throws Exception
+     */
+    short execSetTextOut(JZcmdScript.JZcmditem statement)
+    throws Exception
+    {
+      CharSequence arg = evalString(statement);
+      if(arg == JZcmdExecuter.retException){ return kException; }
+      else {
+        if(!FileSystem.isAbsolutePath(arg)){
+          arg = this.currdir() + "/" + arg;
+        }
+        if(JZcmdExecuter.this.textout !=null) {
+          JZcmdExecuter.this.textout.close();
+        }
+        Appendable out = new FileWriter(arg.toString());
+        setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
+        JZcmdExecuter.this.textout =  new StringFormatter(out, true, "\n", 200);
+        return kSuccess;
+      }
+    }
+    
     /**Executes the cd command: changes the directory in this execution level.
      * @param arg maybe a relative path. If it is a StringBuilder, it will be changed on normalizePath.
      * @throws IllegalAccessException 
@@ -2458,7 +2513,12 @@ public class JZcmdExecuter {
       }
       if(obj !=null && ret != kException && arg.conversion !=0){
         switch(arg.conversion){
-          case 'E': {
+          case '~': {
+            if(!FileSystem.isAbsolutePath(obj.toString())) {
+              obj = currdir() + "/" + obj;
+            }
+          } break;
+          case 'E': { //TODO not used:
             String value = obj.toString();
             if(FileSystem.isAbsolutePath(value)){
               obj = new File(value);

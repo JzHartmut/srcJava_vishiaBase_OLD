@@ -462,7 +462,7 @@ public class FileSystem
    * @param sPath The path. A file name on end will ignored. 
    *        The used path to a directory is all before the last / or backslash.
    * @return the directory of the path.
-   * @throws IOException If the path is not makeable.
+   * @throws FileNotFoundException If the path exists and it is a file or if it is not able to create.
    */
   public static File mkDirPath(String sPath)
   throws FileNotFoundException

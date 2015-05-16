@@ -43,6 +43,11 @@ public class JZcmdScript extends CompiledScript
   /**Version, history and license.
    * 
    * <ul>
+   * <li>2015-05-17 Hartmut new: syntax "File : <textValue>" is now able as start path of a DataPath.
+   *   Therefore it's possible to write <code>File: "myFile".exists()</code> or adequate. A relative filename
+   *   is related to the {@link JZcmdExecuter.ExecuteLevel#currdir()}. 
+   * <li>2015-05-17 Hartmut new: mkdir
+   * <li>2015-05-17 Hartmut new: <code>text = path/to/output</code> is able to set in the script yet too.
    * <li>2014-12-14 Hartmut adapt: uses GetTypeToUse, adapted to changed ZbnfJavaOutput.
    * <li>2014-12-14 Hartmut new: supports <+out:n> to write a newline on start of that output.
    * <li>2014-11-16 Hartmut chg: enhancement of capability of set text column: <:@ nr> nr can be an expression. Not only a constant.   
@@ -286,7 +291,8 @@ public class JZcmdScript extends CompiledScript
     
     
     /**Designation of a conversion from given value to a destination instance.
-     * 'E' to java.io.File
+     * old: 'E' to java.io.File
+     * '~' complete a CharSequence with the current directory if it is relative.
      * 'F' to {@link FilePath}
      * 'G' to {@link UserFileset}
      */
@@ -468,12 +474,12 @@ public class JZcmdScript extends CompiledScript
     /**For ZbnfJavaOutput: An < objExpr> is designated as "File : < textValue?File>"
      * @return this, the conversion is set.
      */
-    public JZcmditem new_File(){ 
+    public JZcmditem XXXnew_File(){ 
       conversion = 'E';
       return this;
     }
     
-    public void add_File(JZcmditem val){} //do nothing. 
+    public void XXXadd_File(JZcmditem val){} //do nothing. 
     
     public JZcmditem new_Filepath(){ conversion = 'F'; return this; }
     
@@ -557,29 +563,36 @@ public class JZcmdScript extends CompiledScript
           //case 's': u.append("call " + identArgJbat;
           case 'B': u.append(" { statementblock }"); break;
           case 'D': u.append(" debug"); break;
+          case 'E': u.append(" else "); break;
+          case 'F': u.append(" Filepath "); break;
+          case 'G': u.append(" Fileset "); break;
           case 'I': u.append(" (?forInput?)...(/?)"); break;
+          case 'M': u.append(" Map "); break;
+          case 'N': u.append(" <:hasNext> content <.hasNext>"); break;
+          case 'O': u.append(" Obj"); break;
           case 'L': u.append(" List"); break;
           case 'W': u.append(" Openfile"); break;
           case 'Z': u.append(" zmake"); break;
-          case 'i': u.append(" if "); break;
-          case 'F': u.append(" Filepath "); break;
-          case 'G': u.append(" Fileset "); break;
-          case 'g': u.append(" elsif "); break;
-          case 'N': u.append(" <:hasNext> content <.hasNext>"); break;
-          case 'E': u.append(" else "); break;
           case 'Y': u.append(" <:file> "); break;
           case 'b': u.append(" break; "); break;
           case 'c': u.append(" cmd "); break;
+          case 'd': u.append(" cd "); break;
+          case 'f': u.append(" for "); break;
+          case 'g': u.append(" elsif "); break;
+          case 'i': u.append(" if "); break;
           case 'm': u.append(" move "); break;
+          case 'n': u.append(" newline "); break;
+          case 'o': u.append(" setTextOut "); break;
+          case 'r': u.append(" throw "); break;
+          case 'v': u.append(" throw on error "); break;
           case 'x': u.append(" thread "); break;
           case 'y': u.append(" copy "); break;
           case 'z': u.append(" exit "); break;
-          case 'n': u.append(" newline "); break;
+          case '9': u.append(" mkdir "); break;
           case ':': u.append(" <:> ... <.>"); break;
           case '!': u.append(" flush "); break;
           case '_': u.append(" close "); break;
           case ',': u.append(" errortoOutput "); if(textArg == null){ u.append("off "); } break;
-          case 'M': u.append(" Map "); break;
           default: //do nothing. Fo in overridden method.
         }
       } catch(IOException exc){
@@ -630,10 +643,12 @@ public class JZcmdScript extends CompiledScript
  
 
   
+  /**This class wraps the {@link DataAccess.DataAccessSet} to support JZcmd-specific enhancements.
+   * All methods for ZBNF java output of the super class are used too.
+   */
   public static class JZcmdDataAccess extends DataAccess.DataAccessSet 
   implements GetTypeToUse
   {
-
     //protected String filepath;
     
     public JZcmdDataAccess(){ super(); }
@@ -641,6 +656,17 @@ public class JZcmdScript extends CompiledScript
     @Override public Class<?> getTypeToUse(){ return JZcmdDataAccess.class; }
     
 
+    public JZcmditem new_File(){ return new JZcmditem(null, 'A'); } ////
+    
+    public void set_File(JZcmditem val){ 
+      JZcmdDatapathElementClass elem = new JZcmdDatapathElementClass();
+      elem.set_Class(java.io.File.class);
+      elem.set_whatisit("+");  //new File, add current dir
+      val.conversion = '~';    //set a relative to an absolute path.
+      elem.add_argument(val);
+      add_newJavaClass(elem);
+    }
+    
     
     @Override public SetDatapathElement new_startDatapath(){ return new JZcmdDatapathElement(); }
     
@@ -671,6 +697,12 @@ public class JZcmdScript extends CompiledScript
   
   
   
+  /**This class extends the {@link DatapathElement} respectively {@link SetDatapathElement}
+   * with more references which contains the method arguments which should be evaluated with the JZcmd
+   * capability.
+   * @author Hartmut
+   *
+   */
   public static class JZcmdDatapathElement extends DataAccess.SetDatapathElement 
   implements GetTypeToUse 
   {
@@ -1833,6 +1865,17 @@ public class JZcmdScript extends CompiledScript
       //this.isContentForInput = false;
     }
         
+    public JZcmditem new_setTextOut(){
+      JZcmditem statement = new JZcmditem(this, 'o');
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
+    }
+    
+    
+    public void add_setTextOut(JZcmditem val){}
+    
+    
 
     
     @Override public void setLineColumnFile(int line, int column, String sFile){
@@ -2369,6 +2412,17 @@ public class JZcmdScript extends CompiledScript
     
     
     public void add_cd(JZcmditem val){}
+    
+    
+    public JZcmditem new_mkdir(){
+      JZcmditem statement = new JZcmditem(this, '9');
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
+    }
+    
+    
+    public void add_mkdir(JZcmditem val){}
     
     
     
