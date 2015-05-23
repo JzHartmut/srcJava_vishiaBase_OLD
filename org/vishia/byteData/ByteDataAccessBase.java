@@ -628,7 +628,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    *
    */
   @Java4C.Inline
-  public final void rewind()
+  public final void XXXrewind() //same as removeChildren
   { ixNextChild = ixBegin + sizeHead;
     if(currChild !=null){
       currChild.detach();

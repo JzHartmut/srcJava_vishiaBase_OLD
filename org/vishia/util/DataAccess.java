@@ -1102,8 +1102,10 @@ public class DataAccess {
         msg.append("DataAccess - method not found in class, ");
       }
       msg.append(clazz.getName()).append(", ") .append(element.ident) .append("(");
-      for(Object arg: element.fnArgs) {
-        msg.append(arg.getClass()).append(", ");
+      if(element.fnArgs !=null) {
+        for(Object arg: element.fnArgs) {
+          msg.append(arg.getClass()).append(", ");
+        }
       }
      msg.append(");, stackInfo: ");
      CharSequence stackInfo = Assert.stackInfo(msg, 3, 5);

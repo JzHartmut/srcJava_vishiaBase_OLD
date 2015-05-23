@@ -54,6 +54,7 @@ import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPartAppend;
 import org.vishia.util.StringSeq;
 import org.vishia.util.CalculatorExpr.Value;
+import org.vishia.util.DataAccess.Variable;
 import org.vishia.util.IndexMultiTable.Provide;
 import org.vishia.xmlSimple.SimpleXmlOutputter;
 
@@ -87,6 +88,9 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-05-23 Hartmut new: {@link JZcmdAccess#getstdin()} 
+   * <li>2015-05-23 Hartmut chg: Divide the class JZcmdExecuter in a part which is available for execution:
+   *   {@link JZcmdAccess}. While execution some methods from the main class should not in focus!
    * <li>2015-05-17 Hartmut new: syntax "File : <textValue>" is now able as start path of a DataPath.
    *   Therefore it's possible to write <code>File: "myFile".exists()</code> or adequate. A relative filename
    *   is related to the {@link JZcmdExecuter.ExecuteLevel#currdir()}. 
@@ -231,6 +235,226 @@ public class JZcmdExecuter {
   //@SuppressWarnings("hiding")
   static final public String sVersion = "2014-12-14";
 
+  /**This class is used to access the jzcmd level from a script.
+   * @author Hartmut
+   *
+   */
+  public static class JZcmdAccess
+  {
+
+    public final MainCmdLogging_ifc log;
+    /**The newline char sequence. */
+    String newline = "\r\n";
+    /**Used for formatting Numbers. 
+     * Problem in Germany: The numbers are written with , instead with a decimal point. 
+     * Using Locale.ENGLISH produces the well used decimal point.
+     * Numbers with comma are used only in the german banking sector, not in engineering.
+     */
+    protected Locale locale = Locale.ENGLISH;
+    /**The text file output, the same for all threads. */
+    StringFormatter textout;
+    /**The time stamp from {@link System#currentTimeMillis()} on start of script. */
+    public long startmilli;
+    /**The time stamp from {@link System#nanoTime()} on start of script. */
+    public long startnano;
+    int nextNr_ = 0;
+    /**Set it to true if private and protected fields and methods should be used
+     * by data access.
+     */
+    public boolean bAccessPrivate;
+    
+    /**Instance for the main script part. */
+    //Gen_Content genFile;
+    
+    /**The java prepared generation script. */
+    JZcmdScript jzcmdScript;
+    /**Generated content of all script environment variables. The script variables are present in all routines 
+     * in their local variables pool. The value is either a String, CharSequence or any Object pointer.  */
+    //final Map<String, String> scriptEnvVariables = new TreeMap<String, String>();
+    
+    
+    protected final Queue<JZcmdThread> threads = new ConcurrentLinkedQueue<JZcmdThread>();
+    final JZcmdThread scriptThread;
+
+    /**Instance for the main script part. */
+    //Gen_Content genFile;
+    
+    /**Generated content of all script variables. The script variables are present in all routines 
+     * in their local variables pool. The value is either a String, CharSequence or any Object pointer.  */
+    //private final IndexMultiTable<String, DataAccess.Variable> scriptVariables = new_Variables();
+    
+    
+    final ExecuteLevel scriptLevel;
+
+    JZcmdAccess(MainCmdLogging_ifc log, JZcmdExecuter env){
+      this.log = log;
+      scriptThread = new JZcmdThread();
+      scriptLevel = new ExecuteLevel(this, scriptThread);
+    }
+
+    /**Initializes, especially generate all script variables. All content before is removed.
+     * Especially script variables from a previous usage of the instance are removed.
+     * If you want to use a JZcmdExecuter more as one time with different scripts
+     * but with the same script variables, one should call this routine one time on start,
+     * and then {@link #execute(JZcmdScript, boolean, boolean, Appendable)} with maybe several scripts,
+     * which should not contain script variables, or one should call 
+     * {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable)}
+     * with one of the subroutines in the given script.
+     * 
+     * @param genScriptPar Generation script in java-prepared form. It contains the building prescript
+     *   for the script variables.
+     * @param accessPrivate decision whether private and protected members from Java instances can be accessed.   
+     * @throws Throwable 
+     * @throws SecurityException not expected
+     * @throws NoSuchMethodException not expected 
+     */
+    public void initialize
+        ( JZcmdScript genScriptArg
+        , boolean accessPrivate
+        , Map<String, DataAccess.Variable<Object>> srcVariables
+        , String sCurrdir
+        ) 
+    throws ScriptException
+    {
+      scriptLevel.localVariables.clear();
+      bAccessPrivate = accessPrivate;
+      jzcmdScript = genScriptArg;
+      genScriptVariables(genScriptArg, accessPrivate, srcVariables, sCurrdir);
+    }
+
+    /**Returns the association to all script variables. The script variables can be changed
+     * via this association. Note that change of script variables is a global action, which should not
+     * be done for special requests in any subroutine.
+     */
+    public Map<String, DataAccess.Variable<Object>> scriptVariables(){ return scriptLevel.localVariables; }
+ 
+    
+    /**Returns the log interface from the environment class. */
+    public MainCmdLogging_ifc log(){ return log; }
+    
+    public String getstdin() {
+      String ret = null;
+      try{
+        byte[] line = new byte[100];
+        int zline = System.in.read(line);
+        ret = new String(line, 0, zline);
+      } catch(IOException exc){
+        throw new RuntimeException(exc);
+      }
+      return ret;
+    }
+
+    public void setScriptVariable(String name, char type, Object content, boolean bConst) 
+    throws IllegalAccessException{
+      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, name, type, content, bConst);
+    }
+
+    public DataAccess.Variable<Object> getScriptVariable(String name) throws NoSuchFieldException
+    { return DataAccess.getVariable(scriptLevel.localVariables, name, true); }
+
+    
+    public String nextNr(){
+      return Integer.toString(++nextNr_); 
+    }
+
+    public DataAccess.Variable<Object> removeScriptVariable(String name)
+    { return scriptLevel.localVariables.remove(name);
+      
+    }
+
+    
+
+    /**Generates script-global variables.
+     * 
+     * @param genScriptPar It should be the same how used on {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)}
+     *   but it may be another one for special cases.
+     * @param userData Used userdata for content of scriptvariables. It should be the same how used on 
+     *   {@link #genContent(JZcmdScript, Object, boolean, Appendable)} but it may be another one for special cases.
+     * @param accessPrivate true than access to private data of userData
+     * @return The built script variables. 
+     *   One can evaluate some script variables before running {@link #genContent(JZcmdScript, Object, boolean, Appendable)}.
+     *   Especially it is used for {@link org.vishia.zmake.Zmake to set the currDir.} 
+     * @throws Throwable 
+     * @throws SecurityException 
+     * @throws NoSuchMethodException 
+     * @throws NoSuchFieldException 
+     */
+    private Map<String, DataAccess.Variable<Object>> genScriptVariables(
+        JZcmdScript genScriptPar
+      , boolean accessPrivate
+      , Map<String, DataAccess.Variable<Object>> srcVariables
+      , CharSequence sCurrdirArg
+    ) 
+    throws ScriptException //Throwable
+    {
+      bAccessPrivate = accessPrivate;
+      try{
+        if(sCurrdirArg == null && scriptLevel.currdir == null){
+          //get from the JVM environment respecitvely from the operation system.
+          scriptLevel.currdir = new File("").getAbsoluteFile();  
+        } else if(sCurrdirArg !=null) {
+          scriptLevel.changeCurrDir(sCurrdirArg);
+        }
+        if(srcVariables !=null){
+          for(Map.Entry<String, DataAccess.Variable<Object>> entry: srcVariables.entrySet()){
+            DataAccess.Variable<Object> var = entry.getValue();
+            DataAccess.createOrReplaceVariable(scriptLevel.localVariables, var.name(), var.type(), var.value(), var.isConst());
+          }
+        }
+        //do not replace variables which are set from outside.
+        //if(scriptLevel.localVariables.get("error") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "error", 'A', accessError, true); }
+        if(scriptLevel.localVariables.get("console") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "console", 'O', log, true); }
+        //DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nrElementInContainer", 'O', null);
+        if(scriptLevel.localVariables.get("out") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "out", 'A', System.out, true); }
+        if(scriptLevel.localVariables.get("err") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "err", 'A', System.err, true); }
+        if(scriptLevel.localVariables.get("null") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
+        //if(scriptLevel.localVariables.get("") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
+        //if(scriptLevel.localVariables.get("jbat") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jbat", 'O', this, true); }
+        //if(scriptLevel.localVariables.get("zgen") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "zgen", 'O', this, true); }
+        if(scriptLevel.localVariables.get("jzcmd") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jzcmd", 'O', this, true); }
+        //if(scriptLevel.localVariables.get("file") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "file", 'O', new FileSystem(), true); }
+        if(scriptLevel.localVariables.get("test") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new JZcmdTester(), true); }
+        if(scriptLevel.localVariables.get("conv") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "conv", 'O', new Conversion(), true); }
+        DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "Math", 'C', Class.forName("java.lang.Math"), true);
+        DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "System", 'C', Class.forName("java.lang.System"), true);
+        DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "FileSystem", 'C', Class.forName("org.vishia.util.FileSystem"), true);
+        DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "StringFunctions", 'C', Class.forName("org.vishia.util.StringFunctions"), true);
+        File filescript = genScriptPar.fileScript;
+        if(scriptLevel.localVariables.get("scriptfile") == null && filescript !=null) { 
+          String scriptfile = filescript.getName();
+          DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "scriptfile", 'S', scriptfile, true);
+          CharSequence scriptdir = FileSystem.normalizePath(FileSystem.getDir(filescript));
+          //File dirscript = FileSystem.getDirectory(filescript).getCanonicalFile();
+          DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "scriptdir", 'S', scriptdir, true);
+        }
+        if(scriptLevel.localVariables.get("nextNr") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextNr", 'O', new NextNr(), true); }
+        Method mCurrdir = getClass().getMethod("nextNr");
+        DataAccess.ObjMethod objMethod = new DataAccess.ObjMethod(mCurrdir, this);
+        DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextnr", 'M', objMethod, true);
+        //
+      } catch(IllegalAccessException exc){
+        throw new ScriptException("JZcmdExecuter.genScriptVariable - IllegalAccessException; " + exc.getMessage());
+      } catch(Exception exc){
+        throw new ScriptException("JZcmdExecuter.genScriptVariable - unexpected exception; " + exc.getMessage());
+      }
+      //generate all variables in this script:
+      short ret;
+      ret = scriptLevel.execute(genScriptPar.scriptClass, null, 0, scriptLevel.localVariables, -1);
+      if(ret == kException){
+        throw new ScriptException(scriptThread.exception.getMessage(), scriptThread.excSrcfile, scriptThread.excLine, scriptThread.excColumn);
+      }
+      //setCurrdirScript(sCurrdirArg);
+      return scriptLevel.localVariables;
+    }
+
+    private IndexMultiTable<String, DataAccess.Variable<Object>> new_Variables(){
+      return new IndexMultiTable<String, DataAccess.Variable<Object>>(IndexMultiTable.providerString);
+    }
+    
+
+  }
+  private final JZcmdAccess acc;
+  
   /**Variable for any exception while accessing any java resources. It is the $error variable of the script. */
   protected String accessError = null;
   
@@ -252,72 +476,21 @@ public class JZcmdExecuter {
   
   
   
-  /**Set it to true if private and protected fields and methods should be used
-   * by data access.
-   */
-  public boolean bAccessPrivate;
-  
-  public final MainCmdLogging_ifc log;
-  
-  /**The text file output, the same for all threads. */
-  StringFormatter textout;
-
-  
-  /**The java prepared generation script. */
-  JZcmdScript jzcmdScript;
-  
   /**Instance for the main script part. */
   //Gen_Content genFile;
 
-  /**Generated content of all script variables. The script variables are present in all routines 
-   * in their local variables pool. The value is either a String, CharSequence or any Object pointer.  */
-  //private final IndexMultiTable<String, DataAccess.Variable> scriptVariables = new_Variables();
-  
-  
-  final ExecuteLevel scriptLevel;
-  
-  final JZcmdThread scriptThread;
-  
-  /**Generated content of all script environment variables. The script variables are present in all routines 
-   * in their local variables pool. The value is either a String, CharSequence or any Object pointer.  */
-  //final Map<String, String> scriptEnvVariables = new TreeMap<String, String>();
-  
-  
-  protected final Queue<JZcmdThread> threads = new ConcurrentLinkedQueue<JZcmdThread>();
-  
   private boolean bScriptVariableGenerated;
-  
-  /**The time stamp from {@link System#currentTimeMillis()} on start of script. */
-  public long startmilli;
-  
-  /**The time stamp from {@link System#nanoTime()} on start of script. */
-  public long startnano;
-  
-  /**The newline char sequence. */
-  String newline = "\r\n";
-  
-  int nextNr_ = 0;
   
   /**This instance is used to mark a return object as exception return. */
   private static CharSequence retException = new String("Exception");
   
   
-  /**Used for formatting Numbers. 
-   * Problem in Germany: The numbers are written with , instead with a decimal point. 
-   * Using Locale.ENGLISH produces the well used decimal point.
-   * Numbers with comma are used only in the german banking sector, not in engineering.
-   */
-  protected Locale locale = Locale.ENGLISH;
-  
-
   /**Creates a JZcmdExecuter with possible writing exceptions in the output text.
    * 
    * @param log maybe null
    */
   public JZcmdExecuter(MainCmdLogging_ifc log){
-    this.log = log;
-    scriptThread = new JZcmdThread();
-    scriptLevel = new ExecuteLevel(scriptThread);
+    acc = new JZcmdAccess(log, this);
   }
   
   
@@ -328,133 +501,7 @@ public class JZcmdExecuter {
     if(log == null){
       log = new MainCmdLoggingStream(System.out);
     }
-    this.log = log;
-    scriptThread = new JZcmdThread();
-    scriptLevel = new ExecuteLevel(scriptThread);
-  }
-  
-  
-  
-  
-  /**Returns the association to all script variables. The script variables can be changed
-   * via this association. Note that change of script variables is a global action, which should not
-   * be done for special requests in any subroutine.
-   */
-  public Map<String, DataAccess.Variable<Object>> scriptVariables(){ return scriptLevel.localVariables; }
-  
-  /**Returns the script level instance. This instance is created with the constructor of this class (a composite).
-   * The {@link ExecuteLevel#localVariables} of the script level are the script variables. 
-   * They are filled with the given script on call of {@link #initialize(JZcmdScript, boolean, Map, String)}
-   * or if {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)} was called.
-   */
-  public ExecuteLevel scriptLevel(){ return scriptLevel; }
-  
-  
-  public long calctime(){ return System.currentTimeMillis() - startmilli; }
-  
-  public void setScriptVariable(String name, char type, Object content, boolean bConst) 
-  throws IllegalAccessException{
-    DataAccess.createOrReplaceVariable(scriptLevel.localVariables, name, type, content, bConst);
-  }
-  
-  
-  
-  /**Generates script-global variables.
-   * 
-   * @param genScriptPar It should be the same how used on {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)}
-   *   but it may be another one for special cases.
-   * @param userData Used userdata for content of scriptvariables. It should be the same how used on 
-   *   {@link #genContent(JZcmdScript, Object, boolean, Appendable)} but it may be another one for special cases.
-   * @param accessPrivate true than access to private data of userData
-   * @return The built script variables. 
-   *   One can evaluate some script variables before running {@link #genContent(JZcmdScript, Object, boolean, Appendable)}.
-   *   Especially it is used for {@link org.vishia.zmake.Zmake to set the currDir.} 
-   * @throws Throwable 
-   * @throws SecurityException 
-   * @throws NoSuchMethodException 
-   * @throws NoSuchFieldException 
-   */
-  private Map<String, DataAccess.Variable<Object>> genScriptVariables(
-      JZcmdScript genScriptPar
-    , boolean accessPrivate
-    , Map<String, DataAccess.Variable<Object>> srcVariables
-    , CharSequence sCurrdirArg
-  ) 
-  throws ScriptException //Throwable
-  {
-    this.bAccessPrivate = accessPrivate;
-    try{
-      if(sCurrdirArg == null && scriptLevel.currdir == null){
-        //get from the JVM environment respecitvely from the operation system.
-        scriptLevel.currdir = new File("").getAbsoluteFile();  
-      } else if(sCurrdirArg !=null) {
-        scriptLevel.changeCurrDir(sCurrdirArg);
-      }
-      if(srcVariables !=null){
-        for(Map.Entry<String, DataAccess.Variable<Object>> entry: srcVariables.entrySet()){
-          DataAccess.Variable<Object> var = entry.getValue();
-          DataAccess.createOrReplaceVariable(scriptLevel.localVariables, var.name(), var.type(), var.value(), var.isConst());
-        }
-      }
-      //do not replace variables which are set from outside.
-      //if(scriptLevel.localVariables.get("error") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "error", 'A', accessError, true); }
-      if(scriptLevel.localVariables.get("console") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "console", 'O', log, true); }
-      //DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nrElementInContainer", 'O', null);
-      if(scriptLevel.localVariables.get("out") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "out", 'A', System.out, true); }
-      if(scriptLevel.localVariables.get("err") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "err", 'A', System.err, true); }
-      if(scriptLevel.localVariables.get("null") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
-      //if(scriptLevel.localVariables.get("") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
-      //if(scriptLevel.localVariables.get("jbat") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jbat", 'O', this, true); }
-      //if(scriptLevel.localVariables.get("zgen") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "zgen", 'O', this, true); }
-      if(scriptLevel.localVariables.get("jzcmd") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jzcmd", 'O', this, true); }
-      //if(scriptLevel.localVariables.get("file") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "file", 'O', new FileSystem(), true); }
-      if(scriptLevel.localVariables.get("test") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new JZcmdTester(), true); }
-      if(scriptLevel.localVariables.get("conv") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "conv", 'O', new Conversion(), true); }
-      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "Math", 'C', Class.forName("java.lang.Math"), true);
-      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "System", 'C', Class.forName("java.lang.System"), true);
-      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "FileSystem", 'C', Class.forName("org.vishia.util.FileSystem"), true);
-      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "StringFunctions", 'C', Class.forName("org.vishia.util.StringFunctions"), true);
-      File filescript = genScriptPar.fileScript;
-      if(scriptLevel.localVariables.get("scriptfile") == null && filescript !=null) { 
-        String scriptfile = filescript.getName();
-        DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "scriptfile", 'S', scriptfile, true);
-        CharSequence scriptdir = FileSystem.normalizePath(FileSystem.getDir(filescript));
-        //File dirscript = FileSystem.getDirectory(filescript).getCanonicalFile();
-        DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "scriptdir", 'S', scriptdir, true);
-      }
-      if(scriptLevel.localVariables.get("nextNr") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextNr", 'O', new NextNr(), true); }
-      Method mCurrdir = getClass().getMethod("nextNr");
-      DataAccess.ObjMethod objMethod = new DataAccess.ObjMethod(mCurrdir, this);
-      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextnr", 'M', objMethod, true);
-      //
-    } catch(IllegalAccessException exc){
-      throw new ScriptException("JZcmdExecuter.genScriptVariable - IllegalAccessException; " + exc.getMessage());
-    } catch(Exception exc){
-      throw new ScriptException("JZcmdExecuter.genScriptVariable - unexpected exception; " + exc.getMessage());
-    }
-    //generate all variables in this script:
-    short ret;
-    ret = scriptLevel.execute(genScriptPar.scriptClass, null, 0, scriptLevel.localVariables, -1);
-    if(ret == kException){
-      throw new ScriptException(scriptThread.exception.getMessage(), scriptThread.excSrcfile, scriptThread.excLine, scriptThread.excColumn);
-    }
-    //setCurrdirScript(sCurrdirArg);
-    bScriptVariableGenerated = true;
-    return scriptLevel.localVariables;
-  }
-  
-
-  
-
-  public CharSequence currdir(){ return scriptLevel.currdir(); }
-  
-  /**Initializes without any script variables, clears the instance.
-   * The first call of {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)} will be generate the script variables.
-   */
-  public void reset(){
-    bScriptVariableGenerated = false;
-    scriptLevel.localVariables.clear();
-    this.jzcmdScript = null;
+    acc = new JZcmdAccess(log, this);
   }
   
   
@@ -481,13 +528,36 @@ public class JZcmdExecuter {
       , String sCurrdir
       ) 
   throws ScriptException
-  {
-    this.scriptLevel.localVariables.clear();
-    this.bAccessPrivate = accessPrivate;
-    this.jzcmdScript = genScriptArg;
-    genScriptVariables(genScriptArg, accessPrivate, srcVariables, sCurrdir);
+  { acc.initialize(genScriptArg, accessPrivate, srcVariables, sCurrdir);
   }
-
+  
+  /**Returns the association to all script variables. The script variables can be changed
+   * via this association. Note that change of script variables is a global action, which should not
+   * be done for special requests in any subroutine.
+   */
+  public Map<String, DataAccess.Variable<Object>> scriptVariables(){ return acc.scriptLevel.localVariables; }
+  
+  /**Returns the script level instance. This instance is created with the constructor of this class (a composite).
+   * The {@link ExecuteLevel#localVariables} of the script level are the script variables. 
+   * They are filled with the given script on call of {@link #initialize(JZcmdScript, boolean, Map, String)}
+   * or if {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)} was called.
+   */
+  public ExecuteLevel scriptLevel(){ return acc.scriptLevel; }
+  
+  
+  public long calctime(){ return System.currentTimeMillis() - acc.startmilli; }
+  
+  public CharSequence currdir(){ return acc.scriptLevel.currdir(); }
+  
+  /**Initializes without any script variables, clears the instance.
+   * The first call of {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)} will be generate the script variables.
+   */
+  public void reset(){
+    bScriptVariableGenerated = false;
+    acc.scriptLevel.localVariables.clear();
+    acc.jzcmdScript = null;
+  }
+  
   
   /**Executes the given script.
    * @param genScriptP The script. It sets the {@link #jzcmdScript} internal variable which is used
@@ -508,58 +578,59 @@ public class JZcmdExecuter {
     , String sCurrdir
     ) 
   throws ScriptException //Exception, IllegalAccessException, Throwable
-  { this.bAccessPrivate = accessPrivate;
+  { acc.bAccessPrivate = accessPrivate;
     //this.data = userData;
-    this.jzcmdScript = genScriptP;
+    acc.jzcmdScript = genScriptP;
     short ret;
     //try
     {
       if(out !=null) {
         StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
-        textout = outFormatter;
+        acc.textout = outFormatter;
       }
       try{
-        setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
+        acc.setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
       } catch(IllegalAccessException exc){ throw new ScriptException("JZcmd.executer - IllegalAccessException; " + exc.getMessage()); }
       if(!bScriptVariableGenerated){
-        genScriptVariables(jzcmdScript, accessPrivate, null, sCurrdir);
+        acc.genScriptVariables(acc.jzcmdScript, accessPrivate, null, sCurrdir);
+        bScriptVariableGenerated = true;
       }
       //needs all scriptVariable:
-      ExecuteLevel execFile = new ExecuteLevel(jzcmdScript.scriptClass, scriptThread, scriptLevel, null);
-      if(jzcmdScript.checkJZcmdXmlFile !=null) {
+      ExecuteLevel execFile = new ExecuteLevel(acc, acc.jzcmdScript.scriptClass, acc.scriptThread, acc.scriptLevel, null);
+      if(acc.jzcmdScript.checkJZcmdXmlFile !=null) {
         CharSequence sFilecheckXml;
-        try { sFilecheckXml = scriptLevel.evalString(jzcmdScript.checkJZcmdXmlFile);
+        try { sFilecheckXml = acc.scriptLevel.evalString(acc.jzcmdScript.checkJZcmdXmlFile);
         } catch (Exception exc) { throw new ScriptException("JZcmd.execute - String eval error on checkJZcmd; "
-            , jzcmdScript.checkJZcmdXmlFile.srcFile, jzcmdScript.checkJZcmdXmlFile.srcLine, jzcmdScript.checkJZcmdXmlFile.srcColumn ); 
+            , acc.jzcmdScript.checkJZcmdXmlFile.srcFile, acc.jzcmdScript.checkJZcmdXmlFile.srcLine, acc.jzcmdScript.checkJZcmdXmlFile.srcColumn ); 
         }
         SimpleXmlOutputter xmlOutputter = new SimpleXmlOutputter();
         try{
           OutputStreamWriter xmlWriter = new OutputStreamWriter(new FileOutputStream(sFilecheckXml.toString()));
-          xmlOutputter.write(xmlWriter, jzcmdScript.xmlSrc);
+          xmlOutputter.write(xmlWriter, acc.jzcmdScript.xmlSrc);
           xmlWriter.close();
-          jzcmdScript.xmlSrc = null;  //can be garbaged.
+          acc.jzcmdScript.xmlSrc = null;  //can be garbaged.
         } catch(IOException exc){ throw new ScriptException(exc); }
       	
       }
-      if(jzcmdScript.checkJZcmdFile !=null){
+      if(acc.jzcmdScript.checkJZcmdFile !=null){
         CharSequence sFilecheck;
-        try { sFilecheck = execFile.evalString(jzcmdScript.checkJZcmdFile);
+        try { sFilecheck = execFile.evalString(acc.jzcmdScript.checkJZcmdFile);
         } catch (Exception exc) { throw new ScriptException("JZcmd.execute - String eval error on checkJZcmd; "
-            , jzcmdScript.checkJZcmdFile.srcFile, jzcmdScript.checkJZcmdFile.srcLine, jzcmdScript.checkJZcmdFile.srcColumn ); 
+            , acc.jzcmdScript.checkJZcmdFile.srcFile, acc.jzcmdScript.checkJZcmdFile.srcLine, acc.jzcmdScript.checkJZcmdFile.srcColumn ); 
         }
         File filecheck = new File(sFilecheck.toString());
         try{
           Writer writer = new FileWriter(filecheck);
-          jzcmdScript.writeStruct(writer);
+          acc.jzcmdScript.writeStruct(writer);
           writer.close();
         } catch(IOException exc){ throw new ScriptException("JZcmd.execute - File error on checkJZcmd; " + filecheck.getAbsolutePath()); }
       }
-      JZcmdScript.Subroutine mainRoutine = jzcmdScript.getMain();
+      JZcmdScript.Subroutine mainRoutine = acc.jzcmdScript.getMain();
       //return execute(execFile, contentScript, true);
-      startmilli = System.currentTimeMillis();
-      startnano = System.nanoTime();
+      acc.startmilli = System.currentTimeMillis();
+      acc.startnano = System.nanoTime();
       if(mainRoutine !=null) {
-        ret = execFile.execute(mainRoutine.statementlist, textout, 0, execFile.localVariables, -1);
+        ret = execFile.execute(mainRoutine.statementlist, acc.textout, 0, execFile.localVariables, -1);
       } else {
         System.out.println("JZcmdExecuter - main routine not found.");
         ret = 0;
@@ -567,17 +638,17 @@ public class JZcmdExecuter {
       if(bWaitForThreads){
         boolean bWait = true;
         while(bWait){
-          synchronized(threads){
-            bWait = threads.size() !=0;
+          synchronized(acc.threads){
+            bWait = acc.threads.size() !=0;
             if(bWait){
-              try{ threads.wait(1000); }
+              try{ acc.threads.wait(1000); }
               catch(InterruptedException exc){}
             }
           }
         }
       }
-      if(textout !=null) {
-        try{ textout.close(); } 
+      if(acc.textout !=null) {
+        try{ acc.textout.close(); } 
         catch(IOException exc){ throw new RuntimeException("unexpected exception on close", exc); }
       }
     }
@@ -585,10 +656,10 @@ public class JZcmdExecuter {
     //  ret = kException;
     //}
     if(ret == kException){
-      if(scriptThread.exception instanceof ScriptException){
-        throw (ScriptException)scriptThread.exception; 
+      if(acc.scriptThread.exception instanceof ScriptException){
+        throw (ScriptException)acc.scriptThread.exception; 
       } else {
-        throw new ScriptException(scriptThread.exception.toString(), scriptThread.excSrcfile, scriptThread.excLine, scriptThread.excColumn);
+        throw new ScriptException(acc.scriptThread.exception.toString(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
       }
     }
   }
@@ -616,26 +687,26 @@ public class JZcmdExecuter {
   {
     if(out !=null) {
       StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
-      textout = outFormatter;
-      setScriptVariable("text", 'A', out, true);
+      acc.textout = outFormatter;
+      acc.setScriptVariable("text", 'A', out, true);
     }
-    ExecuteLevel level = new ExecuteLevel(jzcmdScript.scriptClass, scriptThread, scriptLevel, null);
+    ExecuteLevel level = new ExecuteLevel(acc, acc.jzcmdScript.scriptClass, acc.scriptThread, acc.scriptLevel, null);
     //The args should be added to the localVariables of the subroutines level:
     level.localVariables.putAll(args);
     if(currdir !=null){
       level.changeCurrDir(currdir.getPath());
     }
     //Executes the statements of the sub routine:
-    startmilli = System.currentTimeMillis();
-    startnano = System.nanoTime();
-    short ret = level.execute(statement.statementlist, textout, 0, level.localVariables, -1);
-    if(textout !=null) {
-      try{ textout.close(); } 
+    acc.startmilli = System.currentTimeMillis();
+    acc.startnano = System.nanoTime();
+    short ret = level.execute(statement.statementlist, acc.textout, 0, level.localVariables, -1);
+    if(acc.textout !=null) {
+      try{ acc.textout.close(); } 
       catch(IOException exc){ throw new RuntimeException("unexpected exception on close", exc); }
     }
     if(ret == kReturn || ret == kBreak){ ret = kSuccess; }
     if(ret == kException){
-      throw scriptThread.exception;
+      throw acc.scriptThread.exception;
     }
     return null;
   }
@@ -644,14 +715,19 @@ public class JZcmdExecuter {
   
   
   
+  public void setScriptVariable(String name, char type, Object content, boolean bConst) 
+  throws IllegalAccessException{
+    DataAccess.createOrReplaceVariable(acc.scriptLevel.localVariables, name, type, content, bConst);
+  }
+
   
   
   public DataAccess.Variable<Object> getScriptVariable(String name) throws NoSuchFieldException
-  { return DataAccess.getVariable(scriptLevel.localVariables, name, true); }
+  { return DataAccess.getVariable(acc.scriptLevel.localVariables, name, true); }
 
   
   public DataAccess.Variable<Object> removeScriptVariable(String name)
-  { return scriptLevel.localVariables.remove(name);
+  { return acc.scriptLevel.localVariables.remove(name);
     
   }
 
@@ -660,27 +736,16 @@ public class JZcmdExecuter {
   
 
 
-  protected IndexMultiTable<String, DataAccess.Variable<Object>> new_Variables(){
-    return new IndexMultiTable<String, DataAccess.Variable<Object>>(IndexMultiTable.providerString);
-  }
   
-  
-  
-  
-  public String nextNr(){
-    return Integer.toString(++nextNr_); 
-  }
-  
-  
-
   
   /**Wrapper to generate a script with specified localVariables.
    * A new Wrapper is created on any subroutine level. It is used in a {@link CalculatorExpr#calcDataAccess(Map, Object...)} 
    * to generate an expression independent of an environment.
    *
    */
-  public final class ExecuteLevel implements ScriptContext, FilePath.FilePathEnvAccess
+  public final static class ExecuteLevel implements ScriptContext, FilePath.FilePathEnvAccess
   {
+    final JZcmdAccess acc;
     /**Not used yet. Only for debug! */
     public final ExecuteLevel parent;
     
@@ -701,7 +766,7 @@ public class JZcmdExecuter {
     public boolean bWriteErrorInOutput;
     
 
-    /**Generated content of local variables in this nested level including the {@link ZbatchExecuter#scriptLevel.localVariables}.
+    /**Generated content of local variables in this nested level including the {@link ZbatchExecuter#acc.scriptLevel.localVariables}.
      * The variables are type invariant on language level. The type is checked and therefore 
      * errors are detected on runtime only. */
     public final IndexMultiTable<String, DataAccess.Variable<Object>> localVariables;
@@ -732,19 +797,20 @@ public class JZcmdExecuter {
      *   local variables of its calling routine! This argument is only set if nested statement blocks
      *   are to execute. 
      */
-    protected ExecuteLevel(JZcmdScript.JZcmdClass jzClass, JZcmdThread threadData, ExecuteLevel parent
+    protected ExecuteLevel(JZcmdAccess acc, JZcmdScript.JZcmdClass jzClass, JZcmdThread threadData, ExecuteLevel parent
         , Map<String, DataAccess.Variable<Object>> parentVariables)
-    { this.parent = parent;
+    { this.acc = acc;
+      this.parent = parent;
       this.jzClass = jzClass;
       this.threadData = threadData;
       if(parent !=null) {
         this.currdir = parent.currdir;
       }
-      localVariables = new_Variables();
+      localVariables = acc.new_Variables();
       if(parentVariables != null) {
         localVariables.putAll(parentVariables);  //use the same if it is not a subText, only a 
-      } else if(scriptLevel !=null) {
-        for(Map.Entry<String, DataAccess.Variable<Object>> e: scriptLevel.localVariables.entrySet()){
+      } else if(acc.scriptLevel !=null) {
+        for(Map.Entry<String, DataAccess.Variable<Object>> e: acc.scriptLevel.localVariables.entrySet()){
           DataAccess.Variable<Object> var = e.getValue();
           String key = e.getKey();
           if(key.equals("scriptdir")){
@@ -784,18 +850,18 @@ public class JZcmdExecuter {
     
     /**Constructs data for the script execution level.
      */
-    protected ExecuteLevel(JZcmdThread threadData)
-    { this(null, threadData, null, null);
+    protected ExecuteLevel(JZcmdAccess acc, JZcmdThread threadData)
+    { this(acc, null, threadData, null, null);
     }
 
-    public JZcmdExecuter executer(){ return JZcmdExecuter.this; }
+    public JZcmdAccess executer(){ return acc; }
     
     
-    public JZcmdEngine scriptEngine(){ return jzcmdScript.getEngine(); }
+    public JZcmdEngine scriptEngine(){ return acc.jzcmdScript.getEngine(); }
     
     
     /**Returns the log interface from the environment class. */
-    public MainCmdLogging_ifc log(){ return JZcmdExecuter.this.log; }
+    public MainCmdLogging_ifc log(){ return acc.log; }
     
     
     
@@ -828,7 +894,7 @@ public class JZcmdExecuter {
     throws Exception 
     { final ExecuteLevel level;
       if(contentScript.bContainsVariableDef){
-        level = new ExecuteLevel(jzClass, threadData, this, localVariables);
+        level = new ExecuteLevel(acc, jzClass, threadData, this, localVariables);
       } else {
         level = this;
       }
@@ -881,7 +947,7 @@ public class JZcmdExecuter {
           switch(statement.elementType()){
           case 't': executeText(statement, out, indentOut);break; //<:>...textexpression <.>
           case '@': execSetColumn((JZcmdScript.TextColumn)statement, out);break; //<:@23>
-          case 'n': out.append(newline);  break;   //<.n+>
+          case 'n': out.append(acc.newline);  break;   //<.n+>
           case '!': out.flush();  break;   //<.n+>
           case '_': out.close();  out = null; break;   //<.n+>
           case '\\': out.append(statement.textArg);  break;   //<:n> transcription
@@ -1070,7 +1136,7 @@ public class JZcmdExecuter {
       int posLine = 0;
       int posEnd1, posEnd2;
       if(statement.textArg.startsWith("  "))
-        stop();
+        Debugutil.stop();
       int zText = statement.textArg.length();
       do{
         char cEnd = '\n';  
@@ -1082,7 +1148,7 @@ public class JZcmdExecuter {
         }
         if(posEnd1 >= 0){ 
           out.append(statement.textArg.substring(posLine, posEnd1));   
-          out.append(newline);  //The newline of JZcmd invocation.
+          out.append(acc.newline);  //The newline of JZcmd invocation.
           //skip over posEnd1, skip over the other end line character if found. 
           if(++posEnd1 < zText){
             if(cEnd == '\r'){ if(statement.textArg.charAt(posEnd1)=='\n'){ posEnd1 +=1; }}
@@ -1128,7 +1194,7 @@ public class JZcmdExecuter {
       if(statement.typeVariable !=null){
         Debugutil.stop();
       }
-      storeValue(statement.defVariable, newVariables, value, bAccessPrivate);
+      storeValue(statement.defVariable, newVariables, value, acc.bAccessPrivate);
       //setLocalVariable(statement.name, type, value, isConst);
        
     }
@@ -1164,7 +1230,7 @@ public class JZcmdExecuter {
       //creates the for-variable in the executer level.
       DataAccess.Variable<Object> forVariable = DataAccess.createOrReplaceVariable(forExecuter.localVariables, statement.forVariable, 'O', null, false);
       //a new level for the for... statements. It contains the foreachData and maybe some more variables.
-      Object container = dataAccess(statement.forContainer, localVariables, bAccessPrivate, true, false, null);
+      Object container = dataAccess(statement.forContainer, localVariables, acc.bAccessPrivate, true, false, null);
       //Object container = statement.forContainer.getDataObj(localVariables, bAccessPrivate, true);
       //DataAccess.Dst dst = new DataAccess.Dst();
       //DataAccess.access(statement.defVariable.datapath(), null, localVariables, bAccessPrivate,false, true, dst);
@@ -1402,7 +1468,7 @@ public class JZcmdExecuter {
       if(statement.variable !=null){
         Object chn;
         //Object oVar = DataAccess.access(statement.variable.datapath(), null, localVariables, bAccessPrivate, false, true, null);
-        Object oVar = dataAccess(statement.variable,localVariables, bAccessPrivate, false, true, null);
+        Object oVar = dataAccess(statement.variable,localVariables, acc.bAccessPrivate, false, true, null);
         if(oVar instanceof DataAccess.Variable<?>){
           @SuppressWarnings("unchecked")
           DataAccess.Variable<Object> var = (DataAccess.Variable<Object>) oVar;
@@ -1427,7 +1493,7 @@ public class JZcmdExecuter {
           //bShouldClose = false;
         }
       } else {
-        out1 = textout;  //output to the text output.
+        out1 = acc.textout;  //output to the text output.
         //bShouldClose = false;
       }
       if(statement.statementlist !=null){
@@ -1474,7 +1540,7 @@ public class JZcmdExecuter {
       nameSubtext = evalString(callStatement.call_Name); 
       JZcmdScript.Subroutine subroutine = jzClass.subroutines.get(nameSubtext);
       if(subroutine == null) { //not found in this class:    
-        subroutine = jzcmdScript.getSubroutine(nameSubtext);  //the subtext script to call
+        subroutine = acc.jzcmdScript.getSubroutine(nameSubtext);  //the subtext script to call
       }
       if(subroutine == null){
         throw new NoSuchElementException("JbatExecuter - subroutine not found; " + nameSubtext);
@@ -1485,7 +1551,7 @@ public class JZcmdExecuter {
         if(subroutine.useLocals) {  //TODO check whether the subClass == this.jzclass 
           sublevel = this; 
         } else { 
-          sublevel = new ExecuteLevel(subClass, threadData, this, subroutine.useLocals ? localVariables : null); 
+          sublevel = new ExecuteLevel(acc, subClass, threadData, this, subroutine.useLocals ? localVariables : null); 
         }
         success = execSubroutine(subroutine, sublevel, callStatement.actualArgs, additionalArgs, out, indentOut, nDebug);
         if(success == kSuccess){
@@ -1551,7 +1617,7 @@ public class JZcmdExecuter {
       if(subroutine.useLocals) {  //TODO check whether the subClass == this.jzclass 
         sublevel = this; 
       } else { 
-        sublevel = new ExecuteLevel(subClass, threadData, this, subroutine.useLocals ? localVariables : null); 
+        sublevel = new ExecuteLevel(acc, subClass, threadData, this, subroutine.useLocals ? localVariables : null); 
       }
       final List<DataAccess.Variable<Object>> arglist;
       if(args !=null){
@@ -1640,8 +1706,8 @@ public class JZcmdExecuter {
         //if not all variables are correct, write error.
         for(Map.Entry<String, JZcmdScript.DefVariable> checkArg : check.entrySet()){
           JZcmdScript.DefVariable arg = checkArg.getValue();
-          //Generate on scriptLevel (classLevel) because the formal parameter list should not know things of the calling environment.
-          Object ref = scriptLevel.evalObject(arg, false);
+          //Generate on acc.scriptLevel (classLevel) because the formal parameter list should not know things of the calling environment.
+          Object ref = acc.scriptLevel.evalObject(arg, false);
           String name = arg.getVariableIdent();
           char cType = arg.elementType();
           if(cType == 'F' && !(ref instanceof JZcmdFilepath) ){
@@ -1706,7 +1772,7 @@ public class JZcmdExecuter {
         try{
           thread = new JZcmdThread();
           name = statement.threadVariable.idents().toString();
-          storeValue(statement.threadVariable, newVariables, thread, bAccessPrivate);
+          storeValue(statement.threadVariable, newVariables, thread, acc.bAccessPrivate);
         } catch(Exception exc){
           throw new IllegalArgumentException("JZcmd - thread assign failure; path=" + statement.threadVariable.toString());
         }
@@ -1714,9 +1780,9 @@ public class JZcmdExecuter {
         thread = new JZcmdThread();  //without assignment to a variable.
         name = "JZcmd";
       }
-      ExecuteLevel threadLevel = new ExecuteLevel(jzClass, thread, this, localVariables);
-      synchronized(threads){
-        threads.add(thread);
+      ExecuteLevel threadLevel = new ExecuteLevel(acc, jzClass, thread, this, localVariables);
+      synchronized(acc.threads){
+        acc.threads.add(thread);
       }
       thread.startThread(name, threadLevel, statement);
       //it does not wait on finishing this thread.
@@ -1742,7 +1808,7 @@ public class JZcmdExecuter {
     {
       ExecuteLevel genContent;
       if(false && script.statementlist.bContainsVariableDef){
-        genContent = new ExecuteLevel(jzClass, threadData, this, localVariables);
+        genContent = new ExecuteLevel(acc, jzClass, threadData, this, localVariables);
       } else {
         genContent = this;  //don't use an own instance, save memory and calculation time.
       }
@@ -1772,7 +1838,7 @@ public class JZcmdExecuter {
         int iArg = 1;
         for(JZcmdScript.JZcmditem arg: statement.cmdArgs){
           if(arg.elementType == 'L'){
-            Object oVal = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
+            Object oVal = dataAccess(arg.dataAccess, localVariables, acc.bAccessPrivate, false, false, null);
             if(oVal instanceof List<?>){
               @SuppressWarnings("unchecked")
               List<Object> arglist = (List<Object>)oVal;
@@ -1798,16 +1864,16 @@ public class JZcmdExecuter {
       List<Appendable> outCmd;
       if(statement.variable !=null){
         outCmd = new LinkedList<Appendable>();
-        Object oOutCmd = dataAccess(statement.variable, localVariables, bAccessPrivate, false, false, null);
-        //Object oOutCmd = statement.variable.getDataObj(localVariables, bAccessPrivate, false);
+        Object oOutCmd = dataAccess(statement.variable, localVariables, acc.bAccessPrivate, false, false, null);
+        //Object oOutCmd = statement.variable.getDataObj(localVariables, acc.bAccessPrivate, false);
         if(oOutCmd instanceof Appendable){
           outCmd.add((Appendable)oOutCmd);
         } else { throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
         }
         if(statement.assignObjs !=null){
           for(JZcmdScript.JZcmdDataAccess assignObj1 : statement.assignObjs){
-            oOutCmd = dataAccess(assignObj1, localVariables, bAccessPrivate, false, false, null);
-            //oOutCmd = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
+            oOutCmd = dataAccess(assignObj1, localVariables, acc.bAccessPrivate, false, false, null);
+            //oOutCmd = assignObj1.getDataObj(localVariables, acc.bAccessPrivate, false);
             if(oOutCmd instanceof Appendable){
               outCmd.add((Appendable)oOutCmd);
             } else { throwIllegalDstArgument("variable should be Appendable", statement.variable, statement);
@@ -1868,7 +1934,7 @@ public class JZcmdExecuter {
     throws Exception
     {
       /*if(statement.dataAccess !=null){
-        Object oDir = dataAccess(statement.dataAccess, localVariables, bAccessPrivate, false, false, null);
+        Object oDir = dataAccess(statement.dataAccess, localVariables, acc.bAccessPrivate, false, false, null);
         if(oDir instanceof File){
           
         }
@@ -1912,12 +1978,12 @@ public class JZcmdExecuter {
         if(!FileSystem.isAbsolutePath(arg)){
           arg = this.currdir() + "/" + arg;
         }
-        if(JZcmdExecuter.this.textout !=null) {
-          JZcmdExecuter.this.textout.close();
+        if(acc.textout !=null) {
+          acc.textout.close();
         }
         Appendable out = new FileWriter(arg.toString());
-        setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
-        JZcmdExecuter.this.textout =  new StringFormatter(out, true, "\n", 200);
+        acc.setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
+        acc.textout =  new StringFormatter(out, true, "\n", 200);
         return kSuccess;
       }
     }
@@ -1969,11 +2035,11 @@ public class JZcmdExecuter {
     throws IllegalArgumentException, Exception
     {
       CharSequence text = "??";
-      Object obj = dataAccess(statement.dataAccess, localVariables, bAccessPrivate, false, false, null);
+      Object obj = dataAccess(statement.dataAccess, localVariables, acc.bAccessPrivate, false, false, null);
       if(obj == JZcmdExecuter.retException){ return kException; }
       else {
         
-        //Object obj = statement.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
+        //Object obj = statement.dataAccess.getDataObj(localVariables, acc.bAccessPrivate, false);
         if(statement.format !=null){ //it is a format string:
             if(obj instanceof CalculatorExpr.Value){
               obj = ((CalculatorExpr.Value)obj).objValue();  
@@ -1981,7 +2047,7 @@ public class JZcmdExecuter {
               //boxed numeric is necessary for format
             }
             
-            text = String.format(JZcmdExecuter.this.locale,  statement.format, obj);
+            text = String.format(acc.locale,  statement.format, obj);
         } else if(obj==null){ 
           text = null; //don't append if obj hasn't a content. 
         } else if (obj instanceof CharSequence){
@@ -2065,7 +2131,7 @@ public class JZcmdExecuter {
         } else {
           writer = new FileWriter(sFilename);  //given absolute path
         }
-        storeValue(statement.defVariable, newVariables, writer, bAccessPrivate);
+        storeValue(statement.defVariable, newVariables, writer, acc.bAccessPrivate);
         //setLocalVariable(statement.identArgJbat, 'A', writer);
         return kSuccess;
       }
@@ -2113,14 +2179,14 @@ public class JZcmdExecuter {
       }
       Iterator<JZcmdScript.JZcmdDataAccess> iter1 = statement.assignObjs == null ? null : statement.assignObjs.iterator();
       while(assignObj1 !=null) {
-        //Object dst = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
+        //Object dst = assignObj1.getDataObj(localVariables, acc.bAccessPrivate, false);
         DataAccess.Dst dstField = new DataAccess.Dst();
         //List<DataAccess.DatapathElement> datapath = assignObj1.datapath(); 
-        //Object dst = DataAccess.access(datapath, null, localVariables, bAccessPrivate, false, true, dstField);
-        Object dst = dataAccess(assignObj1,localVariables, bAccessPrivate, false, true, dstField);
+        //Object dst = DataAccess.access(datapath, null, localVariables, acc.bAccessPrivate, false, true, dstField);
+        Object dst = dataAccess(assignObj1,localVariables, acc.bAccessPrivate, false, true, dstField);
         if(dst instanceof DataAccess.Variable<?>){
           @SuppressWarnings("unchecked")
-          DataAccess.Variable<Object> var = (DataAccess.Variable<Object>) dst; //assignObj1.accessVariable(localVariables, bAccessPrivate);
+          DataAccess.Variable<Object> var = (DataAccess.Variable<Object>) dst; //assignObj1.accessVariable(localVariables, acc.bAccessPrivate);
           char vartype = var.type();
           switch(vartype){
             case 'K': if(value == null){ value = evalValue(statement, false); } break;
@@ -2163,7 +2229,7 @@ public class JZcmdExecuter {
             if(oVal == JZcmdExecuter.retException){ ret = kException; }
           }
           dstField.set(oVal);
-          //DataAccess.storeValue(assignObj1.datapath(), newVariables, val, bAccessPrivate);
+          //DataAccess.storeValue(assignObj1.datapath(), newVariables, val, acc.bAccessPrivate);
         }
         if(iter1 !=null && iter1.hasNext()){
           assignObj1 = iter1.next();
@@ -2220,16 +2286,16 @@ public class JZcmdExecuter {
           } break;
           default: val = init;
         }
-        //DataAccess.Variable var = (DataAccess.Variable)DataAccess.access(statement.defVariable.datapath(), null, localVariables, bAccessPrivate, false, true, null);
+        //DataAccess.Variable var = (DataAccess.Variable)DataAccess.access(statement.defVariable.datapath(), null, localVariables, acc.bAccessPrivate, false, true, null);
         //var.setValue(val);
         List<DataAccess.DatapathElement> datapath = statement.defVariable.datapath();
         if(datapath.get(0).ident().equals("return") && !localVariables.containsKey("return")) {
           //
           //creates the local variable return on demand:
-          DataAccess.Variable<Object> ret = new DataAccess.Variable<Object>('M', "return", new_Variables());
+          DataAccess.Variable<Object> ret = new DataAccess.Variable<Object>('M', "return", acc.new_Variables());
           localVariables.add("return", ret);
         }
-        storeValue(statement.defVariable, newVariables, val, bAccessPrivate);
+        storeValue(statement.defVariable, newVariables, val, acc.bAccessPrivate);
         if(cmdExecuter !=null){
           String name = statement.defVariable.datapath().get(0).ident();
           if(name.startsWith("$")){
@@ -2257,8 +2323,8 @@ public class JZcmdExecuter {
       JZcmdScript.JZcmdDataAccess assignObj1 = statement.variable;
       Iterator<JZcmdScript.JZcmdDataAccess> iter1 = statement.assignObjs == null ? null : statement.assignObjs.iterator();
       while(assignObj1 !=null) {
-        Object dst = dataAccess(assignObj1, localVariables, bAccessPrivate, false, false, null);
-        //Object dst = assignObj1.getDataObj(localVariables, bAccessPrivate, false);
+        Object dst = dataAccess(assignObj1, localVariables, acc.bAccessPrivate, false, false, null);
+        //Object dst = assignObj1.getDataObj(localVariables, acc.bAccessPrivate, false);
         if(dst instanceof Appendable){
           if(!(val instanceof CharSequence)){
             val = val.toString();
@@ -2317,8 +2383,8 @@ public class JZcmdExecuter {
      */
     public Object evalDatapathOrExpr(JZcmdScript.Argument arg) throws Exception{
       if(arg.dataAccess !=null){
-        Object o = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
-        //Object o = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
+        Object o = dataAccess(arg.dataAccess, localVariables, acc.bAccessPrivate, false, false, null);
+        //Object o = arg.dataAccess.getDataObj(localVariables, acc.bAccessPrivate, false);
         if(o==null){ return "null"; }
         else {return o; }
       } else if(arg.expression !=null){
@@ -2337,8 +2403,8 @@ public class JZcmdExecuter {
     {
       if(arg.textArg !=null) return arg.textArg;
       else if(arg.dataAccess !=null){
-        Object o = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
-        //Object o = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
+        Object o = dataAccess(arg.dataAccess, localVariables, acc.bAccessPrivate, false, false, null);
+        //Object o = arg.dataAccess.getDataObj(localVariables, acc.bAccessPrivate, false);
         if(o==null){ return "null"; }
         else if(o instanceof CharSequence){ return (CharSequence)o; }  //maybe retException
         else {return o.toString(); }
@@ -2426,12 +2492,12 @@ public class JZcmdExecuter {
         if(  dataElement instanceof JZcmdScript.JZcmdDatapathElementClass){
           JZcmdScript.JZcmdDatapathElementClass jzcmdDataElement = (JZcmdScript.JZcmdDatapathElementClass)dataElement;
           if(jzcmdDataElement.dpathLoader !=null){
-            Object oLoader = dataAccess(jzcmdDataElement.dpathLoader, localVariables, bAccessPrivate, false, false, null);
+            Object oLoader = dataAccess(jzcmdDataElement.dpathLoader, localVariables, acc.bAccessPrivate, false, false, null);
             assert(oLoader instanceof ClassLoader);
             jzcmdDataElement.set_loader((ClassLoader)oLoader);
           }
           if(jzcmdDataElement.dpathClass !=null){
-            Object o = dataAccess(jzcmdDataElement.dpathClass, localVariables, bAccessPrivate, false, false, null);
+            Object o = dataAccess(jzcmdDataElement.dpathClass, localVariables, acc.bAccessPrivate, false, false, null);
             assert(o instanceof Class<?>);
             jzcmdDataElement.set_Class((Class<?>)o);
           }
@@ -2440,7 +2506,7 @@ public class JZcmdExecuter {
         if(  dataElement instanceof JZcmdScript.JZcmdDatapathElement ){
           JZcmdScript.JZcmdDatapathElement jzcmdDataElement = (JZcmdScript.JZcmdDatapathElement)dataElement;
           if(jzcmdDataElement.indirectDatapath !=null){
-            Object oIdent = dataAccess(jzcmdDataElement.indirectDatapath, localVariables, bAccessPrivate, false, false, null);
+            Object oIdent = dataAccess(jzcmdDataElement.indirectDatapath, localVariables, acc.bAccessPrivate, false, false, null);
             dataElement.setIdent(oIdent.toString());
           }
           fnArgsExpr = jzcmdDataElement.fnArgsExpr;
@@ -2487,12 +2553,12 @@ public class JZcmdExecuter {
       if(arg.textArg !=null) obj = arg.textArg;
       else if(arg.dataAccess !=null){
         //calculate arguments firstly:
-        obj = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
-        //obj = arg.dataAccess.getDataObj(localVariables, bAccessPrivate, false);
+        obj = dataAccess(arg.dataAccess, localVariables, acc.bAccessPrivate, false, false, null);
+        //obj = arg.dataAccess.getDataObj(localVariables, acc.bAccessPrivate, false);
       } else if(arg.statementlist !=null){
         if(arg.elementType == 'M') {  
           //a dataStruct
-          final ExecuteLevel level = new ExecuteLevel(jzClass, threadData, this, localVariables);
+          final ExecuteLevel level = new ExecuteLevel(acc,jzClass, threadData, this, localVariables);
           IndexMultiTable<String, DataAccess.Variable<Object>> newVariables = 
             new IndexMultiTable<String, DataAccess.Variable<Object>>(IndexMultiTable.providerString); 
           //fill the dataStruct with its values:
@@ -2555,7 +2621,7 @@ public class JZcmdExecuter {
       }
       else if(arg.dataAccess !=null){
         CalculatorExpr.Value value;
-        Object obj = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
+        Object obj = dataAccess(arg.dataAccess, localVariables, acc.bAccessPrivate, false, false, null);
         if(obj instanceof Float){
           value = new Value(((Float)obj).floatValue());
         } else if(obj instanceof Double){
@@ -2589,7 +2655,7 @@ public class JZcmdExecuter {
       if(arg.textArg !=null) return true;
       else if(arg.dataAccess !=null){
         try{
-          Object obj = dataAccess(arg.dataAccess, localVariables, bAccessPrivate, false, false, null);
+          Object obj = dataAccess(arg.dataAccess, localVariables, acc.bAccessPrivate, false, false, null);
           if(obj instanceof Number){
             ret = ((Number)obj).intValue() !=0;
           } else if(obj instanceof Boolean){
@@ -2656,7 +2722,7 @@ public class JZcmdExecuter {
       CharSequence value = evalString(statement);
       Class<?> clazz;
       if(statement.loader !=null){
-        Object oLoader = dataAccess(statement.loader, localVariables, bAccessPrivate, false, false, null);  //get the loader
+        Object oLoader = dataAccess(statement.loader, localVariables, acc.bAccessPrivate, false, false, null);  //get the loader
         if(!(oLoader instanceof ClassLoader)) throw new IllegalArgumentException("JZcmd.exec_DefClassVariable - faulty ClassLoader");
         ClassLoader loader = (ClassLoader)oLoader;
         clazz = loader.loadClass(value.toString());
@@ -2716,7 +2782,7 @@ public class JZcmdExecuter {
     
     protected void runThread(ExecuteLevel executeLevel, JZcmdScript.ThreadBlock statement, JZcmdThread threadVar){
       try{
-        executeLevel.execute(statement.statementlist, JZcmdExecuter.this.textout, 0, executeLevel.localVariables, -1);
+        executeLevel.execute(statement.statementlist, acc.textout, 0, executeLevel.localVariables, -1);
       } 
       catch(Exception exc){
         threadVar.exception = exc;
@@ -2729,11 +2795,11 @@ public class JZcmdExecuter {
       synchronized(thread){
         thread.notifyAll();   //any other thread may wait for join
       }
-      synchronized(JZcmdExecuter.this.threads){  //remove this thread from the list of threads.
-        boolean bOk = threads.remove(thread);
+      synchronized(acc.threads){  //remove this thread from the list of threads.
+        boolean bOk = acc.threads.remove(thread);
         assert(bOk);
-        if(JZcmdExecuter.this.threads.size() == 0){
-          JZcmdExecuter.this.threads.notify();    //notify the waiting main thread to finish.
+        if(acc.threads.size() == 0){
+          acc.threads.notify();    //notify the waiting main thread to finish.
         }
       }
 
@@ -2806,7 +2872,7 @@ public class JZcmdExecuter {
     public Object getAttribute(String name, int scope)
     { switch(scope){
         case ScriptContext.ENGINE_SCOPE: return getAttribute(name); 
-        case ScriptContext.GLOBAL_SCOPE: return scriptLevel.getAttribute(name); 
+        case ScriptContext.GLOBAL_SCOPE: return acc.scriptLevel.getAttribute(name); 
         default: throw new IllegalArgumentException("JZcmdExecuter.getAttribute - failed scope;" + scope);
       } //switch
     }
@@ -2826,7 +2892,7 @@ public class JZcmdExecuter {
     public Bindings getBindings(int scope)
     { switch(scope){
       case ScriptContext.ENGINE_SCOPE: return new JZcmdBindings(localVariables); 
-      case ScriptContext.GLOBAL_SCOPE: return new JZcmdBindings(scriptLevel.localVariables); 
+      case ScriptContext.GLOBAL_SCOPE: return new JZcmdBindings(acc.scriptLevel.localVariables); 
       default: throw new IllegalArgumentException("JZcmdExecuter.getBindings - failed scope;" + scope);
     } //switch
   }
@@ -2965,7 +3031,7 @@ public class JZcmdExecuter {
   /**Simple class to build a countered number. 
    * toString() increments and returns the number.
    */
-  public class NextNr {
+  public static class NextNr {
     private int nr = 0;
     
     /**Start method, next access returns 1. */

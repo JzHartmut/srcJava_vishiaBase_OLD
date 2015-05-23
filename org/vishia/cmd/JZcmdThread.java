@@ -126,11 +126,19 @@ public class JZcmdThread implements Runnable
   public char state(){ return state; }
   
   
+  /**Sends a command from another thread to this thread.
+   * @param cmd the string given command.
+   * @param data Any data.
+   */
   public void sendcmd(String cmd, Object data){
     if(cmd1 == null){ cmd1 = new MessageQueue<MsgItem>(); }
     cmd1.put(new MsgItem(cmd, data));
   }
   
+  /**Waits for a command which can be sent by another thread using {@link #sendcmd(String, Object)}
+   * @param timeout milliseconds for wait, use 0 for wait forever.
+   * @return instance with the String given command and an Object.
+   */
   public MsgItem awaitcmd(int timeout){
     if(cmd1 == null){ cmd1 = new MessageQueue<MsgItem>(); }
     return cmd1.await(timeout);

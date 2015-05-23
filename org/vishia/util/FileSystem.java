@@ -397,18 +397,38 @@ public class FileSystem
    * @param src A src file. 
    * @param dst The dst directory should be exist. Use {@link #mkDirPath(String)} with this dst to create it.
    * @return Number of bytes copied. -1 if src file not found. 0 if the src file is empty.
-   * @throws IOException Any error. but not src file not found.
+   * @throws IOException Any error. but not if the src file not found.
    */
   public static int copyFile(File src, File dst) 
+  throws IOException
+  { return copyFile(src, dst, true, true, true);
+  }
+  
+  /**Copy a file. The read-only-properties will be kept for dst.
+   * If a dst file exists it will be overwritten. This is done also if the dst file may be read only. 
+   * @param src A src file. 
+   * @param dst The dst directory should be exist. Use {@link #mkDirPath(String)} with this dst to create it.
+   * @param bKeepTimestamp true then sets the time stamp of the dst to the time stamp of the src.
+   * @param bOverwrite if true then overwrite an existing file. If false exception on existing file.
+   * @param bOverwriteReadonly if true then overwrite a read-only file if necessary.
+   *   If false exception on trying overwrite a read-only file.
+   * @return Number of bytes copied. -1 if src file not found. 0 if the src file is empty.
+   * @throws IOException Any error. but not if the src file not found.
+   * @throws IllegalArgumentException if the dst cannot be overwritten.
+   */
+  public static int copyFile(File src, File dst, boolean bKeepTimestamp
+      , boolean bOverwrite, boolean bOverwriteReadonly) 
   throws IOException
   { 
   	int nrofBytes = 0;
   	byte[] buffer = new byte[16384];
   	if(dst.exists()){
-  		if(!dst.canWrite()){
+  		if(!bOverwrite) throw new IllegalArgumentException("FileSystem.copyFile - dst exists, " + dst.getAbsolutePath());
+  	  if(!dst.canWrite()){
+  	    if(!bOverwriteReadonly) throw new IllegalArgumentException("FileSystem.copyFile - dst is read-only, " + dst.getAbsolutePath());
   			dst.setWritable(true);
   		}
-  		dst.delete();
+  		if(!dst.delete()) throw new IllegalArgumentException("FileSystem.copyFile - dst cannot be deleted, " + dst.getAbsolutePath());
   	}
   	InputStream inp;
   	try{ inp = new FileInputStream(src);
@@ -428,8 +448,10 @@ public class FileSystem
 	  	}while(nrofBytesBlock >0);
 	  	inp.close();
 	  	out.close();
-	    long timeSrc = src.lastModified();
-	    dst.setLastModified(timeSrc);
+	  	if(bKeepTimestamp) {
+  	    long timeSrc = src.lastModified();
+  	    dst.setLastModified(timeSrc);
+	  	}
 	    if(!src.canWrite()){
 	    	dst.setWritable(false);
 	    }
