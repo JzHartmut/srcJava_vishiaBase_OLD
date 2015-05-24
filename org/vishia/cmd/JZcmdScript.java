@@ -43,6 +43,7 @@ public class JZcmdScript extends CompiledScript
   /**Version, history and license.
    * 
    * <ul>
+   * <li>2015-05-24 Hartmut chg: copy, move, del with options, uses {@link FileOpArg} 
    * <li>2015-05-17 Hartmut new: syntax "File : <textValue>" is now able as start path of a DataPath.
    *   Therefore it's possible to write <code>File: "myFile".exists()</code> or adequate. A relative filename
    *   is related to the {@link JZcmdExecuter.ExecuteLevel#currdir()}. 
@@ -1177,7 +1178,31 @@ public class JZcmdScript extends CompiledScript
   
   
   
-  
+  public static class FileOpArg extends JZcmditem
+  {
+    Argument src, dst;
+    
+    boolean bNewTimestamp, bOverwrite, bOverwriteReadonly;
+    
+    FileOpArg(StatementList parentList, char whatisit) {
+      super(parentList, whatisit);
+    }
+
+    public Argument new_src(){ return src = new Argument(parentList); }
+    
+    public void set_src(Argument val) {} 
+    
+    public Argument new_dst(){ return dst = new Argument(parentList); }
+    
+    public void set_dst(Argument val) {}
+    
+    public void set_newTimestamp(){ bNewTimestamp = true; }
+    
+    public void set_overwr(){ bOverwrite = true; }
+    
+    public void set_overwro(){ bOverwriteReadonly = true; }
+    
+  }  
   
   public static class AssignExpr extends JZcmditem
   {
@@ -2364,34 +2389,34 @@ public class JZcmdScript extends CompiledScript
     
 
 
-    public CallStatement new_move()
-    { CallStatement statement = new CallStatement(this, 'm');
+    public FileOpArg new_move()
+    { FileOpArg statement = new FileOpArg(this, 'm');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;
     }
     
-    public void add_move(CallStatement val){}
+    public void add_move(FileOpArg val){}
 
 
-    public CallStatement new_copy()
-    { CallStatement statement = new CallStatement(this, 'y');
+    public FileOpArg new_copy()
+    { FileOpArg statement = new FileOpArg(this, 'y');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;
     }
     
-    public void add_copy(CallStatement val){}
+    public void add_copy(FileOpArg val){}
 
 
-    public CallStatement new_del()
-    { CallStatement statement = new CallStatement(this, 'l');
+    public FileOpArg new_del()
+    { FileOpArg statement = new FileOpArg(this, 'l');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
       return statement;
     }
     
-    public void add_del(CallStatement val){}
+    public void add_del(FileOpArg val){}
 
 
     /*

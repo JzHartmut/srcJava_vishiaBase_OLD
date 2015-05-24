@@ -88,9 +88,10 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
-   * <li>2015-05-23 Hartmut new: {@link JZcmdAccess#getstdin()} 
+   * <li>2015-05-24 Hartmut chg: copy, move, del with options, uses {@link FileOpArg} 
+   * <li>2015-05-23 Hartmut new: {@link JZcmd#getstdin()} 
    * <li>2015-05-23 Hartmut chg: Divide the class JZcmdExecuter in a part which is available for execution:
-   *   {@link JZcmdAccess}. While execution some methods from the main class should not in focus!
+   *   {@link JZcmd}. While execution some methods from the main class should not in focus!
    * <li>2015-05-17 Hartmut new: syntax "File : <textValue>" is now able as start path of a DataPath.
    *   Therefore it's possible to write <code>File: "myFile".exists()</code> or adequate. A relative filename
    *   is related to the {@link JZcmdExecuter.ExecuteLevel#currdir()}. 
@@ -235,11 +236,11 @@ public class JZcmdExecuter {
   //@SuppressWarnings("hiding")
   static final public String sVersion = "2014-12-14";
 
-  /**This class is used to access the jzcmd level from a script.
+  /**This class is the jzcmd main level from a script.
    * @author Hartmut
    *
    */
-  public static class JZcmdAccess
+  public static class JZcmd
   {
 
     public final MainCmdLogging_ifc log;
@@ -286,7 +287,7 @@ public class JZcmdExecuter {
     
     final ExecuteLevel scriptLevel;
 
-    JZcmdAccess(MainCmdLogging_ifc log, JZcmdExecuter env){
+    JZcmd(MainCmdLogging_ifc log, JZcmdExecuter env){
       this.log = log;
       scriptThread = new JZcmdThread();
       scriptLevel = new ExecuteLevel(this, scriptThread);
@@ -453,7 +454,7 @@ public class JZcmdExecuter {
     
 
   }
-  private final JZcmdAccess acc;
+  private final JZcmd acc;
   
   /**Variable for any exception while accessing any java resources. It is the $error variable of the script. */
   protected String accessError = null;
@@ -490,7 +491,7 @@ public class JZcmdExecuter {
    * @param log maybe null
    */
   public JZcmdExecuter(MainCmdLogging_ifc log){
-    acc = new JZcmdAccess(log, this);
+    acc = new JZcmd(log, this);
   }
   
   
@@ -501,7 +502,7 @@ public class JZcmdExecuter {
     if(log == null){
       log = new MainCmdLoggingStream(System.out);
     }
-    acc = new JZcmdAccess(log, this);
+    acc = new JZcmd(log, this);
   }
   
   
@@ -745,7 +746,7 @@ public class JZcmdExecuter {
    */
   public final static class ExecuteLevel implements ScriptContext, FilePath.FilePathEnvAccess
   {
-    final JZcmdAccess acc;
+    final JZcmd acc;
     /**Not used yet. Only for debug! */
     public final ExecuteLevel parent;
     
@@ -797,7 +798,7 @@ public class JZcmdExecuter {
      *   local variables of its calling routine! This argument is only set if nested statement blocks
      *   are to execute. 
      */
-    protected ExecuteLevel(JZcmdAccess acc, JZcmdScript.JZcmdClass jzClass, JZcmdThread threadData, ExecuteLevel parent
+    protected ExecuteLevel(JZcmd acc, JZcmdScript.JZcmdClass jzClass, JZcmdThread threadData, ExecuteLevel parent
         , Map<String, DataAccess.Variable<Object>> parentVariables)
     { this.acc = acc;
       this.parent = parent;
@@ -850,11 +851,11 @@ public class JZcmdExecuter {
     
     /**Constructs data for the script execution level.
      */
-    protected ExecuteLevel(JZcmdAccess acc, JZcmdThread threadData)
+    protected ExecuteLevel(JZcmd acc, JZcmdThread threadData)
     { this(acc, null, threadData, null, null);
     }
 
-    public JZcmdAccess executer(){ return acc; }
+    public JZcmd executer(){ return acc; }
     
     
     public JZcmdEngine scriptEngine(){ return acc.jzcmdScript.getEngine(); }
@@ -1001,9 +1002,9 @@ public class JZcmdExecuter {
           case 'e': ret = executeDatatext((JZcmdScript.DataText)statement, out); break; 
           case 's': ret = execCall((JZcmdScript.CallStatement)statement, null, out, indentOut, --nDebug1); break;  //sub
           case 'x': ret = executeThread(newVariables, (JZcmdScript.ThreadBlock)statement); break;             //thread
-          case 'm': executeMove((JZcmdScript.CallStatement)statement); break;             //move
-          case 'y': executeCopy((JZcmdScript.CallStatement)statement); break;             //copy
-          case 'l': executeDelete((JZcmdScript.CallStatement)statement); break;             //copy
+          case 'm': executeMove((JZcmdScript.FileOpArg)statement); break;             //move
+          case 'y': executeCopy((JZcmdScript.FileOpArg)statement); break;             //copy
+          case 'l': executeDelete((JZcmdScript.FileOpArg)statement); break;             //copy
           case 'c': exec_cmdline((JZcmdScript.CmdInvoke)statement); break;              //cmd
           case 'd': ret = executeChangeCurrDir(statement); break;                              //cd
           case '9': ret = executeMkDir(statement); break;                              //mkdir
@@ -2062,45 +2063,48 @@ public class JZcmdExecuter {
 
     
     
-    void executeMove(JZcmdScript.CallStatement statement) 
+    void executeMove(JZcmdScript.FileOpArg statement) 
     throws IllegalArgumentException, Exception
     {
-      CharSequence s1 = evalString(statement.actualArgs.get(0));
-      CharSequence s2 = evalString(statement.actualArgs.get(1));
-      File fileSrc = new File(s1.toString());
-      File fileDst = new File(s2.toString());
+      CharSequence s1 = evalString(statement.src);
+      CharSequence s2 = evalString(statement.dst);
+      File fileSrc = FileSystem.isAbsolutePath(s1) ? new File(s1.toString()) : new File(currdir, s1.toString());
+      File fileDst = FileSystem.isAbsolutePath(s2) ? new File(s2.toString()) : new File(currdir, s2.toString());
       boolean bOk = fileSrc.renameTo(fileDst);
-      if(!bOk) throw new IOException("JbatchExecuter - move not successfully; " + fileSrc.getAbsolutePath() + " to " + fileDst.getAbsolutePath());;
+      if(!bOk) throw new IOException("JZcmd - move not successfully; " + fileSrc.getAbsolutePath() + " to " + fileDst.getAbsolutePath());;
     }
     
-    void executeCopy(JZcmdScript.CallStatement statement) 
+ 
+    
+    void executeCopy(JZcmdScript.FileOpArg statement) 
     throws Exception
-    { String src, dst;
-      Object osrc = evalObject(statement.actualArgs.get(0), false);
+    { File src, dst;
+      Object osrc = evalObject(statement.src, false);
       if(osrc instanceof JZcmdFilepath){
-        src = ((JZcmdFilepath)osrc).absfile().toString();
+        src = new File(((JZcmdFilepath)osrc).absfile().toString());
       } else {
-        src = osrc.toString();
+        String s1 = osrc.toString();
+        src = FileSystem.isAbsolutePath(s1) ? new File(s1.toString()) : new File(currdir, s1.toString());
       }
-      Object odst = evalObject(statement.actualArgs.get(1), false);
+      Object odst = evalObject(statement.dst, false);
       if(odst instanceof JZcmdFilepath){
-        dst = ((JZcmdFilepath)odst).absfile().toString();
+        dst = new File(((JZcmdFilepath)odst).absfile().toString());
       } else {
-        dst = odst.toString();
+        String s2 = odst.toString();
+        dst = FileSystem.isAbsolutePath(s2) ? new File(s2.toString()) : new File(currdir, s2.toString());
       }
       //CharSequence s1 = evalString(statement.actualArgs.get(0));
       //CharSequence s2 = evalString(statement.actualArgs.get(1));
-      File fileSrc = new File(src);
-      File fileDst = new File(dst);
-      int nrofBytes = FileSystem.copyFile(fileSrc, fileDst);
-      if(nrofBytes <0) throw new FileNotFoundException("JbatchExecuter - copy src not found; " + fileSrc.getAbsolutePath() + " to " + fileDst.getAbsolutePath());;
+      int nrofBytes = FileSystem.copyFile(src, dst, statement.bNewTimestamp, statement.bOverwrite, statement.bOverwriteReadonly);
+      if(nrofBytes <0) throw new FileNotFoundException("JbatchExecuter - copy src not found; " + src.getAbsolutePath() + " to " + dst.getAbsolutePath());;
     }
     
-    void executeDelete(JZcmdScript.CallStatement statement) 
+    void executeDelete(JZcmdScript.FileOpArg statement) 
     throws Exception
     {
-      CharSequence s1 = evalString(statement.actualArgs.get(0));
-      boolean isDeleted = FileSystem.delete(s1.toString());
+      CharSequence s1 = evalString(statement.src);
+      String fileSrc = FileSystem.isAbsolutePath(s1) ? s1.toString() : currdir() + "/" + s1;
+      boolean isDeleted = FileSystem.delete(fileSrc);
       if(!isDeleted) throw new FileNotFoundException("JbatchExecuter - del not possible; " + s1);;
     }
     

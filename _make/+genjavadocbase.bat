@@ -5,9 +5,9 @@ if "" == "%JAVA_JDK%" call setJAVA_JDK.bat
 if "" == "%JAVA_JDK%" call ..\..\srcJava_vishiaBase\_make\+findJAVA_JDK.bat
 if "" == "%DST_priv%" set DST_priv=%DST%_priv
 
-echo genJavadoc: %DSTDIR%%DST%
+echo +genJavadocbase.bat: %DSTDIR%%DST%
 
-echo JAVA_JDK=%JAVA_JDK%
+echo +genjavadocbase.bat: JAVA_JDK=%JAVA_JDK%
 
 ::goto :zip
 if exist %DSTDIR%%DST% rmdir /Q /S %DSTDIR%%DST% >NUL

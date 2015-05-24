@@ -33,8 +33,8 @@ import org.vishia.util.SortedTreeWalkerCallback.Result;
 
 
 /**This class stores the name and some attributes of one File. 
- * The file may be localized on any maybe remote device or it may be a normal local file.
- * The information of the file (date, size, attributes) are accessible in a fast way. 
+ * The file may be localized on any maybe remote device or it may be a normal file in the operation system's file tree.
+ * The information of the file (date, size, attributes) are accessible in a fast way without opeation system access. 
  * But therefore they may be correct or not: A file on its data storage can be changed or removed. 
  * The data of this class should be refreshed if it seems to be necessary. 
  * Such an refresh operation can be done if there is enough time, no traffic on system level. 
@@ -67,7 +67,8 @@ import org.vishia.util.SortedTreeWalkerCallback.Result;
  * </ul>
  * <br><br>
  * <b>How to create instances of this class?</b><br>
- * You must create or have at least one {@link FileCluster} firstly which is application-width.
+ * This class contains a static reference to a {@link #clusterOfApplication} which is used as default. 
+ * It means there is only one cluster. But you can create a special {@link FileCluster} for some FileRemote instances too.
  * The FileCluster prevents more instances of FileRemote for the same physical file and supports
  * additional properties for a file as instance of FileRemote.  
  * If you have any other FileRemote instance, it knows its {@link #itsCluster}.
@@ -91,8 +92,9 @@ import org.vishia.util.SortedTreeWalkerCallback.Result;
  * <br><br>
  * This class inherits from {@link java.io.File} in the determination as interface. The advantage is:
  * <ul>
- * <li>The class File defines the interface to the remote files too. No extra definition of access methods is need.
- * <li>Any reference to a this class can be store in a reference of type java.io.File. The user can deal with it
+ * <li>The class File defines a proper interface to deal with files which can be used for the remote files concept too. 
+ *   No extra definition of access methods is need.
+ * <li>Any reference to an instance of this class can be store as reference of type java.io.File. The user can deal with it
  *   without knowledge about the FileRemote concept in a part of its software. Only the refreshing
  *   should be regulated in the proper part of the application. 
  * </ul>
@@ -140,6 +142,9 @@ public class FileRemote extends File implements MarkMask_ifc
 
   /**Version, history and license.
    * <ul>
+   * <li>2015-05-25 Hartmut new: {@link #clusterOfApplication}: There is a singleton, the {@link FileCluster}
+   *   is not necessary as argument for {@link #fromFile(File)} especially to work more simple to use FileRemote
+   *   capabilities for File operations.
    * <li>2014-12-20 Hartmut new: {@link #refreshPropertiesAndChildren(CallbackFile)} used in Fcmd with an Thread on demand, 
    *   see {@link org.vishia.fileLocalAccessor.FileAccessorLocalJava7#walkFileTree(FileRemote, boolean, boolean, String, int, int, FileRemoteCallback)}
    *   and {@link FileRemoteAccessor.FileWalkerThread}.
@@ -368,6 +373,10 @@ public class FileRemote extends File implements MarkMask_ifc
   /**A indent number, Primarily for debug and test. */
   private final int _ident;
   
+  /**This cluster is used if a specific cluster should not be used. It is the standard cluster.
+   * With null as argument for the FileCluster, this cluster is used.
+   */
+  public static FileCluster clusterOfApplication = new FileCluster();
   
   /**Any FileRemote instance should be member of a FileCluster. Files in the cluster can be located on several devices.
    * But they are selected commonly.
@@ -439,7 +448,8 @@ public class FileRemote extends File implements MarkMask_ifc
    * <br><br>
    * 
    *  
-   * @param cluster The cluster where the file is member of. It can be null if the parent is given. 
+   * @param cluster null, then use {@link #clusterOfApplication}, elsewhere the special cluster where the file is member of. 
+   *   It can be null if the parent is given, then the cluster of the parent is used. 
    *   It have to be matching to the parent. It do not be null if a parent is not given. 
    *   A cluster can be created in an application invoking the constructor {@link FileCluster#FileCluster()}.
    * @param device The device which organizes the access to the file system. It may be null, then the device 
@@ -504,8 +514,8 @@ public class FileRemote extends File implements MarkMask_ifc
         this.sDir = "";  //it is a local file
         this.sFile = sPath.toString();
       }
-      if(cluster == null) throw new IllegalArgumentException("FileRemote.ctor - cluster is null, should be given;");
-      this.itsCluster = cluster;
+      if(cluster == null) this.itsCluster = clusterOfApplication;
+      else this.itsCluster = cluster;
     }
     //super("?");  //NOTE: use the superclass File only as interface. Don't use it as local file instance.
     this._ident = ++ctIdent;
@@ -668,6 +678,17 @@ public class FileRemote extends File implements MarkMask_ifc
   }
   
   
+  /**Returns a FileRemote instance from a standard java.io.File instance.
+   * If src is instanceof FileRemote already, it returns src.
+   * Elsewhere it builds a new instance of FileRemote which inherits from File,
+   * it is a new instance of File too.
+   * @param src Any File or FileRemote instance.
+   * @return src if it is instance of FileRemote or a new Instance within the {@link #clusterOfApplication}.
+   */
+  public static FileRemote fromFile(File src){ 
+    if(src instanceof FileRemote) return (FileRemote)src; 
+    else return fromFile(clusterOfApplication, src); 
+  }
   
   
   
@@ -675,6 +696,7 @@ public class FileRemote extends File implements MarkMask_ifc
    * If src is instanceof FileRemote already, it returns src.
    * Elsewhere it builds a new instance of FileRemote which inherits from File,
    * it is a new instance of File too.
+   * @param cluster The special cluster of maybe {@link #clusterOfApplication}. It should not be null. See
    * @param src Any File or FileRemote instance.
    * @return src if it is instanceof FileRemote or a new Instance.
    */

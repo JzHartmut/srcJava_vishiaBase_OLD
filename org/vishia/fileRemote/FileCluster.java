@@ -13,6 +13,10 @@ import org.vishia.util.StringPart;
 
 /**This class combines some {@link FileRemote} instances for common usage.
  * It ensures that the same FileRemote object is used for the same string given path.
+ * It means the properties of a file of the operation system are known only one time for one Java application.
+ * Difference to the operation system's file handling: There are more properties for a file especially mark. They are able to test
+ * without operation system access. But the operation system's file properties should be synchronized with the FileRemote properties
+ * if necessary.
  * @author Hartmut Schorrig
  *
  */
@@ -67,16 +71,16 @@ public class FileCluster
   
 
   /**Number of selected bytes in all selected files. */
-  long[] selectBytes = new long[2];
+  //long[] selectBytes = new long[2];
   
   /**Number of selected files. */
-  int[] selectFiles = new int[2];
+  //int[] selectFiles = new int[2];
   
   
   /**The directory where the selection should be done.
    * 
    */
-  FileRemote dirBaseOfSelection;
+  //FileRemote dirBaseOfSelection;
 
   
   public FileCluster(){

@@ -55,6 +55,7 @@ public class FileSystem
   /**Version, history and license.
    * Changes:
    * <ul>   
+   * <li>2015-05-25 new {@link #copyFile(File, File, boolean, boolean, boolean)}   
    * <li>2015-05-04 bugfix close in {@link #readFile(File)}
    * <li>2015-05-03 new {@link #searchInParent(File, String...)}
    * <li>2014-09-05 Hartmut bugfix: {@link #searchInFiles(List, String, Appendable)} missing close().  
@@ -416,8 +417,8 @@ public class FileSystem
    * @throws IOException Any error. but not if the src file not found.
    * @throws IllegalArgumentException if the dst cannot be overwritten.
    */
-  public static int copyFile(File src, File dst, boolean bKeepTimestamp
-      , boolean bOverwrite, boolean bOverwriteReadonly) 
+  public static int copyFile(File src, File dst
+      , boolean bKeepTimestamp, boolean bOverwrite, boolean bOverwriteReadonly) 
   throws IOException
   { 
   	int nrofBytes = 0;
