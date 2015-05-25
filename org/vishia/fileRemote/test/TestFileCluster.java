@@ -12,7 +12,7 @@ import org.vishia.util.Assert;
 public class TestFileCluster
 {
   
-  FileCluster fileCluster = new FileCluster();
+  FileCluster fileCluster = FileRemote.clusterOfApplication;
   
   public void execute(){
     

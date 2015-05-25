@@ -39,7 +39,7 @@ import java.util.TreeMap;
  * The found children with the same key may be sorted
  * in its originally order on input by building the tree.
  * 
- * UML-Diagramm, presentation style see {@link Docu_UML_simpleNotation}:
+ * UML-Diagram, presentation style see {@link Docu_UML_simpleNotation}:
  * <pre>
  * 
  * SortedTreeNode

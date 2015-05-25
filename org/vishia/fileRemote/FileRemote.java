@@ -30,6 +30,7 @@ import org.vishia.util.SortedTreeWalkerCallback;
 import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPart;
 import org.vishia.util.SortedTreeWalkerCallback.Result;
+import org.vishia.util.TreeNodeNamed_ifc;
 
 
 /**This class stores the name and some attributes of one File. 
@@ -123,7 +124,7 @@ import org.vishia.util.SortedTreeWalkerCallback.Result;
  * @author Hartmut Schorrig
  *
  */
-public class FileRemote extends File implements MarkMask_ifc
+public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
 {
   /**interface to build an instance, which decides about the instance for physical access to files
    * in knowledge of the path. The implementing instance should be present as singleton on instantiation of this class.
@@ -376,7 +377,7 @@ public class FileRemote extends File implements MarkMask_ifc
   /**This cluster is used if a specific cluster should not be used. It is the standard cluster.
    * With null as argument for the FileCluster, this cluster is used.
    */
-  public static FileCluster clusterOfApplication = new FileCluster();
+  public static final FileCluster clusterOfApplication = new FileCluster();
   
   /**Any FileRemote instance should be member of a FileCluster. Files in the cluster can be located on several devices.
    * But they are selected commonly.

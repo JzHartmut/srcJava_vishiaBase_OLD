@@ -116,8 +116,8 @@ public class FileCluster
    * @param sName If null then a directory is returned. If given then the returned instance is decided as a file.
    * @param assumeChild true then check whether a requested directory is a child or sub child of a found parent directory.
    *   It is possible to create a child without registration here for new files which are not decided as directory firstly.
-   *   <br>false then don't assume that the file is a child of a found file. That is only to break a recursively with
-   *   {@link FileRemote#subdir(CharSequence)} because that method calls this. 
+   *   <br>false then don't assume that the file is a child of a found file. That is only to break a recursion with
+   *   {@link FileRemote#child(CharSequence)} because that method calls this. 
    *   It creates the FileRemote directory instance in case of not found in the {@link #idxPaths}.
    * @return
    */
