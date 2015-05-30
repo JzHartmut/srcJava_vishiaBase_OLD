@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
@@ -147,6 +148,8 @@ public abstract class FileRemoteAccessor implements Closeable
    */
   public abstract void walkFileTree(FileRemote startDir, boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMaskCheck, long bMarkCheck, int depth, FileRemoteCallback callback);
   
+  
+  public abstract void walkFileTreeCheck(FileRemote startDir, final boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMask, long bMarkCheck, int depth, FileRemoteCallback callback);
 
   protected abstract boolean setLastModified(FileRemote file, long time);
   
@@ -176,10 +179,22 @@ public abstract class FileRemoteAccessor implements Closeable
   
   public abstract ReadableByteChannel openRead(FileRemote file, long passPhase);
   
+  /**Creates an InputStream with this fileRemote instance.
+   * @param file
+   * @param passPhase
+   * @return
+   */
   public abstract InputStream openInputStream(FileRemote file, long passPhase);
   
   public abstract WritableByteChannel openWrite(FileRemote file, long passPhase);
  
+  /**Creates an OutputStream with this fileRemote instance.
+   * @param file
+   * @param passPhase
+   * @return
+   */
+  public abstract OutputStream openOutputStream(FileRemote file, long passPhase);
+  
   //FileRemote[] listFiles(FileRemote parent);
   
   /**Creates or prepares a CmdEvent to send to the correct destination. The event is ready to use but not  occupied yet. 

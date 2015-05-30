@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ConcurrentModificationException;
@@ -143,6 +144,7 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
 
   /**Version, history and license.
    * <ul>
+   * <li>2015-05-30 Hartmut new: {@link #copyDirTreeTo(FileRemote, int, String, int, FileRemoteCallback, FileRemoteProgressTimeOrder)} 
    * <li>2015-05-25 Hartmut new: {@link #clusterOfApplication}: There is a singleton, the {@link FileCluster}
    *   is not necessary as argument for {@link #fromFile(File)} especially to work more simple to use FileRemote
    *   capabilities for File operations.
@@ -737,6 +739,19 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
   }
   
   
+  /**Returns the instance which is associated to the given directory.
+   * @param path The directory path where the file is located, given absolute.
+   * @return A existing or new instance.
+   */
+  public static FileRemote getDir(CharSequence path){ return clusterOfApplication.getDir(path); }
+  
+ 
+  /**Returns the instance which is associated to the given directory and name.
+   * @param dir The directory path where the file is located, given absolute.
+   * @param name The name of the file.
+   * @return A existing or new instance.
+   */
+  public static FileRemote getFile(CharSequence dir, CharSequence name){ return clusterOfApplication.getFile(dir, name); }
   
  
   public FileRemoteAccessor device() { return device; }
@@ -999,6 +1014,32 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
   
   
   
+  /**Copies all files from this directory to dst which are selected by the given mask.
+   * This routine creates another thread usually which accesses the file system
+   * and invokes the callback routines if given. A longer access time does not influence this thread. 
+   * The result is given only if the {@link FileRemoteCallback#finished(FileRemote, org.vishia.util.SortedTreeWalkerCallback.Counters)}
+   * will be invoked. Elsewhere it works in the current thread.
+   * @param depth at least 1 for enter in the first directory. Use 0 if all levels should enter.
+   * @param mask a mask to select directory and files. See {@link org.vishia.util.PathCheck}, that is used.
+   * @param mark bits to select with mark alternatively 
+   * @param set or reset the bit.
+   * @param callbackUser a user instance which will be informed on start, any file, any directory and the finish.
+   *   If given then this routine works in an extra thread.
+   */
+  public void copyDirTreeTo(FileRemote dirDst, int depth, String mask, int mark, FileRemoteCallback callbackUser, FileRemoteProgressTimeOrder timeOrderProgress) { //FileRemote.CallbackEvent evCallback) { ////
+    if(device == null){
+      device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
+    FileRemoteCallbackCopy callbackCopy = new FileRemoteCallbackCopy(dirDst, callbackUser, timeOrderProgress);  //evCallback);
+    boolean bWait = callbackUser ==null; //wait if there is not a callback possibility.
+    boolean bRefreshChildren = false;
+    boolean bResetMark = false;
+    device.walkFileTreeCheck(this,  bWait, bRefreshChildren, bResetMark, mask, mark,  depth,  callbackCopy);  //should work in an extra thread.
+  }
+  
+  
+  
+  
   /**Sets this as a symbolic linked file or dir with the given path. 
    * 
    * This method is not intent to invoke from a users application. It should only invoked 
@@ -1074,6 +1115,25 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
       device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
     }
     return device.openInputStream(this, passPhrase);
+    
+  }
+  
+  
+  
+  
+  /**Opens a write access to this file.
+   * If the file is remote, this method should return immediately with a prepared stream functionality (depending from implementation).
+   * A communication with the remote device will be initiated to write.
+   * 
+   * 
+   * @param passPhrase a pass phrase if the access is secured.
+   * @return The byte input stream to access.
+   */
+  public OutputStream openOutputStream(long passPhrase){
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
+    return device.openOutputStream(this, passPhrase);
     
   }
   
@@ -2048,6 +2108,17 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
 
   }
   
+  
+  
+  public void XXXcopyTo(FileRemote dst, int mode){
+    if(device == null){
+      device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+    }
+    if(dst.device == null){
+      dst.device = getAccessorSelector().selectFileRemoteAccessor(dst.getAbsolutePath());
+    }
+  
+  }  
   
   
   

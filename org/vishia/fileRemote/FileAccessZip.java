@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.TreeMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipOutputStream;
 
 import org.vishia.event.EventCmdtypeWithBackEvent;
 import org.vishia.fileRemote.FileRemote.Cmd;
@@ -309,6 +311,33 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
 
 
   
+  /**Returns an opened InputStream with the Zip entry. It opens the ZipFile. The ZipFile will be closed
+   * when the InputStream.close() is invoked. Therefore the returned InputStream is wrapped with {@link FileZipInputStream}.
+   * Normally more as one InputStream can be used with one ZipFile. This routine creates a ZipFile instance 
+   * only for this one entry.
+   * @see org.vishia.fileRemote.FileRemoteAccessor#openInputStream(org.vishia.fileRemote.FileRemote, long)
+   */
+  @Override public OutputStream openOutputStream(FileRemote file, long passPhase){
+    FileZipData data = (FileZipData)file.oFile;
+    ///
+    try{ 
+      //if(data.zipFile == null){
+        //data.zipFile = new ZipFile(data.theFile);
+      //}
+      ZipFile fileZip = new ZipFile(data.theFile);
+      //OutputStream stream = fileZip.getOutputStream(data.zipEntry);
+      throw new IllegalArgumentException("FileAccessZip.openOutputStream - not supported yet.");
+      //FileZipOutputStream ret = new ZipOutputStream(stream, fileZip);
+      //return ret;
+    } catch(IOException exc){
+      return null;
+    }
+    
+  }
+  
+
+
+  
   
   @Override
   public WritableByteChannel openWrite(FileRemote file, long passPhase) {
@@ -408,5 +437,16 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
     
   }
   
+  
+  /**Routine for walk through all really files of the file system for PC file systems and Java7 or higher. 
+   * It calls {@link Files#walkFileTree(Path, Set, int, FileVisitor)} in an extra thread.
+   * defined in {@link FileRemoteAccessor#walkFileTree(FileRemote, boolean, boolean, boolean, String, long, int, FileRemoteCallback)} 
+   */
+  @Override public void walkFileTreeCheck(FileRemote startDir, final boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMask, long bMarkCheck, int depth, FileRemoteCallback callback)
+  {
+    //TODO
+  }
+  
+
   
 }

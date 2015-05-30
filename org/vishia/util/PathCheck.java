@@ -41,7 +41,7 @@ public class PathCheck
   /**Position in the sPath for this level.
    * 
    */
-  final int pos, end;
+  //final int pos, end;
   
   /**Start end end String of the name, null then no check. 
    * name.startsWith(start) && name.endswith(end) 
@@ -53,7 +53,7 @@ public class PathCheck
    * <tr><td>true <td>given<td>unused<td> name.equals(start) </tr>
    * </table>
    * */
-  final String start, sEnd;
+  final String left, mid, right;
   
   final boolean bEqu;
   
@@ -63,41 +63,51 @@ public class PathCheck
   
   final PathCheck next;
   
-  public PathCheck(String sPath){ this(sPath, null); }
+  public PathCheck(String sPath){ this(sPath, null, 0); }
   
   
-  private PathCheck(String sPath, PathCheck parent) {
+  private PathCheck(String sPath, PathCheck parent, int pos) {
     this.parent = parent; // != null && parent.bAllTree ? parent: null; 
-    int end1;
-    if(parent == null) {
-      pos = 0;
-      end1 = sPath.indexOf('/');
-    } else {
-      pos = parent.end +1;
-      end1 = sPath.indexOf('/', pos);
-    }
-    end = end1 < 0 ? sPath.length() : end1;
+    int end = sPath.indexOf('/', pos);
+    if(end < 0){ end = sPath.length(); }
     int asterisk = sPath.indexOf('*', pos);
     bEqu = asterisk < 0 || asterisk >= end;
     if(bEqu) {
       bAllTree = false;
-      start = sPath.substring(pos, end);
-      sEnd = null;
+      left = sPath.substring(pos, end);
+      mid = right = null;
     } else {
-      start = asterisk == pos ? null : sPath.substring(pos, asterisk);
-      if(asterisk == end-1 ) {
-        sEnd = null;
-        bAllTree = false;
-      } else if(sPath.charAt(asterisk+1) == '*'){
-        sEnd = sPath.substring(asterisk+2, end);
-        bAllTree = true;
+      left = asterisk == pos ? null : sPath.substring(pos, asterisk);  //string before asterisk
+      int asterisk2 = sPath.indexOf('*', asterisk + 2);
+      if(asterisk2 >= 0 && asterisk2 < end){
+        if(sPath.charAt(asterisk+1) == '*'){ //"**mid")
+          bAllTree = true;
+          mid = sPath.substring(asterisk +2, asterisk2);
+        } else {
+          bAllTree = false;
+          mid = sPath.substring(asterisk +1, asterisk2);
+        }
+        if(asterisk2 == end-1 ) {
+          right = null;
+        } else {
+          right = sPath.substring(asterisk+1, end);
+        }
       } else {
-        sEnd = sPath.substring(asterisk+1, end);
-        bAllTree = false;
+        mid = null;
+        if(asterisk == end-1 ) {
+          right = null;
+          bAllTree = false;
+        } else if(sPath.charAt(asterisk+1) == '*'){ //"**end"
+          right = asterisk+2 == end ? null : sPath.substring(asterisk+2, end);
+          bAllTree = true;
+        } else {
+          right = asterisk+1 == end ? null : sPath.substring(asterisk+1, end);
+          bAllTree = false;
+        }
       }
     }
     if(end < sPath.length()) {
-      next = new PathCheck(sPath, this);
+      next = new PathCheck(sPath, this, end+1);
     } else {
       next = null;
     }
@@ -113,10 +123,15 @@ public class PathCheck
    */
   PathCheck check(String name, boolean checkParent) {
     PathCheck check = null;
-    if(bEqu && name.equals(start)) check = this;
-    else if((start == null || name.startsWith(start)) && (sEnd == null || name.endsWith(sEnd))) { 
-      check = this;
+    int posMid;
+    if(bEqu && name.equals(left)) check = this;
+    else if((left == null || name.startsWith(left)) && (right == null || name.endsWith(right))
+        && (mid == null 
+        || (posMid = name.indexOf(mid)) >0 && posMid >= left.length() && (posMid + mid.length()) < (name.length() - right.length())) 
+        ) { 
+      check = bAllTree && next !=null ? next : this;  //on bAllTree check the next entry firstly, then the alltree-parent.
     } else if( checkParent && parent!= null && parent.bAllTree) {
+      //if check fails, but the parent is alltree, check that.
       check = parent.check(name, false);
     } else {
       check = null;
@@ -124,4 +139,14 @@ public class PathCheck
     return check;
   }
   
+  
+  @Override public String toString(){ 
+    StringBuilder u = new StringBuilder();
+    if(left !=null) u.append(left);
+    if(bAllTree) u.append("**");
+    else if(!bEqu) u.append('*');
+    if(mid !=null){ u.append(mid).append('*'); }
+    if(right !=null) u.append(right);
+    return u.toString();
+  }
 }

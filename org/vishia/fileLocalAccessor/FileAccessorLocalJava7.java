@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.FileVisitOption;
@@ -38,7 +39,6 @@ import org.vishia.fileRemote.FileRemoteCallback;
 import org.vishia.fileRemote.FileRemoteProgressTimeOrder;
 import org.vishia.util.Assert;
 import org.vishia.util.FileSystem;
-import org.vishia.util.PathCheck;
 import org.vishia.util.SortedTreeWalkerCallback;
 import org.vishia.util.TreeWalkerPathCheck;
 
@@ -371,6 +371,80 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
   
   
   
+  
+  /**Routine for walk through all really files of the file system for PC file systems and Java7 or higher. 
+   * It calls {@link Files#walkFileTree(Path, Set, int, FileVisitor)} in an extra thread.
+   * defined in {@link FileRemoteAccessor#walkFileTree(FileRemote, boolean, boolean, boolean, String, long, int, FileRemoteCallback)} 
+   */
+  @Override public void walkFileTreeCheck(FileRemote startDir, final boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMask, long bMarkCheck, int depth, FileRemoteCallback callback)
+  { if(bWait){
+      //execute it in this thread, therewith wait for success.
+      walkFileTreeCheckInThisThread(startDir, bRefreshChildren, resetMark, sMask, bMarkCheck, depth, callback);
+    } else {
+      //creates a new Thread with instance of FileWalkerThread for the run routine and the arguments saving:
+      FileRemoteAccessor.FileWalkerThread thread = new FileRemoteAccessor.FileWalkerThread(startDir, bRefreshChildren, resetMark, depth, sMask, bMarkCheck, callback) {
+        @Override public void run() {
+          try{
+            FileAccessorLocalJava7.this.walkFileTreeCheckInThisThread(startDir, bRefresh, resetMark, sMask, bMarkCheck, depth, callback);
+          } 
+          catch(Exception exc){
+            CharSequence text = Assert.exceptionInfo("FileAccessorLocalJava7 - RefreshThread Exception; ", exc, 0, 20, true);
+            System.err.println(text);
+          }
+        }
+      };
+      thread.start();
+    }
+  }
+
+
+  
+  
+  /**See {@link #walkFileTree(FileRemote, boolean, boolean, boolean, String, long, int, FileRemoteCallback)}, inner routine.
+   * @param startDir
+   * @param bRefreshChildren if true than gets all files in a directory and builds the {@link FileRemote#children()} newly.
+   * @param resetMark true than removes all mark bits in {@link FileRemote#mark}
+   * @param sMask selection mask.
+   * @param markMask Bit to be set to mark a file in its 
+   * @param depth Depth of walking through the directory tree. If <=0 then walk through all levels. >0 limited walk.
+   *   if <0 then only marked files and directories with {@link FileMark#select} or {@link FileMark#selectSomeInDir} 
+   *   in the first sub directory level are processed and checked. This is to handle pre-selected files of one level.
+   * @param callback invoked for any directory entry and finsih and for any file.
+   */
+  private void walkFileTreeCheckInThisThread(FileRemote startDir, boolean bRefreshChildren, boolean resetMark, String sMask, long bMarkCheck, int depth, FileRemoteCallback callback)
+  {
+    //The visitor implementation is the most important data struct for this routine. Create it firstly.
+    WalkFileTreeVisitorCheck visitor = new WalkFileTreeVisitorCheck(startDir.itsCluster, bRefreshChildren, resetMark, sMask
+        , bMarkCheck, callback);
+    if(callback !=null) { callback.start(startDir); }
+    String sPath = startDir.getAbsolutePath();
+    if(FileSystem.isRoot(sPath))
+      Assert.stop();
+    Path pathdir = Paths.get(sPath);
+    if(bRefreshChildren) { // && filter == null) {
+      startDir.internalAccess().newChildren();
+    }
+    int depth1;
+    if(depth ==0){ depth1 = Integer.MAX_VALUE; }
+    else if(depth < 0){ depth1 = -depth; }
+    else { depth1 = depth; }
+
+    Set<FileVisitOption> options = new TreeSet<FileVisitOption>();
+    try{ 
+      //This is the internal java.nio.file.Files-routine which accesses the operation system.
+      //To debug it set breakpoints in the routines of the WalkFileTreeVisitorCheck.
+      Files.walkFileTree(pathdir, options, depth1, visitor);  
+    } catch(IOException exc){
+      System.err.println("FileAccessorLocalData.walkFileTree - unexpected IOException; " + exc.getMessage() );
+    }
+    if(callback !=null) { callback.finished(startDir, visitor.cntTotal); }
+    
+  }
+  
+  
+  
+  
+  
   @Override public boolean setLastModified(FileRemote file, long time)
   { File ffile = (File)file.oFile();
     if(ffile !=null){ return ffile.setLastModified(time); }
@@ -401,11 +475,24 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
   }
   
 
+  @Override public OutputStream openOutputStream(FileRemote file, long passPhase){
+    try{ 
+      FileSystem.mkDirPath(file);
+      FileOutputStream stream = new FileOutputStream(file);
+      return stream;
+    } catch(FileNotFoundException exc){
+      return null;
+    }
+    
+  }
+  
+
   
   @Override public WritableByteChannel openWrite(FileRemote file, long passPhase)
   { try{ 
-    FileOutputStream stream = new FileOutputStream(file);
-    return stream.getChannel();
+      FileSystem.mkDirPath(file);
+      FileOutputStream stream = new FileOutputStream(file);
+      return stream.getChannel();
     } catch(FileNotFoundException exc){
       return null;
     }
@@ -1094,7 +1181,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
       
       int levelProcessMarked;
       
-      PathCheck pathCheck;
+      //PathCheck pathCheck;
       
       /**parallel structure of all children.
        * The child entries are gotten from the dir via {@link FileCluster#getFile(CharSequence, CharSequence, boolean)}. It means, existing children
@@ -1130,7 +1217,9 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
     
     final FileRemoteCallback.Counters cntTotal = new FileRemoteCallback.Counters();
     
-    final TreeWalkerPathCheck<FileRemote> checker;
+    final TreeWalkerPathCheck checker;
+    
+    FileRemoteCallback callback;
     
     /**Constructs the instance.
      * @param fileCluster The cluster where all FileRemote are able to found by its path.
@@ -1151,8 +1240,8 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
       this.refresh = refreshChildren;
       this.resetMark = resetMark;
       this.markCheck = (int)(bMarkCheck & 0xffffffff);
-      this.checker = new TreeWalkerPathCheck<>(callback, sMask);
-      //this.callback = callback;
+      this.checker = new TreeWalkerPathCheck(sMask);
+      this.callback = callback;
       curr = new CurrDirChildren(null, null);  //starts without parent.
       curr.levelProcessMarked = (int)(bMarkCheck >>32); // levelProcessMarked;
       reset();
@@ -1184,6 +1273,10 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
     {
       Path namepath = dir.getFileName();
       String name = namepath == null ? "/" : namepath.toString();
+      SortedTreeWalkerCallback.Result result;
+      if( checker !=null && (result = checker.offerParentNode(name)) != SortedTreeWalkerCallback.Result.cont) {
+        return translateResult(result);  //usual skipSubtree.
+      }
       CharSequence cPath = FileSystem.normalizePath(dir.toString());
       FileRemote dir1 = fileCluster.getDir(cPath);
       if(curr.levelProcessMarked ==1 && (dir1.getMark() & markCheck)==0) {  //If it is the check level, check directories too.
@@ -1197,11 +1290,9 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
           dir1.internalAccess().clrFlagBit(FileRemote.mRefreshChildPending);
           //curr.children.put(name, dir1);
         }
-        PathCheck[] checkRet = new PathCheck[1];
-        SortedTreeWalkerCallback.Result result = checker.offerParentNode(dir1, curr.pathCheck, checkRet);
+        result = callback.offerParentNode(dir1);
         if(result == SortedTreeWalkerCallback.Result.cont){
           curr = new CurrDirChildren(dir1, curr);
-          curr.pathCheck = checkRet[0];
           if(debugout) System.out.println("FileRemoteAccessorLocalJava7 - callback - pre dir; " + curr.dir.getAbsolutePath());
         } else {
           if(debugout) System.out.println("FileRemoteAccessorLocalJava7 - callback - pre dir don't entry; " + curr.dir.getAbsolutePath());
@@ -1221,9 +1312,10 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
         if(curr.parent !=null) { curr.parent.cnt.nrofParentSelected +=1; }
         cntTotal.nrofParentSelected +=1;
       }
-      PathCheck[] checkRet = new PathCheck[1];
-
-      FileRemoteCallback.Result result = checker.finishedParentNode(curr.dir, curr.cnt, curr.pathCheck, checkRet) ;
+      if( checker !=null) {
+        checker.finishedParentNode(curr.dir.getName(), curr.cnt) ;
+      }
+      FileRemoteCallback.Result result = callback.finishedParentNode(curr.dir, curr.cnt) ;
       if(refresh){  
         //curr.dir.internalAccess().setChildren(curr.children);  //Replace the map.
         curr.dir.timeChildren = System.currentTimeMillis();
@@ -1247,56 +1339,63 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
         throws IOException
     {
       String name = file.getFileName().toString();
-      if(debugout) System.out.println("FileRemoteAccessorLocalJava7 - callback - file; " + name);
-      FileRemote fileRemote;
-      if(attrs.isDirectory()) { 
-        curr.cnt.nrofParents +=1; 
-        cntTotal.nrofParents +=1;
-      } else { 
-        curr.cnt.nrofLeafss +=1; 
-        cntTotal.nrofLeafss +=1;
+      if(checker !=null && checker.offerLeafNode(name) != SortedTreeWalkerCallback.Result.cont) {
+        return FileVisitResult.CONTINUE;  //continue but do nothing with the file, no effort for a FileRemote instance.
       }
-      if(curr.dir !=null) { 
-        if(attrs.isDirectory()) { 
-          fileRemote = curr.dir.subdir(name);
-        } else {
-          fileRemote = curr.dir.child(name);
+      else {
+        if(debugout) System.out.println("FileRemoteAccessorLocalJava7 - callback - file; " + name);
+        FileRemote fileRemote;
+        if(attrs.isDirectory()) { //only if the depth is reached, don't use it. 
+          curr.cnt.nrofParents +=1; 
+          cntTotal.nrofParents +=1;
+        } else { 
+          curr.cnt.nrofLeafss +=1; 
+          cntTotal.nrofLeafss +=1;
         }
-      } else {
-        java.nio.file.FileSystem dir1 = file.getFileSystem();
-        //dir1.
-        String sDir = file.getParent().toString();
-        fileRemote = fileCluster.getFile(sDir, name);
-      }
-      if(curr.levelProcessMarked >0 && (fileRemote.getMark() & markCheck)==0) {
-        return FileVisitResult.CONTINUE;  //but does nothing with the file.      
-      } else {
-        if(resetMark){ 
-          fileRemote.resetMarked(0xffffffff); }
-        setAttributes(fileRemote, file, attrs);
-        long size = attrs.size();
-        FileRemoteCallback.Result result;
-        if(checker.shouldAborted()){
-          result = SortedTreeWalkerCallback.Result.terminate;
-        } else {
-          if(refresh){
-            //if(curr.children !=null) { curr.children.put(name, fileRemote); }
-            fileRemote.internalAccess().clrFlagBit(FileRemote.mRefreshChildPending);
-            fileRemote.internalAccess().setRefreshed();
-    
-          }
+        if(curr.dir !=null) { 
           if(attrs.isDirectory()) { 
-            curr.cnt.nrofParentSelected +=1; 
-            cntTotal.nrofParentSelected +=1;
-          } else { 
-            curr.cnt.nrofLeafSelected +=1; 
-            cntTotal.nrofLeafSelected +=1;
+            fileRemote = curr.dir.subdir(name);
+          } else {
+            fileRemote = curr.dir.child(name);
           }
-          curr.cnt.nrofBytes += size;
-          cntTotal.nrofBytes += size;
-          result = checker.offerLeafNode(fileRemote, curr.pathCheck);
+        } else {
+          java.nio.file.FileSystem dir1 = file.getFileSystem();
+          //dir1.
+          String sDir = file.getParent().toString();
+          fileRemote = fileCluster.getFile(sDir, name);
         }
-        return translateResult(result);
+        if(curr.levelProcessMarked >0 && (fileRemote.getMark() & markCheck)==0) {
+          //Only marked files should be processed but this file is not marked:
+          //do nothing with the file, but continue:
+          return FileVisitResult.CONTINUE;      
+        } else {
+          if(resetMark){ 
+            fileRemote.resetMarked(0xffffffff); }
+          setAttributes(fileRemote, file, attrs);
+          long size = attrs.size();
+          FileRemoteCallback.Result result;
+          if(callback.shouldAborted()){
+            //only if a manual abort comes from the callback.
+            result = SortedTreeWalkerCallback.Result.terminate;
+          } else {
+            if(refresh){
+              //if(curr.children !=null) { curr.children.put(name, fileRemote); }
+              fileRemote.internalAccess().clrFlagBit(FileRemote.mRefreshChildPending);
+              fileRemote.internalAccess().setRefreshed();
+            }
+            if(attrs.isDirectory()) { 
+              curr.cnt.nrofParentSelected +=1; 
+              cntTotal.nrofParentSelected +=1;
+            } else { 
+              curr.cnt.nrofLeafSelected +=1; 
+              cntTotal.nrofLeafSelected +=1;
+            }
+            curr.cnt.nrofBytes += size;
+            cntTotal.nrofBytes += size;
+            result = callback.offerLeafNode(fileRemote);
+          }
+          return translateResult(result);
+        }
       }
     }
 

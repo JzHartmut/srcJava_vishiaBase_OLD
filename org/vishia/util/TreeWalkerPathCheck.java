@@ -1,13 +1,11 @@
 package org.vishia.util;
 
-import org.vishia.util.SortedTreeWalkerCallback.Result;
-
 /**This class is a tree walker which checks the names of nodes with a mask path.
  * @author Hartmut Schorrig
  *
  * @param <Type>
  */
-public class TreeWalkerPathCheck<Type extends TreeNodeNamed_ifc>
+public class TreeWalkerPathCheck implements SortedTreeWalkerCallback<String>
 {
   /**Version, history and license.
    * <ul>
@@ -40,52 +38,121 @@ public class TreeWalkerPathCheck<Type extends TreeNodeNamed_ifc>
    */
   public static final String sVersion = "2015-05-25";
 
-  final SortedTreeWalkerCallback<Type> callback;
+  
+  
+  /**This class contains the number of files etc. for callback.
+   * @author hartmut
+   *
+   */
+  public static class Counters
+  { /**Any number of internal data. */
+    public long nrofBytes;
+    
+    /**Number of parent nodes and number of leaf nodes which are processed. */
+    public int nrofParents, nrofLeafss;
+  
+    /**Number of parent nodes and number of leaf nodes which are selected. */
+    public int nrofParentSelected, nrofLeafSelected;
+    
+    public void clear(){ nrofBytes = 0; nrofParents = nrofLeafss = nrofParentSelected = nrofLeafSelected = 0; }
+    
+  }
+  
+
+  
+  /**Data chained from a first parent to deepness of dir tree for each level.
+   * This data are created while {@link FileAccessorLocalJava7#walkFileTree(FileRemote, FileFilter, int, FileRemoteCallback)} runs.
+   * It holds the gathered children from the walker. The children are stored inside the {@link #dir}
+   * only on {@link WalkFileTreeVisitor#postVisitDirectory(Path, IOException)}
+   */
+  private class CurrDirChildren{
+    /**The directory of the level. */
+    String dir;
+    
+    final Counters cnt = new Counters();
+    
+    int levelProcessMarked;
+    
+    PathCheck pathCheck;
+    
+    /**parallel structure of all children.
+     * The child entries are gotten from the dir via {@link FileCluster#getFile(CharSequence, CharSequence, boolean)}. It means, existing children
+     * are gotten from the existing {@link FileRemote} instances. They are written in this map while walking through the directory.
+     * After walking, in {@link WalkFileTreeVisitor#postVisitDirectory(Path, IOException)}, the {@link #dir}.{@link FileRemote#children()}
+     * are replaced by this instance because it contains only existing children. {@link FileRemote} instances for non existing children are removed then.
+     */
+    //Map<String,FileRemote> children;
+    /**The parent. null on first parent. */
+    CurrDirChildren parent;
+    
+    CurrDirChildren(String dir, PathCheck check, CurrDirChildren parent){
+      this.dir = dir; this.parent = parent; this.pathCheck = check;
+      this.levelProcessMarked = (parent == null) ? 0: parent.levelProcessMarked -1;
+    }
+    
+    @Override public String toString(){ return dir + ": " + pathCheck; }
+  }
+
+  
+  
+  //final SortedTreeWalkerCallback<Type> callback;
   
   final PathCheck check;
   
-  public TreeWalkerPathCheck(SortedTreeWalkerCallback<Type> callback, String sPathCheck) {
-    this.callback = callback;
+  private CurrDirChildren curr;
+
+  
+  public TreeWalkerPathCheck(String sPathCheck) {
+    //this.callback = callback;
     this.check = new PathCheck(sPathCheck);
   }
   
-  public void start(Type startNode){ callback.start(startNode); }
+  public void start(String startNode){ } //callback.start(startNode); }
 
-  public SortedTreeWalkerCallback.Result offerParentNode(Type node, PathCheck check, PathCheck[] checkRet)
+  public SortedTreeWalkerCallback.Result offerParentNode(String sName)
   {
-    String sName = node.getName();
-    PathCheck use =  check == null ? this.check : check;
+    //String sName = node instanceof TreeNodeNamed_ifc ? ((TreeNodeNamed_ifc)node).getName() : node.toString();
+    PathCheck use;
+    if(curr != null){ use = curr.pathCheck; }
+    else { use = this.check; }  //the first level.
     PathCheck ret = use.check(sName, true);
-    checkRet[0] = ret;
     if(ret == null){ return Result.skipSubtree; }
-    else return callback.offerParentNode(node);
+    else {
+      curr = new CurrDirChildren(sName, ret, curr);
+      return Result.cont; //callback.offerParentNode(node);
+    }
   }
 
-  public org.vishia.util.SortedTreeWalkerCallback.Result finishedParentNode(Type parentNode,
-      org.vishia.util.SortedTreeWalkerCallback.Counters cnt, PathCheck check, PathCheck[] checkRet)
+  
+  
+  public SortedTreeWalkerCallback.Result finishedParentNode(String parentNode,
+      org.vishia.util.SortedTreeWalkerCallback.Counters cnt)
   {
-    checkRet[0] = check.bAllTree ? check : check.parent;
-    return callback.finishedParentNode(parentNode, cnt);
+    //checkRet[0] = check.bAllTree ? check : check.parent;
+    curr = curr.parent;
+    return Result.cont; //callback.finishedParentNode(parentNode, cnt);
   }
 
-  public org.vishia.util.SortedTreeWalkerCallback.Result offerLeafNode(Type leafNode, PathCheck check)
+  public SortedTreeWalkerCallback.Result offerLeafNode(String sName)
   {
-    String sName = leafNode.getName();
-    PathCheck use =  check == null ? this.check : check;
+    //String sName = leafNode instanceof TreeNodeNamed_ifc ? ((TreeNodeNamed_ifc)leafNode).getName() : leafNode.toString();;
+    assert(curr !=null);  //it is set in offerParentNode
+    PathCheck use =  curr.pathCheck;
     PathCheck ret = use.next !=null ? null : use.check(sName, false); //it should be the last.
     if(ret == null){ return Result.skipSubtree; }
-    else return callback.offerLeafNode(leafNode);
+    else return Result.cont; //callback.offerLeafNode(leafNode);
   }
 
-  public void finished(Type startNode, org.vishia.util.SortedTreeWalkerCallback.Counters cnt)
+  public void finished(String startNode, org.vishia.util.SortedTreeWalkerCallback.Counters cnt)
   {
-    callback.finished(startNode, cnt);
+    //callback.finished(startNode, cnt);
     
   }
 
   public boolean shouldAborted()
   {
-    return callback.shouldAborted();
+    return false;
+    //return callback.shouldAborted();
   }
   
 }

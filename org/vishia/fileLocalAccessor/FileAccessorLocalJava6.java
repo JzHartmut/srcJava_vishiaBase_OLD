@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.EventObject;
@@ -308,6 +309,17 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
     return result;  //maybe terminate
   }
 
+
+  
+  /**Routine for walk through all really files of the file system for PC file systems and Java7 or higher. 
+   * It calls {@link Files#walkFileTree(Path, Set, int, FileVisitor)} in an extra thread.
+   * defined in {@link FileRemoteAccessor#walkFileTree(FileRemote, boolean, boolean, boolean, String, long, int, FileRemoteCallback)} 
+   */
+  @Override public void walkFileTreeCheck(FileRemote startDir, final boolean bWait, boolean bRefreshChildren, boolean resetMark, String sMask, long bMarkCheck, int depth, FileRemoteCallback callback)
+  {
+    //TODO
+  }
+  
   
   @Override public boolean setLastModified(FileRemote file, long time)
   { File ffile = (File)file.oFile();
@@ -339,7 +351,18 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
   }
   
 
+  @Override public OutputStream openOutputStream(FileRemote file, long passPhase){
+    try{ 
+      FileOutputStream stream = new FileOutputStream(file);
+      return stream;
+    } catch(FileNotFoundException exc){
+      return null;
+    }
+    
+  }
   
+
+
   @Override public WritableByteChannel openWrite(FileRemote file, long passPhase)
   { try{ 
     FileOutputStream stream = new FileOutputStream(file);

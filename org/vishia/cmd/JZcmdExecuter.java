@@ -36,7 +36,9 @@ import javax.script.ScriptException;
 
 
 
+
 import org.vishia.cmd.CmdExecuter;
+import org.vishia.fileRemote.FileRemote;
 import org.vishia.mainCmd.MainCmd;
 import org.vishia.mainCmd.MainCmdLoggingStream;
 import org.vishia.mainCmd.MainCmdLogging_ifc;
@@ -391,8 +393,9 @@ public class JZcmdExecuter {
       bAccessPrivate = accessPrivate;
       try{
         if(sCurrdirArg == null && scriptLevel.currdir == null){
-          //get from the JVM environment respecitvely from the operation system.
+          //get from the JVM environment respectively from the operation system.
           scriptLevel.currdir = new File("").getAbsoluteFile();  
+          scriptLevel.sCurrdir = FileSystem.getCanonicalPath(scriptLevel.currdir);
         } else if(sCurrdirArg !=null) {
           scriptLevel.changeCurrDir(sCurrdirArg);
         }
@@ -763,6 +766,10 @@ public class JZcmdExecuter {
      * Note that a Unix-canonical path have to resolved symbolic links. */
     public File currdir;
     
+    /**The current directory of this level. It is an absolute normalized but not Unix-canonical path. 
+     * Note that a Unix-canonical path have to resolved symbolic links. */
+    String sCurrdir;
+    
     /**Flag, write error in the current output if set to true. */
     public boolean bWriteErrorInOutput;
     
@@ -806,6 +813,7 @@ public class JZcmdExecuter {
       this.threadData = threadData;
       if(parent !=null) {
         this.currdir = parent.currdir;
+        this.sCurrdir = parent.sCurrdir;
       }
       localVariables = acc.new_Variables();
       if(parentVariables != null) {
@@ -2009,7 +2017,8 @@ public class JZcmdExecuter {
         sCurrdir.append(currdir.getPath()).append('/').append(arg);
         arg1 = FileSystem.normalizePath(sCurrdir);
       }
-      this.currdir = new File(arg1.toString());
+      this.sCurrdir = arg1.toString();
+      this.currdir = new File(this.sCurrdir);
       if(!currdir.exists() || !currdir.isDirectory()){
         throw new IllegalArgumentException("JZcmdExecuter - cd, dir not exists; " + arg);
       }
@@ -2078,26 +2087,48 @@ public class JZcmdExecuter {
     
     void executeCopy(JZcmdScript.FileOpArg statement) 
     throws Exception
-    { File src, dst;
+    { String ssrc, sdst;
       Object osrc = evalObject(statement.src, false);
       if(osrc instanceof JZcmdFilepath){
-        src = new File(((JZcmdFilepath)osrc).absfile().toString());
+        ssrc = ((JZcmdFilepath)osrc).absfile().toString();
       } else {
-        String s1 = osrc.toString();
-        src = FileSystem.isAbsolutePath(s1) ? new File(s1.toString()) : new File(currdir, s1.toString());
+        ssrc = osrc.toString();
       }
       Object odst = evalObject(statement.dst, false);
       if(odst instanceof JZcmdFilepath){
-        dst = new File(((JZcmdFilepath)odst).absfile().toString());
+        sdst = ((JZcmdFilepath)odst).absfile().toString();
       } else {
-        String s2 = odst.toString();
-        dst = FileSystem.isAbsolutePath(s2) ? new File(s2.toString()) : new File(currdir, s2.toString());
+        sdst = odst.toString();
       }
-      //CharSequence s1 = evalString(statement.actualArgs.get(0));
-      //CharSequence s2 = evalString(statement.actualArgs.get(1));
-      int nrofBytes = FileSystem.copyFile(src, dst, statement.bNewTimestamp, statement.bOverwrite, statement.bOverwriteReadonly);
-      if(nrofBytes <0) throw new FileNotFoundException("JbatchExecuter - copy src not found; " + src.getAbsolutePath() + " to " + dst.getAbsolutePath());;
+      int posWildcard = ssrc.indexOf('*');
+      if(posWildcard>=0) {
+        int posSep = ssrc.lastIndexOf('/', posWildcard);
+        String sDirSrc = ssrc.substring(0, posSep);
+        if(!FileSystem.isAbsolutePath(sDirSrc)){
+          sDirSrc = sCurrdir + '/' + sDirSrc;
+        }
+        if(!FileSystem.isAbsolutePath(sdst)){
+          sdst = sCurrdir + '/' + sdst;
+        }
+        String sMask = ssrc.substring(posSep +1);
+        FileRemote dirSrc = FileRemote.getDir(sDirSrc);
+        FileRemote dirDst = FileRemote.getDir(sdst);
+        //====>
+        dirSrc.copyDirTreeTo(dirDst, 0, sMask, 0, null, null);
+        //
+      } else {
+        File src = FileSystem.isAbsolutePath(ssrc) ? new File(ssrc.toString()) : new File(currdir, ssrc.toString());
+        File dst = FileSystem.isAbsolutePath(sdst) ? new File(sdst.toString()) : new File(currdir, sdst.toString());
+        
+        //CharSequence s1 = evalString(statement.actualArgs.get(0));
+        //CharSequence s2 = evalString(statement.actualArgs.get(1));
+        int nrofBytes = FileSystem.copyFile(src, dst, statement.bNewTimestamp, statement.bOverwrite, statement.bOverwriteReadonly);
+        if(nrofBytes <0) throw new FileNotFoundException("JbatchExecuter - copy src not found; " + src.getAbsolutePath() + " to " + dst.getAbsolutePath());
+      }
     }
+    
+    
+    
     
     void executeDelete(JZcmdScript.FileOpArg statement) 
     throws Exception

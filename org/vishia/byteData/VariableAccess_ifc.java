@@ -174,6 +174,10 @@ public interface VariableAccess_ifc
    */
   void requestValue(long timeRequested, Runnable run);
   
+  /**Returns true if the request is newer than the last refresh.
+   * @param retryFaultyVariables A variable which is set to invalid is requested though.
+   * @return true if a new value should be gotten from target.
+   */
   boolean isRequestedValue(boolean retryFaultyVariables);
   //boolean requestValueFromTarget(long timeRequested, boolean retryDisabledVariable);  
 
