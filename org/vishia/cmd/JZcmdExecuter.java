@@ -90,6 +90,9 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-06-04 Hartmut bugfix and improve: in {@link ExecuteLevel#executeText(org.vishia.cmd.JZcmdScript.JZcmditem, Appendable, int)}:
+   *   The processing of insertion characters was not according to the description. It is fixed, enhanced and described. 
+   *   Now '+++' and '===' are possible as insertion text marking characters too.
    * <li>2015-05-24 Hartmut chg: copy, move, del with options, uses {@link FileOpArg} 
    * <li>2015-05-23 Hartmut new: {@link JZcmd#getstdin()} 
    * <li>2015-05-23 Hartmut chg: Divide the class JZcmdExecuter in a part which is available for execution:
@@ -248,6 +251,8 @@ public class JZcmdExecuter {
     public final MainCmdLogging_ifc log;
     /**The newline char sequence. */
     String newline = "\r\n";
+    /**The width or size of a tab in the script file is used for detect and ignore tab indentation in the script. */ 
+    int tabsize = 4;
     /**Used for formatting Numbers. 
      * Problem in Germany: The numbers are written with , instead with a decimal point. 
      * Using Locale.ENGLISH produces the well used decimal point.
@@ -663,7 +668,8 @@ public class JZcmdExecuter {
       if(acc.scriptThread.exception instanceof ScriptException){
         throw (ScriptException)acc.scriptThread.exception; 
       } else {
-        throw new ScriptException(acc.scriptThread.exception.toString(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
+        CharSequence text = Assert.exceptionInfo("Exception in the script, ", acc.scriptThread.exception, 0, 20);
+        throw new ScriptException(text.toString(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
       }
     }
   }
@@ -960,8 +966,8 @@ public class JZcmdExecuter {
           case '!': out.flush();  break;   //<.n+>
           case '_': out.close();  out = null; break;   //<.n+>
           case '\\': out.append(statement.textArg);  break;   //<:n> transcription
-          case 'T': ret = textAppendToVar((JZcmdScript.TextOut)statement, --nDebug1); break; //<+text>...<.+> 
-          case ':': ret = textAppendToOut(statement, out, --nDebug1); break; //<+text>...<.+> 
+          case 'T': ret = exec_TextAppendToVar((JZcmdScript.TextOut)statement, --nDebug1); break; //<+text>...<.+> 
+          case ':': ret = exec_TextAppendToOut(statement, out, --nDebug1); break; //<+text>...<.+> 
           case 'A': break;  //used for Argument
           //case 'X': break;  //unused for dataStruct in Argument
           case 'U': ret = defineExpr(newVariables, (JZcmdScript.DefVariable)statement); break; //setStringVariable(statement); break; 
@@ -1141,6 +1147,12 @@ public class JZcmdExecuter {
     }
     
     
+    /**Outputs the given text
+     * @param statement contains the text
+     * @param out out channel to append
+     * @param indentOut Number of characters in a new line which are skipped from begin. Indentation in the script, no indentation in outputted text
+     * @throws IOException
+     */
     void executeText(JZcmdScript.JZcmditem statement, Appendable out, int indentOut) throws IOException{
       int posLine = 0;
       int posEnd1, posEnd2;
@@ -1150,7 +1162,7 @@ public class JZcmdExecuter {
       do{
         char cEnd = '\n';  
         posEnd1 = statement.textArg.indexOf(cEnd, posLine);
-        posEnd2 = statement.textArg.indexOf('\r', posLine);
+        posEnd2 = statement.textArg.indexOf('\r', posLine);   //a \r\n (Windows standard) or only \r (Macintosh standard) in the script is the end of line too.
         if(posEnd2 >= 0 && (posEnd2 < posEnd1 || posEnd1 <0)){
           posEnd1 = posEnd2;  // \r found before \n
           cEnd = '\r';
@@ -1160,17 +1172,30 @@ public class JZcmdExecuter {
           out.append(acc.newline);  //The newline of JZcmd invocation.
           //skip over posEnd1, skip over the other end line character if found. 
           if(++posEnd1 < zText){
-            if(cEnd == '\r'){ if(statement.textArg.charAt(posEnd1)=='\n'){ posEnd1 +=1; }}
-            else            { if(statement.textArg.charAt(posEnd1)=='\r'){ posEnd1 +=1; }}
+            if(cEnd == '\r'){ if(statement.textArg.charAt(posEnd1)=='\n'){ posEnd1 +=1; }}  //skip over both \r\n
+            else            { if(statement.textArg.charAt(posEnd1)=='\r'){ posEnd1 +=1; }}  //skip over both \n\r
             //posEnd1 refers the start of the next line.
             int indentCt = indentOut;
             char cc;
             while(indentCt > 0 && posEnd1 < zText && ((cc = statement.textArg.charAt(posEnd1)) == ' ' || cc == '\t')) {
-              posEnd1 +=1; //skip over all indentation chars
-              indentCt -=1;
+              if(cc == '\t'){
+                indentCt -= acc.tabsize;
+                  if(indentCt >= 0) { //skip over '\t' only if matches to the indent.
+                  posEnd1 +=1;
+                }
+              } else {
+                posEnd1 +=1; //skip over all indentation chars
+                indentCt -=1;
+              }
             }
-            while(--indentCt >= 0 && posEnd1 < zText && (cc = statement.textArg.charAt(posEnd1)) == ':') {
-              posEnd1 +=1; //skip over all ::: as indentation chars  
+            if(indentCt >0 && posEnd1 < zText){ //skip over all ::: which starts before indentation point in script:
+              cc = statement.textArg.charAt(posEnd1);  
+              if(":+=".indexOf(cc)>=0){  //skip over chars +++ ::: === which starts before indentation point.
+                posEnd1 +=1;
+                while(posEnd1 < zText && statement.textArg.charAt(posEnd1) == cc) { //skip over all equal chars +++ === or :::
+                  posEnd1 +=1; //skip over all ::: as indentation chars  
+                }
+              }
             }
             //line starts after :::: which starts before indentation end
             //or line starts after first char which is not a space or tab
@@ -1426,19 +1451,19 @@ public class JZcmdExecuter {
     
     
     
-    /**Invocation for <+name>text<.+>.
+    /**Invocation for <:>text<.+>.
      * It gets the Appendable from the assign variable
-     * and executes {@link #execute(org.vishia.cmd.JZcmdScript.StatementList, Appendable, boolean)}
-     * with it.
+     * and executes {@link #execute(JZcmdScript.StatementList, StringFormatter, int, Map, int)}
+     * with it. The arg 'indentOutArg' is set from the {@link JZcmdScript.JZcmditem#srcColumn} of the statement. 
      * @param statement the statement
      * @throws Exception 
      */
-    short textAppendToOut(JZcmdScript.JZcmditem statement, StringFormatter out, int nDebug) throws Exception
+    short exec_TextAppendToOut(JZcmdScript.JZcmditem statement, StringFormatter out, int nDebug) throws Exception
     { short ret;
       if(statement.statementlist !=null){
         //executes the statement, use the Appendable to output immediately
         synchronized(out){
-          ret = execute(statement.statementlist, out, statement.srcColumn, localVariables, nDebug);
+          ret = execute(statement.statementlist, out, statement.srcColumn-1, localVariables, nDebug);
         }
       } else {
         //Any other text expression
@@ -1465,12 +1490,12 @@ public class JZcmdExecuter {
     
     /**Invocation for <+name>text<.+>.
      * It gets the Appendable from the assign variable
-     * and executes {@link #execute(org.vishia.cmd.JZcmdScript.StatementList, Appendable, boolean)}
-     * with it.
+     * and executes {@link #execute(JZcmdScript.StatementList, StringFormatter, int, Map, int)}
+     * with it. The arg 'indentOutArg' is set from the {@link JZcmdScript.JZcmditem#srcColumn} of the statement. 
      * @param statement the statement
      * @throws Exception 
      */
-    short textAppendToVar(JZcmdScript.TextOut statement, int nDebug) throws Exception
+    short exec_TextAppendToVar(JZcmdScript.TextOut statement, int nDebug) throws Exception
     { StringFormatter out1;
       //boolean bShouldClose;
       short ret;
@@ -1508,7 +1533,7 @@ public class JZcmdExecuter {
       if(statement.statementlist !=null){
         //executes the statement, use the Appendable to output immediately
         synchronized(out1){
-          ret = execute(statement.statementlist, out1, statement.srcColumn, localVariables, nDebug);
+          ret = execute(statement.statementlist, out1, statement.srcColumn-1, localVariables, nDebug);
         }
       } else {
         //Any other text expression

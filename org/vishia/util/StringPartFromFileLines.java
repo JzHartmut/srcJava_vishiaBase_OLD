@@ -39,6 +39,7 @@ public class StringPartFromFileLines extends StringPartScan
   /**Version, history and license.
    * list of changes:
    * <ul>
+   * <li>2015-06-07 Hartmut chg: {@link #getLineAndColumn(int[])}: column counts from 1 on leftest position.
    * <li>2014-05-22 Hartmut new: {@link #setInputfile(String)} invoked with input file 
    * <li>2014-04-22 Hartmut chg: improved line numbers 
    * <li>2012-12-22 Hartmut chg: close() the file in constructor if the whole file was read.
@@ -218,6 +219,15 @@ public class StringPartFromFileLines extends StringPartScan
   }
 
   
+  /**Returns the line and column of the current position.
+   * The line comes from an array which stores all start positions of the line, filled if the line is used.
+   * The conversion between the position (used internally) and the line (only for user interface)
+   * is done by binarySearch in this array. The array will be increased by demand. It is a {@link IntegerBlockArray}
+   * which uses blocks of a constant size.
+   * @param column The leftest position in a line is 1, like usual in editors.
+   * @return line, 1 is the first line.
+   * @see org.vishia.util.StringPart#getLineAndColumn(int[])
+   */
   @Override public int getLineAndColumn(int[] column){ 
     int line = linePositions.binarySearch(this.begin, maxIxLinePosition); 
     if(line <0){ 
@@ -228,7 +238,7 @@ public class StringPartFromFileLines extends StringPartScan
     } 
     if(column !=null){
       int posLineStart = linePositions.get(line);
-      column[0] = this.begin - posLineStart; 
+      column[0] = this.begin - posLineStart +1; 
     }
     return line;
   }

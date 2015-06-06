@@ -2157,8 +2157,9 @@ else return pos - begin;
   
   /**Get the Line number and the column of the begin position. 
    * Note: it returns null in this class, may be overridden.
-   * @param column if given, it should be an int[1]. Then the column is written into.
-   * @return Number of last read line.
+   * @param column if given, it should be an int[1]. Then the column is written into. The leftest position is 1
+   * @return line of the begin position if given, starting with 1 for the first line. 
+   *   This basic implementation returns 0 for the line and left the column unchanged. 
    */
   public int getLineAndColumn(int[] column){ return 0; }
 

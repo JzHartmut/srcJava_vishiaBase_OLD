@@ -340,6 +340,9 @@ public class JZcmdScript extends CompiledScript
       if(srcFile !=null && !srcFile.equals("")){
         Debugutil.stop();
       }
+      if(line == 388 ){ //&& column == 18){
+        Debugutil.stop();
+      }
       srcLine = line; srcColumn = column; srcFile = sFile; 
     }
 
@@ -1904,7 +1907,7 @@ public class JZcmdScript extends CompiledScript
 
     
     @Override public void setLineColumnFile(int line, int column, String sFile){
-      srcLine = line; indentText = column; srcFile = sFile; 
+      srcLine = line; indentText = column -1; srcFile = sFile; 
     }
 
     /**Returns wheter only the line or only the column should be set.

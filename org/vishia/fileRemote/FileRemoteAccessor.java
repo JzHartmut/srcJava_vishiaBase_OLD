@@ -22,6 +22,10 @@ public abstract class FileRemoteAccessor implements Closeable
 {
   /**Version, history and license.
    * <ul>
+   * <li>2012-05-30 Hartmut new: {@link #openOutputStream(FileRemote, long)}
+   *   Note: it may be that the {@link #openRead(FileRemote, long)} and {@link #openWrite(FileRemote, long)}
+   *   is not proper for some requirements, working with the traditional streams may be better.
+   * <li>2015-05-30 Hartmut new: {@link #walkFileTreeCheck(FileRemote, boolean, boolean, boolean, String, long, int, FileRemoteCallback)}
    * <li>2012-09-14 Hartmut new: {@link CallbackFile}, {@link #walkFileTree(FileRemote, FileFilter, int, CallbackFile)}. 
    * <li>2012-08-12 Hartmut chg: Now it is an interface, not an abstract class, only formal.
    * <li>2012-08-12 Hartmut new: {@link #setLastModified(FileRemote, long)}. 

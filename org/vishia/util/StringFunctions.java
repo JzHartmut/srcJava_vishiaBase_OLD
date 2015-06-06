@@ -13,6 +13,7 @@ public class StringFunctions {
 
   /**Version, history and license.
    * <ul>
+   * <li>2015-06-05 Hartmut chg: {@link #equals(CharSequence, int, int, CharSequence)} regards null-pointer too.
    * <li>2014-09-05 Hartmut new: Twice methods {@link #indexOf(CharSequence, int, int, String)} and {@link #indexOf(CharSequence, int, int, CharSequence)}.
    *   Twice methods {@link #lastIndexOf(CharSequence, int, int, String)} and {@link #lastIndexOf(CharSequence, int, int, CharSequence)}.
    *   The methods are the same in Java. But in C the handling of reference is different. In Java2C translation a StringJc does not base on CharSequence
@@ -498,7 +499,15 @@ public class StringFunctions {
   }  
   
   
+  /**Compares two charsequences. It is similar String.equals(String), but works with CharSequence and accepts null-pointer.
+   * @param s1 first, if null then returns true if s2== null. Equals is both null too.
+   * @param from start position in s1
+   * @param to exclusive end position in s1
+   * @param s2 to compare with
+   * @return true if all chars equals or both null.
+   */
   public static boolean equals(CharSequence s1, int from, int to, CharSequence s2){
+    if(s1 == null || s2 == null){ return s1 == s2; }  //equals is both null too
     int zz = to - from;
     if( zz != s2.length()) return false;
     else {
@@ -529,7 +538,7 @@ public class StringFunctions {
    * @return 0 if all characters are equal, 1 if s1 > s2,  -1 if s1 < s2
    */
   public static boolean equals(CharSequence s1, CharSequence s2){
-    return equals(s1, 0, s1.length(), s2);
+    return s1 == null ? s2 == null : equals(s1, 0, s1.length(), s2);
   }
 
   
