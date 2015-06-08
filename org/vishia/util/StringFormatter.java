@@ -60,6 +60,8 @@ public class StringFormatter implements Appendable, Closeable, Flushable
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-06-07: Hartmut chg: {@link #append(char)} and {@link #flushLine(String)}, now output of the given line end is supported
+   *   if the {@link StringFormatter#StringFormatter(Appendable, boolean, String, int)} argument 'newlineString' is null. 
    * <li>2015-01-31: Hartmut {@link #add(String)} additional to {@link #add(CharSequence)} only for Java2C-translation. In Java it is equal. 
    * <li>2014-08-10: Hartmut bugfix: {@link #append(char)}: if more as one line feed 0d 0a 0d 0a follows, it was recognized as only one line feed. 
    * <li>2014-05-10: Hartmut new: implements Closeable, {@link #close()}, 
@@ -146,7 +148,7 @@ public class StringFormatter implements Appendable, Closeable, Flushable
    * If it is a '\r' a following '\n' does not force a newline. 
    * If if is a '\n' a following '\r' does not force a newline. 
    */
-  private char lastNewline = 'x';
+  private char secondNewline = '\0';
 
   /**The position of actual writing.
    * 
@@ -193,7 +195,7 @@ public class StringFormatter implements Appendable, Closeable, Flushable
    * can be formatted in the known kind.
    * @param lineout Any appendable (Writer)
    * @param shouldClose if true then closes the lineout if this is closed. If true lineout have to be instanceof Closeable.
-   * @param newlineString usual "\n", "\r\n" or "\r" 
+   * @param newlineString usual "\n", "\r\n" or "\r". If null then the newline characters or output as usual. See {@link #append(char)}. 
    * @param defaultBufferLength usual about 100..200 for the length of line. The buffer will be increased 
    *   if a longer line is necessary.
    */
@@ -1112,6 +1114,9 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
 
 
 
+  /**It invokes {@link #append(char)} for any char.Therewith a \n and \r is handled specially.
+   * @see java.lang.Appendable#append(java.lang.CharSequence)
+   */
   @Override
   public StringFormatter append(CharSequence csq) throws IOException { 
     append(csq, 0, csq.length()); 
@@ -1120,28 +1125,47 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
 
 
 
-  /**Appends on char. If the char is a 0x0d 0r 0x0a (carriage return, line-feed), the buffered line ({@link #buffer} is output
-   * and a {@link #sNewline} is added. If a 0x0a is given and the last char is 0x0d, this char is prevented because 0d 0a is only one line feed. 
+  /**Appends one character and flushes a line on end-line character. 
+   * If the char is a 0x0d or 0x0a (carriage return, line-feed) and the constructor 
+   * {@link StringFormatter#StringFormatter(Appendable, boolean, String, int)} was used with a given lineout, 
+   * then the buffered line ({@link #buffer} is output and a {@link #sNewline} is added if given. It uses {@link #flushLine(String)}
+   * If a 0x0a is given and the last char was 0x0d or vice versa, this second newline character is prevented 
+   * because 0d 0a is only one line feed. 0a0d is recognized as one line feed too.
+   * If 0d0a0d is given, that are two newlines. If the text is mixed with 0d0a, 0a, 0d etc. both 0d or 0a
+   * are detected as end line character and the following alternate character is ignored.
+   * <br><br>
+   * @since 2015-06 if the sNewline argument on {@link StringFormatter#StringFormatter(Appendable, boolean, String, int)}
+   *   is given with null, then all characters are output unchanged. But the functionality to flush a line
+   *   on a 0d or 0a is supported all the same.  
    * @see java.lang.Appendable#append(char)
    */
   @Override
   public StringFormatter append(char c) throws IOException { 
-    if(lineout !=null && (c == '\n' || c=='\r')){
-      if(lastNewline != '\r' ){   //bug: 0d0a0d0a creates only one line:  || c=='\r' && lastNewline != '\n'){
-        lineout.append(buffer, 0, pos);
-        lineout.append(sNewline);
-        buffer.delete(0, pos);
-        pos = 0;
+    if(lineout !=null && (c == '\n' || c=='\r')) {  //on one of the line end characters
+      if(c != secondNewline || pos >0) { //if a content is given or c is the first newline character.          // != '\r' ){   //bug: 0d0a0d0a creates only one line:  || c=='\r' && lastNewline != '\n'){
+        flushLine(sNewline);
+        if(sNewline ==null) { 
+          lineout.append(c);  //append the found newline character either 0d or 0a like given.
+        }
+        secondNewline = c == '\r' ? '\n' : '\r';  //the other one.
+      } else if(sNewline == null) { //c is the secondNewline character, pos is 0
+        lineout.append(c);          //append it if a special newline is not given.   
       }
     } else {
-      add(c);
+      add(c);  //normal character, add it.
     }      
-    lastNewline = c;  //store anyway the last character. 
     return this;
   }
 
 
+  
+  
+  
+  
 
+  /**It invokes {@link #append(char)} for any char.Therewith a \n and \r is handled specially.
+   * @see java.lang.Appendable#append(java.lang.CharSequence)
+   */
   @Override
   public StringFormatter  append(CharSequence csq, int start, int end)
   throws IOException
@@ -1168,6 +1192,28 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
   }
 
 
+  
+  /**Flushes the stored content in the lineout and adds the given sNewline
+   * @param sNewline null then does not append a newline, elsewhere usual "\r\n", "\r" etc.
+   *   It is possible to set for example "\n    " to force an indentation.
+   * @return Number of characters in the line flushed, maybe 0. Note: The sNewline is handled even though.
+   * @throws IOException
+   */
+  public int flushLine(String sNewline) throws IOException
+  {
+    int chars = pos;
+    if(pos >0) { //some content is given
+      lineout.append(buffer, 0, pos);
+      //it would be copy characters after pos to 0. But that's wrong here:
+      //:: buffer.delete(0, pos);
+      buffer.setLength(0);  //clean
+      pos = 0;
+    }
+    if(sNewline !=null) { 
+      lineout.append(sNewline);
+    }
+    return chars;
+  }
 
    
   @Override

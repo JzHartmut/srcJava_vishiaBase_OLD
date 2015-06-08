@@ -340,9 +340,9 @@ public class JZcmdScript extends CompiledScript
       if(srcFile !=null && !srcFile.equals("")){
         Debugutil.stop();
       }
-      if(line == 388 ){ //&& column == 18){
-        Debugutil.stop();
-      }
+      //if(line == 388 ){ //&& column == 18){
+      //  Debugutil.stop();
+      //}
       srcLine = line; srcColumn = column; srcFile = sFile; 
     }
 

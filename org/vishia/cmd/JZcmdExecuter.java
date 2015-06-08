@@ -153,7 +153,7 @@ public class JZcmdExecuter {
    * <li>2014-04-24 Hartmut chg: {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)} 
    *   returns nothing, No confusion between argument out and return value! If out is not given,
    *   then <:>text<.> is not possible. It causes an NullPointerException which may be thrown.
-   * <li>2014-04-24 Hartmut new: {@link #textout} the same for all threads, used synchronized. 
+   * <li>2014-04-24 Hartmut new: {@link #textline} the same for all threads, used synchronized. 
    * <li>2014-04-25 Hartmut new: {@link NextNr#start()} etc. more capability.
    * <li>2014-03-08 Hartmut new: debug_dataAccessArgument() able to call from outside, to force breakpoint.
    * <li>2014-03-08 Hartmut new: Filepath as type of a named argument regarded on call, see syntax
@@ -250,22 +250,26 @@ public class JZcmdExecuter {
 
     public final MainCmdLogging_ifc log;
     /**The newline char sequence. */
-    String newline = "\r\n";
+    public String newline = "\r\n";
     /**The width or size of a tab in the script file is used for detect and ignore tab indentation in the script. */ 
-    int tabsize = 4;
+    public int tabsize = 4;
     /**Used for formatting Numbers. 
      * Problem in Germany: The numbers are written with , instead with a decimal point. 
      * Using Locale.ENGLISH produces the well used decimal point.
      * Numbers with comma are used only in the german banking sector, not in engineering.
      */
     protected Locale locale = Locale.ENGLISH;
+    
     /**The text file output, the same for all threads. */
-    StringFormatter textout;
+    private StringFormatter textline;
+    
     /**The time stamp from {@link System#currentTimeMillis()} on start of script. */
     public long startmilli;
+    
     /**The time stamp from {@link System#nanoTime()} on start of script. */
     public long startnano;
-    int nextNr_ = 0;
+    
+    private int nextNr_ = 0;
     /**Set it to true if private and protected fields and methods should be used
      * by data access.
      */
@@ -275,24 +279,15 @@ public class JZcmdExecuter {
     //Gen_Content genFile;
     
     /**The java prepared generation script. */
-    JZcmdScript jzcmdScript;
-    /**Generated content of all script environment variables. The script variables are present in all routines 
-     * in their local variables pool. The value is either a String, CharSequence or any Object pointer.  */
-    //final Map<String, String> scriptEnvVariables = new TreeMap<String, String>();
+    private JZcmdScript jzcmdScript;
     
     
-    protected final Queue<JZcmdThread> threads = new ConcurrentLinkedQueue<JZcmdThread>();
-    final JZcmdThread scriptThread;
+    public final Queue<JZcmdThread> threads = new ConcurrentLinkedQueue<JZcmdThread>();
+    
+    public final JZcmdThread scriptThread;
 
-    /**Instance for the main script part. */
-    //Gen_Content genFile;
     
-    /**Generated content of all script variables. The script variables are present in all routines 
-     * in their local variables pool. The value is either a String, CharSequence or any Object pointer.  */
-    //private final IndexMultiTable<String, DataAccess.Variable> scriptVariables = new_Variables();
-    
-    
-    final ExecuteLevel scriptLevel;
+    public final ExecuteLevel scriptLevel;
 
     JZcmd(MainCmdLogging_ifc log, JZcmdExecuter env){
       this.log = log;
@@ -594,8 +589,9 @@ public class JZcmdExecuter {
     //try
     {
       if(out !=null) {
-        StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
-        acc.textout = outFormatter;
+        //create a textline formatter without newline control but with out as output. Default size is 200, will be increased on demand.
+        StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, null, 200);
+        acc.textline = outFormatter;
       }
       try{
         acc.setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
@@ -639,7 +635,7 @@ public class JZcmdExecuter {
       acc.startmilli = System.currentTimeMillis();
       acc.startnano = System.nanoTime();
       if(mainRoutine !=null) {
-        ret = execFile.execute(mainRoutine.statementlist, acc.textout, 0, execFile.localVariables, -1);
+        ret = execFile.execute(mainRoutine.statementlist, acc.textline, 0, execFile.localVariables, -1);
       } else {
         System.out.println("JZcmdExecuter - main routine not found.");
         ret = 0;
@@ -656,8 +652,8 @@ public class JZcmdExecuter {
           }
         }
       }
-      if(acc.textout !=null) {
-        try{ acc.textout.close(); } 
+      if(acc.textline !=null) {
+        try{ acc.textline.close(); } 
         catch(IOException exc){ throw new RuntimeException("unexpected exception on close", exc); }
       }
     }
@@ -697,7 +693,7 @@ public class JZcmdExecuter {
   {
     if(out !=null) {
       StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
-      acc.textout = outFormatter;
+      acc.textline = outFormatter;
       acc.setScriptVariable("text", 'A', out, true);
     }
     ExecuteLevel level = new ExecuteLevel(acc, acc.jzcmdScript.scriptClass, acc.scriptThread, acc.scriptLevel, null);
@@ -709,9 +705,9 @@ public class JZcmdExecuter {
     //Executes the statements of the sub routine:
     acc.startmilli = System.currentTimeMillis();
     acc.startnano = System.nanoTime();
-    short ret = level.execute(statement.statementlist, acc.textout, 0, level.localVariables, -1);
-    if(acc.textout !=null) {
-      try{ acc.textout.close(); } 
+    short ret = level.execute(statement.statementlist, acc.textline, 0, level.localVariables, -1);
+    if(acc.textline !=null) {
+      try{ acc.textline.close(); } 
       catch(IOException exc){ throw new RuntimeException("unexpected exception on close", exc); }
     }
     if(ret == kReturn || ret == kBreak){ ret = kSuccess; }
@@ -755,7 +751,7 @@ public class JZcmdExecuter {
    */
   public final static class ExecuteLevel implements ScriptContext, FilePath.FilePathEnvAccess
   {
-    final JZcmd acc;
+    final JZcmd jzcmd;
     /**Not used yet. Only for debug! */
     public final ExecuteLevel parent;
     
@@ -780,7 +776,7 @@ public class JZcmdExecuter {
     public boolean bWriteErrorInOutput;
     
 
-    /**Generated content of local variables in this nested level including the {@link ZbatchExecuter#acc.scriptLevel.localVariables}.
+    /**Generated content of local variables in this nested level including the {@link ZbatchExecuter#jzcmd.scriptLevel.localVariables}.
      * The variables are type invariant on language level. The type is checked and therefore 
      * errors are detected on runtime only. */
     public final IndexMultiTable<String, DataAccess.Variable<Object>> localVariables;
@@ -813,7 +809,7 @@ public class JZcmdExecuter {
      */
     protected ExecuteLevel(JZcmd acc, JZcmdScript.JZcmdClass jzClass, JZcmdThread threadData, ExecuteLevel parent
         , Map<String, DataAccess.Variable<Object>> parentVariables)
-    { this.acc = acc;
+    { this.jzcmd = acc;
       this.parent = parent;
       this.jzClass = jzClass;
       this.threadData = threadData;
@@ -869,14 +865,14 @@ public class JZcmdExecuter {
     { this(acc, null, threadData, null, null);
     }
 
-    public JZcmd executer(){ return acc; }
+    public JZcmd executer(){ return jzcmd; }
     
     
-    public JZcmdEngine scriptEngine(){ return acc.jzcmdScript.getEngine(); }
+    public JZcmdEngine scriptEngine(){ return jzcmd.jzcmdScript.getEngine(); }
     
     
     /**Returns the log interface from the environment class. */
-    public MainCmdLogging_ifc log(){ return acc.log; }
+    public MainCmdLogging_ifc log(){ return jzcmd.log; }
     
     
     
@@ -909,7 +905,7 @@ public class JZcmdExecuter {
     throws Exception 
     { final ExecuteLevel level;
       if(contentScript.bContainsVariableDef){
-        level = new ExecuteLevel(acc, jzClass, threadData, this, localVariables);
+        level = new ExecuteLevel(jzcmd, jzClass, threadData, this, localVariables);
       } else {
         level = this;
       }
@@ -962,7 +958,7 @@ public class JZcmdExecuter {
           switch(statement.elementType()){
           case 't': executeText(statement, out, indentOut);break; //<:>...textexpression <.>
           case '@': execSetColumn((JZcmdScript.TextColumn)statement, out);break; //<:@23>
-          case 'n': out.append(acc.newline);  break;   //<.n+>
+          case 'n': out.append(jzcmd.newline);  break;   //<.n+>
           case '!': out.flush();  break;   //<.n+>
           case '_': out.close();  out = null; break;   //<.n+>
           case '\\': out.append(statement.textArg);  break;   //<:n> transcription
@@ -1147,7 +1143,7 @@ public class JZcmdExecuter {
     }
     
     
-    /**Outputs the given text
+    /**Outputs the given constant text
      * @param statement contains the text
      * @param out out channel to append
      * @param indentOut Number of characters in a new line which are skipped from begin. Indentation in the script, no indentation in outputted text
@@ -1169,7 +1165,7 @@ public class JZcmdExecuter {
         }
         if(posEnd1 >= 0){ 
           out.append(statement.textArg.substring(posLine, posEnd1));   
-          out.append(acc.newline);  //The newline of JZcmd invocation.
+          out.append(jzcmd.newline);  //The newline of JZcmd invocation.
           //skip over posEnd1, skip over the other end line character if found. 
           if(++posEnd1 < zText){
             if(cEnd == '\r'){ if(statement.textArg.charAt(posEnd1)=='\n'){ posEnd1 +=1; }}  //skip over both \r\n
@@ -1179,7 +1175,7 @@ public class JZcmdExecuter {
             char cc;
             while(indentCt > 0 && posEnd1 < zText && ((cc = statement.textArg.charAt(posEnd1)) == ' ' || cc == '\t')) {
               if(cc == '\t'){
-                indentCt -= acc.tabsize;
+                indentCt -= jzcmd.tabsize;
                   if(indentCt >= 0) { //skip over '\t' only if matches to the indent.
                   posEnd1 +=1;
                 }
@@ -1228,7 +1224,7 @@ public class JZcmdExecuter {
       if(statement.typeVariable !=null){
         Debugutil.stop();
       }
-      storeValue(statement.defVariable, newVariables, value, acc.bAccessPrivate);
+      storeValue(statement.defVariable, newVariables, value, jzcmd.bAccessPrivate);
       //setLocalVariable(statement.name, type, value, isConst);
        
     }
@@ -1264,7 +1260,7 @@ public class JZcmdExecuter {
       //creates the for-variable in the executer level.
       DataAccess.Variable<Object> forVariable = DataAccess.createOrReplaceVariable(forExecuter.localVariables, statement.forVariable, 'O', null, false);
       //a new level for the for... statements. It contains the foreachData and maybe some more variables.
-      Object container = dataAccess(statement.forContainer, localVariables, acc.bAccessPrivate, true, false, null);
+      Object container = dataAccess(statement.forContainer, localVariables, jzcmd.bAccessPrivate, true, false, null);
       //Object container = statement.forContainer.getDataObj(localVariables, bAccessPrivate, true);
       //DataAccess.Dst dst = new DataAccess.Dst();
       //DataAccess.access(statement.defVariable.datapath(), null, localVariables, bAccessPrivate,false, true, dst);
@@ -1502,7 +1498,7 @@ public class JZcmdExecuter {
       if(statement.variable !=null){
         Object chn;
         //Object oVar = DataAccess.access(statement.variable.datapath(), null, localVariables, bAccessPrivate, false, true, null);
-        Object oVar = dataAccess(statement.variable,localVariables, acc.bAccessPrivate, false, true, null);
+        Object oVar = dataAccess(statement.variable,localVariables, jzcmd.bAccessPrivate, false, true, null);
         if(oVar instanceof DataAccess.Variable<?>){
           @SuppressWarnings("unchecked")
           DataAccess.Variable<Object> var = (DataAccess.Variable<Object>) oVar;
@@ -1527,7 +1523,7 @@ public class JZcmdExecuter {
           //bShouldClose = false;
         }
       } else {
-        out1 = acc.textout;  //output to the text output.
+        out1 = jzcmd.textline;  //output to the text output.
         //bShouldClose = false;
       }
       if(statement.statementlist !=null){
@@ -1574,7 +1570,7 @@ public class JZcmdExecuter {
       nameSubtext = evalString(callStatement.call_Name); 
       JZcmdScript.Subroutine subroutine = jzClass.subroutines.get(nameSubtext);
       if(subroutine == null) { //not found in this class:    
-        subroutine = acc.jzcmdScript.getSubroutine(nameSubtext);  //the subtext script to call
+        subroutine = jzcmd.jzcmdScript.getSubroutine(nameSubtext);  //the subtext script to call
       }
       if(subroutine == null){
         throw new NoSuchElementException("JbatExecuter - subroutine not found; " + nameSubtext);
@@ -1585,7 +1581,7 @@ public class JZcmdExecuter {
         if(subroutine.useLocals) {  //TODO check whether the subClass == this.jzclass 
           sublevel = this; 
         } else { 
-          sublevel = new ExecuteLevel(acc, subClass, threadData, this, subroutine.useLocals ? localVariables : null); 
+          sublevel = new ExecuteLevel(jzcmd, subClass, threadData, this, subroutine.useLocals ? localVariables : null); 
         }
         success = execSubroutine(subroutine, sublevel, callStatement.actualArgs, additionalArgs, out, indentOut, nDebug);
         if(success == kSuccess){
@@ -1651,7 +1647,7 @@ public class JZcmdExecuter {
       if(subroutine.useLocals) {  //TODO check whether the subClass == this.jzclass 
         sublevel = this; 
       } else { 
-        sublevel = new ExecuteLevel(acc, subClass, threadData, this, subroutine.useLocals ? localVariables : null); 
+        sublevel = new ExecuteLevel(jzcmd, subClass, threadData, this, subroutine.useLocals ? localVariables : null); 
       }
       final List<DataAccess.Variable<Object>> arglist;
       if(args !=null){
@@ -1741,7 +1737,7 @@ public class JZcmdExecuter {
         for(Map.Entry<String, JZcmdScript.DefVariable> checkArg : check.entrySet()){
           JZcmdScript.DefVariable arg = checkArg.getValue();
           //Generate on acc.scriptLevel (classLevel) because the formal parameter list should not know things of the calling environment.
-          Object ref = acc.scriptLevel.evalObject(arg, false);
+          Object ref = jzcmd.scriptLevel.evalObject(arg, false);
           String name = arg.getVariableIdent();
           char cType = arg.elementType();
           if(cType == 'F' && !(ref instanceof JZcmdFilepath) ){
@@ -1806,7 +1802,7 @@ public class JZcmdExecuter {
         try{
           thread = new JZcmdThread();
           name = statement.threadVariable.idents().toString();
-          storeValue(statement.threadVariable, newVariables, thread, acc.bAccessPrivate);
+          storeValue(statement.threadVariable, newVariables, thread, jzcmd.bAccessPrivate);
         } catch(Exception exc){
           throw new IllegalArgumentException("JZcmd - thread assign failure; path=" + statement.threadVariable.toString());
         }
@@ -1814,9 +1810,9 @@ public class JZcmdExecuter {
         thread = new JZcmdThread();  //without assignment to a variable.
         name = "JZcmd";
       }
-      ExecuteLevel threadLevel = new ExecuteLevel(acc, jzClass, thread, this, localVariables);
-      synchronized(acc.threads){
-        acc.threads.add(thread);
+      ExecuteLevel threadLevel = new ExecuteLevel(jzcmd, jzClass, thread, this, localVariables);
+      synchronized(jzcmd.threads){
+        jzcmd.threads.add(thread);
       }
       thread.startThread(name, threadLevel, statement);
       //it does not wait on finishing this thread.
@@ -1842,7 +1838,7 @@ public class JZcmdExecuter {
     {
       ExecuteLevel genContent;
       if(false && script.statementlist.bContainsVariableDef){
-        genContent = new ExecuteLevel(acc, jzClass, threadData, this, localVariables);
+        genContent = new ExecuteLevel(jzcmd, jzClass, threadData, this, localVariables);
       } else {
         genContent = this;  //don't use an own instance, save memory and calculation time.
       }
@@ -1872,7 +1868,7 @@ public class JZcmdExecuter {
         int iArg = 1;
         for(JZcmdScript.JZcmditem arg: statement.cmdArgs){
           if(arg.elementType == 'L'){
-            Object oVal = dataAccess(arg.dataAccess, localVariables, acc.bAccessPrivate, false, false, null);
+            Object oVal = dataAccess(arg.dataAccess, localVariables, jzcmd.bAccessPrivate, false, false, null);
             if(oVal instanceof List<?>){
               @SuppressWarnings("unchecked")
               List<Object> arglist = (List<Object>)oVal;
@@ -1898,7 +1894,7 @@ public class JZcmdExecuter {
       List<Appendable> outCmd;
       if(statement.variable !=null){
         outCmd = new LinkedList<Appendable>();
-        Object oOutCmd = dataAccess(statement.variable, localVariables, acc.bAccessPrivate, false, false, null);
+        Object oOutCmd = dataAccess(statement.variable, localVariables, jzcmd.bAccessPrivate, false, false, null);
         //Object oOutCmd = statement.variable.getDataObj(localVariables, acc.bAccessPrivate, false);
         if(oOutCmd instanceof Appendable){
           outCmd.add((Appendable)oOutCmd);
@@ -1906,7 +1902,7 @@ public class JZcmdExecuter {
         }
         if(statement.assignObjs !=null){
           for(JZcmdScript.JZcmdDataAccess assignObj1 : statement.assignObjs){
-            oOutCmd = dataAccess(assignObj1, localVariables, acc.bAccessPrivate, false, false, null);
+            oOutCmd = dataAccess(assignObj1, localVariables, jzcmd.bAccessPrivate, false, false, null);
             //oOutCmd = assignObj1.getDataObj(localVariables, acc.bAccessPrivate, false);
             if(oOutCmd instanceof Appendable){
               outCmd.add((Appendable)oOutCmd);
@@ -2012,12 +2008,12 @@ public class JZcmdExecuter {
         if(!FileSystem.isAbsolutePath(arg)){
           arg = this.currdir() + "/" + arg;
         }
-        if(acc.textout !=null) {
-          acc.textout.close();
+        if(jzcmd.textline !=null) {
+          jzcmd.textline.close();
         }
         Appendable out = new FileWriter(arg.toString());
-        acc.setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
-        acc.textout =  new StringFormatter(out, true, "\n", 200);
+        jzcmd.setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
+        jzcmd.textline =  new StringFormatter(out, true, null, 200);
         return kSuccess;
       }
     }
@@ -2070,7 +2066,7 @@ public class JZcmdExecuter {
     throws IllegalArgumentException, Exception
     {
       CharSequence text = "??";
-      Object obj = dataAccess(statement.dataAccess, localVariables, acc.bAccessPrivate, false, false, null);
+      Object obj = dataAccess(statement.dataAccess, localVariables, jzcmd.bAccessPrivate, false, false, null);
       if(obj == JZcmdExecuter.retException){ return kException; }
       else {
         
@@ -2082,7 +2078,7 @@ public class JZcmdExecuter {
               //boxed numeric is necessary for format
             }
             
-            text = String.format(acc.locale,  statement.format, obj);
+            text = String.format(jzcmd.locale,  statement.format, obj);
         } else if(obj==null){ 
           text = null; //don't append if obj hasn't a content. 
         } else if (obj instanceof CharSequence){
@@ -2191,7 +2187,7 @@ public class JZcmdExecuter {
         } else {
           writer = new FileWriter(sFilename);  //given absolute path
         }
-        storeValue(statement.defVariable, newVariables, writer, acc.bAccessPrivate);
+        storeValue(statement.defVariable, newVariables, writer, jzcmd.bAccessPrivate);
         //setLocalVariable(statement.identArgJbat, 'A', writer);
         return kSuccess;
       }
@@ -2243,7 +2239,7 @@ public class JZcmdExecuter {
         DataAccess.Dst dstField = new DataAccess.Dst();
         //List<DataAccess.DatapathElement> datapath = assignObj1.datapath(); 
         //Object dst = DataAccess.access(datapath, null, localVariables, acc.bAccessPrivate, false, true, dstField);
-        Object dst = dataAccess(assignObj1,localVariables, acc.bAccessPrivate, false, true, dstField);
+        Object dst = dataAccess(assignObj1,localVariables, jzcmd.bAccessPrivate, false, true, dstField);
         if(dst instanceof DataAccess.Variable<?>){
           @SuppressWarnings("unchecked")
           DataAccess.Variable<Object> var = (DataAccess.Variable<Object>) dst; //assignObj1.accessVariable(localVariables, acc.bAccessPrivate);
@@ -2352,10 +2348,10 @@ public class JZcmdExecuter {
         if(datapath.get(0).ident().equals("return") && !localVariables.containsKey("return")) {
           //
           //creates the local variable return on demand:
-          DataAccess.Variable<Object> ret = new DataAccess.Variable<Object>('M', "return", acc.new_Variables());
+          DataAccess.Variable<Object> ret = new DataAccess.Variable<Object>('M', "return", jzcmd.new_Variables());
           localVariables.add("return", ret);
         }
-        storeValue(statement.defVariable, newVariables, val, acc.bAccessPrivate);
+        storeValue(statement.defVariable, newVariables, val, jzcmd.bAccessPrivate);
         if(cmdExecuter !=null){
           String name = statement.defVariable.datapath().get(0).ident();
           if(name.startsWith("$")){
@@ -2383,7 +2379,7 @@ public class JZcmdExecuter {
       JZcmdScript.JZcmdDataAccess assignObj1 = statement.variable;
       Iterator<JZcmdScript.JZcmdDataAccess> iter1 = statement.assignObjs == null ? null : statement.assignObjs.iterator();
       while(assignObj1 !=null) {
-        Object dst = dataAccess(assignObj1, localVariables, acc.bAccessPrivate, false, false, null);
+        Object dst = dataAccess(assignObj1, localVariables, jzcmd.bAccessPrivate, false, false, null);
         //Object dst = assignObj1.getDataObj(localVariables, acc.bAccessPrivate, false);
         if(dst instanceof Appendable){
           if(!(val instanceof CharSequence)){
@@ -2443,7 +2439,7 @@ public class JZcmdExecuter {
      */
     public Object evalDatapathOrExpr(JZcmdScript.Argument arg) throws Exception{
       if(arg.dataAccess !=null){
-        Object o = dataAccess(arg.dataAccess, localVariables, acc.bAccessPrivate, false, false, null);
+        Object o = dataAccess(arg.dataAccess, localVariables, jzcmd.bAccessPrivate, false, false, null);
         //Object o = arg.dataAccess.getDataObj(localVariables, acc.bAccessPrivate, false);
         if(o==null){ return "null"; }
         else {return o; }
@@ -2463,7 +2459,7 @@ public class JZcmdExecuter {
     {
       if(arg.textArg !=null) return arg.textArg;
       else if(arg.dataAccess !=null){
-        Object o = dataAccess(arg.dataAccess, localVariables, acc.bAccessPrivate, false, false, null);
+        Object o = dataAccess(arg.dataAccess, localVariables, jzcmd.bAccessPrivate, false, false, null);
         //Object o = arg.dataAccess.getDataObj(localVariables, acc.bAccessPrivate, false);
         if(o==null){ return "null"; }
         else if(o instanceof CharSequence){ return (CharSequence)o; }  //maybe retException
@@ -2552,12 +2548,12 @@ public class JZcmdExecuter {
         if(  dataElement instanceof JZcmdScript.JZcmdDatapathElementClass){
           JZcmdScript.JZcmdDatapathElementClass jzcmdDataElement = (JZcmdScript.JZcmdDatapathElementClass)dataElement;
           if(jzcmdDataElement.dpathLoader !=null){
-            Object oLoader = dataAccess(jzcmdDataElement.dpathLoader, localVariables, acc.bAccessPrivate, false, false, null);
+            Object oLoader = dataAccess(jzcmdDataElement.dpathLoader, localVariables, jzcmd.bAccessPrivate, false, false, null);
             assert(oLoader instanceof ClassLoader);
             jzcmdDataElement.set_loader((ClassLoader)oLoader);
           }
           if(jzcmdDataElement.dpathClass !=null){
-            Object o = dataAccess(jzcmdDataElement.dpathClass, localVariables, acc.bAccessPrivate, false, false, null);
+            Object o = dataAccess(jzcmdDataElement.dpathClass, localVariables, jzcmd.bAccessPrivate, false, false, null);
             assert(o instanceof Class<?>);
             jzcmdDataElement.set_Class((Class<?>)o);
           }
@@ -2566,7 +2562,7 @@ public class JZcmdExecuter {
         if(  dataElement instanceof JZcmdScript.JZcmdDatapathElement ){
           JZcmdScript.JZcmdDatapathElement jzcmdDataElement = (JZcmdScript.JZcmdDatapathElement)dataElement;
           if(jzcmdDataElement.indirectDatapath !=null){
-            Object oIdent = dataAccess(jzcmdDataElement.indirectDatapath, localVariables, acc.bAccessPrivate, false, false, null);
+            Object oIdent = dataAccess(jzcmdDataElement.indirectDatapath, localVariables, jzcmd.bAccessPrivate, false, false, null);
             dataElement.setIdent(oIdent.toString());
           }
           fnArgsExpr = jzcmdDataElement.fnArgsExpr;
@@ -2613,12 +2609,12 @@ public class JZcmdExecuter {
       if(arg.textArg !=null) obj = arg.textArg;
       else if(arg.dataAccess !=null){
         //calculate arguments firstly:
-        obj = dataAccess(arg.dataAccess, localVariables, acc.bAccessPrivate, false, false, null);
+        obj = dataAccess(arg.dataAccess, localVariables, jzcmd.bAccessPrivate, false, false, null);
         //obj = arg.dataAccess.getDataObj(localVariables, acc.bAccessPrivate, false);
       } else if(arg.statementlist !=null){
         if(arg.elementType == 'M') {  
           //a dataStruct
-          final ExecuteLevel level = new ExecuteLevel(acc,jzClass, threadData, this, localVariables);
+          final ExecuteLevel level = new ExecuteLevel(jzcmd,jzClass, threadData, this, localVariables);
           IndexMultiTable<String, DataAccess.Variable<Object>> newVariables = 
             new IndexMultiTable<String, DataAccess.Variable<Object>>(IndexMultiTable.providerString); 
           //fill the dataStruct with its values:
@@ -2681,7 +2677,7 @@ public class JZcmdExecuter {
       }
       else if(arg.dataAccess !=null){
         CalculatorExpr.Value value;
-        Object obj = dataAccess(arg.dataAccess, localVariables, acc.bAccessPrivate, false, false, null);
+        Object obj = dataAccess(arg.dataAccess, localVariables, jzcmd.bAccessPrivate, false, false, null);
         if(obj instanceof Float){
           value = new Value(((Float)obj).floatValue());
         } else if(obj instanceof Double){
@@ -2715,7 +2711,7 @@ public class JZcmdExecuter {
       if(arg.textArg !=null) return true;
       else if(arg.dataAccess !=null){
         try{
-          Object obj = dataAccess(arg.dataAccess, localVariables, acc.bAccessPrivate, false, false, null);
+          Object obj = dataAccess(arg.dataAccess, localVariables, jzcmd.bAccessPrivate, false, false, null);
           if(obj instanceof Number){
             ret = ((Number)obj).intValue() !=0;
           } else if(obj instanceof Boolean){
@@ -2782,7 +2778,7 @@ public class JZcmdExecuter {
       CharSequence value = evalString(statement);
       Class<?> clazz;
       if(statement.loader !=null){
-        Object oLoader = dataAccess(statement.loader, localVariables, acc.bAccessPrivate, false, false, null);  //get the loader
+        Object oLoader = dataAccess(statement.loader, localVariables, jzcmd.bAccessPrivate, false, false, null);  //get the loader
         if(!(oLoader instanceof ClassLoader)) throw new IllegalArgumentException("JZcmd.exec_DefClassVariable - faulty ClassLoader");
         ClassLoader loader = (ClassLoader)oLoader;
         clazz = loader.loadClass(value.toString());
@@ -2842,7 +2838,7 @@ public class JZcmdExecuter {
     
     protected void runThread(ExecuteLevel executeLevel, JZcmdScript.ThreadBlock statement, JZcmdThread threadVar){
       try{
-        executeLevel.execute(statement.statementlist, acc.textout, 0, executeLevel.localVariables, -1);
+        executeLevel.execute(statement.statementlist, jzcmd.textline, 0, executeLevel.localVariables, -1);
       } 
       catch(Exception exc){
         threadVar.exception = exc;
@@ -2855,11 +2851,11 @@ public class JZcmdExecuter {
       synchronized(thread){
         thread.notifyAll();   //any other thread may wait for join
       }
-      synchronized(acc.threads){  //remove this thread from the list of threads.
-        boolean bOk = acc.threads.remove(thread);
+      synchronized(jzcmd.threads){  //remove this thread from the list of threads.
+        boolean bOk = jzcmd.threads.remove(thread);
         assert(bOk);
-        if(acc.threads.size() == 0){
-          acc.threads.notify();    //notify the waiting main thread to finish.
+        if(jzcmd.threads.size() == 0){
+          jzcmd.threads.notify();    //notify the waiting main thread to finish.
         }
       }
 
@@ -2932,7 +2928,7 @@ public class JZcmdExecuter {
     public Object getAttribute(String name, int scope)
     { switch(scope){
         case ScriptContext.ENGINE_SCOPE: return getAttribute(name); 
-        case ScriptContext.GLOBAL_SCOPE: return acc.scriptLevel.getAttribute(name); 
+        case ScriptContext.GLOBAL_SCOPE: return jzcmd.scriptLevel.getAttribute(name); 
         default: throw new IllegalArgumentException("JZcmdExecuter.getAttribute - failed scope;" + scope);
       } //switch
     }
@@ -2952,7 +2948,7 @@ public class JZcmdExecuter {
     public Bindings getBindings(int scope)
     { switch(scope){
       case ScriptContext.ENGINE_SCOPE: return new JZcmdBindings(localVariables); 
-      case ScriptContext.GLOBAL_SCOPE: return new JZcmdBindings(acc.scriptLevel.localVariables); 
+      case ScriptContext.GLOBAL_SCOPE: return new JZcmdBindings(jzcmd.scriptLevel.localVariables); 
       default: throw new IllegalArgumentException("JZcmdExecuter.getBindings - failed scope;" + scope);
     } //switch
   }
