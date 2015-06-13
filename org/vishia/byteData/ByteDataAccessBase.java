@@ -144,6 +144,7 @@ import org.vishia.util.StringFormatter;
  * @author Hartmut Schorrig
  *
  */
+@Java4C.ExcludeInterface("InfoFormattedAppend")
 public class ByteDataAccessBase implements InfoFormattedAppend
 {
   
@@ -311,6 +312,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
   }
 
 
+  @Java4C.Exclude
   public final void setCharset(String value) {
     charset = Charset.forName(value);
   }
@@ -604,19 +606,21 @@ public class ByteDataAccessBase implements InfoFormattedAppend
 
   /**Returns true if the instance is set as expandable, see {@link #assign(byte[], int)}
    */
-  public boolean isExpandable(){ return bExpand; }
+  @Java4C.Retinline
+  public final boolean isExpandable(){ return bExpand; }
 
   /**Returns the given head size, which is set on constructor respectively which is a determined value of an derived instance of this.
    * @return the number of head bytes defined by construction of {@link ByteDataAccessBase#ByteDataAccessBase(int)}.
    */
-  public int sizeHead() { return sizeHead; }
+  @Java4C.Retinline
+  public final int sizeHead() { return sizeHead; }
   
   
   /** Returns the data buffer itself. The actual total length is getted with getLengthTotal().
    * @return The number of bytes of the data in the buffer.
    */
   @Java4C.Retinline @Java4C.PtrVal 
-  final public byte[] getData()
+  public final byte[] getData()
   { return  data;
   }
 
@@ -1813,8 +1817,9 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * @param u The destination buffer
    * @param bytesHex Number of shown bytes of data as hexa line.
    */
+  @Java4C.Exclude
   protected void infoAppendHead(StringFormatter u, int bytesHex){
-    u.addint(ixBegin, "33331")
+    u.addint(ixBegin, "333331")
     .add("..").addint(ixBegin + sizeHead,"333331")
     .add("..").addint(ixNextChild,"333331")
     .add(bExpand ? '+' : ':').addint(ixEnd,"333331").add(":");

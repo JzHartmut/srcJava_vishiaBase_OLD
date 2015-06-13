@@ -180,6 +180,10 @@ public interface Java4C {
    * Usual the method with given name is programmed in C direct. */
   public @interface ExcludeImpl{}
   
+  
+  /**The class does not implement the named interface in C. */
+  public @interface ExcludeInterface{ String value(); }
+  
   /**Declare the String as const char* in C-language. */
   public @interface ZeroTermString{}
   
