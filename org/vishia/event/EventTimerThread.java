@@ -130,7 +130,13 @@ public class EventTimerThread implements EventTimerThread_ifc, Closeable, InfoAp
    * 
    * 
    * */
-  private int debugPrint;
+  private int debugPrint = 0;
+  
+  /**Only for inspector or debug access: Use it to show delaying. */
+  int debugPrintViewDelayed = 0x001  //wait time
+                            | 0x400  //not notified, later
+                            | 0x200  //TimeOrderMng not notified because checking                       
+                            ; 
   
   protected final String threadName;
 

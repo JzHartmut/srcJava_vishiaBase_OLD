@@ -144,6 +144,9 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
 
   /**Version, history and license.
    * <ul>
+   * <li>2015-07-04 Hartmut chg: Values of flags {@link #mTested}, {@link #mShouldRefresh}, {@link #mRefreshChildPending}
+   *   {@link #mThreadIsRunning} to the highest digit of int, to recognize for manual viewing. That flags should not used in applications.
+   *   Remove of flags for comparison, the bits are used and defined inside {@link FileMark} for a longer time.  
    * <li>2015-05-30 Hartmut new: {@link #copyDirTreeTo(FileRemote, int, String, int, FileRemoteCallback, FileRemoteProgressTimeOrder)} 
    * <li>2015-05-25 Hartmut new: {@link #clusterOfApplication}: There is a singleton, the {@link FileCluster}
    *   is not necessary as argument for {@link #fromFile(File)} especially to work more simple to use FileRemote
@@ -339,30 +342,30 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
   , mCanReadAny =  0x4000, mCanWriteAny = 0x8000;
 
   
-  public final static int  mShouldRefresh = 0x10000;
+  
+  /**Set if it is a root directory. The {@link #mDirectory} is set too. */
+  public final static int mRoot = 0x00100000;
+  
+  /**Flags as result of an comparison: the other file does not exist, or exists and has another length or time stamp */
+  //public final static int mCmpTimeLen = 0x03000000;
+  
+  /**Flags as result of an comparison: the other file exist but its content is different. See */
+  //public final static int mCmpContent = 0x0C000000;
+  
+
+  public final static int  mShouldRefresh = 0x10000000;
+  
+  /**Set if a thread runs to get file properties. */
+  public final static int mThreadIsRunning =0x20000000;
+
+  /**Set if the file is removed yet because a refresh is pending. Note that the FileRemote instance should be kept for marking etc.
+   */
+  public final static int  mRefreshChildPending = 0x40000000;
   
   /**Set if the file is tested physically. If this bit is not set, all other flags are not representable and the file
    * may be only any path without respect to an existing file.
    */
-  public final static int  mTested =        0x20000;
-  
-  
-  /**Set if the file is removed yet because a refresh is pending. Note that the FileRemote instance should be kept for marking etc.
-   */
-  public final static int  mRefreshChildPending = 0x40000;
-  
-  
-  /**Set if a thread runs to get file properties. */
-  public final static int mThreadIsRunning =0x00080000;
-
-  /**Set if it is a root directory. The {@link #mDirectory} is set too. */
-  public final static int mRoot = 0x00100000;
-  
-  /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
-  public final static int mCmpTimeLen = 0x03000000;
-  
-  /**Flags as result of an comparison: the other file does not exist, or exists only with same length or with same time stamp */
-  public final static int mCmpContent = 0x0C000000;
+  public final static int  mTested =        0x80000000;
   
   /**Instance of the application-width selector for {@link FileRemoteAccessor}.
    */
@@ -1475,7 +1478,23 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
   
   
   
+   /**TODO mFile is not set yet, use !isDirectory 2015-01-09
+   * @see java.io.File#isFile()
+   */
+  @Override public boolean isHidden(){ 
+    if((flags & mTested) ==0){
+      //The children are not known yet, get it:
+      if(device == null){
+        device = getAccessorSelector().selectFileRemoteAccessor(getAbsolutePath());
+      }
+      device.refreshFileProperties(this, null);
+    }
+    return (flags & mHidden) !=0; 
+  }
   
+  
+  
+ 
   /**Returns true if the FileRemote instance was created as directory
    * or if any {@link #refreshProperties(CallbackEvent)} call before this call
    * has detected that it is an directory.

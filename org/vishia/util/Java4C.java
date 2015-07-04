@@ -121,10 +121,17 @@ public interface Java4C {
   
   /**Produces a const modifier for a reference (refers a const object). 
    * Note that the const of C/C++ is not supported by the Java language. But it may be important for C/C++.
-   * In Java it means, the Object which is referenced, won't be changed.
+   * In Java it should asserted that the referenced Object won't be changed.
    * In opposite, a final modifier on the reference means in Java and in C: The reference itself won't be changed.
    */
   public @interface ConstRef{ }
+    
+  /**Produces a const modifier for the thiz- reference. The method does not change any data of this. 
+   * Note that the const of C/C++ is not supported by the Java language. But it may be important for C/C++.
+   * In Java it should asserted that the referenced Object won't be changed.
+   * In opposite, a final modifier on the reference means in Java and in C: The reference itself won't be changed.
+   */
+  public @interface ConstThis{ }
     
   /**Sets the following array as simple reference. An byte[] in Java is a int8* in C. */
   public @interface SimpleArrayRef{  }

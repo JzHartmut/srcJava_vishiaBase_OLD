@@ -7,6 +7,30 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.vishia.util.DateOrder;
 
+/**This class is the basic class for all events of this package. It is derived from the Java standard
+ * {@link EventObject}. It contains a reference to its destination, which should execute this event,
+ * and to an instance which queues and forces the execution of the event (delegates to the destination).
+ * <pre>
+ *                                      +----UserEvent
+ *                                      |        |
+ *                                      |     -more_Data
+ *                     EventWithDst<|---+
+ *  Object<---source------|
+ *                        |-------evDstThread--->{@link EventTimerThread_ifc}
+ *                        |
+ *                        |-------------evdst--->{@link EventConsumer}
+ *                        |
+ *                 -dateCreation 
+ *                 -dateOrder
+ *                 -stateOfEvent
+ *                 -ctConsumed
+ *                 -orderId         
+ *          
+ * </pre>
+ * UML Presentation see {@link org.vishia.util.Docu_UML_simpleNotation}
+ * @author Hartmut Schorrig
+ *
+ */
 public class EventWithDst extends EventObject
 {
 
@@ -19,7 +43,9 @@ public class EventWithDst extends EventObject
 
   /**Version, history and license
    * <ul>
-   * <li>2015-01-03 Hartmut chg: Separated in 2 classes: {@link EventCmdPingPongType} with opponent and this class.
+   * <li>2015-01-03 Hartmut chg: Separated in 2 classes: {@link EventCmdtypeWithBackEvent} with opponent and this class.
+   *   A simple event has not an opponent per default. This class is named EventWithDst yet because the destination
+   *   is the significant difference to its base class {@link java.util.EventObject}.
    * <li>2015-01-03 Hartmut chg: Renamed to EventMsg: more significant name. Derived from EventObject: A basicly Java concept.
    * <li>2013-10-06 Hartmut chg: Some checks for thread safety.
    * <li>2013-10-06 Hartmut chg: {@link #occupy(int, EventSource, EventConsumer, EventTimerThread)} with timeout
