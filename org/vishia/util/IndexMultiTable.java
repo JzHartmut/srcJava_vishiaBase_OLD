@@ -79,12 +79,15 @@ import org.vishia.bridgeC.AllocInBlock;
  *
  * @param <Type>
  */
+@SuppressWarnings("synthetic-access") 
 public class IndexMultiTable<Key extends Comparable<Key>, Type> 
 implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 {
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-07-05 Hartmut bugfix: The calculation of {@link Table#sizeAll} was faulty. {@link Table#check()} improved,
+   *   it checks the sizeAll and checks all child tables. Calculation of sizeAll improved. 
    * <li>2015-03-07 Hartmut bugfix false instanceof check, sub-tables has not worked.
    * <li>2014-12-21 Hartmut chg structure: Now a {@link Table} is an own instance. Improved and simplified. 
    * <li>2014-12-20 Hartmut new The iterator is a ListIterator now with {@link ListIterator#hasPrevious()} etc.
@@ -530,7 +533,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     /**actual number of objects stored in this table. */
     private int sizeBlock;
 
-    /**actual number of objects stored in the table tree of this and its children. */
+    /**actual number of leaf objects stored in the table tree of this and its children. */
     private int sizeAll;
 
     /**True, than {@link #aValues} contains instances of this class too. */
@@ -653,7 +656,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           //the block with the range 
           idx -=1;
           if(idx<0)
-          { //a index less than the first block is getted.
+          { //a index less than the first block is gotten.
             //sortin it in the first block.
             idx = 0;
             Table<Key, Type> parents = this;
@@ -668,7 +671,9 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           }
           @SuppressWarnings("unchecked")
           Table<Key, Type> childTable = (Table<Key, Type>)aValues[idx];
+          check();
           lastObj = childTable.putOrAdd(sortKey, value, valueNext, kind); 
+          check();
         }
         else {
           //no hyperblock, has leaf data:
@@ -682,7 +687,6 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
             check();
           }
         }
-        check();
       }
       else
       { //if key1 is found, sorting after the last value with that index.
@@ -721,6 +725,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           } break;
         }//switch
       }
+      check();
       return lastObj;
     }
 
@@ -799,6 +804,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           @SuppressWarnings("unchecked")
           Table<Key, Type> childTable = (Table<Key, Type>)aValues[ix];
           ok = childTable.searchAndSortin(sortkey, value, ix, valueNext);
+          check();
           cont = !ok;
           if(cont){
             ix +=1;  //continue with next.
@@ -806,6 +812,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         } else {
           if(ix < (sizeBlock -1) || aValues[ix+1] == valueNext){
             sortin(ix, sortkey, value);
+            check();
             ok = true;
             cont = false;
           }
@@ -844,7 +851,6 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
      */
     private void sortin(int ix, Key sortkey, Object value)
     { //assert(value instanceof Type || value instanceof Table);
-      check();
       if(sizeBlock == maxBlock)
       { //divide the block:
         if(isHyperBlock)
@@ -877,10 +883,10 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           Table<Key,Type> childTable = (Table<Key,Type>)value;
           childTable.ixInParent = ix;
           childTable.parent = this;
+        } else {
+          addSizeAll(1);  //add a leaf.
         }
       }
-      check();
-      sizeAll +=1;
     }
 
 
@@ -890,7 +896,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
      * @param key1
      * @param obj1
      */
-    private Table<Key, Type> splitIntoSibling(int idx, Key key1, Object obj1){
+    private Table<Key, Type> splitIntoSibling(final int idx, Key key1, Object obj1){
       Table<Key, Type> sibling = new Table<Key, Type>(rootIdxTable);
       sibling.parent = parent;
       sibling.isHyperBlock = isHyperBlock;
@@ -899,26 +905,25 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       int newSize = sizeBlock/2;
       if(idx > newSize){
         //new element moved into the sibling.
-        int ix1 = idx - newSize;
+        final int ix1 = idx - newSize;
         sibling.sizeAll = movein(this, sibling, newSize, 0, idx - newSize);
         sibling.aKeys[ix1] = key1;
         sibling.aValues[ix1] = obj1;
+        sibling.sizeAll += movein(this, sibling, idx, ix1 +1, sizeBlock - idx);
+        sibling.sizeBlock = sizeBlock - newSize +1;
+        this.sizeBlock = newSize;
+        this.sizeAll -= sibling.sizeAll; //The elements in sibling.
         if(obj1 instanceof Table){
           @SuppressWarnings("unchecked")
           Table<Key,Type> childTable = (Table<Key,Type>)obj1;
           childTable.ixInParent = ix1;
           childTable.parent = sibling;
         }
-        sibling.sizeAll +=1;
-        sibling.sizeAll += movein(this, sibling, idx, ix1 +1, sizeBlock - idx);
-        sibling.sizeBlock = sizeBlock - newSize +1;
-        sizeBlock = newSize;
-        sizeAll -= sibling.sizeAll;
-        //sibling.sizeAll +=1;  //the new element.
         clearRestArray(this);
         parent.sortin(sibling.ixInParent, sibling.aKeys[0], sibling);  //sortin the empty table in parent.      
-        this.check();
-        sibling.check();
+        if(!(obj1 instanceof Table)){//add a leaf
+          sibling.addSizeAll(1); //the new element. Add leaf only on ready structure
+        }
         parent.check();
       } else {
         //new element moved into this.
@@ -928,6 +933,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           if(idx < newSize){
             movein(this, this, idx, idx+1, newSize -idx);
           }
+          sizeBlock = newSize +1;
+          sizeAll = sizeAll - sibling.sizeAll;
           this.aKeys[idx] = key1;
           this.aValues[idx] = obj1;
           if(obj1 instanceof Table){
@@ -936,16 +943,15 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
             childTable.ixInParent = idx;
             childTable.parent = this;
           }
-          sizeBlock = newSize +1;
-          sizeAll = sizeAll - sibling.sizeAll +1;
-        } else {
+        } else { //idx < 0, nothing to add
           sizeBlock = newSize;
           sizeAll = sizeAll - sibling.sizeAll;
         }
         clearRestArray(this);
         parent.sortin(sibling.ixInParent, sibling.aKeys[0], sibling);  //sortin the empty table in parent.      
-        this.check();
-        sibling.check();
+        if(!(obj1 instanceof Table)){//add a leaf
+          this.addSizeAll(1); //the new element. Add leaf only on ready structure
+        }
         parent.check();
       }
       return sibling;
@@ -964,7 +970,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
      * @return the number of elements moved inclusively all elements in children, to build {@link #sizeAll}
      */
     private int movein(Table<Key,Type> src, Table<Key,Type> dst, int ixSrc, int ixDst, int nrof){
-      int sizeRet = nrof;
+      int sizeRet = 0;
       //int ix2 = ixDst + nrof - 1;
       int ct1 = nrof;
       int ix1Src, ix1Dst;
@@ -979,16 +985,19 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         ix1Src = ixSrc;
         ix1Dst = ixDst;
       }
+      boolean bHypertable = nrof >0 && (src.aValues[ixSrc] instanceof Table<?,?>);
       while(--ct1 >=0) {
       //for(int ix1 = ixSrc + nrof-1; ix1 >= ixSrc; --ix1){
         Object value = src.aValues[ix1Src];
-        if(value instanceof Table<?,?>) {
+        if(bHypertable) {
           @SuppressWarnings("unchecked")
           Table<Key,Type> childTable = (Table<Key,Type>)value;
           childTable.ixInParent = ix1Dst;
           childTable.parent = dst;
-          sizeRet += childTable.sizeAll -1;  //-1: 1 element is counted initial
-        } 
+          sizeRet += childTable.sizeAll;
+        } else {
+          sizeRet += 1;
+        }
         dst.aValues[ix1Dst] = value;
         dst.aKeys[ix1Dst] = src.aKeys[ix1Src];
         ix1Src += dx;  //count forward or backward.
@@ -1022,15 +1031,9 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     protected void delete(int ix){
       //Key keydel = aKeys[ix];
       sizeBlock -=1;
-      Table<Key, Type> tableParent = this;
-      do {
-        if(tableParent.sizeAll >0){ tableParent.sizeAll -=1; } //Hint: start with this.
-        tableParent = tableParent.parent;
-      } while(tableParent !=null);
+      addSizeAll(-1);
       if(ix < sizeBlock){
         movein(this, this, ix+1, ix, this.sizeBlock - ix);
-        //System.arraycopy(aKeys, ix+1, aKeys, ix, sizeBlock-ix);
-        //System.arraycopy(aValues, ix+1, aValues, ix, sizeBlock-ix);
       }
       aKeys[sizeBlock] = rootIdxTable.maxKey__;
       aValues[sizeBlock] = null;   //prevent dangling references!
@@ -1071,7 +1074,19 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         aKeys[ix] = rootIdxTable.maxKey__; 
       }
       sizeBlock = 0;
+      sizeAll = 0;
       isHyperBlock = false;
+    }
+
+    
+    /**Change the size in this table and in all parents.
+     * @param add usual +1 or -1 for add and delete.
+     */
+    void addSizeAll(int add){
+      this.sizeAll += add;
+      if(parent !=null) {
+        parent.addSizeAll(add);
+      }
     }
 
 
@@ -1150,15 +1165,16 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
 
     @SuppressWarnings("unchecked")
-    void check()
-    { if(rootIdxTable.shouldCheck){
+    int check()
+    { int sizeAllCheck = 0; 
+      if(rootIdxTable.shouldCheck){
         if(parent!=null){
           rootIdxTable.assert1(parent.aValues[ixInParent] == this);
         }
         if(sizeBlock >=1){ rootIdxTable.assert1(aValues[0] != null); }
         for(int ii=1; ii < sizeBlock; ii++)
         { rootIdxTable.assert1(compare(aKeys[ii-1],aKeys[ii]) <= 0);
-        rootIdxTable.assert1(aValues[ii] != null);
+          rootIdxTable.assert1(aValues[ii] != null);
           if(aValues[ii] == null)
             rootIdxTable.stop();
         }
@@ -1166,15 +1182,20 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         { for(int ii=0; ii < sizeBlock; ii++)
           { rootIdxTable.assert1(aValues[ii] instanceof Table);
             Table<Key, Type> childtable = (Table<Key, Type>)aValues[ii]; 
-            rootIdxTable.assert1(aKeys[ii].equals(childtable.aKeys[0])); 
-            rootIdxTable.assert1(childtable.ixInParent == ii);
+            rootIdxTable.assert1(aKeys[ii].equals(childtable.aKeys[0])); //check start key is equal first key in sub table.
+            rootIdxTable.assert1(childtable.ixInParent == ii);           //check same index in sub table.
+            sizeAllCheck += childtable.check();  //recursively call of check.
           }
+        } else {
+          sizeAllCheck = this.sizeBlock; //elements to return..
         }
-        for(int ii=sizeBlock; ii < maxBlock; ii++)
+        rootIdxTable.assert1(sizeAllCheck == this.sizeAll);
+        for(int ii=sizeBlock; ii < maxBlock; ii++) //check rest of table is empty.
         { rootIdxTable.assert1(aKeys[ii] == rootIdxTable.maxKey__);
-        rootIdxTable.assert1(aValues[ii] == null);
+          rootIdxTable.assert1(aValues[ii] == null);
         }
-      }  
+      }
+      return sizeAllCheck;
     }
 
 
@@ -1258,7 +1279,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
   final Provide<Key> provider;
 
-  private boolean shouldCheck = false;
+  private boolean shouldCheck = true;
 
   /**The maximal nr of elements in a block, maximal value of sizeBlock.
    * It is the same value as obj.length or key.length. */
@@ -1581,6 +1602,12 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   
   
+  /**Splits the top level into 2 child tables and inserts the given element. The top level will refer this 2 tables after them.
+   * Note: Splitting of sub tables creates 2 tables from one given, another algorithm.
+   * @param idx
+   * @param key1
+   * @param obj1
+   */
   private void splitTopLevel(int idx, Key key1, Object obj1){
     Table<Key, Type> left = new Table<Key, Type>(this);
     Table<Key, Type> right = new Table<Key, Type>(this);
@@ -1591,18 +1618,21 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     //the current block is now a hyper block.
     root.isHyperBlock = true;
     int newSize = root.sizeBlock/2;
-    if(idx > newSize){
+    if(idx > newSize){  //new object to the right table
       left.sizeAll = root.movein(root, left, 0, 0, newSize);
       left.sizeBlock = newSize;
       right.sizeAll = root.movein(root, right, newSize, 0, idx - newSize);
       int ix1 = idx - newSize;
       right.aKeys[ix1] = key1;
       right.aValues[ix1] = obj1;
-      if(obj1 instanceof Table){
+      if(obj1 instanceof Table){ //insert a table.
         @SuppressWarnings("unchecked")
         Table<Key,Type> childTable = (Table<Key,Type>)obj1;
+        right.sizeAll += childTable.sizeAll;    //don't change sizeAll of parent because there are not new leafs.
         childTable.ixInParent = ix1;
         childTable.parent = right;
+      } else { //simple element.
+        right.addSizeAll(1);
       }
       right.sizeAll += root.movein(root, right, idx, ix1+1, root.sizeBlock - idx);
       right.sizeBlock = root.sizeBlock - newSize +1;
@@ -1610,7 +1640,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       root.aValues[1] = right;
       left.check();
       right.check();
-    } else {
+    } else { //new object to the left table.
       if(idx >=0){
         left.sizeAll = root.movein(root, left, 0, 0, idx);
         left.aKeys[idx] = key1;
@@ -1621,7 +1651,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           childTable.ixInParent = idx;
           childTable.parent = left;
         }
-        left.sizeAll += 1;
+        left.addSizeAll(1);
         left.sizeAll += root.movein(root, left, idx, idx+1, newSize - idx);
         left.sizeBlock = newSize +1;
       } else {
@@ -1642,6 +1672,9 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     root.check();
   }
 
+  
+  
+  
   @Override public String toString(){ return root.toString(); }
   
     /**This interface is necessary to provide tables and the minimum and maximum value for any user specific type.

@@ -1586,7 +1586,11 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
       FileRemote[] aChildren = new FileRemote[children.size()];
       int ix = -1;
       for(Map.Entry<String, FileRemote> item: children.entrySet()){
-        aChildren[++ix] = item.getValue();
+        if(ix+1 >= aChildren.length) {
+          System.err.println("Bug in IndexMultiTable");
+        } else {
+          aChildren[++ix] = item.getValue();
+        }
       }
       return aChildren;
     }
