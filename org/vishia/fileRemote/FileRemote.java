@@ -2829,20 +2829,21 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
      */
     public void setChildrenRefreshed(){
       if(FileRemote.this.children !=null) {
-        Iterator<Map.Entry<String, FileRemote>> iter = FileRemote.this.children.entrySet().iterator();
-        while(iter.hasNext()) {
-          Map.Entry<String, FileRemote> filentry = iter.next();
-          FileRemote child = filentry.getValue();
-          if(child == null) {
-            Debugutil.stop();
-          } else {
-            if((child.flags & mRefreshChildPending)!=0) {
-              //child file is not existing, remove it:
-              iter.remove();
-            }
-          }
-          
-        }
+        synchronized(FileRemote.this.children) {
+          Iterator<Map.Entry<String, FileRemote>> iter = FileRemote.this.children.entrySet().iterator();
+          while(iter.hasNext()) {
+            Map.Entry<String, FileRemote> filentry = iter.next();
+            FileRemote child = filentry.getValue();
+            if(child == null) {
+              Debugutil.stop();
+            } else {
+              if((child.flags & mRefreshChildPending)!=0) {
+                //child file is not existing, remove it:
+                iter.remove();
+              }
+            }//if
+          }//while
+        } //synchronized
       }      
       flags &= ~mShouldRefresh; timeRefresh = timeChildren = System.currentTimeMillis(); 
     }

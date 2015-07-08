@@ -769,6 +769,7 @@ public class CalculatorExpr
   protected static final Operator boolNotOperation = new Operator("b!"){
     @Override public void operate(Value val, Value value2) {
       val.boolVal = !val.booleanValue();
+      val.type = 'Z';
       val.etype = booleanExpr;
     }
     @Override public boolean isUnary(){ return true; }

@@ -86,6 +86,10 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-07-09 Hartmut chg: All methods are synchronized now because instances are used in more as one thread usual.
+   *   The non-synchronized variant may be a special case. It has some more less calculation time.
+   *   Idea: Offer non-synchronized methods with special name to save calculation time for applications
+   *   which's instances are guaranteed not used in more as one thread.    
    * <li>2015-07-05 Hartmut bugfix: The calculation of {@link Table#sizeAll} was faulty. {@link Table#check()} improved,
    *   it checks the sizeAll and checks all child tables. Calculation of sizeAll improved. 
    * <li>2015-03-07 Hartmut bugfix false instanceof check, sub-tables has not worked.
@@ -522,7 +526,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * @param <Key> Same like the {@link IndexMultiTable}
    * @param <Type>
    */
-  static class Table<Key extends Comparable<Key>, Type>
+  static private class Table<Key extends Comparable<Key>, Type>
   {
     /**Array of all keys. Note: It is the first element to see firstly while debugging. */
     protected final Key[] aKeys; // = new Key[maxBlock];
@@ -671,7 +675,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           }
           @SuppressWarnings("unchecked")
           Table<Key, Type> childTable = (Table<Key, Type>)aValues[idx];
-          check();
+          //check();  //firstly the key should be inserted before check!
           lastObj = childTable.putOrAdd(sortKey, value, valueNext, kind); 
           check();
         }
@@ -782,6 +786,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           }
         }
       }
+      check();
+      
       return !cont;
     }
 
@@ -821,6 +827,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           }
         }
       }
+      check();
       return ok;
     }
 
@@ -887,6 +894,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           addSizeAll(1);  //add a leaf.
         }
       }
+      //don't check(); because it is not consistent in this state.
     }
 
 
@@ -1031,9 +1039,14 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     protected void delete(int ix){
       //Key keydel = aKeys[ix];
       sizeBlock -=1;
-      addSizeAll(-1);
-      if(ix < sizeBlock){
+      if(!(aValues[ix] instanceof Table)) {
+        addSizeAll(-1);
+      }
+      if(ix < sizeBlock){ //Note:sizeBlock is decremented already.
         movein(this, this, ix+1, ix, this.sizeBlock - ix);
+      }
+      if(ix == 0) {
+        correctKey0InParents();
       }
       aKeys[sizeBlock] = rootIdxTable.maxKey__;
       aValues[sizeBlock] = null;   //prevent dangling references!
@@ -1053,6 +1066,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
           //The root table is empty. If it was an Hypertable:
           isHyperBlock = false; //elsewhere problems on next put.
         }
+      } else { //check only if this table is not deleted.
+        check();
       }
     }
 
@@ -1076,21 +1091,10 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       sizeBlock = 0;
       sizeAll = 0;
       isHyperBlock = false;
+      check();
     }
 
     
-    /**Change the size in this table and in all parents.
-     * @param add usual +1 or -1 for add and delete.
-     */
-    void addSizeAll(int add){
-      this.sizeAll += add;
-      if(parent !=null) {
-        parent.addSizeAll(add);
-      }
-    }
-
-
-
     /**Searches the key in the tables.
      * @param key1 The key
      * @param exact if true then returns null and retFound[0] = false if the key was not found
@@ -1162,7 +1166,34 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       return sibling;
     }
 
+    
+    
+    /**Change the size in this table and in all parents.
+     * @param add usual +1 or -1 for add and delete.
+     */
+    void addSizeAll(int add){
+      this.sizeAll += add;
+      if(parent !=null) {
+        parent.addSizeAll(add);
+      }
+    }
 
+
+
+    /**Correct the key in the parent if the key on aKeys[0] was changed.
+     * This method is invoked on put or delete.
+     */
+    private void correctKey0InParents()
+    {
+      int ix2 = 0;
+      Table<Key, Type> parentTable = this; 
+      while(parentTable.parent !=null && ix2 == 0) {
+        parentTable.parent.aKeys[parentTable.ixInParent] = parentTable.aKeys[0];  //The key to the child
+        ix2 = parentTable.ixInParent; 
+        parentTable = parentTable.parent;
+      }
+    }
+    
 
     @SuppressWarnings("unchecked")
     int check()
@@ -1285,13 +1316,13 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * It is the same value as obj.length or key.length. */
   protected final static int maxBlock = AllocInBlock.restSizeBlock(IndexMultiTable.class, 160) / 8; //C: 8=sizeof(int) + sizeof(Object*) 
 
-  final Table<Key, Type> root;
+  private final Table<Key, Type> root;
 
 
 
   /**modification access counter for Iterator. */
   //@SuppressWarnings("unused")
-  protected int modcount;
+  private int modcount;
 
 
 
@@ -1307,7 +1338,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   /**Delete all content. 
    * @see java.util.Map#clear()
    */
-  public void clear(){ modcount +=1; root.clear(); }
+  public synchronized void clear(){ modcount +=1; root.clear(); }
 
   /**Puts the (key - value) pair to the container. An existing value with the same key will be replaced
    * like described in the interface. If more as one value with this key are existing, the first one
@@ -1318,7 +1349,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * @param value
    * @return The last value with this key if existing.
    */
-  @Override public Type put(Key key, Type value){
+  @Override public synchronized Type put(Key key, Type value){
     modcount +=1;
     return root.putOrAdd(key, value, null, KindofAdd.replace);
   }
@@ -1334,13 +1365,13 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * @param value
    * @return The last value with this key if existing.
    */
-  public void add(Key key, Type value){
+  public synchronized void add(Key key, Type value){
     modcount +=1;
     root.putOrAdd(key, value, null, KindofAdd.addOptimized);
   }
 
   @SuppressWarnings("unchecked")
-  public boolean containsKey(Object key)
+  public synchronized boolean containsKey(Object key)
   { boolean[] found = new boolean[1];
     return search((Key)key, true, found) !=null || found[0];
   }
@@ -1361,7 +1392,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * @param value
    * @return The last value with this key if existing.
    */
-  public void append(Key key, Type obj){
+  public synchronized void append(Key key, Type obj){
     if(key.equals("ckgro") && root.sizeAll == 19)
       Assert.stop();
     modcount +=1; 
@@ -1380,7 +1411,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * @param value
    * @return The last value with this key if existing.
    */
-  public void addBefore(Key key, Type value, Type valueNext){
+  public synchronized void addBefore(Key key, Type value, Type valueNext){
     modcount +=1; 
     root.putOrAdd(key, value, valueNext, KindofAdd.addBefore);
   }
@@ -1408,7 +1439,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
 
   @SuppressWarnings({ "unchecked" })
-  @Override public Type get(Object keyArg){
+  @Override public synchronized Type get(Object keyArg){
     assert(keyArg instanceof Comparable<?>);
     IndexBox ixRet = new IndexBox();
     Table<Key, Type> table = root.searchInTables((Key)keyArg, true, ixRet);
@@ -1427,7 +1458,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * @param key
    * @return
    */
-  public Type search(Key key){ 
+  public synchronized Type search(Key key){ 
     return search(key, false, null);
   }
 
@@ -1446,7 +1477,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    *   null if the value for this key is null.
    *   null if exact = true and the key is not found.
    */
-  public Type search(Key keyArg, boolean exact, boolean[] retFound)
+  public synchronized Type search(Key keyArg, boolean exact, boolean[] retFound)
   { 
     IndexBox ixRet = new IndexBox();
     Table<Key, Type> table = root.searchInTables(keyArg, exact, ixRet);
@@ -1522,6 +1553,11 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
 
 
+  /**Returns an iterator over the table.
+   * Note: The code which uses the iterator may be crimped by a synchronized(...){...}
+   * because the table should not be changed.
+   * @see java.lang.Iterable#iterator()
+   */
   public ListIterator<Type> iterator()
   {
     return new IteratorImpl();
@@ -1533,6 +1569,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * The {@link ListIterator#previous()} is lesser or equal and the {@link ListIterator#next()}
    * is greater or equal. If a lesser or greater element is not found then the {@link ListIterator#hasPrevious()} 
    * and {@link ListIterator#hasNext()} returns false. 
+   * Note: The code which uses the iterator may be crimped by a synchronized(...){...}
+   * because the table should not be changed.
    * @param fromKey The start key.
    * @return
    */
@@ -1548,7 +1586,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * @return
    */
   @SuppressWarnings({ "unchecked" })
-  @Override public Type remove(Object keyArg){
+  @Override synchronized public Type remove(Object keyArg){
     assert(keyArg instanceof Comparable<?>);
     IndexBox ixRet = new IndexBox();
     Table<Key, Type> table = root.searchInTables((Key)keyArg, true, ixRet);
@@ -1593,7 +1631,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   
   @Override
-  public void putAll(Map<? extends Key, ? extends Type> m)
+  public synchronized void putAll(Map<? extends Key, ? extends Type> m)
   {
     for(Map.Entry<? extends Key, ? extends Type> e: m.entrySet()){
       put(e.getKey(), e.getValue());
