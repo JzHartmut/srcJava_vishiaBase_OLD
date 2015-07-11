@@ -531,7 +531,6 @@ public class CalculatorExpr
     
     @Override public ExpressionType checkArgument(Value accu, Value val2) throws Exception {
       switch(val2.type){
-        case 'L': val2.doubleVal = val2.longVal; return this; 
         case 'C': case 'I': val2.doubleVal = val2.intVal; return this; 
         case 'J': val2.doubleVal = val2.longVal; return this; 
         case 'F': val2.doubleVal = val2.floatVal; return this; 
@@ -574,7 +573,7 @@ public class CalculatorExpr
         case 'I': val2.boolVal = val2.intVal !=0; break;
         case 'J': val2.boolVal = val2.longVal != 0; break;
         case 'F': val2.boolVal = val2.floatVal !=0; break;
-        case 'D': val2.boolVal = val2.floatVal !=0; break;
+        case 'D': val2.boolVal = val2.doubleVal !=0; break;
         case 't': val2.boolVal = val2.stringVal !=null && val2.stringVal.length() >0; break;
         case 'o':           
           if(val2.oVal instanceof Long)          { val2.boolVal = ((Long)val2.oVal).longValue() !=0;  }
@@ -1997,7 +1996,7 @@ public class CalculatorExpr
         if(longvalue < 0x80000000L && longvalue >= -0x80000000L) {
           value.intVal = (int)longvalue; value.type = 'I'; value.etype = intExpr;
         } else {
-          value.longVal = longvalue; value.type = 'L'; value.etype = longExpr;
+          value.longVal = longvalue; value.type = 'J'; value.etype = longExpr;
         }
       }
       listOperations.add(new Operation(operation, value));

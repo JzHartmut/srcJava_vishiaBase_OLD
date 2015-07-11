@@ -1202,10 +1202,10 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         if(parent!=null){
           rootIdxTable.assert1(parent.aValues[ixInParent] == this);
         }
-        if(sizeBlock >=1){ rootIdxTable.assert1(aValues[0] != null); }
+        //if(sizeBlock >=1){ rootIdxTable.assert1(aValues[0] != null); }  //2015-07-10: removed a value can be null
         for(int ii=1; ii < sizeBlock; ii++)
         { rootIdxTable.assert1(compare(aKeys[ii-1],aKeys[ii]) <= 0);
-          rootIdxTable.assert1(aValues[ii] != null);
+          //rootIdxTable.assert1(aValues[ii] != null);  //2015-07-10: removed a value can be null
           if(aValues[ii] == null)
             rootIdxTable.stop();
         }
@@ -1700,8 +1700,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       right.sizeBlock = root.sizeBlock - newSize;
       root.aValues[0] = left;
       root.aValues[1] = right;
-      left.check();
-      right.check();
+      //left.check();
+      //right.check();
     }
     root.aKeys[0] = left.aKeys[0]; //minKey__;  //because it is possible to sort in lesser keys.
     root.aKeys[1] = right.aKeys[0];
