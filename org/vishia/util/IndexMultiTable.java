@@ -906,6 +906,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
      */
     private Table<Key, Type> splitIntoSibling(final int idx, Key key1, Object obj1){
       Table<Key, Type> sibling = new Table<Key, Type>(rootIdxTable);
+      @SuppressWarnings("unused") int sizeall1 = parent.check();
       sibling.parent = parent;
       sibling.isHyperBlock = isHyperBlock;
       sibling.ixInParent = this.ixInParent +1;
@@ -938,7 +939,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         sibling.sizeAll = movein(this, sibling, newSize, 0, sizeBlock - newSize);
         sibling.sizeBlock = sizeBlock - newSize; 
         if(idx >=0){
-          if(idx < newSize){
+          if(idx < newSize){ //move only if it is not on the end. idx == newSize: movein not necessary.
             movein(this, this, idx, idx+1, newSize -idx);
           }
           sizeBlock = newSize +1;
@@ -957,7 +958,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         }
         clearRestArray(this);
         parent.sortin(sibling.ixInParent, sibling.aKeys[0], sibling);  //sortin the empty table in parent.      
-        if(!(obj1 instanceof Table)){//add a leaf
+        if(idx >=0  && !(obj1 instanceof Table)){ //has add a leaf
           this.addSizeAll(1); //the new element. Add leaf only on ready structure
         }
         parent.check();
