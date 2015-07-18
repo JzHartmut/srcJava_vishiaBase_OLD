@@ -20,6 +20,8 @@ public class CmdExecuter implements Closeable
 {
   /**Version and History:
    * <ul>
+   * <li>2015-07-18 Hartmut chg: Now on {@link #execute(String[], String, Appendable, Appendable)} etc. the error can be the same
+   *   as the output. It is equate to error=null, only one output instance is used.
    * <li>2013-07-12 Hartmut new: {@link #execute(String[], boolean, String, List, List)} now with donotwait
    * <li>2013-07-12 Hartmut new: {@link #execute(String[], String, List, List)} for more as one output or error.
    *   It is nice to write a process output similar to the System.out and to a internal buffer while the process runs.
@@ -48,7 +50,7 @@ public class CmdExecuter implements Closeable
    * <li>older: TODO
    * </ul>
    */
-  public static final int version = 0x20111002;
+  public static final String version = "2015-07-18";
 
   
   /**Composite instance of the java.lang.ProcessBuilder. */
@@ -128,7 +130,7 @@ public class CmdExecuter implements Closeable
    * @param input The input stream of the command. TODO not used yet.
    * @param output Will be filled with the output of the command.
    * @param error Will be filled with the error output of the command. 
-   *        Maybe null, then the error output will be written to output 
+   *        Maybe null or equal output, then the error output will be written to output with the same output thread. 
    */
   public int execute(String cmdLine
   , String input
@@ -146,7 +148,7 @@ public class CmdExecuter implements Closeable
    * @param input The input stream of the command. TODO not used yet.
    * @param output Will be filled with the output of the command.
    * @param error Will be filled with the error output of the command. 
-   *        Maybe null, then the error output will be written to output 
+   *        Maybe null or equal output, then the error output will be written to output with the same output thread. 
    */
   public int execute(String cmdLine
   , String input
@@ -168,7 +170,7 @@ public class CmdExecuter implements Closeable
    *        If output ==null then no output is expected and the end of command execution is not awaited.
    *        But in this case error should not be ==null because errors of command invocation are written there.
    * @param error Will be filled with the error output of the command. 
-   *        Maybe null, then the error output will be written to output 
+   *        Maybe null or equal output, then the error output will be written to output with the same output thread. 
    * @return exit code if output !=null. If output==null the end of command execution is not awaited.       
    */
   public int execute(String[] cmdArgs
@@ -185,7 +187,7 @@ public class CmdExecuter implements Closeable
     } else {
       outputs = null;
     }
-    if(error !=null){
+    if(error !=null && error != output){ //if the same channel is used, use onle output in a queue.
       donotwait = false;
       errors = new LinkedList<Appendable>();
       errors.add(error);
@@ -219,10 +221,10 @@ public class CmdExecuter implements Closeable
    *   If one of input, outputs and errors is not null, the execution should wait in this thread because
    *   the threads for input, output and error should be running to capture that data. Then this flag is not used.       
    * @param input The input stream of the command. TODO not used yet.
-   * @param output Will be filled with the output of the command.
+   * @param outputs Will be filled with the output of the command.
    *        If output ==null then no output is expected and the end of command execution is not awaited.
    *        But in this case error should not be ==null because errors of command invocation are written there.
-   * @param error Will be filled with the error output of the command. 
+   * @param errors Will be filled with the error output of the command. 
    *        Maybe null, then the error output will be written to output
    * @return exit code if it is waiting for execution, elsewhere 0.       
    */

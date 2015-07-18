@@ -90,6 +90,10 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-07-18 Hartmut chg: In {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)}: 
+   *   An exception should not be thrown forward, rather than an ScriptException with the file, line and column should be thrown
+   *   because it is not an exception in deep Java algorithm mostly but it is usual an error in a script. That exception
+   *   is a better hint to find out the problem.   
    * <li>2015-06-04 Hartmut bugfix and improve: in {@link ExecuteLevel#executeText(org.vishia.cmd.JZcmdScript.JZcmditem, Appendable, int)}:
    *   The processing of insertion characters was not according to the description. It is fixed, enhanced and described. 
    *   Now '+++' and '===' are possible as insertion text marking characters too.
@@ -712,7 +716,10 @@ public class JZcmdExecuter {
     }
     if(ret == kReturn || ret == kBreak){ ret = kSuccess; }
     if(ret == kException){
-      throw acc.scriptThread.exception;
+      //The primary exception is not the point of interest because a script is executed.
+      //To get the detail message set a breakpoint here.
+      //wrong: throw acc.scriptThread.exception;
+      throw new ScriptException(acc.scriptThread.exception.getMessage(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
     }
     return null;
   }

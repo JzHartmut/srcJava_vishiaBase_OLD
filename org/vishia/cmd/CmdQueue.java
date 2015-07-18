@@ -26,6 +26,9 @@ public class CmdQueue implements Closeable
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-07-18 Hartmut chg: Now associated to an Appendable instead a PrintStream for error alive and error messages.
+   *   A System.out is an Appendable too, for this kind the application is unchanged. Other output channels may support
+   *   an Appendable rather than an PrintStream because it is more simple and substantial. 
    * <li>2013-09-08 Hartmut new: {@link #jzcmdExecuter} now included. TODO: it should use the {@link #executer}
    *   instead create a new one per call.
    * <li>2013-02-09 Hartmut chg: {@link #abortCmd()} now clears the queue too. The clearing of the command queue is a good idea, because while a program execution hangs, some unnecessary requests
@@ -62,7 +65,7 @@ public class CmdQueue implements Closeable
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
-  public static int version = 20120609;
+  public static final String version = "2015-07-18";
   
   private static class PendingCmd implements CmdGetFileArgs_ifc
   {
@@ -131,7 +134,8 @@ public class CmdQueue implements Closeable
   
   //private final MainCmd_ifc mainCmd;
 
-  private final PrintStream log;
+  //private final PrintStream log;
+  private final Appendable log;
   
   private boolean busy;
   
@@ -141,10 +145,10 @@ public class CmdQueue implements Closeable
   
   private Appendable cmdError = System.err;
   
-  public CmdQueue(PrintStream log)
+  public CmdQueue(Appendable log)
   {
     this.log = log;
-    MainCmdLoggingStream logMainCmd = new MainCmdLoggingStream(log, MainCmdLogging_ifc.info);
+    MainCmdLoggingStream logMainCmd = new MainCmdLoggingStream("MMM-dd HH:mm:ss.SSS: ", log, MainCmdLogging_ifc.info);
     jzcmdExecuter = new JZcmdExecuter(logMainCmd);
   }
   
@@ -158,7 +162,7 @@ public class CmdQueue implements Closeable
   public void setOutput(Appendable userOut, Appendable userErr)
   {
     cmdOutput = userOut;
-    cmdError = userErr;
+    cmdError = userErr !=null ? userErr : userOut; //maybe same as out
   }
   
   
@@ -270,31 +274,32 @@ public class CmdQueue implements Closeable
               }
               cmdOutput.append("\n");
             }
-            log.println(sCmdShow);
+            log.append(sCmdShow).append('\n');
             //mainCmd.writeInfoln(sCmdShow.toString());
             
             int exitCode = executer.execute(sCmd, null, cmdOutput, cmdError);
             if(exitCode == 0){ cmdOutput.append("\nJavaCmd: cmd execution successfull\n"); }
             else {cmdOutput.append("\nJavaCmd: cmd execution errorlevel = " + exitCode + "\n"); }
           } else if(kindOfExecution == '&'){
-            log.println(sCmdShow);
+            log.append(sCmdShow).append('\n');;
             //mainCmd.writeInfoln(sCmdShow.toString());
             if(outStatus !=null){ outStatus.append("&" + sCmd[0]); }
             try{
               executer.execute(sCmd, true, null, null, null);  //don't wait for execution.
             } catch(Exception exc){
-              log.println("\nCmdQueue - execution exception; " + exc.getMessage());
+              log.append("\nCmdQueue - execution exception; " + exc.getMessage()).append('\n');
             }
             //cmdOutput.append("JavaCmd; started; " + sCmd + "\n");
           } else {
             //mainCmd.writeInfoln("CmdQueue - unexpected kind of execution; " + kindOfExecution);
-            log.println("\nCmdQueue - unexpected kind of execution; " + kindOfExecution);
+            log.append("\nCmdQueue - unexpected kind of execution; " + kindOfExecution).append('\n');;
             
           }
         }
       } catch(Throwable exc){ 
         CharSequence msg = Assert.exceptionInfo("CmdQueue - exception,", exc, 0, 20);
-        System.err.append(msg); 
+        try{ cmdError.append(msg); 
+        } catch(IOException exc1){ System.err.append(msg); }
       }
     }
     busy = false;
