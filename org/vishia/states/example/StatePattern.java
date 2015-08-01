@@ -39,7 +39,8 @@ public class StatePattern
       
       Trans transTo_B1 = new Trans(StateB.StateB1.class);
       
-      Trans transParallel = new Trans( StateB.StateP.StateP1.StateP1A.class
+      Trans transParallel = new Trans( 
+            StateB.StateP.StateP1.StateP1A.class
           , StateB.StateP.StateP2.StateP2X.class) { 
         @Override protected void action(EventObject ev) { 
           System.out.println("action of transition StateA -> Parallel P1A, P2X");

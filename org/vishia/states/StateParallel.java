@@ -115,6 +115,7 @@ public class StateParallel extends StateSimple
             state.enclState = this;           
             int idState = clazz1.hashCode();
             stateMachine.stateMap.put(idState, state);
+            stateMachine.stateList.add(state);
           }
         }
       } catch(Exception exc){
@@ -138,6 +139,7 @@ public class StateParallel extends StateSimple
     if(ix >= aParallelstates.length) throw new IllegalArgumentException("too many parallel states to add");
     aParallelstates[ix] = (StateComposite)state;
     stateMachine.stateMap.put(state.hashCode(), state);
+    stateMachine.stateList.add(state);
   }
   
   
@@ -205,14 +207,14 @@ public class StateParallel extends StateSimple
    * First the event is applied to all parallel composite states {@link #aParallelstates} one after another 
    * invoking its {@link StateComposite#processEvent(EventObject)} which calls this method recursively.
    * <br><br>
-   * Then the {@link #checkTransitions(EventObject)} of this state is invoked but only if the event is not processed
+   * Then the {@link #_checkTransitions(EventObject)} of this state is invoked but only if the event is not processed
    * or the state contains non-event triggered (conditional) transitions. Last one is signified by the {@link #modeTrans}.
    * <br><br>
    * This method overrides the {@link StateSimple#processEvent(EventObject)} which is overridden by {@link StateComposite#processEvent(EventObject)}
    * too to provide one method for event processing for all state kinds with the necessary different handling.
    * 
    * @param evP The event.
-   * @return Some bits especially {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #checkTransitions(EventObject)}.
+   * @return Some bits especially {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #_checkTransitions(EventObject)}.
    */
   /*package private*/ @Override int processEvent(final EventObject evP){  //NOTE: should be protected.
     int cont = 0;
@@ -231,7 +233,7 @@ public class StateParallel extends StateSimple
         ){
       //process the own transition. Do it after processing the inner state (omg.org)
       //and only if either an event is present or the state has only conditional transitions.
-      int trans = checkTransitions(evTrans); 
+      int trans = _checkTransitions(evTrans); 
       cont |= trans;
     }
     

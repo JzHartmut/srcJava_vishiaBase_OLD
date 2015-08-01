@@ -7,6 +7,10 @@ import java.util.EventObject;
 
 import org.vishia.util.InfoAppend;
 
+/**A composite state with its own state variable {@link #stateAct}.
+ * @author Hartmut Schorrig
+ *
+ */
 public class StateComposite extends StateCompositeFlat implements InfoAppend
 {
   /**Version, history and license.
@@ -163,7 +167,7 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
    * the loop is terminated with an exception for a number of {@link #maxStateSwitchesInLoop}. This exception occurs
    * if the user stateMachine conditions are faulty only.
    * <br><br>
-   * At least the {@link #checkTransitions(EventObject)} of this state is invoked but only if the event is not processed
+   * At least the {@link #_checkTransitions(EventObject)} of this state is invoked but only if the event is not processed
    * or the state contains non-event triggered (conditional) transitions. Last one is signified by the {@link #modeTrans}.
    * <br><br>
    * This method overrides the {@link StateSimple#processEvent(EventObject)} which is overridden by {@link StateParallel#processEvent(EventObject)}
@@ -171,7 +175,7 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
    * <br><br>
    * <b>Return bits</b>:
    * <ul>
-   * <li> {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #checkTransitions(EventObject)}
+   * <li> {@link StateSimpleBase#mEventConsumed} as result of the inside called {@link #_checkTransitions(EventObject)}
    *   to remove the event for further usage in an enclosing state processing.
    * <li> {@link StateSimpleBase#mRunToComplete} is not delivered because it has no sense outside.
    * <li> {@link StateSimpleBase#mRunToComplete} 
@@ -226,7 +230,7 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
         ) {
         if(evTrans !=null || (stateEncl1.modeTrans & StateSimple.mRunToComplete) !=0 ) { //state has only conditional transitions
           //==>>
-          int trans = stateEncl1.checkTransitions(evTrans);
+          int trans = stateEncl1._checkTransitions(evTrans);
           if(stateMachine.debugState && stateActPrev instanceof StateSimple && (trans & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(stateActPrev, evTrans, trans); }
           if((trans & StateSimple.mEventConsumed) != 0){
             evTrans = null;
@@ -245,7 +249,7 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
       //process the own transition. Do it after processing the inner state (omg.org)
       //and only if either an event is present or the state has only conditional transitions.
       StateSimple statePrev = stateAct;
-      int trans = checkTransitions(evTrans); 
+      int trans = _checkTransitions(evTrans); 
       if(stateMachine.debugState && (trans & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, trans); }
       cont |= trans;
     }

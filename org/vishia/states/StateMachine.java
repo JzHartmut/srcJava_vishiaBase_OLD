@@ -2,11 +2,12 @@ package org.vishia.states;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.EventObject;
 import java.util.HashMap;
+import java.util.List;
 
 import org.vishia.event.EventConsumer;
-import org.vishia.event.EventCmdtype;
 import org.vishia.event.EventSource;
 import org.vishia.event.EventTimerThread;
 import org.vishia.event.EventWithDst;
@@ -19,39 +20,29 @@ import org.vishia.util.InfoAppend;
  * <ul>
  * <li>{@link org.vishia.states.StateSimple}: A simple state with transitions, an optional entry- and an exit-action.
  * <li>{@link org.vishia.states.StateComposite}: It contains more as one sub states.
- * <li>{@link org.vishia.states.StateParallel}: It contains more as one {@link org.vishia.states.StateParallel} which are {@link org.vishia.states.StateComposite} 
- * for parallel behavior.
+ * <li>{@link org.vishia.states.StateParallel}: It contains more as one {@link org.vishia.states.StateComposite} for parallel behavior: 
+ *   Any StateComposite contains a sub statemachine which works parallel if this state is active. 
  * </ul>
  * See example pattern {@link org.vishia.states.example.StateExampleSimple}.
  * <br><br>
  * Any state can contain an entry- and an exit action which can be build either ... or with:
  * <ul>
- * <li>Overriding the method {@link org.vishia.states.StateSimple#entry(org.vishia.event.EventCmdPingPongType)} respectively {@link StateSimple#exit()}.
+ * <li>Overriding the method {@link org.vishia.states.StateSimple#entry(EventObject)} respectively {@link StateSimple#exit()}.
  * <li>Set the association {@link org.vishia.states.StateSimple#entry} respectively {@link org.vishia.states.StateSimple#exit} 
- * with an Implementation of {@link org.vishia.states.StateAction}
- *   respectively {@link java.lang.Runnable} which can be located in any other class, usual as inner anonymous class. 
- *   In that cases the entry and exit can use data from any other class.
+ * with an Implementation of {@link org.vishia.states.StateAction} which can be located in any other class, 
+ *   usual as inner anonymous class. In that cases the entry and exit can use data from any other class.
  * </ul>  
  * <br><br>
- * Any state can contain some transitions which can be build either ... or with:
- * <ul>
- * <li>An inner class derived from {@link org.vishia.states.StateSimple.Trans}.
- * <li>An instance of an anonymous inner derived class of {@link org.vishia.states.StateSimple.Trans}.
- * <li>An method with return value {@link org.vishia.states.StateSimple.Trans} 
- *   and 2 arguments {@link org.vishia.event.EventCmdPingPongType} and {@link org.vishia.states.StateSimple.Trans}
- *   which contains the creation of a StateTrans object, the condition test, an action and the {@link org.vishia.states.StateSimple.Trans#doExit()}
- *   and {@link org.vishia.states.StateSimple.Trans#doEntry(org.vishia.event.EventCmdPingPongType)} invocation. This form shows only a simple method
- *   in a browser tree of the source code (outline in Eclipse).  
+ * Any state can contain some transitions which are variables of type {@link org.vishia.states.StateSimple.Trans}.
+ * If a transition should contain an action the transition variable should be an anonymous inner derived class 
+ * of {@link org.vishia.states.StateSimple.Trans} which overrides the {@link org.vishia.states.StateSimple.Trans#action(EventObject)}.
+ * The other possibility is assignment of action code with {@link org.vishia.states.StateSimple.Trans#setAction(StateAction)}
  * </ul>
- * The three forms of transition phrases gives possibilities for more or less complex transitions:
- * <ul>
- * <li>A simple transition with simple or without action, only with a state switch: Use a simple transition method.
- * <li>A transition which should call an action given with association to another instance: Use a derived transition class.
- * <li>A transition can have choice sub-transitions.
- * <li>A transition can fork to more as one parallel states.
- * <li>A transition can join parallel states.
- * <li>The difference between an anonymous derived instance and a derived class is less.
- * </ul>
+ * Any state should override the method {@link org.vishia.states.StateSimple#checkTrans(EventObject)}. This method checks all conditions
+ * which can fire any transition and returns the selected transition instance or null if nothing should fire. This method should not execute
+ * actions. It should only test the condition and select the transition. The actions are done in the calling environment of this method,
+ * lastly if {@link #processEvent(EventObject)} of the whole statemachine is invoked.
+ * <br><br>
  * On construction of the whole {@link StateMachine} all state classes are instantiated and listed in the StateMachine. 
  * All transitions are evaluated and transformed in a unified list of transition objects.
  * For all transitions the necessary exitState()- and entryState() operations are detected and stored, so that complex state switches
@@ -161,10 +152,16 @@ public class StateMachine implements EventConsumer, InfoAppend
   
   //EventTimerMng.TimeEvent evTime;
   
+  /**The state which presents the whole state machine. It is not a state of the user, it is the main composite state.
+   * 
+   */
   protected final StateCompositeTop topState; 
   
   /**Map of all states defined as inner classes of the derived class, filled with reflection. */
   HashMap<Integer, StateSimple> stateMap = new HashMap<Integer, StateSimple>();
+  
+  /**List of all states parallel to the #stateMap for code generation, filled with reflection. */
+  List<StateSimple> stateList = new ArrayList<StateSimple>();
   
   private final String name;
 
@@ -239,6 +236,7 @@ public class StateMachine implements EventConsumer, InfoAppend
           state.enclState = topState;
           int idState = clazz1.hashCode();
           this.stateMap.put(idState, state);
+          this.stateList.add(state);
           try { 
             clazz1.getDeclaredField("isDefault");
             if(topState.stateDefault != null){ 
@@ -287,7 +285,9 @@ public class StateMachine implements EventConsumer, InfoAppend
    *   return super.eventToTopDebug(ev);
    * }
    * </pre>
-   * @param ev The event from user or from queue
+   * The method is invoked if the event is really processed, not only stored in a queue.
+   * it is applied to the {@link #topState} and in that way to all current states and their transitions.
+   * @param ev The event from user or from queue, maybe null.
    * @return the return value of {@link StateComposite#processEvent}
    */
   protected int eventDebug(EventObject ev) {
@@ -296,8 +296,8 @@ public class StateMachine implements EventConsumer, InfoAppend
 
   /**Triggers a run cycle for the statemachine in the execution thread
    * or runs the state machine immediately if the execution thread is this thread or the execution thread is not given.
-   * @param val
-   * @return
+   * @param source maybe null
+   * @return true if the execution was done immediately, false if the execution is done in the state machine's thread.
    */
   public boolean triggerRun(EventSource source){
     if(theThread == null) {
@@ -327,6 +327,10 @@ public class StateMachine implements EventConsumer, InfoAppend
   }
 
 
+  /**Checks whether the given state is the active one. 
+   * @param stateClass The hashcode of the class is used internally to check whether this is the active state.
+   * @return true if the given state is active yet.
+   */
   public boolean isInState(Class<? extends StateSimple> stateClass){
     int id = stateClass.hashCode();
     StateSimple state = stateMap.get(id);
@@ -336,10 +340,16 @@ public class StateMachine implements EventConsumer, InfoAppend
 
 
   
-  /**Applies an event to this state machine. This method is invoked from {@link EventMsg2#sendEvent(Enum)} if this class is given
-   * as {@link EventConsumer}. If the statemachine is aggregated with a {@link EventTimerThread} and this routine is invoked from another thread
-   * then the event will be stored in {@link #theThread}. It is done if the transmitter of the event does not know about the EventThread.
-   * @see org.vishia.event.EventConsumer#processEvent(org.vishia.event.EventCmdPingPongType)
+  /**Applies an event to this state machine. This method is invoked from {@link EventWithDst#sendEvent()} if this class is given
+   * as {@link EventConsumer}. If the statemachine is aggregated with a {@link EventTimerThread} 
+   * by constructor {@link #StateMachine(String, EventTimerThread)}
+   * and this routine is invoked from another thread then the event will be stored in {@link #theThread}.
+   * If the state machine is not aggregated with a EventTimerThread then the execution is done.
+   * Then the {@link #eventDebug(EventObject)} is invoked.
+   * <br><br>
+   * This method can be called by the user instead {@link EventWithDst#sendEvent()} especially if the state machine should be executed
+   * in the users thread and without events.  
+   * This method is invoked from the {@link EventTimerThread} if the event queue is processed there. 
    */
   @Override public int processEvent(EventObject ev)
   { if(theThread == null || theThread.isCurrentThread()) {

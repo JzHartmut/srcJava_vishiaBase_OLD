@@ -7,8 +7,8 @@ import java.util.List;
 import org.vishia.util.DataAccess;
 import org.vishia.util.InfoAppend;
 
-/**Super class for a composite state which does not contain a history. Therefore it can use the state variable
- * of its enclosing {@link StateComposite}. A composite state has two core properties:
+/**Super class for a composite state which does not contain a history and which is not parallel to other {@link StateComposite}. 
+ * Therefore it can use the state variable of its enclosing {@link StateComposite}. A composite state has two core properties:
  * <ul>
  * <li>can have a history, if necessary
  * <li>transitions from the composite are the same as one transition per inner state, but in lower priority.
@@ -132,6 +132,7 @@ public class StateCompositeFlat extends StateSimple implements InfoAppend
             state.enclState = this;
             int idState = clazz1.hashCode();
             stateMachine.stateMap.put(idState, state);
+            stateMachine.stateList.add(state);
             try { 
               clazz1.getDeclaredField("isDefault");
               if(this.stateDefault != null){ 
@@ -169,6 +170,7 @@ public class StateCompositeFlat extends StateSimple implements InfoAppend
     if(ix >= aSubstates.length) throw new IllegalArgumentException("too many states to add");
     aSubstates[ix] = state;
     stateMachine.stateMap.put(state.hashCode(), state);
+    stateMachine.stateList.add(state);
     if(stateDefault ==null){
       stateDefault = state;  //the first state is the default state.
     }

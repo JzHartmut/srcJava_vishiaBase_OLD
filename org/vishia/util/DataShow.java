@@ -7,7 +7,9 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.vishia.xmlSimple.SimpleXmlOutputter;
 
@@ -16,10 +18,15 @@ import org.vishia.xmlSimple.SimpleXmlOutputter;
  * @author Hartmut Schorrig
  *
  */
-public class DataShow
+public class DataShow extends ObjectId
 {
   /**Version, history and license.
    * <ul>
+   * <li>2015-08-01 Hartmut chg: Instead hash-code as link label use the {@link #instanceId(Object)}. The advantage:
+   *   If the same data are used in a second session (repeated invocation of the same for example conversion process)
+   *   then the identification is the same. The hash code depends on the memory address, which depends on the situation
+   *   on the operation system. With them the generated html outputs are able to compare by a text difference tool.
+   *   With that intension the standard toString() output are changed, instead "type@address" "type@instanceId" is replaced. 
    * <li>2014-11-09 Hartmut new: with html output
    * <li>2014-07-24 Hartmut chg: Argument maxRecurs necessary.
    * <li>2014-07-24 Hartmut chg: Move the algorithm from to this class org.vishia.util.DataShow. It is an own topic.
@@ -55,21 +62,17 @@ public class DataShow
    * 
    * 
    */
-  static final public String sVersion = "2014-07-24";
+  static final public String sVersion = "2015-08-01";
 
   
-  
-  
-  private final Map<Integer, Object> refs = new TreeMap<Integer, Object>();
-  
-  private final List<Object> listData = new LinkedList<Object>();
+  //private final List<Object> listData = new LinkedList<Object>();
   
   
   public static void dataTreeXml(Object data, Appendable out, int maxRecurs) throws IOException {
     out.append("<?xml version=\"1.0\" encoding=\"windows-1252\"?>\n"); 
     out.append("<!-- written with org.vishia.jbat.OutputDataTree -->\n"); 
     out.append("<data "); 
-    final Map<Integer, Object> processedAlready = new TreeMap<Integer, Object>();
+    final Map<String, Object> processedAlready = new TreeMap<String, Object>();
     outData(0, maxRecurs, data, out, true, processedAlready);
     out.append("\n</data>\n"); 
   }
@@ -77,7 +80,7 @@ public class DataShow
   
   
   public static void dataTree(Object data, Appendable out, int maxRecurs) throws IOException {
-    final Map<Integer, Object> processedAlready = new TreeMap<Integer, Object>();
+    final Map<String, Object> processedAlready = new TreeMap<String, Object>();
     outData(0, maxRecurs, data, out, false, processedAlready);
   }
   
@@ -91,26 +94,26 @@ public class DataShow
    * @throws IOException
    * @return true: one line data, end with "/ >", false: more as one line.
    */
-  private static boolean outData(int recurs, int maxRecurs, Object data, Appendable out, boolean bXML, Map<Integer, Object> processedAlready) throws IOException {
+  private static boolean outData(int recurs, int maxRecurs, Object data, Appendable out, boolean bXML, Map<String, Object> processedAlready) throws IOException {
     boolean bOneline = false;
-    int hash = data.hashCode();
+    String hash = Integer.toHexString(data.hashCode());
     if(bXML){
       out
-      .append(" hash=\"").append(Integer.toHexString(hash))
+      .append(" hash=\"").append(hash)
       .append("\" objtype=\"").append(data.getClass().getName())
       .append("\" toString=\"").append(SimpleXmlOutputter.convertString(data == null ? "null" : data.toString()))
       .append("\""); 
     }
     if(processedAlready.get(hash) !=null){ //prevent circular associations
       if(bXML){
-        out.append(" circular=\"").append("@"+Integer.toHexString(hash)).append("\" />"); bOneline = true; 
+        out.append(" circular=\"").append("@"+hash).append("\" />"); bOneline = true; 
       } else {
-        out.append(" = ").append(data.toString()).append(" (circular=").append("@"+Integer.toHexString(hash)).append(")");
+        out.append(" = ").append(data.toString()).append(" (circular=").append("@"+hash).append(")");
       }
     } else { 
       processedAlready.put(hash, data);
       if(!bXML){
-        out.append(" (").append("hash=@" + Integer.toHexString(hash)).append(") = ");  ///
+        out.append(" (").append("hash=@" + hash).append(") = ");  ///
       }
       if(recurs > 200){
             out.append("\n========================too many recursions\n");
@@ -306,9 +309,17 @@ public class DataShow
     DataShow dataShow = new DataShow();
     out.append("<html>\n<head><title>DataShow</title></head>");
     out.append("\n<body>\n");
-    dataShow.outData(data, out);
-    while(dataShow.listData.size()>0) {
-      Object refData = dataShow.listData.remove(0);
+    out.append("\n<p>This file shows the content of the given Java instance and all of its associated instances.\n");
+    out.append("\nThe associated instances are able to found by local hyper links inside this file.\n");
+    out.append("\nOne can navigate with any browser in all associated instances and back with known &lt;alt-back&gt;.\n");
+    out.append("\n</p><p>This file was generated by the java class <code>org/vishia/util/DataShow.java</code> mady by Hartmut Schorrig</p>\n");
+    out.append("\n<p>You will find any element usual in the form:</p>\n");
+    out.append("\n<ul><li>name : type = value</li></ul>\n");
+    out.append("\n<p>Container and arrays are listed with their elements.</p>\n");
+    dataShow.instanceId(data, dataShow.newInstances);  //registers the top level instance, fill newInstances therewith
+    Object refData;
+    while( (refData = dataShow.newInstances.poll()) !=null) { //show all instances which are found as reference.
+      //while outData is invoked, newInstances is filld with other new instances. 
       dataShow.outData(refData, out);  //may add further referenced data.
     }
     out.append("\n</body>\n</html>\n");
@@ -317,10 +328,22 @@ public class DataShow
   
 
   
-  private void outDataShort(Object data, Class<?> type, String contentShort, Appendable out) throws IOException {
-    int hash = data.hashCode();
-    out.append(" <a href=\"#obj-").append(Integer.toHexString(hash)).append("\">")
-       .append(" @").append(Integer.toHexString(data.hashCode()))
+  Queue<Object> newInstances = new ConcurrentLinkedQueue<Object>();
+  
+  
+  
+  private DataShow(){
+    super();
+  }
+  
+  
+  
+  private void outDataShort(Object data, Class<?> type, Appendable out) throws IOException {
+    //String hash = Integer.toHexString(data.hashCode());
+    String hash = instanceId(data, newInstances);
+    String contentShort = toStringNoHash(data);
+    out.append(" <a href=\"#obj-").append(hash).append("\">")
+       .append(" id=").append(hash)
        .append(" = ").append(contentShort)
        .append("</a> (Instancetype: ")
        .append(type.getName())
@@ -338,12 +361,13 @@ public class DataShow
    * @return true: one line data, end with "/ >", false: more as one line.
    */
   private void outData(Object data, Appendable out) throws IOException {
-    int hash = data.hashCode();
+    //String hash = Integer.toHexString(data.hashCode());
+    String hash = instanceId(data, newInstances);
     Class<?> clazz = data.getClass();
-    String content = data.toString();
-    out.append("\n<a name=\"obj-").append(Integer.toHexString(hash)).append("\"/>");
+    String content = toStringNoHash(data);
+    out.append("\n<a name=\"obj-").append(hash).append("\"/>");
     out.append("\n<hr>\n<h2>");
-    out.append(clazz.getName()).append(" @").append(Integer.toHexString(hash)).append("</h2>");
+    out.append(clazz.getName()).append(" id=").append(hash).append("</h2>");
     out.append("<p>").append(" = ").append(content).append("</p>");
     out.append("\n  <h3>this</h3>");      
     while(clazz !=null) {  //for all superclasses too.
@@ -421,7 +445,7 @@ public class DataShow
         } 
         else if(elementData instanceof CharSequence){
           out.append(instanceType.getSimpleName()).append(": ");
-          out.append(SimpleXmlOutputter.convertString(elementData.toString()));
+          out.append(SimpleXmlOutputter.convertString(toStringNoHash(elementData)));
         }
         else if(type.isArray()) {  ////
           Class<?> componentType = type.getComponentType();
@@ -480,7 +504,7 @@ public class DataShow
             for(Map.Entry<?,?> entry: map.entrySet()) {
               Object item = entry.getValue();
               Object key = entry.getKey();
-              String sKey = key.toString();
+              String sKey = toStringNoHash(key);
               outField(sKey, item, item.getClass(), null, out, recursiveCount+1);
               /*  
               out.append("\n        <li>");
@@ -496,9 +520,7 @@ public class DataShow
             out.append("\n      </ol>");
           }
         } else {
-          addRef(elementData);
-          String content1 = elementData.toString();
-          outDataShort(elementData, elementData.getClass(), content1, out);
+          outDataShort(elementData, elementData.getClass(), out);
           //out.append(" = ").append(content1);
         }
       } catch(IllegalAccessException exc){
@@ -509,18 +531,6 @@ public class DataShow
   }
 
 
-  
-  /**Adds a referenced Object.
-   * If it is known already, it is not added twice.
-   * @param data
-   */
-  private void addRef(Object data) {
-    int hash = data.hashCode();
-    if(refs.get(hash) ==null) {
-      refs.put(hash, data);
-      listData.add(data);
-    }
-  }
   
   
   
@@ -581,8 +591,6 @@ public class DataShow
     content = content.replace("\r\n", "|").replace("\n", "|");
     out.append(content);
   }
-
-  
 
   
   
