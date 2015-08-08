@@ -120,10 +120,13 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
     //} catch(Exception exc){
     //  dir1 = null; //does not exists.
     //}
-      cmpCtrl.ignoreToEol.add("Compilation time:");
-      cmpCtrl.ignoreToEol.add("Compiler options:");
-      cmpCtrl.ignoreCommentline.add("//");
-      cmpCtrl.ignoreFromTo.add(new String[]{".epcannot:", ".epcannot.end:"});
+    cmpCtrl.ignoreToEol.add(".file");
+    cmpCtrl.ignoreToEol.add("//");
+    cmpCtrl.ignoreToEol.add("Compilation time:");
+    cmpCtrl.ignoreToEol.add("Compiler options:");
+    cmpCtrl.ignoreCommentline.add("//");
+    cmpCtrl.ignoreFromTo.add(new String[]{".epcannot:", ".epcannot.end:"});
+    cmpCtrl.ignoreFromTo.add(new String[]{".static1:", ".static1.end:"});
   }
   
   

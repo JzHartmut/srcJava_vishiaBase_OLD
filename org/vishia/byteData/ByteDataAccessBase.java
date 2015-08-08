@@ -150,6 +150,11 @@ public class ByteDataAccessBase implements InfoFormattedAppend
   
   /**The version, history and license. 
    * <ul>
+   * <li>2015-08-08 Hartmut chg: {@link #setLengthElement(int)} should set the ixEnd of the child and the ixNextChild of the parent
+   *   but does not influence the this.ixNextChild. See test cases (TODO). This is fixed and all usages of this class for 
+   *   org.vishia.insp* are tested well by testing the reflection access and GUI.  
+   * <li>2015-08-08 Hartmut new: {@link #getChildInt(int)},  {@link #_getInt(int, int)} for 32 bit operation, {@link #_getLong(int, int)} uses 64 bit. 
+   *   Used for in derived classes also. The 64-bit-operation is not proper for 32-bit embedded systems in C. TODO use it also if the size argument is <=4.
    * <li>2015-04-12 Hartmut docu and fineTuning: 
    * <li>2015-03-08 Hartmut chg: ixChild removed, unnecessary, instead {@link #currChild}, proper for debug. 
    * <li>2014-09-05 Hartmut chg: Some problems fixed in C-Application. Runs in Java. Meaning of {@link #bExpand}
@@ -374,6 +379,59 @@ public class ByteDataAccessBase implements InfoFormattedAppend
 
   
   
+  /** Returns the content of 1 to 4 bytes inside the actual element as a int number,
+   * big- or little-endian depending on setBigEndian().
+   * This method is protected because at user level its using is a prone to errors because the idx is free related.
+   *
+   * @param idxInChild The position of leading byte in the actual element, the data are taken from data[idxBegin+idx].
+   * @param nrofBytesAndSign If positiv, than the method returns the unsigned interpretation of the bytes.
+   *   If negative, than the return value is negative, if the last significant bit of the given number of bytes is set.
+   *   The value represents the number of bytes to interprete as integer. It may be 1..8 respectively -1...-8.   
+   * @return the long value in range adequate nrof bytes.
+   * @since 2009-09-30: regards negative nrofBytesAndSign. Prior Versions: returns a signed value always.
+   * */
+  protected final int _getInt(final int idxInChild, final int nrofBytesAndSign)
+  { int val = 0;
+    int idxStep;
+    int idx;
+    final int nrofBytes;
+    final boolean bSigned;
+    if(nrofBytesAndSign >=0)
+    { nrofBytes = nrofBytesAndSign;
+      bSigned = false;
+    }
+    else{
+      nrofBytes = - nrofBytesAndSign;
+      bSigned = true;
+    }
+    if(bBigEndian)
+    { idx = ixBegin + idxInChild;
+      idxStep = 1;
+    }
+    else
+    { idx = ixBegin + idxInChild + nrofBytes -1;
+      idxStep = -1;
+    }
+    int nByteCnt = nrofBytes;
+    do
+    { val |= data[idx] & 0xff;
+      if(--nByteCnt <= 0) break;  //TRICKY: break in mid of loop, no shift operation.
+      val <<=8;
+      idx += idxStep;
+    }while(true);  //see break;
+    if(bSigned){
+      int posSign = (nrofBytes*8)-1;  //position of sign of the appropriate nrofBytes 
+      long maskSign = 1L<<posSign;
+      if( (val & maskSign) != 0)
+      { long bitsSign = 0xffffffffffffffffL << (posSign);
+        val |= bitsSign;  //supplement the rest bits of long with the sign value,it's negativ.   
+      }
+    }  
+    return val;
+  }
+
+  
+  
   /**sets the content of 1 to 8 bytes inside the actual element as a long number,
    * big- or little-endian depending on setBigEndian().
    * This method is protected because at user level its using is a prone to errors because the idx is free related.
@@ -383,21 +441,51 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * @param val the long value in range adequate nrof bytes.
    * */
   protected final void _setLong(int idx, int nrofBytes, long val)
-  { int idxStep;
+  { int idx1, nrofBytes1 = nrofBytes; long val1 = val;  //prevent change of parameters, use register internally.
+    int idxStep;
     if(bBigEndian)
-    { idx = ixBegin + idx + nrofBytes -1;
+    { idx1 = ixBegin + idx + nrofBytes -1;
       idxStep = -1;
     }
     else
-    { idx = ixBegin + idx;
+    { idx1 = ixBegin + idx;
       idxStep = 1;
     }
     do
-    { data[idx] = (byte)(val);
-      if(--nrofBytes <= 0) break;
-      val >>=8;
-      idx += idxStep;
+    { data[idx1] = (byte)(val1);
+      if(--nrofBytes1 <= 0) break;
+      val1 >>=8;
+      idx1 += idxStep;
     }while(true);  //see break;
+  }
+
+  
+  
+  /**sets the content of 1 to 4 bytes inside the actual element as a long number,
+   * big- or little-endian depending on setBigEndian().
+   * This method is protected because at user level its using is a prone to errors because the idx is free related.
+   *
+   * @param idx the position of leading byte in the actual element, the data are set to data[idxBegin+idx].
+   * @param nrofBytes The number of bytes of the value. 
+   * @param val the long value in range adequate nrof bytes.
+   * */
+  protected final void _setInt(int idx, int nrofBytes, int val)
+  { int idx1, nrofBytes1 = nrofBytes, val1 = val;  //prevent change of parameters, use register internally.
+    int idxStep;
+    if(bBigEndian)
+    { idx1 = ixBegin + idx + nrofBytes -1;
+      idxStep = -1;
+    }
+    else
+    { idx1 = ixBegin + idx;
+      idxStep = 1;
+    }
+    do
+    { data[idx1] = (byte)(val1);
+      if(--nrofBytes1 <= 0) break;
+      val1 >>=8;
+      idx1 += idxStep;
+    } while(true);  //see break;
   }
 
   
@@ -412,24 +500,35 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    */
   private final void _expand(int ixNextChildNew, int ixEndNew)
   { assert(ixEndNew >= ixBegin + sizeHead);
-    if(ixEnd < ixEndNew) { 
-      //do it only in expand mode
-      if(!bExpand){
-        throw new IllegalArgumentException("child too long, not expanded buffer, size= " + ixEnd + ", ixChildEndNew= " + ixEndNew);
+    if(ixEndNew > data.length){
+      throw new IllegalArgumentException("child long as data, data.length= " + data.length + ", ixChildEndNew= " + ixEndNew);
+    }
+    if(bExpand) {
+      if(ixEnd < ixEndNew) { 
+        //do it only in expand mode
+        ixEnd = ixEndNew;
       }
-      if(ixEndNew > data.length){
-        throw new IllegalArgumentException("child long as data, data.length= " + data.length + ", ixChildEndNew= " + ixEndNew);
+      if(ixEnd < ixNextChildNew) { //If ixEnd is less because it is the old one.
+        //do it only in expand mode
+        ixEnd = ixNextChildNew;
       }
-      ixEnd = ixEndNew;
+      if(parent != null)
+      { parent._expand(ixEnd, ixEnd);  //all parents nextChild set to end of child, expand the parent if necessary.
+      }
+    } else {
+      //not in expand mode
+      if(ixEndNew >=0) { //-1: don't use! 
+        ixEnd = ixEndNew;  //it is valid.     
+      }
+      if(parent != null)
+      { parent._expand(ixEndNew, -1);  //all parents nextChild set to end of child, don't change the parent's ixEnd!
+      }
     }
     if(ixNextChild < ixNextChildNew)  { 
       if(ixNextChildNew > ixEnd){
         throw new IllegalArgumentException("next child pos after ixend = " + ixEnd + ", ixNextChilNew= " + ixNextChildNew);
       }
       ixNextChild = ixNextChildNew;
-    }
-    if(parent != null)
-    { parent._expand(ixEndNew, ixEndNew);  //all parents nextChild set to end of child
     }
   }
 
@@ -509,23 +608,10 @@ public class ByteDataAccessBase implements InfoFormattedAppend
     }
   } 
   
-  /**Initializes a top level instance, the data are considered as non initialized.
-   * The current length of the valid data is the length of the head of this element
-   * set by the constructor.
-   * The head should be filled with data after that calling some methods like
-   * {@link #setInt32(int, int)}.
-   * <br>
-   * The children should be added by calling {@link addChild(ByteDataAccessBase)}
-   * and filled with data after that.
-   *
+  /**Initializes a top level instance, the data will be cleared, set to 0, overall.
    * <br>
    * If this instance is using before, its connection to an other parent is dissolved.
    * <br>
-   * Example to shown the principle:<pre>
-   *   ...........the data undefined with defined length.........
-   *   +++++                   Head, the length should be known.
-   *        ####****#####****  Space for children,
-   * </pre>
    * @param data The data. It should be not null. The data are filled with 0 initial. 
    */
   @Java4C.Inline
@@ -594,12 +680,13 @@ public class ByteDataAccessBase implements InfoFormattedAppend
   @Java4C.Inline
   final protected void assignCasted(ByteDataAccessBase src, int offsetCastToInput, int lengthDst)
   throws IllegalArgumentException
-  { this.bBigEndian = src.bBigEndian;
-    bExpand = src.bExpand;
-    assign(src.data, src.ixEnd, src.ixBegin + offsetCastToInput);
+  { assign(src.data, src.ixEnd, src.ixBegin + offsetCastToInput);
     bExpand = src.bExpand;
     bBigEndian = src.bBigEndian;
-    _expand(lengthDst, lengthDst); //if lengthDst ==0 it does nothing.
+    if(lengthDst >0){
+      setLengthElement(lengthDst);
+    }
+    //_expand(lengthDst, lengthDst); //if lengthDst ==0 it does nothing.
     //lengthDst is unsused, not necessary because lengthElementHead is knwon!
   }
 
@@ -747,6 +834,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
   }
 
 
+  
 
 
   /**Sets all data of the head of this element to 0.
@@ -1081,7 +1169,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
   }
   
 
-  /**Adds a child for 1 integer value without a child instance, but returns the value as integer.
+  /**adds a child for 1 integer value without a child instance and returns the value as long integer.
    * 
    * @param nrofBytes of the integer, if negative then gets as signed integer, elsewhere as unsigned
    * @return value in long format, cast it to (int) if you read only 4 bytes etc.
@@ -1094,6 +1182,25 @@ public class ByteDataAccessBase implements InfoFormattedAppend
     int ixChild1 = setIdxtoNextCurrentChild(bytes1);
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     long value = _getLong(ixChild1 - ixBegin, nrofBytes);  
+    return value;
+  }
+  
+  
+
+  
+  /**Adds a child for 1 integer value without a child instance and returns the value as 32-bit-integer.
+   * 
+   * @param nrofBytes of the integer, if negative then gets as signed integer, elsewhere as unsigned, Only till 4.
+   * @return value in int format.
+   * @throws IllegalArgumentException if not data has not enaught bytes.
+   */
+  public final int getChildInt(int nrofBytes) 
+  throws IllegalArgumentException
+  { //NOTE: there is no instance for this child, but it is the current child anyway.
+    int bytes1 = nrofBytes < 0 ? -nrofBytes : nrofBytes;
+    int ixChild1 = setIdxtoNextCurrentChild(bytes1);
+    //NOTE: to read from idxInChild = 0, build the difference as shown:
+    int value = _getInt(ixChild1 - ixBegin, nrofBytes);  
     return value;
   }
   
@@ -1775,7 +1882,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
     assert(ixNextChild >=0);          //==0 os possible on an empty element without head.
     int ixChild1 = ixNextChild;
     ixNextChild += sizeChild;  
-    _expand(ixNextChild, ixNextChild);    //expand always the ixChildEnd
+    _expand(ixNextChild, ixEnd);    //expand always the ixChildEnd
     return ixChild1;
   }
 

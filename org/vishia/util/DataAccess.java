@@ -87,6 +87,7 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2015-05-17 Hartmut new: conversion routines {@link #shortFromUnsignedByte(byte)} and {@link #intFromUnsignedShort(short)}.
    * <li>2015-05-17 Hartmut chg: Messages if methods not found.
    * <li>2014-10-19 Hartmut bugfix: {@link #invokeStaticMethod(DatapathElement)} with variable argument list but only 1 argument
    *   has not worked. TODO okay if no argument?
@@ -2371,4 +2372,21 @@ public class DataAccess {
   }
   
 
+  /**Converts a value in a byte to a unsigned value, which can be stored in a short in Java. Note that unsigned values
+   * are often used in C, and stored in a less memory location such as a byte if possible. For algorithm which are used in C too
+   * (tranlated with Java2C), this feature may be necessary. 
+   * @param val a byte value in range -128..0..127
+   * @return unsigned value of the byte, -128..-1 is presented by 128..255
+   */
+  public short shortFromUnsignedByte(byte val){ return val >= 0 ? val : (short)(((int)val)+ 256); }
+  
+  /**Converts a value in a short to a unsigned value, which can be stored in a int in Java. Note that unsigned values
+   * are often used in C, and stored in a less memory location such as a byte if possible. For algorithm which are used in C too
+   * (tranlated with Java2C), this feature may be necessary. 
+   * @param val a short value in range -32768..0..32767
+   * @return unsigned value of the byte, -32768..-1 is presented by 32768..65535
+   */
+  public int intFromUnsignedShort(short val){ return val >= 0 ? val : (((int)val)+ 32768); }
+  
+  
 }
