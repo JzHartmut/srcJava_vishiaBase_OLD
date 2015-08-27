@@ -35,6 +35,7 @@ public class KeyCode
   
   /**The version
    * <ul>
+   * <li>2013-11-23 Hartmut new: Masks for {@link #shiftDigit} etc, Definition of {@link #tab}
    * <li>2013-11-23 Hartmut chg: {@link #userSelect} and {@link #defaultSelect} instead tableLineSelect 
    * <li>2012-07-15 Hartmut new: {@link #isAsciiTextKey(int)}
    * <li>2012-06-17 new {@link #isControlFunctionMouseUpOrMenu(int)} etc. cluster of keys and actions.
@@ -42,15 +43,23 @@ public class KeyCode
    * <li>2011-09-30 improved
    * </ul>
    */
-  public static final int version = 0x20110930;
+  public static final String sVersion = "2015-08-23";
   
+
+  public static final int altDigit =      0x00f00000; 
 
   public static final int alt =           0x00a00000;
   
+  public static final int ctrlDigit =     0x0f000000; 
+
   public static final int ctrl =          0x0c000000;
   
+  public static final int shiftDigit =    0xf0000000; 
+  
+  /**Use the 8. digit looks line "S" for "shift", value "5". */
   public static final int shift =         0x50000000;
   
+  /**Use the 7.6. digit looks line "ca" for "control alt". */
   public static final int ctrlAlt =       0x0ca00000;
   
   public static final int shiftAlt =      0x50a00000;
@@ -71,7 +80,8 @@ public class KeyCode
    * 
    * </ul>
    */
-  public final static int mSpecialKeys = 0x000f0000;
+  public final static int mSpecialKeys =     0x000f0000;
+  public final static int mSpecialKeyDigit = 0x000f0000;
   
   /**Mask for the additional ctrl, alt and shift key.
    * If a key code is mask with them, it can be compared with
@@ -80,12 +90,14 @@ public class KeyCode
   public final static int mAddKeys = 0xfff00000;
   
   /**Any of control or alt is pressed. */
-  public final static int mCtrlAlt = 0x0ff00000;
+  public final static int mCtrlAlt =         0x0ff00000;
+  public final static int mCtrlAltDigit =    0x0ff00000;
   
   //public final static int cursor = 0x000c0000;
   
   /**Function keys in {@link #mSpecialKeys}. */
-  public static final int function=      0x000f0000;
+  public static final int function=           0x000f0000;
+  public static final int functionDigit=      0x000f0000;
   
   /**Non-alpha-numeric keys in {@link #mSpecialKeys}. */
   public static final int nonAlphanum =  0x000e0000;
@@ -140,6 +152,7 @@ public class KeyCode
   public final static int ins =   0x000e0000 + 'i';
   public final static int del =   0x000e0000 + 'd';
   public final static int esc =   0x000e0000 + 0x1b;
+  public final static int tab =   0x000e0000 + 0x09;
   
   public final static int mouse1Down =   0x000b0000 + 'D';  
   public final static int mouse1Up =     0x000b0000 + 'U';  
@@ -212,9 +225,9 @@ public class KeyCode
   public KeyCode(int code){
     this.code = code;
     StringBuilder u = new StringBuilder(20);
-    if((code & 0xf0000000) == shift){ u.append("shift-"); }
-    if((code & 0x0f000000) == alt){ u.append("alt-"); }
-    if((code & 0x00f00000) == ctrl){ u.append("ctrl-"); }
+    if((code & shiftDigit) == shift){ u.append("shift-"); }
+    if((code & altDigit) == alt){ u.append("alt-"); }
+    if((code & ctrlDigit) == ctrl){ u.append("ctrl-"); }
     if((code & 0x000f0000) == function){ u.append("F"); }
     u.append((char)(code & 0x000000ff)); 
     this.str = u.toString();
@@ -283,7 +296,7 @@ public class KeyCode
    * @return
    */
   public static boolean isTextKey(int key){
-    return (key & (mAddKeys | mSpecialKeys))==0 && key >=' ';
+    return (key & (mCtrlAlt | mSpecialKeys))==0 && key >=' ';
   }
   
   /**returns true if it is a control or function key. Either function or ctrl combination.

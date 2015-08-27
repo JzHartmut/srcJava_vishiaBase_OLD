@@ -152,7 +152,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
   /**The version, history and license. 
    * <ul>
    * <li>2015-08-08 Hartmut chg: Change of concept: prevent Exception if the environment does not process it: Tested on {@link #setIdxtoNextCurrentChild(int)}:
-   *   
+   *   This routine can throw an Exception, but it can return -1 on error too, possible with an exception message. Therewith more operations can be disabled by quest of return value.
    * <li>2015-08-08 Hartmut chg: {@link #setLengthElement(int)} should set the ixEnd of the child and the ixNextChild of the parent
    *   but does not influence the this.ixNextChild. See test cases (TODO). This is fixed and all usages of this class for 
    *   org.vishia.insp* are tested well by testing the reflection access and GUI.  

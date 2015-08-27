@@ -369,13 +369,20 @@ public class EventWithDst extends EventObject
   
   
   
-  /**Try to occupy the event for usage, recall it if it is in stored in an event queue, wait till it is available.
-   * This method may block if the event is yet processing. The method blocks only for the given timeout. 
-   * If the event process hangs then this method returns false and the event is not occupied. This situation is not occurring
-   * if the event is stored in its event queue because this routine removes it from the queue. It can be only occurred if the event process
-   * is really in a loop or it is in a lower priority thread which has not calculation time. That is a specific situation.
-   * The caller should be inform a user about that situation with a message or adequate because such a situation can be solved
-   * often with specific handling on the whole application. It is possible and maybe recommended firstly waiting a longer timeout.
+  /**Try to occupy the event for usage, recall a stored event in  queue, wait till it is available and force occupying
+   * on hanging.
+   * This method may block if the event is yet processing. The method blocks only for the given timeout.
+   * <br><br>
+   * An event is a container for a message. If it is send to a queue but it is not executed yet and the sender knows
+   * that a re-fill is better, it should use this method. For example a progress message can be send to a queue. If that
+   * progress message is not used and a newer progress message is better to have, the event may be recalled. 
+   * <br><br>
+   * If the event was send, it is not queued yet but it is occupied though, It is possible that the consumer has not invoked
+   * {@link #relinquish()} because the consumer process was aborted especially by an exception or there is any other error.
+   * If the event was occupied a longer time before it is relinquished by this method and occupied newly.
+   * <br><br>
+   * The only one reason that this method returns 0 and does not occupy is: The event was occupied newly in the timeout period
+   * after this method was started by any other process. It means the event does not hang but it is used by any other.
    * <ul>
    * <li>If the event is free, then it is occupied, the method returns immediately with 1.
    *   The last usage of the event is processed in this case. 
@@ -410,7 +417,7 @@ public class EventWithDst extends EventObject
    *   <li>!= 0 if the event is occupied:
    *   <li>1 if the event was free. 
    *   <li>2 if the event is removed from another queue. It means the last one request is not done.
-   *   <li>3 if the event is forced relinguish because it was hanging.
+   *   <li>3 if the event is forced relinquish because it was hanging.
    *   </ul> 
    */
   public int occupyRecall(int timeout, EventSource source, EventConsumer dst, EventTimerThread thread, boolean expect){
@@ -461,7 +468,7 @@ public class EventWithDst extends EventObject
   }
   
   
-  /**Try to occupy the event for usage, recall it if it is in stored in an event queue, wait till it is available.
+  /**Try to occupy the event for usage, recall it if it is in stored in an event queue, wait till it is available, occupy a hanging event.
    * Same as {@link #occupyRecall(int, EventSource, EventConsumer, EventTimerThread, boolean)} but left the destination unchanged.
    * @param timeout maximal millisecond to wait if the event is yet in processing.
    * @param source Source instance able to use for monitoring the event life cycle. null is admissible.
@@ -482,18 +489,22 @@ public class EventWithDst extends EventObject
   
   /**Returns true if the event is occupied. Events may be re-used. That may be necessary if a non-dynamic
    * memory organization may be need, for example in C-like programming. It is possible anyway if actions
-   * are done only one after another. In that kind the event instanc is created one time,
-   * and re-used whenever it is needed. A re-using should wait for answer and set {@link #consumedRetention()}.
-   * If the answer hangs, {@link #forceRelease()} may be called.
+   * are done only one after another. In that kind the event instance is created one time,
+   * and re-used whenever it is needed. 
+   * If the answer hangs, {@link #occupyRecall(int, EventSource, boolean)} may be called to occupy it though.
    * 
    * @return false if it is ready to re-use.
    */
   public boolean isOccupied(){ return dateCreation.get() !=0; }
   
   
+  /**Returns the stored destination thread for queuing the event. */
   public EventTimerThread_ifc getDstThread(){ return evDstThread; }
   
   
+  /**Returns the destination. 
+   * @return
+   */
   public EventConsumer getDst(){ return evDst; }
   
   /**Try to remove the event from the queue of the destination thread.
@@ -581,6 +592,8 @@ public class EventWithDst extends EventObject
   
   
   
+  /**This routine should be called after consuming the event. It counts the number of consuming and invokes
+   * {@link EventSource#notifyConsumed(int)} with this number if a source is given. Usual that is helpfully for debugging. */
   public void consumed(){
     ctConsumed +=1;
     EventSource source1 = ((EventSource)source);
@@ -590,6 +603,7 @@ public class EventWithDst extends EventObject
   }
   
 
+  /**Informs the {@link EventSource#notifyDequeued()}, invoked on dequeuing.  */
   /*package private*/ void notifyDequeued(){
     EventSource source1 = ((EventSource)source);
     if(source1 !=null){

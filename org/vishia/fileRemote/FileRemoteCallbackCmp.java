@@ -24,6 +24,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
   
   /**Version, history and license.
    * <ul>
+   * <li>2014-12-12 Hartmut bugfix: {@link #compareFileContent(FileRemote, FileRemote)}: if the 2. file is longer, it is a difference!  
    * <li>2014-12-12 Hartmut new: {@link CompareCtrl}: Comparison with suppressed parts especially comments. 
    * <li>2013-09-19 created. Comparison in callback routine of walkThroughFiles instead in the graphic thread.
    * </ul>
@@ -54,7 +55,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String sVersion = "2014-12-14";
+  static final public String sVersion = "2015-08-02";
   
   class CompareCtrl {
     
@@ -314,10 +315,9 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
     r1 = new BufferedReader(new FileReader(file1));
     r2 = new BufferedReader(new FileReader(file2));
     String s1, s2;
-    while( bEqu && (s1 = readIgnoreComment(r1)) !=null){
-      s2 = readIgnoreComment(r2);
+    while( bEqu && (s1 = readIgnoreComment(r1)) !=null) {  //read lines of file 1 maybe with ignored comment.
+      s2 = readIgnoreComment(r2);                          //read the line of the file2
       //check if an eol ignore String is contained:
-
       for(String sEol: cmpCtrl.ignoreToEol) {
         int z1 = s1.indexOf(sEol);
         if( z1 >=0){
@@ -366,6 +366,11 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
         //check trimmed etc.
         bEqu = false;
       }
+    }
+    //file1 is finished.
+    if( readIgnoreComment(r2) !=null) {
+      //the file2 contains still some lines, it is longer:
+      bEqu = false;
     }
     r1.close();
     r2.close();

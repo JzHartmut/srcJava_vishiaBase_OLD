@@ -110,6 +110,9 @@ public class FileList
   
   
   /**Static method to create a list from any directory maybe with selected files.
+   * TODO if a list exists alread, read the timestamps from there and compare it. If the timestamp differ in a few seconds,
+   * take the timestamp from the given list instead. It is possible that the timestamp may differ a few seconds
+   * by small differences in the time of the PC.
    * @param dir path to any directory.
    * @param mask Use "*" to select all files.
    * @param sFilelist Name of the file list relative to the dir, can contain a relative path.
