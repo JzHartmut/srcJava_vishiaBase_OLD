@@ -586,7 +586,8 @@ public class JZcmdScript extends CompiledScript
           case 'i': u.append(" if "); break;
           case 'm': u.append(" move "); break;
           case 'n': u.append(" newline "); break;
-          case 'o': u.append(" setTextOut "); break;
+          case 'o': u.append(" createTextOut "); break;
+          case 'q': u.append(" appendTextOut "); break;
           case 'r': u.append(" throw "); break;
           case 'v': u.append(" throw on error "); break;
           case 'x': u.append(" thread "); break;
@@ -1893,7 +1894,7 @@ public class JZcmdScript extends CompiledScript
       //this.isContentForInput = false;
     }
         
-    public JZcmditem new_setTextOut(){
+    public JZcmditem new_createTextOut(){
       JZcmditem statement = new JZcmditem(this, 'o');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
@@ -1901,7 +1902,19 @@ public class JZcmdScript extends CompiledScript
     }
     
     
-    public void add_setTextOut(JZcmditem val){}
+    public void add_createTextOut(JZcmditem val){}
+    
+    
+
+    public JZcmditem new_appendTextOut(){
+      JZcmditem statement = new JZcmditem(this, 'q');
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+      return statement;
+    }
+    
+    
+    public void add_appendTextOut(JZcmditem val){}
     
     
 

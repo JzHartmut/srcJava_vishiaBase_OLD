@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
+import java.io.Flushable;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
@@ -31,6 +32,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.script.Bindings;
 import javax.script.ScriptContext;
 import javax.script.ScriptException;
+
+
+
 
 
 
@@ -90,6 +94,16 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-08-30 Hartmut bugfix: The {@link JZcmd#currdir()} and {@link JZcmd#calctime()} should be moved from the environment class
+   *   because there should be able to access as <code>jzcmd.currdir()</code> in the script.   
+   * <li>2015-08-30 Hartmut new: The simple syntax <code>text = newFile;</code> to change the <code><+>output<.+></code>
+   *   has a less semantic effect. Therefore it is replaced by <code><+:create>newFile<.+></code> or <code><+:append>...</code>
+   *   with the possibility of append to an existing file.  
+   * <li>2015-08-30 Hartmut bug: Closing System.out, <+out>text... does not work if a new text output will be used to replace the given one
+   *   by <+:create>newFile<.+>. Fix:  System.out is used for the text output via the argument out for {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)}.
+   *   That is done if the {@link org.vishia.zcmd.JZcmd} script was called without an -text argument. The System.out should not closed.
+   *   It is checked now.
+   * <li>2015-08-30 Hartmut new: flush an output in {@link ExecuteLevel#exec_TextAppendToVar(org.vishia.cmd.JZcmdScript.TextOut, int)}.
    * <li>2015-07-18 Hartmut chg: In {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)}: 
    *   An exception should not be thrown forward, rather than an ScriptException with the file, line and column should be thrown
    *   because it is not an exception in deep Java algorithm mostly but it is usual an error in a script. That exception
@@ -243,7 +257,7 @@ public class JZcmdExecuter {
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String sVersion = "2014-12-14";
+  static final public String sVersion = "2015-08-30";
 
   /**This class is the jzcmd main level from a script.
    * @author Hartmut
@@ -264,7 +278,7 @@ public class JZcmdExecuter {
      */
     protected Locale locale = Locale.ENGLISH;
     
-    /**The text file output, the same for all threads. */
+    /**The text output, the same for all threads. It refers System.out if an other output was not defined yet. */
     private StringFormatter textline;
     
     /**The time stamp from {@link System#currentTimeMillis()} on start of script. */
@@ -370,6 +384,10 @@ public class JZcmdExecuter {
     }
 
     
+
+    public CharSequence currdir(){ return scriptLevel.currdir(); }
+
+    public long calctime(){ return System.currentTimeMillis() - startmilli; }
 
     /**Generates script-global variables.
      * 
@@ -553,10 +571,6 @@ public class JZcmdExecuter {
   public ExecuteLevel scriptLevel(){ return acc.scriptLevel; }
   
   
-  public long calctime(){ return System.currentTimeMillis() - acc.startmilli; }
-  
-  public CharSequence currdir(){ return acc.scriptLevel.currdir(); }
-  
   /**Initializes without any script variables, clears the instance.
    * The first call of {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)} will be generate the script variables.
    */
@@ -594,7 +608,9 @@ public class JZcmdExecuter {
     {
       if(out !=null) {
         //create a textline formatter without newline control but with out as output. Default size is 200, will be increased on demand.
-        StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, null, 200);
+        boolean bShouldClose = !(out == System.out) && out instanceof Closeable;
+        //NOTE: never close System.out.
+        StringFormatter outFormatter = new StringFormatter(out, bShouldClose, null, 200);
         acc.textline = outFormatter;
       }
       try{
@@ -1042,7 +1058,8 @@ public class JZcmdExecuter {
           case '#': ret = execCmdError((JZcmdScript.Onerror)statement, out, indentOut); break;
           case 'F': ret = createFilepath(newVariables, (JZcmdScript.DefVariable) statement); break;
           case 'G': ret = createFileSet(newVariables, (JZcmdScript.UserFileset) statement); break;
-          case 'o': ret = execSetTextOut(statement); break;
+          case 'o': ret = execOpenTextOut(statement, false); break;
+          case 'q': ret = execOpenTextOut(statement, true); break;
           case 'Z': ret = exec_zmake((JZcmdScript.Zmake) statement, out, indentOut, --nDebug1); break;
           case 'D': break; // a second debug statement one after another or debug on end is ignored.
           default: throw new IllegalArgumentException("JZcmd.execute - unknown statement; ");
@@ -1537,6 +1554,9 @@ public class JZcmdExecuter {
         //executes the statement, use the Appendable to output immediately
         synchronized(out1){
           ret = execute(statement.statementlist, out1, statement.srcColumn-1, localVariables, nDebug);
+          if(out1 instanceof Flushable){
+            ((Flushable)out1).flush();
+          }
         }
       } else {
         //Any other text expression
@@ -2006,7 +2026,7 @@ public class JZcmdExecuter {
      * @return
      * @throws Exception
      */
-    short execSetTextOut(JZcmdScript.JZcmditem statement)
+    short execOpenTextOut(JZcmdScript.JZcmditem statement, boolean bAppend)
     throws Exception
     {
       CharSequence arg = evalString(statement);
@@ -2018,7 +2038,7 @@ public class JZcmdExecuter {
         if(jzcmd.textline !=null) {
           jzcmd.textline.close();
         }
-        Appendable out = new FileWriter(arg.toString());
+        Appendable out = new FileWriter(arg.toString(), bAppend);
         jzcmd.setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
         jzcmd.textline =  new StringFormatter(out, true, null, 200);
         return kSuccess;
