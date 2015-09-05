@@ -12,6 +12,8 @@ import org.vishia.event.EventSource;
 import org.vishia.event.EventTimerThread;
 import org.vishia.event.EventWithDst;
 import org.vishia.util.DataAccess;
+import org.vishia.util.DataShow;
+import org.vishia.util.Java4C;
 import org.vishia.util.InfoAppend;
 
 /**
@@ -157,8 +159,10 @@ public class StateMachine implements EventConsumer, InfoAppend
    */
   protected final StateCompositeTop topState; 
   
-  /**Map of all states defined as inner classes of the derived class, filled with reflection. */
-  HashMap<Integer, StateSimple> stateMap = new HashMap<Integer, StateSimple>();
+  /**Map of all states defined as inner classes of the derived class, filled with reflection. 
+   * This map contains hash codes as key. Because the hash code is different in execution in comparison to another execution,
+   * the key values are not shown using {@link DataShow} to assure comparability. */
+  @DataShow.ExcludeShowContent HashMap<Integer, StateSimple> stateMap = new HashMap<Integer, StateSimple>();
   
   /**List of all states parallel to the #stateMap for code generation, filled with reflection. */
   List<StateSimple> stateList = new ArrayList<StateSimple>();

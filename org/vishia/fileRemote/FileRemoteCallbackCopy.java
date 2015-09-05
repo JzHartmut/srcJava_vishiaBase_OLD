@@ -117,7 +117,7 @@ public class FileRemoteCallbackCopy implements FileRemoteCallback
    * Note: because the FileRemote concept the file can be located on any remote device.
    * @see org.vishia.util.SortedTreeWalkerCallback#offerLeafNode(java.lang.Object)
    */
-  @Override public Result offerLeafNode(FileRemote file)
+  @Override public Result offerLeafNode(FileRemote file, Object info)
   {
     FileRemote fileDst = dirDst.child(file.getName());
     InputStream inp = null;
@@ -134,7 +134,7 @@ public class FileRemoteCallbackCopy implements FileRemoteCallback
           sum += bytes;
         }
         if(callbackUser !=null) {
-          callbackUser.offerLeafNode(file);
+          callbackUser.offerLeafNode(file, info);
         }
         if(timeOrderProgress !=null) {
           timeOrderProgress.nrofBytesFile = sum;

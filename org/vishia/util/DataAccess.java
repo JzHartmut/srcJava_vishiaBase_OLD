@@ -1839,12 +1839,13 @@ public class DataAccess {
   
   /**Creates or replaces a variable with a simple name in the given container. 
    * If the variable exists, its content will be replaced by the new definition.
-   * It means that the same variable referred by another one is changed too.
    * @param map The container for variables.
    * @param name The name of the variable in the container.
    * @param type one of A O J S U L M V E = Appendable, Object, Object, String, StringBuilder, ListContainer, Map, VariableTree, EnvironmentVariable
    * @param content The new value
-   * @param isConst true then create a const variable, or change content of a constant variable.
+   * @param isConst true then create a const variable, or change content of a constant variable. 
+   *   A const variable is designated by {@link Variable#isConst} boolean element. A const variable can change its content
+   *   by setting another const value with this param, but not by assign without this const param flag.
    * @throws IllegalAccessException  if a const variable is attempt to modify without isConst argument.
    */
   public static Variable<Object> createOrReplaceVariable(Map<String, Variable<Object>> map, String name, char type, Object content, boolean isConst) throws IllegalAccessException{
@@ -2315,7 +2316,9 @@ public class DataAccess {
     protected Class<? extends T> clazz;
     
     /**Property whether this variable should be non-changeable (true) or changeable (false). 
-     * It should be tested and realized on runtime. */
+     * It should be tested and realized on runtime. 
+     * <br>A const variable can be set by another 'const' value, see {@link DataAccess#createOrReplaceVariable(Map, String, char, Object, boolean)}.
+     * It is prevented to change by a non-const value only.  */
     protected boolean isConst;
     
     /**Same name of the variable like it is stored in the container. */

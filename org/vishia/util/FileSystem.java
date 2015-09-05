@@ -55,6 +55,7 @@ public class FileSystem
   /**Version, history and license.
    * Changes:
    * <ul>   
+   * <li>2015-09-06 JcHartmut chg: instead inner class WildcardFilter the new {@link FilepathFilter} used.    
    * <li>2015-05-25 new {@link #copyFile(File, File, boolean, boolean, boolean)}   
    * <li>2015-05-04 bugfix close in {@link #readFile(File)}
    * <li>2015-05-03 new {@link #searchInParent(File, String...)}
@@ -659,7 +660,10 @@ public class FileSystem
    * See java.io.File.getCanonicalPath().
    * The separator between directory names is the slash / in windows too!
    * It helps to work with unique designation of paths. 
-   * The original java.io.File.getCanonicalPath() produces a backslash in windows systems. 
+   * The original java.io.File.getCanonicalPath() produces a backslash in windows systems.
+   * On Unix systems the canonical path resolves symbolic links. 
+   * <br><br>
+   * To normalize a path use {@link #normalizePath(CharSequence)} or {@link #normalizePath(File)}.  
    * @param file The given file
    * @return null if the canonical path isn't available, for example if the path to the file doesn't exists.
    */
@@ -1194,11 +1198,12 @@ public class FileSystem
         Assert.stop();
       int posWildcardSub = sPathSub.indexOf('*');
       if(posBehind >=0 || filterAlldir !=null) {
-        WildcardFilter filterDir;
+        FilepathFilter filterDir;
+        //WildcardFilter filterDir;
         if(posBehind >0){
           String sPathDir = sPath.substring(posDir, posBehind);  //with ending '/'
   
-          filterDir = new WildcardFilter(sPathDir); 
+          filterDir = new FilepathFilter(sPathDir); 
           bAllTree = sPathDir.equals("**");
           if(filterDir.bAllTree){
             filterAlldir = filterDir;
@@ -1286,7 +1291,7 @@ public class FileSystem
     { //
       int posFile = sPath.lastIndexOf('/')+1;  //>=0, 0 if a / isn't contain.
       String sName = sPath.substring(posFile); // "" if the path ends with "/"
-      FilenameFilter filterName = new WildcardFilter(sName); 
+      FilenameFilter filterName = new FilepathFilter(sName); //WildcardFilter(sName); 
       //
       bFound = addFileToList(listFiles, dir, sPath, posWildcard, filterName, null, 0);
     }

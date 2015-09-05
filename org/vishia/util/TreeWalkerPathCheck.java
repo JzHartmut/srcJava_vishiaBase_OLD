@@ -133,7 +133,7 @@ public class TreeWalkerPathCheck implements SortedTreeWalkerCallback<String>
     return Result.cont; //callback.finishedParentNode(parentNode, cnt);
   }
 
-  public SortedTreeWalkerCallback.Result offerLeafNode(String sName)
+  public SortedTreeWalkerCallback.Result offerLeafNode(String sName, Object info)
   {
     //String sName = leafNode instanceof TreeNodeNamed_ifc ? ((TreeNodeNamed_ifc)leafNode).getName() : leafNode.toString();;
     assert(curr !=null);  //it is set in offerParentNode

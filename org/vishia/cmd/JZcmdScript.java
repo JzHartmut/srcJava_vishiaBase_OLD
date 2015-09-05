@@ -2203,8 +2203,16 @@ public class JZcmdScript extends CompiledScript
         case 'n': statement.textArg = "\n"; break;
         case 'r': statement.textArg = "\r"; break;
         case 't': statement.textArg = "\t"; break;
+        case 'b': statement.textArg = "\b"; break;
         case '<': case '\"': case '#': statement.textArg = val; break;
       }
+      statements.add(statement);
+      onerrorAccu = null; withoutOnerror.add(statement);
+    }
+    
+    public void set_utf16code(long val){
+      JZcmditem statement = new JZcmditem(this, 't');
+      statement.textArg = "" + (char)val; //Character.toChars(val);
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
     }

@@ -107,9 +107,13 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
   boolean aborted = false;
   
   /**Constructs an instance to execute a comparison of directory trees.
-   * @param dir1
-   * @param dir2
-   * @param evCallback maybe null, if given, this event will be sent to show the progression of the comparison
+   * @param dir1 One directory which contains a file tree. All files are compared with dir2
+   * @param dir2 The other directory to compare
+   * @param callbackUser Maybe null. If given, on each directory entry, exit and file the callback will be invoked 
+   *   with the handled directory or file. The second argument is an boxed Integer, which contains the bits from
+   *   {@link FileMark} to inform what is with that file. 
+   * @param timeOrderProgress maybe null. If given this timeOrder is used to show the progression of the comparison.
+   *   The timeOrder is set with data
    */
   FileRemoteCallbackCmp(FileRemote dir1, FileRemote dir2, FileRemoteCallback callbackUser, FileRemoteProgressTimeOrder timeOrderProgress) { //FileRemote.CallbackEvent evCallback){
     //this.evCallback = evCallback;
@@ -195,7 +199,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
   }
   
   
-  @Override public Result offerLeafNode(FileRemote file)
+  @Override public Result offerLeafNode(FileRemote file, Object info)
   {
     CharSequence path = FileSystem.normalizePath(file.getAbsolutePath());
     CharSequence localPath = path.subSequence(zBasePath1+1, path.length());
@@ -204,12 +208,24 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
       Assert.stop();
     FileRemote file2 = dir2.child(localPath);
     if(!file2.exists()){
+      if(callbackUser !=null) {
+        callbackUser.offerLeafNode(file, new Integer(FileMark.cmpAlone));  ////
+      }
       file.setMarked(FileMark.cmpAlone);   //mark the file1, all file2 which maybe alone are marked already in callbackMarkSecondAlone.
       file.mark.setMarkParent(FileMark.cmpMissingFiles, false);
       return Result.cont;    
     } else {
       file2.resetMarked(FileMark.cmpAlone);
-      compareFile(file, file2);
+      int cmprBits = compareFile(file, file2);
+      file.setMarked(cmprBits);
+      file2.setMarked(cmprBits);
+      if( (cmprBits & FileMark.cmpContentNotEqual) !=0) {
+        file.mark.setMarkParent(FileMark.cmpFileDifferences, false);
+        file2.mark.setMarkParent(FileMark.cmpFileDifferences, false);
+      }
+      if(callbackUser !=null) {
+        callbackUser.offerLeafNode(file, new Integer(cmprBits));  ////
+      }
       if(timeOrderProgress !=null){
         timeOrderProgress.currFile = file;
         timeOrderProgress.nrFilesProcessed +=1;
@@ -234,9 +250,12 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
 
   
   /**Compare two files.
-   * @param file
+   * @param file1
+   * @param file2 both file should be exist. It is tested before.
+   * @return either {@link FileMark#cmpContentEqual} or {@value FileMark#cmpContentNotEqual}
+   * @since 2015-09-05 returns comparison result, does not set bits in the file mask. Done on calling level.
    */
-  void compareFile(FileRemote file1, FileRemote file2)
+  int compareFile(FileRemote file1, FileRemote file2)
   {
 
     boolean equal, lenEqual;
@@ -289,15 +308,21 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
         }
       }
     }
+    int ret;
     if(equal){
-      file1.setMarked(FileMark.cmpContentEqual);
-      file2.setMarked(FileMark.cmpContentEqual);
+      ret = FileMark.cmpContentEqual;
+      //file1.setMarked(FileMark.cmpContentEqual);
+      //file2.setMarked(FileMark.cmpContentEqual);
     } else {
+      ret = FileMark.cmpContentNotEqual;
+      /*
       file1.setMarked(FileMark.cmpContentNotEqual);
       file2.setMarked(FileMark.cmpContentNotEqual);
       file1.mark.setMarkParent(FileMark.cmpFileDifferences, false);
       file2.mark.setMarkParent(FileMark.cmpFileDifferences, false);
+      */
     }
+    return ret;
   }
   
   
@@ -424,8 +449,8 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
 
   
   /**Callback to mark all files of the second directory as 'alone' on open directory.
-   * If the files are found, there are marked as 'equal' or 'non equal' then, this selection
-   * will be removed. This callback will be used in the routine {@link #offerParentNode(FileRemote)} of any directory
+   * If the files are found in the first directory after them, there are marked as 'equal' or 'non equal' then, and this selection
+   * will be removed. This callback will be used in the routine {@link #offerParentNode(FileRemote)} on any directory
    * in the dir1. A new dir is searched in the dir2 tree, then the children in 1 level are marked. 
    * 
    */
@@ -445,7 +470,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
     { return Result.cont; }
 
     @Override
-    public Result offerLeafNode(FileRemote file)
+    public Result offerLeafNode(FileRemote file, Object info)
     { 
       //1412 
       file.setMarked(FileMark.cmpAlone);   //yet unknown whether the 2. file exists, will be reseted if necessary.

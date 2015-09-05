@@ -294,10 +294,10 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
             if(depth >1){
               result = walkSubTree(file2, filter, depth-1, callback);  
             } else {
-              result = callback.offerLeafNode(file2);  //show it as file instead walk through tree
+              result = callback.offerLeafNode(file2, null);  //show it as file instead walk through tree
             }
           } else {
-            result = callback.offerLeafNode(file2);
+            result = callback.offerLeafNode(file2, null);
           }
         }
       } 

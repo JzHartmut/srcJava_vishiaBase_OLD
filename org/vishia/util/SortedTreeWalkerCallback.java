@@ -98,7 +98,7 @@ public interface SortedTreeWalkerCallback<Type>
    * @param leafNode
    * @return information to abort or continue.
    */
-  Result offerLeafNode(Type leafNode);
+  Result offerLeafNode(Type leafNode, Object info);
   
   /**Invoked after finishing the walking through.
    */
@@ -131,7 +131,7 @@ public interface SortedTreeWalkerCallback<Type>
     
     
 
-    @Override public Result offerLeafNode(Object file) {
+    @Override public Result offerLeafNode(Object file, Object info) {
       return Result.cont;
     }
 

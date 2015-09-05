@@ -322,6 +322,13 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
   public final static int modeCopyCreateMask = 0xf00
   , modeCopyCreateNever = 0x200, modeCopyCreateYes = 0x300 , modeCopyCreateAsk = 0;
   
+  
+  /**Bits for the logging mode of {@link #cmprDirs(File, File, String, List)}.
+   * 
+   */
+  public static final int modeCmprLogNotEqualFiles = 0x1, modeCmprLogMissing2File = 0x2
+      , modeCmprLogMissing1File = 0x4, modeCmprLogComparedFiles = 0x8;
+  
   /**Info about the file stored in {@link #flags} returned with {@link #getFlags()}. */
   public final static int  mExist =   1, mCanRead =  2, mCanWrite =  4, mHidden = 0x08;
   
@@ -723,7 +730,7 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
         if(src.canExecute()){ fileProps |= mExecute | mExecuteGrp | mExecuteAny; }
         if(src.isHidden()){ fileProps |= mHidden; }
       }
-      FileRemoteAccessor accessor = accessorSelector.selectFileRemoteAccessor(src.getAbsolutePath()); 
+      FileRemoteAccessor accessor = getAccessorSelector().selectFileRemoteAccessor(src.getAbsolutePath()); 
       File dir1 = src.getParentFile();
       FileRemote dir, file;
       if(dir1 !=null){
@@ -757,6 +764,149 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
   public static FileRemote getFile(CharSequence dir, CharSequence name){ return clusterOfApplication.getFile(dir, name); }
   
  
+  /**Compare all files in the 2 directory trees. The files are compared only till the first difference, this routine is not intent
+   * to report all differences in the files. The result is <code>null</code> if both directories contains the identically files.
+   * The return string contains a more or less comprehensive report about difference files controlled by the argument modeLog: 
+   *   <ul>
+   *   <li>{@link #modeCmprLogNotEqualFiles} ={@value #modeCmprLogNotEqualFiles}: 
+   *     One line per different files starting with <code>"not equal:   "</code> and the file path. 
+   *   <li>{@link #modeCmprLogMissing2File} ={@value #modeCmprLogMissing2File}
+   *     One line per file which is found in dir1 and not found in dir2 starting with <code>"alone-1:    "</code> and the file path. 
+   *   <li>{@link #modeCmprLogMissing1File} ={@value #modeCmprLogMissing1File}
+   *     One line per file which is found in dir2 and not found in dir1 starting with <code>"alone-2:    "</code> and the file path. 
+   *   <li>{@link #modeCmprLogComparedFiles} = {@value #modeCmprLogComparedFiles}
+   *     Generally one line per tested file. Files which are equal: <code>"equal:    "</code> and the file path. 
+   *   </ul> 
+   * If the adequate bit is not set a summary is given in the return string for not equal and missing files.      
+   * @param modeLog One or more of the bits modeCmprLog... See above. 
+   * @param dir1 The first directory to compare
+   * @param dir2 The second directory to compare
+   * @param mask If null, compare all files. If given, compare only files with that mask.
+   * @param ignoreInContent If null, compare the whole content of files. If given, exclude some parts of textual files.
+   * @return A report text to see what is happen. This CharSequence (a StringBuilder instance) is not referenced anywhere else.
+   *   If null then no difference is found. 
+   */
+  public static CharSequence cmprDirs(int modeLog, File dir1, File dir2, String mask, List<String> ignoreInContent)
+  { FileRemote dir1a, dir2a;
+    dir1a = fromFile(dir1); 
+    dir2a = fromFile(dir2);
+    if(dir1a.device == null){
+      dir1a.device = FileRemote.getAccessorSelector().selectFileRemoteAccessor(dir1a.getAbsolutePath());
+    }
+    CallbackCmpDirs callbackCmpDirs = new CallbackCmpDirs(modeLog);  //instance for this invocation.  
+    FileRemoteCallbackCmp callbackCmp = new FileRemoteCallbackCmp(dir1a, dir2a, callbackCmpDirs, null);  //evCallback);
+    dir1a.device.walkFileTree(dir1a,  true, true, false, mask, 0,  0,  callbackCmp);  //should work in an extra thread.
+    //dir1a.refreshAndCompare(dir2a, -1, mask, 0, callbackCmpDirs, null);
+    if( (modeLog & modeCmprLogNotEqualFiles) ==0 && callbackCmpDirs.bNotEqual) {
+      if(callbackCmpDirs.ret == null){ callbackCmpDirs.ret = new StringBuilder(); }
+      callbackCmpDirs.ret.append("not equal");
+      
+    }
+    return callbackCmpDirs.ret;
+  }
+  
+  
+  
+  static class CallbackCmpDirs implements FileRemoteCallback
+  {
+    final int modeLog;
+    
+    StringBuilder ret;
+    
+    boolean bNotEqual;
+    
+    boolean bMissing2Files;
+
+    boolean bSomeEqual;
+    
+    CallbackCmpDirs(int modeLog) {
+      this.modeLog = modeLog;
+    }
+    
+    @Override public void start(FileRemote startNode)
+    {
+      // TODO Auto-generated method stub
+      
+    }
+
+    @Override public org.vishia.util.SortedTreeWalkerCallback.Result offerParentNode(FileRemote parentNode)
+    {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override public org.vishia.util.SortedTreeWalkerCallback.Result finishedParentNode(
+        FileRemote parentNode, org.vishia.util.SortedTreeWalkerCallback.Counters cnt)
+    {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override public org.vishia.util.SortedTreeWalkerCallback.Result offerLeafNode(FileRemote leafNode, Object info)
+    {
+      int cmprResult = ((Integer)info).intValue();
+      if( (cmprResult & FileMark.cmpContentNotEqual)!=0) {
+        if( (modeLog & modeCmprLogNotEqualFiles) !=0) {
+          appendFilepath("not equal", leafNode);
+        }
+        else {
+          //no log for non equal files, only a simple statement on differences:
+          bNotEqual = true;
+        }
+      }
+      else if( (cmprResult & FileMark.cmpAlone)!=0) {
+        if( (modeLog & modeCmprLogMissing2File) !=0) {
+          appendFilepath("alone    ", leafNode);
+        }
+        else {
+          //no log for non equal files, only a simple statement on differences:
+          bMissing2Files = true;
+        }
+      }
+      else if( (cmprResult & FileMark.cmpContentEqual)!=0) {
+        if( (modeLog & modeCmprLogComparedFiles) !=0) {
+          appendFilepath("ok       ", leafNode);
+        }
+        else {
+          //no log for non equal files, only a simple statement on differences:
+          bSomeEqual = true;
+        }
+      }
+      return Result.cont;
+    }
+    
+    
+    void appendFilepath(String text, FileRemote file) {
+      if(ret == null) { ret = new StringBuilder(1000); }
+      ret.append(text).append(": ").append(file.sCanonicalPath).append('\n');
+    }
+    
+
+    @Override public void finished(FileRemote startNode, org.vishia.util.SortedTreeWalkerCallback.Counters cnt)
+    {
+      // TODO Auto-generated method stub
+      
+    }
+
+    @Override public boolean shouldAborted()
+    {
+      // TODO Auto-generated method stub
+      return false;
+    }
+    
+    
+  };
+  
+  
+  
+  
+  //FileRemoteProgressTimeOrder progressCmdDirs = new FileRemoteProgressTimeOrder()
+  //{
+    
+  //};
+  
+  
+  
   public FileRemoteAccessor device() { return device; }
   
   
@@ -1000,11 +1150,11 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
    * and invokes the callback routines. A longer access time does not influence this thread. 
    * The result is given only if the {@link FileRemoteCallback#finished(FileRemote, org.vishia.util.SortedTreeWalkerCallback.Counters)}
    * will be invoked.
-   * @param depth at least 1 for enter in the first directory. Use 0 if all levels should enter.
+   * @param depth at least 1 for enter in the first directory. Use 0 if all levels should entered.
    * @param mask a mask to select directory and files
-   * @param mark bits to select mark
-   * @param set or reset the bit.
-   * @param callbackUser a user instance which will be informed on start, any file, any directory and the finish.
+   * @param bits to select files by its mark, 0 then select all (ignore mark)
+   * @param callbackUser maybe null, a user instance which will be informed on start, any file, any directory and the finish.
+   * @param timeOrderProgress maybe null, if given then this callback is informed on any file or directory.
    */
   public void refreshAndCompare(FileRemote dirCmp, int depth, String mask, int mark, FileRemoteCallback callbackUser, FileRemoteProgressTimeOrder timeOrderProgress) { //FileRemote.CallbackEvent evCallback) { ////
     if(device == null){
@@ -1791,14 +1941,14 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
               } else {
                 //because the depth is reached, offerFile is called.
                 System.out.println("FileRemote.deleteMarkedSub - offer empty dir; " + file2.getName());
-                result = callback !=null ? callback.offerLeafNode(file2) : Result.cont;  //show it as file instead walk through tree
+                result = callback !=null ? callback.offerLeafNode(file2, null) : Result.cont;  //show it as file instead walk through tree
                 bCheckDelete = result == Result.skipSubtree;
               }
             } else {
               //a file:
               cnt.nrofLeafss +=1;
               cntAll.nrofLeafss +=1;
-              result = callback !=null ? callback.offerLeafNode(file2) : Result.cont;  //show it as file instead walk through tree
+              result = callback !=null ? callback.offerLeafNode(file2, null) : Result.cont;  //show it as file instead walk through tree
               bCheckDelete = result == Result.cont;
             }
             //Check whether a file or directory should be deleted:
@@ -1826,7 +1976,7 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
       // else: not cont, do nothing
     } 
     else { //a file or empty directory:
-      result = callback.offerLeafNode(file);
+      result = callback.offerLeafNode(file, null);
       if(result != Result.cont) {
         bDeleteParent = false;  //don't delete 
       }
@@ -2291,11 +2441,11 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
               result = walkSubTree(file2, depth-1, callback);  
             } else {
               //because the depth is reached, offerFile is called.
-              result = callback.offerLeafNode(file2);  //show it as file instead walk through tree
+              result = callback.offerLeafNode(file2, null);  //show it as file instead walk through tree
             }
           } else {
             cnt.nrofLeafss +=1;
-            result = callback.offerLeafNode(file2);  //a regular file.
+            result = callback.offerLeafNode(file2, null);  //a regular file.
           }
         }catch(Exception exc){ System.err.println(Assert.exceptionInfo("FileRemote unexpected - walkSubtree", exc, 0, 20, true)); }
       }
@@ -3037,7 +3187,7 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
       /* (non-Javadoc)
        * @see org.vishia.fileRemote.FileRemoteCallback#offerFile(org.vishia.fileRemote.FileRemote)
        */
-      @Override public Result offerLeafNode(FileRemote file)
+      @Override public Result offerLeafNode(FileRemote file, Object info)
       {
         offerChild(file);
         return Result.cont;
@@ -3137,7 +3287,7 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
     
     
 
-    @Override public Result offerLeafNode(FileRemote file) {
+    @Override public Result offerLeafNode(FileRemote file, Object info) {
       nrofFiles +=1;
       if(file.isDirectory()) { 
       } else { 
@@ -3145,7 +3295,7 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
       }
       long sizeFile = file.length();
       nrofBytes += sizeFile;
-      if(callbackUser !=null) return callbackUser.offerLeafNode(file); 
+      if(callbackUser !=null) return callbackUser.offerLeafNode(file, info); 
       else return Result.cont;      
     }
 

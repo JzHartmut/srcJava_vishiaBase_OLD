@@ -1,10 +1,11 @@
 package org.vishia.util;
 
 import java.io.IOException;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -63,6 +64,12 @@ public class DataShow extends ObjectId
    * 
    */
   static final public String sVersion = "2015-08-01";
+
+  /**If a Field is designated with this annotation then the content is not shown.
+   * This is for example for a Hash map because the key values may be hash codes which are abbreviated between several runs.
+   */
+  @Retention(RetentionPolicy.RUNTIME)
+  public @interface ExcludeShowContent{ }
 
   
   //private final List<Object> listData = new LinkedList<Object>();
@@ -374,6 +381,7 @@ public class DataShow extends ObjectId
       out.append("\n    <ul>");
       Field[] fields = clazz.getDeclaredFields();
       for(Field field: fields) {
+        ExcludeShowContent doNotShowContent = field.getAnnotation(ExcludeShowContent.class);
         Class<?> type = field.getType();
         int modi = field.getModifiers();
         if((modi & Modifier.STATIC)==0) {
@@ -381,7 +389,11 @@ public class DataShow extends ObjectId
           String sName = field.getName();
           String sType = type.getName();
           String sInfo = sName + ": " + sType;
-          outField(sName, data, type, field, out, 0);
+          if(doNotShowContent != null) {
+            out.append("\n    <li>").append(sInfo).append(" = ?not shown? </li> ");
+          } else {
+            outField(sName, data, type, field, out, 0);
+          }
         }
       }
       out.append("\n    </ul>");

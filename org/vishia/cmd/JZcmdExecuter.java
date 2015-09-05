@@ -875,8 +875,10 @@ public class JZcmdExecuter {
         }
       }
       try{ 
+        //create a new variable to refer jzcmdsub:
         DataAccess.createOrReplaceVariable(localVariables,  "jzcmdsub", 'O', this, true);
-        localVariables.add("error", threadData.error);
+        //use the existent variable threadData.error to refer here:
+        localVariables.put("error", threadData.error);
       } catch(IllegalAccessException exc){ throw new RuntimeException(exc); }
     }
 
@@ -2349,7 +2351,7 @@ public class JZcmdExecuter {
         return kException;
       } else {
         Object val;
-        switch(statement.elementType()){
+        switch(statement.elementType()){ //type of container to store, StringJar or String
           case 'U': {
             if(init == null){
               val = new StringPartAppend();
@@ -2371,7 +2373,7 @@ public class JZcmdExecuter {
         }
         //DataAccess.Variable var = (DataAccess.Variable)DataAccess.access(statement.defVariable.datapath(), null, localVariables, acc.bAccessPrivate, false, true, null);
         //var.setValue(val);
-        List<DataAccess.DatapathElement> datapath = statement.defVariable.datapath();
+        List<DataAccess.DatapathElement> datapath = statement.defVariable.datapath();  //datapath of the variable to store.
         if(datapath.get(0).ident().equals("return") && !localVariables.containsKey("return")) {
           //
           //creates the local variable return on demand:

@@ -38,6 +38,7 @@ import org.vishia.fileRemote.FileRemote.Cmd;
 import org.vishia.fileRemote.FileRemoteCallback;
 import org.vishia.fileRemote.FileRemoteProgressTimeOrder;
 import org.vishia.util.Assert;
+import org.vishia.util.FilepathFilter;
 import org.vishia.util.FileSystem;
 import org.vishia.util.SortedTreeWalkerCallback;
 import org.vishia.util.TreeWalkerPathCheck;
@@ -933,9 +934,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
     
     final int markCheck;
     
-    final String sStartName, sEndName;
-    
-    final String sStartDir, sEndDir;
+    FilepathFilter mask;
     
     
     final FileRemoteCallback.Counters cntTotal = new FileRemoteCallback.Counters();
@@ -964,23 +963,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
       this.callback = callback;
       curr = new CurrDirChildren(null, null);  //starts without parent.
       curr.levelProcessMarked = (int)(bMarkCheck >>32); // levelProcessMarked;
-      if(sMask == null){
-        sStartName = sEndName = sStartDir = sEndDir = null;
-      } else {
-        int posName = sMask.lastIndexOf('/') +1;  //0 if no / found.
-        if(posName == 0) { sStartDir = sEndDir = null; }
-        else {
-          sStartDir = sEndDir = null; //TODO
-        }
-        int posAsteriskName = sMask.indexOf('*', posName);
-        if(posAsteriskName >=0) {
-          sStartName = posAsteriskName >0 ? sMask.substring(posName, posAsteriskName) : null;
-          sEndName = posAsteriskName +1 < sMask.length() ? sMask.substring(posAsteriskName+1) : null;
-        } else {
-          sStartName = sMask.substring(posName);
-          sEndName = null;
-        }
-      }
+      mask = new FilepathFilter(sMask);
       reset();
     }
 
@@ -1072,8 +1055,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
         throws IOException
     {
       String name = file.getFileName().toString();
-      boolean selected = sEndName == null && (sStartName == null  || sStartName.equals(name))
-          || ( sStartName == null || name.startsWith(sStartName)) && (sEndName == null || name.endsWith(sEndName));
+      boolean selected = mask.checkName(name);
       if(debugout) System.out.println("FileRemoteAccessorLocalJava7 - callback - file; " + name);
       FileRemote fileRemote;
       if(attrs.isDirectory()) { 
@@ -1124,7 +1106,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
               }
               curr.cnt.nrofBytes += size;
               cntTotal.nrofBytes += size;
-              result = callback.offerLeafNode(fileRemote);
+              result = callback.offerLeafNode(fileRemote, null);
             } else {
               result = SortedTreeWalkerCallback.Result.cont;
             }
@@ -1339,7 +1321,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
         throws IOException
     {
       String name = file.getFileName().toString();
-      if(checker !=null && checker.offerLeafNode(name) != SortedTreeWalkerCallback.Result.cont) {
+      if(checker !=null && checker.offerLeafNode(name, null) != SortedTreeWalkerCallback.Result.cont) {
         return FileVisitResult.CONTINUE;  //continue but do nothing with the file, no effort for a FileRemote instance.
       }
       else {
@@ -1392,7 +1374,7 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
             }
             curr.cnt.nrofBytes += size;
             cntTotal.nrofBytes += size;
-            result = callback.offerLeafNode(fileRemote);
+            result = callback.offerLeafNode(fileRemote, null);
           }
           return translateResult(result);
         }
