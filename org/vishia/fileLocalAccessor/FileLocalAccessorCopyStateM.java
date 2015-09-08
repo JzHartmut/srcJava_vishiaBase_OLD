@@ -415,7 +415,7 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
       //for(FileRemote child: children){
         if(child.exists() && child.isMarked(FileMark.selectSomeInDir | FileMark.select)){
           String sName = child.getName();
-          child.resetMarked(1);
+          child.resetMarked(FileMark.select);
           FileRemote childDst = actData.dst == null ? null : actData.dst.child(sName);
           actData.addNewEntry(child, childDst);
         }

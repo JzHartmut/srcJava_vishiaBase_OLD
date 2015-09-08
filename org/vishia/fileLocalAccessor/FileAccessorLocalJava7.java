@@ -38,6 +38,7 @@ import org.vishia.fileRemote.FileRemote.Cmd;
 import org.vishia.fileRemote.FileRemoteCallback;
 import org.vishia.fileRemote.FileRemoteProgressTimeOrder;
 import org.vishia.util.Assert;
+import org.vishia.util.Debugutil;
 import org.vishia.util.FilepathFilter;
 import org.vishia.util.FileSystem;
 import org.vishia.util.SortedTreeWalkerCallback;
@@ -1055,6 +1056,8 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
         throws IOException
     {
       String name = file.getFileName().toString();
+      if(name.startsWith("Byte"))
+        Debugutil.stop();
       boolean selected = mask.checkName(name);
       if(debugout) System.out.println("FileRemoteAccessorLocalJava7 - callback - file; " + name);
       FileRemote fileRemote;

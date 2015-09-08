@@ -41,7 +41,7 @@ public class EventWithDst extends EventObject
   { super(source);
   }
 
-  /**Version, history and license
+  /**Version, history and license.
    * <ul>
    * <li>2015-01-03 Hartmut chg: Separated in 2 classes: {@link EventCmdtypeWithBackEvent} with opponent and this class.
    *   A simple event has not an opponent per default. This class is named EventWithDst yet because the destination

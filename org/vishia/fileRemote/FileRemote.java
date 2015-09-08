@@ -144,6 +144,7 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
 
   /**Version, history and license.
    * <ul>
+   * <li>2015-09-09 Hartmut bug: It marks too much directories with {@link FileMark#selectSomeInDir}, fix: algorithm. 
    * <li>2015-07-04 Hartmut chg: Values of flags {@link #mTested}, {@link #mShouldRefresh}, {@link #mRefreshChildPending}
    *   {@link #mThreadIsRunning} to the highest digit of int, to recognize for manual viewing. That flags should not used in applications.
    *   Remove of flags for comparison, the bits are used and defined inside {@link FileMark} for a longer time.  
@@ -3270,16 +3271,21 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
     }
     
     @Override public Result finishedParentNode(FileRemote dir, FileRemoteCallback.Counters cnt) {
-      if(cnt.nrofParentSelected == cnt.nrofParents && cnt.nrofLeafSelected == cnt.nrofLeafss) {
+      boolean bSomeSelect = true;
+      if((cnt.nrofParents + cnt.nrofLeafss) > 0 && cnt.nrofParentSelected == cnt.nrofParents && cnt.nrofLeafSelected == cnt.nrofLeafss) {
         dir.setMarked(FileMark.select);
       } else if(cnt.nrofParentSelected > 0 || cnt.nrofLeafSelected >0) {
         dir.setMarked(FileMark.selectSomeInDir);
+      } else {
+        bSomeSelect = false;
       }
-      FileRemote parent = dir;
-      while(parent !=null) {
-        parent.setMarked(FileMark.selectSomeInDir);;
-        if(parent != startDir) { parent = parent.parent; }
-        else { parent = null; } //finish while
+      if(bSomeSelect){
+        FileRemote parent = dir;
+        while(parent !=null) {
+          parent.setMarked(FileMark.selectSomeInDir);;
+          if(parent != startDir) { parent = parent.parent; }
+          else { parent = null; } //finish while
+        }
       }
       if(callbackUser !=null) return callbackUser.finishedParentNode(dir, cnt); 
       else return Result.cont;      

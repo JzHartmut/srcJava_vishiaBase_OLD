@@ -502,13 +502,14 @@ public class StringFunctions {
   /**Compares two charsequences. It is similar String.equals(String), but works with CharSequence and accepts null-pointer.
    * @param s1 first, if null then returns true if s2== null. Equals is both null too.
    * @param from start position in s1
-   * @param to exclusive end position in s1
+   * @param to exclusive end position in s1, if <0, especially -1 or > s1.length, then till length of s1. That is 'endsWith'.
    * @param s2 to compare with
    * @return true if all chars equals or both null.
    */
   public static boolean equals(CharSequence s1, int from, int to, CharSequence s2){
+    int z1 = s1.length();
     if(s1 == null || s2 == null){ return s1 == s2; }  //equals is both null too
-    int zz = to - from;
+    int zz = to < 0 || to > z1 ? z1 - from : to - from;
     if( zz != s2.length()) return false;
     else {
       for(int ii = 0; ii<zz; ++ii){
@@ -597,7 +598,7 @@ public class StringFunctions {
    * It is the adequate functionality like {@link java.lang.String#indexOf(String, int)}. 
    * @param sq search into
    * @param fromIndex start search
-   * @param to end search, exclusive. If it is > sq.length(), seacht till end. 
+   * @param to end search, exclusive. If end > sq.length() then search till end. 
    *   Especially Integer.MAX_VALUE can be used. Alternatively use {@link #indexOf(CharSequence, char, int)}.
    * @param ch The character which is searched.
    * @return -1 if not found, else first occurrence where sq.charAt(return) == ch. 
@@ -630,6 +631,18 @@ public class StringFunctions {
    */
   public static int indexOf(CharSequence sq, char ch, int fromIndex){
     return indexOf(sq, fromIndex, Integer.MAX_VALUE, ch);
+  }
+  
+  
+
+  /**Searches the first occurrence of the given Character in a CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#indexOf(String)}. 
+   * @param sq A CharSequence
+   * @param str CharSequence which is searched.
+   * @return -1 if not found, else first occurrence where sq.charAt(return) == ch. 
+   */
+  public static int indexOf(CharSequence sq, char ch){
+    return indexOf(sq, 0, Integer.MAX_VALUE, ch);
   }
   
   
@@ -786,6 +799,17 @@ public class StringFunctions {
    */
   public static int indexOf(CharSequence sq, CharSequence str, int fromIndex){
     return indexOf(sq, fromIndex, Integer.MAX_VALUE, str);
+  }
+  
+  
+  /**Searches the first occurrence of the given CharSequence in a CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#indexOf(String)}. 
+   * @param sq A CharSequence
+   * @param str CharSequence which is searched.
+   * @return -1 if not found, else first occurrence where {@link #equals(CharSequence sq, int return , int MAX_VALUE, CharSequence str)} ==0. 
+   */
+  public static int indexOf(CharSequence sq, CharSequence str){
+    return indexOf(sq, 0, Integer.MAX_VALUE, str);
   }
   
   
