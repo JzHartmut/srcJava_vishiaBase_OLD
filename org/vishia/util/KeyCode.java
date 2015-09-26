@@ -162,6 +162,7 @@ public class KeyCode
   /**Doubleclick on mouse button. */
   public final static int mouse1Double = 0x000b0000 + 'C';  
   
+  /**The mouse button 2 is usual the right button. */
   public final static int mouse2Down =   0x000b0000 + 'd'; //down
   public final static int mouse2Up =     0x000b0000 + 'u'; //up
   /**The mouse button is released, but at another position where pressed. */
@@ -174,6 +175,7 @@ public class KeyCode
   public final static int mouseWheelUp = 0x000b0000 + 't';  //top
   public final static int mouseWheelDn = 0x000b0000 + 'e';  //end
   
+  /**The mouse button 3 is usual the middle button. */
   public final static int mouse3Down =   0x000b0000 + '3'; 
   public final static int mouse3Up =     0x000b0000 + '4'; 
   
