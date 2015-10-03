@@ -30,6 +30,11 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 
+/**
+ * @author hartmut Schorrig
+ * @deprecated use {@link StringPartFromFileLines} 
+ */
+@Deprecated
 public class StringPartFromFile extends StringPartScan
 {
   final StringBuffer buffer;

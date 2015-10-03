@@ -168,6 +168,53 @@ but itsn't worse as using the html tags &lt;table>&lt;tr> and so on.
 @SuppressWarnings("unchecked")
 public class WikistyleTextToSimpleXml
 {
+  
+    /**Version and history.
+   * <ul>
+   * <li> 2015-09-29 Hartmut: chg An attribute like <code>@p.class="style"</code> can contained at start of a line with more content now.
+   *   Note that a line in this meaning can consist of more as one line with one carriage return inside in the source. It was a problem
+   *   writing an attribute with only one carriage return following with a text. Now you can write:
+   *   <pre>
+   *     @p.class="style"
+   *     The line following after a single carriage return.
+   *     
+   *     @p.class="style" line immediately following
+   *   </pre>  
+   * <li> 2012-09-09 Hartmut: new: now empty lines in pre-Blocks are regarded.
+   * <li> 2012-09-09 Hartmut: new: now @p.class="format" works.
+   * <li> 2009-12-14 Hartmut: new: [[&name]] builds an anchor. 
+   * <li> 2009-07-02 Hartmut: new: A ~ is replaced by the value of attribute expandLabelOwn, if it is found.
+   *   This feature is used in conclusion with XmiDocu.xslp to shorten the name of the own class. 
+   * <li> 2006-05-00 Hartmut: creation
+   * </ul>
+   * 
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL is not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are indent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   * 
+   */
+  public final static String version = "2015-09-29";
+
   final Report report;
   
   /** The end of the last line, starts with -1, the position before 0.*/
@@ -420,45 +467,49 @@ public class WikistyleTextToSimpleXml
       { String sLineTest = getLineSpecial(sInput); //reads more as one line or until special || and !!
         if(sLineTest.length()>0)
         { String sLine = replaceTabs(sLineTest);
-          cFirst = sLine.charAt(0);
-          //char c2 = sLine.length()>=2 ? sLine.charAt(1) : ' ';
-          //char c3 = sLine.length()>=3 ? sLine.charAt(2) : ' ';
-          //switch(cFirst)
-          /* The first character of a line determines wether it may be a new simple paragraph or a special textblock
-           * like a list, table, pre text. If it is a special textblock, {@link nestingLevel()} is called.
-           * nestinglevel() creates a new XmlNode xmlChild, but it also creates the superior textblock elements
-           * like &lt;ul>. ,,xmlChild,, is type of the container for paragraphs, at example &lt;li>. 
-           * The followed text will produces a paragraph inside xmlChild.
-           *  
-           * class attribute: The content of class attribute for next paragraphs inside a special textblock
-           * are built inside nestingLevel() derivated from the input content in sClass, added the textblock
-           * label. It is stored in the class-wide- attribute sClassNesting.   
-           * 
-           */
-          switch(cFirst)
-          { case '*': case ';': case '#': case ':': case '>': case '{': case '|': case '!':
-            { //any nested block
-              sLine = nestingLevel(sLine, idxNesting+1, iter, dstElement, dstNamespace, sClass); //##1
-              if(sLine.length()>0)
-              { if(xmlChild.getName().equals("dt"))
-                { convertLine(sLine, xmlChild, dstNamespace, sLabelOwn);
+          while(sLine !=null) {
+            cFirst = sLine.charAt(0);
+            //char c2 = sLine.length()>=2 ? sLine.charAt(1) : ' ';
+            //char c3 = sLine.length()>=3 ? sLine.charAt(2) : ' ';
+            //switch(cFirst)
+            /* The first character of a line determines wether it may be a new simple paragraph or a special textblock
+             * like a list, table, pre text. If it is a special textblock, {@link nestingLevel()} is called.
+             * nestinglevel() creates a new XmlNode xmlChild, but it also creates the superior textblock elements
+             * like &lt;ul>. ,,xmlChild,, is type of the container for paragraphs, at example &lt;li>. 
+             * The followed text will produces a paragraph inside xmlChild.
+             *  
+             * class attribute: The content of class attribute for next paragraphs inside a special textblock
+             * are built inside nestingLevel() derivated from the input content in sClass, added the textblock
+             * label. It is stored in the class-wide- attribute sClassNesting.   
+             * 
+             */
+            switch(cFirst)
+            { case '*': case ';': case '#': case ':': case '>': case '{': case '|': case '!':
+              { //any nested block
+                sLine = nestingLevel(sLine, idxNesting+1, iter, dstElement, dstNamespace, sClass); //##1
+                if(sLine.length()>0)
+                { if(xmlChild.getName().equals("dt"))
+                  { convertLine(sLine, xmlChild, dstNamespace, sLabelOwn);
+                  }
+                  else
+                  { writeParagraphInElement(sLine, xmlChild, dstNamespace, attributes, sClassNesting == null ? null : sClassNesting, sLabelOwn); // + "_p");
+                  }
                 }
-                else
-                { writeParagraphInElement(sLine, xmlChild, dstNamespace, attributes, sClassNesting == null ? null : sClassNesting, sLabelOwn); // + "_p");
-                }
-              }
-            }break;
-            case '@':
-            { readAttributes(sLine);
-            } break;
-            default:
-            { //a new line not beginning with a special char, it is a paragraph at basic level. 
-              xmlChild = initNesting();
-              xmlPre = null;
-              preEmptylines = 0; //don't regard empty line after a pre block
-              writeParagraphInIter(sLine, iter, xmlChild, dstNamespace, attributes, sClass, sLabelOwn);
-            }          //special char at start of paragraphs line:
-          }//switch
+                sLine = null;
+              }break;
+              case '@':
+              { sLine = readAttributes(sLine);
+              } break;
+              default:
+              { //a new line not beginning with a special char, it is a paragraph at basic level. 
+                xmlChild = initNesting();
+                xmlPre = null;
+                preEmptylines = 0; //don't regard empty line after a pre block
+                writeParagraphInIter(sLine, iter, xmlChild, dstNamespace, attributes, sClass, sLabelOwn);
+                sLine = null;
+              }          //special char at start of paragraphs line:
+            }//switch
+          }//while(sLine !=null
         }
       }  
     }//while end
@@ -1138,39 +1189,46 @@ public class WikistyleTextToSimpleXml
   { return null;
   }
   
-  /** Reads attributes for followed elements.
-   * example: @dt.class="value" @dd.class="value" <br>
+  /** Reads the attribute for one elements.
+   * example: @dt.class="value"<br>
+   * Note: More as one attributes are read in the outer loop of line content.
    * reads an attribute name class applicable to dt and another attribute applicable to dd.
-   * @param sLine
+   * @param sLine The line starting with '@'
+   * @return the line after the attribute after spaces.
    */
-  void readAttributes(String sLine)
+  String readAttributes(String sLine)
   { int pos = 0;
-    while(pos >=0 && sLine.length() > pos && sLine.charAt(pos) == '@')
-    { int pos2 = sLine.indexOf('.', pos);
-      if(pos2 > 0)
-      { String sElement = sLine.substring(pos + 1, pos2);
-        int pos3 = sLine.indexOf('=', pos2);
-        if(pos3 > 0)
-        { String sAttribute = sLine.substring(pos2 + 1, pos3);
-          int pos4 = sLine.indexOf('\"', pos3+2);
-          int pos5 = sLine.indexOf('@', pos3+1);
-          String sValue = (pos4 > 0 && (pos5<0 || pos4 < pos5) )
-                        ? sLine.substring(pos3 + 2, pos4)
-                        : null;
-          if(elementsWithAttrib == null)
-          { elementsWithAttrib = new TreeMap();
-          }
-          TreeMap attrib = (TreeMap)elementsWithAttrib.get(sElement);
-          if(attrib == null)
-          { attrib = new TreeMap();
-            elementsWithAttrib.put(sElement, attrib);
-          }
-          if(sValue == null){ attrib.remove(sAttribute); }
-          else { attrib.put(sAttribute, sValue); }
-        }  
-      }
-      pos = sLine.indexOf('@', pos+1);
+    int pos2 = sLine.indexOf('.', pos);
+    if(pos2 > 0)
+    { String sElement = sLine.substring(pos + 1, pos2);
+      int pos3 = sLine.indexOf('=', pos2);
+      if(pos3 > 0)
+      { String sAttribute = sLine.substring(pos2 + 1, pos3).trim();
+        int pos4 = sLine.indexOf('\"', pos3);
+        assert (pos4 > 0);  //should start with "
+        int pos5 = sLine.indexOf('\"', pos4+1);
+        String sValue = sLine.substring(pos4+1, pos5);  //between "..."
+        /*
+        int pos6 = sLine.indexOf('@', pos3+1);
+        String sValue = (pos4 > 0 && (pos5<0 || pos4 < pos5) )
+                      ? sLine.substring(pos3 + 2, pos4)
+                      : null;
+        */
+        if(elementsWithAttrib == null)
+        { elementsWithAttrib = new TreeMap();
+        }
+        TreeMap attrib = (TreeMap)elementsWithAttrib.get(sElement);
+        if(attrib == null)
+        { attrib = new TreeMap();
+          elementsWithAttrib.put(sElement, attrib);
+        }
+        if(sValue == null){ attrib.remove(sAttribute); }
+        else { attrib.put(sAttribute, sValue); }
+        while(++pos5 < sLine.length() && sLine.charAt(pos5) == ' ');  //skip over space
+        pos = pos5;
+      }  
     }
+    return pos < sLine.length() ? sLine.substring(pos) : null;
   }
   
   
