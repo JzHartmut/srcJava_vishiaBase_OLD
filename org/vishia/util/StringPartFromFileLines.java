@@ -27,6 +27,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.BufferedReader;
+import java.io.InputStream;
 //import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
@@ -39,6 +40,8 @@ public class StringPartFromFileLines extends StringPartScan
   /**Version, history and license.
    * list of changes:
    * <ul>
+   * <li>2015-10-24 Hartmut new: {@link StringPartFromFileLines#StringPartFromFileLines(InputStream, String, int, String, Charset)}
+   *   to use with <code>ClassLoader.getSystemClassLoader().getResourceAsStream("path");   
    * <li>2015-06-07 Hartmut chg: {@link #getLineAndColumn(int[])}: column counts from 1 on leftest position.
    * <li>2014-05-22 Hartmut new: {@link #setInputfile(String)} invoked with input file 
    * <li>2014-04-22 Hartmut chg: improved line numbers 
@@ -73,7 +76,7 @@ public class StringPartFromFileLines extends StringPartScan
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
 
    */
-  public static final int version = 20121222;
+  public static final String version = "2015-10-24";
   
   final StringBuilder buffer;
   //char[] fileBuffer = new char[1024];
@@ -100,19 +103,12 @@ public class StringPartFromFileLines extends StringPartScan
   int maxIxLinePosition;
   
   
-  /**fills a StringPart from a File. If the file is less than the maxBuffer size,
-   * the whole file is inputted into the StringPart, otherwise the StringPart is 
-   * reloaded if the first area is proceed. 
+  /**Fills a StringPart from a File. If the file is less than the maxBuffer size,
+   * the whole file is inputed into the StringPart, otherwise the StringPart is 
+   * reloaded if the first area is proceed. This constructor ivokes {@link #StringPartFromFileLines(File, int, String, Charset)}
+   * with default arguments for charset and buffer size. 
    * 
    * @param fromFile The file to read<br>
-   * 
-   * @param maxBuffer The maximum of length of the associated StringBuffer.<br>
-   * 
-   * @param sEncodingDetect If not null, this string is searched in the first line,
-   *        readed in US-ASCII or UTF-16-Format. If this string is found, the followed
-   *        string in quotion marks or as identifier with addition '-' char is readed
-   *        and used as charset name. If the charset name is failed, a CharsetException is thrown.
-   *        It means, a failed content of file may cause a charset exception.<br>
    *        
    * @throws FileNotFoundException If the file is not found
    * @throws IOException If any other exception is thrown
@@ -124,10 +120,11 @@ public class StringPartFromFileLines extends StringPartScan
   }
   
   
-  
-  /**fills a StringPart from a File. If the file is less than the maxBuffer size,
+
+    /**fills a StringPart from a File. If the file is less than the maxBuffer size,
    * the whole file is inputted into the StringPart, otherwise the StringPart is 
-   * reloaded if the first area is proceed. 
+   * reloaded if the first area is proceed. This constructor ivokes {@link #StringPartFromFileLines(InputStream, String, int, String, Charset)}
+   * with the opened file. 
    * 
    * @param fromFile The file to read<br>
    * 
@@ -147,57 +144,83 @@ public class StringPartFromFileLines extends StringPartScan
    */
   public StringPartFromFileLines(File fromFile, int maxBuffer, String sEncodingDetect, Charset charset)
   throws FileNotFoundException, IOException, IllegalCharsetNameException, UnsupportedCharsetException
+  {
+    this( new FileInputStream(fromFile)
+        , FileSystem.normalizePath(fromFile).toString()
+        , maxBuffer <= 0 || fromFile.length() < maxBuffer -10 ? (int)fromFile.length() : maxBuffer
+        , sEncodingDetect, charset);    
+  }
+  
+  
+  /**Fills a StringPart from a opened Stream. It can be used for example with 
+   * <code>ClassLoader.getSystemClassLoader().getResourceAsStream("path"); </code>.
+   * It is the core method called in the other constructors using a File input.
+   * 
+   * @param input Any input stream, maybe a ClassLoader getRessourceAsStream<br>
+   * 
+   * @param sInputPath Hint for error messages from which input is it.
+   * 
+   * @param maxBuffer The maximum of length of the associated StringBuffer.<br>
+   * 
+   * @param sEncodingDetect If not null, this string is searched in the first 2 lines,
+   *        read in US-ASCII or UTF-16-Format. If this string is found, the followed
+   *        string in quotion marks or as identifier with addition '-' char is read
+   *        and used as charset name. If the charset name is failed, a CharsetException is thrown.
+   *        It means, a failed content of file may cause a charset exception.<br>
+   *        
+   * @param charset If not null, this charset is used as default, if no other charset is found in the files first line,
+   *        see param sEncodingDetect. If null and not charset is found in file, the systems default charset is used.<br>
+   *        
+   * @TODO read char per char for sEncodingDetect, don't use mark and reset()!
+   */
+  public StringPartFromFileLines(InputStream input, String sInputPath, int sizeBuffer, String sEncodingDetect, Charset charset)
+  throws IOException, IllegalCharsetNameException, UnsupportedCharsetException
   { super();
-    setInputfile(FileSystem.normalizePath(fromFile).toString());
+    setInputfile(sInputPath);
     bEof = false;
-    long nMaxBytes = fromFile.length();
-    if(maxBuffer <= 0 || nMaxBytes < (maxBuffer -10))
-    { buffer = new StringBuilder((int)(nMaxBytes));  //buffer size appropriate to the file size.
-    }
-    else buffer = new StringBuilder(maxBuffer);  //to large file
+    buffer = new StringBuilder(sizeBuffer);  //to large file
     linePositions.set(++maxIxLinePosition, 0);  //start entry: After position 0 is line 1  
-
-    
-    if(sEncodingDetect != null)
-    { //test the first line to detect a charset, maybe the charset exceptions.
-      FileInputStream input = new FileInputStream(fromFile);
-      byte[] inBuffer = new byte[256];
-      int nrofFirstChars = input.read(inBuffer);
-      input.close();
-      String sFirstLine = new String(inBuffer, 0, nrofFirstChars);
-      int posNewline = sFirstLine.indexOf('\n'); 
-      //@chg:JcHartmut-2010-0912: test 2 lines instead of the first only, because in a bash-shell script it can't be the first line!
-      if(posNewline >= 0 && posNewline < nrofFirstChars){    //= nrofFirstBytes, then an IndexOutOfBoundsException is thrown because
-        posNewline = sFirstLine.indexOf('\n', posNewline +1); //from the second line. 
+    if(input.markSupported() && sEncodingDetect !=null){  //TODO read char per char, don't use mark!
+      input.mark(260);
+      if(sEncodingDetect != null)
+      { //test the first line to detect a charset, maybe the charset exceptions.
+        byte[] inBuffer = new byte[256];
+        int nrofFirstChars = input.read(inBuffer);
+        String sFirstLine = new String(inBuffer, 0, nrofFirstChars);
+        int posNewline = sFirstLine.indexOf('\n'); 
+        //@chg:JcHartmut-2010-0912: test 2 lines instead of the first only, because in a bash-shell script it can't be the first line!
+        if(posNewline >= 0 && posNewline < nrofFirstChars){    //= nrofFirstBytes, then an IndexOutOfBoundsException is thrown because
+          posNewline = sFirstLine.indexOf('\n', posNewline +1); //from the second line. 
+        }
+        if(posNewline < 0) posNewline = nrofFirstChars;
+        StringPartScan spFirstLine = new StringPartScan(sFirstLine.substring(0, posNewline));
+        spFirstLine.setIgnoreWhitespaces(true);
+        /**Check whether the encoding keyword is found: */
+        if(spFirstLine.seek(sEncodingDetect, StringPartScan.seekEnd).found()
+          && spFirstLine.scan("=").scanOk() 
+          )
+        { String sCharset;
+          spFirstLine.seekNoWhitespace();
+          if(spFirstLine.getCurrentChar() == '\"')
+          { sCharset = spFirstLine.seek(1).lentoQuotionEnd('\"', 100).getCurrentPart().toString();
+            if(sCharset.length()>0) sCharset = sCharset.substring(0, sCharset.length()-1);
+          }
+          else
+          { sCharset = spFirstLine.lentoIdentifier(null, "-").getCurrentPart().toString();
+          }
+          if(sCharset.length() > 0)
+          { //the charset is defined in the first line:
+            charset = Charset.forName(sCharset);  //replace the current charset
+          }
+        }
       }
-      if(posNewline < 0) posNewline = nrofFirstChars;
-      StringPartScan spFirstLine = new StringPartScan(sFirstLine.substring(0, posNewline));
-      spFirstLine.setIgnoreWhitespaces(true);
-      /**Check whether the encoding keyword is found: */
-      if(spFirstLine.seek(sEncodingDetect, StringPartScan.seekEnd).found()
-        && spFirstLine.scan("=").scanOk() 
-        )
-      { String sCharset;
-        spFirstLine.seekNoWhitespace();
-        if(spFirstLine.getCurrentChar() == '\"')
-        { sCharset = spFirstLine.seek(1).lentoQuotionEnd('\"', 100).getCurrentPart().toString();
-          if(sCharset.length()>0) sCharset = sCharset.substring(0, sCharset.length()-1);
-        }
-        else
-        { sCharset = spFirstLine.lentoIdentifier(null, "-").getCurrentPart().toString();
-        }
-        if(sCharset.length() > 0)
-        { //the charset is defined in the first line:
-          charset = Charset.forName(sCharset);  //replace the current charset
-        }
-      }
+      input.reset();
     }
-    
     if(charset != null)
-    { readIn = new BufferedReader(new InputStreamReader(new FileInputStream(fromFile), charset));
+    { readIn = new BufferedReader(new InputStreamReader(input, charset));
     }
     else
-    { readIn = new BufferedReader(new FileReader(fromFile));
+    { readIn = new BufferedReader(new InputStreamReader(input)); //new FileReader(fromFile));
     }
     boolean notAllContent = readnextContentFromFile();
     if(buffer.length() >0 && buffer.charAt(0) == '\ufeff')
@@ -212,11 +235,6 @@ public class StringPartFromFileLines extends StringPartScan
     }
   }
 
-  @Override public int XXXgetLineCt(){ 
-    int line = linePositions.binarySearch(this.begin, maxIxLinePosition); 
-    if(line <0){ line = -line; }
-    return line;
-  }
 
   
   /**Returns the line and column of the current position.

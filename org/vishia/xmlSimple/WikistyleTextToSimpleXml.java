@@ -171,7 +171,7 @@ public class WikistyleTextToSimpleXml
   
     /**Version and history.
    * <ul>
-   * <li> 2015-09-29 Hartmut: chg An attribute like <code>@p.class="style"</code> can contained at start of a line with more content now.
+   * <li>2015-09-29 Hartmut: chg An attribute like <code>@p.class="style"</code> can contained at start of a line with more content now.
    *   Note that a line in this meaning can consist of more as one line with one carriage return inside in the source. It was a problem
    *   writing an attribute with only one carriage return following with a text. Now you can write:
    *   <pre>
@@ -1198,35 +1198,48 @@ public class WikistyleTextToSimpleXml
    */
   String readAttributes(String sLine)
   { int pos = 0;
+    final String sElement;
     int pos2 = sLine.indexOf('.', pos);
-    if(pos2 > 0)
-    { String sElement = sLine.substring(pos + 1, pos2);
-      int pos3 = sLine.indexOf('=', pos2);
-      if(pos3 > 0)
-      { String sAttribute = sLine.substring(pos2 + 1, pos3).trim();
-        int pos4 = sLine.indexOf('\"', pos3);
-        assert (pos4 > 0);  //should start with "
-        int pos5 = sLine.indexOf('\"', pos4+1);
-        String sValue = sLine.substring(pos4+1, pos5);  //between "..."
-        /*
-        int pos6 = sLine.indexOf('@', pos3+1);
-        String sValue = (pos4 > 0 && (pos5<0 || pos4 < pos5) )
-                      ? sLine.substring(pos3 + 2, pos4)
-                      : null;
-        */
-        if(elementsWithAttrib == null)
-        { elementsWithAttrib = new TreeMap();
-        }
-        TreeMap attrib = (TreeMap)elementsWithAttrib.get(sElement);
-        if(attrib == null)
-        { attrib = new TreeMap();
-          elementsWithAttrib.put(sElement, attrib);
-        }
-        if(sValue == null){ attrib.remove(sAttribute); }
-        else { attrib.put(sAttribute, sValue); }
-        while(++pos5 < sLine.length() && sLine.charAt(pos5) == ' ');  //skip over space
-        pos = pos5;
-      }  
+    if(pos2 > 0) { 
+      sElement = sLine.substring(pos + 1, pos2);
+    } else {
+      sElement = "p";  //default. TODO use for this type of paragraph! Or for all (extra list)
+      pos2 = pos;
+    }
+    int pos3 = sLine.indexOf('=', pos2);
+    if(pos3 > 0)
+    { String sAttribute = sLine.substring(pos2 + 1, pos3).trim();
+      int pos4 = sLine.indexOf('\"', pos3);
+      if(pos4 <0){ 
+        pos4 = pos3-1; //" not found.
+      }
+      int pos5 = sLine.indexOf('\"', pos4+1);
+      if(pos5 < 0){
+        pos5 = sLine.length(); //till end. 
+      }
+      final String sValue = sLine.substring(pos4+1, pos5);  //between "..."
+      /*
+      int pos6 = sLine.indexOf('@', pos3+1);
+      String sValue = (pos4 > 0 && (pos5<0 || pos4 < pos5) )
+                    ? sLine.substring(pos3 + 2, pos4)
+                    : null;
+      */
+      if(elementsWithAttrib == null)
+      { elementsWithAttrib = new TreeMap();
+      }
+      TreeMap attrib = (TreeMap)elementsWithAttrib.get(sElement);
+      if(attrib == null)
+      { attrib = new TreeMap();
+        elementsWithAttrib.put(sElement, attrib);
+      }
+      if(sValue == null){ attrib.remove(sAttribute); }
+      else { attrib.put(sAttribute, sValue); }
+      while(++pos5 < sLine.length() && sLine.charAt(pos5) == ' ');  //skip over space
+      pos = pos5;
+    } 
+    else {
+      //= not found. ignore it.
+      pos = sLine.length(); //ignore till end of line.
     }
     return pos < sLine.length() ? sLine.substring(pos) : null;
   }

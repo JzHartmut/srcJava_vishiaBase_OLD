@@ -13,6 +13,8 @@ public class StringFunctions {
 
   /**Version, history and license.
    * <ul>
+   * <li>2015-10-23 Hartmut new: {@link #indexWhitespace(CharSequence, int, int)}, {@link #indexNoWhitespace(CharSequence, int, int)}.
+   *   {@link #indexAfterIdentifier(CharSequence, int, int, String)} 
    * <li>2015-06-05 Hartmut chg: {@link #equals(CharSequence, int, int, CharSequence)} regards null-pointer too.
    * <li>2014-09-05 Hartmut new: Twice methods {@link #indexOf(CharSequence, int, int, String)} and {@link #indexOf(CharSequence, int, int, CharSequence)}.
    *   Twice methods {@link #lastIndexOf(CharSequence, int, int, String)} and {@link #lastIndexOf(CharSequence, int, int, CharSequence)}.
@@ -76,6 +78,83 @@ public class StringFunctions {
    * In Unicode it is the same like {@value Character#TITLECASE_LETTER}, another meaning. */  
   public static final char cEndOfText = (char)(0x3);
 
+  
+  
+  public static int indexWhitespace(CharSequence src, int start, int endMax){
+    int pos = start;
+    int end = src.length();
+    if(endMax > 0 && endMax < end){ end = endMax; }
+    char cc;
+    if(  (cc = src.charAt(pos)) != ' ' && cc != '\r' && cc != '\n' && cc != '\t' && cc != '\f' )
+    { pos +=1;
+    }
+    return pos;
+  }
+  
+  
+  public static int indexNoWhitespace(CharSequence src, int start, int endMax){
+    int pos = start;
+    int end = src.length();
+    if(endMax > 0 && endMax < end){ end = endMax; }
+    char cc;
+    if(  (cc = src.charAt(pos)) == ' ' || cc == '\r' || cc == '\n' || cc == '\t' || cc == '\f' )
+    { pos +=1;
+    }
+    return pos;
+  }
+  
+  
+  /**Searches the position of the first identifier character starting from the given position.
+   * If the given position is on an identifier start character, it will be returned without change.
+   * @param src
+   * @param start
+   * @param endMax 0 or <0: do not use
+   * @param additionalStartChars null: do not use, 
+   * @return -1 if an identifier is not found. Elsewhere it is the position of the following identifier character.
+   */
+  public static int indexIdentifier(CharSequence src, int start, int endMax, String additionalStartChars){
+    int pos = start;
+    int end = src.length();
+    if(endMax > 0 && endMax < end){ end = endMax; }
+    char cc;
+    if( pos < end 
+      && (cc = src.charAt(pos)) != '_' 
+      && (cc < 'A' || cc >'Z') 
+      && (cc < 'a' || cc >'z') 
+      && (additionalStartChars == null || additionalStartChars.indexOf(cc)<0)
+      )
+    { pos +=1;
+    }
+    return pos < end? pos : -1;
+  }
+  
+  
+  /**Returns the position after the end of an identifier.
+   * @param src The input string
+   * @param start at this position the identifier starts.
+   * @param endq max number of chars to check
+   * @param additionalStartChars maybe null, some chars as additional start chars of an identifier.
+   * @param additionalChars maybe null, some chars as additional chars of an identifier.
+   * @return 0 if src[start] doesn't match to an identifier character, number of found identifier chars after src until end.
+   */
+  public static int indexAfterIdentifier(CharSequence src, int start, int endMax, String additionalChars){
+    int pos = start;
+    int end = src.length();
+    if(endMax > 0 && endMax < end){ end = endMax; }
+    char cc;
+    while(  pos < end 
+           && (  (cc = src.charAt(pos)) == '_' 
+              || (cc >= '0' && cc <='9') 
+              || (cc >= 'A' && cc <='Z') 
+              || (cc >= 'a' && cc <='z') 
+              || (additionalChars != null && additionalChars.indexOf(cc)>=0)
+           )  ) 
+    {
+      pos +=1; 
+    }
+    return pos;
+  }
+  
 
   /**Returns the position of the end of an identifier.
    * @param src The input string
@@ -84,7 +163,9 @@ public class StringFunctions {
    * @param additionalStartChars maybe null, some chars as additional start chars of an identifier.
    * @param additionalChars maybe null, some chars as additional chars of an identifier.
    * @return 0 if src[start] doesn't match to an identifier character, number of found identifier chars after src until end.
+   * @deprecated use {@link #indexAfterIdentifier(CharSequence, int, int, String)}
    */
+  @Deprecated
   public static int posAfterIdentifier(CharSequence src, int start, int endMax, String additionalStartChars, String additionalChars){
     int pos = start;
     char cc = src.charAt(pos);
@@ -123,7 +204,7 @@ public class StringFunctions {
    * @param pos The position in src to start.
    * @param size The number of chars of the String.
    * @param radix The radix of the number, typical 2, 10 or 16, max 36.
-   * @param parsedChars number of chars which is used to parse the integer. The pointer may be null if not necessary.
+   * @param parsedChars number of chars which is used to parse the integer. The pointer may be null if not necessary. @pjava2c=simpleVariableRef. 
    * @return the Number.
    * @throws never. All possible digits where scanned, the rest of non-scanable digits are returned.
    *  At example the String contains "-123.45" it returns -123, and the retSize is 3.
@@ -166,6 +247,14 @@ public class StringFunctions {
   
 
   
+  /**
+   * @param srcP
+   * @param pos
+   * @param sizeP
+   * @param radix
+   * @param parsedChars number of chars which is used to parse. The pointer may be null if not necessary. @pjava2c=simpleVariableRef.
+   * @return
+   */
   @Java4C.Inline public static int parseIntRadix(final String srcP, final int pos, final int sizeP, final int radix, final int[] parsedChars)
   {
     return parseIntRadix(srcP, pos, sizeP, radix, parsedChars, null);
@@ -173,6 +262,13 @@ public class StringFunctions {
 
   
   /**Adequate method for long values, see {@link #parseIntRadix(String, int, int, int, int[], String)}.
+   * @param srcP
+   * @param pos
+   * @param sizeP
+   * @param radix
+   * @param parsedChars number of chars which is used to parse. The pointer may be null if not necessary. @pjava2c=simpleVariableRef.
+   * @param spaceChars
+   * @return
    */
   public static long parseLong(final String srcP, final int pos, final int sizeP, final int radix
       , final int[] parsedChars, final String spaceChars)
@@ -220,7 +316,7 @@ public class StringFunctions {
    * @param pos The position in src to the last digit.
    * @param size The maximum of chars to parse. Should be less or equal pos.
    * @param radix The radix of the number, typical 2, 10 or 16, max 36.
-   * @param parsedChars number of chars which is used to parse the integer. The pointer may be null if not necessary.
+   * @param parsedChars number of chars which is used to parse. The pointer may be null if not necessary. @pjava2c=simpleVariableRef.
    * @return the Number.
    * @throws never. All possible digits where scanned, the rest of non-scanable digits are returned.
    *  At example the String contains "-123.45" it returns -123, and the retSize is 3.
@@ -258,8 +354,15 @@ public class StringFunctions {
   }
   
   
-  public static float parseFloat(String src, int pos, int sizeP, int[] parsedCharsP)
-  { return parseFloat(src, pos, sizeP, '.', parsedCharsP);
+  /**
+   * @param src
+   * @param pos
+   * @param sizeP
+   * @param parsedChars number of chars which is used to parse. The pointer may be null if not necessary. @pjava2c=simpleVariableRef.
+   * @return
+   */
+  public static float parseFloat(String src, int pos, int sizeP, int[] parsedChars)
+  { return parseFloat(src, pos, sizeP, '.', parsedChars);
   }  
   
   
@@ -273,7 +376,7 @@ public class StringFunctions {
    * @return the Number.
    * @param src
    * @param size
-   * @param parsedCharsP
+   * @param parsedCharsP number of chars which is used to parse. The pointer may be null if not necessary. @pjava2c=simpleVariableRef.
    * @return
    */
   public static float parseFloat(String src, int pos, int sizeP, char decimalpoint, int[] parsedCharsP)
@@ -282,6 +385,7 @@ public class StringFunctions {
     float ret;
     int restlen = src.length() - pos;
     if(restlen > sizeP){ restlen = sizeP; }
+    @Java4C.StackInstance @Java4C.SimpleArray
     int[] zParsed = new int[1];
     ret = parseIntRadix(src, pos, restlen, 10, zParsed);
     parsedChars += zParsed[0];  //maybe 0 if .123 is written
@@ -508,7 +612,7 @@ public class StringFunctions {
    */
   public static boolean equals(CharSequence s1, int from, int to, CharSequence s2){
     int z1 = s1.length();
-    if(s1 == null || s2 == null){ return s1 == s2; }  //equals is both null too
+    if(s1 == null || s2 == null){ return s1 == null && s2 == null; }  //equals is both null, else not equal
     int zz = to < 0 || to > z1 ? z1 - from : to - from;
     if( zz != s2.length()) return false;
     else {
@@ -594,8 +698,8 @@ public class StringFunctions {
   
   
   
-  /**Searches the first occurrence of the given CharSequence in a CharSequence.
-   * It is the adequate functionality like {@link java.lang.String#indexOf(String, int)}. 
+  /**Searches the first occurrence of the given character in a CharSequence.
+   * It is the adequate functionality like {@link java.lang.String#indexOf(char, int)}. 
    * @param sq search into
    * @param fromIndex start search
    * @param to end search, exclusive. If end > sq.length() then search till end. 
@@ -906,6 +1010,7 @@ public class StringFunctions {
    * @return The output string with replaces backslash pairs. It is a non-referenced StringBuilder
    *   if the src contains transcription chars, it is src itself if src does not contain transcription chars.
    */
+  @Java4C.Exclude
   public static CharSequence convertTransliteration(CharSequence src, char transcriptChar)
   { CharSequence sResult;
     int posSwitch = indexOf(src,0, src.length(), transcriptChar);

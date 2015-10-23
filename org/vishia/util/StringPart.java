@@ -112,7 +112,8 @@ public class StringPart implements CharSequence, Comparable<CharSequence>, Close
 {
   /**Version, history and license.
    * <ul>
-   * <li>2015-02-28 Hartmut new: {@link #lentoLineEnd()}, {@link #seekBack(String)}, {@link #seekBackToAnyChar(String)}
+   * <li>2015-02-28 Hartmut chg: {@link #seekBackward(String)} instead seekBack because name clash in Java2C, C-translated code with {@link #seekBack}
+   * <li>2015-02-28 Hartmut new: {@link #lentoLineEnd()}, {@link #seekBackward(String)}, {@link #seekBackToAnyChar(String)}
    *   more simple for calling in a JZcmd script.
    * <li>2014-09-05 Hartmut new: Twice methods {@link #indexOf(CharSequence)} and {@link #indexOf(String)}. 
    *   The methods are the same in Java. But in C the handling of reference is different. In Java2C translation a StringJc does not base on CharSequence
@@ -564,7 +565,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
    * begin is set to 0, end is set to the length() of the content.
    */
   @Java4C.Inline 
-  public void setParttoMax(){
+  public final void setParttoMax(){
     begiMin = beginLast = begin = 0;
     endMax = end = endLast = content.length();
     bStartScan = bCurrentOk = true;
@@ -847,7 +848,7 @@ public final char charAt(int index){
    * The functionality of #found() is not influenced. It may be the return value from a seek before.   
    * @return this
    */
-  public StringPart line(){
+  public final StringPart line(){
     int posStart = StringFunctions.lastIndexOfAnyChar(content, begiMin, begin, "\r\n");
     if(posStart < 0){ posStart = begiMin; }
     int posEnd = StringFunctions.indexOfAnyChar(content, begin, endMax, "\r\n");
@@ -1086,7 +1087,7 @@ that is a liststring and his part The associated String
    * @param sSeek The string to seek backward.
    * @return
    */
-  public final StringPart seekBack(String sSeek){
+  public final StringPart seekBackward(String sSeek){
     int pos = StringFunctions.lastIndexOf(content, begin, end, sSeek);
     if(pos <0) bFound = false;
     else {
@@ -1122,7 +1123,7 @@ that is a liststring and his part The associated String
    * @return
    */
   @Java4C.Inline
-  public StringPart seek(String sSeek){ return seek(sSeek, seekNormal); }
+  public final StringPart seek(String sSeek){ return seek(sSeek, seekNormal); }
   
   
   /**Seeks to the given String, start position is after the string.
@@ -1130,8 +1131,8 @@ that is a liststring and his part The associated String
    * @param sSeek
    * @return this
    */
-  @Java4C.Inline
-  public StringPart seekEnd(String sSeek){ return seek(sSeek, seekEnd); }
+  @Java4C.Exclude  //name class with const seekEnd
+  public final StringPart seekEnd(String sSeek){ return seek(sSeek, seekEnd); }
   
   
 
@@ -2148,11 +2149,7 @@ else return pos - begin;
     else return '\0'; ///**@java2c=StringBuilderInThreadCxt.*/ throw new IndexOutOfBoundsException("end of StringPartBase:" + begin); // return cEndOfText;
   }
  
-  /** get the Line ct. Note: it returns null in this class, may be overridden.
-  @return Number of last read line.
-  */
-  public int XXXgetLineCt(){ return 0; }
-
+ 
   
   
   /**Get the Line number and the column of the begin position. 

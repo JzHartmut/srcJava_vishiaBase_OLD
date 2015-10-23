@@ -1,5 +1,6 @@
 package org.vishia.cmd;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
@@ -150,14 +151,31 @@ public class JZcmdTester
   
   /**Generates a html file which contains the description of all data contained in referred in the given data instance.
    * See {@link DataShow#outHtml(Object, Appendable)} - that capability is used. This is only a wrapper method
-   * to adapt a given Filepath in a JZcmd environment. The file is created or overwritten and closed after them.
+   * to adapt a given File path in a JZcmd environment. The file is created or overwritten and closed after them.
    * @param data Any instance
-   * @param file
-   * @throws IOException
-   * @throws NoSuchFieldException
+   * @param file The description of the file
+   * @throws IOException on file system error
+   * @throws NoSuchFieldException if the JZcmdFilepath access an internal variable which is not given. It is not expected usual.
    */
   public static void dataHtml(Object data, JZcmdFilepath file) throws IOException, NoSuchFieldException 
   { Writer out = new FileWriter(file.absfile().toString());
+    DataShow.outHtml(data, out);
+    out.close();
+  }
+  
+  
+
+  
+  /**Generates a html file which contains the description of all data contained in referred in the given data instance.
+   * See {@link DataShow#outHtml(Object, Appendable)} - that capability is used. This is only a wrapper method
+   * to offer this method without effort in usage. The file is created or overwritten and closed after them.
+   * Note: a variant with a String given path is not supported because they may dubieties with the current directory.
+   * @param data Any instance
+   * @param path An usual absolute file path in a File object
+   * @throws IOException
+   */
+  public static void dataHtml(Object data, File path) throws IOException 
+  { Writer out = new FileWriter(path);
     DataShow.outHtml(data, out);
     out.close();
   }
