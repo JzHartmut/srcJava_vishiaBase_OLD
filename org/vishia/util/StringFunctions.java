@@ -85,7 +85,7 @@ public class StringFunctions {
     int end = src.length();
     if(endMax > 0 && endMax < end){ end = endMax; }
     char cc;
-    if(  (cc = src.charAt(pos)) != ' ' && cc != '\r' && cc != '\n' && cc != '\t' && cc != '\f' )
+    while(  pos < end && (cc = src.charAt(pos)) != ' ' && cc != '\r' && cc != '\n' && cc != '\t' && cc != '\f' )
     { pos +=1;
     }
     return pos;
@@ -97,7 +97,7 @@ public class StringFunctions {
     int end = src.length();
     if(endMax > 0 && endMax < end){ end = endMax; }
     char cc;
-    if(  (cc = src.charAt(pos)) == ' ' || cc == '\r' || cc == '\n' || cc == '\t' || cc == '\f' )
+    while(  pos < end &&  ((cc = src.charAt(pos)) == ' ' || cc == '\r' || cc == '\n' || cc == '\t' || cc == '\f' ))
     { pos +=1;
     }
     return pos;
@@ -117,7 +117,7 @@ public class StringFunctions {
     int end = src.length();
     if(endMax > 0 && endMax < end){ end = endMax; }
     char cc;
-    if( pos < end 
+    while( pos < end 
       && (cc = src.charAt(pos)) != '_' 
       && (cc < 'A' || cc >'Z') 
       && (cc < 'a' || cc >'z') 
@@ -370,12 +370,13 @@ public class StringFunctions {
    * An exponent is not regarded yet (TODO).
    * @param src The String, see ,,size,,.
    * @param pos The position in src to start.
-   * @param sizeP The number of chars to regard max (the String may be longer or shorter.
-   * @param radix The radix of the number, typical 2, 10 or 16, max 36.
-   * @param parsedChars number of chars which is used to parse the integer. The pointer may be null if not necessary.
+   * @param sizeP The number of chars to regard at maximum. A value of -1 means: use the whole String till end. 
+   *   sizeP = 0 is possible, then no float was parsed and paredCharsP[0] is set to 0. It may be possible
+   *   that the number of characters to parse will be calculated outside, and 0 is a valid result. 
+   *   If sizeP is > the length, then the whole String is used.
+   *   You can set both sizeP = -1 or sizeP = Integer.MAXVALUE to deactivate this argument.
+   * @param decimalpoint it is possible to use a ',' for german numbers.
    * @return the Number.
-   * @param src
-   * @param size
    * @param parsedCharsP number of chars which is used to parse. The pointer may be null if not necessary. @pjava2c=simpleVariableRef.
    * @return
    */
@@ -384,7 +385,7 @@ public class StringFunctions {
     int parsedChars = 0;
     float ret;
     int restlen = src.length() - pos;
-    if(restlen > sizeP){ restlen = sizeP; }
+    if(sizeP >=0 && restlen > sizeP){ restlen = sizeP; }
     @Java4C.StackInstance @Java4C.SimpleArray
     int[] zParsed = new int[1];
     ret = parseIntRadix(src, pos, restlen, 10, zParsed);
