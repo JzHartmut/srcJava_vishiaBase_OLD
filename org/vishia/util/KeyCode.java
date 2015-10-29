@@ -213,7 +213,7 @@ public class KeyCode
   public final static int dragFiles =    0x000d0000 + 'f'; 
   public final static int dragText =     0x000d0000 + 't'; 
   
-  
+  public final static int undefined = nonAlphanum;
   
   public final int code;
   
