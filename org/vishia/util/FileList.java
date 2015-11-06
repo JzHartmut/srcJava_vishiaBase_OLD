@@ -246,7 +246,7 @@ public class FileList
     try {
       filetime = dateFormat.parse(sLine);
       long listtime = filetime.getTime();
-      long listlen = StringFunctions.parseLong(sLine, 26, 16, 10, null, " '");
+      long listlen = StringFunctions_C.parseLong(sLine, 26, 16, 10, null, " '");
       sPath = sLine.substring(53);
       File file = new File(dir, sPath);
       if(!file.exists()){
@@ -267,7 +267,7 @@ public class FileList
             }
             inp.close();
             int crc = (int)crcCalculator.getValue();
-            int crclist = StringFunctions.parseIntRadix(sLine, 43, 8, 16, null);
+            int crclist = StringFunctions_C.parseIntRadix(sLine, 43, 8, 16, null);
             if(crc == crclist){
               file.setLastModified(listtime);
               args.out.append("FileList - touching; ").append(sPath).append("\n"); 

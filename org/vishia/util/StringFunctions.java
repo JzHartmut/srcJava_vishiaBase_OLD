@@ -13,6 +13,8 @@ public class StringFunctions {
 
   /**Version, history and license.
    * <ul>
+   * <li>2015-11-07 Hartmut chg: Now the number conversion routines are moved to {@link StringFunctions_C}. 
+   *   Reason: Dissipate the content because for some embedded applications a fine tuning of used sources is necessary.
    * <li>2015-10-23 Hartmut new: {@link #indexWhitespace(CharSequence, int, int)}, {@link #indexNoWhitespace(CharSequence, int, int)}.
    *   {@link #indexAfterIdentifier(CharSequence, int, int, String)} 
    * <li>2015-06-05 Hartmut chg: {@link #equals(CharSequence, int, int, CharSequence)} regards null-pointer too.
@@ -57,7 +59,7 @@ public class StringFunctions {
    * <li> You can redistribute copies of this source to everybody.
    * <li> Every user of this source, also the user of redistribute copies
    *    with or without payment, must accept this license for further using.
-   * <li> But the LPGL ist not appropriate for a whole software product,
+   * <li> But the LPGL is not appropriate for a whole software product,
    *    if this source is only a part of them. It means, the user
    *    must publish this part of source,
    *    but don't need to publish the whole source of the own product.
@@ -71,15 +73,13 @@ public class StringFunctions {
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
-  public final static int version = 20130810; 
+  public final static String version = "2015-11-07"; 
   
   
   /** The char used to code end of text. It is defined in ASCII as EOT. 
    * In Unicode it is the same like {@value Character#TITLECASE_LETTER}, another meaning. */  
   public static final char cEndOfText = (char)(0x3);
 
-  
-  
   public static int indexWhitespace(CharSequence src, int start, int endMax){
     int pos = start;
     int end = src.length();
@@ -196,230 +196,6 @@ public class StringFunctions {
   public static int posAfterIdentifier(CharSequence src, int start, int endMax){ return posAfterIdentifier(src, start, endMax, null, null); }
 
 
-  /**Parses a given String and convert it to the integer number.
-   * The String may start with a negative sign ('-') and should contain digits after them.
-   * The digits for radix > 10 where built by the numbers 'A'..'Z' respectively 'a'..'z',
-   * known as hexa numbers A..F or a..f. 
-   * @param srcP The String, non 0-terminated, see ,,size,,.
-   * @param pos The position in src to start.
-   * @param size The number of chars of the String.
-   * @param radix The radix of the number, typical 2, 10 or 16, max 36.
-   * @param parsedChars number of chars which is used to parse the integer. The pointer may be null if not necessary. @pjava2c=simpleVariableRef. 
-   * @return the Number.
-   * @throws never. All possible digits where scanned, the rest of non-scanable digits are returned.
-   *  At example the String contains "-123.45" it returns -123, and the retSize is 3.
-   */
-  public static int parseIntRadix(final String srcP, final int pos, final int sizeP, final int radix
-      , final int[] parsedChars, final String spaceChars)
-  { int val = 0;
-    boolean bNegativ;
-    int digit;
-    char cc;
-    int ixSrc = pos;
-    int size = srcP.length() - pos;
-    if(size > sizeP){ size = sizeP; }
-    int maxDigit = (radix <=10) ? '0' + radix -1 : '9'; 
-    if(size > 0 && srcP.charAt(ixSrc) == '-') { 
-      ixSrc+=1; size -=1; bNegativ = true; 
-    }
-    else { bNegativ = false; }
-    while(--size >= 0){
-      cc = srcP.charAt(ixSrc);
-      if(spaceChars !=null && spaceChars.indexOf(cc)>=0){
-        ixSrc +=1;
-      } else if((digit = cc - '0') >=0 
-          && (  cc <= maxDigit 
-              || (radix >10 && (  cc >= 'A' && (digit = (cc - 'A'+ 10)) <=radix
-                               || cc >= 'a' && (digit = (cc - 'a'+ 10)) <=radix)
-           )  )                )
-      { val = radix * val + digit;
-        ixSrc+=1;
-      } else {
-        break;
-      }
-    }
-    if(bNegativ){ val = -val; }
-    if(parsedChars !=null){
-      parsedChars[0] = ixSrc - pos;
-    }
-    return( val);
-  }
-  
-
-  
-  /**
-   * @param srcP
-   * @param pos
-   * @param sizeP
-   * @param radix
-   * @param parsedChars number of chars which is used to parse. The pointer may be null if not necessary. @pjava2c=simpleVariableRef.
-   * @return
-   */
-  @Java4C.Inline public static int parseIntRadix(final String srcP, final int pos, final int sizeP, final int radix, final int[] parsedChars)
-  {
-    return parseIntRadix(srcP, pos, sizeP, radix, parsedChars, null);
-  }
-
-  
-  /**Adequate method for long values, see {@link #parseIntRadix(String, int, int, int, int[], String)}.
-   * @param srcP
-   * @param pos
-   * @param sizeP
-   * @param radix
-   * @param parsedChars number of chars which is used to parse. The pointer may be null if not necessary. @pjava2c=simpleVariableRef.
-   * @param spaceChars
-   * @return
-   */
-  public static long parseLong(final String srcP, final int pos, final int sizeP, final int radix
-      , final int[] parsedChars, final String spaceChars)
-  { long val = 0;
-    //exact same lines as parseInt
-    boolean bNegativ;
-    int digit;
-    char cc;
-    int ixSrc = pos;
-    int size = srcP.length() - pos;
-    if(size > sizeP){ size = sizeP; }
-    int maxDigit = (radix <=10) ? '0' + radix -1 : '9'; 
-    if(srcP.charAt(ixSrc) == '-') { ixSrc+=1; size -=1; bNegativ = true; }
-    else { bNegativ = false; }
-    while(--size >= 0){
-      cc = srcP.charAt(ixSrc);
-      if(spaceChars !=null && spaceChars.indexOf(cc)>=0){
-        ixSrc +=1;
-      } else if((digit = cc - '0') >=0 
-          && (  cc <= maxDigit 
-              || (radix >10 && (  cc >= 'A' && (digit = (cc - 'A'+ 10)) <=radix
-                               || cc >= 'a' && (digit = (cc - 'a'+ 10)) <=radix)
-           )  )                )
-      { val = radix * val + digit;
-        ixSrc+=1;
-      } else {
-        break;
-      }
-    }
-    if(bNegativ){ val = -val; }
-    if(parsedChars !=null){
-      parsedChars[0] = ixSrc - pos;
-    }
-    return( val);
-  }
-  
-
-  
-  
-  /**Parses a given String backward and convert it to the integer number.
-   * The String may start with a negative sign ('-') and should contain digits after them.
-   * The digits for radix > 10 where built by the numbers 'A'..'Z' respectively 'a'..'z',
-   * known as hexa numbers A..F or a..f. 
-   * @param srcP The String.
-   * @param pos The position in src to the last digit.
-   * @param size The maximum of chars to parse. Should be less or equal pos.
-   * @param radix The radix of the number, typical 2, 10 or 16, max 36.
-   * @param parsedChars number of chars which is used to parse. The pointer may be null if not necessary. @pjava2c=simpleVariableRef.
-   * @return the Number.
-   * @throws never. All possible digits where scanned, the rest of non-scanable digits are returned.
-   *  At example the String contains "-123.45" it returns -123, and the retSize is 3.
-   */
-  public static int parseIntRadixBack(final String srcP, final int pos, final int sizeP, final int radix, final int[] parsedChars)
-  { int val = 0;
-    boolean bNegativ;
-    int digit;
-    char cc;
-    int ixSrc = pos;
-    int size = srcP.length() - pos;
-    if(size > sizeP){ size = sizeP; }
-    int maxDigit = (radix <=10) ? '0' + radix -1 : '9'; 
-    int maxHexDigitLower = 'A' + radix - 11; 
-    int maxHexDigitUpper = 'a' + radix - 11; 
-    int multPosition = 1;
-    while(size > 0 && ixSrc >=0 && (digit = (cc = srcP.charAt(ixSrc)) - '0') >=0 
-         && (  cc <= maxDigit 
-            || (radix >10 && (  cc >= 'A' && (digit = (cc - 'A'+ 10)) <=radix
-                             || cc >= 'a' && (digit = (cc - 'a'+ 10)) <=radix)
-         )  )                )
-    { val += multPosition * digit;
-      multPosition *= radix;
-      ixSrc-=1;
-      size -=1;
-    }
-    if(size > 0 && ixSrc >=0 && srcP.charAt(ixSrc) == '-') { 
-      ixSrc-=1; size -=1; 
-      val = -val;
-    }
-    if(parsedChars !=null){
-      parsedChars[0] = pos - ixSrc;
-    }
-    return( val);
-  }
-  
-  
-  /**
-   * @param src
-   * @param pos
-   * @param sizeP
-   * @param parsedChars number of chars which is used to parse. The pointer may be null if not necessary. @pjava2c=simpleVariableRef.
-   * @return
-   */
-  public static float parseFloat(String src, int pos, int sizeP, int[] parsedChars)
-  { return parseFloat(src, pos, sizeP, '.', parsedChars);
-  }  
-  
-  
-  /**Parses a given String and convert it to the float number.
-   * An exponent is not regarded yet (TODO).
-   * @param src The String, see ,,size,,.
-   * @param pos The position in src to start.
-   * @param sizeP The number of chars to regard at maximum. A value of -1 means: use the whole String till end. 
-   *   sizeP = 0 is possible, then no float was parsed and paredCharsP[0] is set to 0. It may be possible
-   *   that the number of characters to parse will be calculated outside, and 0 is a valid result. 
-   *   If sizeP is > the length, then the whole String is used.
-   *   You can set both sizeP = -1 or sizeP = Integer.MAXVALUE to deactivate this argument.
-   * @param decimalpoint it is possible to use a ',' for german numbers.
-   * @return the Number.
-   * @param parsedCharsP number of chars which is used to parse. The pointer may be null if not necessary. @pjava2c=simpleVariableRef.
-   * @return
-   */
-  public static float parseFloat(String src, int pos, int sizeP, char decimalpoint, int[] parsedCharsP)
-  {
-    int parsedChars = 0;
-    float ret;
-    int restlen = src.length() - pos;
-    if(sizeP >=0 && restlen > sizeP){ restlen = sizeP; }
-    @Java4C.StackInstance @Java4C.SimpleArray
-    int[] zParsed = new int[1];
-    ret = parseIntRadix(src, pos, restlen, 10, zParsed);
-    parsedChars += zParsed[0];  //maybe 0 if .123 is written
-    int ixsrc = pos + zParsed[0]; 
-    restlen -= zParsed[0];
-    if(ixsrc < (restlen+pos) && src.charAt(ixsrc)==decimalpoint){
-      float fracPart = parseIntRadix(src, ixsrc +1, restlen-1, 10, zParsed);
-      if(zParsed[0] >0){
-        switch(zParsed[0]){
-        case 1: fracPart *= 0.1f; break;
-        case 2: fracPart *= 0.01f; break;
-        case 3: fracPart *= 0.001f; break;
-        case 4: fracPart *= 0.0001f; break;
-        case 5: fracPart *= 1.0e-5f; break;
-        case 6: fracPart *= 1.0e-6f; break;
-        case 7: fracPart *= 1.0e-7f; break;
-        case 8: fracPart *= 1.0e-8f; break;
-        case 9: fracPart *= 1.0e-9f; break;
-        case 10: fracPart *= 1.0e-10f; break;
-        }
-        ret += fracPart;
-      }
-      parsedChars += zParsed[0]+1;  //maybe 0 if .123 is written
-      restlen -= zParsed[0]-1;
-    }
-    //TODO exponent
-    if(parsedCharsP !=null){
-      parsedCharsP[0] = parsedChars;
-    }
-    return ret;
-  }
-
-  
   /**Copies the content of a String in the given byte buffer with the requested encoding.
    * If this method is used in a C/C++ environment, it is programmed in a special maybe more simple way
    * because not all encodings are supported. Usual a String is only a byte array itself, it is copied.  
@@ -1052,6 +828,9 @@ public class StringFunctions {
     return sResult;
   }
 
+  
+  
+  
   
   static String indentString = "\n                                                                                                    ";
   

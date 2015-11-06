@@ -94,6 +94,9 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-08-30 Hartmut chg: The functionality to remove indentation is moved to the JZcmdScript
+   *   because it is done only one time on preparation of the script, not more as one in any loop of execution.
+   *   It is changed in functionality: <code><:s></code> to skip over white spaces and the next line indentation.
    * <li>2015-08-30 Hartmut bugfix: The {@link JZcmd#currdir()} and {@link JZcmd#calctime()} should be moved from the environment class
    *   because there should be able to access as <code>jzcmd.currdir()</code> in the script.   
    * <li>2015-08-30 Hartmut new: The simple syntax <code>text = newFile;</code> to change the <code><+>output<.+></code>
@@ -257,7 +260,7 @@ public class JZcmdExecuter {
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String sVersion = "2015-08-30";
+  static final public String sVersion = "2015-11-07";
 
   /**This class is the jzcmd main level from a script.
    * @author Hartmut
@@ -812,6 +815,8 @@ public class JZcmdExecuter {
     /**Set on break statement. Used only in a for-container execution to break the loop over the elements. */
     private boolean isBreak;
     
+    private boolean bSetSkipSpaces;
+    
     /**Used while a for-container loop runs. Remain after for if for was broken with a condition. */
     private boolean bForHasNext;
     
@@ -981,6 +986,7 @@ public class JZcmdExecuter {
         //for(TextGenScript.ScriptElement statement: contentScript.content){
         try{    
           switch(statement.elementType()){
+          //case ' ': bSetSkipSpaces = true; break;
           case 't': executeText(statement, out, indentOut);break; //<:>...textexpression <.>
           case '@': execSetColumn((JZcmdScript.TextColumn)statement, out);break; //<:@23>
           case 'n': out.append(jzcmd.newline);  break;   //<.n+>
@@ -1176,10 +1182,12 @@ public class JZcmdExecuter {
      * @throws IOException
      */
     void executeText(JZcmdScript.JZcmditem statement, Appendable out, int indentOut) throws IOException{
-      int posLine = 0;
-      int posEnd1, posEnd2;
       if(statement.textArg.startsWith("  "))
         Debugutil.stop();
+      out.append(statement.textArg);
+      /*
+      int posLine = 0;
+      int posEnd1, posEnd2;
       int zText = statement.textArg.length();
       do{
         char cEnd = '\n';  
@@ -1190,6 +1198,14 @@ public class JZcmdExecuter {
           cEnd = '\r';
         }
         if(posEnd1 >= 0){ 
+          if(bSetSkipSpaces) {
+            while(posLine <posEnd1 && " \r\n\t\f".indexOf(statement.textArg.charAt(posLine))>=0) {
+              posLine +=1;
+            }
+            if(posLine < posEnd1) { //anything found in the line:
+              bSetSkipSpaces = false;
+            }
+          }
           out.append(statement.textArg.substring(posLine, posEnd1));   
           out.append(jzcmd.newline);  //The newline of JZcmd invocation.
           //skip over posEnd1, skip over the other end line character if found. 
@@ -1229,6 +1245,7 @@ public class JZcmdExecuter {
         }
         
       } while(posEnd1 >=0);  //output all lines.
+      */
     }
     
     
@@ -2653,7 +2670,7 @@ public class JZcmdExecuter {
           //A statementlist as object can be only a text expression.
           //its value is returned as String.
           StringFormatter u = new StringFormatter();
-          ret = executeNewlevel(jzClass, arg.statementlist, u, arg.statementlist.indentText, -1);
+          ret = executeNewlevel(jzClass, arg.statementlist, u, 0, -1);
           obj = ret == kException ? JZcmdExecuter.retException:  u.toString();
         }
       } else if(arg.expression !=null){

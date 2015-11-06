@@ -89,9 +89,10 @@ public class StateMachine implements EventConsumer, InfoAppend
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-11-03 Hartmut chg: renaming topState in {@link #stateTop}, more unique
    * <li>2015-01-11 Hartmut chg:  
    * <li>2014-12-30 Hartmut chg: test, gardening 
-   * <li>2014-10-12 Hartmut chg: Not does not inherit from {@link StateComposite}, instance of {@link #topState}. 
+   * <li>2014-10-12 Hartmut chg: Not does not inherit from {@link StateComposite}, instance of {@link #stateTop}. 
    * <li>2014-09-28 Hartmut chg: Copied from org.vishia.stateMachine.TopState, changed concept: 
    *   Nested writing of states, less code, using reflection for missing instances and data. 
    * <li>2013-04-07 Hartmut adapt: Event<?,?> with 2 generic parameter
@@ -157,7 +158,7 @@ public class StateMachine implements EventConsumer, InfoAppend
   /**The state which presents the whole state machine. It is not a state of the user, it is the main composite state.
    * 
    */
-  protected final StateCompositeTop topState; 
+  protected final StateCompositeTop stateTop; 
   
   /**Map of all states defined as inner classes of the derived class, filled with reflection. 
    * This map contains hash codes as key. Because the hash code is different in execution in comparison to another execution,
@@ -195,11 +196,11 @@ public class StateMachine implements EventConsumer, InfoAppend
    * The constructor of the whole stateMachine does the same as the {@link StateComposite#StateComposite()}: 
    * It checks the class for inner classes which are the states.
    * Each inner class which is instance of {@link StateSimple} is instantiated and stored both in the {@link #stateMap} to find all states by its class.hashCode
-   * and in the {@link #topState} {@link StateComposite#aSubstates} for debugging only.
+   * and in the {@link #stateTop} {@link StateComposite#aSubstates} for debugging only.
    * <br><br>
    * After them {@link StateComposite#buildStatePathSubstates()} is invoked for the topstate and recursively for all states 
    * to store the state path in all states.
-   * Then {@link StateComposite#createTransitionListSubstate(int)} is invoked for the {@link #topState} 
+   * Then {@link StateComposite#createTransitionListSubstate(int)} is invoked for the {@link #stateTop} 
    * which checks the transition of all states recursively. Therewith all necessary data for the state machines's processing
    * are created on construction. 
    * 
@@ -225,7 +226,7 @@ public class StateMachine implements EventConsumer, InfoAppend
     Class<?>[] innerClasses = this.getClass().getDeclaredClasses();
     if(innerClasses.length ==0) throw new IllegalArgumentException("The StateMachine should have inner classes which are the states.");  //expected.
     aSubstates = new StateSimple[innerClasses.length];  //assume that all inner classes are states. Elsewhere the rest of elements are left null.
-    topState = new StateCompositeTop(this, aSubstates);
+    stateTop = new StateCompositeTop(this, aSubstates);
     int ixSubstates = -1;
     try{
       for(Class<?> clazz1: innerClasses) {
@@ -237,27 +238,27 @@ public class StateMachine implements EventConsumer, InfoAppend
           aSubstates[++ixSubstates] = state;
           state.stateId = clazz1.getSimpleName();
           state.stateMachine = this;
-          state.enclState = topState;
+          state.enclState = stateTop;
           int idState = clazz1.hashCode();
           this.stateMap.put(idState, state);
           this.stateList.add(state);
           try { 
             clazz1.getDeclaredField("isDefault");
-            if(topState.stateDefault != null){ 
-              throw new IllegalArgumentException("StateMachine - more as one default state in;" + topState.stateId); 
+            if(stateTop.stateDefault != null){ 
+              throw new IllegalArgumentException("StateMachine - more as one default state in;" + stateTop.stateId); 
             }
-            topState.stateDefault = state;  //The first state is the default one.
+            stateTop.stateDefault = state;  //The first state is the default one.
           } catch(NoSuchFieldException exc){} //empty!
         }
       }
-      if(topState.stateDefault == null){ 
-        throw new IllegalArgumentException("StateMachine - a default state is necessary. Define \"final boolean isDefault = true\" in one of an inner class State;" + topState.stateId); 
+      if(stateTop.stateDefault == null){ 
+        throw new IllegalArgumentException("StateMachine - a default state is necessary. Define \"final boolean isDefault = true\" in one of an inner class State;" + stateTop.stateId); 
       }
       //after construction of all subStates: complete.
-      topState.stateId = "StateTop";
-      topState.buildStatePathSubstates(null,0);  //for all states recursively
-      topState.createTransitionListSubstate(0);
-      topState.prepareTransitionsSubstate(0);
+      stateTop.stateId = "StateTop";
+      stateTop.buildStatePathSubstates(null,0);  //for all states recursively
+      stateTop.createTransitionListSubstate(0);
+      stateTop.prepareTransitionsSubstate(0);
     } catch(InvocationTargetException exc){
       Throwable exc1 = exc.getCause();
       if(exc1 !=null) throw new RuntimeException(exc1);
@@ -269,11 +270,11 @@ public class StateMachine implements EventConsumer, InfoAppend
   
   
   /**Special constructor for StateMGen, with given topState, without reflection analysis. 
-   * @param topState
+   * @param stateTop
    */
   protected StateMachine(StateSimple[] aSubstates) {
     this.name = "StateMachine";
-    this.topState = new StateCompositeTop(this, aSubstates);
+    this.stateTop = new StateCompositeTop(this, aSubstates);
     //theTimer = null;
     triggerEvent = null;
     theThread = null;
@@ -290,12 +291,12 @@ public class StateMachine implements EventConsumer, InfoAppend
    * }
    * </pre>
    * The method is invoked if the event is really processed, not only stored in a queue.
-   * it is applied to the {@link #topState} and in that way to all current states and their transitions.
+   * it is applied to the {@link #stateTop} and in that way to all current states and their transitions.
    * @param ev The event from user or from queue, maybe null.
    * @return the return value of {@link StateComposite#processEvent}
    */
   protected int eventDebug(EventObject ev) {
-    return topState.processEvent(ev); 
+    return stateTop.processEvent(ev); 
   }
 
   /**Triggers a run cycle for the statemachine in the execution thread
@@ -375,7 +376,7 @@ public class StateMachine implements EventConsumer, InfoAppend
   @Override public CharSequence infoAppend(StringBuilder u){
     if(u == null){ u = new StringBuilder(200); }
     u.append(name).append(':');
-    topState.infoAppend(u);  //fills the buffer with all aktive sub states.
+    stateTop.infoAppend(u);  //fills the buffer with all aktive sub states.
     u.append("; ");
     if(theThread !=null){
       theThread.infoAppend(u);

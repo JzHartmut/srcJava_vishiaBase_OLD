@@ -74,7 +74,7 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
   /*package private*/ StateSimple stateAct;
   
   
-  /**Only used for the {@link StateMachine#topState} 
+  /**Only used for the {@link StateMachine#stateTop} 
    * and as special constructor to build a state machine from other data. See org.vishia.stateMGen.StateMGen. 
    */
   public StateComposite(String name, StateMachine stateMachine, StateSimple[] aSubstates){

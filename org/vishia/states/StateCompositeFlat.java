@@ -66,7 +66,7 @@ public class StateCompositeFlat extends StateSimple implements InfoAppend
    * It is nice to have for debugging. Therefore its name starts with 'a' to set it on top of variable list in debugging. */
   final StateSimple[] aSubstates;
 
-  /**Only used for the {@link StateMachine#topState} 
+  /**Only used for the {@link StateMachine#stateTop} 
    * and as special constructor to build a state machine from other data. See org.vishia.stateMGen.StateMGen. 
    */
   public StateCompositeFlat(String name, StateMachine stateMachine, StateSimple[] aSubstates){

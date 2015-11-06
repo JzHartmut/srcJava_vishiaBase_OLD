@@ -23,6 +23,7 @@ public class DataShow extends ObjectId
 {
   /**Version, history and license.
    * <ul>
+   * <li>2015-11-03 Hartmut new: possibility of hyperlink to any instance via toString-anchor. 
    * <li>2015-08-01 Hartmut chg: Instead hash-code as link label use the {@link #instanceId(Object)}. The advantage:
    *   If the same data are used in a second session (repeated invocation of the same for example conversion process)
    *   then the identification is the same. The hash code depends on the memory address, which depends on the situation
@@ -63,7 +64,7 @@ public class DataShow extends ObjectId
    * 
    * 
    */
-  static final public String sVersion = "2015-08-01";
+  static final public String sVersion = "2015-11-03";
 
   /**If a Field is designated with this annotation then the content is not shown.
    * This is for example for a Hash map because the key values may be hash codes which are abbreviated between several runs.
@@ -346,7 +347,9 @@ public class DataShow extends ObjectId
   
   
   private void outDataShort(Object data, Class<?> type, Appendable out) throws IOException {
-    //String hash = Integer.toHexString(data.hashCode());
+    //Note: don't use the hash code. it may be the best, but the hash produce another content
+    //for the same data. Older and newer files are not comparable.
+    //faulty: String hash = Integer.toHexString(data.hashCode()); 
     String hash = instanceId(data, newInstances);
     String contentShort = toStringNoHash(data);
     out.append(" <a href=\"#obj-").append(hash).append("\">")
@@ -368,11 +371,19 @@ public class DataShow extends ObjectId
    * @return true: one line data, end with "/ >", false: more as one line.
    */
   private void outData(Object data, Appendable out) throws IOException {
-    //String hash = Integer.toHexString(data.hashCode());
+    //Note: don't use the hash code. it may be the best, but the hash produce another content
+    //for the same data. Older and newer files are not comparable.
+    //faulty: String hash = Integer.toHexString(data.hashCode());
     String hash = instanceId(data, newInstances);
     Class<?> clazz = data.getClass();
     String content = toStringNoHash(data);
     out.append("\n<a name=\"obj-").append(hash).append("\"/>");
+    //anchor for hyperlink from outside for documentation. Use the toString().output.
+    if(content.indexOf('\"')<0){
+      //often a " is not contained in the toString-output. It can be presumed that it is never,
+      //if the toString() should be used as anchor. But prevent trouble if " is contained.
+      out.append("\n<a name=\"").append(content).append("\"/>");
+    }
     out.append("\n<hr>\n<h2>");
     out.append(clazz.getName()).append(" id=").append(hash).append("</h2>");
     out.append("<p>").append(" = ").append(content).append("</p>");

@@ -10,7 +10,6 @@ import java.util.TreeMap;
 
 import javax.script.CompiledScript;
 import javax.script.ScriptContext;
-import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
 import org.vishia.mainCmd.MainCmdLogging_ifc;
@@ -23,6 +22,7 @@ import org.vishia.util.FileSet;
 import org.vishia.util.GetTypeToUse;
 import org.vishia.util.SetLineColumn_ifc;
 import org.vishia.util.StringFunctions;
+import org.vishia.util.StringFunctions_B;
 import org.vishia.xmlSimple.XmlNode;
 
 
@@ -43,6 +43,11 @@ public class JZcmdScript extends CompiledScript
   /**Version, history and license.
    * 
    * <ul>
+   * <li>2015-08-30 Hartmut chg: The functionality to remove indentation is moved from JZcmdExecuter 
+   *   to {@link StatementList#set_plainText(String)} because it is done only one time on preparation of the script, not more as one in any loop of execution.
+   *   It is changed in functionality: <code><:s></code> to skip over white spaces and the next line indentation.
+   *   The {@link JZscriptSettings} is created as composite one time in this class and referenced in 
+   *   {@link StatementList#jzSettings} for usage in that functionality.
    * <li>2015-05-24 Hartmut chg: copy, move, del with options, uses {@link FileOpArg} 
    * <li>2015-05-17 Hartmut new: syntax "File : <textValue>" is now able as start path of a DataPath.
    *   Therefore it's possible to write <code>File: "myFile".exists()</code> or adequate. A relative filename
@@ -238,7 +243,14 @@ public class JZcmdScript extends CompiledScript
   }
   
   
-
+  
+  public static class JZscriptSettings
+  {
+    String sLinefeed = "\r\n";
+    int srcTabsize = 8;
+  }
+  
+  JZscriptSettings jzScriptSettings = new JZscriptSettings();
   
   /**Common Superclass for a JZcmd script item.
    * A script item is either a statement maybe with sub statements, or an expression, or an access to data
@@ -564,7 +576,6 @@ public class JZcmdScript extends CompiledScript
           */
           case 'e': u.append(" <*)"); break;  //expressions.get(0).dataAccess
           //case 'g': u.append("<$" + path + ">";
-          //case 's': u.append("call " + identArgJbat;
           case 'B': u.append(" { statementblock }"); break;
           case 'D': u.append(" debug"); break;
           case 'E': u.append(" else "); break;
@@ -589,7 +600,10 @@ public class JZcmdScript extends CompiledScript
           case 'o': u.append(" createTextOut "); break;
           case 'q': u.append(" appendTextOut "); break;
           case 'r': u.append(" throw "); break;
+          //case 's': u.append("call " + identArgJbat;
+          case 's': u.append(" call "); break;
           case 'v': u.append(" throw on error "); break;
+          case 'w': u.append(" while "); break;
           case 'x': u.append(" thread "); break;
           case 'y': u.append(" copy "); break;
           case 'z': u.append(" exit "); break;
@@ -597,6 +611,7 @@ public class JZcmdScript extends CompiledScript
           case ':': u.append(" <:> ... <.>"); break;
           case '!': u.append(" flush "); break;
           case '_': u.append(" close "); break;
+          case ' ': u.append(" skipWhitespace "); break;
           case ',': u.append(" errortoOutput "); if(textArg == null){ u.append("off "); } break;
           default: //do nothing. Fo in overridden method.
         }
@@ -1871,8 +1886,16 @@ public class JZcmdScript extends CompiledScript
      */
     public boolean bContainsVariableDef;
 
+    /**Set with <code><:s></code> in a textExpression to enforce skipping whithespaces. */
+    boolean bSetSkipSpaces;
     
-    int indentText;
+
+    //int indentText;
+    
+    //int indentTextOut;
+    
+    final JZscriptSettings jzSettings;
+    
     
     /**Scripts for some local variable. This scripts where executed with current data on start of processing this genContent.
      * The generator stores the results in a Map<String, String> localVariable. 
@@ -1884,13 +1907,15 @@ public class JZcmdScript extends CompiledScript
     
     //public List<String> datapath = new ArrayList<String>();
     
-    public StatementList()
+    public StatementList(JZscriptSettings jzSettings)
     { this.parentStatement = null;
+      this.jzSettings = jzSettings;
       //this.isContentForInput = false;
     }
         
     public StatementList(JZcmditem parentStatement)
     { this.parentStatement = parentStatement;
+      this.jzSettings = parentStatement == null || parentStatement.parentList == null ? null : parentStatement.parentList.jzSettings;
       //this.isContentForInput = false;
     }
         
@@ -1920,7 +1945,7 @@ public class JZcmdScript extends CompiledScript
 
     
     @Override public void setLineColumnFile(int line, int column, String sFile){
-      srcLine = line; indentText = column -1; srcFile = sFile; 
+      srcLine = line; /*src = column -1;*/ srcFile = sFile; 
     }
 
     /**Returns wheter only the line or only the column should be set.
@@ -1974,7 +1999,10 @@ public class JZcmdScript extends CompiledScript
     
     /**Gathers a text which is assigned to any variable or output. <+ name>text<.+>
      */
-    public TextOut new_textOut(){ return new TextOut(this, 'T'); }
+    public TextOut new_textOut(){ 
+      //indentTextOut = indentText;
+      return new TextOut(this, 'T'); 
+    }
 
     public void add_textOut(TextOut val){ 
       statements.add(val); 
@@ -2189,10 +2217,24 @@ public class JZcmdScript extends CompiledScript
      * other characters as white spaces. 
      */
     public void set_plainText(String text){
-      JZcmditem statement = new JZcmditem(this, 't');
-      statement.textArg = text;
-      statements.add(statement);
-      onerrorAccu = null; withoutOnerror.add(statement);
+      if(text.length() >0){
+        if(text.contains("::::  /**Contains the state"))
+          Debugutil.stop();
+        JZcmditem statement = new JZcmditem(this, 't');
+        //if(parentStatement instanceof TextOut) {
+          //TextOut textOut = (TextOut)parentStatement;
+        if(jzSettings !=null) {
+          CharSequence text1 = StringFunctions_B.removeIndentReplaceNewline(text
+              , parentStatement.srcColumn -1, ":+=", jzSettings.srcTabsize, jzSettings.sLinefeed, this.bSetSkipSpaces);
+          statement.textArg = text1.toString();
+          this.bSetSkipSpaces = false;  //it is valid for the following text only, it is used.
+        } else {
+          //special basics
+          statement.textArg = text;
+        }
+        statements.add(statement);
+        onerrorAccu = null; withoutOnerror.add(statement);
+      }
     }
     
     
@@ -2221,6 +2263,11 @@ public class JZcmdScript extends CompiledScript
       JZcmditem statement = new JZcmditem(this, 'n');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
+    }
+    
+    
+    public void set_skipWhiteSpaces(){
+      bSetSkipSpaces = true;
     }
     
     
@@ -2503,14 +2550,16 @@ public class JZcmdScript extends CompiledScript
     /**All subroutines of this class. */
     final Map<String, JZcmdScript.Subroutine> subroutines = new TreeMap<String, JZcmdScript.Subroutine>();
     
-    protected JZcmdClass(){}
+    protected JZcmdClass(JZscriptSettings jzScriptSettings){
+      super(/*JZcmdScript.this.*/jzScriptSettings);
+    }
     
     
     public final List<JZcmdClass> classes(){ return classes; }
     
     public final Map<String, JZcmdScript.Subroutine> subroutines(){ return subroutines; }
     
-    public JZcmdClass new_subClass(){ return new JZcmdClass(); }
+    public JZcmdClass new_subClass(){ return new JZcmdClass(jzScriptSettings); }
     
     public void add_subClass(JZcmdClass val){ 
       if(classes == null){ classes = new ArrayList<JZcmdClass>(); }
@@ -2584,7 +2633,7 @@ public class JZcmdScript extends CompiledScript
     public Scriptfile scriptfile;    
     
     public ZbnfJZcmdScript(JZcmdScript compiledScript){
-      compiledScript.super();   //JZcmdClass is non-static, enclosing is outer.
+      compiledScript.super(compiledScript.jzScriptSettings);   //JZcmdClass is non-static, enclosing is outer.
       this.compiledScript = compiledScript;
       compiledScript.scriptClass = this; //outer.new JZcmdClass();
     }
@@ -2605,7 +2654,7 @@ public class JZcmdScript extends CompiledScript
      */
     public StatementList new_mainRoutine(){ 
       scriptfile.mainRoutine = new Subroutine(compiledScript.scriptClass); 
-      scriptfile.mainRoutine.statementlist = new StatementList(null);
+      scriptfile.mainRoutine.statementlist = new StatementList(compiledScript.jzScriptSettings);
       return scriptfile.mainRoutine.statementlist;
     }
     
