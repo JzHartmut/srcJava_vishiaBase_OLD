@@ -210,7 +210,7 @@ protected StateMachine stateMachine;
 protected StateSimple enclState;
 
 /**The state which controls this state. */
-protected StateComposite stateCtrl;
+protected StateComposite rootState;
 
 /**Any additional information. Used for special cases. */
 private Object auxInfo;
@@ -842,10 +842,10 @@ public Object auxInfo() { return auxInfo; }
 
 /**Returns that state which is the composite state which controls the activity of that independent part of the StateMachine.
  * Note: If a composite state is only used to build a pool of simple states which have common transition(s) the pool-building state
- * is a {@link StateCompositeFlat} and it is not the stateCtrl.
+ * is a {@link StateCompositeFlat} and it is not the rootState.
  * 
  */
-public StateComposite stateCtrl(){ return stateCtrl; }
+public StateComposite rootState(){ return rootState; }
 
 
 
@@ -918,7 +918,7 @@ final void buildStatePath(StateSimple enclState) {
       enclState1 = enclState1.enclState;
     }
     if(enclState1 instanceof StateComposite) { 
-      stateCtrl = (StateComposite)enclState1;
+      rootState = (StateComposite)enclState1;
     } //else: It is a StateSimple in a StateParallel.
     //
     //copy the path from the top state to the new dst state. It is one element lengths.
@@ -1088,8 +1088,8 @@ private void prepareTransition(Trans trans, int nRecurs) {
  * @return
  */
 public final boolean isInState(){
-  if(stateCtrl !=null) {
-    return stateCtrl.isActive && stateCtrl.isInState(this);
+  if(rootState !=null) {
+    return rootState.isActive && rootState.isInState(this);
   } else {
     //it is the top state or a StateSimple inside a StateParallel
     if(enclState == null) return true; //it is the top state.
@@ -1269,9 +1269,9 @@ final int entryTheState(EventObject ev, int history) { //int isConsumed){
     encl1.isActive = true;
   } //else: It is a StateSimple in a StateParallel.
   */
-  if(stateCtrl !=null) {
-    stateCtrl.stateAct = this;
-    stateCtrl.isActive = true;
+  if(rootState !=null) {
+    rootState.stateAct = this;
+    rootState.isActive = true;
   } //else only null on a StateSimple in a StateParallel.
   //
   ctEntry +=1;
