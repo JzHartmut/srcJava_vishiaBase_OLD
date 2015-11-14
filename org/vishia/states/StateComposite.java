@@ -129,13 +129,27 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
    */
   public final int entryDeepHistory(EventObject ev){
     StateSimple stateActHistory = stateAct;  //save it
-    int cont = entryTheState(ev,0);                  //entry in this state, remark: may be overridden, sets the stateAct to null
-    if(stateActHistory instanceof StateComposite){
-      cont = ((StateComposite)stateActHistory).entryDeepHistory(ev);
-    } else {
-      cont = stateActHistory.entryTheState(ev,0);           //entry in the history sub state.
+    int cont = entryTheState(ev, true);                  //entry in this state, remark: may be overridden, sets the stateAct to null
+    return cont | entryDeepHistory(stateActHistory, ev);
+  }
+  
+  
+  
+  private final int entryDeepHistory(StateSimple state, EventObject ev) {
+    int cont = 0;
+    if(state instanceof StateComposite){
+      cont = ((StateComposite)state).entryDeepHistory(ev);
+    } else if(state instanceof StateParallel) {
+      cont |= state.entryTheState(ev, true);
+      for(StateSimple stateP : ((StateParallel)state).aParallelstates) {
+        cont |= entryDeepHistory(stateP, ev);
+      }
+    } else { //StateSimple
+      for(int ix = state.ixRootStateInStatePath +1; ix < state.statePath.length; ++ix)
+      cont |= state.statePath[ix].entryTheState(ev,true);   //entry in the history sub state, statepath for CompositeFlat.
     }
     return cont;
+
   }
   
   
@@ -146,8 +160,8 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
    */
   public final int entryFlatHistory(EventObject ev){
     StateSimple stateActHistory = stateAct;  //save it
-    int cont = entryTheState(ev,0);                  //entry in this state, remark: may be overridden, sets the stateAct to null
-    cont = stateActHistory.entryTheState(ev,0);             //entry in the history sub state.
+    int cont = entryTheState(ev, true);                  //entry in this state, remark: may be overridden, sets the stateAct to null
+    cont = stateActHistory.entryTheState(ev, true);             //entry in the history sub state.
     return cont;
   }
   

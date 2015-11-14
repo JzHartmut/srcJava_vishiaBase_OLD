@@ -3,8 +3,11 @@ package org.vishia.states.example;
 import java.util.EventObject;
 
 import org.vishia.event.EventCmdtype;
+import org.vishia.event.EventTimeout;
 import org.vishia.event.EventTimerThread;
 import org.vishia.event.EventWithDst;
+import org.vishia.event.TimeOrder;
+import org.vishia.msgDispatch.MsgRedirectConsole;
 import org.vishia.states.StateComposite;
 import org.vishia.states.StateCompositeFlat;
 import org.vishia.states.StateParallel;
@@ -17,7 +20,7 @@ public class StatesNestedParallel
   public class Conditions 
   {
   
-    boolean on;  
+    boolean on_ready, on_cont;  
   
   
     boolean start;
@@ -25,12 +28,16 @@ public class StatesNestedParallel
     boolean offAfterRunning;
     
     boolean cont;
+    
+    boolean off;
+    
+    boolean finished;
   }
   
   
   /**Commands for the event.
    */
-  enum CmdEvent { start, ready, cyclic};
+  enum CmdEvent { start, ready, cyclic, off, on_cont};
   
   /**An event type reuseable for the state machine animation. */
   class EventA extends EventCmdtype<CmdEvent>{}
@@ -102,6 +109,10 @@ public class StatesNestedParallel
             && ((EventA)ev).getCmd() == CmdEvent.start ){
           return on.choice().eventConsumed();
         }
+        else if(cond.on_cont){
+          cond.on_cont = false;
+          return on.choice();
+        }
         //else if(cond.on) return on_Ready;
         else return null;
       }
@@ -109,12 +120,22 @@ public class StatesNestedParallel
     };
     
     
-    class StateWork extends StateCompositeFlat
+    class StateWork extends StateComposite
     {
       @Override protected int entry(EventObject ev){ System.out.println("entry " + stateId); return 0; }
       
       @Override protected void exit(){ System.out.println(" exit " + stateId); }
 
+      Trans to_off = new Trans(StateOff.class);
+      
+      @Override protected Trans checkTrans(EventObject ev){
+        if(cond.off) {
+          cond.off = false;
+          return to_off;
+        }
+        else return null;
+      }
+      
       class StateReady extends StateSimple
       {
         final boolean isDefault = true;
@@ -141,15 +162,19 @@ public class StatesNestedParallel
 
         @Override protected void exit(){ System.out.println(" exit " + stateId); }
 
-        TransJoin to_off = (new TransJoin(StateOff.class)).srcStates(StateActive2.StateShouldOff.class, StateActive1.StateFinit.class);
-
+        //TransJoin to_off = (new TransJoin(StateOff.class)).srcStates(StateActive2.StateShouldOff.class, StateActive1.StateFinit.class);
+        TransJoin to_off = new TransJoin(StateOff.class) {
+          @Override protected void action(EventObject ev) {
+            cond.finished = true;
+          }
+        };
+        { to_off.srcStates(StateActive2.StateShouldOff.class, StateActive1.StateFinit.class); }
+        
         @Override protected Trans checkTrans(EventObject ev){
-          //if(to_off.joined()) {
-          //if(stateMachine.isInState(StateActive1.StateFinit.class) && stateMachine.isInState(StateActive2.StateShouldOff.class)) {
-          //  return to_off;
-          //} 
-          //else 
-            return null;
+          if(to_off.joined()) {
+            return to_off;
+          }
+          else return null;
         }
 
         class StateActive1 extends StateComposite
@@ -244,7 +269,7 @@ public class StatesNestedParallel
   }
   
   private void execute() {
-    cond.on = true;
+    cond.on_ready = true;
     cond.start = true;
     cond.offAfterRunning = true;
     if(event.occupy(null, states, threadEventTimer, true)){
@@ -252,14 +277,24 @@ public class StatesNestedParallel
       //instead:
       //states.processEvent(event);
     }
+    //EventTimeout evOff = new EventTimeout(states, threadEventTimer);
+    //evOff.activate(1000);
+    
+    @SuppressWarnings("serial") 
+    TimeOrder evOff1 = new TimeOrder("off", threadEventTimer){
+      @Override protected void executeOrder(){ cond.off = true;  cond.on_cont = true; cond.cont = true;}
+    };
+    evOff1.occupy(null, true);
+    evOff1.activate(1000);
     //cond.on = false;
     do {
       try{ Thread.sleep(100);
       } catch(InterruptedException exc) {}
       if(event.occupy(null, states, threadEventTimer, true)){
         event.sendEvent(CmdEvent.cyclic);  //animate the state machine cyclically to check some conditions.
+        
       }
-    } while(!states.isInState(States.StateOff.class));
+    } while(!cond.finished); //!states.isInState(States.StateOff.class));
     try{
       //timer.close();
       threadEventTimer.close();
@@ -272,6 +307,7 @@ public class StatesNestedParallel
   
   
   public static void main(String[] args){
+    MsgRedirectConsole msg = new MsgRedirectConsole();
     StatesNestedParallel main = new StatesNestedParallel();
     main.execute();
   }

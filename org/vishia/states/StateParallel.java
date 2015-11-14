@@ -17,6 +17,10 @@ public class StateParallel extends StateSimple
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-02-10 Hartmut chg: A {@link TransJoin} have to be quest in the {@link #checkTrans(EventObject)} routine.
+   *   The transition after the join bar can have a condition or event trigger, which is to quest in the checkTrans.
+   *   The automatically transition is removed, because it is not explicitly and cannot have conditions.
+   *   Applications should be adapted.  
    * <li>2015-02-10 Hartmut chg: Up to now this is the container for parallel {@link StateComposite}, not one of the parallel composites.
    *   It is more simple and logical.
    * <li>2014-09-28 Hartmut chg: Copied from {@link org.vishia.stateMachine.StateAdditionalParallelBase}, changed concept: 
@@ -137,7 +141,7 @@ public class StateParallel extends StateSimple
     int ix = 0;
     while(ix < aParallelstates.length && aParallelstates[ix] !=null){ ix +=1; } //search next free
     if(ix >= aParallelstates.length) throw new IllegalArgumentException("too many parallel states to add");
-    aParallelstates[ix] = (StateComposite)state;
+    aParallelstates[ix] = state;
     stateMachine.stateMap.put(state.hashCode(), state);
     stateMachine.stateList.add(state);
   }
@@ -188,14 +192,14 @@ public class StateParallel extends StateSimple
   }
   
   /**This method is used to entry the default state of all parallel composites.  */
-  final int entryDefaultState(){ 
+  final int XXXentryDefaultState(){ 
     int ret = 0;
     if(aParallelstates !=null) {
       for(StateSimple state: aParallelstates){
         if(state instanceof StateComposite) {
           ret |= ((StateComposite)state).entryDefaultState();
         } else {
-          ret |= state.entryTheState(null, 0);
+          ret |= state.entryTheState(null, false);
         }
       }
     }

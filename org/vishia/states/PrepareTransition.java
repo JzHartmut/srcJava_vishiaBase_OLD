@@ -158,6 +158,7 @@ class PrepareTransition
     } while(stateExit3 != stateCommon);  
     //change the exit States to the exit states of all join source states:
     transJoin.exitStates = listExitStates.toArray(new StateSimple[listExitStates.size()]);
+    /*
     for(StateSimple srcState1 : transJoin.joinStates) {
       if(srcState1.transJoins == null) {
         srcState1.transJoins = new StateSimple.TransJoin[1];
@@ -168,6 +169,7 @@ class PrepareTransition
       }
       srcState1.transJoins[srcState1.transJoins.length -1] = transJoin;
     }
+    */
   }
 
 

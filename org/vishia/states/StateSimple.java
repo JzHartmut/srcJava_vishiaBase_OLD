@@ -95,6 +95,11 @@ public abstract class StateSimple implements InfoAppend
   
 /**Version, history and license.
  * <ul>
+ * <li>2015-11-15 Hartmut chg: The history state transition runs yet. Some problems. 
+ * <li>2015-02-10 Hartmut chg: A {@link TransJoin} have to be quest in the {@link #checkTrans(EventObject)} routine.
+ *   The transition after the join bar can have a condition or event trigger, which is to quest in the checkTrans.
+ *   The automatically transition is removed, because it is not explicitly and cannot have conditions.
+ *   Applications should be adapted.  
  * <li>2014-11-09 Hartmut new: {@link #setAuxInfo(Object)}, {@link #auxInfo()} used for state machine generation for C/C++
  * <li>2014-09-28 Hartmut chg: Copied from {@link org.vishia.stateMachine.StateSimpleBase}, changed concept: 
  *   Nested writing of states, less code, using reflection for missing instances and data. 
@@ -195,9 +200,9 @@ public final static int mRunToComplete =0x100000;
 /**Use this designation for {@link Trans#retTrans} to signal that an event is not consumed in {@link #checkTrans(EventObject)}. */
 public final static int mEventNotConsumed = 0x200000;
 
-public final static int mFlatHistory = 0x400000;
+//public final static int mFlatHistory = 0x400000;
 
-public final static int mDeepHistory = 0x800000;
+//public final static int mDeepHistory = 0x800000;
 
 /**Aggregation to the whole state machine. Note: it cannot be final because it will be set on preparing only. */
 protected StateMachine stateMachine;
@@ -211,6 +216,8 @@ protected StateSimple enclState;
 
 /**The state which controls this state. */
 protected StateComposite rootState;
+
+protected int ixRootStateInStatePath;
 
 /**Any additional information. Used for special cases. */
 private Object auxInfo;
@@ -235,7 +242,7 @@ Timeout transTimeout;
  * Note that the join transition is noted only on one (the first) of the join states.
  * The other states are tested from here with {@link #isInState()}.
  */
-TransJoin[] transJoins;
+//TransJoin[] transJoins;
 
 /**The timeout event set if necessary. This is a static instance, reused. It is the same instance in all non-parallel states. */
 //EventTimerMng.TimeEvent evTimeout;
@@ -407,6 +414,8 @@ public class Trans
    * */
   StateSimple[] entryStates;
   
+  /**If set either a flat history entry or a deep history entry should be executed.  */
+  boolean flatHistory, deepHistory;
   
   /**Identification String for the transition, for debug. */
   String transId;
@@ -613,31 +622,28 @@ public class Trans
     doneExit = true;
   }
   
-
-  
-  /**Entry in all states for this transition.
-   * The states will be entered in the order from outer to inner state
-   * and for all parallel states then from outer to inner.
-   * @param ev
-   */
-  public final void doEntry(EventObject ev)
-  { doEntry(ev, 0);
-  }
   
   /**Entry in all states for this transition maybe with history entry.
    * The states will be entered in the order from outer to inner state
    * and for all parallel states then from outer to inner.
+   * It regards history entry: {@link #deepHistory}, {@link #flatHistory}.
    * @param ev The data of the event can be used by entry actions.
-   * @param history If one of the bits {@link StateSimple#mFlatHistory} or {@link StateSimple#mDeepHistory} are set
-   *   then the last state is entered again. 
    */
-  public final void doEntry(EventObject ev, int history)
+  public final void doEntry(EventObject ev)
   { 
     if(entryStates !=null) {
       for(int ix = 0; ix < entryStates.length; ++ix) { //stateParallel) {
         StateSimple state = entryStates[ix];
-        int hist1 = (ix == entryStates.length -1) ? history: 0;
-        retTrans |= state.entryTheState(ev, hist1);
+        if(ix == entryStates.length -1 && (deepHistory || flatHistory)){
+          StateComposite stateC = (StateComposite)state;  //it have to be a composite state.
+          if(deepHistory) {
+            retTrans |= stateC.entryDeepHistory(ev);
+          } else {
+            retTrans |= stateC.entryFlatHistory(ev);
+          }
+        } else {
+          retTrans |= state.entryTheState(ev, false);
+        }
     } }
     doneEntry = true;
   }
@@ -653,12 +659,12 @@ public class Trans
 
 
 public class TransDeepHistory extends Trans {
-  public TransDeepHistory(Class<?> ...dst){ super(dst); retTrans |= mDeepHistory; }
+  public TransDeepHistory(Class<?> ...dst){ super(dst); deepHistory = true; }
 }
 
 
 public class TransFlatHistory extends Trans {
-  public TransFlatHistory(Class<?> ...dst){ super(dst); retTrans |= mFlatHistory; }
+  public TransFlatHistory(Class<?> ...dst){ super(dst); flatHistory = true; }
 }
 
 
@@ -912,10 +918,12 @@ final void buildStatePath(StateSimple enclState) {
     statePath = new StateSimple[1];
     statePath[0] = this;              //first element is the top state.
   } else {
-    //search the control StateComposite:
+    //search the root StateComposite:
+    int ixe = 1;
     StateSimple enclState1 = this.enclState;
     while(enclState1 !=null && !(enclState1 instanceof StateComposite) &&  !(enclState1 instanceof StateParallel)) {
       enclState1 = enclState1.enclState;
+      ixe +=1;
     }
     if(enclState1 instanceof StateComposite) { 
       rootState = (StateComposite)enclState1;
@@ -926,6 +934,7 @@ final void buildStatePath(StateSimple enclState) {
     this.statePath = new StateSimple[topPathLength +1];
     System.arraycopy(enclState.statePath, 0, this.statePath, 0 , topPathLength);
     statePath[topPathLength] = this;  //last element is this itself.
+    this.ixRootStateInStatePath = topPathLength - ixe;
   }
 }
 
@@ -1183,6 +1192,7 @@ final int _checkTransitions(EventObject ev) {
   //either the first time or overridden check method: Use it.
   try{ 
     trans = checkTrans(ev); 
+    /*
     if(trans ==null && transJoins !=null) {
       //check all join transitions.
       int ixTransJoin = 0;
@@ -1203,6 +1213,7 @@ final int _checkTransitions(EventObject ev) {
         trans.retTrans = 0;
       }
     } //if transJoins
+    */
     if(trans == null && transTimeout !=null && ev == evTimeout) { //the own timeout event is expected and received
       trans = transTimeout;  
     }
@@ -1257,7 +1268,7 @@ final int _checkTransitions(EventObject ev) {
  * @param ev
  * @return
  */
-final int entryTheState(EventObject ev, int history) { //int isConsumed){
+final int entryTheState(EventObject ev, boolean history) { //int isConsumed){
   /*
   StateSimple enclState1 = this.enclState;
   while(enclState1 !=null && !(enclState1 instanceof StateComposite) &&  !(enclState1 instanceof StateParallel)) {
@@ -1280,17 +1291,11 @@ final int entryTheState(EventObject ev, int history) { //int isConsumed){
   //if(this instanceof StateAddParallel){
   //  ((StateAddParallel)this).entryAdditionalParallelBase();
   //}
-  if(this instanceof StateComposite){ //quest after StateParallel handling because isActive is set to true.
+  if(!history && this instanceof StateComposite){ //quest after StateParallel handling because isActive is set to true.
     StateComposite cthis = (StateComposite)this;
-    if((history & (mDeepHistory | mFlatHistory)) !=0) {
-      //TODO      
-      cthis.stateAct = null;   
-      cthis.isActive = true;
-    } else {
-      //entry for a composite state forces the default state if entries for deeper states are not following.
-      cthis.stateAct = null;   
-      cthis.isActive = true;
-    }
+    //entry for a composite state forces the default state if entries for deeper states are not following.
+    cthis.stateAct = null;   
+    cthis.isActive = true;
   }
   if(this.transTimeout !=null && evTimeout !=null){
     evTimeout.activateAt(System.currentTimeMillis() + this.millisectimeout);

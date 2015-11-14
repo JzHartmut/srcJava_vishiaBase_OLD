@@ -240,7 +240,7 @@ public class StateCompositeFlat extends StateSimple implements InfoAppend
   /*package private*/ final int entryDefaultState(){ 
     int ret = 0;
     if(stateDefault !=null) {
-      ret |= stateDefault.entryTheState(null,0);
+      ret |= stateDefault.entryTheState(null, false);
     }
     return ret;
   }
