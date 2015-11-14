@@ -155,6 +155,9 @@ public abstract class TimeOrder extends EventTimeout //Object //implements Event
    * to execute the {@link #executeOrder()} in any other thread.
    *  
    * @param name the TimeOrder should have a name for debugging. 
+   * @param dst The destination object for the event. If it is null then the overridden {@link #executeOrder()} 
+   *   will be executed if the time is expired. If given then {@link EventConsumer#processEvent(EventObject)}
+   *   is invoked in the given dst instance. The #executeOrder is not invoked. It can be used in the dst for own things.
    * @param thread thread to handle the time order. It is obligatory.
    */
   public TimeOrder(String name, EventConsumer dst, EventTimerThread_ifc thread){

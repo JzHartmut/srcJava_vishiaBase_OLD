@@ -437,7 +437,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         //lastkeyNext = bHasNext ? helperNext.table.aKeys[helperNext.idx] : null;
         
       }
-      if(shouldCheck){ root.check(); }
+      //if(shouldCheck){ root.check(); }
     }
   
     @Override public String toString() { return helperPrev.toString() + " ... " + helperNext.toString(); }   

@@ -22,6 +22,7 @@ public class MsgRedirectConsole extends MsgDispatcher
 
   /**Version, history and license.
    * <ul>
+   * <li>2015-11-15 Hartmut new {@link MsgRedirectConsole#MsgRedirectConsole()} for simplest usage. 
    * <li>2013-03-31 Hartmut new {@link #readConfig(File)}, experience with usage.
    * <li>2013-03-24 Hartmut rewrite, create this class from MsgDispatchSystemOutErr
    * <li>2013-01-26 Hartmut fine tuning
@@ -127,6 +128,15 @@ public class MsgRedirectConsole extends MsgDispatcher
    */
   public MsgRedirectConsole(MainCmd mainCmd, int addOutputs, Runnable runNoEntryMessage)
   { this(10000, 40000, 10000, 100, mainCmd, 10000, 1000, addOutputs+3, 9999, runNoEntryMessage);
+  }
+  
+  /**Initializes the redirection of System.out and System.err in the simplest standard way.
+   * All System.out and System.err will be completed with a timestamp and output then.
+   * You can use {@link #readConfig(File)} to set associations between the message start texts and numbers
+   * and switch messages on or off depending on their start texts. 
+   */
+  public MsgRedirectConsole()
+  { this(10000, 40000, 10000, 100, null, 10000, 1000, 3, 9999, null);
   }
   
   public void setMsgIdents(MsgConfig src, String chnChars){

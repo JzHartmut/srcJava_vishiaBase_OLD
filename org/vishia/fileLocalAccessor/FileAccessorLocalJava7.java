@@ -49,6 +49,12 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
 {
   /**Version, history and license.
    * <ul>
+   * <li>2015-11-13 Hartmut bugfix: {@link WalkFileTreeVisitor#postVisitDirectory(Path, IOException)}: 
+   *   The same directory was walked twice because the callback was called firstly. The callback forces a {@link #walkFileTree(FileRemote, boolean, boolean, boolean, String, long, int, FileRemoteCallback)}
+   *   started in another thread. This marks all child files with {@link FileRemote#mRefreshChildPending} while the other thread has removed the FileRemote child instances
+   *   which are marked with that. Therefore FileRemote instances were removed and created new, there are existing more as one for the same file after them.
+   *   The order of execution is changed yet only, so the bug is not forced. The core of the bug is a thread safety. While a walkFileTree for a directory runs,
+   *   another thread should wait for it or skip it because the other thread refreshes already in the near time.  
    * <li>2015-03-27 Hartmut now children in {@link WalkFileTreeVisitor.CurrDirChildren} is deactivate because not used before.
    *   A seldom error of twice instances for the same children of a directory was watched.  
    * <li>2014-12-21 Hartmut chg: The {@link WalkFileTreeVisitor.CurrDirChildren#children} is not used any more, the refreshing of children is done
@@ -1024,7 +1030,17 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
     public FileVisitResult postVisitDirectory(Path dir, IOException exc)
         throws IOException
     { 
-      
+      //TODO missing thread safety: The children which are marked with mRefreshChildPending are removed.
+      //If this mark is set in another thread too because the same directory should be refreshed in another thread
+      //then children are removed which are existing and not to remove.
+      //Only one thread should done this action.
+      //The setChildrenRefreshed() is called yet (2015-11-13) before  the callback.finishedParentNode(...) is called
+      //because that call invokes refresh the second time.
+      if(refresh){  
+        //curr.dir.internalAccess().setChildren(curr.children);  //Replace the map.
+        curr.dir.timeChildren = System.currentTimeMillis();
+        curr.dir.internalAccess().setChildrenRefreshed();
+      }
       if(curr.cnt.nrofParentSelected == curr.cnt.nrofParents && curr.cnt.nrofLeafSelected == curr.cnt.nrofLeafss){
         if(curr.parent !=null) { curr.parent.cnt.nrofParentSelected +=1; }
         cntTotal.nrofParentSelected +=1;
@@ -1033,11 +1049,6 @@ public class FileAccessorLocalJava7 extends FileRemoteAccessor
       FileRemoteCallback.Result result = (callback !=null) ? 
                                          callback.finishedParentNode(curr.dir, curr.cnt) 
                                        : SortedTreeWalkerCallback.Result.cont;
-      if(refresh){  
-        //curr.dir.internalAccess().setChildren(curr.children);  //Replace the map.
-        curr.dir.timeChildren = System.currentTimeMillis();
-        curr.dir.internalAccess().setChildrenRefreshed();
-      }
       if(debugout) System.out.println("FileRemoteAccessorLocalJava7 - callback - post dir; " + curr.dir.getAbsolutePath());
       curr = curr.parent;
       if(curr !=null) { curr.cnt.nrofParents +=1; } 
