@@ -237,7 +237,7 @@ public class StateParallel extends StateSimple
         ){
       //process the own transition. Do it after processing the inner state (omg.org)
       //and only if either an event is present or the state has only conditional transitions.
-      int trans = _checkTransitions(evTrans); 
+      int trans = _checkTransitions(evTrans); //of this state.
       cont |= trans;
     }
     

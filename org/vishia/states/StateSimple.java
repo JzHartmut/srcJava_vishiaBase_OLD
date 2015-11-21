@@ -95,7 +95,7 @@ public abstract class StateSimple implements InfoAppend
   
 /**Version, history and license.
  * <ul>
- * <li>2015-11-15 Hartmut chg: The history state transition runs yet. Some problems. 
+ * <li>2015-11-21 Hartmut chg: The history pseudo state runs yet. Some problems. 
  * <li>2015-02-10 Hartmut chg: A {@link TransJoin} have to be quest in the {@link #checkTrans(EventObject)} routine.
  *   The transition after the join bar can have a condition or event trigger, which is to quest in the checkTrans.
  *   The automatically transition is removed, because it is not explicitly and cannot have conditions.
@@ -415,7 +415,7 @@ public class Trans
   StateSimple[] entryStates;
   
   /**If set either a flat history entry or a deep history entry should be executed.  */
-  boolean flatHistory, deepHistory;
+  //boolean flatHistory, deepHistory;
   
   /**Identification String for the transition, for debug. */
   String transId;
@@ -624,25 +624,34 @@ public class Trans
   
   
   /**Entry in all states for this transition maybe with history entry.
+   * This method can be invoked inside an application-specific {@link StateSimple#checkTrans(EventObject)} routine
+   * with the selected transition. The routine sets the flag {@link #doneEntry}. If the method is not invoked by the application
+   * it will be invoked in the {@link StateSimple#_checkTransitions(EventObject)}. 
    * The states will be entered in the order from outer to inner state
-   * and for all parallel states then from outer to inner.
-   * It regards history entry: {@link #deepHistory}, {@link #flatHistory}.
+   * and for all parallel states then from outer to inner one in each parallel both, using the {@link #entryStates}.
+   * It regards history entry: {@link StateDeepHistory}, {@link StateShallowHistory}.
    * @param ev The data of the event can be used by entry actions.
    */
   public final void doEntry(EventObject ev)
   { 
     if(entryStates !=null) {
-      for(int ix = 0; ix < entryStates.length; ++ix) { //stateParallel) {
+      int ixLast = entryStates.length -1;
+      int ix = 0; 
+      while(ix < entryStates.length) { 
         StateSimple state = entryStates[ix];
-        if(ix == entryStates.length -1 && (deepHistory || flatHistory)){
+        StateSimple history;
+        if(ix < ixLast && (( (history = entryStates[ix+1]) instanceof StateDeepHistory) || (history instanceof StateShallowHistory))) { 
+          //the last entry is an history entry.
           StateComposite stateC = (StateComposite)state;  //it have to be a composite state.
-          if(deepHistory) {
+          if(history instanceof StateDeepHistory) {
             retTrans |= stateC.entryDeepHistory(ev);
           } else {
-            retTrans |= stateC.entryFlatHistory(ev);
+            retTrans |= stateC.entryShallowHistory(ev);
           }
+          ix +=2; //skip over History
         } else {
           retTrans |= state.entryTheState(ev, false);
+          ix +=1; //next
         }
     } }
     doneEntry = true;
@@ -654,17 +663,6 @@ public class Trans
 
 
   
-}
-
-
-
-public class TransDeepHistory extends Trans {
-  public TransDeepHistory(Class<?> ...dst){ super(dst); deepHistory = true; }
-}
-
-
-public class TransFlatHistory extends Trans {
-  public TransFlatHistory(Class<?> ...dst){ super(dst); flatHistory = true; }
 }
 
 
@@ -1172,7 +1170,13 @@ protected Trans checkTrans(EventObject ev) { bCheckTransitionArray = true; retur
 
 
 
-int processEvent(EventObject ev){ return _checkTransitions(ev); }
+/**Applies an event to this state respectively processes the event with this state.
+ * Note: This method is overridden by {@link StateComposite#processEvent(EventObject)} with an more complex algorithm.
+ * For a simple state it invokes only {@link #_checkTransitions(EventObject)}.
+ * @param ev The event to apply.
+ * @return information about the switch, Bits {@link #mEventConsumed}, {@link #mTransit}, {@link #mRunToComplete}, {@link #mStateEntered}, {@link #mStateLeaved}.
+ */
+/*package private*/ int processEvent(EventObject ev){ return _checkTransitions(ev); }
 
 
 /**Check all transitions and fire one transition if true.
@@ -1192,30 +1196,8 @@ final int _checkTransitions(EventObject ev) {
   //either the first time or overridden check method: Use it.
   try{ 
     trans = checkTrans(ev); 
-    /*
-    if(trans ==null && transJoins !=null) {
-      //check all join transitions.
-      int ixTransJoin = 0;
-      TransJoin transJoin = null;
-      do {  
-        transJoin = transJoins[ixTransJoin];   
-        int ixSrcState = 1; 
-        do {
-          if(!transJoin.joinStates[ixSrcState].isInState()) {
-            transJoin = null;  //not to fire.
-          }
-        } while(transJoin !=null && ++ixSrcState < transJoin.joinStates.length);
-          
-      } while( transJoin == null && ++ixTransJoin < transJoins.length);
-      trans = transJoin;  //maybe null, not null if join fires.
-      if(trans !=null) {
-        trans.doneExit = trans.doneAction = trans.doneEntry = false;
-        trans.retTrans = 0;
-      }
-    } //if transJoins
-    */
     if(trans == null && transTimeout !=null && ev == evTimeout) { //the own timeout event is expected and received
-      trans = transTimeout;  
+      trans = transTimeout.eventConsumed();  
     }
     if(trans !=null){
       //it is possible to invoke doExit and any transition code in the checkTrans() method already.
@@ -1223,6 +1205,7 @@ final int _checkTransitions(EventObject ev) {
       if(!trans.doneAction) { trans.doAction(ev,0); }
       if(!trans.doneEntry)  { trans.doEntry(ev); }
       trans.retTrans |= mTransit;
+      if(stateMachine.debugTrans) printTransInfo(trans, ev);
       return trans.retTrans;
     }
   }
@@ -1264,22 +1247,40 @@ final int _checkTransitions(EventObject ev) {
 
 
 
-/**
+private void printTransInfo(Trans trans, EventObject ev) {
+  if( (trans.retTrans & mEventConsumed) !=0) {
+    System.out.println("StateSimple - Trans ev consmd;" + trans.transId + ";" + trans.exitStates[0].toString() + ";==>" + trans.entryStates[trans.entryStates.length-1].toString() + "; event =" + ev + ";");
+  } else if(ev !=null) {
+    System.out.println("StateSimple - Trans ev nCons.;" + trans.transId + ";" + trans.exitStates[0].toString() + ";==>" + trans.entryStates[trans.entryStates.length-1].toString() + "; event not consumed =" + ev + ";");
+  } else {
+    System.out.println("StateSimple - Trans runToCmpl;" + trans.transId + ";" + trans.exitStates[0].toString() + ";==>" + trans.entryStates[trans.entryStates.length-1].toString());
+  }
+}
+
+
+
+
+
+/**Executes enter in this state. This routine will be invoked in {@link Trans#doEntry(EventObject)} immediately for the entry states,
+ * in {@link StateCompositeFlat#entryDefaultState()}
+ * or in {@link StateComposite#entryDeepHistory(EventObject)} or {@link StateComposite#entryShallowHistory(EventObject)}.
+ * It enters only in this state. Enter is sub states is done in the calling routines.  
+ * <ul>
+ * <li>The reference of {@link StateComposite#stateAct} will be set in its {@link #rootState()} to mark this state as current one..
+ * <li>The {@link #rootState()} (its composite) will be marked as {@link StateComposite#isActive} (may be marked already).
+ * <li>Sets debug informations: {@link #ctEntry}+=1, {@link #dateLastEntry}=yet, {@link #durationLast}=0.
+ * <li>If it is a {@link StateComposite} without history, sets the own {@link StateComposite#stateAct} to null, 
+ *   therewith forces maybe entry in the default state if an entry in a member of the composite is not done by this transition
+ *   but sets its own {@link StateComposite#isActive}. Note: The enter in the default state is done by the next state switch.
+ * <li>Note: If it has a history and it is an history entry, the {@link StateComposite#stateAct} will be entered as history state 
+ *   in the {@link StateComposite#entryDeepHistory(EventObject)} or {@link StateComposite#entryShallowHistory(EventObject)}
+ *   in the {@link Trans#doEntry(EventObject)} 
+ * <li>At least invokes the user defined {@link #entry(EventObject)} action.  
+ * </ul>
  * @param ev
  * @return
  */
 final int entryTheState(EventObject ev, boolean history) { //int isConsumed){
-  /*
-  StateSimple enclState1 = this.enclState;
-  while(enclState1 !=null && !(enclState1 instanceof StateComposite) &&  !(enclState1 instanceof StateParallel)) {
-    enclState1 = enclState1.enclState;
-  }
-  if(enclState1 instanceof StateComposite) { 
-    StateComposite encl1 = (StateComposite)enclState1;
-    encl1.stateAct = this;
-    encl1.isActive = true;
-  } //else: It is a StateSimple in a StateParallel.
-  */
   if(rootState !=null) {
     rootState.stateAct = this;
     rootState.isActive = true;

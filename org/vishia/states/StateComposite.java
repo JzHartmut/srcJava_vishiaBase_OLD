@@ -15,6 +15,7 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
 {
   /**Version, history and license.
    * <ul>
+   * <li>2015-11-21 Hartmut chg: {@link #printStateSwitchInfo(StateSimple, EventObject, int)} 
    * <li>2014-11-09 Hartmut chg: Capability of StateParallel contained here, class StateParallel removed: 
    *   It is possible to have a StateComposite with its own sub states, but a second or more parallel states
    *   in an own composite, which is yet the class StateAddParallel. It is {@link StateParallel}. More simple, more flexibility. 
@@ -128,6 +129,7 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
    * @return isProcessed, maybe the additional bits {@link StateSimpleBase#mRunToComplete} is set by user.
    */
   public final int entryDeepHistory(EventObject ev){
+    isActive = true;
     StateSimple stateActHistory = stateAct;  //save it
     int cont = entryTheState(ev, true);                  //entry in this state, remark: may be overridden, sets the stateAct to null
     return cont | entryDeepHistory(stateActHistory, ev);
@@ -158,7 +160,8 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
    * @param isProcessed The bit {@link StateSimpleBase#mEventConsumed} is supplied to return it.
    * @return isProcessed, maybe the additional bits {@link StateSimpleBase#mRunToComplete} is set by user.
    */
-  public final int entryFlatHistory(EventObject ev){
+  public final int entryShallowHistory(EventObject ev){
+    isActive = true;
     StateSimple stateActHistory = stateAct;  //save it
     int cont = entryTheState(ev, true);                  //entry in this state, remark: may be overridden, sets the stateAct to null
     cont = stateActHistory.entryTheState(ev, true);             //entry in the history sub state.
@@ -211,8 +214,9 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
       do { //Run to complete loop
         contLoop &= ~mRunToComplete;  //only this is checked for any state transition. Left all other bits especially mEventConsumed.
         if(stateAct == null){
-          contLoop |= entryDefaultState();  //regards also Parallel states.
-          if(stateMachine.debugState && (contLoop & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(null, evTrans, contLoop); }
+          int trans = entryDefaultState();  //regards also Parallel states.
+          if(stateMachine.debugState && (trans & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(null, evTrans, contLoop); }
+          contLoop |= trans & ~(mStateEntered | mStateLeaved);  //regards also Parallel states.
         } 
         StateSimple statePrev = stateAct;
         //==>>
@@ -221,7 +225,7 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
         if((trans & StateSimple.mEventConsumed) != 0){
           evTrans = null;
         }
-        contLoop |= trans;
+        contLoop |= trans & ~(mStateEntered | mStateLeaved);
         //
         if(catastrophicalCount == 4) {
           catastrophicalCount = 3;  //set break point! to debug the loop
@@ -265,7 +269,7 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
       StateSimple statePrev = stateAct;
       int trans = _checkTransitions(evTrans); 
       if(stateMachine.debugState && (trans & (mStateEntered | mStateLeaved)) !=0) { printStateSwitchInfo(statePrev, evTrans, trans); }
-      cont |= trans;
+      cont |= trans & ~(mStateEntered | mStateLeaved);
     }
     return cont;  //runToComplete.bit may be set from an inner state transition too.
   }
@@ -284,31 +288,54 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
     String sStatePrev = statePrev !=null ? statePrev.stateId : "INIT";
     //String sActiveState = getActiveState();
     StringBuilder uStateNext = new StringBuilder();
-    if(stateAct == null){ uStateNext.append("--inactive--"); }
-    else {
-      StateSimple stateAct1 = stateAct;
-      uStateNext.append(stateAct.stateId);
-      while(stateAct1 instanceof StateComposite) {
-        stateAct1 = ((StateComposite)stateAct1).stateAct;
-        if(stateAct1 !=null) { 
-          uStateNext.insert(0, '.').insert(0,  stateAct1.stateId);
+    //if(stateAct == null){ uStateNext.append("--inactive--"); }
+    StateComposite parent = this;
+    while(parent !=null && !parent.isActive) {
+      parent = parent.rootState !=null ? parent.rootState : parent.enclState.rootState;  //use enclState on stateParallel
+    }
+    //if(!isActive){ uStateNext.append("--inactive--"); }
+    //else 
+    if(parent ==null) {
+      uStateNext.append("--StateMachine inactive--");
+    } else  {
+      StateSimple stateAct1 = parent.stateAct;
+      uStateNext.append(stateAct1.stateId);
+      if(stateAct1 instanceof StateParallel) {
+        StateParallel stateP = (StateParallel)stateAct1;
+        String sep = "[";
+        for(StateSimple stateP1 : stateP.aParallelstates) {
+          uStateNext.append(sep);
+          assembleDstState(uStateNext, stateP1);
+          sep = " || ";
         }
+        uStateNext.append(']');
+      }
+      else {
+        assembleDstState(uStateNext, stateAct1);
       }
     }
     if(!isActive){
-      System.out.println("StateCompositeBase - leaved; " + sStatePrev + " ==> " + uStateNext + "; event=" + evTrans + ";");
-    } else if((cont & StateSimple.mEventConsumed)!=0) {  //statePrev != stateAct){  //from the same in the same state!
-      System.out.println("StateCompositeBase - switch;" + sStatePrev + " ==> "  + uStateNext + "; event=" + evTrans + ";");
+      System.out.println("StateComposite -  left ; " + sStatePrev + ";==>" + uStateNext + "; event=" + evTrans + ";");
+    } 
+    else if((cont & StateSimple.mEventConsumed)!=0) {  //statePrev != stateAct){  //from the same in the same state!
+      System.out.println("StateComposite - event ;" + sStatePrev + ";==>"  + uStateNext + "; event=" + evTrans + ";");
     } else if(evTrans !=null){ 
-      System.out.println("StateCompositeBase - switch;" + sStatePrev + " ==> "  + uStateNext + "; not used event=" + evTrans + ";");
+      System.out.println("StateComposite - nu.ev.;" + sStatePrev + ";==>"  + uStateNext + "; not used event=" + evTrans + ";");
     } else { 
-      System.out.println("StateCompositeBase - switch;" + sStatePrev + " ==> "  + uStateNext + "; runToComplete;");
+      System.out.println("StateComposite - runToC;" + sStatePrev + ";==>"  + uStateNext + ";");
     }
     
   }
 
   
-  
+  private void assembleDstState(StringBuilder uStateNext, StateSimple stateAct1) {
+    while(stateAct1 instanceof StateComposite) {
+      stateAct1 = ((StateComposite)stateAct1).stateAct;
+      if(stateAct1 !=null) { 
+        uStateNext.append('.').append(stateAct1.stateId);
+      }
+    }
+  }
 
 
   /**Exits first the actual sub state (and that exits its actual sub state), after them this state is exited.
@@ -349,8 +376,12 @@ public class StateComposite extends StateCompositeFlat implements InfoAppend
     String separator = "";
     u.append(stateId);
     if(isActive) {
-      u.append(".");
-      stateAct.infoAppend(u);
+      if(stateAct !=null) {
+        u.append(".");
+        stateAct.infoAppend(u);
+      } else {
+        u.append(" - stateAct = null");
+      }
     } else {
       u.append(" - inactive");
     }

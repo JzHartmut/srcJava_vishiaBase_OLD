@@ -379,8 +379,8 @@ public class DataShow extends ObjectId
     String content = toStringNoHash(data);
     out.append("\n<a name=\"obj-").append(hash).append("\"/>");
     //anchor for hyperlink from outside for documentation. Use the toString().output.
-    if(content.indexOf('\"')<0){
-      //often a " is not contained in the toString-output. It can be presumed that it is never,
+    if(content !=null && content.indexOf('\"')<0){
+      //often a " is not contained in the toString-output. It can be presumed that it is never true,
       //if the toString() should be used as anchor. But prevent trouble if " is contained.
       out.append("\n<a name=\"").append(content).append("\"/>");
     }

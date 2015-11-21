@@ -10,6 +10,7 @@ import org.vishia.event.TimeOrder;
 import org.vishia.msgDispatch.MsgRedirectConsole;
 import org.vishia.states.StateComposite;
 import org.vishia.states.StateCompositeFlat;
+import org.vishia.states.StateDeepHistory;
 import org.vishia.states.StateParallel;
 import org.vishia.states.StateSimple;
 import org.vishia.states.StateMachine;
@@ -89,11 +90,13 @@ public class StatesNestedParallel
       
       public TransChoice on = new TransChoice() { 
         
-        Trans cont_history = new TransDeepHistory(StateWork.class); 
+        Trans cont_history = new Trans(StateWork.History.class); 
         Trans ready = new Trans(StateWork.StateReady.class);
           
         @Override public Trans choice() {
-          if(cond.cont) return cont_history;
+          if(cond.cont){
+            return cont_history;
+          }
           else return ready;
         }
         
@@ -122,6 +125,8 @@ public class StatesNestedParallel
     
     class StateWork extends StateComposite
     {
+      class History extends StateDeepHistory{}
+      
       @Override protected int entry(EventObject ev){ System.out.println("entry " + stateId); return 0; }
       
       @Override protected void exit(){ System.out.println(" exit " + stateId); }
@@ -220,6 +225,16 @@ public class StatesNestedParallel
 
             @Override protected void exit(){ System.out.println(" exit " + stateId); }
 
+            Trans transReady = new Trans(StateReady.class);
+            @Override protected Trans checkTrans(EventObject ev){
+              if(true) return null;
+              cond.on_cont = false;
+              cond.on_ready = false;
+              cond.start = false;
+              cond.cont = false;
+              return transReady;
+            }
+            
           }//StateFinit
           
         } 
@@ -266,6 +281,7 @@ public class StatesNestedParallel
   
   private StatesNestedParallel(){
     states = new States(threadEventTimer);
+    states.debugTrans = true;
   }
   
   private void execute() {

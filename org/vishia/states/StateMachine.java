@@ -130,7 +130,8 @@ public class StateMachine implements EventConsumer, InfoAppend
   /**If set true, then any state transition is logged with System.out.printf("..."). One can use the 
    * {@link org.vishia.msgDispatch.MsgRedirectConsole} to use a proper log system. 
    */
-  protected boolean debugState = false;
+  public boolean debugState = false;
+  public boolean debugTrans = false;
   
   
   /**True then permits exceptions in one state transition. send a log output to System.err but check other transitions. */

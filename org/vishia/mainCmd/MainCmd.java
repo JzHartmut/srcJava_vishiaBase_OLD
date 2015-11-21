@@ -210,6 +210,7 @@ public abstract class MainCmd implements MainCmd_ifc
   /**Version, history and license.
    * Changes:
    * <ul>
+   * <li>2015-11-21 Hartmut bugfix: close() was missing after reading an --@args.file 
    * <li>2014-05-31 Hartmut new: option --help:outfile 
    * <li>2014-05-31 Hartmut chg: default value for nReportLevel = 0, only output if --rlevel= is given. 
    *   Do not create unnecessary files. 
@@ -672,6 +673,7 @@ public abstract class MainCmd implements MainCmd_ifc
                 listArgs.add(sParam);
               }  
             }
+            inp.close();
             //add existing cmdLineArgs and the new args:
             String[] argsNew = new String[cmdLineArgs.length -1 + listArgs.size()];
             System.arraycopy(cmdLineArgs, 0, argsNew, 0, iArgs);

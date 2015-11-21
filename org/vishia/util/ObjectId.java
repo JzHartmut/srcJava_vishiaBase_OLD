@@ -94,7 +94,11 @@ public class ObjectId
    * @return identification String for this instance.
    */
   public String instanceId(Object data, Queue<Object> newInstances) {
-    String classname = data.getClass().getCanonicalName();
+    Class clazz = data.getClass();
+    String classname = clazz.getCanonicalName();
+    if(classname == null){ //anonymous class:
+      classname = clazz.getName();
+    }
     InstancesOfType instancesOfType = allInstances.get(classname);
     if(instancesOfType == null){ 
       instancesOfType = new InstancesOfType(++nextTypeId);
@@ -160,16 +164,18 @@ public class ObjectId
    */
   public String toStringNoHash(Object data) {
     String content = data.toString();
-    int posHash = content.lastIndexOf('@');  
-    if(posHash >0){
-      String sHash = content.substring(posHash+1);
-      try{ 
-        int nHash = Integer.parseInt(sHash, 16);
-        String sId = allInstancesHash2Id.get(nHash);
-        if(sId !=null) {
-          content = content.substring(0, posHash+1) + sId;  //replace the hash on end with the id.
-        }
-      } catch(Exception exc){ } //do nothing.
+    if(content !=null){
+      int posHash = content.lastIndexOf('@');  
+      if(posHash >0){
+        String sHash = content.substring(posHash+1);
+        try{ 
+          int nHash = Integer.parseInt(sHash, 16);
+          String sId = allInstancesHash2Id.get(nHash);
+          if(sId !=null) {
+            content = content.substring(0, posHash+1) + sId;  //replace the hash on end with the id.
+          }
+        } catch(Exception exc){ } //do nothing.
+      }
     }
     return content;
   }
