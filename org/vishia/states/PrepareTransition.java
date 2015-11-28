@@ -33,8 +33,13 @@ class PrepareTransition
   PrepareTransition(StateSimple state, StateSimple.Trans trans, StateSimple[] exitStates)
   { this.trans = trans;
     this.state = state;
-    this.dstStates = trans.dst == null ? null : new StateSimple[trans.dst.length];
-    this.ixInStatePath = (this.dstStates == null) ? null : new int[this.dstStates.length];
+    if(trans.dst == null){
+      this.dstStates = null;
+      this.ixInStatePath = null;
+    } else {
+      this.dstStates = new StateSimple[trans.dst.length];
+      this.ixInStatePath = new int[this.dstStates.length];
+    }
     this.exitStates = exitStates;
   }
   
@@ -61,6 +66,10 @@ class PrepareTransition
     //search all dst state instances from the given class. In constructor only the class is known.
     for(int ixdst = 0; ixdst < trans.dst.length; ++ixdst){
       dstStates[ixdst] = state.stateMachine.stateMap.get(new Integer(trans.dst[ixdst]/*.hashCode()*/));
+      if(dstStates[ixdst] ==null) {
+        System.err.println("PrepareTransition.buildDstStates - dst state not found, "+ trans);
+        //throw new IllegalArgumentException("dst state not found, "+ trans);
+      }
     }
   }
   

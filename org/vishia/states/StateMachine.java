@@ -186,7 +186,7 @@ public class StateMachine implements EventConsumer, InfoAppend
     }
   }
   
-  
+  public List<StateSimple> stateList(){ return stateList; }
   
   /**Creates a state machine which is executed directly by {@link #processEvent}. {@link StateSimple.Timeout} is not possible.
    * 
