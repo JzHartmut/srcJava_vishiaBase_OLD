@@ -7,9 +7,14 @@ package org.vishia.states;
  */
 public class StateDeepHistory extends StateSimple
 {
-  public StateDeepHistory(){
+  public StateDeepHistory(String name){
     super();
-    stateId = "deepHistory";
+    stateId = name;
+    
+  }
+
+  public StateDeepHistory(){
+    this("deepHistory");
     
   }
 }

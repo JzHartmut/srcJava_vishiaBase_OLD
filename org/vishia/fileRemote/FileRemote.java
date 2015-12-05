@@ -1909,9 +1909,10 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
   
   
   
-  /**
+  /**Deletes a subdirectory. This routine is invoked from {@link #deleteMarked(int, FileRemoteCallback)} and recursively in this routine
+   * for sub directories.
    * @param mark
-   * @param file
+   * @param file The directory
    * @param depth
    * @param callback
    * @return true if the directory is empty or it is a file.
@@ -2003,17 +2004,17 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
         file2.device = getAccessorSelector().selectFileRemoteAccessor(file2.getAbsolutePath());
       }
       //NOTE: Don't call file2.delete() because it changes the iterated Map.
-      System.out.println("FileRemote.deleteMarkedSub - delete File; " + file2.getName());
+      System.out.println("FileRemote.deleteMarkedSub - delete File, " + file2.getName());
       isDeleted = file2.device.delete(file2, null);  //delete on file system with waiting on success.
       if(isDeleted){
         iter.remove();  //from children list of the parent.
         bDelete = true;
       } else {
-        System.err.println("FileRemote.delete - can't delete; >>>" + file2.getAbsolutePath()+ "<<<");
+        System.err.println("FileRemote.delete - can't delete, >>>" + file2.getAbsolutePath()+ "<<<");
         bDelete = false;  //delete fails
       }
     } else {
-      System.out.println("FileRemote.deleteMarkedSub - offer file not marked; " + file2.getName());
+      System.out.println("FileRemote.deleteMarkedSub - offer file not marked, " + file2.getName());
       bDelete = false;  //not marked
     }
     return bDelete;
