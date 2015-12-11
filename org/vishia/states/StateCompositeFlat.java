@@ -24,7 +24,7 @@ import org.vishia.util.InfoAppend;
  * @author Hartmut Schorrig
  *
  */
-public class StateCompositeFlat extends StateSimple implements InfoAppend
+public abstract class StateCompositeFlat extends StateSimple implements InfoAppend
 {
   /**Version, history and license.
    * <ul>

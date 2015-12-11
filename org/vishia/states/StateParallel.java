@@ -12,7 +12,7 @@ import org.vishia.util.DataAccess;
  * @author Hartmut Schorrig
  *
  */
-public class StateParallel extends StateSimple
+public abstract class StateParallel extends StateSimple
 {
   
   /**Version, history and license.

@@ -712,13 +712,13 @@ public class StringFunctions {
     while(--max >= fromIndex){
       if(sq.charAt(max) == ch) {
         int s1 = 0;
-        for(int jj = max+1; jj < max + str.length(); ++jj){
+        for(int jj = max+1; jj < max + str.length()-1; ++jj){
           if(sq.charAt(jj) != str.charAt(++s1)){
             s1 = -1; //designate: not found
             break;
           }
         }
-        if(s1 >0) return max;  //found.
+        if(s1 >=0) return max;  //found.
       }
     }
     return -1;  //not found;

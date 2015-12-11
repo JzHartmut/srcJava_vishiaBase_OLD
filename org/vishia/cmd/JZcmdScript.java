@@ -43,6 +43,8 @@ public class JZcmdScript extends CompiledScript
   /**Version, history and license.
    * 
    * <ul>
+   * <li>2015-12-12 Hartmut chg: {@link StatementList#new_hasNext()} returns a {@link StatementList} instead {@link JZcmditem}
+   *   because there may be not only one const text element between <:hasNext>...<.hasNext>. No change in the {@link JZcmdExecuter} necessary. 
    * <li>2015-08-30 Hartmut chg: The functionality to remove indentation is moved from JZcmdExecuter 
    *   to {@link StatementList#set_plainText(String)} because it is done only one time on preparation of the script, not more as one in any loop of execution.
    *   It is changed in functionality: <code><:s></code> to skip over white spaces and the next line indentation.
@@ -676,7 +678,7 @@ public class JZcmdScript extends CompiledScript
     @Override public Class<?> getTypeToUse(){ return JZcmdDataAccess.class; }
     
 
-    public JZcmditem new_File(){ return new JZcmditem(null, 'A'); } ////
+    public JZcmditem new_File(){ return new JZcmditem(null, 'A'); } 
     
     public void set_File(JZcmditem val){ 
       JZcmdDatapathElementClass elem = new JZcmdDatapathElementClass();
@@ -2050,7 +2052,7 @@ public class JZcmdScript extends CompiledScript
         
     /**Defines a variable which is able to use as container.
      */
-    public DefVariable new_List(){ ////
+    public DefVariable new_List(){ 
       bContainsVariableDef = true; 
       return new DefVariable(this, 'L'); 
     } 
@@ -2059,7 +2061,7 @@ public class JZcmdScript extends CompiledScript
     
     /**Defines a variable which is able to use as container.
      */
-    public DefVariable new_DefMapVar(){ ////
+    public DefVariable new_DefMapVar(){ 
       bContainsVariableDef = true; 
       DefVariable statement = new DefVariable(this, 'M'); 
       statements.add(statement);  onerrorAccu = null; withoutOnerror.add(statement);
@@ -2366,14 +2368,17 @@ public class JZcmdScript extends CompiledScript
 
     
     
-    public JZcmditem new_hasNext()
+    public StatementList new_hasNext()  
     { JZcmditem statement = new JZcmditem(this, 'N');
       statements.add(statement);
       onerrorAccu = null; withoutOnerror.add(statement);
-      return statement;
+      if(statement.statementlist == null){
+        statement.statementlist = new StatementList(statement); 
+      }
+      return statement.statementlist;
     }
     
-    public void add_hasNext(JZcmditem val){}
+    public void add_hasNext(StatementList val){}
     
     
 
