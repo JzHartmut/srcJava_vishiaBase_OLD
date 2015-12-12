@@ -657,6 +657,7 @@ public class Trans
     doneEntry = true;
   }
   
+  
   @Override public String toString(){ return transId == null ? "-unknown transId" : transId; }
 
 
@@ -850,6 +851,8 @@ public Object auxInfo() { return auxInfo; }
  * 
  */
 public StateComposite rootState(){ return rootState; }
+
+public StateSimple enclState(){ return enclState; }
 
 
 
@@ -1418,6 +1421,7 @@ public class PlugStateSimpleToGenState
     aTransitions[ix] = trans;
 
   }
+  
   
 }
 

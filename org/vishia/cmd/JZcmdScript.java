@@ -206,7 +206,7 @@ public class JZcmdScript extends CompiledScript
       try{ 
         level.executer().initialize(this, false, null, null);
         Subroutine main = getMain();
-        level.execSubroutine(main, null, null, 0);
+        level.exec_Subroutine(main, null, null, 0);
       } catch(Throwable exc){ 
         if(exc instanceof Exception){
           throw new ScriptException((Exception)exc); 

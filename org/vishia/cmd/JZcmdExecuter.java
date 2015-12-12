@@ -41,6 +41,11 @@ import javax.script.ScriptException;
 
 
 
+
+
+
+
+
 import org.vishia.cmd.CmdExecuter;
 import org.vishia.fileRemote.FileRemote;
 import org.vishia.mainCmd.MainCmd;
@@ -111,7 +116,7 @@ public class JZcmdExecuter {
    *   An exception should not be thrown forward, rather than an ScriptException with the file, line and column should be thrown
    *   because it is not an exception in deep Java algorithm mostly but it is usual an error in a script. That exception
    *   is a better hint to find out the problem.   
-   * <li>2015-06-04 Hartmut bugfix and improve: in {@link ExecuteLevel#executeText(org.vishia.cmd.JZcmdScript.JZcmditem, Appendable, int)}:
+   * <li>2015-06-04 Hartmut bugfix and improve: in {@link ExecuteLevel#exec_Text(org.vishia.cmd.JZcmdScript.JZcmditem, Appendable, int)}:
    *   The processing of insertion characters was not according to the description. It is fixed, enhanced and described. 
    *   Now '+++' and '===' are possible as insertion text marking characters too.
    * <li>2015-05-24 Hartmut chg: copy, move, del with options, uses {@link FileOpArg} 
@@ -134,7 +139,7 @@ public class JZcmdExecuter {
    * <li>2014-11-28 Hartmut chg: {@link ExecuteLevel#bForHasNext} instead calling argument for all execute...(...), it was forgotten in one level.
    * <li>2014-11-21 Hartmut chg: Character ::: can be used as indentation characters
    * <li>2014-11-16 Hartmut chg: enhancement of capability of set text column: <:@ nr> nr can be an expression. Not only a constant.   
-   * <li>2014-10-20 Hartmut chg: break in a condition should break a loop, forwarding {@link #kBreak} from execution level in {@link ExecuteLevel#executeIfStatement(org.vishia.cmd.JZcmdScript.IfStatement, StringFormatter, int, int)}.
+   * <li>2014-10-20 Hartmut chg: break in a condition should break a loop, forwarding {@link #kBreak} from execution level in {@link ExecuteLevel#exec_IfStatement(org.vishia.cmd.JZcmdScript.IfStatement, StringFormatter, int, int)}.
    * <li>2014-10-20 Hartmut new: Map name = { String variable = "value"; Obj next; } now works. Changed 'M' instead 'X' in {@link JZcmdScript.JZcmditem#add_dataStruct(org.vishia.cmd.JZcmdScript.StatementList)}.
    *   {@link ExecuteLevel#evalObject(org.vishia.cmd.JZcmdScript.JZcmditem, boolean)} has accepted such dataStruct already (used in argumentlist), now with 'M' instead 'X'.
    *   {@link ExecuteLevel#exec_DefMapVariable(org.vishia.cmd.JZcmdScript.DefVariable, Map)} newly.  
@@ -148,7 +153,7 @@ public class JZcmdExecuter {
    *   by calling {@link ExecuteLevel#execute(org.vishia.cmd.JZcmdScript.StatementList, StringFormatter, int, boolean, Map, int)}immediately.
    * <li>2014-06-15 Hartmut chg: improved {@link ExecuteLevel#exec_zmake(org.vishia.cmd.JZcmdScript.Zmake, StringFormatter, int, int)}:
    *   works with a Filepath for output.
-   * <li>2014-06-15 Hartmut chg: improved {@link ExecuteLevel#executeCopy(org.vishia.cmd.JZcmdScript.CallStatement)}:
+   * <li>2014-06-15 Hartmut chg: improved {@link ExecuteLevel#exec_Copy(org.vishia.cmd.JZcmdScript.CallStatement)}:
    *   works with a Filepath. TODO for execMove!
    * <li>2014-06-14 Hartmut chg: {@link ExecuteLevel} implements {@link FilePath.FilePathEnvAccess} now,
    *   therewith a {@link JZcmdFileset#listFiles(List, JZcmdFilepath, boolean, org.vishia.util.FilePath.FilePathEnvAccess)}
@@ -165,7 +170,7 @@ public class JZcmdExecuter {
    *   at runtime, doesn't use the prepFilePath in ZBNF. Reason: More flexibility. The path can be assmebled
    *   on runtime.  
    * <li>2014-05-18 Hartmut new: try to implement javax.script interfaces, not ready yet
-   * <li>2014-05-18 Hartmut chg: {@link ExecuteLevel#execSubroutine(org.vishia.cmd.JZcmdScript.Subroutine, Map, StringFormatter, int)}
+   * <li>2014-05-18 Hartmut chg: {@link ExecuteLevel#exec_Subroutine(org.vishia.cmd.JZcmdScript.Subroutine, Map, StringFormatter, int)}
    *   called from {@link org.vishia.zcmd.JZcmd#execSub(File, String, Map, ExecuteLevel)} for a sub routine in a new translated script.
    * <li>2014-05-18 Hartmut chg: Handling of {@link ExecuteLevel#currdir}   
    * <li>2014-05-10 Hartmut new: File: supported as conversion with currdir. See {@link JZcmdScript.JZcmdDataAccess#filepath}.
@@ -987,8 +992,8 @@ public class JZcmdExecuter {
         try{    
           switch(statement.elementType()){
           //case ' ': bSetSkipSpaces = true; break;
-          case 't': executeText(statement, out, indentOut);break; //<:>...textexpression <.>
-          case '@': execSetColumn((JZcmdScript.TextColumn)statement, out);break; //<:@23>
+          case 't': exec_Text(statement, out, indentOut);break; //<:>...textexpression <.>
+          case '@': exec_SetColumn((JZcmdScript.TextColumn)statement, out);break; //<:@23>
           case 'n': out.append(jzcmd.newline);  break;   //<.n+>
           case '!': out.flush();  break;   //<.n+>
           case '_': out.close();  out = null; break;   //<.n+>
@@ -1001,7 +1006,7 @@ public class JZcmdExecuter {
           case 'S': ret = defineExpr(newVariables, (JZcmdScript.DefVariable)statement); break; //setStringVariable(statement); break; 
           case 'P': { //create a new local variable as pipe
             StringBuilder uBufferVariable = new StringBuilder();
-            executeDefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'P', uBufferVariable, true);
+            exec_DefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'P', uBufferVariable, true);
           } break;
           case 'L': {
             Object value = evalObject(statement, true);
@@ -1012,62 +1017,62 @@ public class JZcmdExecuter {
               if(value ==null){ //initialize the list
                 value = new ArrayList<Object>();
               }
-              executeDefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'L', value, true);
+              exec_DefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'L', value, true);
             }
           } break;
           case 'M': ret = exec_DefMapVariable((JZcmdScript.DefVariable)statement, newVariables); break;
-          case 'W': ret = executeOpenfile(newVariables, (JZcmdScript.DefVariable)statement); break;
+          case 'W': ret = exec_Openfile(newVariables, (JZcmdScript.DefVariable)statement); break;
           case 'C': ret = exec_DefClassVariable((JZcmdScript.DefClassVariable) statement, newVariables); break; 
-          case 'J': ret = addClassLoader((JZcmdScript.DefClasspathVariable)statement, newVariables); break;
+          case 'J': ret = exec_addClassLoader((JZcmdScript.DefClasspathVariable)statement, newVariables); break;
           case 'O': {
             Object value = evalObject(statement, false);
             if(value == JZcmdExecuter.retException){ ret = kException; }
             else {
-              executeDefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'O', value, false);
+              exec_DefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'O', value, false);
             }
           } break;
           case 'K': {
             Object value = evalValue(statement, false);
             if(value == JZcmdExecuter.retException){ ret = kException; }
             else {
-              executeDefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'K', value, false);
+              exec_DefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'K', value, false);
             }
           } break;
           case 'Q': {
             Object cond = new Boolean(evalCondition(statement));
             if(cond == JZcmdExecuter.retException){ ret = kException; }
             else {
-              executeDefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'Q', cond, false);
+              exec_DefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'Q', cond, false);
             }
           } break;
-          case 'e': ret = executeDatatext((JZcmdScript.DataText)statement, out); break; 
-          case 's': ret = execCall((JZcmdScript.CallStatement)statement, null, out, indentOut, --nDebug1); break;  //sub
-          case 'x': ret = executeThread(newVariables, (JZcmdScript.ThreadBlock)statement); break;             //thread
-          case 'm': executeMove((JZcmdScript.FileOpArg)statement); break;             //move
-          case 'y': executeCopy((JZcmdScript.FileOpArg)statement); break;             //copy
-          case 'l': executeDelete((JZcmdScript.FileOpArg)statement); break;             //copy
+          case 'e': ret = exec_Datatext((JZcmdScript.DataText)statement, out); break; 
+          case 's': ret = exec_Call((JZcmdScript.CallStatement)statement, null, out, indentOut, --nDebug1); break;  //sub
+          case 'x': ret = exec_Thread(newVariables, (JZcmdScript.ThreadBlock)statement); break;             //thread
+          case 'm': exec_Move((JZcmdScript.FileOpArg)statement); break;             //move
+          case 'y': exec_Copy((JZcmdScript.FileOpArg)statement); break;             //copy
+          case 'l': exec_Delete((JZcmdScript.FileOpArg)statement); break;             //copy
           case 'c': exec_cmdline((JZcmdScript.CmdInvoke)statement); break;              //cmd
-          case 'd': ret = executeChangeCurrDir(statement); break;                              //cd
-          case '9': ret = executeMkDir(statement); break;                              //mkdir
-          case 'f': ret = execForContainer((JZcmdScript.ForStatement)statement, out, indentOut, --nDebug1); break;  //for
-          case 'B': ret = execNestedLevel(statement, out, indentOut, --nDebug1); break;              //statementBlock
-          case 'i': ret = executeIfStatement((JZcmdScript.IfStatement)statement, out, indentOut, --nDebug1); break;
-          case 'w': ret = whileStatement((JZcmdScript.CondStatement)statement, out, indentOut, --nDebug1); break;
-          case 'u': ret = dowhileStatement((JZcmdScript.CondStatement)statement, out, indentOut, --nDebug1); break;
+          case 'd': ret = exec_ChangeCurrDir(statement); break;                              //cd
+          case '9': ret = exec_MkDir(statement); break;                              //mkdir
+          case 'f': ret = exec_forContainer((JZcmdScript.ForStatement)statement, out, indentOut, --nDebug1); break;  //for
+          case 'B': ret = exec_NestedLevel(statement, out, indentOut, --nDebug1); break;              //statementBlock
+          case 'i': ret = exec_IfStatement((JZcmdScript.IfStatement)statement, out, indentOut, --nDebug1); break;
+          case 'w': ret = exec_whileStatement((JZcmdScript.CondStatement)statement, out, indentOut, --nDebug1); break;
+          case 'u': ret = exec_dowhileStatement((JZcmdScript.CondStatement)statement, out, indentOut, --nDebug1); break;
           case 'N': ret = exec_hasNext(statement, out, indentOut, --nDebug1); break;
           case '=': ret = assignStatement(statement); break;
           case '+': ret = appendExpr((JZcmdScript.AssignExpr)statement); break;        //+=
           case '?': break;  //don't execute a onerror, skip it.  //onerror
           case 'z': throw new JZcmdExecuter.ExitException(((JZcmdScript.ExitStatement)statement).exitValue);  
-          case 'r': execThrow(statement); break;
-          case 'v': execThrowonerror((JZcmdScript.Onerror)statement); break;
+          case 'r': exec_Throw(statement); break;
+          case 'v': exec_Throwonerror((JZcmdScript.Onerror)statement); break;
           case ',': bWriteErrorInOutput = statement.textArg !=null; break;
           case 'b': isBreak = true; ret = JZcmdExecuter.kBreak; break;
-          case '#': ret = execCmdError((JZcmdScript.Onerror)statement, out, indentOut); break;
-          case 'F': ret = createFilepath(newVariables, (JZcmdScript.DefVariable) statement); break;
-          case 'G': ret = createFileSet(newVariables, (JZcmdScript.UserFileset) statement); break;
-          case 'o': ret = execOpenTextOut(statement, false); break;
-          case 'q': ret = execOpenTextOut(statement, true); break;
+          case '#': ret = exec_CmdError((JZcmdScript.Onerror)statement, out, indentOut); break;
+          case 'F': ret = exec_createFilepath(newVariables, (JZcmdScript.DefVariable) statement); break;
+          case 'G': ret = exec_createFileSet(newVariables, (JZcmdScript.UserFileset) statement); break;
+          case 'o': ret = exec_OpenTextOut(statement, false); break;
+          case 'q': ret = exec_OpenTextOut(statement, true); break;
           case 'Z': ret = exec_zmake((JZcmdScript.Zmake) statement, out, indentOut, --nDebug1); break;
           case 'D': break; // a second debug statement one after another or debug on end is ignored.
           default: throw new IllegalArgumentException("JZcmd.execute - unknown statement; ");
@@ -1181,7 +1186,7 @@ public class JZcmdExecuter {
      * @param indentOut Number of characters in a new line which are skipped from begin. Indentation in the script, no indentation in outputted text
      * @throws IOException
      */
-    void executeText(JZcmdScript.JZcmditem statement, Appendable out, int indentOut) throws IOException{
+    void exec_Text(JZcmdScript.JZcmditem statement, Appendable out, int indentOut) throws IOException{
       if(statement.textArg.startsWith("  "))
         Debugutil.stop();
       out.append(statement.textArg);
@@ -1249,7 +1254,7 @@ public class JZcmdExecuter {
     }
     
     
-    void execSetColumn(JZcmdScript.TextColumn statement, StringFormatter out) throws Exception{
+    void exec_SetColumn(JZcmdScript.TextColumn statement, StringFormatter out) throws Exception{
       int column = -1;
       int minChars = -1;
       if(statement.expression !=null) {
@@ -1262,7 +1267,7 @@ public class JZcmdExecuter {
     
     
 
-    void executeDefVariable(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.DefVariable statement, char type, Object value, boolean isConst) 
+    void exec_DefVariable(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.DefVariable statement, char type, Object value, boolean isConst) 
     throws Exception {
       if(statement.typeVariable !=null){
         Debugutil.stop();
@@ -1274,7 +1279,85 @@ public class JZcmdExecuter {
 
     
     
-    short createFilepath(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.DefVariable statement) throws Exception {
+    protected short exec_DefMapVariable(JZcmdScript.DefVariable statement,  Map<String, DataAccess.Variable<Object>> newVariables) 
+    throws Exception   
+    { short ret = kSuccess;
+      Object value = evalObject(statement, false);
+      if(value == JZcmdExecuter.retException) {
+        ret = kException;
+      } else {
+        if(value == null) { //no initialization
+          value = new TreeMap<String, Object>();
+        }
+        exec_DefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'M', value, true); 
+      }
+      return ret;
+    }
+
+
+
+    protected short exec_DefClassVariable(JZcmdScript.DefClassVariable statement, Map<String, DataAccess.Variable<Object>> newVariables) 
+    throws Exception   
+    { //Class name = java.path
+      short ret = kSuccess;
+      CharSequence value = evalString(statement);
+      Class<?> clazz;
+      if(statement.loader !=null){
+        Object oLoader = dataAccess(statement.loader, localVariables, jzcmd.bAccessPrivate, false, false, null);  //get the loader
+        if(!(oLoader instanceof ClassLoader)) throw new IllegalArgumentException("JZcmd.exec_DefClassVariable - faulty ClassLoader");
+        ClassLoader loader = (ClassLoader)oLoader;
+        clazz = loader.loadClass(value.toString());
+      } else {
+        clazz = Class.forName(value.toString()); 
+      }
+      exec_DefVariable(newVariables, statement, 'C', clazz, false);
+      return ret; 
+    }
+
+
+
+    protected short exec_addClassLoader(JZcmdScript.DefClasspathVariable statement, Map<String, DataAccess.Variable<Object>> newVariables) 
+    throws Exception {
+      List<File> filesjar = new LinkedList<File>();
+      for(JZcmdScript.AccessFilesetname fileset: statement.jarpaths){
+        if(fileset.filesetVariableName !=null){  //fileset variable
+          JZcmdAccessFileset zjars = new JZcmdAccessFileset(fileset, fileset.filesetVariableName, this);
+          List<JZcmdFilepath> jars = zjars.listFilesExpanded();
+          for(JZcmdFilepath jfilejar: jars){
+            File filejar = new File(jfilejar.absfile().toString());
+            if(!filejar.exists()) throw new IllegalArgumentException("JZcmd.addClasspath - file does not exist; " + filejar.getAbsolutePath());
+            filesjar.add(filejar);
+          }
+        } else {
+          final FilePath accessPath;
+          //if(fileset.accessPath ==null){
+            CharSequence sAccesspath = evalString(fileset);
+            accessPath = new FilePath(sAccesspath.toString());
+          //} else {
+          //  accessPath = fileset.accessPath;
+          //}
+          JZcmdFilepath jfilejar = new JZcmdFilepath(this, accessPath);
+          File filejar = new File(jfilejar.absfile().toString());
+          if(!filejar.exists()) throw new IllegalArgumentException("JZcmd.addClasspath - file does not exist; " + filejar.getAbsolutePath());
+          filesjar.add(filejar);
+        }
+      }
+      URL[] urls = new URL[filesjar.size()];
+      int ixurl = -1;
+      for(File filejar: filesjar){
+        URI uri = filejar.toURI();
+        urls[++ixurl] = uri.toURL();
+          
+      }
+      ClassLoader parentLoader = this.getClass().getClassLoader(); //classLoader from this class
+      URLClassLoader loader = new URLClassLoader(urls, parentLoader);
+      exec_DefVariable(newVariables, statement, 'J', loader, true);
+      return kSuccess;
+    }
+
+
+
+    short exec_createFilepath(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.DefVariable statement) throws Exception {
       CharSequence sPath = evalString(statement);
       if(sPath == JZcmdExecuter.retException){ return kException; }
       else {
@@ -1286,14 +1369,14 @@ public class JZcmdExecuter {
     }
     
       
-    short createFileSet(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.UserFileset statement) throws Exception {
+    short exec_createFileSet(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.UserFileset statement) throws Exception {
       JZcmdFileset filepath = new JZcmdFileset(this, statement);
       storeValue(statement.defVariable, newVariables, filepath, false);
       return kSuccess;
     }
     
       
-    private short execForContainer(JZcmdScript.ForStatement statement, StringFormatter out, int indentOut, int nDebug) 
+    private short exec_forContainer(JZcmdScript.ForStatement statement, StringFormatter out, int indentOut, int nDebug) 
     throws Exception
     {
       JZcmdScript.StatementList subContent = statement.statementlist();  //The same sub content is used for all container elements.
@@ -1388,7 +1471,7 @@ public class JZcmdExecuter {
           cont = execute(statement.statementlist(), out, indentOut, localVariables, nDebug);
         } 
         else if(statement.textArg !=null){
-          executeText(statement, out, indentOut);
+          exec_Text(statement, out, indentOut);
         }
       }
       return cont;
@@ -1398,7 +1481,7 @@ public class JZcmdExecuter {
     
     /**it contains maybe more as one if block and else. 
      * @throws Exception */
-    short executeIfStatement(JZcmdScript.IfStatement ifStatement, StringFormatter out, int indentOut, int nDebug) 
+    short exec_IfStatement(JZcmdScript.IfStatement ifStatement, StringFormatter out, int indentOut, int nDebug) 
     throws Exception{
       short cont = kFalse;
       Iterator<JZcmdScript.JZcmditem> iter = ifStatement.statementlist.statements.iterator();
@@ -1408,7 +1491,7 @@ public class JZcmdExecuter {
         switch(statement.elementType()){
           case 'g': { //if-block
             //boolean hasNext = iter.hasNext();
-            cont = executeIfBlock((JZcmdScript.IfCondition)statement, out, indentOut, nDebug);
+            cont = exec_IfBlock((JZcmdScript.IfCondition)statement, out, indentOut, nDebug);
           } break;
           case 'E': { //elsef
             cont = execute(statement.statementlist, out, indentOut, localVariables, nDebug);
@@ -1427,7 +1510,7 @@ public class JZcmdExecuter {
     
     /**Executes a while statement. 
      * @throws Exception */
-    short whileStatement(JZcmdScript.CondStatement whileStatement, StringFormatter out, int indentOut, int nDebug) 
+    short exec_whileStatement(JZcmdScript.CondStatement whileStatement, StringFormatter out, int indentOut, int nDebug) 
     throws Exception 
     {
       short cont = kSuccess;
@@ -1447,7 +1530,7 @@ public class JZcmdExecuter {
     
     /**Executes a dowhile statement. 
      * @throws Exception */
-    short dowhileStatement(JZcmdScript.CondStatement whileStatement, StringFormatter out, int indentOut, int nDebug) 
+    short exec_dowhileStatement(JZcmdScript.CondStatement whileStatement, StringFormatter out, int indentOut, int nDebug) 
     throws Exception 
     { short cont;
       boolean cond;
@@ -1471,7 +1554,7 @@ public class JZcmdExecuter {
      * @return true if the condition is true. If it returns false, an elsif or else-Block should be executed.
      * @throws Exception
      */
-    short executeIfBlock(JZcmdScript.IfCondition ifBlock, StringFormatter out, int indentOut, int nDebug) 
+    short exec_IfBlock(JZcmdScript.IfCondition ifBlock, StringFormatter out, int indentOut, int nDebug) 
     throws Exception
     { short cont;
       //Object check = getContent(ifBlock, localVariables, false);
@@ -1600,7 +1683,7 @@ public class JZcmdExecuter {
     
     
     
-    private short execCall(JZcmdScript.CallStatement callStatement, List<DataAccess.Variable<Object>> additionalArgs
+    private short exec_Call(JZcmdScript.CallStatement callStatement, List<DataAccess.Variable<Object>> additionalArgs
         , StringFormatter out, int indentOut, int nDebug) 
     throws IllegalArgumentException, Exception
     { short success = kSuccess;
@@ -1629,7 +1712,7 @@ public class JZcmdExecuter {
         } else { 
           sublevel = new ExecuteLevel(jzcmd, subClass, threadData, this, subroutine.useLocals ? localVariables : null); 
         }
-        success = execSubroutine(subroutine, sublevel, callStatement.actualArgs, additionalArgs, out, indentOut, nDebug);
+        success = exec_Subroutine(subroutine, sublevel, callStatement.actualArgs, additionalArgs, out, indentOut, nDebug);
         if(success == kSuccess){
           if(callStatement.variable !=null || callStatement.assignObjs !=null){
             DataAccess.Variable<Object> retVar = sublevel.localVariables.get("return");
@@ -1660,7 +1743,7 @@ public class JZcmdExecuter {
     {
       short ok;
       try { 
-        ok = execSubroutine(substatement, args, null, -1);
+        ok = exec_Subroutine(substatement, args, null, -1);
         //executer.execute(genScript, true, bWaitForThreads, null, null);
         //zgenExecuteLevel.execute(genScript.getMain().subContent, u, false);
       } catch (Exception exc) {
@@ -1675,7 +1758,7 @@ public class JZcmdExecuter {
     
     
     /**Executes a subroutine invoked from outside of this class.
-     * It calls the private {@link #execSubroutine(org.vishia.cmd.JZcmdScript.Subroutine, ExecuteLevel, List, List, StringFormatter, int, int)}.
+     * It calls the private {@link #exec_Subroutine(org.vishia.cmd.JZcmdScript.Subroutine, ExecuteLevel, List, List, StringFormatter, int, int)}.
      * @param substatement Statement of the subroutine
      * @param args Any given arguments in form of a map.
      * @param out output
@@ -1683,7 +1766,7 @@ public class JZcmdExecuter {
      * @return null on success, an error message on parameter error
      * @throws Exception
      */
-    public short execSubroutine(JZcmdScript.Subroutine subroutine
+    public short exec_Subroutine(JZcmdScript.Subroutine subroutine
         , Map<String, DataAccess.Variable<Object>> args
         , StringFormatter out, int indentOut
     )  
@@ -1706,7 +1789,7 @@ public class JZcmdExecuter {
       }
       short success;
       try{
-        success = execSubroutine(subroutine, sublevel, null, arglist, out, indentOut, -1);
+        success = exec_Subroutine(subroutine, sublevel, null, arglist, out, indentOut, -1);
       } catch(Exception exc){
         success = kException;
       }
@@ -1725,7 +1808,7 @@ public class JZcmdExecuter {
      * @return
      * @throws Exception
      */
-    private short execSubroutine(JZcmdScript.Subroutine subtextScript
+    private short exec_Subroutine(JZcmdScript.Subroutine subtextScript
         , ExecuteLevel sublevel
         , List<JZcmdScript.Argument> actualArgs
         , List<DataAccess.Variable<Object>> additionalArgs
@@ -1801,7 +1884,7 @@ public class JZcmdExecuter {
     
     
     
-    /**Executes a Zmake subroutine call. Additional to {@link #execCall(org.vishia.cmd.JZcmdScript.CallStatement, List, StringFormatter, int, int)}
+    /**Executes a Zmake subroutine call. Additional to {@link #exec_Call(org.vishia.cmd.JZcmdScript.CallStatement, List, StringFormatter, int, int)}
      * a {@link ZmakeTarget} will be prepared and stored as 'target' in the localVariables of the sublevel.
      * @param statement
      * @param out
@@ -1826,7 +1909,7 @@ public class JZcmdExecuter {
       args.add(targetV);
       //
       //same as a normal subroutine.
-      return execCall(statement, args, out, indentOut, nDebug);
+      return exec_Call(statement, args, out, indentOut, nDebug);
     }
     
     
@@ -1840,7 +1923,7 @@ public class JZcmdExecuter {
     /**executes statements in another thread.
      * @throws Exception 
      */
-    private short executeThread(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.ThreadBlock statement) 
+    private short exec_Thread(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.ThreadBlock statement) 
     throws Exception
     { final JZcmdThread thread;
       final String name;
@@ -1879,7 +1962,7 @@ public class JZcmdExecuter {
      *   inside the block. All other return values of execute are returned.
      * @throws IOException
      */
-    private short execNestedLevel(JZcmdScript.JZcmditem script, StringFormatter out, int indentOut, int nDebug) 
+    private short exec_NestedLevel(JZcmdScript.JZcmditem script, StringFormatter out, int indentOut, int nDebug) 
     throws Exception
     {
       ExecuteLevel genContent;
@@ -1996,7 +2079,7 @@ public class JZcmdExecuter {
     }
     
 
-    short execCmdError(JZcmdScript.Onerror statement, StringFormatter out, int indentOut) throws Exception {
+    short exec_CmdError(JZcmdScript.Onerror statement, StringFormatter out, int indentOut) throws Exception {
       short ret = 0;
       if(this.cmdErrorlevel >= statement.errorLevel){
         ret = execute(statement.statementlist, out, indentOut, localVariables, -1);
@@ -2006,7 +2089,7 @@ public class JZcmdExecuter {
 
 
 
-    short executeChangeCurrDir(JZcmdScript.JZcmditem statement)
+    short exec_ChangeCurrDir(JZcmdScript.JZcmditem statement)
     throws Exception
     {
       /*if(statement.dataAccess !=null){
@@ -2025,7 +2108,7 @@ public class JZcmdExecuter {
     }
 
     
-    short executeMkDir(JZcmdScript.JZcmditem statement)
+    short exec_MkDir(JZcmdScript.JZcmditem statement)
     throws Exception
     {
       CharSequence arg = evalString(statement);
@@ -2045,7 +2128,7 @@ public class JZcmdExecuter {
      * @return
      * @throws Exception
      */
-    short execOpenTextOut(JZcmdScript.JZcmditem statement, boolean bAppend)
+    short exec_OpenTextOut(JZcmdScript.JZcmditem statement, boolean bAppend)
     throws Exception
     {
       CharSequence arg = evalString(statement);
@@ -2108,7 +2191,7 @@ public class JZcmdExecuter {
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    private short executeDatatext(JZcmdScript.DataText statement, Appendable out)  //<*datatext>
+    private short exec_Datatext(JZcmdScript.DataText statement, Appendable out)  //<*datatext>
     throws IllegalArgumentException, Exception
     {
       CharSequence text = "??";
@@ -2139,7 +2222,7 @@ public class JZcmdExecuter {
 
     
     
-    void executeMove(JZcmdScript.FileOpArg statement) 
+    void exec_Move(JZcmdScript.FileOpArg statement) 
     throws IllegalArgumentException, Exception
     {
       CharSequence s1 = evalString(statement.src);
@@ -2152,7 +2235,7 @@ public class JZcmdExecuter {
     
  
     
-    void executeCopy(JZcmdScript.FileOpArg statement) 
+    void exec_Copy(JZcmdScript.FileOpArg statement) 
     throws Exception
     { String ssrc, sdst;
       Object osrc = evalObject(statement.src, false);
@@ -2197,7 +2280,7 @@ public class JZcmdExecuter {
     
     
     
-    void executeDelete(JZcmdScript.FileOpArg statement) 
+    void exec_Delete(JZcmdScript.FileOpArg statement) 
     throws Exception
     {
       CharSequence s1 = evalString(statement.src);
@@ -2215,7 +2298,7 @@ public class JZcmdExecuter {
      * @throws IllegalArgumentException
      * @throws Exception
      */
-    short executeOpenfile(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.DefVariable statement) 
+    short exec_Openfile(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.DefVariable statement) 
     throws IllegalArgumentException, Exception
     {
       CharSequence sqFilename = evalString(statement);
@@ -2456,7 +2539,7 @@ public class JZcmdExecuter {
     
     
     
-    void execThrow(JZcmdScript.JZcmditem statement) throws Exception {
+    void exec_Throw(JZcmdScript.JZcmditem statement) throws Exception {
       CharSequence msg = evalString(statement);
       throw new JZcmdThrow(msg.toString());
     }
@@ -2467,7 +2550,7 @@ public class JZcmdExecuter {
      * @param statement
      * @throws CmdErrorLevelException
      */
-    void execThrowonerror(JZcmdScript.Onerror statement) throws CmdErrorLevelException{
+    void exec_Throwonerror(JZcmdScript.Onerror statement) throws CmdErrorLevelException{
       if(cmdErrorlevel >= statement.errorLevel){
         throw new CmdErrorLevelException(cmdErrorlevel);
       }
@@ -2799,87 +2882,6 @@ public class JZcmdExecuter {
       }
       return ret;
     }
-    
-    
-    protected short exec_DefMapVariable(JZcmdScript.DefVariable statement,  Map<String, DataAccess.Variable<Object>> newVariables) 
-    throws Exception   
-    { short ret = kSuccess;
-      Object value = evalObject(statement, false);
-      if(value == JZcmdExecuter.retException) {
-        ret = kException;
-      } else {
-        if(value == null) { //no initialization
-          value = new TreeMap<String, Object>();
-        }
-        executeDefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'M', value, true); 
-      }
-      return ret;
-    }
-    
-    
-    protected short exec_DefClassVariable(JZcmdScript.DefClassVariable statement, Map<String, DataAccess.Variable<Object>> newVariables) 
-    throws Exception   
-    { //Class name = java.path
-      short ret = kSuccess;
-      CharSequence value = evalString(statement);
-      Class<?> clazz;
-      if(statement.loader !=null){
-        Object oLoader = dataAccess(statement.loader, localVariables, jzcmd.bAccessPrivate, false, false, null);  //get the loader
-        if(!(oLoader instanceof ClassLoader)) throw new IllegalArgumentException("JZcmd.exec_DefClassVariable - faulty ClassLoader");
-        ClassLoader loader = (ClassLoader)oLoader;
-        clazz = loader.loadClass(value.toString());
-      } else {
-        clazz = Class.forName(value.toString()); 
-      }
-      executeDefVariable(newVariables, statement, 'C', clazz, false);
-      return ret; 
-    }
-
-    
-    
-    
-    
-    protected short addClassLoader(JZcmdScript.DefClasspathVariable statement, Map<String, DataAccess.Variable<Object>> newVariables) 
-    throws Exception {
-      List<File> filesjar = new LinkedList<File>();
-      for(JZcmdScript.AccessFilesetname fileset: statement.jarpaths){
-        if(fileset.filesetVariableName !=null){  //fileset variable
-          JZcmdAccessFileset zjars = new JZcmdAccessFileset(fileset, fileset.filesetVariableName, this);
-          List<JZcmdFilepath> jars = zjars.listFilesExpanded();
-          for(JZcmdFilepath jfilejar: jars){
-            File filejar = new File(jfilejar.absfile().toString());
-            if(!filejar.exists()) throw new IllegalArgumentException("JZcmd.addClasspath - file does not exist; " + filejar.getAbsolutePath());
-            filesjar.add(filejar);
-          }
-        } else {
-          final FilePath accessPath;
-          //if(fileset.accessPath ==null){
-            CharSequence sAccesspath = evalString(fileset);
-            accessPath = new FilePath(sAccesspath.toString());
-          //} else {
-          //  accessPath = fileset.accessPath;
-          //}
-          JZcmdFilepath jfilejar = new JZcmdFilepath(this, accessPath);
-          File filejar = new File(jfilejar.absfile().toString());
-          if(!filejar.exists()) throw new IllegalArgumentException("JZcmd.addClasspath - file does not exist; " + filejar.getAbsolutePath());
-          filesjar.add(filejar);
-        }
-      }
-      URL[] urls = new URL[filesjar.size()];
-      int ixurl = -1;
-      for(File filejar: filesjar){
-        URI uri = filejar.toURI();
-        urls[++ixurl] = uri.toURL();
-          
-      }
-      ClassLoader parentLoader = this.getClass().getClassLoader(); //classLoader from this class
-      URLClassLoader loader = new URLClassLoader(urls, parentLoader);
-      executeDefVariable(newVariables, statement, 'J', loader, true);
-      return kSuccess;
-    }
-    
-    
-    
     
     
     protected void runThread(ExecuteLevel executeLevel, JZcmdScript.ThreadBlock statement, JZcmdThread threadVar){
