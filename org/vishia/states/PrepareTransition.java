@@ -11,6 +11,42 @@ import org.vishia.util.Debugutil;
  */
 class PrepareTransition
 {
+  /**Version, history and license.
+   * <ul>
+   * <li>2015-12-20 Hartmut chg: {@link #buildDstStates()} regards a non-leaf state, uses the stateDefault. 
+   * <li>2012-09-17 Hartmut improved.
+   * <li>2015-03-01 Hartmut created from {@link StateSimple}.
+   * </ul>
+   * <br><br>
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL is not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
+   */
+  public static final String version = "2015-12-20";
+
+  
+  
+  
   final StateSimple.Trans trans;
   
   final StateSimple state;
@@ -65,8 +101,13 @@ class PrepareTransition
   private void buildDstStates() {
     //search all dst state instances from the given class. In constructor only the class is known.
     for(int ixdst = 0; ixdst < trans.dst.length; ++ixdst){
-      dstStates[ixdst] = state.stateMachine.stateMap.get(new Integer(trans.dst[ixdst]/*.hashCode()*/));
-      if(dstStates[ixdst] ==null) {
+      StateSimple dstState = state.stateMachine.stateMap.get(new Integer(trans.dst[ixdst]/*.hashCode()*/));
+      if(dstState instanceof StateCompositeFlat && !(dstState instanceof StateComposite)) {
+        //Use the default state for entry.
+        dstState = ((StateCompositeFlat)dstState).stateDefault;
+      }
+      dstStates[ixdst] = dstState;
+      if(dstState ==null) {
         System.err.println("PrepareTransition.buildDstStates - dst state not found, "+ trans);
         //throw new IllegalArgumentException("dst state not found, "+ trans);
       }
@@ -103,6 +144,7 @@ class PrepareTransition
     if(stateCommon == null){
       throw new IllegalArgumentException("no common state found");
     }
+    trans.ixCommonInStatePath = ixSrcPath;  //Index of the found stateCommon in the tested statePath.
     trans.exitStates = new StateSimple[state.statePath.length - (ixSrcPath +1)];  //don't exit the stateCommon
     for(int ixdst = 0; ixdst < trans.dst.length; ++ixdst){
       ixInStatePath[ixdst] +=1;  //first entry in state after stateCommon.  

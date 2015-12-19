@@ -15,6 +15,7 @@ public abstract class StateComposite extends StateCompositeFlat implements InfoA
 {
   /**Version, history and license.
    * <ul>
+   * <li>2015-12-20 Hartmut chg: {@link #processEvent(EventObject)} more simple because enclosing non-StateComposite transitions are checked in StateSimple. 
    * <li>2015-11-21 Hartmut chg: {@link #printStateSwitchInfo(StateSimple, EventObject, int)} 
    * <li>2014-11-09 Hartmut chg: Capability of StateParallel contained here, class StateParallel removed: 
    *   It is possible to have a StateComposite with its own sub states, but a second or more parallel states
@@ -62,7 +63,7 @@ public abstract class StateComposite extends StateCompositeFlat implements InfoA
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20150211;
+  public static final String version = "2015-12-20";
 
   protected int maxStateSwitchesInLoop = 1000;
   
@@ -207,7 +208,7 @@ public abstract class StateComposite extends StateCompositeFlat implements InfoA
     EventObject evTrans = evP;
     int catastrophicalCount =  maxStateSwitchesInLoop;
     StateSimple stateActPrev;
-    do { //Run to complete loop of a transition of a flat composite state, repeat if the state of this is change by firing a superior transition.
+    //do { //Run to complete loop of a transition of a flat composite state, repeat if the state of this is change by firing a superior transition.
       int contLoop = 0;
       //
       //
@@ -240,6 +241,7 @@ public abstract class StateComposite extends StateCompositeFlat implements InfoA
         throw new RuntimeException("unterminated loop in state switches");
       }
       cont |= contLoop;
+      /*
       //check the transitions of this StateComposite and all superior StateCompositeFlat too!
       StateSimple stateEncl1 = stateAct;
       stateActPrev = stateAct;
@@ -257,12 +259,14 @@ public abstract class StateComposite extends StateCompositeFlat implements InfoA
       }
     } while(stateActPrev != stateAct    //repeat it for run to completion if the stateAct was changed by an transition of the composite.
         && --catastrophicalCount >=0 );
+    */
     //Process to leave this state.
     //
     //evTrans: If the event was consumed in any inner transition, it is not present for the own transitions. UML-conform.
     //
-    if(  evTrans != null   //evTrans is null if it was consumed in inner transitions. 
-      || (modeTrans & StateSimple.mRunToComplete) !=0  //state has only conditional transitions
+    if( ( evTrans != null   //evTrans is null if it was consumed in inner transitions. 
+        || (modeTrans & StateSimple.mRunToComplete) !=0  //state has only conditional transitions
+        ) && isActive
       ){
       //process the own transition. Do it after processing the inner state (omg.org)
       //and only if either an event is present or the state has only conditional transitions.
@@ -341,12 +345,13 @@ public abstract class StateComposite extends StateCompositeFlat implements InfoA
   /**Exits first the actual sub state (and that exits its actual sub state), after them this state is exited.
    * It calls {@link StateSimple#exitTheState()} which invokes the maybe application overridden {@link StateSimple#exit()} routine.
    */
-  @Override void exitTheState(){ 
+  //@Override 
+  void XXXexitTheState(int level){ 
     if(isActive && stateAct !=null){
-      stateAct.exitTheState();    //recursively call for all inner states which are yet active.
+      stateAct.exitTheState(level);    //recursively call for all inner states which are yet active.
       isActive = false; //NOTE that StateSimpleBase.exit() sets isActive to false already. It is done twice.
     }
-    super.exitTheState();
+    //super.exitTheState(level);  //call routine of StateSimple
   }
 
   

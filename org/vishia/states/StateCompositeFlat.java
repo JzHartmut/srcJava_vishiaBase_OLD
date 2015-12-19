@@ -176,7 +176,7 @@ public abstract class StateCompositeFlat extends StateSimple implements InfoAppe
     }
   }
   
-  
+  public StateSimple stateDefault() { return stateDefault; }
   
   
   /**Sets the path to the state for this and all {@link #aSubstates}, recursively call.

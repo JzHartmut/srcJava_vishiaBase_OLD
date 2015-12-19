@@ -2,12 +2,9 @@ package org.vishia.states;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.EventObject;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
+
 
 
 
@@ -95,6 +92,20 @@ public abstract class StateSimple implements InfoAppend
   
 /**Version, history and license.
  * <ul>
+ * <li>2015-12-20 Hartmut chg: The deprecated possibilities of definition of methods for transition and check inside Trans are removed yet. 
+ *   It was an concept which has not proven.
+ * <li>2015-12-20 Hartmut chg: exit: There were some mistakes: If a enclosing state transition was used to exit an inner state, its exit routine
+ *   was not invoked, only that from the enclosing state. The strategy is changed: The {@link Trans#exitStates} is not used anymore,
+ *   instead the {@link StateComposite#stateAct} is taken with the {@link #statePath()} to invoke the correct exit routines.
+ *   See {@link #exitTheState(int)}. 
+ * <li>2015-12-20 Hartmut chg: {@link #_checkTransitions(EventObject)} now checks the transition from all enclosing but not composite states, that are {@link StateCompositeFlat}.
+ *   That was done before in the {@link StateComposite#processEvent(EventObject)} routine but in a more difficult algorithm. Now for debugging it is more simple. 
+ *   The own {@link #checkTrans(EventObject)} is invoked firstly. If not transition is found, the {@link #checkTrans(EventObject)} of all enclosing states till a StateComposite are tested.
+ *   The transitions of an enclosing StateComposite are checked in thats {@link StateComposite#processEvent(EventObject)} routine which calls this {@link #_checkTransitions(EventObject)}. 
+ * <li>2015-12-20 Hartmut chg: The timeout should be queried in the user's {@link #checkTrans(EventObject)} routine. The automatic check is removed.
+ *   Reason: A timeout event is disturbing often for debug. If it cannot be detect or prevented simply, it is adversarial. It is better to have the timeout handling
+ *   in the same routine like all other transition conditions. The {@link #isTimeout(EventObject)} routine helps to write simple code for that.
+ * <li>2015-12-20 Hartmut chg: Now entry- and exit outputs with {@link StateMachine#debugEntryExit}.
  * <li>2015-11-21 Hartmut chg: The history pseudo state runs yet. Some problems. 
  * <li>2015-02-10 Hartmut chg: A {@link TransJoin} have to be quest in the {@link #checkTrans(EventObject)} routine.
  *   The transition after the join bar can have a condition or event trigger, which is to quest in the checkTrans.
@@ -151,7 +162,7 @@ public abstract class StateSimple implements InfoAppend
  * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
  * 
  */
-public static final int version = 20130511;
+public static final String version = "2015-12-20";
 
 /**Specification of the consumed Bit in return value of a Statemachine's {@link #_checkTransitions(EventMsg2)} or {@link #entry(int)} 
  * method for designation, that the given Event object was not used to switch. The value of this is 0.
@@ -170,7 +181,7 @@ public final static int mEventConsumed = EventConsumer.mEventConsumed; //== 0x1
  */
 public final static int mEventDonotRelinquish = EventConsumer.mEventDonotRelinquish;
 
-private final static int mMaskReservedInEventConsumer = EventConsumer.mMaskReservedHere; 
+//private final static int mMaskReservedInEventConsumer = EventConsumer.mMaskReservedHere; 
 
 /**Bit in return value of a Statemachine's trans method for designation, 
  * that the given Transition is true. The bit should be set together with {@link #mEventConsumed} if the event forces true.
@@ -279,10 +290,8 @@ protected StateAction entry;
 
 protected Runnable exit;
 
-private Method entryMethod, exitMethod;
-
 /**Set to true if the {@link #checkTrans(EventMsg2)} is not overridden. Then check the {@link #aTransitions} -list */
-private boolean bCheckTransitionArray;
+//private boolean bCheckTransitionArray;
 
 /**This array contains all transitions to handle it commonly. 
  * The transitions are given as instances in the derived classes from {@link StateSimple} in a Java written state machine. 
@@ -336,18 +345,6 @@ public class Trans
   final int[] dst;
   
   
-  /**If a condition instance is given, its {@link StateAction#exec(EventMsg2)}-method is called to test whether the transition should fire.
-   * The condition can contain action statements. But that is not allowed, if some {@link #choice} conditions are set.
-   * if the condition contains only a condition, it should return 0 if it is false and not {@link StateSimple#mEventConsumed}, if it is true.
-   * The event can be used for condition or not. If events are not used <code>null</code> can be supplied instead the event. 
-   * <br><br>
-   * The condition field is used if a transition method is given and automatically detected via reflection in a state class.
-   * Thereby an instance of StateAction is created on startup.
-   * <br><br>
-   * The condition can be given by any StateAction instance in any other class. It can be set by construction.
-   */
-  @Deprecated protected StateAction check;
-  
   /**If an action is given, the condition should not contain an action itself. The action is executed after the exitState()-operation
    * and before the entryState()-operation. 
    * <br><br>
@@ -368,6 +365,10 @@ public class Trans
   
   /**All states which's {@link StateSimple#exitTheState()} have to be processed if the transition is fired. */
   StateSimple[] exitStates;
+  
+  /**Index of the common state for this transition in the {@link StateSimple#statePath} of any source state. It is used to execute the exit()
+   * of all nested source states. */
+  int ixCommonInStatePath;
   
   /**All states which's {@link StateSimple#entry(EventMsg2)} have to be processed if the transition is fired. 
    * The array is filled by reflection in the constructor of the state class. There the private {@link Trans.BuildTransitionPath#buildEntryStates()}
@@ -491,23 +492,6 @@ public class Trans
   
 
   
-  /**The non-overridden condition checks the {@link #check} or returns 0 if it is not given.
-   * This method can be overridden by a users method to check a transition. 
-   * The method have to be set {@link #retTrans} if the transition should be fired.
-   * If the event is used then the bit @{@link StateSimple#mEventConsumed} has to be set in {@link #retTrans}
-   * to indicate that the event is consumed with this transition. The event is not applied to other transitions in enclosing states then.
-   * But it is applied in parallel states, like defined in UML.
-   * 
-   * @param ev event Any event 
-   */
-  @Deprecated
-  protected void check(EventObject ev) {
-    if(check !=null){
-      int ret = check.exec(ev);  //may set mEventConsumed or mTransit
-      retTrans |= ret;  //may set mEventConsumed or mmTransit
-    } 
-  }
-  
   
   
   /**The non-overridden action executes the {@link #action} or returns 0 if it is not given.
@@ -520,63 +504,6 @@ public class Trans
     }
   }
   
-  
-  
-  
-  /**Checks the trigger and conditions of a state transition. The user should override this method in form (example)
-   * <pre>
-  public int trans(Event ev){
-    TypeOfStateComposite enclState;
-    if(ev instanceof MyEvent and ((MyEvent)ev).getCmd() == myExpectedCmd){
-      retTrans = mEventConsumed | mTransit;
-      doExit();
-      if(this.action !=null) {
-        this.action.action(ev); //executes given action
-      }
-      statementsOfTransition();
-      retTrans |= doEntry();
-      return retTrans;
-    } 
-    else if( otherCondition) {
-      return exit().otherState.entry(consumed);
-    }
-    else return notConsumed;
-  }
-   * </pre>
-   * @param ev Any event, maybe null if the user does not need it
-   * @return It should return {@link #mEventConsumed} if the event is consumed
-   *   or it should return {@link #eventNotConsumed} especially if no transition is fired.
-   *   That return value is essential for processing events in composite and cascade states.
-   *   If an event is consumed it is not used for another switch in the same state machine
-   *   but it is used in parallel states. See {@link StateCompositeBase#processEvent(EventMsg2)} and {@link StateParallelBase#processEvent(EventMsg2)}.
-   *   Returns 0 if a state switch is not processed. Elsewhere {@link #mStateEntered}. {@link #mStateLeaved}
-   */
-  @Deprecated
-  final int doTrans(EventObject ev){
-    this.retTrans = 0;  //set in check
-    check(ev);
-    if(this.retTrans ==0) return 0;  //don't fire.
-    else {
-      if(this.choice !=null) {
-        //check all choice, one of them have to be true
-        for(Trans choice1: choice) {  //check all choices
-          int retChoice = choice1.doTrans(ev);                //the choice determines the return. If the conditions returns mEventConsumed it is not consumed if no choice.     
-          if(retChoice !=0) return this.retTrans | retChoice;   //if true than return, don't check the other!
-        }
-        //only if no choice, elsewhere return in loop.
-        return 0; 
-      } else {
-        //no choice, execute exit, action, entry if it is not done already.
-        if(choice == null) { //a choice condition has no exit and entry, the action is executed later.
-          if(!doneExit) { doExit(); }
-          if(!doneAction) { doAction(ev,0); }
-          if(!doneEntry){ doEntry(ev); }
-        }
-        return retTrans;
-      }
-    }
-  }
-
   
   
   /**Processes the action of the transition. If it is a choice transition: firstly process the action of the condition before.
@@ -613,12 +540,21 @@ public class Trans
    * 
    */
   public final void doExit()
-  {
+  { 
     retTrans |= mStateLeaved;
+    //
+    //execute all exit routines from the current state(s)
+    StateSimple stateCurr = rootState.stateAct;  //it may be this if it is a leaf state, if this is a StateCompositeFlat it is the really stateAct.
+    //StateSimple stateExitLast = null;
+    stateCurr.exitTheState(ixCommonInStatePath+1);
+    
+    
+    /*   
     if(exitStates !=null) {
       for(StateSimple state: exitStates){
         state.exitTheState();
     } }
+    */
     doneExit = true;
   }
   
@@ -668,6 +604,7 @@ public class Trans
 
 
 
+@SuppressWarnings("synthetic-access") 
 public abstract class TransChoice extends Trans
 {
   protected Trans nullTrans = new Trans();
@@ -780,8 +717,6 @@ public class TransJoin extends Trans
     joinStates = new StateSimple[joinStateHashes.length];
     int ix =-1;
     for(int joinState: joinStateHashes) {
-      @SuppressWarnings("unchecked") 
-      //Class<StateSimple>joinState1 = (Class<StateSimple>)joinState;
       StateSimple state = stateMachine.stateMap.get(joinState);  //getState(joinState1);
       joinStates[++ix] = state;
     }
@@ -845,6 +780,12 @@ public void setAuxInfo(Object info) { auxInfo = info; }
  */
 public Object auxInfo() { return auxInfo; }
 
+
+
+/**Returns the path of all states from the top state in the hierarchie of this state. It may be used for debugging. 
+ * It is used in StateMgen. Note: Do not change a state in the path! (Java does not know const keyword, rather than in C/C++) */
+public StateSimple[] statePath(){ return statePath; }
+
 /**Returns that state which is the composite state which controls the activity of that independent part of the StateMachine.
  * Note: If a composite state is only used to build a pool of simple states which have common transition(s) the pool-building state
  * is a {@link StateCompositeFlat} and it is not the rootState.
@@ -871,6 +812,16 @@ public StateSimple enclState(){ return enclState; }
    */
   public void setExitAction(Runnable exit){ this.exit = exit; }
 
+  
+  
+  /**Checks whether the given event is the timeout event for this state.
+   * @param ev
+   * @return true if this state has a timeout.
+   */
+  protected boolean isTimeout(EventObject ev){
+    return ev !=null && ev == evTimeout;
+  }
+  
 
 /**This method may be overridden for a entry action. In that case the {@link #entry} or {@link #entryMethod} is either not used
  * or it is used especially in the overridden method responsible to the user.
@@ -1006,27 +957,6 @@ void createTransitionList(Object stateInstance, Trans parent, int nRecurs){
           }
           //checkBuiltTransition(trans, nRecurs);
         }
-      }
-    }
-    Method[] methods = clazz.getDeclaredMethods();
-    for(Method method: methods) {
-      String name = method.getName();
-      Class<?>[] argTypes = method.getParameterTypes();
-      Class<?> retType = method.getReturnType();
-      if(argTypes.length==2 && argTypes[0] == EventObject.class && retType == Trans.class && argTypes[1] == Trans.class) {
-        //a transition method
-        System.err.println("The possibility of writing a Transition as method should not use furthermore. ");
-        Trans trans = null;
-        try{ 
-          method.setAccessible(true);
-          Object oTrans = method.invoke(stateInstance,  null, null); 
-          trans = (Trans)oTrans;
-          trans.transId = method.getName();
-          trans.check = new StateTransitionMethod(trans, method);
-          trans.parent = parent;  //null for a state transition
-          //transitions.add(trans);
-          transitions1.add("", trans);
-        } catch(Exception exc){ throw new IllegalArgumentException("stateTrans-method failure"); }
       }
     }
   } catch(Exception exc){
@@ -1169,7 +1099,7 @@ public final boolean isInState(){
  * @param ev The event to test.
  * @return The transition which should be fired or null.
  */
-protected Trans checkTrans(EventObject ev) { bCheckTransitionArray = true; return null; }
+protected Trans checkTrans(EventObject ev) { return null; }
 
 
 
@@ -1190,26 +1120,35 @@ protected Trans checkTrans(EventObject ev) { bCheckTransitionArray = true; retur
 final int _checkTransitions(EventObject ev) {
   int res = 0;
   //clear all transition data before test it:
+  /*
   if(aTransitions !=null) {
     for(Trans trans1: aTransitions){ //check all transitions
       trans1.doneExit = trans1.doneAction = trans1.doneEntry = false;
       trans1.retTrans = 0;
   } }
-  Trans trans = null;
+  */
+  Trans trans;
   //either the first time or overridden check method: Use it.
   try{ 
-    trans = checkTrans(ev); 
-    if(trans == null && transTimeout !=null && ev == evTimeout) { //the own timeout event is expected and received
-      trans = transTimeout.eventConsumed();  
-    }
+    StateSimple statetest = this;
+    do {
+      trans = statetest.checkTrans(ev); 
+      /*if(trans == null && statetest.transTimeout !=null && ev == statetest.evTimeout) { //the own timeout event is expected and received
+        trans = statetest.transTimeout.eventConsumed();  
+      }*/
+      statetest = statetest.enclState;
+    } while(trans == null && statetest !=null && !(statetest instanceof StateComposite));  //Check for all enclosing flat states too, not for a composite, it has its own check.
+    
     if(trans !=null){
       //it is possible to invoke doExit and any transition code in the checkTrans() method already.
       if(!trans.doneExit)   { trans.doExit(); }
       if(!trans.doneAction) { trans.doAction(ev,0); }
       if(!trans.doneEntry)  { trans.doEntry(ev); }
-      trans.retTrans |= mTransit;
+      trans.doneExit = trans.doneAction = trans.doneEntry = false;  //for next usage.
+      int ret = trans.retTrans | mTransit;
+      trans.retTrans = 0;
       if(stateMachine.debugTrans) printTransInfo(trans, ev);
-      return trans.retTrans;
+      return ret;
     }
   }
   catch(Exception exc) {
@@ -1224,27 +1163,6 @@ final int _checkTransitions(EventObject ev) {
       throw new RuntimeException(exc); //forward it but without need of declaration of throws exception
     }
   }
-  //This code evaluates the Trans.check() method to check whether a transition should fire.
-  //This is the deprecated version. It is more sophisticated then the simple overridden checkTrans() method:  
-  if(trans == null && bCheckTransitionArray && aTransitions !=null) {
-    //not overridden check method.
-    for(Trans trans1: aTransitions){ //check all transitions
-      trans1.doneExit = trans1.doneAction = trans1.doneEntry = false;
-      try{
-        res = trans1.doTrans(ev);
-        if((res & (mTransit | mEventConsumed))!=0){
-          break;      //transition is used. therefore donot check the rest.
-        }
-      } catch(Exception exc){
-        if(stateMachine.permitException) {
-          //an exception in a transition is accepted, the show must go on. It means, other transitions may switch.
-          CharSequence excText = Assert.exceptionInfo("StateSimple -" + stateId, exc, 0, 20);
-          System.err.append(excText);
-        } else {
-          throw new RuntimeException(exc);
-        }
-      }
-  } }
   return res;
 }
 
@@ -1307,6 +1225,9 @@ final int entryTheState(EventObject ev, boolean history) { //int isConsumed){
   int entryVal;
   try { 
     entryVal = entry(ev);  //run the user's entry action.
+    if(stateMachine.debugEntryExit) {
+      System.out.println("StateSimple - entry, " + stateId);
+    }
   } catch(Exception exc){
     if(stateMachine.permitException){
       StringBuilder u = new StringBuilder(1000);
@@ -1326,32 +1247,62 @@ final int entryTheState(EventObject ev, boolean history) { //int isConsumed){
 
 
 
-/**Exit the state. This method must not be overridden by the user, only the {@link StateCompositeBase} overrides it.
- * Override {@link #exit()} for user specific exit behavior.
- * @return The enclosing state, which can used for entry immediately.
+/**Exit the state. This method must not be overridden by the user, only the {@link StateComposite} and {@link StateParallel} overrides it.
  */
-void exitTheState(){ 
-  durationLast = System.currentTimeMillis() - dateLastEntry;
-  if(enclState instanceof StateComposite) { 
-    ((StateComposite)enclState).isActive = false; 
-  }
-  if(evTimeout !=null && evTimeout.used()) {
-    stateMachine.theThread.removeTimeOrder(evTimeout);
-  }
-  try{ 
-    //==>>
-    exit();  //run the user's exit action.
-  } catch(Exception exc){
-    if(stateMachine.permitException){
-      StringBuilder u = new StringBuilder(1000);
-      u.append("StateSimple exit exception - "); stateMachine.infoAppend(u); u.append(";");
-      CharSequence text = Assert.exceptionInfo(u, exc, 0, 50);
-      System.err.append(text);
-    } else {
-      throw new RuntimeException(exc); //forward it but without need of declaration of throws exception
+/*package private*/ void exitTheState(int level) { 
+    long time = System.currentTimeMillis();  
+    //
+    int ixStatePath = statePath.length -1;
+    if(this instanceof StateComposite) { //NOTE: don't use dynamic linked methods, it is better to seen what's happen in one method.
+      //exits the current state of composite too!
+      StateComposite thisComposite = (StateComposite)this;
+      if(thisComposite.isActive && thisComposite.stateAct !=null) {
+        thisComposite.stateAct.exitTheState(ixStatePath +1);  //all states in composite.
+        //it calls recursively exitTheState for inner composites.
+      }
     }
+    //exit all states in statePath till level:
+    StateSimple stateExitLast = null;
+    while(ixStatePath >= level) { //don't exit the common state.
+      StateSimple stateExit = statePath[ixStatePath];
+      stateExit.durationLast = time - dateLastEntry;
+      if(stateExit.evTimeout !=null && stateExit.evTimeout.used()) {
+        stateMachine.theThread.removeTimeOrder(evTimeout);
+      }
+      if(stateExit instanceof StateParallel) {
+        StateParallel exitParallel = (StateParallel)stateExit;
+        if(exitParallel.aParallelstates !=null) {
+          for(StateSimple parallelState : exitParallel.aParallelstates) {
+            if(parallelState != stateExitLast) { //stateExitLast is that parallel bough which is exited already.
+              parallelState.exitTheState(ixStatePath+1);  //exit till parallel state, not till StateParallel itself.
+          } }
+        }
+  
+      }
+      try{ 
+        //==>>
+        stateExit.exit();  //run the user's exit action.
+        if(stateMachine.debugEntryExit) {
+          System.out.println("StateSimple - exit, " + stateExit.stateId);
+        }
+
+      } catch(Exception exc) {
+        if(stateMachine.permitException){
+          StringBuilder u = new StringBuilder(1000);
+          u.append("StateSimple exit exception - "); stateMachine.infoAppend(u); u.append(";");
+          CharSequence text = Assert.exceptionInfo(u, exc, 0, 50);
+          System.err.append(text);
+        } else {
+          throw new RuntimeException(exc); //forward it but without need of declaration of throws exception
+        }
+      }
+      if(stateExit.enclState instanceof StateComposite) { 
+        ((StateComposite)stateExit.enclState).isActive = false; 
+      }
+      stateExitLast = stateExit;
+      ixStatePath -=1;
+    }//while
   }
-}
 
 
 
@@ -1427,93 +1378,6 @@ public class PlugStateSimpleToGenState
 
 
 
-private class EntryMethodAction implements StateAction {
-  public int exec(EventObject ev) {
-    try { 
-      entryMethod.invoke(StateSimple.this, ev);
-    } catch(Exception exc) {
-      System.err.println(Assert.exceptionInfo("entry " + stateId, exc, 1, 10));  
-    }
-    return 0;   
-  }
-}
-
-
-
-class ExitMethodAction implements Runnable {
-  public void run() {
-    try { 
-      exitMethod.invoke(StateSimple.this);
-    } catch(Exception exc) {
-      System.err.println(Assert.exceptionInfo("exit " + stateId, exc, 1, 10));  
-    }
-  }
-};  
-
-
-
-class TransitionMethod extends Trans {
-
-  private final Method transitionMethod;
-  
-  TransitionMethod(String transId, Method method){
-    super();
-    super.transId = transId;
-    transitionMethod = method;
-  }
-  
-  @Override protected void check(EventObject ev)
-  {
-    try { 
-      transitionMethod.invoke(StateSimple.this, ev);
-    } catch(Exception exc) {
-      System.err.println(Assert.exceptionInfo("exit " + stateId, exc, 1, 10));
-    }
-  }
-  
-}
-
-
-
-/**Used for a StateAction if any method with the expected signature is given as action method.
- */
-private class StateTransitionMethod implements StateAction {
-
-  /**Gotten via reflection - analysis if a State class. */
-  final Method transMethod;
-  
-  /**Instance of the transition with this instance as {@link StateSimple.Trans#check} - aggregation. */
-  final Trans trans;
-  
-  /**Used only in {@link StateSimple#createTransitionList(Object, Trans, int)}. This instance is stored as {@link StateSimple.Trans#check} reference.
-   * @param trans The new Trans instance
-   * @param transMethod The method detected via reflection-analysis.
-   */
-  StateTransitionMethod(Trans trans, Method transMethod){
-    this.transMethod = transMethod;
-    this.trans = trans;
-  }
-  
-  
-  /**It is invoked in the non-overridden {@link StateSimple.Trans#check(EventMsg2)}.
-   */
-  @Override public int exec(EventObject event)
-  { Object ret = null;
-    try{ 
-      transMethod.invoke(StateSimple.this, event, trans);  //invokes a method with signature void method(Event, Trans), only this is detected by reflection anylysis.
-      //Note: the method has to set trans.retTrans = mTransit | mEventConsumed to indicate a fired transition.
-    }
-    catch(IllegalAccessException exc){
-      System.err.println(exc);  //should not occur. 
-    }
-    catch(InvocationTargetException exc){
-      Throwable cause = exc.getCause();
-      throw new RuntimeException("StateSimple.execTransMethod - exception", cause); //should not occur but should detected.
-    }
-    return trans.retTrans;  //retTrans should be set inside transMethod.invoke(...)
-  }
-  
-}
 
 
 

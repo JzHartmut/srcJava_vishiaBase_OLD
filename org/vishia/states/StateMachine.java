@@ -132,7 +132,7 @@ public class StateMachine implements EventConsumer, InfoAppend
    */
   public boolean debugState = false;
   public boolean debugTrans = false;
-  
+  public boolean debugEntryExit = false;
   
   /**True then permits exceptions in one state transition. send a log output to System.err but check other transitions. */
   public boolean permitException;

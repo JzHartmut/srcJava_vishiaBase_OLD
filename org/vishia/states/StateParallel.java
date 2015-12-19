@@ -17,6 +17,7 @@ public abstract class StateParallel extends StateSimple
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-12-20 Hartmut chg: If the parallel state was left by a transition switch, another transition in a parallel bough cannot fire. 
    * <li>2015-02-10 Hartmut chg: A {@link TransJoin} have to be quest in the {@link #checkTrans(EventObject)} routine.
    *   The transition after the join bar can have a condition or event trigger, which is to quest in the checkTrans.
    *   The automatically transition is removed, because it is not explicitly and cannot have conditions.
@@ -53,7 +54,7 @@ public abstract class StateParallel extends StateSimple
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final String version = "2015-02-10";
+  public static final String version = "2015-12-20";
   
   
   
@@ -223,17 +224,24 @@ public abstract class StateParallel extends StateSimple
   /*package private*/ @Override int processEvent(final EventObject evP){  //NOTE: should be protected.
     int cont = 0;
     EventObject evTrans = evP;
+    boolean isLeft = false;
     //Process for all parallel states
     if(aParallelstates !=null) {
       for(StateSimple stateParallel : aParallelstates) {
         cont |= stateParallel.processEvent(evTrans);
+        if(!isInState()) {
+          //abort applying the event if the parallel state was left by one of the transitions yet. 
+          isLeft = true;
+          break;
+        }
       }
     }
     if((cont & StateSimple.mEventConsumed) != 0){
       evTrans = null;
     }
-    if(  evTrans != null   //evTrans is null if it was consumed in inner transitions. 
+    if( ( evTrans != null   //evTrans is null if it was consumed in inner transitions. 
         || (modeTrans & StateSimple.mRunToComplete) !=0  //state has only conditional transitions
+        ) && !isLeft
         ){
       //process the own transition. Do it after processing the inner state (omg.org)
       //and only if either an event is present or the state has only conditional transitions.
@@ -250,13 +258,14 @@ public abstract class StateParallel extends StateSimple
   /**Exits all actual sub state (and that exits its actual sub state) of all parallel states. After them this state is exited.
    * It calls {@link StateSimple#exitTheState()} which invokes the maybe application overridden {@link StateSimple#exit()} routine.
    */
-  @Override void exitTheState(){ 
+  //@Override 
+  void XXXexitTheState(int level){ 
     if(aParallelstates !=null) {
       for(StateSimple parallelState : aParallelstates) {
-        parallelState.exitTheState();
+        parallelState.exitTheState(parallelState.statePath.length -1); //leave the StateSimple/StateComposite  in StateParallel
       }
     }
-    super.exitTheState();
+    super.exitTheState(level);
   }
   
   
