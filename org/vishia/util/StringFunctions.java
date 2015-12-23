@@ -327,9 +327,9 @@ public class StringFunctions {
    * It is the adequate functionality like {@link java.lang.String#compareTo(String)}.
    * but it works proper with {@link java.lang.CharSequence}. See example on {@link #equals(Object)}.
    *  
-   * @param s1 left char sequence
+   * @param s1 left char sequence, maybe null, then return -1 or 0 (both null)
    * @param from1 start position
-   * @param s2 right char sequence
+   * @param s2 right char sequence, maybe null, then return 0 (both null) or 1. 
    * @param from2 start position
    * @param nrofChars maximal number of chars to compare. It can be {@link java.lang.Integer#MAX_VALUE}
    *   to compare all characters to the end.
@@ -340,6 +340,10 @@ public class StringFunctions {
     int i2 = from2 -1;  //pre-increment
     int z = nrofChars + from1;
     int returnEq = 0;
+    //zero check
+    if(s1 == null){ return s2 == null ? 0: -1; }  //equal if both are null
+    else if(s2 == null){ return 1; } //s1 is greater.
+    //
     if(z > s1.length()){ 
       z = s1.length();
       int nrofChars1 = z - from1;

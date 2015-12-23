@@ -10,6 +10,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -519,8 +521,6 @@ public class DataAccess {
   public DataAccess(){}
   
   
-  
-  
   /**Returns the datapath of this access to check details. */
   public final List<DataAccess.DatapathElement> datapath(){ return datapath; }
   
@@ -743,8 +743,12 @@ public class DataAccess {
   
   
   /**Universal method to accesses data. 
-   * The argument path contains elements, which describes the access path.
+   * The argument datapathArg contains elements, which describes the access path. 
+   * <br><br>
+   * The {@link DatapathElement#whatisit} is used like:
    * <ul>
+   * <li>The elements of datapath describe the access to data. Any element before supplies a reference for the path 
+   *   of the next element.
    * <li><code>$</code>: The datapath can start with an element designated with {@link DatapathElement#whatisit} == '$'. 
    *   It describes an access to an <em>environment variable</em>.
    *   The the variable is searched first in the given dataPool with an additional '$' on start of identifier.
@@ -754,7 +758,10 @@ public class DataAccess {
    *   variable is searched in the environment variables of the operation system. Its String representation is returned.
    *   If the environment variable is not found, null is returned. 
    *   The datapath should contain only this one element. Only this first element of the datapath is used. 
-   * <li><code>@</code>: Now not necessary, deprecated.
+   * <li><code>@</code> or <code>.</code>: A variable, {@link DatapathElement#ident} contains the name of the field. It is searched as a 
+   *   {@link java.lang.reflect.Field} in the given instance of the parent level, firstly in dataRoot.
+   * <li><code>@</code> or <code>.</code>: and {@link DatapathElement#ident} == "[]" It should be the last element of the path.
+   *   Then the length of the array of the path before is returned, or the size of a container.
    * <li><code>A..Z a..z</code>: If the only one first element or the last element is designated with {@link DatapathElement#whatisit} == 'A' .. 'Z'
    *   or 'a' ...'z' a new Variable will be created in the given datapool. 
    *   The character 'A'...'Z' describes the type. If lower case is written then the variable is created as const.  
@@ -764,10 +771,6 @@ public class DataAccess {
    *   in {@link DatapathElement#fnArgs}
    * <li><code>(</code>: An element with {@link DatapathElement#whatisit} == '(' is a method invocation maybe with or without arguments.
    *   in {@link DatapathElement#fnArgs}
-   * <li>The elements of datapath describe the access to data. Any element before supplies a reference for the path 
-   *   of the next element.
-   * <li>Any element expected the special first elements which is not designated with "(" is searched as a 
-   *   {@link java.lang.reflect.Field} in the given instance of the parent level, the first element in dataRoot.
    * <li>If the instance of the parent level is instanceof {@link java.util.Map} then the element is searched by name
    *   as member of this map. The key of the map should be instanceof String.
    * <li>If an element is not found a {@link NoSuchFieldException} or {@link NoSuchMethodException} is returned.
@@ -1459,6 +1462,9 @@ public class DataAccess {
    * <li>If the instance is typeof {@link DataAccess.Variable} then its value is used.
    * <li>If the actual instance is instanceof Map with String-key, then the next object
    *    is gotten from the map with the name used as key.
+   * <li>If the name is <code>"[]"</code> and the instance is an array, its length is gotten and returned. 
+   *   If the instance is instance of an Container or Map, then the size() is returned. This property can be used especially 
+   *   for {@link #access(Object, boolean, boolean)} as last element.    
    * <li>Elsewhere a field with ident as name is searched.
    * <li>If the instance is instanceof {@link TreeNodeBase} and the field identifier is not found in this instance,
    *    a child node with the given name is searched. 
@@ -1493,9 +1499,17 @@ public class DataAccess {
     } else {
       instance1 = instance;
     }
-    if(name.equals("compileOptions"))
-      Assert.stop();
-    if(instance1 instanceof Map<?, ?>){
+    if(name.equals("[]")) {
+      if(instance1 instanceof Object[]){
+        return new Integer(((Object[])instance1).length);
+      } else if(instance1 instanceof Collection) {
+        return new Integer(((Collection<?>)instance1).size());
+      } else if(instance1 instanceof Map) {
+        return new Integer(((Map<?,?>)instance1).size());
+      } else {
+        throw new IllegalArgumentException("is not a container or array, " + name);
+      }
+    } else if(instance1 instanceof Map<?, ?>){
       @SuppressWarnings("unchecked")
       //Note: on runtime the generic type of map can be set in any case because it is unknown.
       //Try to store that type, 

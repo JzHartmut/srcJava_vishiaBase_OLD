@@ -10,6 +10,7 @@ import java.util.Map;
 
 
 
+
 //import org.vishia.event.EventMsg2;
 import org.vishia.event.EventConsumer;
 import org.vishia.event.EventTimeout;
@@ -1247,62 +1248,72 @@ final int entryTheState(EventObject ev, boolean history) { //int isConsumed){
 
 
 
-/**Exit the state. This method must not be overridden by the user, only the {@link StateComposite} and {@link StateParallel} overrides it.
+/**Exits the state and all enclosing states till level.
+ * <ul>
+ * <li>If the state has a timeout {@link #evTimeout} then it is removed from {@link StateMachine#theThread}. {@link org.vishia.event.EventTimerThread#removeTimeOrder(EventTimeout)}.
+ * <li>If the state is a {@link StateParallel} all current parallel states are exiting.
+ * <li>The users {@link #exit()} routine is invoked, or the {@link #exit} is run, if {@link #setExitAction(Runnable)} was set.
+ * <li>If {@link StateMachine#debugEntryExit} is set the exit text is written with System.out().
+ * <li>If the users routine is thrown an exception an System.err is written if {@link StateMachine#permitException} is set, or a RuntimeException is forwarding. 
+ * </ul>
+ * Note: The routine is protected to see in documentation. It is final because all necessities for parallel and composite states are considered here already. 
+ * @param level according to the {@link #statePath} the last level which is exiting. It is the index in the statepath array.  
  */
-/*package private*/ void exitTheState(int level) { 
-    long time = System.currentTimeMillis();  
-    //
-    int ixStatePath = statePath.length -1;
-    if(this instanceof StateComposite) { //NOTE: don't use dynamic linked methods, it is better to seen what's happen in one method.
-      //exits the current state of composite too!
-      StateComposite thisComposite = (StateComposite)this;
-      if(thisComposite.isActive && thisComposite.stateAct !=null) {
-        thisComposite.stateAct.exitTheState(ixStatePath +1);  //all states in composite.
-        //it calls recursively exitTheState for inner composites.
+/*package private*/ 
+protected final void exitTheState(int level) { 
+  long time = System.currentTimeMillis();  
+  //
+  int ixStatePath = statePath.length -1;
+  if(this instanceof StateComposite) { //NOTE: don't use dynamic linked methods, it is better to seen what's happen in one method.
+    //exits the current state of composite too!
+    StateComposite thisComposite = (StateComposite)this;
+    if(thisComposite.isActive && thisComposite.stateAct !=null) {
+      thisComposite.stateAct.exitTheState(ixStatePath +1);  //all states in composite.
+      //it calls recursively exitTheState for inner composites.
+    }
+  }
+  //exit all states in statePath till level:
+  StateSimple stateExitLast = null;
+  while(ixStatePath >= level) { //don't exit the common state.
+    StateSimple stateExit = statePath[ixStatePath];
+    stateExit.durationLast = time - dateLastEntry;
+    if(stateExit.evTimeout !=null && stateExit.evTimeout.used()) {
+      stateMachine.theThread.removeTimeOrder(evTimeout);
+    }
+    if(stateExit instanceof StateParallel) {
+      StateParallel exitParallel = (StateParallel)stateExit;
+      if(exitParallel.aParallelstates !=null) {
+        for(StateSimple parallelState : exitParallel.aParallelstates) {
+          if(parallelState != stateExitLast) { //stateExitLast is that parallel bough which is exited already.
+            parallelState.exitTheState(ixStatePath+1);  //exit till parallel state, not till StateParallel itself.
+          } }
+      }
+      
+    }
+    try{ 
+      //==>>
+      stateExit.exit();  //run the user's exit action.
+      if(stateMachine.debugEntryExit) {
+        System.out.println("StateSimple - exit, " + stateExit.stateId);
+      }
+      
+    } catch(Exception exc) {
+      if(stateMachine.permitException){
+        StringBuilder u = new StringBuilder(1000);
+        u.append("StateSimple exit exception - "); stateMachine.infoAppend(u); u.append(";");
+        CharSequence text = Assert.exceptionInfo(u, exc, 0, 50);
+        System.err.append(text);
+      } else {
+        throw new RuntimeException(exc); //forward it but without need of declaration of throws exception
       }
     }
-    //exit all states in statePath till level:
-    StateSimple stateExitLast = null;
-    while(ixStatePath >= level) { //don't exit the common state.
-      StateSimple stateExit = statePath[ixStatePath];
-      stateExit.durationLast = time - dateLastEntry;
-      if(stateExit.evTimeout !=null && stateExit.evTimeout.used()) {
-        stateMachine.theThread.removeTimeOrder(evTimeout);
-      }
-      if(stateExit instanceof StateParallel) {
-        StateParallel exitParallel = (StateParallel)stateExit;
-        if(exitParallel.aParallelstates !=null) {
-          for(StateSimple parallelState : exitParallel.aParallelstates) {
-            if(parallelState != stateExitLast) { //stateExitLast is that parallel bough which is exited already.
-              parallelState.exitTheState(ixStatePath+1);  //exit till parallel state, not till StateParallel itself.
-          } }
-        }
-  
-      }
-      try{ 
-        //==>>
-        stateExit.exit();  //run the user's exit action.
-        if(stateMachine.debugEntryExit) {
-          System.out.println("StateSimple - exit, " + stateExit.stateId);
-        }
-
-      } catch(Exception exc) {
-        if(stateMachine.permitException){
-          StringBuilder u = new StringBuilder(1000);
-          u.append("StateSimple exit exception - "); stateMachine.infoAppend(u); u.append(";");
-          CharSequence text = Assert.exceptionInfo(u, exc, 0, 50);
-          System.err.append(text);
-        } else {
-          throw new RuntimeException(exc); //forward it but without need of declaration of throws exception
-        }
-      }
-      if(stateExit.enclState instanceof StateComposite) { 
-        ((StateComposite)stateExit.enclState).isActive = false; 
-      }
-      stateExitLast = stateExit;
-      ixStatePath -=1;
-    }//while
-  }
+    if(stateExit.enclState instanceof StateComposite) { 
+      ((StateComposite)stateExit.enclState).isActive = false; 
+    }
+    stateExitLast = stateExit;
+    ixStatePath -=1;
+  }//while
+}
 
 
 

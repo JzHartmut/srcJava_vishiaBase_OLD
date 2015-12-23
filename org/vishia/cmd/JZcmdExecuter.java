@@ -99,6 +99,8 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2015-12-24 Hartmut chg: <&datatext>: On a {@link CalculatorExpr.Value} it invokes {@link CalculatorExpr.Value#stringValue()} to convert in a String representation.
+   *   The {@link CalculatorExpr.Value#toString()} is not proper for that. Commonly toString() is invoked on any Object.
    * <li>2015-08-30 Hartmut chg: The functionality to remove indentation is moved to the JZcmdScript
    *   because it is done only one time on preparation of the script, not more as one in any loop of execution.
    *   It is changed in functionality: <code><:s></code> to skip over white spaces and the next line indentation.
@@ -2194,12 +2196,10 @@ public class JZcmdExecuter {
     private short exec_Datatext(JZcmdScript.DataText statement, Appendable out)  //<*datatext>
     throws IllegalArgumentException, Exception
     {
-      CharSequence text = "??";
+      CharSequence text = "?+?";
       Object obj = dataAccess(statement.dataAccess, localVariables, jzcmd.bAccessPrivate, false, false, null);
       if(obj == JZcmdExecuter.retException){ return kException; }
       else {
-        
-        //Object obj = statement.dataAccess.getDataObj(localVariables, acc.bAccessPrivate, false);
         if(statement.format !=null){ //it is a format string:
             if(obj instanceof CalculatorExpr.Value){
               obj = ((CalculatorExpr.Value)obj).objValue();  
@@ -2212,9 +2212,13 @@ public class JZcmdExecuter {
           text = null; //don't append if obj hasn't a content. 
         } else if (obj instanceof CharSequence){
           text = (CharSequence)obj;
-        } else {
+        } else if(obj instanceof CalculatorExpr.Value) {
+          text = ((CalculatorExpr.Value)obj).stringValue();
+        } else  {
           text = obj.toString();
         }
+        if(StringFunctions.startsWith(text, "?+?"))
+          Debugutil.stop();
         if(text!=null){ out.append(text); }
         return kSuccess;
       }

@@ -346,6 +346,24 @@ public class CalculatorExpr
     public boolean isObjValue(){ return type == 'o'; }
     
     
+    public String stringxValue() {
+      switch(type){
+        case 'I': return Integer.toString(intVal);
+        case 'J': return Long.toString(longVal);
+        case 'D': return Double.toString(doubleVal);
+        case 'F': return Float.toString(floatVal);
+        case 'C': return "" + (char)intVal;
+        case 'Z': return Boolean.toString(boolVal);
+        case 't': return stringVal.toString();
+        case 'o': return oVal ==null ? "null" : oVal.toString();
+        case 'e': return ((Exception)oVal).getMessage();
+        case '?': return "??";
+        default:  return "?" + type;
+      }//switch
+      
+    }
+    
+    
     @Override public String toString(){ 
       switch(type){
         case 'I': return "I " + Integer.toString(intVal);
