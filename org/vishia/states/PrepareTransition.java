@@ -1,6 +1,7 @@
 package org.vishia.states;
 
 import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.vishia.event.EventTimeout;
@@ -54,13 +55,13 @@ class PrepareTransition
   /**The destination states filled with {@link #buildDstStates()} with the length of {@link #dst}.
    * Left null if no dst states are given, especially on existing {@link Trans#choice}.
    */
-  final StateSimple[] dstStates;
+  final ArrayList<StateSimple> dstStates;
   
   final StateSimple[] exitStates;
   
  
   /**The current indices in {@link #dstStates}.{@link StateSimple#statePath} while evaluating the entry path. */
-  final int[] ixInStatePath;
+  int[] ixInStatePath;
   
   /**Current index to write {@link Trans#entryStatesOld}. Pre-increment. */
   //int ixEntryStatesOld = -1;
@@ -73,8 +74,8 @@ class PrepareTransition
       this.dstStates = null;
       this.ixInStatePath = null;
     } else {
-      this.dstStates = new StateSimple[trans.dst.length];
-      this.ixInStatePath = new int[this.dstStates.length];
+      this.dstStates = new ArrayList<StateSimple>(); //[trans.dst.length];
+      //this.ixInStatePath = new int[this.dstStates.length];
     }
     this.exitStates = exitStates;
   }
@@ -102,17 +103,41 @@ class PrepareTransition
     //search all dst state instances from the given class. In constructor only the class is known.
     for(int ixdst = 0; ixdst < trans.dst.length; ++ixdst){
       StateSimple dstState = state.stateMachine.stateMap.get(new Integer(trans.dst[ixdst]/*.hashCode()*/));
-      if(dstState instanceof StateCompositeFlat && !(dstState instanceof StateComposite)) {
-        //Use the default state for entry.
-        dstState = ((StateCompositeFlat)dstState).stateDefault;
-      }
-      dstStates[ixdst] = dstState;
+      checkDefaultAddDstState(dstState, 0);
       if(dstState ==null) {
         System.err.println("PrepareTransition.buildDstStates - dst state not found, "+ trans);
         //throw new IllegalArgumentException("dst state not found, "+ trans);
       }
     }
+    this.ixInStatePath = new int[this.dstStates.size()];
+
   }
+  
+  
+  /**Checks the given state whether it is a CompositeStateFlat or ParallelState and stores the leaf (only StateSimple) state
+   * in {@link #dstStates}. On a StateCompositeFlat its {@link StateCompositeFlat#stateDefault} will be used as destination.
+   * On a StateParallel all {@link StateParallel#aParallelstates} where checked and taken as destination. If a destination state
+   * is not a leaf state, this routine is invoked recursively. 
+   * @param dstState given destination state of a transition.
+   * @param recurs Counter for recursive call. It prevents faulty deep recursion. Aborted on 100 with an IllegalArgumentException.
+   */
+  private void checkDefaultAddDstState(StateSimple dstState, int recurs) {
+    if(recurs > 100) {
+      throw new IllegalArgumentException("internal recursion error"); }
+    if(dstState instanceof StateCompositeFlat) { // && !(dstState instanceof StateComposite)) {
+      //Use the default state for entry.
+      checkDefaultAddDstState(((StateCompositeFlat)dstState).stateDefault, recurs+1);
+    }
+    else if(dstState instanceof StateParallel) {
+      for(StateSimple stateParallel: ((StateParallel)dstState).aParallelstates) {
+        checkDefaultAddDstState(stateParallel, recurs+1);
+      }
+    }
+    else {
+      dstStates.add(dstState);
+    }
+  }
+  
   
   /**Searches the common state between all {@link #dstStates} and the source state.
    * All states till the common state should be exited. All states from the common state should be entered.
@@ -129,10 +154,10 @@ class PrepareTransition
       //check all dst states whether the common state is in that state path. If it is not in the statePath, set stateCommon = null to abort the search.
       //If the stateCommon is in the statePath of all dstStates then ixDstPath[] is set with the index of the stateCommon in the dstPath.
       //It should the same index for all states because the statePath starts from the stateTop for all.
-      while(stateCommon !=null && ++ixdst < dstStates.length) {  //commonSearch: abort this while if at least one 
+      while(stateCommon !=null && ++ixdst < dstStates.size()) {  //commonSearch: abort this while if at least one 
         //check all dstStates down to either the exitState or down to to top state.
         //If the exit state is equal any entry enclosing state or both are null (top state), then it is the common state.
-        StateSimple dstState = dstStates[ixdst];
+        StateSimple dstState = dstStates.get(ixdst);
         ixInStatePath[ixdst] = dstState.statePath.length-1;  //Note: start with dstState itself because (dst    (src)---->) transition from this to its enclosing state
         while(stateCommon !=null && dstState.statePath[ixInStatePath[ixdst]] != stateCommon){
           if(--ixInStatePath[ixdst] < 0) { //end is reached without found stateCommon
@@ -234,7 +259,7 @@ class PrepareTransition
   private void buildEntryStates() 
   {
     //int[] entries1 = new int[dstStates.length];
-    StateSimple[] stateFork = new StateSimple[dstStates.length];
+    StateSimple[] stateFork = new StateSimple[dstStates.size()];
     if(stateFork.length == 3)
       Debugutil.stop();
     if(trans.transId.equals("Trans_Running0"))
@@ -248,7 +273,7 @@ class PrepareTransition
       for(ixForkBranch = 0; ixForkBranch < ixInStatePath.length; ++ixForkBranch) { /*entries1[ixForkBranch] = 0; */ stateFork[ixForkBranch] = null; } //clean
       //
       for(ixForkBranch = 0; ixForkBranch < ixInStatePath.length; ++ixForkBranch) {  //check all branches of a fork.
-        StateSimple[] statePath = dstStates[ixForkBranch].statePath;
+        StateSimple[] statePath = dstStates.get(ixForkBranch).statePath;
         if(ixStatePath < statePath.length ) { // if >=, it is reached
           StateSimple entryState = statePath[ixStatePath];
           //search whether this state is processed already:

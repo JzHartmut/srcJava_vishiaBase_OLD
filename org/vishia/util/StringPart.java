@@ -1417,7 +1417,7 @@ public final int lastIndexOfAnyChar(String sChars, final int fromWhere, final in
       if(sString.charAt(0) == cEndOfText)
       { acceptToEndOfText = true;}
       else 
-      { sFirstCharBuffer.append(sString.charAt(0)); }
+      { sFirstCharBuffer.append(sString.charAt(0)); }  //to search the first char as one of chars
     } }
     /**@java2c=toStringNonPersist.*/
     String sFirstChars = sFirstCharBuffer.toString();
@@ -1430,7 +1430,7 @@ public final int lastIndexOfAnyChar(String sChars, final int fromWhere, final in
       
       if(pos < max)
       { /**a fist matching char is found! test wether or not the whole string is matched.
-       * Test all Strings, the first test is the test of begin char. */
+         * Test all Strings, the first test is the test of begin char. */
         int ii = -1;
         while(!found && ++ii < listStrings.length)  //NOTE: don't use for(...) because found is a criterium of break.
         { //String sString = (String)(iter.next());

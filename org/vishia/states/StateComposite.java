@@ -124,35 +124,51 @@ public abstract class StateComposite extends StateCompositeFlat implements InfoA
   
   
   
-  /**This method should be called from outside if the history state should be entered and all history states
+  /**This method is called from {@link StateSimple.Trans#doEntry(EventObject)} if the history state should be entered and all history states
    * should be entered in sub states.
-   * @param isProcessed The bit {@link StateSimpleBase#mEventConsumed} is supplied to return it.
-   * @return isProcessed, maybe the additional bits {@link StateSimpleBase#mRunToComplete} is set by user.
+   * @return or-relation of all return values of {@link StateSimple#entry(EventObject)}, especially bit {@link StateSimpleBase#mRunToComplete}.
    */
-  public final int entryDeepHistory(EventObject ev){
+  protected final int entryDeepHistory(EventObject ev){
     isActive = true;
-    StateSimple stateActHistory = stateAct;  //save it
-    int cont = entryTheState(ev, true);                  //entry in this state, remark: may be overridden, sets the stateAct to null
-    return cont | entryDeepHistory(stateActHistory, ev);
+    StateSimple stateActHistory = stateAct; 
+    if(stateActHistory == null) {
+      stateActHistory = stateAct = stateDefault;
+    }
+    return doEntryDeepHistory(stateActHistory, ev);
   }
   
   
   
-  private final int entryDeepHistory(StateSimple state, EventObject ev) {
+  /**Execution routine of enter the deep history.
+   * <ul>
+   * <li>Enters all states in the statePath from the {@link StateSimple#ixCompositeState_inStatePath}.
+   * <li>If the state is a StateComposite the {@link #entryDeepHistory(EventObject)} will be called recursively.
+   * <li>If the state is a StateParallel {@link #entryDeepHistory(EventObject)} will be called for all parallel states.
+   * </ul>
+   * @param state The stored current state used as history.
+   * @param ev
+   * @return see {@link #entryDeepHistory(EventObject)}
+   */
+  private final static int doEntryDeepHistory(StateSimple state, EventObject ev) {
     int cont = 0;
-    if(state instanceof StateComposite){
-      cont = ((StateComposite)state).entryDeepHistory(ev);
-    } else if(state instanceof StateParallel) {
-      cont |= state.entryTheState(ev, true);
+    for(int ix = state.ixCompositeState_inStatePath+1; ix < state.statePath.length; ++ix) {
+      StateSimple stateEntry = state.statePath[ix]; 
+      cont |= stateEntry.entryTheState(ev,true);   //entry in all states in statePath till state itself.
+    }
+    if(state instanceof StateComposite) {  
+      //if the current state is a composite too:
+      cont |= ((StateComposite)state).entryDeepHistory(ev);       //The state will be entered in the recursive call.
+    } 
+    else if(state instanceof StateParallel) {  
+      //If the current state is a StateParallel, enter all parallels with deep history:
       for(StateSimple stateP : ((StateParallel)state).aParallelstates) {
-        cont |= entryDeepHistory(stateP, ev);
+        cont |= stateP.entryTheState(ev,true);   //entry in the parallel state bough, composite or simple
+        if(stateP instanceof StateComposite) {
+          cont |= ((StateComposite)stateP).entryDeepHistory(ev);
+        }
       }
-    } else { //StateSimple
-      for(int ix = state.ixRootStateInStatePath +1; ix < state.statePath.length; ++ix)
-      cont |= state.statePath[ix].entryTheState(ev,true);   //entry in the history sub state, statepath for CompositeFlat.
     }
     return cont;
-
   }
   
   
@@ -295,7 +311,7 @@ public abstract class StateComposite extends StateCompositeFlat implements InfoA
     //if(stateAct == null){ uStateNext.append("--inactive--"); }
     StateComposite parent = this;
     while(parent !=null && !parent.isActive) {
-      parent = parent.rootState !=null ? parent.rootState : parent.enclState.rootState;  //use enclState on stateParallel
+      parent = parent.compositeState !=null ? parent.compositeState : parent.enclState.compositeState;  //use enclState on stateParallel
     }
     //if(!isActive){ uStateNext.append("--inactive--"); }
     //else 

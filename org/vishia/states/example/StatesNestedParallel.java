@@ -24,8 +24,6 @@ public class StatesNestedParallel
     boolean on_ready, on_cont;  
   
   
-    boolean start;
-    
     boolean offAfterRunning;
     
     boolean cont;
@@ -38,11 +36,20 @@ public class StatesNestedParallel
   
   /**Commands for the event.
    */
-  enum CmdEvent { start, ready, cyclic, off, on_cont};
+  enum CmdEvent { start, ready, cyclic, off, on_cont, testDefaultParallel};
   
   /**An event type reuseable for the state machine animation. */
-  class EventA extends EventCmdtype<CmdEvent>{}
+  class EventA extends EventCmdtype<CmdEvent>{
+    
+  }
   
+  /**Checks whether any given Event is from this type and has the given cmd.
+   * @return true if it matches.
+   */
+  static boolean checkEventA(EventObject ev, CmdEvent cmd){
+    return ev instanceof EventA && ((EventA)ev).getCmd() == cmd;
+  }
+
   /**Some conditions for transition in this example. */
   Conditions cond = new Conditions();
   
@@ -50,6 +57,8 @@ public class StatesNestedParallel
    * The value is used for state transitions.
    */
   int processValue;
+  
+  boolean isWorking;
   
   /**An event instance reused for the state machine animation.*/
   EventA event = new EventA();
@@ -88,6 +97,11 @@ public class StatesNestedParallel
       }
       */
       
+      @Override public int entry(EventObject ev){
+        cond.off = false;
+        return mRunToComplete;
+      }
+      
       
       public TransChoice on = new TransChoice() { 
         
@@ -105,11 +119,14 @@ public class StatesNestedParallel
       
       
       
-      Trans on_Ready = new Trans(StateWork.StateReady.class); 
+      Trans on_Ready = new Trans(StateWork.class); 
       
       
       @Override protected Trans checkTrans(EventObject ev) {
-        if(  ev instanceof EventA 
+        if(cond.on_ready) {
+          return on_Ready;
+        }
+        else if(  ev instanceof EventA 
             && ((EventA)ev).getCmd() == CmdEvent.start ){
           return on.choice().eventConsumed();
         }
@@ -133,6 +150,7 @@ public class StatesNestedParallel
       @Override protected Trans checkTrans(EventObject ev){
         if(cond.off) {
           cond.off = false;
+          isWorking = false;
           return to_off;
         }
         else return null;
@@ -145,11 +163,16 @@ public class StatesNestedParallel
         Trans start_Running = new Trans( StateActive.StateActive1.StateRunning.StateRunning2.StateRunning21.class
                                        , StateActive.StateActive2.StateRemainOn.class);
         
+        Trans testDefaultParallel = new Trans(StateActive.class);
+        
         @Override protected Trans checkTrans(EventObject ev){
-          if(cond.start) {
+          if(checkEventA(ev,CmdEvent.start)) {
             start_Running.doExit();
             processValue = 0;
             return start_Running;
+          } else if(checkEventA(ev,CmdEvent.testDefaultParallel)) {
+            processValue = 0;
+            return testDefaultParallel;
           }
           else return null;
         }
@@ -173,7 +196,9 @@ public class StatesNestedParallel
           /*if(true){
             return testOff;
           }*/
-          if(to_off.joined()) {
+          if(processValue == 9994) {
+            return testOff;
+          } else if(to_off.joined()) {
             return to_off;
           }
           else return null;
@@ -241,9 +266,12 @@ public class StatesNestedParallel
                 Timeout transFinit = new Timeout(1000, StateFinit.class);
                 Trans trans21 = new Trans(StateRunning21.class);
                 Trans trans1 = new Trans(StateRunning1.class);
+                Trans testOff = new Trans(StateReady.class);
                 
                 @Override protected Trans checkTrans(EventObject ev) {
-                  if(processValue == 5) {
+                  if(processValue == 9994) {
+                    return testOff;
+                  } else if(processValue == 5) {
                     return trans21;
                   } else if(processValue == 9) {
                     return trans1;
@@ -265,7 +293,6 @@ public class StatesNestedParallel
               if(true) return null;
               cond.on_cont = false;
               cond.on_ready = false;
-              cond.start = false;
               cond.cont = false;
               return transReady;
             }
@@ -311,7 +338,6 @@ public class StatesNestedParallel
   
   private void execute() {
     cond.on_ready = true;
-    cond.start = true;
     cond.offAfterRunning = true;
     if(event.occupy(null, states, threadEventTimer, true)){
       event.sendEvent(CmdEvent.start);
@@ -333,13 +359,17 @@ public class StatesNestedParallel
       try{ Thread.sleep(100);
       } catch(InterruptedException exc) {}
       //Some stimuli:
+      CmdEvent cmd = CmdEvent.cyclic;  //if overwritten then an other one.
       switch(step) {
         case 1: cond.on_ready = true; System.out.println("Env, 1-on_ready"); break;
+        case 2: cmd = CmdEvent.start;
         case 3: cond.on_ready = false; cond.off = true; System.out.println("Env, 3-off"); break;
         case 5: cond.off = false; cond.on_cont = true; cond.cont = true; System.out.println("Env, 5-on_cont"); break;  //forces history entry.
+        case 8: cond.off = true; break;
+        case 10: cond.on_ready = true; cmd = CmdEvent.testDefaultParallel; break;
       } //step;
       if(event.occupy(null, states, threadEventTimer, true)){
-        event.sendEvent(CmdEvent.cyclic);  //animate the state machine cyclically to check some conditions.
+        event.sendEvent(cmd);  //animate the state machine with cmd maybe cyclically to check some conditions.
       }
     } while(++step < 100);  //runs 10 seconds. //!cond.finished); //!states.isInState(States.StateOff.class));
     try{

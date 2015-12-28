@@ -226,10 +226,10 @@ protected StateMachine stateMachine;
  */
 protected StateSimple enclState;
 
-/**The state which controls this state. */
-protected StateComposite rootState;
+/**The state which is the composite state for this. */
+protected StateComposite compositeState;
 
-protected int ixRootStateInStatePath;
+protected int ixCompositeState_inStatePath;
 
 /**Any additional information. Used for special cases. */
 private Object auxInfo;
@@ -537,15 +537,16 @@ public class Trans
   
   
   
-  /**Executes the exit from this and all enclosing States to fire the transition.
-   * 
+  /**Executes the exit from this state and all enclosing States to fire the transition.
+   * Because this state may be a {@link StateCompositeFlat} the {@link StateComposite#stateAct} of its {@link #compositeState()} will be used
+   * to invoke {@link StateSimple#exitTheState(int)} always.
    */
   public final void doExit()
   { 
     retTrans |= mStateLeaved;
     //
     //execute all exit routines from the current state(s)
-    StateSimple stateCurr = rootState.stateAct;  //it may be this if it is a leaf state, if this is a StateCompositeFlat it is the really stateAct.
+    StateSimple stateCurr = compositeState.stateAct;  //it may be this if it is a leaf state, if this is a StateCompositeFlat it is the really stateAct.
     //StateSimple stateExitLast = null;
     stateCurr.exitTheState(ixCommonInStatePath+1);
     
@@ -574,12 +575,24 @@ public class Trans
     if(entryStates !=null) {
       int ixLast = entryStates.length -1;
       int ix = 0; 
+      StateSimple entryStateLast = null;
       while(ix < entryStates.length) { 
-        StateSimple state = entryStates[ix];
+        StateSimple entryState = entryStates[ix];
         StateSimple history;
-        if(ix < ixLast && (( (history = entryStates[ix+1]) instanceof StateDeepHistory) || (history instanceof StateShallowHistory))) { 
+        if(entryState instanceof StateDeepHistory) {
+          assert(entryStateLast instanceof StateComposite);
+          retTrans |= ((StateComposite)entryStateLast).entryDeepHistory(ev);
+        } else if(entryState instanceof StateShallowHistory) {
+          assert(entryStateLast instanceof StateComposite);
+          retTrans |= ((StateComposite)entryStateLast).entryShallowHistory(ev);
+        } else {
+          retTrans |= entryState.entryTheState(ev, false);
+          
+        }
+        /*
+        //if(ix < ixLast && (( (history = entryStates[ix+1]) instanceof StateDeepHistory) || (history instanceof StateShallowHistory))) { 
           //the last entry is an history entry.
-          StateComposite stateC = (StateComposite)state;  //it have to be a composite state.
+          StateComposite stateC = (StateComposite)entryState;  //it have to be a composite state.
           if(history instanceof StateDeepHistory) {
             retTrans |= stateC.entryDeepHistory(ev);
           } else {
@@ -587,9 +600,11 @@ public class Trans
           }
           ix +=2; //skip over History
         } else {
-          retTrans |= state.entryTheState(ev, false);
+          retTrans |= entryState.entryTheState(ev, false);
           ix +=1; //next
-        }
+        }*/
+        ix +=1; //next
+        entryStateLast = entryState;
     } }
     doneEntry = true;
   }
@@ -792,8 +807,14 @@ public StateSimple[] statePath(){ return statePath; }
  * is a {@link StateCompositeFlat} and it is not the rootState.
  * 
  */
-public StateComposite rootState(){ return rootState; }
+public StateComposite compositeState(){ return compositeState; }
 
+/**Returns that state which is the enclosing state. It may be equal to the {@link #compositeState()}. Otherwise it may be a
+ * {@link StateCompositeFlat} or a {@link StateParallel}. 
+ * Note: If a composite state is only used to build a pool of simple states which have common transition(s) the pool-building state
+ * is a {@link StateCompositeFlat} and it is not the {@link #compositeState()}.
+ * 
+ */
 public StateSimple enclState(){ return enclState; }
 
 
@@ -879,7 +900,7 @@ final void buildStatePath(StateSimple enclState) {
       ixe +=1;
     }
     if(enclState1 instanceof StateComposite) { 
-      rootState = (StateComposite)enclState1;
+      compositeState = (StateComposite)enclState1;
     } //else: It is a StateSimple in a StateParallel.
     //
     //copy the path from the top state to the new dst state. It is one element lengths.
@@ -887,7 +908,7 @@ final void buildStatePath(StateSimple enclState) {
     this.statePath = new StateSimple[topPathLength +1];
     System.arraycopy(enclState.statePath, 0, this.statePath, 0 , topPathLength);
     statePath[topPathLength] = this;  //last element is this itself.
-    this.ixRootStateInStatePath = topPathLength - ixe;
+    this.ixCompositeState_inStatePath = topPathLength - ixe;
   }
 }
 
@@ -1029,8 +1050,8 @@ private void prepareTransition(Trans trans, int nRecurs) {
  * @return
  */
 public final boolean isInState(){
-  if(rootState !=null) {
-    return rootState.isActive && rootState.isInState(this);
+  if(compositeState !=null) {
+    return compositeState.isActive && compositeState.isInState(this);
   } else {
     //it is the top state or a StateSimple inside a StateParallel
     if(enclState == null) return true; //it is the top state.
@@ -1142,13 +1163,13 @@ final int _checkTransitions(EventObject ev) {
     
     if(trans !=null){
       //it is possible to invoke doExit and any transition code in the checkTrans() method already.
+      if(stateMachine.debugTrans) printTransInfo(trans, ev);
       if(!trans.doneExit)   { trans.doExit(); }
       if(!trans.doneAction) { trans.doAction(ev,0); }
       if(!trans.doneEntry)  { trans.doEntry(ev); }
       trans.doneExit = trans.doneAction = trans.doneEntry = false;  //for next usage.
       int ret = trans.retTrans | mTransit;
       trans.retTrans = 0;
-      if(stateMachine.debugTrans) printTransInfo(trans, ev);
       return ret;
     }
   }
@@ -1188,8 +1209,8 @@ private void printTransInfo(Trans trans, EventObject ev) {
  * or in {@link StateComposite#entryDeepHistory(EventObject)} or {@link StateComposite#entryShallowHistory(EventObject)}.
  * It enters only in this state. Enter is sub states is done in the calling routines.  
  * <ul>
- * <li>The reference of {@link StateComposite#stateAct} will be set in its {@link #rootState()} to mark this state as current one..
- * <li>The {@link #rootState()} (its composite) will be marked as {@link StateComposite#isActive} (may be marked already).
+ * <li>The reference of {@link StateComposite#stateAct} will be set in its {@link #compositeState()} to mark this state as current one..
+ * <li>The {@link #compositeState()} (its composite) will be marked as {@link StateComposite#isActive} (may be marked already).
  * <li>Sets debug informations: {@link #ctEntry}+=1, {@link #dateLastEntry}=yet, {@link #durationLast}=0.
  * <li>If it is a {@link StateComposite} without history, sets the own {@link StateComposite#stateAct} to null, 
  *   therewith forces maybe entry in the default state if an entry in a member of the composite is not done by this transition
@@ -1203,9 +1224,9 @@ private void printTransInfo(Trans trans, EventObject ev) {
  * @return
  */
 final int entryTheState(EventObject ev, boolean history) { //int isConsumed){
-  if(rootState !=null) {
-    rootState.stateAct = this;
-    rootState.isActive = true;
+  if(compositeState !=null) {
+    compositeState.stateAct = this;
+    compositeState.isActive = true;
   } //else only null on a StateSimple in a StateParallel.
   //
   ctEntry +=1;
@@ -1217,7 +1238,8 @@ final int entryTheState(EventObject ev, boolean history) { //int isConsumed){
   if(!history && this instanceof StateComposite){ //quest after StateParallel handling because isActive is set to true.
     StateComposite cthis = (StateComposite)this;
     //entry for a composite state forces the default state if entries for deeper states are not following.
-    cthis.stateAct = null;   
+    //cc101512: Now the default entry is done in the transition, not necessary, faulty for history entry: 
+    //no: cthis.stateAct = null;   
     cthis.isActive = true;
   }
   if(this.transTimeout !=null && evTimeout !=null){
@@ -1250,6 +1272,11 @@ final int entryTheState(EventObject ev, boolean history) { //int isConsumed){
 
 /**Exits the state and all enclosing states till level.
  * <ul>
+ * <li>If the state is a StateComposite, then this method is called recursively for the current state of composite. 
+ *   It means, the current state is exiting. If the current state of the StateComposite is a StateComposite too, this rule is valid for that too.
+ *   It means, this method is called recursively for all StateComposite of the current statePath.
+ * <li>If the exit will be invoked for a StateCompositeFlat, this routine is called for the current StateSimple of the {@link StateComposite#compositeState()}.
+ *   It means always the really current state will be exiting. See {@link Trans#doExit()}.  
  * <li>If the state has a timeout {@link #evTimeout} then it is removed from {@link StateMachine#theThread}. {@link org.vishia.event.EventTimerThread#removeTimeOrder(EventTimeout)}.
  * <li>If the state is a {@link StateParallel} all current parallel states are exiting.
  * <li>The users {@link #exit()} routine is invoked, or the {@link #exit} is run, if {@link #setExitAction(Runnable)} was set.
@@ -1263,15 +1290,7 @@ final int entryTheState(EventObject ev, boolean history) { //int isConsumed){
 protected final void exitTheState(int level) { 
   long time = System.currentTimeMillis();  
   //
-  int ixStatePath = statePath.length -1;
-  if(this instanceof StateComposite) { //NOTE: don't use dynamic linked methods, it is better to seen what's happen in one method.
-    //exits the current state of composite too!
-    StateComposite thisComposite = (StateComposite)this;
-    if(thisComposite.isActive && thisComposite.stateAct !=null) {
-      thisComposite.stateAct.exitTheState(ixStatePath +1);  //all states in composite.
-      //it calls recursively exitTheState for inner composites.
-    }
-  }
+  int ixStatePath = statePath.length -1;  //refers to this initially, all states in path till level will be exiting.
   //exit all states in statePath till level:
   StateSimple stateExitLast = null;
   while(ixStatePath >= level) { //don't exit the common state.
@@ -1280,7 +1299,19 @@ protected final void exitTheState(int level) {
     if(stateExit.evTimeout !=null && stateExit.evTimeout.used()) {
       stateMachine.theThread.removeTimeOrder(evTimeout);
     }
-    if(stateExit instanceof StateParallel) {
+    if(stateExit instanceof StateComposite && stateExitLast == null) { //NOTE: don't use dynamic linked methods, it is better to seen what's happen in one method.
+      //exits the current state of composite if it is the first state to exit.
+      //Note if it is not the first state to exit, the current state(s) of this StateComposite are exiting yet already. 
+      //it calls this method recursively.
+      StateComposite thisComposite = (StateComposite)this;
+      if(thisComposite.isActive && thisComposite.stateAct !=null) {
+        thisComposite.stateAct.exitTheState(ixStatePath +1);  //all states in composite.
+        //it calls recursively exitTheState for inner composites.
+      }
+    }
+    else if(stateExit instanceof StateParallel) {
+      //exits all parallel bough of this StateParallel. The stateExitLast refers to that bough which is exiting already yet.
+      //If the StateParallel is the first state to exit, all boughs will be exiting because stateExitLast == null
       StateParallel exitParallel = (StateParallel)stateExit;
       if(exitParallel.aParallelstates !=null) {
         for(StateSimple parallelState : exitParallel.aParallelstates) {
