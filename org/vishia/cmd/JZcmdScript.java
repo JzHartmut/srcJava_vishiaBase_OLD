@@ -204,7 +204,7 @@ public class JZcmdScript extends CompiledScript
     if(context instanceof JZcmdExecuter.ExecuteLevel){
       JZcmdExecuter.ExecuteLevel level = (JZcmdExecuter.ExecuteLevel) context;
       try{ 
-        level.executer().initialize(this, false, null, null);
+        level.jzcmd.jzCmdExecuter.initialize(this, false, null, null);
         Subroutine main = getMain();
         level.exec_Subroutine(main, null, null, 0);
       } catch(Throwable exc){ 

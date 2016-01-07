@@ -1122,8 +1122,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
      *   null if the value for this key is null.
      *   null if exact = true and the key is not found.
      */
-    @SuppressWarnings( "unchecked")
-    private  Table<Key, Type> searchInTables(Key key1, boolean exact, IndexMultiTable<Key, Type>.IndexBox ixFound)
+    //private  
+    Table<Key, Type> searchInTables(Key key1, boolean exact, IndexMultiTable<Key, Type>.IndexBox ixFound)
     { Table<Key, Type> table = this;
       //place object with same key after the last object with the same key.
       while(table.isHyperBlock)
@@ -1137,7 +1137,9 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         }
         else
         { assert(idx < table.sizeBlock);
-          table = ((Table<Key, Type>)(table.aValues[idx]));
+          @SuppressWarnings( "unchecked")
+          Table<Key, Type> table1 = ((Table<Key, Type>)(table.aValues[idx]));
+          table = table1;
         }
       }
       int idx = binarySearchFirstKey(table.aKeys, 0, table.sizeBlock, key1); //, sizeBlock, key1);
@@ -1162,7 +1164,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     }
 
 
-
+    /* it is unused:
     Table<Key, Type> nextSibling(){
       Table<Key, Type> sibling = null;
       if(parent !=null){
@@ -1178,7 +1180,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       }
       return sibling;
     }
-
+    */
     
     
     /**Change the size in this table and in all parents.

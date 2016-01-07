@@ -46,6 +46,8 @@ import javax.script.ScriptException;
 
 
 
+
+
 import org.vishia.cmd.CmdExecuter;
 import org.vishia.fileRemote.FileRemote;
 import org.vishia.mainCmd.MainCmd;
@@ -77,7 +79,7 @@ import org.vishia.xmlSimple.SimpleXmlOutputter;
  * <li>{@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)} executes one subroutine
  *   from a translated script. It is possible to translate a script one time, and then invoke any subroutine 
  *   from a java context on demand.
- * <li>{@link #initialize(JZcmdScript, boolean, Map, String)} cleans the instance and generates all script variables.
+ * <li>{@link #initialize(JZcmdScript, boolean, Map, String, boolean)} cleans the instance and generates all script variables.
  *   It prepares usage for {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)}.
  * <li>{@link #reset()} cleans the instance. The scriptvariables will be generate 
  *   by first call of {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)}
@@ -99,6 +101,12 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2016-01-06 Hartmut functionality enhancing: {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)} now returns all variable of the subroutine level.
+   * <li>2016-01-06 Hartmut functionality enhancing: {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)} can work on the script level variables.
+   *   That is proper for initializing routines or routines for parameter.
+   * <li>2016-01-06 Hartmut functionality enhancing: {@link #initialize(JZcmdScript, boolean, Map, String)} can be called without script, 
+   *   then only it is initialized with standard script variables. It is for example for the possibility to execute the script level variable assignments. It is possible to execute that later using  
+   *  
    * <li>2015-12-24 Hartmut chg: <&datatext>: On a {@link CalculatorExpr.Value} it invokes {@link CalculatorExpr.Value#stringValue()} to convert in a String representation.
    *   The {@link CalculatorExpr.Value#toString()} is not proper for that. Commonly toString() is invoked on any Object.
    * <li>2015-08-30 Hartmut chg: The functionality to remove indentation is moved to the JZcmdScript
@@ -162,7 +170,7 @@ public class JZcmdExecuter {
    *   does not need an accessPath, it may be empty respectively null.
    * <li>2014-06-10 Hartmut chg: improved Exception handling of the script.
    * <li>2014-06-01 Hartmut chg: {@link #genScriptVariables(JZcmdScript, boolean, Map, CharSequence)} and
-   *   {@link #initialize(JZcmdScript, boolean, Map, String)} throws on any error.
+   *   {@link #initialize(JZcmdScript, boolean, Map, String, boolean)} throws on any error.
    * <li>2014-06-01 Hartmut chg: "File :" as conversion type for any objExpr, not in a dataPath.TODO: Do the same for Filepath, Fileset with accessPath
    * <li>2014-06-01 Hartmut chg: uses {@value #kException} as return value of all called 
    *   {@link ExecuteLevel#execute(org.vishia.cmd.JZcmdScript.StatementList, StringFormatter, int, boolean, Map, int)}
@@ -275,6 +283,9 @@ public class JZcmdExecuter {
    */
   public static class JZcmd
   {
+    final JZcmdExecuter jzCmdExecuter;
+  
+  
 
     public final MainCmdLogging_ifc log;
     /**The newline char sequence. */
@@ -317,42 +328,15 @@ public class JZcmdExecuter {
     
     public final ExecuteLevel scriptLevel;
 
-    JZcmd(MainCmdLogging_ifc log, JZcmdExecuter env){
+    JZcmd(MainCmdLogging_ifc log, JZcmdExecuter jzCmdExecuter){
       this.log = log;
+      this.jzCmdExecuter = jzCmdExecuter;
       scriptThread = new JZcmdThread();
       scriptLevel = new ExecuteLevel(this, scriptThread);
     }
 
-    /**Initializes, especially generate all script variables. All content before is removed.
-     * Especially script variables from a previous usage of the instance are removed.
-     * If you want to use a JZcmdExecuter more as one time with different scripts
-     * but with the same script variables, one should call this routine one time on start,
-     * and then {@link #execute(JZcmdScript, boolean, boolean, Appendable)} with maybe several scripts,
-     * which should not contain script variables, or one should call 
-     * {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable)}
-     * with one of the subroutines in the given script.
-     * 
-     * @param genScriptPar Generation script in java-prepared form. It contains the building prescript
-     *   for the script variables.
-     * @param accessPrivate decision whether private and protected members from Java instances can be accessed.   
-     * @throws Throwable 
-     * @throws SecurityException not expected
-     * @throws NoSuchMethodException not expected 
-     */
-    public void initialize
-        ( JZcmdScript genScriptArg
-        , boolean accessPrivate
-        , Map<String, DataAccess.Variable<Object>> srcVariables
-        , String sCurrdir
-        ) 
-    throws ScriptException
-    {
-      scriptLevel.localVariables.clear();
-      bAccessPrivate = accessPrivate;
-      jzcmdScript = genScriptArg;
-      genScriptVariables(genScriptArg, accessPrivate, srcVariables, sCurrdir);
-    }
-
+        
+        
     /**Returns the association to all script variables. The script variables can be changed
      * via this association. Note that change of script variables is a global action, which should not
      * be done for special requests in any subroutine.
@@ -399,89 +383,6 @@ public class JZcmdExecuter {
 
     public long calctime(){ return System.currentTimeMillis() - startmilli; }
 
-    /**Generates script-global variables.
-     * 
-     * @param genScriptPar It should be the same how used on {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)}
-     *   but it may be another one for special cases.
-     * @param userData Used userdata for content of scriptvariables. It should be the same how used on 
-     *   {@link #genContent(JZcmdScript, Object, boolean, Appendable)} but it may be another one for special cases.
-     * @param accessPrivate true than access to private data of userData
-     * @return The built script variables. 
-     *   One can evaluate some script variables before running {@link #genContent(JZcmdScript, Object, boolean, Appendable)}.
-     *   Especially it is used for {@link org.vishia.zmake.Zmake to set the currDir.} 
-     * @throws Throwable 
-     * @throws SecurityException 
-     * @throws NoSuchMethodException 
-     * @throws NoSuchFieldException 
-     */
-    private Map<String, DataAccess.Variable<Object>> genScriptVariables(
-        JZcmdScript genScriptPar
-      , boolean accessPrivate
-      , Map<String, DataAccess.Variable<Object>> srcVariables
-      , CharSequence sCurrdirArg
-    ) 
-    throws ScriptException //Throwable
-    {
-      bAccessPrivate = accessPrivate;
-      try{
-        if(sCurrdirArg == null && scriptLevel.currdir == null){
-          //get from the JVM environment respectively from the operation system.
-          scriptLevel.currdir = new File("").getAbsoluteFile();  
-          scriptLevel.sCurrdir = FileSystem.getCanonicalPath(scriptLevel.currdir);
-        } else if(sCurrdirArg !=null) {
-          scriptLevel.changeCurrDir(sCurrdirArg);
-        }
-        if(srcVariables !=null){
-          for(Map.Entry<String, DataAccess.Variable<Object>> entry: srcVariables.entrySet()){
-            DataAccess.Variable<Object> var = entry.getValue();
-            DataAccess.createOrReplaceVariable(scriptLevel.localVariables, var.name(), var.type(), var.value(), var.isConst());
-          }
-        }
-        //do not replace variables which are set from outside.
-        //if(scriptLevel.localVariables.get("error") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "error", 'A', accessError, true); }
-        if(scriptLevel.localVariables.get("console") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "console", 'O', log, true); }
-        //DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nrElementInContainer", 'O', null);
-        if(scriptLevel.localVariables.get("out") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "out", 'A', System.out, true); }
-        if(scriptLevel.localVariables.get("err") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "err", 'A', System.err, true); }
-        if(scriptLevel.localVariables.get("null") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
-        //if(scriptLevel.localVariables.get("") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
-        //if(scriptLevel.localVariables.get("jbat") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jbat", 'O', this, true); }
-        //if(scriptLevel.localVariables.get("zgen") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "zgen", 'O', this, true); }
-        if(scriptLevel.localVariables.get("jzcmd") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jzcmd", 'O', this, true); }
-        //if(scriptLevel.localVariables.get("file") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "file", 'O', new FileSystem(), true); }
-        if(scriptLevel.localVariables.get("test") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new JZcmdTester(), true); }
-        if(scriptLevel.localVariables.get("conv") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "conv", 'O', new Conversion(), true); }
-        DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "Math", 'C', Class.forName("java.lang.Math"), true);
-        DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "System", 'C', Class.forName("java.lang.System"), true);
-        DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "FileSystem", 'C', Class.forName("org.vishia.util.FileSystem"), true);
-        DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "StringFunctions", 'C', Class.forName("org.vishia.util.StringFunctions"), true);
-        File filescript = genScriptPar.fileScript;
-        if(scriptLevel.localVariables.get("scriptfile") == null && filescript !=null) { 
-          String scriptfile = filescript.getName();
-          DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "scriptfile", 'S', scriptfile, true);
-          CharSequence scriptdir = FileSystem.normalizePath(FileSystem.getDir(filescript));
-          //File dirscript = FileSystem.getDirectory(filescript).getCanonicalFile();
-          DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "scriptdir", 'S', scriptdir, true);
-        }
-        if(scriptLevel.localVariables.get("nextNr") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextNr", 'O', new NextNr(), true); }
-        Method mCurrdir = getClass().getMethod("nextNr");
-        DataAccess.ObjMethod objMethod = new DataAccess.ObjMethod(mCurrdir, this);
-        DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextnr", 'M', objMethod, true);
-        //
-      } catch(IllegalAccessException exc){
-        throw new ScriptException("JZcmdExecuter.genScriptVariable - IllegalAccessException; " + exc.getMessage());
-      } catch(Exception exc){
-        throw new ScriptException("JZcmdExecuter.genScriptVariable - unexpected exception; " + exc.getMessage());
-      }
-      //generate all variables in this script:
-      short ret;
-      ret = scriptLevel.execute(genScriptPar.scriptClass, null, 0, scriptLevel.localVariables, -1);
-      if(ret == kException){
-        throw new ScriptException(scriptThread.exception.getMessage(), scriptThread.excSrcfile, scriptThread.excLine, scriptThread.excColumn);
-      }
-      //setCurrdirScript(sCurrdirArg);
-      return scriptLevel.localVariables;
-    }
 
     private IndexMultiTable<String, DataAccess.Variable<Object>> new_Variables(){
       return new IndexMultiTable<String, DataAccess.Variable<Object>>(IndexMultiTable.providerString);
@@ -521,6 +422,37 @@ public class JZcmdExecuter {
   private static CharSequence retException = new String("Exception");
   
   
+  /**This is an instance used as marker for {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)}
+   * for the argument args to use the script level in the sub routine variable instead.  
+   */
+  public static Map<String, DataAccess.Variable<Object>> useScriptLevel = new Map<String, DataAccess.Variable<Object>>(){
+
+    @Override public int size(){  return 0; }
+
+    @Override public boolean isEmpty() { return true; }
+
+    @Override public boolean containsKey(Object key) {  return false; }
+
+    @Override public boolean containsValue(Object value) { return false; }
+
+    @Override public Variable<Object> get(Object key) { return null; }
+
+    @Override public Variable<Object> put(String key, Variable<Object> value) { return null; }
+
+    @Override public Variable<Object> remove(Object key) { return null; }
+
+    @Override public void putAll(Map<? extends String, ? extends Variable<Object>> m) {}
+   
+    @Override public void clear() { }
+
+    @Override public Set<String> keySet() { return null; }
+
+    @Override public Collection<Variable<Object>> values() { return null; }
+
+    @Override public Set<java.util.Map.Entry<String, Variable<Object>>> entrySet() { return null; }
+    
+  };
+  
   /**Creates a JZcmdExecuter with possible writing exceptions in the output text.
    * 
    * @param log maybe null
@@ -530,42 +462,132 @@ public class JZcmdExecuter {
   }
   
   
-  /**Creates a JZcmdExecuter with possible writing exceptions in the output text.
-   */
-  public JZcmdExecuter(){
-    MainCmdLogging_ifc log = MainCmd.getLogging_ifc();  //maybe started with MainCmd
-    if(log == null){
-      log = new MainCmdLoggingStream(System.out);
+/**Creates a JZcmdExecuter with possible writing exceptions in the output text.
+ */
+public JZcmdExecuter(){
+  MainCmdLogging_ifc log = MainCmd.getLogging_ifc();  //maybe started with MainCmd
+  if(log == null){
+    log = new MainCmdLoggingStream(System.out);
+  }
+  acc = new JZcmd(log, this);
+}
+
+  
+/**Initializes the standard script variables and maybe executes the script level. All content before is removed.
+ * Especially script variables from a previous usage of the instance are removed.
+ * If you want to use a JZcmdExecuter more as one time with different scripts
+ * but with the same script variables, one should call this routine one time on start,
+ * and then {@link #execute(JZcmdScript, boolean, boolean, Appendable)} with maybe several scripts,
+ * which should not contain script variables, or one should call 
+ * {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable)}
+ * with one of the subroutines in the given script.
+ * 
+ * @param genScriptArg Generation script in java-prepared form. It contains the building prescript
+ *   for the script variables.
+ * @param accessPrivate decision whether private and protected members from Java instances can be accessed.   
+ * @param srcVariables
+ * @param sCurrdir
+ * @param bExecuteScriptLevel
+ * @throws ScriptException
+ */
+public void initialize
+( JZcmdScript script
+, boolean accessPrivate
+, Map<String, DataAccess.Variable<Object>> srcVariables
+, CharSequence sCurrdirArg
+) 
+throws ScriptException //, IllegalAccessException
+{ 
+  acc.scriptLevel.localVariables.clear();
+  acc.bAccessPrivate = accessPrivate;
+  acc.jzcmdScript = script;
+  ExecuteLevel scriptLevel = acc.scriptLevel;
+  acc.bAccessPrivate = accessPrivate;
+  try{
+    if(sCurrdirArg == null && scriptLevel.currdir == null){
+      //get from the JVM environment respectively from the operation system.
+      scriptLevel.currdir = new File("").getAbsoluteFile();  
+      scriptLevel.sCurrdir = FileSystem.getCanonicalPath(scriptLevel.currdir);
+    } else if(sCurrdirArg !=null) {
+      scriptLevel.changeCurrDir(sCurrdirArg);
     }
-    acc = new JZcmd(log, this);
+    if(srcVariables !=null){
+      for(Map.Entry<String, DataAccess.Variable<Object>> entry: srcVariables.entrySet()){
+        DataAccess.Variable<Object> var = entry.getValue();
+        DataAccess.createOrReplaceVariable(scriptLevel.localVariables, var.name(), var.type(), var.value(), var.isConst());
+      }
+    }
+    //do not replace variables which are set from outside.
+    //if(scriptLevel.localVariables.get("error") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "error", 'A', accessError, true); }
+    if(scriptLevel.localVariables.get("console") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "console", 'O', acc.log, true); }
+    //DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nrElementInContainer", 'O', null);
+    if(scriptLevel.localVariables.get("out") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "out", 'A', System.out, true); }
+    if(scriptLevel.localVariables.get("err") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "err", 'A', System.err, true); }
+    if(scriptLevel.localVariables.get("null") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
+    if(scriptLevel.localVariables.get("jzcmd") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jzcmd", 'O', acc, true); }
+    //if(scriptLevel.localVariables.get("file") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "file", 'O', new FileSystem(), true); }
+    if(scriptLevel.localVariables.get("test") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new JZcmdTester(), true); }
+    if(scriptLevel.localVariables.get("conv") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "conv", 'O', new Conversion(), true); }
+    DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "Math", 'C', Class.forName("java.lang.Math"), true);
+    DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "System", 'C', Class.forName("java.lang.System"), true);
+    DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "FileSystem", 'C', Class.forName("org.vishia.util.FileSystem"), true);
+    DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "StringFunctions", 'C', Class.forName("org.vishia.util.StringFunctions"), true);
+    if(scriptLevel.localVariables.get("nextNr") == null){DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextNr", 'O', new NextNr(), true); }
+    Method mCurrdir = acc.getClass().getMethod("nextNr");
+    DataAccess.ObjMethod objMethod = new DataAccess.ObjMethod(mCurrdir, acc);
+    DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextnr", 'M', objMethod, true);
+    //
+  } catch(IllegalAccessException exc){
+    throw new ScriptException("JZcmdExecuter.genScriptVariable - IllegalAccessException; " + exc.getMessage());
+  } catch(Exception exc){
+    throw new ScriptException("JZcmdExecuter.genScriptVariable - unexpected exception; " + exc.getMessage());
   }
+  if(script !=null) {
+    //generate all variables in this script:
+    executeScriptLevel(script, sCurrdirArg);
+  }
+  //setCurrdirScript(sCurrdirArg);
+  //return scriptLevel.localVariables;
+}
+
   
   
-  /**Initializes, especially generate all script variables. All content before is removed.
-   * Especially script variables from a previous usage of the instance are removed.
-   * If you want to use a JZcmdExecuter more as one time with different scripts
-   * but with the same script variables, one should call this routine one time on start,
-   * and then {@link #execute(JZcmdScript, boolean, boolean, Appendable)} with maybe several scripts,
-   * which should not contain script variables, or one should call 
-   * {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable)}
-   * with one of the subroutines in the given script.
-   * 
-   * @param genScriptPar Generation script in java-prepared form. It contains the building prescript
-   *   for the script variables.
-   * @param accessPrivate decision whether private and protected members from Java instances can be accessed.   
-   * @throws Throwable 
-   * @throws SecurityException not expected
-   * @throws NoSuchMethodException not expected 
-   */
-  public void initialize
-      ( JZcmdScript genScriptArg
-      , boolean accessPrivate
-      , Map<String, DataAccess.Variable<Object>> srcVariables
-      , String sCurrdir
-      ) 
-  throws ScriptException
-  { acc.initialize(genScriptArg, accessPrivate, srcVariables, sCurrdir);
+/**Stores the script and executes the script level to generate the script level variables. , especially the script variables were calculated yet. 
+ * That is done in {@link #initialize(JZcmdScript, boolean, Map, String)} with null as script.
+ * Only if {@link #initialize(JZcmdScript, boolean, Map, String, boolean)} with bExecuteScriptLevel = false was called
+ * this method should be used. For example the script level can be used to {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)}
+ * for a sub routine which does not use script level variables, for example to set parameter.
+ * Note: The standard script variables are set with {@link #initialize(JZcmdScript, boolean, Map, String, boolean)} already.
+ * 
+ * @param script The given script
+ * @throws ScriptException
+ */
+public void  executeScriptLevel(JZcmdScript script, CharSequence sCurrdir) throws ScriptException //, IllegalAccessException
+{ if(acc.scriptLevel.localVariables.size()==0) {
+    //generates all standard variables.
+    initialize(null, false, null, sCurrdir);
+  } else if(sCurrdir !=null) {
+    try{ acc.scriptLevel.changeCurrDir(sCurrdir);
+    } catch(IllegalAccessException exc) { throw new ScriptException(exc); }
   }
+
+  File filescript = script.fileScript;
+  if(/*acc.scriptLevel.localVariables.get("scriptfile") == null && */filescript !=null) { 
+    String scriptfile = filescript.getName();
+    CharSequence scriptdir = FileSystem.normalizePath(FileSystem.getDir(filescript));
+    //File dirscript = FileSystem.getDirectory(filescript).getCanonicalFile();
+    try {
+      DataAccess.createOrReplaceVariable(acc.scriptLevel.localVariables, "scriptfile", 'S', scriptfile, true);
+      DataAccess.createOrReplaceVariable(acc.scriptLevel.localVariables, "scriptdir", 'S', scriptdir, true);
+    } catch(IllegalAccessException exc) {
+      throw new ScriptException(exc);
+    }
+  }
+  short ret = acc.scriptLevel.execute(acc.jzcmdScript.scriptClass, null, 0, acc.scriptLevel.localVariables, -1);
+  if(ret == kException){
+    throw new ScriptException(acc.scriptThread.exception.getMessage(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
+  }
+} 
   
   /**Returns the association to all script variables. The script variables can be changed
    * via this association. Note that change of script variables is a global action, which should not
@@ -575,7 +597,7 @@ public class JZcmdExecuter {
   
   /**Returns the script level instance. This instance is created with the constructor of this class (a composite).
    * The {@link ExecuteLevel#localVariables} of the script level are the script variables. 
-   * They are filled with the given script on call of {@link #initialize(JZcmdScript, boolean, Map, String)}
+   * They are filled with the given script on call of {@link #initialize(JZcmdScript, boolean, Map, String, boolean)}
    * or if {@link #execute(JZcmdScript, boolean, boolean, Appendable, String)} was called.
    */
   public ExecuteLevel scriptLevel(){ return acc.scriptLevel; }
@@ -609,14 +631,13 @@ public class JZcmdExecuter {
     , Appendable out
     , String sCurrdir
     ) 
-  throws ScriptException //Exception, IllegalAccessException, Throwable
+  throws ScriptException //, IllegalAccessException //, Throwable
   { acc.bAccessPrivate = accessPrivate;
     //this.data = userData;
-    acc.jzcmdScript = genScriptP;
     short ret;
     //try
     {
-      if(out !=null) {
+    if(out !=null) {
         //create a textline formatter without newline control but with out as output. Default size is 200, will be increased on demand.
         boolean bShouldClose = !(out == System.out) && out instanceof Closeable;
         //NOTE: never close System.out.
@@ -626,10 +647,15 @@ public class JZcmdExecuter {
       try{
         acc.setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
       } catch(IllegalAccessException exc){ throw new ScriptException("JZcmd.executer - IllegalAccessException; " + exc.getMessage()); }
-      if(!bScriptVariableGenerated){
-        acc.genScriptVariables(acc.jzcmdScript, accessPrivate, null, sCurrdir);
+      if(acc.jzcmdScript == null){
+        executeScriptLevel(genScriptP, sCurrdir);
         bScriptVariableGenerated = true;
+      } else if(sCurrdir !=null) {
+        try {acc.scriptLevel.changeCurrDir(sCurrdir);
+        } catch(IllegalAccessException exc) { throw new ScriptException(exc); }
       }
+
+      acc.jzcmdScript = genScriptP;
       //needs all scriptVariable:
       ExecuteLevel execFile = new ExecuteLevel(acc, acc.jzcmdScript.scriptClass, acc.scriptThread, acc.scriptLevel, null);
       if(acc.jzcmdScript.checkJZcmdXmlFile !=null) {
@@ -701,6 +727,19 @@ public class JZcmdExecuter {
   }
 
   
+  
+public Map<String, DataAccess.Variable<Object>> execSub(JZcmdScript script, String name, Map<String, DataAccess.Variable<Object>> args
+  , boolean accessPrivate, Appendable out, File currdir) 
+throws ScriptException //Throwable
+{ JZcmdScript.Subroutine statement = script.getSubroutine(name);
+  if(acc.jzcmdScript !=null && acc.jzcmdScript != script) throw new ScriptException("execSub(script, name,...) should be invoked without a set script or with the same script.");
+  acc.jzcmdScript = script;
+  return execSub(statement, args, accessPrivate, out, currdir);
+}
+  
+  
+  
+  
   /**Executes the given sub routine invoked from any user application. 
    * The script variables are used from a {@link #initialize(JZcmdScript, boolean)}
    * or one of the last {@link #execute(JZcmdScript, boolean, boolean, Appendable)}.
@@ -708,29 +747,41 @@ public class JZcmdExecuter {
    * All of the script variables are known in the subroutine. Additional the args are given.
    * The time measurements {@link #startmilli} and {@link #startnano} starts newly.
    * @param statement The subroutine in the script.
-   * @param args Some variables which are stored as argument values.
+   * @param args Some variables which are stored as argument values. Use {@link #useScriptLevel} to advertise that no extra level should be used.
+   *   Then all changed and created variables are part of the script level.
    * @param accessPrivate
    * @param out Any output for text generation using <code><+>text output<.>. 
    *   It is used also for direct text output <:>text<.>.
    * @param currdir if not null, then this directory is used as {@link ExecuteLevel#changeCurrDir(CharSequence)} for this subroutine.
-   * @return
+   * @return the variables of this subroutine. If args is not {@link #useScriptLevel} then this variables are a copy of the script variables, maybe changed,
+   *   additional the args and all variables which are created in the sub routine. If args == {@link #useScriptLevel} than it are the variables of the script level.
    * @throws Throwable 
    * @throws IOException
    */
-  public String execSub(JZcmdScript.Subroutine statement, Map<String, DataAccess.Variable<Object>> args
+  public Map<String, DataAccess.Variable<Object>> execSub(JZcmdScript.Subroutine statement, Map<String, DataAccess.Variable<Object>> args
       , boolean accessPrivate, Appendable out, File currdir) 
-  throws Throwable
+  throws ScriptException //Throwable
   {
+    if(acc.jzcmdScript == null) throw new IllegalArgumentException("jzcmdScript missing, you should invoke \"initialize(script, false, null, null);\" before call execSub(...)");
     if(out !=null) {
       StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
       acc.textline = outFormatter;
-      acc.setScriptVariable("text", 'A', out, true);
+      try{ acc.setScriptVariable("text", 'A', out, true);
+      } catch(IllegalAccessException exc) { throw new ScriptException(exc); }
     }
-    ExecuteLevel level = new ExecuteLevel(acc, acc.jzcmdScript.scriptClass, acc.scriptThread, acc.scriptLevel, null);
-    //The args should be added to the localVariables of the subroutines level:
-    level.localVariables.putAll(args);
+    final ExecuteLevel level;
+    if(args == useScriptLevel) {
+      level = acc.scriptLevel;
+    } else {
+      level = new ExecuteLevel(acc, acc.jzcmdScript.scriptClass, acc.scriptThread, acc.scriptLevel, null);
+      //The args should be added to the localVariables of the subroutines level:
+      if(args !=null) {
+        level.localVariables.putAll(args);
+      }
+    }
     if(currdir !=null){
-      level.changeCurrDir(currdir.getPath());
+      try { level.changeCurrDir(currdir.getPath());
+      } catch(IllegalAccessException exc) { throw new ScriptException(exc); }
     }
     //Executes the statements of the sub routine:
     acc.startmilli = System.currentTimeMillis();
@@ -747,7 +798,7 @@ public class JZcmdExecuter {
       //wrong: throw acc.scriptThread.exception;
       throw new ScriptException(acc.scriptThread.exception.getMessage(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
     }
-    return null;
+    return level.localVariables;
   }
   
   
@@ -2372,7 +2423,7 @@ public class JZcmdExecuter {
         DataAccess.Dst dstField = new DataAccess.Dst();
         //List<DataAccess.DatapathElement> datapath = assignObj1.datapath(); 
         //Object dst = DataAccess.access(datapath, null, localVariables, acc.bAccessPrivate, false, true, dstField);
-        Object dst = dataAccess(assignObj1,localVariables, jzcmd.bAccessPrivate, false, true, dstField);
+        Object dst = dataAccess(assignObj1, localVariables, jzcmd.bAccessPrivate, false, true, dstField);
         if(dst instanceof DataAccess.Variable<?>){
           @SuppressWarnings("unchecked")
           DataAccess.Variable<Object> var = (DataAccess.Variable<Object>) dst; //assignObj1.accessVariable(localVariables, acc.bAccessPrivate);
