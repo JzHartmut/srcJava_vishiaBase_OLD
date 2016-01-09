@@ -45,6 +45,7 @@ public class JZcmdScript extends CompiledScript
    * 
    * <ul>
    * <li>2016-01-09 Hartmut new: {@link DefContainerVariable}: A List is accepted as container for constant elements now, changed in {@link org.vishia.zcmd.JZcmdSyntax}.
+   *   DefSubtext now supported.
    * <li>2015-12-12 Hartmut chg: {@link StatementList#new_hasNext()} returns a {@link StatementList} instead {@link JZcmditem}
    *   because there may be not only one const text element between <:hasNext>...<.hasNext>. No change in the {@link JZcmdExecuter} necessary. 
    * <li>2015-08-30 Hartmut chg: The functionality to remove indentation is moved from JZcmdExecuter 
@@ -163,6 +164,8 @@ public class JZcmdScript extends CompiledScript
   
   final Map<String, Subroutine> subroutinesAll = new TreeMap<String, Subroutine>();
   
+  final Map<String, JZcmdClass> classesAll = new IndexMultiTable<String, JZcmdClass>(IndexMultiTable.providerString);
+  
   
   
   /**The script element for the whole file. It shall contain calling of <code><*subtext:name:...></code> 
@@ -239,6 +242,8 @@ public class JZcmdScript extends CompiledScript
   
   
   public Subroutine getSubroutine(CharSequence name){ return subroutinesAll.get(name.toString()); }
+  
+  public JZcmdClass getClass(CharSequence name){ return classesAll.get(name); }
   
   
   public void writeStruct(Appendable out) throws IOException{
@@ -2714,6 +2719,10 @@ public class JZcmdScript extends CompiledScript
     public void add_subClass(JZcmdClass val){ 
       if(classes == null){ classes = new ArrayList<JZcmdClass>(); }
       classes.add(val); 
+      String sName = val.cmpnName;
+      String nameGlobal = cmpnName == null ? sName : cmpnName + "." + sName;
+      classesAll.put(nameGlobal, val); 
+   
     }
     
     public Subroutine new_subroutine(){ return new Subroutine(this); }

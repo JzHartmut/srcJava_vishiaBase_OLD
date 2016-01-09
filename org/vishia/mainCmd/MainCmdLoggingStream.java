@@ -76,7 +76,7 @@ public class MainCmdLoggingStream implements MainCmdLogging_ifc
   private PrintStream printStream; 
   
   /**This variable determines which level is output. See {@link MainCmdLogging_ifc#fineDebug} etc.*/
-  int reportLevel = MainCmdLogging_ifc.debug;
+  int reportLevel = MainCmdLogging_ifc.info;
   
   /**Create with given output stream, or empty.
    * @param out may be null, use {@link #openReportfile(String, boolean)} than.
