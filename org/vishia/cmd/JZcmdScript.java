@@ -20,6 +20,7 @@ import org.vishia.util.Debugutil;
 import org.vishia.util.FilePath;
 import org.vishia.util.FileSet;
 import org.vishia.util.GetTypeToUse;
+import org.vishia.util.IndexMultiTable;
 import org.vishia.util.SetLineColumn_ifc;
 import org.vishia.util.StringFunctions;
 import org.vishia.util.StringFunctions_B;
@@ -43,6 +44,7 @@ public class JZcmdScript extends CompiledScript
   /**Version, history and license.
    * 
    * <ul>
+   * <li>2016-01-09 Hartmut new: {@link DefContainerVariable}: A List is accepted as container for constant elements now, changed in {@link org.vishia.zcmd.JZcmdSyntax}.
    * <li>2015-12-12 Hartmut chg: {@link StatementList#new_hasNext()} returns a {@link StatementList} instead {@link JZcmditem}
    *   because there may be not only one const text element between <:hasNext>...<.hasNext>. No change in the {@link JZcmdExecuter} necessary. 
    * <li>2015-08-30 Hartmut chg: The functionality to remove indentation is moved from JZcmdExecuter 
@@ -374,9 +376,14 @@ public class JZcmdScript extends CompiledScript
 
     
     private void checkEmpty() {
-      if(statementlist != null || dataAccess != null || expression != null || textArg != null) {
+      if(!isEmpty()) {
         throw new IllegalArgumentException("JZcmdItem with more as one content type.");
       }
+    }
+    
+    
+    protected boolean isEmpty() {
+      return statementlist == null && dataAccess == null && expression == null && textArg == null;
     }
     
     
@@ -612,6 +619,9 @@ public class JZcmdScript extends CompiledScript
           case '9': u.append(" mkdir "); break;
           case ':': u.append(" <:> ... <.>"); break;
           case '!': u.append(" flush "); break;
+          case '{': u.append(" statements "); break;
+          case '[': u.append(" List-container "); break;
+          case '*': u.append(" Map-container "); break;
           case '_': u.append(" close "); break;
           case ' ': u.append(" skipWhitespace "); break;
           case ',': u.append(" errortoOutput "); if(textArg == null){ u.append("off "); } break;
@@ -1102,8 +1112,8 @@ public class JZcmdScript extends CompiledScript
     public JZcmdDataAccess new_defVariable(){ return new JZcmdDataAccess(); }
     
     public void add_defVariable(JZcmdDataAccess val){   
-      int whichStatement =     "SPULOKQWMCJFG".indexOf(elementType);
-      char whichVariableType = "SPULOKQAMCJFG".charAt(whichStatement);  //from elementType to variable type.
+      int whichStatement =     "SPULOKQWMCJFG*{[\0".indexOf(elementType);
+      char whichVariableType = "SPULOKQAMCJFG*{[\0".charAt(whichStatement);  //from elementType to variable type.
       if(bConst){
         whichVariableType = Character.toLowerCase(whichVariableType);  //see DataAccess.access
       }
@@ -1146,6 +1156,141 @@ public class JZcmdScript extends CompiledScript
   
   
   
+  
+  
+  
+  /**It is a List, either as constant container or as any java.util.List-instance.
+   * <ul>
+   * <li>The variable name is stored in the super class {@link DefVariable#defVariable}.
+   * <li>A constant container is contained in {@link #elements}. If the Zbnf: <?element> was found, then a Map in {@link #element} is created and added to {@link #elements}.
+   * <li>If a Zbnf: <$?name> was found, it is stored only yet. If a Zbnf: <<""?text> was found, then the text with the name is added to the element.
+   * <li>If a Zbnf <?element> was not found, then a <$?name> or <""?text> cannot be found because syntax.
+   * <li>If a < objExpr?> was found, it is stored in {@link JZcmditem#expression} etc. like other variable definitions.
+   * </ul>  
+   */
+  public static class DefContainerVariable extends DefVariable
+  {
+    
+    //ArrayList<Map<String, String>> elements;
+    
+    boolean bFirst = true;
+  
+    DefContainerVariable(StatementList parentList, char whatIsit)
+    {
+      super(parentList, whatIsit);
+    }
+    
+    
+    /**From Zbnf: <?element>. Creates an {@link IndexMultiTable} in {@link #element} and adds it to {@link #elements}.
+     * @return this
+     */
+    public DefListElement new_element(){  
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      return new DefListElement();
+    }
+    
+    public void add_element(DefListElement val){ 
+      statementlist.statements.add(val);
+    }
+    
+    public DefVariable new_textVariable(){ 
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      return new DefVariable(parentList, 'S');    
+    }
+   
+    public void add_textVariable(DefVariable val){
+      statementlist.statements.add(val);
+    }
+    
+    public DefVariable new_DefSubtext(){
+      return new DefVariable(statementlist, '\0');  ////
+    } 
+
+    public void add_DefSubtext(DefVariable val){ 
+      if(val.statementlist !=null) {
+        val.elementType = '{';  //a code block, statement block which should be executed on used time.
+      } else {
+        val.elementType = 'O';  //an expression which should be evaluated on build-time of the container
+      }
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.statements.add(val);  
+    }
+    
+    
+
+    
+    public JZcmditem new_objElement() {
+      if(bFirst && isEmpty()) { return this; //first objElement, the only one is the value which is the list.
+      } else {
+        if(bFirst) {
+          bFirst = false;
+          //it is the second invocation
+          JZcmditem element1 = new JZcmditem(statementlist, '\0');
+          element1.dataAccess = this.dataAccess; this.dataAccess = null;
+          element1.textArg = this.textArg; this.textArg = null;
+          element1.expression = this.expression; this.expression = null;
+          element1.statementlist = this.statementlist; 
+          statementlist = new StatementList(this);
+          statementlist.statements.add(element1);  //add the copied first content.
+        }    
+        JZcmditem element = new JZcmditem(statementlist, '\0');
+        return element;
+      }
+    }
+    
+    public void add_objElement(JZcmditem val) {
+      if(val !=this) {
+        statementlist.statements.add(val);
+      } //else: this is the first or only one. It is the initial value for the list.
+    }
+    
+  }
+  
+  
+  
+  
+  /**A list element is a statement in the {@link JZcmditem#statementlist} of the {@link DefContainerVariable} item.
+   * It can be a DefVariable 
+   */
+  public static class DefListElement extends DefVariable
+  {
+    //private Map<String, String> element;
+    
+    /**From Zbnf: stores the name for an element. */
+    //public String elementName;
+    
+  
+    DefListElement(){
+      super(null, '\0');  //'*'
+    }
+    
+    public StatementList new_dataSet() {
+      //element = new IndexMultiTable<String, String>(IndexMultiTable.providerString);
+      super.elementType = '*';
+      return super.statementlist = new StatementList(this);
+    }
+
+    
+    public void add_dataSet(StatementList val) { }
+    
+    
+    public DefVariable XXXnew_textVariable(){ 
+      super.elementType = 'S';
+      return this; 
+    }
+    
+    public void XXXadd_textVariable(DefVariable val){}
+    
+    /**Puts a new element with previous stored {@link #elementName}.
+     * @param text
+     */
+    public void XXXset_elementText(String text) {
+      //element.put(elementName, text); 
+    }
+    
+    
+    
+  }
   
   public static class DefClassVariable extends DefVariable
   {
@@ -2052,12 +2197,12 @@ public class JZcmdScript extends CompiledScript
         
     /**Defines a variable which is able to use as container.
      */
-    public DefVariable new_List(){ 
+    public DefContainerVariable new_List(){ 
       bContainsVariableDef = true; 
-      return new DefVariable(this, 'L'); 
+      return new DefContainerVariable(this, 'L'); 
     } 
 
-    public void add_List(DefVariable val){ statements.add(val);  onerrorAccu = null; withoutOnerror.add(val);}
+    public void add_List(DefContainerVariable val){ statements.add(val);  onerrorAccu = null; withoutOnerror.add(val);}
     
     /**Defines a variable which is able to use as container.
      */

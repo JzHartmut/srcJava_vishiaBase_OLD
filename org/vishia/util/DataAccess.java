@@ -89,6 +89,8 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2016-01-09 Hartmut bugfix: {@link #access(CharSequence, Object, boolean, boolean, boolean, Dst)} has dissolved a {@link Variable} twice,
+   *   problem if a variable contains a Variable as value. The access <&myVariable.name> was faulty. Not it works. 
    * <li>2015-05-17 Hartmut new: conversion routines {@link #shortFromUnsignedByte(byte)} and {@link #intFromUnsignedShort(short)}.
    * <li>2015-05-17 Hartmut chg: Messages if methods not found.
    * <li>2014-10-19 Hartmut bugfix: {@link #invokeStaticMethod(DatapathElement)} with variable argument list but only 1 argument
@@ -203,7 +205,7 @@ public class DataAccess {
    * 
    * 
    */
-  static final public String sVersion = "2015-05-17";
+  static final public String sVersion = "2016-01-09";
 
 
   private static final Class<?> ifcMainCmdLogging_ifc = getClass("org.vishia.mainCmd.MainCmdLogging_ifc");
@@ -886,7 +888,7 @@ public class DataAccess {
           } else {
             if(data1 !=null){
               //retain a Variable.
-              data1 = getData(element.ident, data1, accessPrivate, bContainer, true /*bVariable*/, dst);
+              data1 = getDataPriv(element.ident, data1, accessPrivate, bContainer, true /*bVariable*/, dst);
             }
           }
         } break;
@@ -941,7 +943,7 @@ public class DataAccess {
             data1 = getDataFromField(element.ident, null, accessPrivate, (Class<?>)data1, dst, 0); 
           } else {
             if(data1 !=null){
-              data1 = getData(element.ident, data1, accessPrivate, bContainer, bVariable, dst);
+              data1 = getDataPriv(element.ident, data1, accessPrivate, bContainer, bVariable, dst);
             }
           }
         }//default
@@ -1490,30 +1492,60 @@ public class DataAccess {
       , boolean bVariable
       , Dst dst) 
   throws NoSuchFieldException, IllegalAccessException
-  {
-    final Object instance1;
-    Object data1 = null;
+  {     final Object instance1;
     if(instance instanceof Variable<?>){
       @SuppressWarnings("unchecked") Variable<Object> var = (Variable<Object>)instance;
       instance1 = var.value;  
     } else {
       instance1 = instance;
     }
+    return getDataPriv(name, instance1, accessPrivate, bContainer, bVariable, dst);
+  }
+  
+  
+  
+  
+  
+  
+  
+  /**It does not resolve the instance if it is a Variable
+   * @param name
+   * @param instance
+   * @param accessPrivate
+   * @param bContainer
+   * @param bVariable
+   * @param dst
+   * @return
+   * @throws NoSuchFieldException
+   * @throws IllegalAccessException
+   */
+  private static Object getDataPriv(
+      String name
+      , Object instance
+      , boolean accessPrivate
+      , boolean bContainer
+      , boolean bVariable
+      , Dst dst) 
+  throws NoSuchFieldException, IllegalAccessException
+  {
+    if(name.equals("cell"))
+      Debugutil.stop();
+    Object data1 = null;
     if(name.equals("[]")) {
-      if(instance1 instanceof Object[]){
-        return new Integer(((Object[])instance1).length);
-      } else if(instance1 instanceof Collection) {
-        return new Integer(((Collection<?>)instance1).size());
-      } else if(instance1 instanceof Map) {
-        return new Integer(((Map<?,?>)instance1).size());
+      if(instance instanceof Object[]){
+        return new Integer(((Object[])instance).length);
+      } else if(instance instanceof Collection) {
+        return new Integer(((Collection<?>)instance).size());
+      } else if(instance instanceof Map) {
+        return new Integer(((Map<?,?>)instance).size());
       } else {
         throw new IllegalArgumentException("is not a container or array, " + name);
       }
-    } else if(instance1 instanceof Map<?, ?>){
+    } else if(instance instanceof Map<?, ?>){
       @SuppressWarnings("unchecked")
       //Note: on runtime the generic type of map can be set in any case because it is unknown.
       //Try to store that type, 
-      Map<String, Object> map = (Map<String,Object>)instance1;
+      Map<String, Object> map = (Map<String,Object>)instance;
       data1 = map.get(name);
       if(data1 == null){
         if(!map.containsKey(name)){ //checks whether this key with value null is stored.
@@ -1529,11 +1561,11 @@ public class DataAccess {
       */
     } else {
       try{
-        data1 = getDataFromField(name, instance1, accessPrivate, dst);
+        data1 = getDataFromField(name, instance, accessPrivate, dst);
       }catch(NoSuchFieldException exc){
         //NOTE: if it is a TreeNodeBase, first search a field with the name, then search in data
-        if(instance1 instanceof TreeNodeBase<?,?,?>){
-          TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)instance1;
+        if(instance instanceof TreeNodeBase<?,?,?>){
+          TreeNodeBase<?,?,?> treeNode = (TreeNodeBase<?,?,?>)instance;
           if(bContainer){ data1 = treeNode.listChildren(name); }
           else { data1 = treeNode.getChild(name); }  //if more as one element with that name, select the first one.
           if(data1 == null){
