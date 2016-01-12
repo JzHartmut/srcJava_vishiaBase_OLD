@@ -5,6 +5,7 @@ public class StringFunctions_B
   
   /**Version, history and license.
    * <ul>
+   * <li>2016-01-10 Hartmut new: {@link #checkSameChars(CharSequence...)} 
    * <li>2015-11-07 Hartmut created: The functionality to remove indentation was used in JZcmdExecuter.
    *   Now it is implemented here for common usage.
    * </ul>
@@ -120,6 +121,37 @@ public class StringFunctions_B
     }      
   }
   
+  
+  
+  public static boolean checkSameChars(CharSequence ... src)
+  {
+    boolean ok = false;
+    CharSequence cmp = null;
+    for(CharSequence src1: src){   //search any of inputs where any key chars are contained:
+      if(src1.length()>0) { cmp = src1; break; }
+    }
+    
+    if(cmp == null) {
+      ok = true;  //no input with key chars, then ok.
+    } else {
+      for(int ix = 0; ix < cmp.length(); ++ix) {
+        char cTest = cmp.charAt(ix);
+        boolean bOk1 = true;
+        for(CharSequence src1: src) {
+          if(  src1.length() >0      //contains any key 
+            && StringFunctions.indexOf(src1, cTest) < 0) {  //this is not a common key
+            bOk1 = false;           //then break;
+            break;
+          }
+        }
+        if(bOk1) {  //a key found at all:
+          ok = true; break;  //then it is ok.
+        }
+      }
+    }
+    //all checked, not found, then ok is false.
+    return ok;
+  }
   
   
 }

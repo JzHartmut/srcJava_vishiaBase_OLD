@@ -50,6 +50,7 @@ public class StringPartScan extends StringPart
 {
   /**Version, history and license.
    * <ul>
+   * <li>2016-01-10 Hartmut bugfix: {@link #scanFractionalNumber(long)} has had a problem with negative numbers.  
    * <li>2014-12-12 Hartmut chg: Comment: {@link #scanOk()} cannot used nested! It should only used on user level. 
    *   Elsewhere the scan start position is erratic changed. Don't use it in {@link #scanFloatNumber()}. 
    * <li>2014-12-06 Hartmut new: {@link #scanFractionalNumber(long)} enables scanning first an integer, then check whether
@@ -507,6 +508,9 @@ public class StringPartScan extends StringPart
           { fFrac /= 10.0; 
           }
           fFrac /= nDivisorFract;    //number of 0 after . until first digit.
+          if(result < 0) {
+            fFrac = -fFrac;  //Should be subtract if integer part is negative!
+          }
           result += fFrac;
         }
         if(nExponent != 0)

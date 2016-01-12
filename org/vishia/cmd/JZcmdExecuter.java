@@ -561,10 +561,12 @@ throws ScriptException //, IllegalAccessException
 
   
   
-/**Stores the script and executes the script level to generate the script level variables. , especially the script variables were calculated yet. 
- * That is done in {@link #initialize(JZcmdScript, boolean, Map, String)} with null as script.
- * Only if {@link #initialize(JZcmdScript, boolean, Map, String, boolean)} with bExecuteScriptLevel = false was called
- * this method should be used. For example the script level can be used to {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)}
+/**Stores the script and executes the script level to generate the script level variables, especially the script variables were calculated yet. 
+ * The {@link #initialize(JZcmdScript, boolean, Map, CharSequence)} may had invoked before, then the standard variables are created already.
+ * Any additional user variable can be stored also. If the {@link ExecuteLevel#localVariables} are empty, 
+ * then {@link #initialize(JZcmdScript, boolean, Map, CharSequence)} is called with the script instead.
+ * <br><br>
+ * This method should be used. For example the script level can be used to {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)}
  * for a sub routine which does not use script level variables, for example to set parameter.
  * Note: The standard script variables are set with {@link #initialize(JZcmdScript, boolean, Map, String, boolean)} already.
  * 
@@ -572,13 +574,15 @@ throws ScriptException //, IllegalAccessException
  * @throws ScriptException
  */
 public void  executeScriptLevel(JZcmdScript script, CharSequence sCurrdir) throws ScriptException //, IllegalAccessException
-{ if(acc.jzcmdScript == null || acc.scriptLevel.localVariables.size()==0) {
+{ if(acc.scriptLevel.localVariables.size()==0) {  //acc.jzcmdScript == null || 
     //generates all standard variables.
-    initialize(script, false, null, sCurrdir);
-  } else if(sCurrdir !=null) {
+    initialize(null, false, null, null);
+  } 
+  if(sCurrdir !=null) {
     try{ acc.scriptLevel.changeCurrDir(sCurrdir);
     } catch(IllegalAccessException exc) { throw new ScriptException(exc); }
   }
+  checkScript(script);
 
   File filescript = script.fileScript;
   if(/*acc.scriptLevel.localVariables.get("scriptfile") == null && */filescript !=null) { 
@@ -680,20 +684,20 @@ public ExecuteLevel execute_Scriptclass(JZcmdScript.JZcmdClass clazz) throws Scr
    * @throws IllegalAccessException if a const scriptVariable are attempt to modify.
    */
   public void execute(
-      JZcmdScript genScriptP
-    , boolean accessPrivate
-    , boolean bWaitForThreads
-    , Appendable out
-    , String sCurrdir
-    ) 
+      JZcmdScript script
+      , boolean accessPrivate
+      , boolean bWaitForThreads
+      , Appendable out
+      , String sCurrdir
+      ) 
   throws ScriptException //, IllegalAccessException //, Throwable
-  { checkScript(genScriptP);
+  { boolean bScriptLevelShouldExecuted = checkScript(script);
     acc.bAccessPrivate = accessPrivate;
     //this.data = userData;
     short ret;
     //try
     {
-    if(out !=null) {
+      if(out !=null) {
         //create a textline formatter without newline control but with out as output. Default size is 200, will be increased on demand.
         boolean bShouldClose = !(out == System.out) && out instanceof Closeable;
         //NOTE: never close System.out.
@@ -703,68 +707,79 @@ public ExecuteLevel execute_Scriptclass(JZcmdScript.JZcmdClass clazz) throws Scr
       try{
         acc.setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
       } catch(IllegalAccessException exc){ throw new ScriptException("JZcmd.executer - IllegalAccessException; " + exc.getMessage()); }
-      if(sCurrdir !=null) {
-        try {acc.scriptLevel.changeCurrDir(sCurrdir);
-        } catch(IllegalAccessException exc) { throw new ScriptException(exc); }
-      }
-
-      //needs all scriptVariable:
-      ExecuteLevel execFile = new ExecuteLevel(acc, acc.jzcmdScript.scriptClass, acc.scriptThread, acc.scriptLevel, null);
-      if(acc.jzcmdScript.checkJZcmdXmlFile !=null) {
-        CharSequence sFilecheckXml;
-        try { sFilecheckXml = acc.scriptLevel.evalString(acc.jzcmdScript.checkJZcmdXmlFile);
-        } catch (Exception exc) { throw new ScriptException("JZcmd.execute - String eval error on checkJZcmd; "
-            , acc.jzcmdScript.checkJZcmdXmlFile.srcFile, acc.jzcmdScript.checkJZcmdXmlFile.srcLine, acc.jzcmdScript.checkJZcmdXmlFile.srcColumn ); 
-        }
-        SimpleXmlOutputter xmlOutputter = new SimpleXmlOutputter();
-        try{
-          OutputStreamWriter xmlWriter = new OutputStreamWriter(new FileOutputStream(sFilecheckXml.toString()));
-          xmlOutputter.write(xmlWriter, acc.jzcmdScript.xmlSrc);
-          xmlWriter.close();
-          acc.jzcmdScript.xmlSrc = null;  //can be garbaged.
-        } catch(IOException exc){ throw new ScriptException(exc); }
-      	
-      }
-      if(acc.jzcmdScript.checkJZcmdFile !=null){
-        CharSequence sFilecheck;
-        try { sFilecheck = execFile.evalString(acc.jzcmdScript.checkJZcmdFile);
-        } catch (Exception exc) { throw new ScriptException("JZcmd.execute - String eval error on checkJZcmd; "
-            , acc.jzcmdScript.checkJZcmdFile.srcFile, acc.jzcmdScript.checkJZcmdFile.srcLine, acc.jzcmdScript.checkJZcmdFile.srcColumn ); 
-        }
-        File filecheck = new File(sFilecheck.toString());
-        try{
-          Writer writer = new FileWriter(filecheck);
-          acc.jzcmdScript.writeStruct(writer);
-          writer.close();
-        } catch(IOException exc){ throw new ScriptException("JZcmd.execute - File error on checkJZcmd; " + filecheck.getAbsolutePath()); }
-      }
-      JZcmdScript.Subroutine mainRoutine = acc.jzcmdScript.getMain();
-      //return execute(execFile, contentScript, true);
-      acc.startmilli = System.currentTimeMillis();
-      acc.startnano = System.nanoTime();
-      if(mainRoutine !=null) {
-        ret = execFile.execute(mainRoutine.statementlist, acc.textline, 0, execFile.localVariables, -1);
+    }
+    if(sCurrdir !=null) {
+      try {acc.scriptLevel.changeCurrDir(sCurrdir);
+      } catch(IllegalAccessException exc) { throw new ScriptException(exc); }
+    }
+    
+    if(bScriptLevelShouldExecuted) {
+      //the script level is not executed yet. initilize is necessary only if localVariables.size() ==0
+      if(acc.scriptLevel.localVariables.size() == 0) {
+        initialize(script, false, null, null);
       } else {
-        System.out.println("JZcmdExecuter - main routine not found.");
-        ret = 0;
+        executeScriptLevel(script, null);
       }
-      if(bWaitForThreads){
-        boolean bWait = true;
-        while(bWait){
-          synchronized(acc.threads){
-            bWait = acc.threads.size() !=0;
-            if(bWait){
-              try{ acc.threads.wait(1000); }
-              catch(InterruptedException exc){}
-            }
+    }
+    
+    
+    //needs all scriptVariable:
+    ExecuteLevel execFile = new ExecuteLevel(acc, acc.jzcmdScript.scriptClass, acc.scriptThread, acc.scriptLevel, null);
+    if(acc.jzcmdScript.checkJZcmdXmlFile !=null) {
+      CharSequence sFilecheckXml;
+      try { sFilecheckXml = acc.scriptLevel.evalString(acc.jzcmdScript.checkJZcmdXmlFile);
+      } catch (Exception exc) { throw new ScriptException("JZcmd.execute - String eval error on checkJZcmd; "
+          , acc.jzcmdScript.checkJZcmdXmlFile.srcFile, acc.jzcmdScript.checkJZcmdXmlFile.srcLine, acc.jzcmdScript.checkJZcmdXmlFile.srcColumn ); 
+      }
+      SimpleXmlOutputter xmlOutputter = new SimpleXmlOutputter();
+      try{
+        OutputStreamWriter xmlWriter = new OutputStreamWriter(new FileOutputStream(sFilecheckXml.toString()));
+        xmlOutputter.write(xmlWriter, acc.jzcmdScript.xmlSrc);
+        xmlWriter.close();
+        acc.jzcmdScript.xmlSrc = null;  //can be garbaged.
+      } catch(IOException exc){ throw new ScriptException(exc); }
+      
+    }
+    if(acc.jzcmdScript.checkJZcmdFile !=null){
+      CharSequence sFilecheck;
+      try { sFilecheck = execFile.evalString(acc.jzcmdScript.checkJZcmdFile);
+      } catch (Exception exc) { throw new ScriptException("JZcmd.execute - String eval error on checkJZcmd; "
+          , acc.jzcmdScript.checkJZcmdFile.srcFile, acc.jzcmdScript.checkJZcmdFile.srcLine, acc.jzcmdScript.checkJZcmdFile.srcColumn ); 
+      }
+      File filecheck = new File(sFilecheck.toString());
+      try{
+        Writer writer = new FileWriter(filecheck);
+        acc.jzcmdScript.writeStruct(writer);
+        writer.close();
+      } catch(IOException exc){ throw new ScriptException("JZcmd.execute - File error on checkJZcmd; " + filecheck.getAbsolutePath()); }
+    }
+    JZcmdScript.Subroutine mainRoutine = acc.jzcmdScript.getMain();
+    //return execute(execFile, contentScript, true);
+    acc.startmilli = System.currentTimeMillis();
+    acc.startnano = System.nanoTime();
+    if(mainRoutine !=null) {
+      ret = execFile.execute(mainRoutine.statementlist, acc.textline, 0, execFile.localVariables, -1);
+    } else {
+      System.out.println("JZcmdExecuter - main routine not found.");
+      ret = 0;
+    }
+    if(bWaitForThreads){
+      boolean bWait = true;
+      while(bWait){
+        synchronized(acc.threads){
+          bWait = acc.threads.size() !=0;
+          if(bWait){
+            try{ acc.threads.wait(1000); }
+            catch(InterruptedException exc){}
           }
         }
       }
-      if(acc.textline !=null) {
-        try{ acc.textline.close(); } 
-        catch(IOException exc){ throw new RuntimeException("unexpected exception on close", exc); }
-      }
     }
+    if(acc.textline !=null) {
+      try{ acc.textline.close(); } 
+      catch(IOException exc){ throw new RuntimeException("unexpected exception on close", exc); }
+    }
+    
     //catch(Exception exc){
     //  ret = kException;
     //}
@@ -777,22 +792,29 @@ public ExecuteLevel execute_Scriptclass(JZcmdScript.JZcmdClass clazz) throws Scr
       }
     }
   }
-
   
   
-private void checkScript(JZcmdScript script) throws ScriptException
+  
+/**Checks the consistency of stored script and given script, stores the given script.
+ * 
+ * @param script
+ * @return true if the script was not stored before, it means the scriptLevel should be executed after them firstly.
+ * @throws ScriptException if the maybe stored script is different from the given script or both are null. 
+ */
+private boolean checkScript(JZcmdScript script) throws ScriptException
 {
+  boolean bRet = acc.jzcmdScript == null;
   if(script == null) {
     if(acc.jzcmdScript == null) {
       throw new ScriptException("jzcmdScript missing. Execution should be invoked with a script or you should invoke \"initialize(script, false, null, null);\" before this routine");
     }
   }
   if(acc.jzcmdScript == null) {
-    initialize(script, false, null, null);
+    acc.jzcmdScript = script;
   } else if(script !=null && acc.jzcmdScript != script) {
     throw new ScriptException("different script in execution.");
   }
-  
+  return bRet;
 }
   
   
@@ -800,7 +822,17 @@ private void checkScript(JZcmdScript script) throws ScriptException
 public Map<String, DataAccess.Variable<Object>> execSub(JZcmdScript script, String name, Map<String, DataAccess.Variable<Object>> args
   , boolean accessPrivate, Appendable out, File currdir) 
 throws ScriptException //Throwable
-{ checkScript(script);
+{ boolean bScriptLevelShouldExecuted = checkScript(script);
+  //TODO currdir
+  if(bScriptLevelShouldExecuted) {
+    //the script level is not executed yet. initilize is necessary only if localVariables.size() ==0
+    if(acc.scriptLevel.localVariables.size() == 0) {
+      initialize(script, false, null, null);
+    } else {
+      executeScriptLevel(script, null);
+    }
+  }
+  
   JZcmdScript.Subroutine statement = acc.jzcmdScript.getSubroutine(name);
   return execSub(statement, args, accessPrivate, out, currdir);
 }

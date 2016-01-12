@@ -10,6 +10,7 @@ public class StringFunctions_C
 {
   /**Version, history and license.
    * <ul>
+   * <li>2016-01-10 Hartmut bugfix: {@link #parseFloat(String, int, int, char, int[])} has had a problem with negative numbers. 
    * <li>2015-11-07 Hartmut chg: Now the number conversion routines are moved to {@link StringFunctions_C}. 
    *   Reason: Dispersing the content because for some embedded applications a fine tuning of used sources is necessary.
    * <li>2013-09-07 Hartmut new: {@link #parseFloat(String, int, int, char, int[])} with choiceable separator (123,45, german decimal point)
@@ -258,6 +259,9 @@ public class StringFunctions_C
         case 8: fracPart *= 1.0e-8f; break;
         case 9: fracPart *= 1.0e-9f; break;
         case 10: fracPart *= 1.0e-10f; break;
+        }
+        if(ret < 0) {
+          fracPart = -fracPart;  //Should be subtract if integer part is negative!
         }
         ret += fracPart;
       }

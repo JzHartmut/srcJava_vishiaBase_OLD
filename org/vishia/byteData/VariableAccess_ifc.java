@@ -168,6 +168,10 @@ public interface VariableAccess_ifc
    */
   void requestValue(long timeRequested);
   
+  /**Requests a new value from the target device with the {@link java.lang.System#currentTimeMillis()}
+   */
+  void requestValue();
+  
   /**Requests a new value from the target device.
    * @param timeRequested the current time
    * @param run method which should be invoked if the request is resolved, optional operation.

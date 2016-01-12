@@ -308,6 +308,8 @@ public class ByteDataSymbolicAccess {
     {
       ByteDataSymbolicAccess.this.timeRequestNewValue = timeRequested;
     }
+
+    @Override public void requestValue(){ requestValue(System.currentTimeMillis()); }
     
     @Override public void requestValue(long timeRequested, Runnable run)
     {

@@ -1129,7 +1129,7 @@ public abstract class MainCmd implements MainCmd_ifc
    * @param nReportLevel The report level which is used for output. 
    *        If it is 0, then the output isn't written
    * @param output The output pipe.
-   * @param error The error pipe. If it is null, then errors are written in the output pipe.
+   * @param sAnswer The error pipe. If it is null, then errors are written in the output pipe.
    * @return
    */
   @Override public int executeCmdLine
@@ -1156,7 +1156,7 @@ public abstract class MainCmd implements MainCmd_ifc
    * @param nReportLevel The report level which is used for output. 
    *        If it is 0, then the output isn't written
    * @param output The output pipe.
-   * @param error The error pipe. If it is null, then errors are written in the output pipe.
+   * @param sAnswer The error pipe. If it is null, then errors are written in the output pipe.
    * @return
    */
   @Override public int executeCmdLine
