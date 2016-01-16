@@ -89,6 +89,8 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2016-01-17 Hartmut new: Now an element can be an array, which is accessed with indices: {@link SetDatapathElement#set_index(int)} 
+   *   and {@link DatapathElement#indices}. Syntax for JZcmd adapted ({@link org.vishia.zcmd.JZcmdSyntax}).  
    * <li>2016-01-09 Hartmut bugfix: {@link #access(CharSequence, Object, boolean, boolean, boolean, Dst)} has dissolved a {@link Variable} twice,
    *   problem if a variable contains a Variable as value. The access <&myVariable.name> was faulty. Not it works. 
    * <li>2015-05-17 Hartmut new: conversion routines {@link #shortFromUnsignedByte(byte)} and {@link #intFromUnsignedShort(short)}.
@@ -205,7 +207,7 @@ public class DataAccess {
    * 
    * 
    */
-  static final public String sVersion = "2016-01-09";
+  static final public String sVersion = "2016-01-17";
 
 
   private static final Class<?> ifcMainCmdLogging_ifc = getClass("org.vishia.mainCmd.MainCmdLogging_ifc");
@@ -947,6 +949,10 @@ public class DataAccess {
             }
           }
         }//default
+        if(element.indices !=null) {
+          data1 = getArrayElement(data1, element.indices);
+        }
+
       }//switch
       element = iter.hasNext() ? iter.next() : null;
     }//while
@@ -1023,8 +1029,10 @@ public class DataAccess {
       StringBuilder msg = new StringBuilder(1000);
       msg.append("DataAccess - constructor not found in class, ")
          .append(clazz.getName()).append(", ") .append(element.ident) .append("(");
-      for(Object arg: element.fnArgs) {
-        msg.append(arg.getClass()).append(", ");
+      if(element.fnArgs !=null) {
+        for(Object arg: element.fnArgs) {
+          msg.append(arg.getClass()).append(", ");
+        }
       }
       msg.append(");, stackInfo: ");
       CharSequence stackInfo = Assert.stackInfo(msg, 3, 8);
@@ -1178,9 +1186,10 @@ public class DataAccess {
       msg.append("DataAccess - static method not found: ")
       //.append(clazz.getName()).append(".") 
       .append(element.ident) .append("(");
-      for(Object args: element.fnArgs) {
-        msg.append(args.getClass()).append(", ");
-      }
+      if(element.fnArgs !=null) {
+        for(Object args: element.fnArgs) {
+          msg.append(args.getClass()).append(", ");
+      } }
       msg.append(")|, ");
       CharSequence stackInfo = Assert.stackInfo(msg, 3, 5);
       throw new NoSuchMethodException(stackInfo.toString());
@@ -1834,7 +1843,7 @@ public class DataAccess {
    * @param data any data
    * @return -1 if it is not an array. The current number of elements if it is an array.
    */
-  public int getLengthOfArray(Object data) 
+  public static int getLengthOfArray(Object data) 
   {
     Class<?> clazz = data.getClass();
     if(clazz.isArray()) {
@@ -1849,18 +1858,45 @@ public class DataAccess {
   
   /**Gets the indexed element of the given array.
    * @param data Should be an array with the expected number of dimensions, elsewhere see throws
-   * @param ixArray The indices, maybe missed, then data is returned.
+   * @param ixArray The indices, maybe missed or lesser than array depth, then data or an element as array is returned.
+   *   if ixArray contains more indices than necessary, there are ignored.
    * @return the array element
-   * @throws ClassCastException if data is not an array or the element has less dimensions
    * @throws IndexOutOfBoundsException on faulty ixArray
+   * @since 2016-01-17 for primitive types too.
    */
-  public Object getArrayElement(Object data, int ... ixArray) 
-  {
+  public static Object getArrayElement(Object data, int ... ixArray) 
+  { int ixix = 0;
     Object data1 = data;
-    Object[] array = null; 
-    for(int ix1 = 0; ix1 < ixArray.length; ++ix1) {
-      array = (Object[]) data1;
-      data1 = ixArray[ix1];
+    Class<?> clazz1 = data.getClass();
+    while(clazz1.isArray() && ixix < ixArray.length) {
+      clazz1 = clazz1.getComponentType();
+      if(clazz1 == Integer.TYPE){           //Note: the order is regarded to probability and calculation time. Integer is frequently and should be fast. 
+        float[] data2 = (float[]) data1;
+        data1 = data2[ixArray[ixix]];
+      } else if(clazz1 == Character.TYPE){
+        float[] data2 = (float[]) data1;
+        data1 = data2[ixArray[ixix]];
+      } else if(clazz1 == Long.TYPE){
+        float[] data2 = (float[]) data1;
+        data1 = data2[ixArray[ixix]];
+      } else if(clazz1 == Short.TYPE){
+        float[] data2 = (float[]) data1;
+        data1 = data2[ixArray[ixix]];
+      } else if(clazz1 == Byte.TYPE){
+        float[] data2 = (float[]) data1;
+        data1 = data2[ixArray[ixix]];
+      } else if(clazz1 == Boolean.TYPE){
+        float[] data2 = (float[]) data1;
+        data1 = data2[ixArray[ixix]];
+      } else if(clazz1 == Float.TYPE){
+        float[] data2 = (float[]) data1;
+        data1 = data2[ixArray[ixix]];
+      } else if(clazz1 == Double.TYPE){
+        float[] data2 = (float[]) data1;
+        data1 = data2[ixArray[ixix]];
+      } else {
+        data1 = ((Object[])data1)[ixArray[ixix]];
+      }
     }
     return data1;
   }
@@ -2108,7 +2144,19 @@ public class DataAccess {
     
     public void set_ident(String text){ this.ident = text; }
     
-    
+    public void set_index(int val) { 
+      int ixindices;
+      if(super.indices !=null) {
+        //TODO increase
+        super.indices = new int[1];
+        ixindices = 0;
+        
+      } else {
+        super.indices = new int[1];
+        ixindices = 0;
+      }
+      this.indices[ixindices] = val;  
+    }
 
   }
   
@@ -2167,6 +2215,9 @@ public class DataAccess {
     /**List of arguments of a method. If null, it is not a method or the method has not arguments. */
     protected Object[] fnArgs;
 
+    
+    int[] indices;
+    
     /**Creates an empty element.
      * 
      */
@@ -2438,4 +2489,24 @@ public class DataAccess {
   public int intFromUnsignedShort(short val){ return val >= 0 ? val : (((int)val)+ 32768); }
   
   
+  
+  public static class Test
+  {
+    public static void testArrayElement() 
+    {
+      float[][] test = new float[5][3];
+      Object value = getArrayElement(test, 2);
+      System.out.println(value);
+    }
+  }
+  
+  
 }
+
+
+
+//==JZcmd==
+//JZcmd main(){
+//JZcmd  %org.vishia.util.DataAccess$Test.testArrayElement();
+//JZcmd }
+//==endJZcmd==

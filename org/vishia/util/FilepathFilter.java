@@ -239,23 +239,23 @@ public class FilepathFilter implements FilenameFilter
    * </ul>
    * @param mask
    */
-  public FilepathFilter(String mask)
-  {
-    if(mask == null || mask.length() ==0){
+  public FilepathFilter(CharSequence mask)
+  { if(mask == null || mask.length() ==0){
       pathFilter = null;
       listNameFilter = null;
       listExcludeNameFilter = null;
       nameFilter = null;
       bAllTree = false;
     } else {
-      int posName = mask.lastIndexOf('/') +1;  //0 if no / found.
+      String mask1 = mask.toString();  //Note: invoked with string, no effort.
+      int posName = mask1.lastIndexOf('/') +1;  //0 if no / found.
       if(posName == 0) { 
         //an '/' was not found, only a name.
         bAllTree = false;
         pathFilter = null;
       }
       else {
-        pathFilter = new PathFilter(mask.substring(0, posName -1));
+        pathFilter = new PathFilter(mask1.substring(0, posName -1));
         bAllTree = pathFilter.bAlltree1;
       }
       //
@@ -268,15 +268,15 @@ public class FilepathFilter implements FilenameFilter
         int startNamePart = posName + mask.charAt(posName) == ':' ? 1 : 2;
         do {
           if(mask.charAt(startNamePart) == ' ') { startNamePart +=1; }  //a space after ': '
-          int sepNamePart = mask.indexOf(':', startNamePart+1);
+          int sepNamePart = mask1.indexOf(':', startNamePart+1);
           if(sepNamePart < 0){ sepNamePart = mask.length(); }
           int endNamePart = mask.charAt(sepNamePart-1) == ' ' ? sepNamePart -1 : sepNamePart; //maybe space before ' :'
           if(mask.charAt(startNamePart) == ':') {
             if(excludeNameFilter == null) { excludeNameFilter = new ArrayList<NameFilter>(); }
-            excludeNameFilter.add(new NameFilter(mask.substring(startNamePart +1, endNamePart)));
+            excludeNameFilter.add(new NameFilter(mask1.substring(startNamePart +1, endNamePart)));
           } else {
             if(nameFilter == null) { nameFilter = new ArrayList<NameFilter>(); }
-            nameFilter.add(new NameFilter(mask.substring(startNamePart, endNamePart)));
+            nameFilter.add(new NameFilter(mask1.substring(startNamePart, endNamePart)));
           }
           startNamePart = sepNamePart+1;
         } while(startNamePart < mask.length());
@@ -286,7 +286,7 @@ public class FilepathFilter implements FilenameFilter
       else {
         this.listExcludeNameFilter = null;
         this.listNameFilter = null;    
-        this.nameFilter = new NameFilter(mask.substring(posName));
+        this.nameFilter = new NameFilter(mask1.substring(posName));
       }
     }
 

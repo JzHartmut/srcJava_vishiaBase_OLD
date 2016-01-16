@@ -589,6 +589,39 @@ public class FileSystem
   }
   
   
+  
+  /**Returns all matching files of the directory. Adequate {@link java.io.File-listFiles} but builds a filter internally.
+   * @param dir
+   * @param nameWithWildcard Can have up to 2 '*' as wildcards
+   * @return
+   */
+  public static File[] getFiles(File dir, CharSequence nameWithWildcard)
+  {
+    FilenameFilter filter = new FilepathFilter(nameWithWildcard);
+    return dir.listFiles(filter);
+  }
+  
+  
+  /**Returns the first file with the matching name in the given directory.
+   * A file may start with a defined name but the rest of name may be unknown, for example designated with a time stamp.
+   * If only one proper file exists, this is unique. Elsewhere the first exemplar of a matching file may be usefully.
+   * @param dir
+   * @param nameWithWildcard Can have up to 2 '*' as wildcards
+   * @return
+   */
+  public static File getFirstFileWildcard(File file) //, CharSequence nameWithWildcard)
+  { File dir = file.getParentFile();
+    String nameWithWildcard = file.getName();
+    FilenameFilter filter = new FilepathFilter(nameWithWildcard);
+    File[] files = dir.listFiles(filter);
+    if(files !=null && files.length >0) return files[0];
+    else return null;
+  }
+  
+  
+  
+  
+  
   /**Returns the directory of the given file.
    * Note that the {@link java.io.File#getParentFile()} does not return the directory if the File is described as a relative path
    * which does not contain a directory. This method builds the absolute path of the input file and returns its directory. 
@@ -1303,8 +1336,8 @@ public class FileSystem
   
   
   
-  /**Filter for a file name.
-   * Note: The {@link java.io.FilenameFilter} is better as the {@link java.io.FilenFilter}
+  /**Filter for a file path maybe with wildcards in the directory path.
+   * Note: The {@link java.io.FilenameFilter} is better as the {@link java.io.FileFilter}
    *   because the {@link java.io.File#list(FilenameFilter)} builds a File instance only if the name is tested positively.
    *   In opposite the {@link java.io.File#list(FileFilter)} builds a File instance anytime before the test. 
    *   The difference may be marginal.But {@link java.io.File#list(FileFilter)} produces some more instances in the heap,
