@@ -6,7 +6,7 @@ body {
     background-color:#ffffff;
     color:#353833;
     font-family:Arial, Helvetica, sans-serif;
-    font-size:76%;
+    font-size:100%;
     margin:0;
 }
 a:link, a:visited {
@@ -29,7 +29,8 @@ a[name]:hover {
     color:#353833;
 }
 pre {
-    font-size:1.3em;
+    background-color:#e8e8ff;
+    font-size:1.0em;
 }
 h1 {
     font-size:1.8em;

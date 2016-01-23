@@ -154,8 +154,8 @@ public class VariableAccessWithBitmask implements VariableAccess_ifc
   @Override
   public void requestValue(long timeRequested, Runnable run){ variable.requestValue(timeRequested, run); }
 
-  @Override public boolean isRequestedValue(boolean retryFaultyVariables){
-    return variable.isRequestedValue(retryFaultyVariables);
+  @Override public boolean isRequestedValue(long timeEarlyRequested, boolean retryFaultyVariables){
+    return variable.isRequestedValue(timeEarlyRequested, retryFaultyVariables);
   }
   
 

@@ -54,7 +54,8 @@ public class FileSystem
 
   /**Version, history and license.
    * Changes:
-   * <ul>   
+   * <ul>
+   * <li>2016-01-17 Hartmut new: {@link #getFirstFileWildcard(File)}   
    * <li>2015-09-06 JcHartmut chg: instead inner class WildcardFilter the new {@link FilepathFilter} used.    
    * <li>2015-05-25 new {@link #copyFile(File, File, boolean, boolean, boolean)}   
    * <li>2015-05-04 bugfix close in {@link #readFile(File)}
@@ -141,7 +142,7 @@ public class FileSystem
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public final static String sVersion = "2015-05-03";
+  public final static String sVersion = "2016-01-17";
 
   public interface AddFileToList
   {

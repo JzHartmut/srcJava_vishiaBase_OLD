@@ -16,6 +16,9 @@ public class ThreadRun implements Closeable
 {
   /**Version, history and license.
    * <ul>
+   * <li>2016-01-23 Hartmut chg: If the wait time was set faulty with a large value, it waits for a long time and blocks.
+   *   Therefore the maximal wait time is set to 2 seconds. Typically this class should be used for millisecond-handlings. 
+   *   It may okay for all usages? 
    * <li>2014-09-21 Hartmut TODO some variables to class for inspect-ability. Separate const and volatile variables.
    * <li>2013-12-11 Hartmut: Created
    * </ul>
@@ -177,6 +180,9 @@ public class ThreadRun implements Closeable
       nextCycle += cycletime;
       synchronized(this){
         if(waitMillisec > 0){ //NOTE: its possible that the step routine will continue immediately, then not wait.
+          if(waitMillisec > 2000) {
+            waitMillisec = 2000;  //no more than 2 seconds, prevent faulty setting.
+          }
           bIsNotified = false;
           bThreadWaits = true;
           try{ wait(waitMillisec); } 

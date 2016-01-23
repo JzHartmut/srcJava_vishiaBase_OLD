@@ -43,6 +43,8 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
   
   /**Version, history and license.
    * <ul>
+   * <li>2016-01-23 Hartmut chg:  {@link States.Process.Ask#checkTrans(EventObject)}: 
+   *   now regards {@link FileRemoteProgressTimeOrder.Answer#cont} as command to continue, important for retry copying. 
    * <li>2015-01-04 Hartmut chg: The new state execution is used. 
    *   The source is moved from the file org.vishia.fileLocalAccessor.Copy_FileLocalAccJava7 to this location 
    *   because it is independent of the File system. Both sources are compare-able, the functionality is the same.
@@ -1296,13 +1298,14 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
         
         
         
-        Trans transDirOrFile = new Trans(DirOrFile.class) {
+        Trans transDirOrFile_Overwr = new Trans(DirOrFile.class) {
           @Override protected void action(EventObject ev) {
-            modeCopyOper  = copyOrder.timeOrderProgress.modeCopyOper;
             bOverwrfile = true;
-            copyOrder.timeOrderProgress.clearAnswer();
           }
         };
+        
+        
+        Trans transDirOrFile_Retry = new Trans(DirOrFile.class);
         
         
         @SuppressWarnings("synthetic-access") 
@@ -1317,7 +1320,8 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
              cmd = FileRemoteProgressTimeOrder.Answer.noCmd;
           }
           //test
-          if(cmd == FileRemoteProgressTimeOrder.Answer.overwrite) return transDirOrFile.eventConsumed();
+          if(cmd == FileRemoteProgressTimeOrder.Answer.overwrite) return transDirOrFile_Overwr.eventConsumed(); 
+          else if(cmd == FileRemoteProgressTimeOrder.Answer.cont) return transDirOrFile_Retry.eventConsumed(); //NOTE: file state may be changed.
           else return null;
         }
       }

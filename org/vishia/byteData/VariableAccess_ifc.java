@@ -45,6 +45,7 @@ public interface VariableAccess_ifc
 {
   /**Version, history and license.
    * <ul>
+   * <li>2016-01-23 Hartmut chg: {@link #isRequestedValue(long, boolean)} with time parameter for earliest request.
    * <li>2014-05-22 Hartmut new: {@link #isRefreshed()}, implemented in all implementors.  
    * <li>2014-01-10 Hartmut new  enhancement of {@link #requestValue(long, Runnable) with Runnable.
    * <li>2013-12-10 Hartmut new Separate {@link VariableAccessArray_ifc} and this interface.
@@ -164,7 +165,7 @@ public interface VariableAccess_ifc
   String setString(String value);
   
   /**Requests a new value from the target device.
-   * @param timeRequested the current time
+   * @param timeRequested the current time, used to mark the request.
    */
   void requestValue(long timeRequested);
   
@@ -179,10 +180,12 @@ public interface VariableAccess_ifc
   void requestValue(long timeRequested, Runnable run);
   
   /**Returns true if the request is newer than the last refresh.
+   * @param timeEarlyRequested The earliest time where the variable is requested. If the request time is more early, it is not regarded. 
+   *   This is since 2016-01. An old request should be ignored but the time stamp of the request should be visible for debug or view the state.
    * @param retryFaultyVariables A variable which is set to invalid is requested though.
    * @return true if a new value should be gotten from target.
    */
-  boolean isRequestedValue(boolean retryFaultyVariables);
+  boolean isRequestedValue(long timeEarlyRequested, boolean retryFaultyVariables);
   //boolean requestValueFromTarget(long timeRequested, boolean retryDisabledVariable);  
 
   /**Returns true if the variable was refresed after it was requested.

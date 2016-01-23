@@ -1,5 +1,6 @@
 package org.vishia.fileRemote;
 
+import java.io.File;
 import java.util.Iterator;
 import java.util.ListIterator;
 import java.util.Map;
@@ -123,7 +124,7 @@ public class FileCluster
    */
 
   FileRemote getFile( final CharSequence sDirP, final CharSequence sName, boolean assumeChild){
-    CharSequence sDir1 = FileSystem.normalizePath(sDirP); //sPath.replace('\\', '/');
+    String sDir1 = FileSystem.getCanonicalPath(new File(sDirP.toString()));  //FileSystem.normalizePath(sDirP); //sPath.replace('\\', '/');
     if(!FileSystem.isAbsolutePath(sDir1)) {
       throw new IllegalArgumentException("absolute path expected, " + sDir1);
     }

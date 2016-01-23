@@ -322,10 +322,11 @@ public class ByteDataSymbolicAccess {
       if(!offerOk){ throw new IllegalArgumentExceptionJc("ByteDataSymbolicAccess - requestValue run cannot be added", run.hashCode()); }
     }
     
-    @Override public boolean isRequestedValue(boolean retryFaultyVariables){
+    @Override public boolean isRequestedValue(long timeEarlyRequested, boolean retryFaultyVariables){
       if(ByteDataSymbolicAccess.this.timeRequestNewValue == 0) return false;  //never requested
       long timeNew = ByteDataSymbolicAccess.this.timeRequestNewValue - ByteDataSymbolicAccess.this.timeSetNewValue;
-      return timeNew >0;
+      long timeReq = ByteDataSymbolicAccess.this.timeRequestNewValue - timeEarlyRequested;
+      return (ByteDataSymbolicAccess.this.timeSetNewValue ==0 || timeNew >=0) && timeReq >=0;
     }
     
     @Override public boolean isRefreshed(){ return (timeSetNewValue - timeRequestNewValue ) >0; }

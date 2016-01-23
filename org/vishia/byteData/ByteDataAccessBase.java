@@ -151,6 +151,8 @@ public class ByteDataAccessBase implements InfoFormattedAppend
   
   /**The version, history and license. 
    * <ul>
+   * <li>2016-01-24 Hartmut chg: All {@link #addChild(ByteDataAccessBase)} etc. returns false if {@link #setException(boolean)} is false and the child cannot be added.
+   *   If the user invokes setException(false) the user must check the return value of the add...() operations.
    * <li>2015-08-08 Hartmut chg: Change of concept: prevent Exception if the environment does not process it: Tested on {@link #setIdxtoNextCurrentChild(int)}:
    *   This routine can throw an Exception, but it can return -1 on error too, possible with an exception message. Therewith more operations can be disabled by quest of return value.
    * <li>2015-08-08 Hartmut chg: {@link #setLengthElement(int)} should set the ixEnd of the child and the ixNextChild of the parent
@@ -325,9 +327,13 @@ public class ByteDataAccessBase implements InfoFormattedAppend
   }
 
 
-  /**Sets the big or little endian mode. 
+  /**Sets whether an exception should be thrown on adding a child or it should be return with false to continue
+   * as soon as possible without exception handling. This is especially for C programming if an exception handling
+   * is not desired. It is usefull in Java too depending on the user solution.
+   * The exception state is inherited to all added childs. It should be set only for the root instance. 
    *
-   * @param val true if big endian, hi byte at lower adress, false if little endian.
+   * @param val true if addChild should throw an exception on error, false if addChild... operations should be return false on error.
+   *   Because the default value for the exception is true, the user should set setException(false) usually.
    */
   @Java4C.Inline
   public final void setException(boolean val)
@@ -917,8 +923,8 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * With the aid of the child Element the data can be read or write structured.
    * <br><br>
    * The child instance will be initialized newly. Any old usage of the child instance will be ignored.
-   * The child is a helper to get data and to manage its own indices and in the parent.
-   * The child can be used to add further children to build a tree of children.
+   * The child is a helper to get data and to manage the indices.
+   * The child can be used to add further children to build a tree of children for complex structured data.
    * <br><br>
    * 
    *<br>
@@ -954,20 +960,17 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * @param sizeChild The number of bytes which are used from the child or 0. If it is 0, then the child's sizeHead is used 
    *   to set the position of a possible next children {@link #ixNextChild}, elsewhere {@link #ixNextChild} is set using that value.
    *   The child itself does not use this value.
-   * @throws IllegalArgumentException if the length of the old current child is not determined yet.
-   *         Either the method specifyLengthElement() should be overwritten or the method 
-   *         {@link setLengthElement(int)} for the child or {@link setLengthCurrentChildElement(int)}
-   *         should be called to prevent this exception.  
+   * @return true if success, false if the child cannot be added because there is no space for it and {@link #bExc} is false. 
    * @throws IllegalArgumentException if the length of the head of the new current child is to far for the data.
    *         It means, child.idxEnd > data.length. 
    */
-  final public void addChild(ByteDataAccessBase child, int sizeChild) 
+  final public boolean addChild(ByteDataAccessBase child, int sizeChild) 
   throws IllegalArgumentException
   { child.detach();  //detatch the child from further usage.
     assert(sizeChild == 0 || sizeChild >= child.sizeHead);
     assert(child.sizeHead >=0);
     int ixChild1 = setIdxtoNextCurrentChild(sizeChild ==0 ? child.sizeHead: sizeChild);
-    if(ixChild1 < 0) return;
+    if(ixChild1 < 0) return false;
     child.ixBegin = ixChild1;   
     child.bBigEndian = bBigEndian;
     child.bExc = bExc;
@@ -980,6 +983,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
     //or it is the size of data.
     child.ixEnd = this.ixEnd;  //bExpand ? child.ixNextChild : this.ixEnd;  //use the full data range maybe for child.
     currChild = child;
+    return true;
   }
 
   
@@ -989,19 +993,23 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * @param child The child will be initialized newly.
    */
   @Java4C.Retinline
-  final public void addChild(ByteDataAccessBase child){ addChild(child, child.sizeHead); } 
+  final public boolean addChild(ByteDataAccessBase child){ return addChild(child, child.sizeHead); } 
   
   
-  final public void addChildEmpty(ByteDataAccessBase child) 
-  { addChild(child);  //first add the child
-    child.clearHead(); //then clears its data.
+  final public boolean addChildEmpty(ByteDataAccessBase child) 
+  { if(addChild(child)) {  //first add the child
+      child.clearHead(); //then clears its data.
+      return true;
+    } else return false;
   }
   
   
   
-  final public void addChildEmpty(ByteDataAccessBase child, int sizeChild) 
-  { addChild(child, sizeChild);  //first add the child
-    child.clearData(); //then clears its data.
+  final public boolean addChildEmpty(ByteDataAccessBase child, int sizeChild) 
+  { if(addChild(child, sizeChild)) {  //first add the child
+      child.clearData(); //then clears its data.
+      return true;
+    } else return false;
   }
   
 
@@ -1060,14 +1068,15 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * @return value in long format, cast it to (int) if you read only 4 bytes etc.
    * @throws IllegalArgumentException
    */
-  public final void addChildInt(int nrofBytes, int value) 
+  public final boolean addChildInt(int nrofBytes, int value) 
   throws IllegalArgumentException
   { assert(nrofBytes >0);
     int ixChild1 = setIdxtoNextCurrentChild(nrofBytes);
-    if(ixChild1 < 0) return;
+    if(ixChild1 < 0) return false;
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     _setInt(ixChild1 - ixBegin, nrofBytes, value);
+    return true;
   }
 
 
@@ -1079,14 +1088,15 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * @return value in long format, cast it to (int) if you read only 4 bytes etc.
    * @throws IllegalArgumentException
    */
-  public final void addChildInteger(int nrofBytes, long value) 
+  public final boolean addChildInteger(int nrofBytes, long value) 
   throws IllegalArgumentException
   { assert(nrofBytes >0);
     int ixChild1 = setIdxtoNextCurrentChild(nrofBytes);
-    if(ixChild1 < 0) return;
+    if(ixChild1 < 0) return false;
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     _setLong(ixChild1 - ixBegin, nrofBytes, value);
+    return true;
   }
 
 
@@ -1101,13 +1111,14 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * @return value in long format, cast it to (int) if you read only 4 bytes etc.
    * @throws IllegalArgumentException
    */
-  public final void addChildFloat(float value) 
+  public final boolean addChildFloat(float value) 
   throws IllegalArgumentException
   { int ixChild1 = setIdxtoNextCurrentChild(4);
-    if(ixChild1 < 0) return;
+    if(ixChild1 < 0) return false;
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
-    setFloat(ixChild1 - ixBegin, value);  
+    setFloat(ixChild1 - ixBegin, value);
+    return true;  
   }
 
 
@@ -1124,14 +1135,15 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * @throws IllegalArgumentException
    * @throws UnsupportedEncodingException
    */
-  public final void addChildString(String value, String sEncoding, boolean preventCtrlChars) 
+  public final boolean addChildString(String value, String sEncoding, boolean preventCtrlChars) 
   throws IllegalArgumentException, UnsupportedEncodingException
   { int nrofBytes = value.length();
     int ixChild1 = setIdxtoNextCurrentChild(nrofBytes);
-    if(ixChild1 < 0) return;
+    if(ixChild1 < 0) return false;
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
-    _setString(ixChild1 - ixBegin, nrofBytes, value, sEncoding, preventCtrlChars);  
+    _setString(ixChild1 - ixBegin, nrofBytes, value, sEncoding, preventCtrlChars);
+    return true;  
   }
 
 
@@ -1144,17 +1156,18 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * @throws IllegalArgumentException XXX
    * @throws UnsupportedEncodingException 
    */
-  public final void addChildString(CharSequence valueCs, String sEncoding) 
+  public final boolean addChildString(CharSequence valueCs, String sEncoding) 
   throws IllegalArgumentException, UnsupportedEncodingException
   { int nrofBytes = valueCs.length();
     int ixChild1 = setIdxtoNextCurrentChild(nrofBytes);
-    if(ixChild1 < 0) return;
+    if(ixChild1 < 0) return false;
     //NOTE: there is no instance for this child, but it is the current child anyway.
     //NOTE: to read from idxInChild = 0, build the difference as shown:
     for(int ii=0; ii<nrofBytes; ++ii){
       byte charByte = (byte)(valueCs.charAt(ii));  //TODO encoding
       data[ixChild1+ii] = charByte;
     }
+    return true;
   }
 
 
