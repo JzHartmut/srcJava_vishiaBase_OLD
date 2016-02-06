@@ -10,7 +10,7 @@ public class StringFunctions_C
 {
   /**Version, history and license.
    * <ul>
-   * <li>2016-01-10 Hartmut bugfix: {@link #parseFloat(String, int, int, char, int[])} has had a problem with negative numbers. 
+   * <li>2016-02-07 Hartmut bugfix: {@link #parseFloat(String, int, int, char, int[])} has had a problem with negative numbers. 
    * <li>2015-11-07 Hartmut chg: Now the number conversion routines are moved to {@link StringFunctions_C}. 
    *   Reason: Dispersing the content because for some embedded applications a fine tuning of used sources is necessary.
    * <li>2013-09-07 Hartmut new: {@link #parseFloat(String, int, int, char, int[])} with choiceable separator (123,45, german decimal point)
@@ -235,18 +235,23 @@ public class StringFunctions_C
    */
   public static float parseFloat(String src, int pos, int sizeP, char decimalpoint, int[] parsedCharsP)
   {
-    int parsedChars = 0;
     float ret;
+    int poscurr = pos;
     int restlen = src.length() - pos;
     if(sizeP >=0 && restlen > sizeP){ restlen = sizeP; }
+    boolean bNegative;
+    if(restlen > 0 && src.charAt(poscurr) == '-') { 
+      poscurr+=1; restlen -=1; bNegative = true; 
+    }
+    else { bNegative = false; }
+    
     @Java4C.StackInstance @Java4C.SimpleArray
     int[] zParsed = new int[1];
-    ret = parseIntRadix(src, pos, restlen, 10, zParsed);
-    parsedChars += zParsed[0];  //maybe 0 if .123 is written
-    int ixsrc = pos + zParsed[0]; 
+    ret = parseIntRadix(src, poscurr, restlen, 10, zParsed, null);  //parses only a positive number.
+    poscurr += zParsed[0];   //maybe 0 if .123 is written
     restlen -= zParsed[0];
-    if(ixsrc < (restlen+pos) && src.charAt(ixsrc)==decimalpoint){
-      float fracPart = parseIntRadix(src, ixsrc +1, restlen-1, 10, zParsed);
+    if(poscurr < (restlen+pos) && src.charAt(poscurr)==decimalpoint){
+      float fracPart = parseIntRadix(src, poscurr +1, restlen-1, 10, zParsed);
       if(zParsed[0] >0){
         switch(zParsed[0]){
         case 1: fracPart *= 0.1f; break;
@@ -260,17 +265,17 @@ public class StringFunctions_C
         case 9: fracPart *= 1.0e-9f; break;
         case 10: fracPart *= 1.0e-10f; break;
         }
-        if(ret < 0) {
-          fracPart = -fracPart;  //Should be subtract if integer part is negative!
-        }
         ret += fracPart;
       }
-      parsedChars += zParsed[0]+1;  //maybe 0 if .123 is written
-      restlen -= zParsed[0]-1;
+      poscurr += zParsed[0]+1;  //don't forget the decimal point  
+      //restlen -= zParsed[0]-1;
     }
     //TODO exponent
     if(parsedCharsP !=null){
-      parsedCharsP[0] = parsedChars;
+      parsedCharsP[0] = poscurr - pos;
+    }
+    if(bNegative) {
+      ret = -ret;  
     }
     return ret;
   }

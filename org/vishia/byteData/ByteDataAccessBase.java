@@ -884,7 +884,12 @@ public class ByteDataAccessBase implements InfoFormattedAppend
   }
 
 
+  @Java4C.Retinline
+  final public boolean isInUse()
+  { return data !=null;
+  }
 
+  
 
   /**returns true if the given number of bytes is sufficing in the data from position of next child. 
    * 
