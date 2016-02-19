@@ -103,6 +103,12 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2016-02-20 Hartmut new: Check statementList on if, while, for because an empty list is admissible. The syntax is changed.
+   * <li>2016-02-20 Hartmut chg: The for variable is set to null on end of for-loop without break. Therewith it can be tested whether a for has broken on found element. The description is enhanced with that feature with example.  
+   *   It is admissible to write <code> for(variable:container && !variable.check()); </code> especially to search somewhat in a container. 
+   * <li>2016-02-20 Hartmut gardening in check of break in while loops.
+   * <li>2016-02-20 Hartmut bugfix: ExecuteLevel.isBreak was set permanently and has broken the next for-loop. 
+   *   fix: The break statement forces return {@link #kBreak}. That is used in while loops already. Now used in for loop too. gardening.
    * <li>2016-01-10 Hartmut new: {@link #execute_Scriptclass(String)}
    * <li>2016-01-10 Hartmut chg: {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)} now returns the "return" Map, not the localVariables. This is a more consequent concept.
    *   To assemble some user Parameter use {@link #execute_Scriptclass(org.vishia.cmd.JZcmdScript.JZcmdClass)}, whereby a class can define some variables. 
@@ -976,12 +982,9 @@ throws ScriptException //Throwable
      */
     public CmdExecuter cmdExecuter;
 
-    /**Set on break statement. Used only in a for-container execution to break the loop over the elements. */
-    private boolean isBreak;
-    
     private boolean bSetSkipSpaces;
     
-    /**Used while a for-container loop runs. Remain after for if for was broken with a condition. */
+    /**Used while a for-container loop runs. */
     private boolean bForHasNext;
     
     private boolean debug_dataAccessArguments;
@@ -1115,7 +1118,7 @@ throws ScriptException //Throwable
      * @param newVariables Destination instance for newly created variables. It is {@link #localVariables} usual
      *   but in special cases new variables are stored in an own Map, especially on { <dataStruct> }.
      * @param nDebugP
-     * @return
+     * @return {@link JZcmdExecuter#kSuccess} ==0, {@link JZcmdExecuter#kBreak}, {@link JZcmdExecuter#kReturn} or {@link JZcmdExecuter#kException} 
      * @throws Exception
      */
     private short execute(JZcmdScript.StatementList statementList, StringFormatter out, int indentOutArg
@@ -1213,7 +1216,7 @@ throws ScriptException //Throwable
           case 'r': exec_Throw(statement); break;
           case 'v': exec_Throwonerror((JZcmdScript.Onerror)statement); break;
           case ',': bWriteErrorInOutput = statement.textArg !=null; break;
-          case 'b': isBreak = true; ret = JZcmdExecuter.kBreak; break;
+          case 'b': ret = JZcmdExecuter.kBreak; break;
           case '#': ret = exec_CmdError((JZcmdScript.Onerror)statement, out, indentOut); break;
           case 'F': ret = exec_createFilepath(newVariables, (JZcmdScript.DefVariable) statement); break;
           case 'G': ret = exec_createFileSet(newVariables, (JZcmdScript.UserFileset) statement); break;
@@ -1590,30 +1593,29 @@ throws ScriptException //Throwable
       //Note: don't use an extra ExecuteLevel to save calculation time. Especially the forVariable and some inner defined variables
       //      are existing outside of the for loop body namely, but that property is defined in the JZcmd language description.
       ExecuteLevel forExecuter = this; //do not do so: new ExecuteLevel(threadData, this, localVariables);
-      //creates the for-variable in the executer level.
+      //creates the for-variable in the executer level. Use an existing variable and set it to null.
       DataAccess.Variable<Object> forVariable = DataAccess.createOrReplaceVariable(forExecuter.localVariables, statement.forVariable, 'O', null, false);
       //a new level for the for... statements. It contains the foreachData and maybe some more variables.
       Object container = dataAccess(statement.forContainer, localVariables, jzcmd.bAccessPrivate, true, false, null);
       //Object container = statement.forContainer.getDataObj(localVariables, bAccessPrivate, true);
       //DataAccess.Dst dst = new DataAccess.Dst();
       //DataAccess.access(statement.defVariable.datapath(), null, localVariables, bAccessPrivate,false, true, dst);
-      boolean cond = true;
       short cont = kSuccess;
-      boolean bForHasNextOld = bForHasNext;  //to restore
+      boolean bForHasNextOld = bForHasNext;  //to restore. Note: bForHasNext is a instance variable to check it in hasNext()
+      //
       if(container instanceof String && ((String)container).startsWith("<?")){
         throw new IllegalArgumentException("JZcmd.execFor - faulty container type;" + (String)container);
       }
       else if(container !=null && container instanceof Iterable<?>){
         Iterator<?> iter = ((Iterable<?>)container).iterator();
-        while(cond && !forExecuter.isBreak() && iter.hasNext()){
-          cond = (cont == kSuccess);
-          if(cond && statement.condition !=null){
-            cond = evalCondition(statement.condition);
-          }
-          if(cond){
-            Object foreachData = iter.next();
-            forVariable.setValue(foreachData);
-            bForHasNext = iter.hasNext();  //an element after it?
+        bForHasNext = iter.hasNext();
+        while(cont == kSuccess && bForHasNext){
+          Object foreachData = iter.next();
+          forVariable.setValue(foreachData);
+          bForHasNext = iter.hasNext();  //an element after it?
+          if(statement.condition !=null && ! evalCondition(statement.condition)) {
+            cont = kBreak;
+          } else if(subContent !=null) {
             cont = forExecuter.execute(subContent, out, indentOut, forExecuter.localVariables, nDebug);
           }
         }//while of for-loop
@@ -1622,16 +1624,15 @@ throws ScriptException //Throwable
         Map<?,?> map = (Map<?,?>)container;
         Set<?> entries = map.entrySet();
         Iterator<?> iter = entries.iterator();
-        while(cond && !forExecuter.isBreak() && iter.hasNext()){
-          cond = (cont == kSuccess);
-          if(cond && statement.condition !=null){
-            cond = evalCondition(statement.condition);
-          }
-          if(cond){
-            Map.Entry<?, ?> foreachDataEntry = (Map.Entry<?, ?>)iter.next();
-            Object foreachData = foreachDataEntry.getValue();
-            forVariable.setValue(foreachData);
-            bForHasNext = iter.hasNext();  //an element after it?
+        bForHasNext = iter.hasNext();
+        while(cont == kSuccess && bForHasNext){
+          Map.Entry<?, ?> foreachDataEntry = (Map.Entry<?, ?>)iter.next();
+          Object foreachData = foreachDataEntry.getValue();
+          forVariable.setValue(foreachData);
+          bForHasNext = iter.hasNext();  //an element after it?
+          if(statement.condition !=null && ! evalCondition(statement.condition)) {
+            cont = kBreak;
+          } else if(subContent !=null) {
             cont = forExecuter.execute(subContent, out, indentOut, forExecuter.localVariables, nDebug);
           }
         }
@@ -1639,23 +1640,26 @@ throws ScriptException //Throwable
       else if(container !=null && container.getClass().isArray()){
         Object[] aContainer = (Object[])container;
         int zContainer = aContainer.length;
-        int iContainer = -1;
-        while(cond && !forExecuter.isBreak() && ++iContainer < zContainer){
-          cond = (cont == kSuccess);
-          if(cond && statement.condition !=null){
-            cond = evalCondition(statement.condition);
-          }
-          if(cond){
-            Object foreachData = aContainer[iContainer];
-            forVariable.setValue(foreachData);
-            bForHasNext = iContainer < zContainer-1;
+        int iContainer = 0;
+        bForHasNext = iContainer < zContainer;
+        while(cont == kSuccess && bForHasNext){
+          Object foreachData = aContainer[iContainer];
+          forVariable.setValue(foreachData);
+          bForHasNext = ++iContainer < zContainer;
+          if(statement.condition !=null && ! evalCondition(statement.condition)) {
+            cont = kBreak;
+          } else if(subContent !=null) {
             cont = forExecuter.execute(subContent, out, indentOut, forExecuter.localVariables, nDebug);
           }
         }
       }
+      if(cont == kSuccess && !bForHasNext) {  //on break it is not completed. 
+        forVariable.setValue(null); //on any completed loop. On break the variable remain its content.
+      }
+      //
       bForHasNext = bForHasNextOld;  //restore for nested for loops.
       if(cont == kBreak){ cont = kSuccess; } //break in while does not break at calling level. It breaks only the own one.
-      return cont;
+      return cont; //maybe kException
     }
     
     
@@ -1687,30 +1691,40 @@ throws ScriptException //Throwable
     
     
     /**it contains maybe more as one if block and else. 
-     * @throws Exception */
+     * @return {@link #kBreak} if a break statement was found.
+     * @throws Exception 
+     */
     short exec_IfStatement(JZcmdScript.IfStatement ifStatement, StringFormatter out, int indentOut, int nDebug) 
     throws Exception{
       short cont = kFalse;
       Iterator<JZcmdScript.JZcmditem> iter = ifStatement.statementlist.statements.iterator();
       //boolean found = false;  //if block found
-      while(iter.hasNext() && cont == kFalse ){
+      while(iter.hasNext() && cont == kFalse ){ //check which if branch should be executed
         JZcmdScript.JZcmditem statement = iter.next();
         switch(statement.elementType()){
           case 'g': { //if-block
-            //boolean hasNext = iter.hasNext();
-            cont = exec_IfBlock((JZcmdScript.IfCondition)statement, out, indentOut, nDebug);
+            JZcmdScript.IfCondition ifBlock = (JZcmdScript.IfCondition)statement;
+            boolean bCheck = evalCondition(ifBlock.condition); //.calcDataAccess(localVariables);
+            if(bCheck){
+              if(ifBlock.statementlist !=null) {
+                cont = execute(ifBlock.statementlist, out, indentOut, localVariables, nDebug);
+              }
+            } else {
+              cont = kFalse;
+            }
           } break;
           case 'E': { //elsef
-            cont = execute(statement.statementlist, out, indentOut, localVariables, nDebug);
+            if(statement.statementlist !=null) {
+              cont = execute(statement.statementlist, out, indentOut, localVariables, nDebug);
+            }
           } break;
           default:{
             throw new IllegalArgumentException("JZcmd.execIf - unknown statement; " + statement.elementType());
           }
         }//switch
       }//for
-      if(cont == kBreak){ cont = kBreak; }   //break in an if block should break at calling level especially in for-container
-      if(cont == kFalse){ cont = kSuccess; }
-      return cont;
+      if(cont == kFalse){ cont = kSuccess; }  //no if block found, though success.
+      return cont;  //if a break statement was found, kBreak is returned.
     }
     
     
@@ -1723,12 +1737,13 @@ throws ScriptException //Throwable
       short cont = kSuccess;
       boolean cond;
       do{
-        cond =  (cont ==kSuccess)
-             && evalCondition(whileStatement.condition); //.calcDataAccess(localVariables);
+        cond = evalCondition(whileStatement.condition); //.calcDataAccess(localVariables);
         if(cond){
-          cont = execute(whileStatement.statementlist, out, indentOut, localVariables, nDebug);
+          if(whileStatement.statementlist !=null) {
+            cont = execute(whileStatement.statementlist, out, indentOut, localVariables, nDebug);
+          }
         }
-      } while(cond);  //if executed, check cond again.  
+      } while(cond && cont == kSuccess);  //break on kBreak;  
       if(cont == kBreak){ cont = kSuccess; } //break in while does not break at calling level.
       return cont;
     }
@@ -1743,35 +1758,9 @@ throws ScriptException //Throwable
       boolean cond;
       do{
         cont = execute(whileStatement.statementlist, out, indentOut, localVariables, nDebug);
-        cond =  (cont ==kSuccess)
-             && evalCondition(whileStatement.condition); //.calcDataAccess(localVariables);
-      } while(cond);  //if executed, check cond again.  
+        cond = evalCondition(whileStatement.condition); //.calcDataAccess(localVariables);
+      } while(cond && cont == kSuccess);  //if executed, check cond again.  
       if(cont == kBreak){ cont = kSuccess; } //break in while does not break at calling level.
-      return cont;
-    }
-    
-    
-    
-    /**Checks the condition and executes the if-block if the condition is true.
-     * If the condition contains elements which are not found in the datapath (throwing {@link NoSuchElementException}),
-     * the condition is false, That exception is not thrown forward.
-     * @param ifBlock
-     * @param out
-     * @param bIfHasNext
-     * @return true if the condition is true. If it returns false, an elsif or else-Block should be executed.
-     * @throws Exception
-     */
-    short exec_IfBlock(JZcmdScript.IfCondition ifBlock, StringFormatter out, int indentOut, int nDebug) 
-    throws Exception
-    { short cont;
-      //Object check = getContent(ifBlock, localVariables, false);
-      
-      //CalculatorExpr.Value check;
-      boolean bCheck;
-      bCheck = evalCondition(ifBlock.condition); //.calcDataAccess(localVariables);
-      if(bCheck){
-        cont = execute(ifBlock.statementlist, out, indentOut, localVariables, nDebug);
-      } else cont = kFalse;
       return cont;
     }
     
@@ -3159,9 +3148,6 @@ throws ScriptException //Throwable
     }
 
 
-    
-    boolean isBreak(){ return isBreak; }
-    
     
 
     

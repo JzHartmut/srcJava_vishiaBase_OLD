@@ -125,7 +125,7 @@ public class StringPart implements CharSequence, Comparable<CharSequence>, Close
    * <li>2014-01-12 Hartmut new: {@link #setParttoMax()} usefully for new view to content.
    * <li>2013-12-29 Hartmut bugfix in {@link Part#Part(int, int)}   
    * <li>2013-10-26 Hartmut chg: Does not use substring yet, some gardening, renaming. 
-   * <li>2013-09-07 Hartmut new: {@link #scanTranscriptionToAnyChar(CharSequence[], String, char, char, char)}
+   * <li>2013-09-07 Hartmut new: {@link StringPartScan#getCircumScriptionToAnyChar(String)}
    *   the {@link #getCircumScriptionToAnyChar(String)} does not work correctly (it has a bug). Use the new one.
    * <li>2013-01-20 Hartmut TODO: The {@link #content} should be a CharSequence. Then the instance of content may be a StringBuilder.
    *   All content.substring should be replaced by content.subsequence(). The content.indexof-Method should be implemented here.

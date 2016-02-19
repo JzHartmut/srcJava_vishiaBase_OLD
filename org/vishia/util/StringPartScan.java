@@ -50,7 +50,9 @@ public class StringPartScan extends StringPart
 {
   /**Version, history and license.
    * <ul>
-   * <li>2016-01-10 Hartmut bugfix: {@link #scanFractionalNumber(long)} has had a problem with negative numbers.  
+   * <li>2016-02-13 Hartmut bugfix: {@link #scanFractionalNumber(long, boolean)} has had a problem with negative numbers. 
+   *   Therefore {@link #scanFractionalNumber(long, boolean)} with bNegative as argument. Used in {@link CalculatorExpr} too.
+   *   new {@link #getLastScannedIntegerSign()} to check whether "-0" was scanned which may be "-0.123" as a negative number.  
    * <li>2014-12-12 Hartmut chg: Comment: {@link #scanOk()} cannot used nested! It should only used on user level. 
    *   Elsewhere the scan start position is erratic changed. Don't use it in {@link #scanFloatNumber()}. 
    * <li>2014-12-06 Hartmut new: {@link #scanFractionalNumber(long)} enables scanning first an integer, then check whether
@@ -93,6 +95,9 @@ public class StringPartScan extends StringPart
   
   /**Buffer for last scanned integer numbers.*/
   protected final long[] nLastIntegerNumber = new long[5];
+  
+  /**Buffer for last scanned signs of integer numbers.*/
+  protected final boolean[] nLastIntegerSign = new boolean[5];
   
   /**current index of the last scanned integer number. -1=nothing scanned. 0..4=valid*/
   private int idxLastIntegerNumber = -1;
@@ -324,6 +329,7 @@ public class StringPartScan extends StringPart
       if(bCurrentOk)
       { if(idxLastIntegerNumber < nLastIntegerNumber.length -2)
         { nLastIntegerNumber[++idxLastIntegerNumber] = value;
+          nLastIntegerSign[idxLastIntegerNumber] = false;
         }
         else throw new ParseException("to much scanned integers",0);
       }  
@@ -354,6 +360,7 @@ public class StringPartScan extends StringPart
       if(bCurrentOk)
       { if(idxLastIntegerNumber < nLastIntegerNumber.length -2)
         { nLastIntegerNumber[++idxLastIntegerNumber] = value;
+          nLastIntegerSign[idxLastIntegerNumber] = bNegativValue;
         }
         else throw new ParseException("to much scanned integers",0);
       }
@@ -405,7 +412,7 @@ public class StringPartScan extends StringPart
         if(bNegativValue)
         { nInteger = - nInteger; 
         }
-        scanFractionalNumber(nInteger);
+        scanFractionalNumber(nInteger, bNegativValue);
         //if(!scanFractionalNumber(nInteger).scanOk()){
         if(!bCurrentOk) {
           //only integer number found, store as float number. It is ok.
@@ -420,10 +427,8 @@ public class StringPartScan extends StringPart
   }
   
   
-  /**Scans the fractional part of a float / double number. The result is stored internally
-   * and have to be got calling {@link #getLastScannedFloatNumber()}.
-   * There can stored upto 5 numbers. If more as 5 numbers are stored yet,
-   * an exception is thrown. 
+  /**Scans the fractional part of a float / double number with given integer part and sign. 
+   * The result is stored internally and have to be gotten calling {@link #getLastScannedFloatNumber()}.
    * <br><br>
    * Application-sample:
    * <pre>
@@ -452,7 +457,7 @@ public class StringPartScan extends StringPart
    * @return this
    * @throws ParseException if the buffer is not free to hold the float number.
    */
-  public final StringPartScan scanFractionalNumber(long nInteger) throws ParseException  //::TODO:: scanLong(String sPicture)
+  public final StringPartScan scanFractionalNumber(long nInteger, boolean bNegative) throws ParseException  //::TODO:: scanLong(String sPicture)
   { if(scanEntry()) { 
       long nFractional = 0;
       int nDivisorFract = 1, nExponent = 0;
@@ -508,7 +513,7 @@ public class StringPartScan extends StringPart
           { fFrac /= 10.0; 
           }
           fFrac /= nDivisorFract;    //number of 0 after . until first digit.
-          if(result < 0) {
+          if(result < 0 || bNegative) {  //bNegativ is set on negative 0
             fFrac = -fFrac;  //Should be subtract if integer part is negative!
           }
           result += fFrac;
@@ -544,6 +549,7 @@ public class StringPartScan extends StringPart
       if(bCurrentOk)
       { if(idxLastIntegerNumber < nLastIntegerNumber.length -2)
         { nLastIntegerNumber[++idxLastIntegerNumber] = value;
+          nLastIntegerSign[idxLastIntegerNumber] = false;
         }
         else throw new ParseException("to much scanned integers",0);
       }
@@ -575,6 +581,7 @@ public class StringPartScan extends StringPart
       if(bCurrentOk)
       { if(idxLastIntegerNumber < nLastIntegerNumber.length -2)
         { nLastIntegerNumber[++idxLastIntegerNumber] = value;
+          nLastIntegerSign[idxLastIntegerNumber] = false;
         }
         else throw new ParseException("to much scanned integers",0);
       }
@@ -601,7 +608,7 @@ public class StringPartScan extends StringPart
    * @java2c=return-this.
    * @param additionalStartChars
    * @param additionalChars
-   * @return
+   * @return this
    */
   public final StringPartScan scanIdentifier(String additionalStartChars, String additionalChars)
   { if(scanEntry())
@@ -619,13 +626,32 @@ public class StringPartScan extends StringPart
   }
 
   
+  /**Returns the last scanned integer sign. It is the result of the methods
+   * <ul><li>{@link #scanHex(int)}
+   * <li>{@link #scanHexOrDecimal(int)}
+   * <li>{@link #scanInteger()}
+   * </ul>
+   * This routine have to be called <b>before</b> the associated {@link #getLastScannedIntegerNumber()} is invoked.
+   * 
+   * @return True if a negative sign was found before the number. The scanned number is negative too if it is >0. 
+   * But a value "-0" is not able to present. But it is important if some fractional parts are parsed after them. 
+   * @throws ParseException if called though no scan routine was called. 
+   */
+  public final boolean getLastScannedIntegerSign() throws ParseException
+  { if(idxLastIntegerNumber >= 0)
+    { return nLastIntegerSign [idxLastIntegerNumber];
+    }
+    else throw new ParseException("no integer number scanned.", 0);
+  }
+  
   /**Returns the last scanned integer number. It is the result of the methods
    * <ul><li>{@link #scanHex(int)}
    * <li>{@link #scanHexOrDecimal(int)}
    * <li>{@link #scanInteger()}
    * </ul>
-   * @return The number in long format. A cast to int, short etc. may be necessary
-   *         depending on the expectable values.
+   * This routine can be called only one time for a scan result. After them the number, and its sign for {@link #getLastScannedIntegerSign()},
+   * is removed.
+   * @return The number in long format. A cast to int, short etc. may be necessary depending on the expectable values.
    * @throws ParseException if called though no scan routine was called. 
    */
   public final long getLastScannedIntegerNumber() throws ParseException
@@ -674,9 +700,11 @@ public class StringPartScan extends StringPart
    *  The actual part is tested for this, after this operation the actual part begins
    *  after the getting chars!
    *  @param sCharsEnd Assembling of chars determine the end of the part.
+   *  @return CharSequence which should be used in the thread, not stored persistently.
    *  @see #scanToAnyChar(CharSequence[], String, char, char, char), 
    *  this method allows all transliteration and quotation characters.  
    * */
+  @Java4C.Exclude //see StringFunctions.convertTransliteration(...)
   public final CharSequence getCircumScriptionToAnyChar(String sCharsEnd)
   { return getCircumScriptionToAnyChar_p(sCharsEnd, false);
   }
@@ -686,13 +714,15 @@ public class StringPartScan extends StringPart
    *  @param sCharsEnd Assembling of chars determine the end of the part.
    *  @see #getCircumScriptionToAnyChar(String)
    *  @see #scanToAnyChar(CharSequence[], String, char, char, char), 
+   *  @return CharSequence which should be used in the thread, not stored persistently.
    *  this method allows all transliteration and quotation characters.  
    * */
+  @Java4C.Exclude //see StringFunctions.convertTransliteration(...)
   public final CharSequence getCircumScriptionToAnyCharOutsideQuotion(String sCharsEnd)
   { return getCircumScriptionToAnyChar_p(sCharsEnd, true);
   }
   
-  
+  @Java4C.Exclude //see StringFunctions.convertTransliteration(...)
   private final CharSequence getCircumScriptionToAnyChar_p(String sCharsEnd, boolean bOutsideQuotion)
   { 
     char quotationChar = bOutsideQuotion ? '\"' : 0;
@@ -780,6 +810,7 @@ public class StringPartScan extends StringPart
    * @see {@link StringPart#indexOfAnyChar(String, int, int, char, char, char)}, used here.
    * @see {@link StringFunctions#convertTransliteration(CharSequence, char)}, used here.
    */
+  @Java4C.Exclude //see StringFunctions.convertTransliteration(...)
   public final StringPartScan scanToAnyChar(CharSequence[] dst, String sCharsEnd
       , char transcriptChar, char quotationStartChar, char quotationEndChar)
   { if(scanEntry()){

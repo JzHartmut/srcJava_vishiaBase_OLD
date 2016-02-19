@@ -39,6 +39,8 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
+   * <li>2016-02-13 Hartmut bugfix: {@link StringPartScan#scanFractionalNumber(long, boolean)} has had a problem with negative numbers. 
+   *   fixed there, adapted here.
    * <li>2015-07-05 Hartmut bugfix: On parenthesis expression there was an error if the {@link ExpressionType} in parenthesis was another 
    *   than the expression type of the stored accumulator. Then the expression type of the parenthesis has taken and the operation
    *   was faulty. Therefore general change: Store the ExpressionType in the accu in {@link Value#etype}. It may be instead {@link Value#type}
@@ -1997,8 +1999,9 @@ public class CalculatorExpr
       }
     } else if(spExpr.scanSkipSpace().scanInteger().scanOk()) {
       Value value = new Value();
+      boolean bNegative = spExpr.getLastScannedIntegerSign();
       long longvalue = spExpr.getLastScannedIntegerNumber();
-      if(spExpr.scanFractionalNumber(longvalue).scanOk()) {
+      if(spExpr.scanFractionalNumber(longvalue, bNegative).scanOk()) {
         double dval = spExpr.getLastScannedFloatNumber();
         if(spExpr.scan("F").scanOk()){
           value.floatVal = (float)dval;

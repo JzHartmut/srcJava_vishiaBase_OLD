@@ -791,6 +791,7 @@ public class StringFunctions {
    * @return The output string with replaces backslash pairs. It is a non-referenced StringBuilder
    *   if the src contains transcription chars, it is src itself if src does not contain transcription chars.
    */
+  //why excluded ? JcHartmut 2016-02-14 yet problems with CharSequence 
   @Java4C.Exclude
   public static CharSequence convertTransliteration(CharSequence src, char transcriptChar)
   { CharSequence sResult;
@@ -800,6 +801,7 @@ public class StringFunctions {
     }
     else
     { //escape character is found before end
+      @Java4C.StringBuilderInThreadCxt
       StringBuilder sbReturn = new StringBuilder(src);
       while(posSwitch >=0)
       { if(posSwitch < sbReturn.length()-1)
