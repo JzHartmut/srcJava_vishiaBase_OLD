@@ -103,6 +103,7 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2016-02-20 Hartmut new: ExecuteLevel#exec_Datatext(...): On exception an replacement text can be written, Syntax is <&datapath:?replacement:format> 
    * <li>2016-02-20 Hartmut new: Check statementList on if, while, for because an empty list is admissible. The syntax is changed.
    * <li>2016-02-20 Hartmut chg: The for variable is set to null on end of for-loop without break. Therewith it can be tested whether a for has broken on found element. The description is enhanced with that feature with example.  
    *   It is admissible to write <code> for(variable:container && !variable.check()); </code> especially to search somewhat in a container. 
@@ -1336,70 +1337,9 @@ throws ScriptException //Throwable
      * @throws IOException
      */
     void exec_Text(JZcmdScript.JZcmditem statement, Appendable out, int indentOut) throws IOException{
-      if(statement.textArg.startsWith("  "))
+      if(statement.textArg.startsWith("|+"))
         Debugutil.stop();
       out.append(statement.textArg);
-      /*
-      int posLine = 0;
-      int posEnd1, posEnd2;
-      int zText = statement.textArg.length();
-      do{
-        char cEnd = '\n';  
-        posEnd1 = statement.textArg.indexOf(cEnd, posLine);
-        posEnd2 = statement.textArg.indexOf('\r', posLine);   //a \r\n (Windows standard) or only \r (Macintosh standard) in the script is the end of line too.
-        if(posEnd2 >= 0 && (posEnd2 < posEnd1 || posEnd1 <0)){
-          posEnd1 = posEnd2;  // \r found before \n
-          cEnd = '\r';
-        }
-        if(posEnd1 >= 0){ 
-          if(bSetSkipSpaces) {
-            while(posLine <posEnd1 && " \r\n\t\f".indexOf(statement.textArg.charAt(posLine))>=0) {
-              posLine +=1;
-            }
-            if(posLine < posEnd1) { //anything found in the line:
-              bSetSkipSpaces = false;
-            }
-          }
-          out.append(statement.textArg.substring(posLine, posEnd1));   
-          out.append(jzcmd.newline);  //The newline of JZcmd invocation.
-          //skip over posEnd1, skip over the other end line character if found. 
-          if(++posEnd1 < zText){
-            if(cEnd == '\r'){ if(statement.textArg.charAt(posEnd1)=='\n'){ posEnd1 +=1; }}  //skip over both \r\n
-            else            { if(statement.textArg.charAt(posEnd1)=='\r'){ posEnd1 +=1; }}  //skip over both \n\r
-            //posEnd1 refers the start of the next line.
-            int indentCt = indentOut;
-            char cc;
-            while(indentCt > 0 && posEnd1 < zText && ((cc = statement.textArg.charAt(posEnd1)) == ' ' || cc == '\t')) {
-              if(cc == '\t'){
-                indentCt -= jzcmd.tabsize;
-                  if(indentCt >= 0) { //skip over '\t' only if matches to the indent.
-                  posEnd1 +=1;
-                }
-              } else {
-                posEnd1 +=1; //skip over all indentation chars
-                indentCt -=1;
-              }
-            }
-            if(indentCt >0 && posEnd1 < zText){ //skip over all ::: which starts before indentation point in script:
-              cc = statement.textArg.charAt(posEnd1);  
-              if(":+=".indexOf(cc)>=0){  //skip over chars +++ ::: === which starts before indentation point.
-                posEnd1 +=1;
-                while(posEnd1 < zText && statement.textArg.charAt(posEnd1) == cc) { //skip over all equal chars +++ === or :::
-                  posEnd1 +=1; //skip over all ::: as indentation chars  
-                }
-              }
-            }
-            //line starts after :::: which starts before indentation end
-            //or line starts after first char which is not a space or tab
-            //or line starts on the indent position.
-          }
-          posLine = posEnd1;
-        } else { //the rest till end.
-          out.append(statement.textArg.substring(posLine));   
-        }
-        
-      } while(posEnd1 >=0);  //output all lines.
-      */
     }
     
     
@@ -2415,9 +2355,18 @@ throws ScriptException //Throwable
     private short exec_Datatext(JZcmdScript.DataText statement, StringFormatter out, int indentOut, int nDebug)  //<*datatext>
     throws IllegalArgumentException, Exception
     { short success = kSuccess;
-      CharSequence text = "?+?";
-      Object obj = dataAccess(statement.dataAccess, localVariables, jzcmd.bAccessPrivate, false, false, null);
-      if(obj == JZcmdExecuter.retException){ 
+      CharSequence text = null;
+      Object obj = null;
+      try{ obj = dataAccess(statement.dataAccess, localVariables, jzcmd.bAccessPrivate, false, false, null);
+      } catch(Exception exc) {
+        if(statement.errorText !=null){
+          text = statement.errorText;
+        } else {
+          throw exc;
+        }
+      }
+      if(text !=null) { //set already.
+      } else if(obj == JZcmdExecuter.retException){ 
         success = kException; 
       }
       else {
@@ -2450,11 +2399,11 @@ throws ScriptException //Throwable
         } else  {
           text = obj.toString();
         }
-        if(StringFunctions.startsWith(text, "?+?"))
+        if(text == null)
           Debugutil.stop();
-        if(text!=null){ out.append(text); }
         success = kSuccess;
       }
+      if(text!=null){ out.append(text); }
       return success;
     }
 

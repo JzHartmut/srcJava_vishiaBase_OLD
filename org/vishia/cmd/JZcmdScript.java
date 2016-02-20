@@ -1079,6 +1079,10 @@ public class JZcmdScript extends CompiledScript
     
     public void set_formatText(String text){ this.format = text; }
     
+    public String errorText;
+    
+    public void set_errorText(String text){ this.errorText = text; }
+    
 
   }
   

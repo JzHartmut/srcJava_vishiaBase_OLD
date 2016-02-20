@@ -357,9 +357,10 @@ public class FileSystem
   }
 
 
-  /**Reads the content of a whole file into a byte array.
+  /**Reads the content of a file into a byte array. Only the first bytes are read from the file if the buffer is lesser than the file.
+   * This can be used especially to check the head data of a file. The file is opened as {@link FileInputStream}, read and closed again. 
    * @param file The file should be exist, but don't need to exist.
-   * @return nrofBytes read , see java.io.InputStream.read(byte[])
+   * @return nrofBytes read , see java.io.InputStream.read(byte[]). 0 if the file is not existing or any error occurs (especially file is locked).
    */
   public static int readBinFile(File file, byte[] buffer)
   { int nrofBytes;
