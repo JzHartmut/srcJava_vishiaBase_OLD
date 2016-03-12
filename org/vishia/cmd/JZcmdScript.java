@@ -1115,6 +1115,8 @@ public class JZcmdScript extends CompiledScript
     
     public void set_type(String val){ typeVariable = val; }
     
+    public void set_name(String val){  }
+    
     
     /**From Zbnf: < variable?defVariable> inside a DefVariable::=...
      */
@@ -1211,11 +1213,32 @@ public class JZcmdScript extends CompiledScript
       statementlist.statements.add(val);
     }
     
-    public DefVariable new_DefSubtext(){
+    public DefVariable XXXnew_DefSubtext(){
       return new DefVariable(statementlist, '\0');  ////
     } 
 
-    public void add_DefSubtext(DefVariable val){ 
+    public void XXXadd_DefSubtext(DefVariable val){ 
+      if(val.statementlist !=null) {
+        val.elementType = '{';  //a code block, statement block which should be executed on used time.
+      } else {
+        val.elementType = 'O';  //an expression which should be evaluated on build-time of the container
+      }
+      if(statementlist == null){ statementlist = new StatementList(this); }
+      statementlist.statements.add(val);  
+    }
+    
+    
+
+    public Subroutine new_DefSubtext(){
+      StatementList parent = parentList;
+      while(parent !=null && !(parent instanceof JZcmdClass)){
+        parent = parent.parentStatement.parentList;
+      }
+      JZcmdClass jzClass = parent == null ? null : (JZcmdClass)parent;
+      return new Subroutine(jzClass);  ////
+    } 
+
+    public void add_DefSubtext(Subroutine val){ 
       if(val.statementlist !=null) {
         val.elementType = '{';  //a code block, statement block which should be executed on used time.
       } else {
@@ -1639,7 +1662,10 @@ public class JZcmdScript extends CompiledScript
     
     //char type;
     
-    Subroutine(JZcmdClass parentList){
+    /**
+     * @param parentList It is neccessary that parentList is instanceof JZcmdClass, for {@link JZcmdExecuter}
+     */
+    Subroutine(JZcmdClass parentList) {
       super(parentList, 'X');
     }
     
@@ -2282,6 +2308,40 @@ public class JZcmdScript extends CompiledScript
 
     public void add_DefObjVar(DefVariable val){ statements.add(val); onerrorAccu = null; withoutOnerror.add(val);}
     
+    public DefVariable XXXnew_DefSubtext(){
+      return new DefVariable(this, 'C');  ////
+    } 
+
+    public void XXXadd_DefSubtext(DefVariable val){ 
+      if(val.statementlist !=null) {
+        val.elementType = '{';  //a code block, statement block which should be executed on used time.
+      } else {
+        val.elementType = 'O';  //an expression which should be evaluated on build-time of the container
+      }
+      statements.add(val);  
+    }
+    
+    
+    public Subroutine new_DefSubtext(){
+      StatementList parent = this;
+      while(parent !=null && !(parent instanceof JZcmdClass)){
+        parent = parent.parentStatement.parentList;
+      }
+      JZcmdClass jzClass = parent == null ? null : (JZcmdClass)parent;
+      return new Subroutine(jzClass);  ////
+    } 
+
+    public void add_DefSubtext(Subroutine val){ 
+      if(val.statementlist !=null) {
+        val.elementType = '{';  //a code block, statement block which should be executed on used time.
+      } else {
+        val.elementType = 'O';  //an expression which should be evaluated on build-time of the container
+      }
+      statements.add(val);  
+    }
+    
+    
+
     
     public DefClasspathVariable new_DefClasspath(){ 
       bContainsVariableDef = true; 

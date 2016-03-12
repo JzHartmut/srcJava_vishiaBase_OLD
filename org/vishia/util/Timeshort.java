@@ -9,6 +9,8 @@ public class Timeshort {
   
   /**Version, history and license.
    * <ul>
+   * <li>2016-03-06 Hartmut new: {@link #clean()} and {@link #isCleaned()} to set a new pair of absTime_short and absTime.
+   * <li>2016-03-06 Hartmut new: set data to private, access only via methods! (Why they were public?) 
    * <li>2013-04-30 Hartmut new: {@link #sleep(long)} as wrapper around Thread.sleep() without Exception.
    * <li>2012-10-14 Hartmut created as util class from well known usage.
    * </ul>
@@ -42,13 +44,13 @@ public class Timeshort {
   
   
   /**The shorttime-stamp to the {@link #absTime} timestamp. Set with {@link GralCurveView#setTimePoint(long, int, float)}. */
-  public int absTime_short;
+  private int absTime_short;
   
   /**Any absolute  timestamp to the {@link #absTime_short}. Set with {@link GralCurveView#setTimePoint(long, int, float)}. */
-  public long absTime;
+  private long absTime =-1;
   
   /**Milliseconds for 1 step of shorttime. */
-  public float absTime_Millisec7short = 1.0f;
+  private float absTime_Millisec7short = 1.0f;
 
 
   public Timeshort(){}
@@ -62,6 +64,7 @@ public class Timeshort {
   }
   
   
+  /**Returns the absolute time in milliseconds after 1970 to a given timeshort. */
   public synchronized long absTimeshort(int timeshort){
     return (long)((timeshort - absTime_short) * absTime_Millisec7short) + absTime;
   }
@@ -74,9 +77,32 @@ public class Timeshort {
   }
   
   
+  public void clean(){ absTime = -1; absTime_short = 0; }
+  
+  public boolean isCleaned(){ return absTime == -1L; }
+  
+  /**Returns the factor between milliseconds / shorttime_difference
+   * @return
+   */
   public float millisec7short(){ return absTime_Millisec7short; }
   
+  /**Returns the milliseconds after the last {@link #setTimePoint(long, int, float)} according to the given timeshort. */
   public synchronized float millisecShort(int timeshort){ return absTime_Millisec7short * (timeshort - absTime_short); }
+  
+  /**Returns the timeshort steps to the given date according to the last {@link #setTimePoint(long, int, float)}.
+   * @param date The current date, it should be later than the date on the setTimePoint(...)
+   * @return timeshort steps to the date in respect to the time point.
+   */
+  public int timeshort4abstime(long date) {
+    double millisec = date - absTime;  //divide in double to preserve 64 bits.
+    long timeshort1 = (long)(millisec / absTime_Millisec7short);
+    if(timeshort1 < 0x100000000L) {
+      return (int)(timeshort1 + absTime_short);
+    } else {
+      return 0;
+    }
+  }
+  
   
   
   /**Universal wait routine without necessity of a try-catch wrapping.

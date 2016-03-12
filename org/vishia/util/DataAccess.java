@@ -2199,6 +2199,7 @@ public class DataAccess {
      * <li>'+': new ident, creation of instance maybe with or without arguments in {@link #fnArgs}
      * <li>'%'; call of a static routine maybe with or without arguments in {@link #fnArgs}
      * <li>'(': subroutine maybe with or without arguments in {@link #fnArgs}.
+     * <li>'C': A new Codeblock variable (Subtext)
      * <li>'S': A new String variable
      * <li>'O': A new Object variable
      * <li>'K': A new Value variable

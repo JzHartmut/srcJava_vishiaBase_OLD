@@ -103,6 +103,13 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2016-03-06 Hartmut new: 
+   *   <ul><li>Create a codeBlock variable with {@link ExecuteLevel#exec_DefCodeblockVariable(Map, org.vishia.cmd.JZcmdScript.Subroutine, boolean) on statement <code>Subtext name = ...</code>,
+   *   <li>Create a codeBlock content in {@link ExecuteLevel#exec_DefList(org.vishia.cmd.JZcmdScript.DefContainerVariable, Map)} on {@link Subroutine} as content
+   *   <li>execute the codeBlock in {@link ExecuteLevel#exec_Call(org.vishia.cmd.JZcmdScript.CallStatement, List, StringFormatter, int, int)} on found codeBlock variable as name
+   *   <li>execute the codeBlock in  {@link ExecuteLevel#exec_Datatext(org.vishia.cmd.JZcmdScript.DataText, StringFormatter, int, int)} on found codeBlock variable (type 'C') with local given variables.
+   *   <li>evaluating of the code block with
+   *   </ul> 
    * <li>2016-02-20 Hartmut new: ExecuteLevel#exec_Datatext(...): On exception an replacement text can be written, Syntax is <&datapath:?replacement:format> 
    * <li>2016-02-20 Hartmut new: Check statementList on if, while, for because an empty list is admissible. The syntax is changed.
    * <li>2016-02-20 Hartmut chg: The for variable is set to null on end of for-loop without break. Therewith it can be tested whether a for has broken on found element. The description is enhanced with that feature with example.  
@@ -1195,6 +1202,12 @@ throws ScriptException //Throwable
               exec_DefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'Q', cond, false);
             }
           } break;
+          case '{': {  //a Subtext or codeblock variable:  ////
+            //don't evaluate the statements of the variable yet. 
+            //JZcmdScript.DefVariable statementDef = (JZcmdScript.DefVariable)statement;
+            //exec_DefVariable(newVariables, statementDef, '{', statementDef.statementlist, false);
+            exec_DefCodeblockVariable(newVariables, (JZcmdScript.Subroutine)statement, true); 
+          } break;
           case 'e': ret = exec_Datatext((JZcmdScript.DataText)statement, out, indentOut, --nDebug1); break; 
           case 's': ret = exec_Call((JZcmdScript.CallStatement)statement, null, out, indentOut, --nDebug1); break;  //sub
           case 'x': ret = exec_Thread(newVariables, (JZcmdScript.ThreadBlock)statement); break;             //thread
@@ -1368,8 +1381,22 @@ throws ScriptException //Throwable
         localVariables.add("return", ret);
       }
       storeValue(statement.defVariable, newVariables, value, jzcmd.bAccessPrivate);
-      //setLocalVariable(statement.name, type, value, isConst);
-       
+    }
+
+    
+    
+    /**It defines a variable type 'C' and stores the given subroutine reference to execute that statements on evaluating the variable 
+     * @param newVariables
+     * @param statement Subroutine reference
+     * @param type not used, type is 'C'
+     * @param value 
+     * @param isConst
+     * @throws Exception
+     */
+    void exec_DefCodeblockVariable(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.Subroutine statement, boolean isConst) 
+    throws Exception {
+      DataAccess defVariable = new DataAccess(statement.name, 'C');
+      storeValue(defVariable, newVariables, statement, jzcmd.bAccessPrivate);
     }
 
     
@@ -1393,6 +1420,10 @@ throws ScriptException //Throwable
             if(ret == kException) 
               return ret;
             else { valueList.add(elementValue); }
+          } else if (elementStm instanceof JZcmdScript.Subroutine) {
+            JZcmdScript.Subroutine stm1 = (JZcmdScript.Subroutine) elementStm;
+            DataAccess.Variable<Object> variable = new DataAccess.Variable<Object>(elementType, stm1.name, stm1);
+            valueList.add(variable);
           } else if (elementStm instanceof JZcmdScript.DefVariable) {
             //A variable:
             JZcmdScript.DefVariable stm1 = (JZcmdScript.DefVariable) elementStm;
@@ -1836,7 +1867,10 @@ throws ScriptException //Throwable
       if(callStatement.call_Name.dataAccess !=null) {
         Object o = dataAccess(callStatement.call_Name.dataAccess, localVariables, jzcmd.bAccessPrivate, false, false, null);
         //Object o = arg.dataAccess.getDataObj(localVariables, acc.bAccessPrivate, false);
-        if(o instanceof DataAccess.Variable && ((DataAccess.Variable)o).type() == '{'){ 
+        if(o instanceof JZcmdScript.Subroutine) {
+          subroutine = (JZcmdScript.Subroutine)o;  //eval codeblock
+          nameSubtext = null;
+        } else if(o instanceof DataAccess.Variable && ((DataAccess.Variable)o).type() == '{'){ 
           //This possibility is not full tested yet, <:subtext:&variable>
           nameSubtext = null; 
           subroutine = null;  ////
@@ -1857,14 +1891,15 @@ throws ScriptException //Throwable
           throw new NoSuchElementException("JZcmdExecuter - subroutine name emtpy; " );
         }
       }
-      if(nameSubtext !=null) {
+      if(subroutine == null && nameSubtext !=null) {
         subroutine = jzClass.subroutines.get(nameSubtext);
         if(subroutine == null) { //not found in this class:    
           subroutine = jzcmd.jzcmdScript.getSubroutine(nameSubtext);  //the subtext script to call
         }
-        if(subroutine == null){
+      }
+      if(subroutine == null){
           throw new NoSuchElementException("JZcmdExecuter - subroutine not found; " + nameSubtext);
-        }
+      } else {  //subroutine !=null)  
         //TODO use execSubroutine, same code!
         final ExecuteLevel sublevel;
         JZcmdScript.JZcmdClass subClass = (JZcmdScript.JZcmdClass)subroutine.parentList;
@@ -2346,7 +2381,7 @@ throws ScriptException //Throwable
     
     
     
-    /**Inserts <*a_datapath> in the out.
+    /**Inserts <&a_Datapath> in the out.
      * @param statement
      * @param out
      * @throws IllegalArgumentException
@@ -2384,13 +2419,18 @@ throws ScriptException //Throwable
           text = (CharSequence)obj;
         } else if(obj instanceof DataAccess.Variable) {
           DataAccess.Variable<?> variable = (DataAccess.Variable<?>) obj;
-          if(variable.type() == '{') { 
+          if(variable.type() == 'C') { 
             //a Subtext or Statement block  ////
             @SuppressWarnings("unchecked") 
-            DataAccess.Variable<JZcmdScript.StatementList> var = (DataAccess.Variable<JZcmdScript.StatementList>)obj;
-            JZcmdScript.StatementList statements = var.value();
-            success = execute(statements, out, indentOut, localVariables, nDebug);
-            text = null;
+            DataAccess.Variable<JZcmdScript.Subroutine> var = (DataAccess.Variable<JZcmdScript.Subroutine>)obj;
+            JZcmdScript.Subroutine subroutine = var.value();
+            if(!subroutine.useLocals) {
+              throw new IllegalArgumentException("Subroutine as <&dataText> can only used without arguments.");
+            }
+            success = exec_Subroutine(subroutine, null, out, indentOut);
+            //executes the statement of the Subtext and appends the content to out.
+            //success = execute(statements, out, indentOut, localVariables, nDebug);
+            text = null; //because it is appended already, text = null.
           } else {
             text = variable.value().toString();
           }
@@ -3107,11 +3147,8 @@ throws ScriptException //Throwable
     
     
     int debug(JZcmdScript.JZcmditem statement) //throws Exception
-    {
-      try{ CharSequence text = evalString(statement);
-      
-      } catch(Exception exc){
-        //unexpected
+    { try{ CharSequence text = evalString(statement);
+      } catch(Exception exc){ //unexpected
       }
       Assert.stop();
       return 1;
