@@ -107,7 +107,7 @@ public class JZcmdExecuter {
    *   <ul><li>Create a codeBlock variable with {@link ExecuteLevel#exec_DefCodeblockVariable(Map, org.vishia.cmd.JZcmdScript.Subroutine, boolean) on statement <code>Subtext name = ...</code>,
    *   <li>Create a codeBlock content in {@link ExecuteLevel#exec_DefList(org.vishia.cmd.JZcmdScript.DefContainerVariable, Map)} on {@link Subroutine} as content
    *   <li>execute the codeBlock in {@link ExecuteLevel#exec_Call(org.vishia.cmd.JZcmdScript.CallStatement, List, StringFormatter, int, int)} on found codeBlock variable as name
-   *   <li>execute the codeBlock in  {@link ExecuteLevel#exec_Datatext(org.vishia.cmd.JZcmdScript.DataText, StringFormatter, int, int)} on found codeBlock variable (type 'C') with local given variables.
+   *   <li>execute the codeBlock in  {@link ExecuteLevel#exec_Datatext(org.vishia.cmd.JZcmdScript.DataText, StringFormatter, int, int)} on found codeBlock variable (type 'X') with local given variables.
    *   <li>evaluating of the code block with
    *   </ul> 
    * <li>2016-02-20 Hartmut new: ExecuteLevel#exec_Datatext(...): On exception an replacement text can be written, Syntax is <&datapath:?replacement:format> 
@@ -1369,6 +1369,14 @@ throws ScriptException //Throwable
     
     
 
+    /**
+     * @param newVariables
+     * @param statement {@link JZcmdScript.DefVariable#defVariable} contains the type.
+     * @param type unused, see statement
+     * @param value
+     * @param isConst
+     * @throws Exception
+     */
     void exec_DefVariable(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.DefVariable statement, char type, Object value, boolean isConst) 
     throws Exception {
       if(statement.typeVariable !=null){
@@ -1380,12 +1388,13 @@ throws ScriptException //Throwable
         DataAccess.Variable<Object> ret = new DataAccess.Variable<Object>('M', "return", jzcmd.new_Variables());
         localVariables.add("return", ret);
       }
+      //statement.defVariable is type of DataAccess and contains the type. 
       storeValue(statement.defVariable, newVariables, value, jzcmd.bAccessPrivate);
     }
 
     
     
-    /**It defines a variable type 'C' and stores the given subroutine reference to execute that statements on evaluating the variable 
+    /**It defines a variable type 'X' and stores the given subroutine reference to execute that statements on evaluating the variable 
      * @param newVariables
      * @param statement Subroutine reference
      * @param type not used, type is 'C'
@@ -1395,7 +1404,7 @@ throws ScriptException //Throwable
      */
     void exec_DefCodeblockVariable(Map<String, DataAccess.Variable<Object>> newVariables, JZcmdScript.Subroutine statement, boolean isConst) 
     throws Exception {
-      DataAccess defVariable = new DataAccess(statement.name, 'C');
+      DataAccess defVariable = new DataAccess(statement.name, 'X');
       storeValue(defVariable, newVariables, statement, jzcmd.bAccessPrivate);
     }
 
@@ -1422,7 +1431,7 @@ throws ScriptException //Throwable
             else { valueList.add(elementValue); }
           } else if (elementStm instanceof JZcmdScript.Subroutine) {
             JZcmdScript.Subroutine stm1 = (JZcmdScript.Subroutine) elementStm;
-            DataAccess.Variable<Object> variable = new DataAccess.Variable<Object>(elementType, stm1.name, stm1);
+            DataAccess.Variable<Object> variable = new DataAccess.Variable<Object>('X', stm1.name, stm1);  //create a codeblock (eXectable) variable
             valueList.add(variable);
           } else if (elementStm instanceof JZcmdScript.DefVariable) {
             //A variable:
@@ -1430,6 +1439,7 @@ throws ScriptException //Throwable
             String name = stm1.getVariableIdent();
             final Object elementValue;
             if(stm1.elementType() == '{'){
+              assert(false);
               elementValue = stm1.statementlist;
             } else {
               elementValue = evalObject(elementStm, true);
@@ -1870,7 +1880,7 @@ throws ScriptException //Throwable
         if(o instanceof JZcmdScript.Subroutine) {
           subroutine = (JZcmdScript.Subroutine)o;  //eval codeblock
           nameSubtext = null;
-        } else if(o instanceof DataAccess.Variable && ((DataAccess.Variable)o).type() == '{'){ 
+        } else if(o instanceof DataAccess.Variable && ((DataAccess.Variable)o).type() == 'X'){ 
           //This possibility is not full tested yet, <:subtext:&variable>
           nameSubtext = null; 
           subroutine = null;  ////
@@ -2382,7 +2392,7 @@ throws ScriptException //Throwable
     
     
     /**Inserts <&a_Datapath> in the out.
-     * @param statement
+     * @param statement The statement which contains the access path etc.
      * @param out
      * @throws IllegalArgumentException
      * @throws Exception
@@ -2419,7 +2429,7 @@ throws ScriptException //Throwable
           text = (CharSequence)obj;
         } else if(obj instanceof DataAccess.Variable) {
           DataAccess.Variable<?> variable = (DataAccess.Variable<?>) obj;
-          if(variable.type() == 'C') { 
+          if(variable.type() == 'X') { 
             //a Subtext or Statement block  ////
             @SuppressWarnings("unchecked") 
             DataAccess.Variable<JZcmdScript.Subroutine> var = (DataAccess.Variable<JZcmdScript.Subroutine>)obj;

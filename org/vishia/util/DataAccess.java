@@ -2199,15 +2199,16 @@ public class DataAccess {
      * <li>'+': new ident, creation of instance maybe with or without arguments in {@link #fnArgs}
      * <li>'%'; call of a static routine maybe with or without arguments in {@link #fnArgs}
      * <li>'(': subroutine maybe with or without arguments in {@link #fnArgs}.
-     * <li>'C': A new Codeblock variable (Subtext)
-     * <li>'S': A new String variable
-     * <li>'O': A new Object variable
-     * <li>'K': A new Value variable
-     * <li>'Q': A new Boolean variable
      * <li>'A': A new Appendable variable
+     * <li>'C': A new Class variable
      * <li>'E': A new environment variable
-     * <li>'P': A new pipe variable.
+     * <li>'K': A new Value variable
      * <li>'L': A new list container.
+     * <li>'O': A new Object variable
+     * <li>'P': A new pipe variable.
+     * <li>'Q': A new Boolean variable
+     * <li>'S': A new String variable
+     * <li>'X': A new Codeblock variable (eXecute, Subtextvar, Subroutinevar)
      * </ul>
      * A new Variable should be stored newly as {@link Variable} with that given type using {@link DataAccess#storeValue(List, Map, Object, boolean)}.
      */
@@ -2460,8 +2461,22 @@ public class DataAccess {
     
     public T value(){ return value; }
     
-    /**Returns the type of the variable: S-String, A-Appendable, P-Pipe, L-List-container, F-Openfile,
-     * O-Any object, E-Environment variable V - container for variables C - Class.
+    /**Returns the type of the variable: 
+     * The type follows the {@link DatapathElement#whatisit} on creation of the variable:
+     * <ul>
+     * <li>'A': A new Appendable variable
+     * <li>'C': A new Class variable
+     * <li>'E': A new environment variable
+     * <li>'F': ? open file
+     * <li>'K': A new Value variable
+     * <li>'L': A new list container.
+     * <li>'O': A new Object variable
+     * <li>'P': A new pipe variable.
+     * <li>'Q': A new Boolean variable
+     * <li>'S': A new String variable
+     * <li>'V': ?? container
+     * <li>'X': A new Codeblock variable (eXecute, Subtextvar, Subroutinevar)
+     * </ul>
      */
     public char type(){ return type; }
     

@@ -1124,7 +1124,7 @@ public class JZcmdScript extends CompiledScript
     
     public void add_defVariable(JZcmdDataAccess val){   
       int whichStatement =     "SPULOKQWMCJFG*{[\0".indexOf(elementType);
-      char whichVariableType = "SPULOKQAMCJFG*{[\0".charAt(whichStatement);  //from elementType to variable type.
+      char whichVariableType = "SPULOKQAMCJFG*X[\0".charAt(whichStatement);  //from elementType to variable type.
       if(bConst){
         whichVariableType = Character.toLowerCase(whichVariableType);  //see DataAccess.access
       }
