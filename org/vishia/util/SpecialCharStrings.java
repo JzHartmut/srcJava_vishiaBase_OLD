@@ -71,15 +71,15 @@ public class SpecialCharStrings
    * @return The output string with replaces backslash pairs.
    */
   public static CharSequence resolveCircumScription(CharSequence src)
-  { CharSequence sResult;
+  { CharSequence sResult; //s
     final char cSwitch = '\\';
-    int posSwitch = StringFunctions.indexOf(src, cSwitch, 0); //src.indexOf(cSwitch);
+    int posSwitch = StringFunctions.indexOf(src, cSwitch, 0); // src.indexOf(cSwitch);
     if(posSwitch < 0)
     { sResult = src;
     }
     else
     { //escape character is found before end
-      StringBuffer sbReturn = new StringBuffer(src);
+      StringBuilder sbReturn = new StringBuilder(src);
       while(posSwitch >=0)
       { if(posSwitch < sbReturn.length()-1)
         { sbReturn.deleteCharAt(posSwitch);

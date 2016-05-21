@@ -123,7 +123,16 @@ public class StringFunctions_B
   
   
   
-  public static boolean checkSameChars(CharSequence ... src)
+  /**Checks whether any char is existing in all given src.
+   * This routine is used to check some conditions which are dedicated by some characters in a string.
+   * <ul>
+   * <li>For Example "ACx" " BC" "Cd" contains all the char 'C' therefore this routine returns true.
+   * <li>For Example "ACx" "AC"  "Dx" There is no common character containing in all three sequences, returns false. 
+   * @param src some char sequences
+   * @return true if at least one char is found which is contained in all src.
+   * @TODO Java2C: Yet without threadcontext because bug with variable argument list
+   */
+  @Java4C.NoStackTrace @Java4C.Exclude public static boolean checkSameChars(CharSequence ... src)
   {
     boolean ok = false;
     CharSequence cmp = null;

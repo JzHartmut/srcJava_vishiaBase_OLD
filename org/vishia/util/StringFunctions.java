@@ -13,6 +13,8 @@ public class StringFunctions {
 
   /**Version, history and license.
    * <ul>
+   * <li>2016-05-22 Hartmut chg: {@link #indexOfAnyString(CharSequence, int, int, CharSequence[], int[], String[])}: Algorithm from StringPart
+   *   copied to here. It is common. temporary instance in StrinPart prevented. 
    * <li>2015-11-07 Hartmut chg: Now the number conversion routines are moved to {@link StringFunctions_C}. 
    *   Reason: Dissipate the content because for some embedded applications a fine tuning of used sources is necessary.
    * <li>2015-10-23 Hartmut new: {@link #indexWhitespace(CharSequence, int, int)}, {@link #indexNoWhitespace(CharSequence, int, int)}.
@@ -321,6 +323,15 @@ public class StringFunctions {
     }
   }
   
+
+  
+  boolean test(String s){
+    if(s==null) return false;
+    else return true;
+  }
+  
+  
+  
   
   
   /**Compares two CharSequence (Strings, StringBuilder-content etc.
@@ -535,7 +546,7 @@ public class StringFunctions {
   
   /**Searches any char inside sChars in the given Charsequence
    * @param begin start position to search in sq
-   * @param end length of sq or end position to test
+   * @param end length of sq or end position to test. If {@link Integer#MAX_VALUE} then till end of sq
    * @param sChars Some chars to search in sq
    *   If sChars contains a EOT character (code 03, {@link #cEndOfText}) then the search stops at this character 
    *   or it is continued to the end of the range in sq. Then the length of the text range is returned
@@ -546,6 +557,7 @@ public class StringFunctions {
    */
   public static int indexOfAnyChar(CharSequence sq, int begin, int end, String sChars)
   { int pos = begin-1;  //pre-increment
+    if(end == Integer.MAX_VALUE){ end = sq.length(); }
     while(++pos < end && sChars.indexOf(sq.charAt(pos)) < 0){ }  //while any of char in sChars not found:
     if(pos < end 
       || (pos == end && sChars.indexOf(cEndOfText) >= 0)
@@ -760,6 +772,108 @@ public class StringFunctions {
     }
     return -1;  //not found;
   }
+  
+  
+  
+  
+  
+    /**Returns the position of one of the chars in sChars within the part, started inside the part with fromIndex,
+   *  returns -1 if the char is not found in the part started from 'fromIndex'.
+   * @param listStrings contains some Strings to find.
+   * @param from begin of search within the part.
+   * @param to exclusively end to test. 
+    * @param nrofFoundString If given, [0] is set with the number of the found String in listStrings, 
+   *                        count from 0. This array reference may be null, then unused.
+   * @param foundString If given, [0] is set with the found String. This array reference may be null.
+   * @return position of first founded char inside (sq + from), but not greater than (to - from), 
+   *                 if no chars is found until maxToTest, but -1 if the end is reached.
+   */
+  public static int indexOfAnyString
+  ( CharSequence sq
+  , int from, int to
+  , CharSequence[] listStrings
+  , int[] nrofFoundString
+  , String[] foundString
+  )
+  { int pos = from; // + fromWhere;
+    //int endLast = end;
+    //StringBuffer sFirstCharBuffer = new StringBuffer(listStrings.size());
+    assert(listStrings.length < 100);  //static size is need
+    /** @java2c=stackInstance.*/
+    StringBuffer sFirstCharBuffer = new StringBuffer(100);
+    //Iterator<String> iter = listStrings.iterator();
+    boolean acceptToEndOfText = false;
+    //while(iter.hasNext())
+    /**Compose a String with all first chars, to test whether a current char of src is equal. */
+    { int ii = -1;
+    while(++ii < listStrings.length)
+    { //String sString = (String)(iter.next());
+      CharSequence sString = listStrings[ii];
+      if(sString.charAt(0) == cEndOfText)
+      { acceptToEndOfText = true;}
+      else 
+      { sFirstCharBuffer.append(sString.charAt(0)); }  //to search the first char as one of chars
+    } }
+    /**@java2c=toStringNonPersist.*/
+    String sFirstChars = sFirstCharBuffer.toString();
+    boolean found = false;
+    while(!found && pos < to)
+    { 
+      int nrofFoundString1 = -1;
+      /**increment over not matching chars, test all first chars: */
+      while(pos < to && (nrofFoundString1 = sFirstChars.indexOf(sq.charAt(pos))) < 0) pos +=1;
+      
+      if(pos < to)
+      { /**a fist matching char is found! test wether or not the whole string is matched.
+         * Test all Strings, the first test is the test of begin char. */
+        int ii = -1;
+        while(!found && ++ii < listStrings.length)  //NOTE: don't use for(...) because found is a criterium of break.
+        { //String sString = (String)(iter.next());
+          CharSequence sString = listStrings[ii];
+          int testLen = sString.length();
+          if((to - pos) >= testLen 
+              && StringFunctions.equals(sq, pos, pos+testLen, sString)
+          ) 
+          { found = true;
+          if(foundString != null)
+          { foundString[0] = sString.toString();
+          }
+          if(nrofFoundString != null)
+          { nrofFoundString[0] = ii;
+          }
+          }
+          //else { nrofFoundString1 +=1; }
+        }
+        if(!found){ pos +=1; }  //check from the next char because no string matches.
+        
+      }
+    }
+    int nChars;
+    if(pos < to 
+        || (pos == to && acceptToEndOfText)
+    )
+    { nChars = pos - from;
+    }
+    else { 
+      nChars = -1; 
+      if(foundString != null)
+      { foundString[0] = null;
+      }
+      if(nrofFoundString != null)
+      { nrofFoundString[0] = -1;
+      }
+    }
+    return nChars;
+  }
+
+  
+  
+  
+  
+  
+  
+  
+  
   
   
   

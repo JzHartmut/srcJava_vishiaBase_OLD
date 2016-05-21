@@ -108,10 +108,12 @@ import java.io.Closeable;
  * </ul>            
  */
 
+
 public class StringPart implements CharSequence, Comparable<CharSequence>, Closeable
 {
   /**Version, history and license.
    * <ul>
+   * <li>2016-05-22 Hartmut chg: now translated to C with some changes.
    * <li>2015-02-28 Hartmut chg: {@link #seekBackward(String)} instead seekBack because name clash in Java2C, C-translated code with {@link #seekBack}
    * <li>2015-02-28 Hartmut new: {@link #lentoLineEnd()}, {@link #seekBackward(String)}, {@link #seekBackToAnyChar(String)}
    *   more simple for calling in a JZcmd script.
@@ -190,12 +192,14 @@ abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
   */
   protected int begiMin;
 
-  /** The rightest possible exclusive end position. See explanation on startMin.
-      <br/>Set to content.length() if constructed from a string,
-      determined by the actual end if constructed from a StringPart*/
+  /** The most right possible exclusive end position. See explanation on startMin.
+   * <br/>Set to content.length() if constructed from a string,
+   * determined by the actual end if constructed from a StringPart.
+   * It is checked by assert whether endMax <= content.length(). 
+   */
   protected int endMax;
 
-  /** The referenced string*/
+  /** The referenced string. It is a CharSequence for enhanced using.    */
   protected CharSequence content;
 
   /**false if current scanning is not match*/
@@ -326,6 +330,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
     this.begiMin = this.begin = start;
     this.endMax = this.end = end;
     content = src;
+    assert(end <= content.length());
   }
   
   
@@ -353,14 +358,14 @@ abcdefghijklmnopqrstuvwxyz  The associated String
  * The replacement is done in the content. 
  * Initially the whole string is valid.
  * TODO designate input as persistent.
-@java2c=return-this.
-@param input The content initially maybe with place holders for environment variable, they will be replaced.
-  For java2c-usage the content should not be changed after them, because the String is referred there
-  originally.
-@return <code>this</code> refers the content.
+ * @java2c=return-this.
+ * @param input The content initially maybe with place holders for environment variable, they will be replaced.
+ *   For java2c-usage the content should not be changed after them, because the String is referred there
+ *   originally.
+ * @return <code>this</code> refers the content.
  * @deprecated: This routine processes the input. It may better to do this outside before
  * calling {@link #assign(CharSequence)} because it is not a functionality of this class.
-*/
+ */
 public final StringPart assignReplaceEnv(StringBuilder input)
 { int pos1 = 0;
   int zInput = input.length();
@@ -418,6 +423,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
     else
     { //set from a other instance, inherit the content.
       this.content = src.content; begiMin = beginLast = begin = src.begin; endMax = end = endLast = src.end;
+      assert(endMax <= content.length());
     }
     return this;
   }
@@ -453,6 +459,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
     beginLast = begin;
     begiMin = begin = src.end;       //from actual end
     endLast = endMax = end = src.endMax;          //from maximal end
+    assert(endMax <= content.length());
     return this;
   }
 
@@ -608,20 +615,30 @@ public final char charAt(int index){
 
 /**Returns a volatile CharSequence from the range inside the current part.
  * If it is not possible an IllegalArgumentException is thrown.
- * The difference to {@link #subString(int, int)} is: It is not persistant.
+ * The difference to {@link #subString(int, int)} is: It is not persistent.
  * This method should only used if the CharSequence is processed in the thread immediately
  * for example by adding to another StringBuilder etc. The returned instance should not be saved
  * for later usage.
  *  
  * @see java.lang.CharSequence#subSequence(int, int)
  */
-@Override public final Part subSequence(int from, int to)
+@Override public final CharSequence subSequence(int from, int to)
 { 
-  if(from < 0 || to > (end - begin)) throw new IllegalArgumentException("StringPartBase.subString - faulty;" + from);
-  return new Part(begin+from, begin+to); 
+  if(from < 0 || to > (end - begin)) {
+    throwSubSeqFaulty(from, to);
+    return null;  //It is used for Java2C without throw mechanism.
+  }
+  Part ret = new Part(begin+from, begin+to);
+  return ret;
 } 
 
 
+
+private final void throwSubSeqFaulty(int from, int to)
+{
+
+  throw new IllegalArgumentException("StringPartBase.subString - faulty;" + from);
+}
 
   
   /* (non-Javadoc)
@@ -1399,76 +1416,11 @@ public final int lastIndexOfAnyChar(String sChars, final int fromWhere, final in
   , int[] nrofFoundString
   , String[] foundString
   )
-  { int pos = begin + fromWhere;
-    int max = (end - pos) < maxToTest ? end : pos + maxToTest;
-    //int endLast = end;
-    //StringBuffer sFirstCharBuffer = new StringBuffer(listStrings.size());
-    assert(listStrings.length < 100);  //static size is need
-    /** @java2c=stackInstance.*/
-    StringBuffer sFirstCharBuffer = new StringBuffer(100);
-    //Iterator<String> iter = listStrings.iterator();
-    boolean acceptToEndOfText = false;
-    //while(iter.hasNext())
-    /**Compose a String with all first chars, to test whether a current char of src is equal. */
-    { int ii = -1;
-    while(++ii < listStrings.length)
-    { //String sString = (String)(iter.next());
-      CharSequence sString = listStrings[ii];
-      if(sString.charAt(0) == cEndOfText)
-      { acceptToEndOfText = true;}
-      else 
-      { sFirstCharBuffer.append(sString.charAt(0)); }  //to search the first char as one of chars
-    } }
-    /**@java2c=toStringNonPersist.*/
-    String sFirstChars = sFirstCharBuffer.toString();
-    boolean found = false;
-    while(!found && pos < max)
-    { 
-      int nrofFoundString1 = -1;
-      /**increment over not matching chars, test all first chars: */
-      while(pos < max && (nrofFoundString1 = sFirstChars.indexOf(content.charAt(pos))) < 0) pos +=1;
-      
-      if(pos < max)
-      { /**a fist matching char is found! test wether or not the whole string is matched.
-         * Test all Strings, the first test is the test of begin char. */
-        int ii = -1;
-        while(!found && ++ii < listStrings.length)  //NOTE: don't use for(...) because found is a criterium of break.
-        { //String sString = (String)(iter.next());
-          CharSequence sString = listStrings[ii];
-          int testLen = sString.length();
-          if((max - pos) >= testLen 
-              && StringFunctions.equals(content, pos, pos+testLen, sString)
-          ) 
-          { found = true;
-          if(foundString != null)
-          { foundString[0] = sString.toString();
-          }
-          if(nrofFoundString != null)
-          { nrofFoundString[0] = ii;
-          }
-          }
-          //else { nrofFoundString1 +=1; }
-        }
-        if(!found){ pos +=1; }  //check from the next char because no string matches.
-        
-      }
-    }
-    int nChars;
-    if(pos < max 
-        || (pos == max && acceptToEndOfText)
-    )
-    { nChars = pos - begin;
-    }
-    else { 
-      nChars = -1; 
-      if(foundString != null)
-      { foundString[0] = null;
-      }
-      if(nrofFoundString != null)
-      { nrofFoundString[0] = -1;
-      }
-    }
-    return nChars;
+  { int start = begin + fromWhere;
+    int max = (end - start) < maxToTest ? end : start + maxToTest;
+    int pos = StringFunctions.indexOfAnyString(content, start, max, listStrings, nrofFoundString, foundString);
+    if(pos >=0){ pos += fromWhere; } //found, but it has start after begin.  
+    return pos;
   }
 
 
@@ -2075,7 +2027,7 @@ else return pos - begin;
     * @return this
     * @throws ClassCastException if the instance is not a StringPartScan. That is an internal software error.
     */
-   public final StringPartScan scan()
+   @Java4C.Exclude public final StringPartScan scan()
    { return (StringPartScan)this;
    }
 
@@ -2123,7 +2075,8 @@ else return pos - begin;
     else
     { posend = posendP;
     }
-    return new Part(pos+begiMin, posend); //content.substring(pos+begiMin, posend); 
+    Part ret = new Part(pos+begiMin, posend); //content.substring(pos+begiMin, posend); 
+    return ret;
   }
   
 
@@ -2137,7 +2090,7 @@ else return pos - begin;
   */
 
   public final CharSequence getCurrent(int nChars)
-  { final int nChars1 =  (content.length() - begin) < nChars ? content.length() - begin : nChars;
+  { final int nChars1 =  (endMax - begin) < nChars ? endMax - begin : nChars;  //maybe reduced nr of chars
     if(nChars1 ==0) return "";
     else return( new Part(begin, begin + nChars1));
   }
@@ -2145,10 +2098,9 @@ else return pos - begin;
   /** Gets the next char at current Position.
   */
   public final char getCurrentChar()
-  { if(begin < content.length()){ return content.charAt(begin); }
-    else return '\0'; ///**@java2c=StringBuilderInThreadCxt.*/ throw new IndexOutOfBoundsException("end of StringPartBase:" + begin); // return cEndOfText;
+  { if(begin < endMax){ return content.charAt(begin); }
+    else return '\0'; 
   }
- 
  
   
   
@@ -2185,27 +2137,37 @@ else return pos - begin;
    * 
    */
   public final Part getCurrentPart()
-  { if(end > begin) return new Part(begin, end);
-    else            return new Part(begin, begin);
+  { final Part ret;
+    if(end > begin) ret = new Part(begin, end);
+    else            ret = new Part(begin, begin);
+    return ret;
   }
   
 
   /** Returns the last part of the string before any seek or scan operation.
    * 
    */
+  @Java4C.ReturnInThreadCxt
   public final CharSequence getLastPart()
-  { if(begin > beginLast) return new Part(beginLast, begin);
-    else            return "";
+  { if(begin > beginLast) { 
+      @Java4C.InThreadCxt Part ret = new Part(beginLast, begin); return ret; 
+    } 
+    else return "";
   }
   
 
   /** Returns the actual part of the string.
    * 
    */
+  @Java4C.ReturnInThreadCxt
   public final CharSequence getCurrentPart(int maxLength)
-  { int max = (end - begin) <  maxLength ? end : begin + maxLength;
-    if(end > begin) return new Part(begin, max);
-    else            return ""; 
+  { int max = (end - begin) <  maxLength ? end : begin + maxLength ;
+    if(end > begin) { 
+      @Java4C.InThreadCxt
+      Part ret = new Part(begin, max);
+      return ret;
+    }
+    else return ""; 
   }
   
 
@@ -2225,8 +2187,9 @@ else return pos - begin;
    *   If it is necessary, invoke toString() with this returned value.
    */
   public final StringPart.Part getPart(int fromPos, int nrofChars){
-    if((fromPos + nrofChars) > content.length()){ nrofChars = content.length() - fromPos; }
-    return new Part(fromPos, fromPos +nrofChars);
+    final int nChars1 =  (endMax - fromPos) < nrofChars ? endMax - fromPos : nrofChars;  //maybe reduced nr of chars
+    Part ret = new Part(fromPos, fromPos + nChars1);
+    return ret;
   }
 
 
@@ -2234,8 +2197,8 @@ else return pos - begin;
   
   protected final char absCharAt(int index){
     int pos = index;
-    if(pos >=0 && pos < content.length()) return content.charAt(pos);
-    else throw new IllegalArgumentException("StringPartBase.charAt - faulty; " + index);
+    if(pos >=0 && pos < endMax) return content.charAt(pos);
+    else { throw new IllegalArgumentException("StringPartBase.charAt - faulty; " + index); }
   }
 
   /**Returns a String from absolute range.
@@ -2251,10 +2214,10 @@ else return pos - begin;
     if(content == null){ 
       return " ??null?? ";
     }
-    if(pos >=0 && end1 <= content.length()){
+    if(pos >=0 && end1 <= endMax){
       return content.subSequence(pos, pos + len).toString(); 
     }
-    else throw new IllegalArgumentException("StringPartBase.subSequence - faulty; " + from);
+    else { throw new IllegalArgumentException("StringPartBase.subSequence - faulty; " + from); }
   }
 
   
@@ -2280,7 +2243,7 @@ else return pos - begin;
   <ul>
 */
 public final String debugString()
-{ int len = content.length();
+{ int len = endMax;
   /**@java2c=StringBuilderInThreadCxt,toStringNonPersist.*/ 
   String ret = content.subSequence(0, len > 20 ? 20 : len) + "<<<" + begin + "," + end + ">>>";
   if(begin < len){
@@ -2334,14 +2297,14 @@ public final String debugString()
   { final int len = src.length();
     int ixPos = 0;
     int nrofToken = placeholder.length;
-    if(nrofToken != value.length) throw new IllegalArgumentException("token and value should have same size, lesser 20"); 
+    if(nrofToken != value.length) { throw new IllegalArgumentException("token and value should have same size, lesser 20"); }
     if(dst == null){ dst = new StringBuilder(len + 100); }//calculate about 53 chars for identifier
-    StringPart spPattern = new StringPart(src);
+    //@Java4C.StackInstance final StringPart spPattern = new StringPart(src);
     int posPatternStart = 0;
     int posPattern;
     do
-    { int[] type = new int[1];
-      posPattern = spPattern.indexOfAnyString(placeholder, posPatternStart, spPattern.length(), type, null);
+    { @Java4C.StackInstance   int[] type = new int[1];
+      posPattern = StringFunctions.indexOfAnyString(src, posPatternStart, src.length(), placeholder, type, null);
       if(posPattern >=0){
         dst.append(src.subSequence(posPatternStart, posPattern));
         int ixValue = type[0];
@@ -2352,7 +2315,7 @@ public final String debugString()
         posPatternStart = -1;  //mark end
       }
     }while(posPatternStart >=0);
-    return dst.toString();
+    return dst.toString()  ;
   }
   
 
@@ -2376,8 +2339,8 @@ public final String debugString()
      * @param to
      */
     protected Part(int from, int to){
-      assert(from >= 0 && from <= content.length());
-      assert(to >= 0 && to <= content.length());
+      assert(from >= 0 && from <= endMax);
+      assert(to >= 0 && to <= endMax);
       assert(from <= to);
       b1 = from; e1 = to;
     }
@@ -2394,10 +2357,11 @@ public final String debugString()
     
     @Override
     public final CharSequence subSequence(int from, int end)
-    { return new Part(b1 + from, b1 + end);
+    { Part ret = new Part(b1 + from, b1 + end);
+      return ret;
     }
   
-    @Override public String toString(){
+    @Override final public String toString(){
       return absSubString(b1, e1);
     }
     

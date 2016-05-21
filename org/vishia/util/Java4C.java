@@ -33,6 +33,7 @@ import java.lang.annotation.RetentionPolicy;
 public interface Java4C {
   
   /**Version, history and license.
+   * <ul>2014-09-05 Hartmut new some enhancements for thread context etc.
    * <ul>2014-09-05 Hartmut chg all annotation written beginning with upper case letters.
    * <li>2012-08-22 Hartmut new {@link exclude} for elements and classes which should not be generated in C
    * <li>2011-01-05 Hartmut created: It is better to use java language annotations instead annotations in comment,
@@ -74,12 +75,77 @@ public interface Java4C {
    * A derivation is possible. */
   public @interface NoObject{}
     
+  /**Defines that the instance is embedded in C. The Java-Reference have to be final. It means it is set on construction. 
+   * In Java it is possible to initialize it with an derived class, for example for special debugging functions on Java level.
+   * In C it is always an instance of the class type of the reference type. The initialization should be done with conditional translation,
+   * see 
+   * @author hartmut
+   *
+   */
+  public @interface EmbeddedData{}
+  
   /**Defines that the <code>Type instance = new Type(args);</code> is only used in this method, in Java garbaged after the end of the method
    * and therefore it is possible to create an instance as Stack variable in C language.
    * Assure that a reference of this instance is not stored outside of the routine!
    */
   public @interface StackInstance{}
+  
+  
+  /**A reference in C refers always this instance type though the reference has a lesser type.
+   * In Java the methods are override-able normally, because a <code>final</code> designation
+   * to prevent overriding is written only if the ability to override should prevent in inheriting classes.
+   * Therefore the most of methods should be called in a override-able mode, using the method table-call.
+   * But that is not economically in calculation time, and in some cases it is unnecessary. 
+   * It is against the C-style of programming and testing.
+   * <br><br>
+   * The difference provocation is: In a object oriented architecture interfaces should be used 
+   * to divide software in independent parts. Interfaces are the main choice to do so, base classes
+   * are the other choice. So specific implementations can be implemented without cross effects.
+   * But therefore the overridden methods appear as the only one solution. 
+   * <br><br>
+   * In opposite to Java the independence of modules are realizes in C using forward declarations of methods
+   * in header files and their implementation in separated C-files (compiling units). The linker
+   * have to link only with knowledge of the labels (method names) without knowledge of any implementation details.
+   * This form of independence can't realize the polymorphism in opposite to interfaces and super classes, 
+   * only the aspect of independence is regarded. But this aspect is the prior aspect mostly. 
+   * <br><br>
+   * The solution of this provocation is found in the following way: If it is known, that a reference
+   * references a determined instance in the C-implementation, it can be designated with a
+   * <code>@ java2c=instanceType:"Type".</code>-annotation in its comment block. Another way is 
+   * using a final assignment <code>final IfcType ref = new Type();</code>, what generates 
+   * an embedded instance. Than the Java2C-translator
+   * generates a non-overridden calling of the method of the designated instance type 
+   * for using that reference. The annotation is the decision written in the source 
+   * in knowledge of the implementation goals. In Java it isn't active. So in Java several implementations
+   * can be implemented, at example for testing.     
+   * <br><br>
+   * If the user is deceived in the usage of the reference, it is not detected in Java 
+   * neither by compiling nor by testing, because it isn't active there. 
+   * But it should be attracted attention in testing at C-(implementation)-level.
+   * The Java2C-compiler may test the correctness of the designation <code>@ java2c="instancetype".</code>,
+   * because it translates the assignments too. But than all temporary used references should be designated
+   * too. That don't may be helpfully.
+   * <br><br>
+   * But the designated reference can be tested in Java in Runtime, whether at least the designated type
+   * is referenced, using a <code>reference instanceof Type</code>-Java-sourcecode. 
+   * Than fatal errors are excluded, only if the instance is from a derived type, it isn't detected.
+   * The <code>instanceof</code>-check needs a small part of calculation time, 
+   * if the instance is from the expected type. Such tests are slowly only if the instance is from a far derived type,
+   * than the implementation type should be searched in reflections. In the current case
+   * only 2 indirect accesses and a compare operation is necessary in the implementation of
+   * <code>instanceof_ObjectJc(ref, reflection_Type).</code>  
+   * <br><br>
+   * A reference, which has a dedicated instance type, is determined in its {@link FieldData#instanceClazz}- element.
+   * This element is able to seen in the stc-File of the translated class with notation <code>instance:<Type></code>
+   * as part of the <code>fieldIdents {...}</code>.
+   * <br><br>
+   * The method-call is translated to C using the {@link Method#sImplementationName}.
+   */
+  public @interface InstanceType{ String value(); }
     
+  
+  
+  
   /**Sets that the following array has not a Array head structure - not an ObjectArrayJ.
    * It is a embedded array if the variable is final and construct in the same line:
    * <pre>
@@ -144,10 +210,10 @@ public interface Java4C {
   
   /**The array which is designated with PtrVal is provided in C with a PtrVal_Type reference. 
    * The array should have only 1 dimension. The PtrVal_Type is defined in C like <pre>
-   * struct { Type* ptr__, int32 value__} PtrVal_Type;
+   * struct { Type* ref, int32 value__} PtrVal_Type;
    * </pre>
    * This definition is contained in os_types_def.h because it may depend on the platform's C-compiler. 
-   * The struct should pass values in 2 register of the processor. It is the same like a MemC-reference, but the ptr__ is type-specific.
+   * The struct should pass values in 2 register of the processor. It is the same like a MemC-reference, but the ref is type-specific.
    * */
   public @interface PtrVal{  }
   
@@ -188,8 +254,15 @@ public interface Java4C {
    * Usual the method with given name is programmed in C direct. */
   public @interface ExcludeImpl{}
   
+  /**A boolean variable designated with this annotation forces that an if-block which tests this variable
+   * is not translated to C. But the else block is translated without condition */
+  public @interface ExcludeCond{}
   
-  /**The class does not implement the named interface in C. */
+  /**This annotation to any local variable of a block forces exclusion of this block for C translation. */
+  public @interface ExcludeBlock{}
+  
+  
+  /**In C the class does not implement the named interface. */
   public @interface ExcludeInterface{ String value(); }
   
   /**Declare the String as const char* in C-language. */
@@ -200,6 +273,21 @@ public interface Java4C {
   
   /**The method is translated building a simple macro or inline method for C++ which returns a value. */
   public @interface Retinline{}
+  
+  
+  /**Marks that reference which's instance created with new Type().. is located in C in the thread context. 
+   * That reference must not be propagated to other references except return with #ReturnInThreadCxt - marked sub routine. */
+  public @interface InThreadCxt{}
+  
+  /**Marks that the returned instance is located in the thread context. For C translation it is used immediately and then no more necessary
+   * or it should be copied in an existing object outside the thread context per assignment to an embedded instance. 
+   * The thread context can store only one element*/
+  public @interface ReturnInThreadCxt{}
+  
+  /**The method does not create an own stack trace for debug and error handling support. */
+  public @interface NoStackTrace{}
+  
+  
   
   /**The class contains only methods. The super class should be enhanced with that methods whithout build
    * a special class. */

@@ -55,7 +55,7 @@ import java.util.Date;
  * Every {@link pos(int)}-operation is successfully. If the buffer in shorter as the required position, spaces will be filled
  * onto the required position. So a buffer content can also be filled first right, than left.
  */
-public class StringFormatter implements Appendable, Closeable, Flushable
+public final class StringFormatter implements Appendable, Closeable, Flushable
 {
   
   /**Version, history and license.
@@ -337,7 +337,6 @@ public class StringFormatter implements Appendable, Closeable, Flushable
     prepareBufferPos(nrofChars);
     buffer.delete(pos, pos + nrofChars);
     buffer.insert(pos, str, 0, nrofChars);
-    //buffer.replace(this.pos, pos + nrofChars, str);
     pos += nrofChars;
     return this;
   }
@@ -385,6 +384,14 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
   //pos += nrofChars;
   return this;
 }
+
+
+  public StringFormatter add(char ch){     
+  prepareBufferPos(1);
+  buffer.setCharAt(this.pos++, ch);
+  return this;
+}
+
 
 
   /** Adds at the current position a char[].
@@ -757,13 +764,6 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
   
   
   
-  public StringFormatter add(char ch){     
-    prepareBufferPos(1);
-    buffer.setCharAt(this.pos++, ch);
-    return this;
-  }
-  
-  
   public StringFormatter addDate(Date date, SimpleDateFormat format)
   { String sDate = format.format(date);
     //String sDate = format.format(date, sDate, );
@@ -886,8 +886,7 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
     int nrofCharsForSignUnused = 0;
     /** setted if left zero-digits are suppressed, no '0' and no space should be shown. */
     boolean bLeftZeroSuppress =false;
-    StringPart spPict = new StringPart(pict);
-    int posSignInPicture = spPict.indexOfAnyChar(sNeg);  //positChar(pict,pict.length(),sNeg,strlen(sNeg));
+    int posSignInPicture = StringFunctions.indexOfAnyChar(pict, 0, Integer.MAX_VALUE, sNeg);;  //positChar(pict,pict.length(),sNeg,strlen(sNeg));
     if(posSignInPicture >= 0)  //im Picture ist ein neg. Vorzeichen vorgesehen
     { if(src < 0L)                //und die Zahl ist auch negativ:
       { bNeg=true;
