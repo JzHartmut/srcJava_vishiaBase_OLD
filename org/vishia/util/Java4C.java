@@ -277,12 +277,17 @@ public interface Java4C {
   
   /**Marks that reference which's instance created with new Type().. is located in C in the thread context. 
    * That reference must not be propagated to other references except return with #ReturnInThreadCxt - marked sub routine. */
+  
   public @interface InThreadCxt{}
   
   /**Marks that the returned instance is located in the thread context. For C translation it is used immediately and then no more necessary
    * or it should be copied in an existing object outside the thread context per assignment to an embedded instance. 
    * The thread context can store only one element*/
   public @interface ReturnInThreadCxt{}
+  
+  
+  
+  public @interface ReturnNew{}
   
   /**The method does not create an own stack trace for debug and error handling support. */
   public @interface NoStackTrace{}

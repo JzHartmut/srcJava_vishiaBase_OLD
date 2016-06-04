@@ -792,15 +792,15 @@ public class StringFunctions {
   ( CharSequence sq
   , int from, int to
   , CharSequence[] listStrings
-  , int[] nrofFoundString
-  , String[] foundString
+  , @Java4C.SimpleVariableRef int[] nrofFoundString
+  , @Java4C.SimpleVariableRef String[] foundString
   )
   { int pos = from; // + fromWhere;
     //int endLast = end;
     //StringBuffer sFirstCharBuffer = new StringBuffer(listStrings.size());
     assert(listStrings.length < 100);  //static size is need
-    /** @java2c=stackInstance.*/
-    StringBuffer sFirstCharBuffer = new StringBuffer(100);
+    /** @xxxjava2c=stackInstance.*/
+    @Java4C.StackInstance StringBuffer sFirstCharBuffer = new StringBuffer(100);
     //Iterator<String> iter = listStrings.iterator();
     boolean acceptToEndOfText = false;
     //while(iter.hasNext())
