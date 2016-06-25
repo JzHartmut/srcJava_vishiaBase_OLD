@@ -1105,12 +1105,6 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
   }
 
   
-  public static CharSequence floatToText(float val, int nrofChars){
-    CharSequence ret = "?";
-    if(val < 0.001f){ ret = String.format("%1.6f", val); };
-    return ret;
-  }
-
 
 
   /**It invokes {@link #append(char)} for any char.Therewith a \n and \r is handled specially.
@@ -1140,15 +1134,16 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
    */
   @Override
   public StringFormatter append(char c) throws IOException { 
+    @Java4C.DynamicCall Appendable lineoutMtbl = lineout;
     if(lineout !=null && (c == '\n' || c=='\r')) {  //on one of the line end characters
       if(c != secondNewline || pos >0) { //if a content is given or c is the first newline character.          // != '\r' ){   //bug: 0d0a0d0a creates only one line:  || c=='\r' && lastNewline != '\n'){
         flushLine(sNewline);
         if(sNewline ==null) { 
-          lineout.append(c);  //append the found newline character either 0d or 0a like given.
+          /*J2Cxxtest*/lineoutMtbl.append(c);  //append the found newline character either 0d or 0a like given.
         }
         secondNewline = c == '\r' ? '\n' : '\r';  //the other one.
       } else if(sNewline == null) { //c is the secondNewline character, pos is 0
-        lineout.append(c);          //append it if a special newline is not given.   
+        lineoutMtbl.append(c);          //append it if a special newline is not given.   
       }
     } else {
       add(c);  //normal character, add it.
@@ -1200,16 +1195,17 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
    */
   public int flushLine(String sNewline) throws IOException
   {
+    @Java4C.DynamicCall Appendable lineoutMtbl = lineout;
     int chars = pos;
     if(pos >0) { //some content is given
-      lineout.append(buffer, 0, pos);
+      lineoutMtbl.append(buffer, 0, pos);
       //it would be copy characters after pos to 0. But that's wrong here:
       //:: buffer.delete(0, pos);
       buffer.setLength(0);  //clean
       pos = 0;
     }
     if(sNewline !=null) { 
-      lineout.append(sNewline);
+      lineoutMtbl.append(sNewline);
     }
     return chars;
   }

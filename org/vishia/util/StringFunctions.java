@@ -777,16 +777,15 @@ public class StringFunctions {
   
   
   
-    /**Returns the position of one of the chars in sChars within the part, started inside the part with fromIndex,
+  /**Returns the position of one of the strings in listStrings within the given sq, maybe started inside the sq with from,
    *  returns -1 if the char is not found in the part started from 'fromIndex'.
-   * @param listStrings contains some Strings to find.
    * @param from begin of search within the part.
    * @param to exclusively end to test. 
-    * @param nrofFoundString If given, [0] is set with the number of the found String in listStrings, 
+   * @param listStrings contains some Strings to find.
+   * @param nrofFoundString If given, [0] is set with the number of the found String in listStrings, 
    *                        count from 0. This array reference may be null, then unused.
    * @param foundString If given, [0] is set with the found String. This array reference may be null.
-   * @return position of first founded char inside (sq + from), but not greater than (to - from), 
-   *                 if no chars is found until maxToTest, but -1 if the end is reached.
+   * @return either -1 if not found, or position of first founded char inside sq in range from..to
    */
   public static int indexOfAnyString
   ( CharSequence sq
@@ -848,14 +847,10 @@ public class StringFunctions {
         
       }
     }
-    int nChars;
-    if(pos < to 
-        || (pos == to && acceptToEndOfText)
-    )
-    { nChars = pos - from;
-    }
-    else { 
-      nChars = -1; 
+    if(pos > to 
+        || (pos == to && !acceptToEndOfText)
+    ) { //nothing found 
+      pos = -1; 
       if(foundString != null)
       { foundString[0] = null;
       }
@@ -863,7 +858,7 @@ public class StringFunctions {
       { nrofFoundString[0] = -1;
       }
     }
-    return nChars;
+    return pos;
   }
 
   

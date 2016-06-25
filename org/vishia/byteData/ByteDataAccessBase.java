@@ -146,6 +146,7 @@ import org.vishia.util.StringFormatter;
  *
  */
 @Java4C.ExcludeInterface("InfoFormattedAppend")
+
 public class ByteDataAccessBase implements InfoFormattedAppend
 {
   
@@ -559,7 +560,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
   
   /**This method can be overridden by Java applications for derived instances which contains elements of this class
    * assigned at defined positions in data. The method will be called automatically as overridden method for Java applications.
-   * For C applications this method will not supported because C should not use virtual methods for this reason only.
+   * For C applications this method will not supported because that would be the only one reason for virtual methods of this class. Keep it simple in C!
    * For C applications the assignment to fix children should be done by special methods of the derived class. 
    */
   @Java4C.Exclude
@@ -1474,7 +1475,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
     int idxData = idx + ixBegin;
     int idxEnd1 = idxData + nrofBytes;
     assert(idxEnd1 <= ixEnd && idxEnd1 <= data.length);
-    while(data[--idxEnd1] ==0 && idxEnd1 > idxData);  //skip 0 character on end
+    while( data[--idxEnd1] ==0 && idxEnd1 > idxData);  //skip 0 character on end
     int len = idxEnd1 +1 - idxData; //resulting len without 0-character.
     String value;
     value = new String(data, idxData, len, charset);
@@ -1961,6 +1962,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
   protected final int ixEnd(){ return ixEnd; }
   
   /**Appends the information about the indices and the current Children.
+   * For C it is excluded because it is only for test.
    * @see org.vishia.util.InfoFormattedAppend#infoFormattedAppend(org.vishia.util.StringFormatter)
    */
   @Java4C.Exclude

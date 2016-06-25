@@ -1417,10 +1417,14 @@ public final int lastIndexOfAnyChar(String sChars, final int fromWhere, final in
   , @Java4C.SimpleVariableRef int[] nrofFoundString
   , @Java4C.SimpleVariableRef String[] foundString
   )
-  { int start = begin + fromWhere;
+  { assert(fromWhere >=0);
+    int start = begin + fromWhere;
     int max = (end - start) < maxToTest ? end : start + maxToTest;
     int pos = StringFunctions.indexOfAnyString(content, start, max, listStrings, nrofFoundString, foundString);
-    if(pos >=0){ pos += fromWhere; } //found, but it has start after begin.  
+    if(pos >=0) {
+      pos -= begin;  //the position counts in the current part, starting and begin.
+      assert(pos >=0); //searched from begin + fromWhere
+    }
     return pos;
   }
 
@@ -1691,7 +1695,8 @@ public final StringPart lentoAnyString(String[] strings, int maxToTest, int mode
 */
 public final void lentoAnyStringWithIndent(String[] strings, String sIndentChars, int maxToTest, StringBuilder buffer)
 //public String lentoAnyStringWithIndent(List<String> strings, String sIndentChars, int maxToTest)
-{ endLast = end;
+{ assert(end <= content.length());
+  endLast = end;
  //String sRet; sRet = "";
  buffer.setLength(0);
  int indentColumn = getCurrentColumn();
@@ -2313,7 +2318,7 @@ public final String debugString()
     { @Java4C.SimpleVariableRef int[] type = new int[1];
       posPattern = StringFunctions.indexOfAnyString(src, posPatternStart, src.length(), placeholder, type, null);
       if(posPattern >=0){
-        dst.append(src.subSequence(posPatternStart, posPattern));
+        dst.append(src.subSequence(posPatternStart, posPattern));  //characters from previous placeholder-end till next placeholder
         int ixValue = type[0];
         dst.append(value[ixValue]);
         posPatternStart = posPattern + placeholder[ixValue].length();

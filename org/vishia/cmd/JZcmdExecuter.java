@@ -3078,9 +3078,10 @@ throws ScriptException //Throwable
       else if(arg.dataAccess !=null){
         try{
           Object obj = dataAccess(arg.dataAccess, localVariables, jzcmd.bAccessPrivate, false, false, null);
-          if(obj instanceof Number){
-            ret = ((Number)obj).intValue() !=0;
-          } else if(obj instanceof Boolean){
+          //if(obj instanceof Number){
+          //  ret = ((Number)obj).intValue() !=0;
+          //} else 
+          if(obj instanceof Boolean){
             ret = ((Boolean)obj).booleanValue();
           } else {
             ret = obj !=null;

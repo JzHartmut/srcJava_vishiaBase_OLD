@@ -68,18 +68,18 @@ public class SpecialCharStrings
    *     may be usefull if an input text uses the special characters in a special way.
    * </ul> 
    * @param src The input string
-   * @return The output string with replaces backslash pairs.
+   * @return The output string with replaces backslash pairs. In C it is non persistent in thread context.
    */
+  @Java4C.ReturnInThreadCxt
   public static CharSequence resolveCircumScription(CharSequence src)
-  { CharSequence sResult; //s
-    final char cSwitch = '\\';
+  { final char cSwitch = '\\';
     int posSwitch = StringFunctions.indexOf(src, cSwitch, 0); // src.indexOf(cSwitch);
     if(posSwitch < 0)
-    { sResult = src;
+    { return src;
     }
     else
     { //escape character is found before end
-      StringBuilder sbReturn = new StringBuilder(src);
+      @Java4C.ReturnInThreadCxt StringBuilder sbReturn = new StringBuilder(src);
       while(posSwitch >=0)
       { if(posSwitch < sbReturn.length()-1)
         { sbReturn.deleteCharAt(posSwitch);
@@ -104,10 +104,9 @@ public class SpecialCharStrings
         else
         { //the char after cEscape is valid and not changed!
         }
-        posSwitch = sbReturn.toString().indexOf(cSwitch, posSwitch+1);
+        posSwitch = StringFunctions.indexOf(sbReturn, cSwitch, posSwitch+1);
       }
-      sResult = sbReturn.toString();
+      return sbReturn;
     }
-    return sResult;
   }
 }

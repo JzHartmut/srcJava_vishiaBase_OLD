@@ -210,7 +210,7 @@ public interface Java4C {
   
   /**The array which is designated with PtrVal is provided in C with a PtrVal_Type reference. 
    * The array should have only 1 dimension. The PtrVal_Type is defined in C like <pre>
-   * struct { Type* ref, int32 value__} PtrVal_Type;
+   * struct { Type* ref, int32 val} PtrVal_Type;
    * </pre>
    * This definition is contained in os_types_def.h because it may depend on the platform's C-compiler. 
    * The struct should pass values in 2 register of the processor. It is the same like a MemC-reference, but the ref is type-specific.
