@@ -58,11 +58,12 @@ public class StringFunctions_C
    * @param size The number of chars of the String.
    * @param radix The radix of the number, typical 2, 10 or 16, max 36.
    * @param parsedChars number of chars which is used to parse the integer. The pointer may be null if not necessary. @pjava2c=simpleVariableRef. 
+   * @param spaceChars maybe null, some characters which are skipped by reading the digits. It is especially ". '" to skip over a dot, or spaces or '
    * @return the Number.
    * @throws never. All possible digits where scanned, the rest of non-scanable digits are returned.
    *  At example the String contains "-123.45" it returns -123, and the retSize is 3.
    */
-  public static int parseIntRadix(final String srcP, final int pos, final int sizeP, final int radix
+  public static int parseIntRadix(final CharSequence srcP, final int pos, final int sizeP, final int radix
       , final int[] parsedChars, final String spaceChars)
   { int val = 0;
     boolean bNegativ;
@@ -108,7 +109,7 @@ public class StringFunctions_C
    * @param parsedChars number of chars which is used to parse. The pointer may be null if not necessary. @pjava2c=simpleVariableRef.
    * @return
    */
-  @Java4C.Inline public static int parseIntRadix(final String srcP, final int pos, final int sizeP, final int radix, final int[] parsedChars)
+  @Java4C.Inline public static int parseIntRadix(final CharSequence srcP, final int pos, final int sizeP, final int radix, final int[] parsedChars)
   {
     return parseIntRadix(srcP, pos, sizeP, radix, parsedChars, null);
   }
@@ -120,10 +121,10 @@ public class StringFunctions_C
    * @param sizeP
    * @param radix
    * @param parsedChars number of chars which is used to parse. The pointer may be null if not necessary. @pjava2c=simpleVariableRef.
-   * @param spaceChars
+   * @param spaceChars maybe null, some characters which are skipped by reading the digits. It is especially ". '" to skip over a dot, or spaces or '
    * @return
    */
-  public static long parseLong(final String srcP, final int pos, final int sizeP, final int radix
+  public static long parseLong(final CharSequence srcP, final int pos, final int sizeP, final int radix
       , final int[] parsedChars, final String spaceChars)
   { long val = 0;
     //exact same lines as parseInt
@@ -174,7 +175,7 @@ public class StringFunctions_C
    * @throws never. All possible digits where scanned, the rest of non-scanable digits are returned.
    *  At example the String contains "-123.45" it returns -123, and the retSize is 3.
    */
-  public static int parseIntRadixBack(final String srcP, final int pos, final int sizeP, final int radix, final int[] parsedChars)
+  public static int parseIntRadixBack(final CharSequence srcP, final int pos, final int sizeP, final int radix, final int[] parsedChars)
   { int val = 0;
     boolean bNegativ;
     int digit;
@@ -214,7 +215,7 @@ public class StringFunctions_C
    * @param parsedChars number of chars which is used to parse. The pointer may be null if not necessary. @pjava2c=simpleVariableRef.
    * @return
    */
-  public static float parseFloat(String src, int pos, int sizeP, int[] parsedChars)
+  public static float parseFloat(CharSequence src, int pos, int sizeP, int[] parsedChars)
   { return parseFloat(src, pos, sizeP, '.', parsedChars);
   }  
   
@@ -233,7 +234,7 @@ public class StringFunctions_C
    * @param parsedCharsP number of chars which is used to parse. The pointer may be null if not necessary. @pjava2c=simpleVariableRef.
    * @return
    */
-  public static float parseFloat(String src, int pos, int sizeP, char decimalpoint, int[] parsedCharsP)
+  public static float parseFloat(CharSequence src, int pos, int sizeP, char decimalpoint, int[] parsedCharsP)
   {
     float ret;
     int poscurr = pos;
@@ -245,8 +246,7 @@ public class StringFunctions_C
     }
     else { bNegative = false; }
     
-    @Java4C.StackInstance @Java4C.SimpleArray
-    int[] zParsed = new int[1];
+    @Java4C.SimpleVariableRef int[] zParsed = new int[1];
     ret = parseIntRadix(src, poscurr, restlen, 10, zParsed, null);  //parses only a positive number.
     poscurr += zParsed[0];   //maybe 0 if .123 is written
     restlen -= zParsed[0];

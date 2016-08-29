@@ -123,7 +123,7 @@ public class LogMessageFile implements LogMessage
   
   final FieldPosition formatField = new FieldPosition(SimpleDateFormat.DATE_FIELD);
   
-  /** xxxjava2c=simpleArray. */
+  //@Java4C.SimpleArray 
   final char[] charsFormatTimestampFilename = new char[32];
   
   //final StringBuilder charsFormatTimestampFilename = new StringBuilder(32); 

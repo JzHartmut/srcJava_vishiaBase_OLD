@@ -837,7 +837,7 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
     return this;
   }
   
-  /**@deprecated see {@link addint(long nr,String sPict)}*/
+  /**@deprecated see {@link addint(long, java.lang.String)}*/
   @Deprecated
   public StringFormatter addIntPicture(long nr,String sPict)  //Zahl anhngen, rechtsbndig nlen Zeichen oder mehr
   { strPicture(nr,sPict,"+-..", '.');

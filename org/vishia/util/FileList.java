@@ -38,6 +38,7 @@ public class FileList
 
   /**Version, history and license.
    * <ul>
+   * <li>2016-08-20 Hartmut chg: Other format, better able to read, used for restoring time stamps after git-revert.
    * <li>2014-01-14 Hartmut chg: round up and down to 10 seconds, to ignore second differences on writing.
    * <li>2013-08-09 Hartmut created: The FileList was written by me in 1992..2001 in C++-Language.
    *   Now it is available for Java usage. One of the motivation was the necessity of correction of
@@ -68,7 +69,7 @@ public class FileList
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20130808;
+  public static final String sVersion = "2016-08-20";
 
   
   public static class Args
@@ -94,7 +95,11 @@ public class FileList
   final Args args;
   
   
-  final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss");
+  /**The data format is ISO 8601 but without 'T' as separator between date and time, a space is better readable. */
+  final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+  
+  /**The data format is ISO 8601 but without 'T' as separator between date and time, a space is better readable. */
+  final SimpleDateFormat date_Format = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss");
   
   final StringFormatter formatter = new StringFormatter(new StringBuilder(100));
 
@@ -127,15 +132,17 @@ public class FileList
     args.sFileList = dir + "/" + sFilelist;
     FileList main = new FileList(args);
     main.list();
+    
   }
   
   
   /**Creates a list of all files which's path and mask is given by {@link #args}. 
    * @throws IOException */
-  protected void list() throws IOException
+  protected void xxxlist() throws IOException
   {
     List<FileSystem.FileAndBasePath> list = new LinkedList<FileSystem.FileAndBasePath>();
-    FileSystem.addFilesWithBasePath(new File(args.sDirectory), args.sMask, list);
+    File baseDir = args.sDirectory == null ? null: new File(args.sDirectory);
+    FileSystem.addFilesWithBasePath(baseDir, args.sMask, list);
     Map<String, FileSystem.FileAndBasePath> sort = new TreeMap<String, FileSystem.FileAndBasePath>();
     for(FileSystem.FileAndBasePath entry: list){
       boolean bExclude = false;
@@ -149,36 +156,173 @@ public class FileList
     Writer out = null;
     out = new java.io.FileWriter(args.sFileList);
     for(Map.Entry<String, FileSystem.FileAndBasePath> entry: sort.entrySet()){
-      writeOneFile(out, entry.getValue());
+      FileSystem.FileAndBasePath e1 = entry.getValue();
+      writeOneFile(out, e1.file, e1.localPath, "");
     }
     if(out !=null) { try{ out.close(); } catch(IOException exc){}}
   }
   
   
+
+  /**Creates a list of all files which's path and mask is given by {@link #args}. 
+   * @throws IOException */
+  protected void list() throws IOException
+  {
+    File dir = new File(args.sDirectory);
+    CharSequence sDir = FileSystem.normalizePath(dir);  
+    int posLocalPath = sDir.length()+1;
+    Writer out = null;
+    out = new java.io.FileWriter(args.sFileList);
+    list(dir, posLocalPath, "", out, 0);
+    if(out !=null) { out.close(); }
+
+  }
+  
+  
+  /**Creates a list of all files which's path and mask is given by {@link #args}. 
+   * @throws IOException */
+  protected void list(File dir, int posLocalPath, CharSequence localDir, Writer out, int recurs) throws IOException
+  { if(recurs > 100) throw new IllegalArgumentException("to deep recursion");
+    if(dir.exists()) {
+      File[] files = dir.listFiles();
+      Map<String, File> sort = new TreeMap<String, File>();
+      for(File file: files){ sort.put(file.getName(), file); }
+      for(Map.Entry<String, File> entry: sort.entrySet()){
+        //write files:
+        File file = entry.getValue();
+        if( ! file.isDirectory()) {
+          String name = file.getName();
+          if(name.charAt(0) !='.'){
+            writeOneFile(out, file, localDir, name);
+          }
+        }
+      }
+      for(Map.Entry<String, File> entry: sort.entrySet()){
+        File file = entry.getValue();
+        if( file.isDirectory()) {
+          String name = file.getName();
+          if(name.charAt(0) !='.'){
+            writeOneFile(out, file, localDir, name);  //the directory entry
+            CharSequence path = FileSystem.normalizePath(file);
+            CharSequence localDirSub = path.subSequence(posLocalPath, path.length());
+            list(file, posLocalPath, localDirSub, out, recurs+1);
+          }
+        }
+      }
+    }
+  }
+  
+  String spaces = "                                                                                                    ";  
   
   
   
   @SuppressWarnings("boxing")
-  private void writeOneFile(Writer out, FileSystem.FileAndBasePath entry) throws IOException
+  private void writeOneFile(Writer out, File file, CharSequence localDir, String name) throws IOException
   {
-    long date = entry.file.lastModified();
-    date = ((date + 5000) /10000) * 10000;      //round up and down to 10 seconds, to ignore second differences
-    long length = entry.file.length();
+    long date = file.lastModified();
+    //date = ((date + 5000) /10000) * 10000;      //round up and down to 10 seconds, to ignore second differences
+    long length = file.length();
     formatter.reset();
-    formatter.addint(length, "2222'222'222'222 ");
+    formatter.addint(length, "2222222222.222 ");
     StringBuilder flags = new StringBuilder("       ");
-    if(entry.file.isDirectory()){ flags.setCharAt(1, 'D'); }
-    if(entry.file.canExecute()){ flags.setCharAt(2, 'x'); }
-    if(!entry.file.canRead()){ flags.setCharAt(3, 'h'); }
-    if(!entry.file.canWrite()){ flags.setCharAt(4, 'r'); }
-    if(entry.file.isHidden()){ flags.setCharAt(5, 'H'); }
+    if(file.isDirectory()){ flags.setCharAt(1, 'D'); }
+    if(file.canExecute()){ flags.setCharAt(2, 'x'); }
+    if(!file.canRead()){ flags.setCharAt(3, 'h'); }
+    if(!file.canWrite()){ flags.setCharAt(4, 'r'); }
+    if(file.isHidden()){ flags.setCharAt(5, 'H'); }
     int crc = 0;
-    if(args.crc && entry.file.isDirectory()){
+    if(args.crc && file.isDirectory()){
       formatter.add("==DIR===");
     } else {
       try{
         crcCalculator.reset();
-        InputStream inp = new FileInputStream(entry.file);
+        InputStream inp = new FileInputStream(file);
+        byte[] buffer = new byte[4096];
+        int bytes;
+        while((bytes = inp.read(buffer)) >0){
+          crcCalculator.update(buffer, 0, bytes);
+        }
+        inp.close();
+        crc = (int)crcCalculator.getValue();
+        formatter.addint(crc, "-1111111111");
+        //formatter.addHex(crc, 8);
+      } catch(Exception exc){
+        formatter.add("????????");        
+      }
+    }
+    formatter.add(' ');
+    
+    //out.append(" // ");
+    if(file.isDirectory()){ out.append('\n'); }
+    out.append(dateFormat.format(new Date(date)));
+    out.append(flags).append(' ');
+    if(file.isDirectory()) {
+      out.append("=== ").append(localDir);
+      if(localDir.length() >0){ out.append('/'); }
+      out.append(name).append("/ ===");
+      int zDir = localDir.length() + name.length() +1;
+      if(zDir < 64) { out.append("================================================================================".subSequence(0,  64-zDir)); }
+    } else {
+      int zName = name.length();
+      if(name.contains(" ")) {
+        out.append("\"").append(name).append("\"");
+        zName +=2;
+      } else {
+        out.append(name);
+      }
+      if(zName < 40) { out.append(spaces.subSequence(0,  40-zName)); }
+      out.append(" :: ");
+      out.append(formatter.getBuffer());
+    }
+    //out.append(" */");
+    
+    /*
+    int zDir = localDir.length();
+    if(zDir > 40){
+      out.append("...");
+      out.append(localDir.subSequence(zDir-37, zDir));
+      zDir = 40;
+    } else {
+      out.append(localDir);
+    }
+    int zName = name.length();
+    out.append('/');
+    out.append(name);
+    if(file.isDirectory()){ 
+      out.append("/");
+      zName +=1;
+    }
+    int rest = 70 - zDir - zName;
+    if(rest > 0){
+      out.append(spaces.subSequence(0, rest));
+    }
+    */
+    out.append("\n");
+  }
+  
+  
+  
+  @SuppressWarnings("boxing")
+  private void xxxwriteOneFile(Writer out, File file, CharSequence localPath) throws IOException
+  {
+    long date = file.lastModified();
+    date = ((date + 5000) /10000) * 10000;      //round up and down to 10 seconds, to ignore second differences
+    long length = file.length();
+    formatter.reset();
+    formatter.addint(length, "2222'222'222'222 ");
+    StringBuilder flags = new StringBuilder("       ");
+    if(file.isDirectory()){ flags.setCharAt(1, 'D'); }
+    if(file.canExecute()){ flags.setCharAt(2, 'x'); }
+    if(!file.canRead()){ flags.setCharAt(3, 'h'); }
+    if(!file.canWrite()){ flags.setCharAt(4, 'r'); }
+    if(file.isHidden()){ flags.setCharAt(5, 'H'); }
+    int crc = 0;
+    if(args.crc && file.isDirectory()){
+      formatter.add("==DIR===");
+    } else {
+      try{
+        crcCalculator.reset();
+        InputStream inp = new FileInputStream(file);
         byte[] buffer = new byte[4096];
         int bytes;
         while((bytes = inp.read(buffer)) >0){
@@ -195,7 +339,7 @@ public class FileList
     out.append(dateFormat.format(new Date(date)));
     out.append(flags);
     out.append(formatter.getBuffer());
-    out.append(entry.localPath);
+    out.append(localPath);
     out.append("\n");
   }
   
@@ -211,10 +355,20 @@ public class FileList
   {
     FileList.Args args = new FileList.Args();
     args.out = out;
-    args.sDirectory = dir;
+    if(sFilelist ==null ){
+      int posDir = dir.lastIndexOf('/');
+      int posDir2 = dir.lastIndexOf('\\');
+      if(posDir2 > posDir) {
+        posDir = posDir2;
+      }
+      args.sDirectory = dir.substring(0, posDir);
+      args.sFileList = dir;  
+    } else {
+      args.sDirectory = dir;
+      args.sFileList = dir + "/" + sFilelist;
+    }
     args.crc = true;
     args.sMask = "*";
-    args.sFileList = dir + "/" + sFilelist;
     FileList main = new FileList(args);
     main.touch();
   }
@@ -226,11 +380,12 @@ public class FileList
   public void touch(){
     BufferedReader inp = null;
     File dir = new File(args.sDirectory);
+    String sDirlocal = "";
     try {
       inp = new BufferedReader(new FileReader(args.sFileList));
       String sLine;
       while((sLine = inp.readLine())!=null){
-        readOneLine(sLine, dir);  
+        sDirlocal = readOneLine(sLine, dir, sDirlocal);  
       }
     } catch (IOException e) {
       // TODO Auto-generated catch block
@@ -240,7 +395,93 @@ public class FileList
   }
   
   
-  private void readOneLine(String sLine, File dir){
+  private String readOneLine(String sLine, File dir, String sDirlocal){
+    Date filetime;
+    String sPath;
+    String sDirlocalNew = sDirlocal;
+    long listlen;
+    int crclist;
+    try {
+      if(sLine.length() > 20) {
+        
+        filetime = (sLine.charAt(10)=='_') ? date_Format.parse(sLine) : dateFormat.parse(sLine);
+        long listtime = filetime.getTime();
+        
+        if(sLine.charAt(30) =='\'') {
+          listlen = StringFunctions_C.parseLong(sLine, 26, 16, 10, null, " '");
+          crclist = StringFunctions_C.parseIntRadix(sLine, 43, 8, 16, null);
+          String sPath1 = sLine.substring(53).trim();
+          int zPath1 = sPath1.length();
+          if(sPath1.charAt(0)=='\"' && sPath1.charAt(zPath1-1)=='\"'){ sPath1 = sPath1.substring(1, zPath1-1); }
+          sPath = sDirlocal + sPath1;
+        } 
+        else if(StringFunctions.equals(sLine.subSequence(27,30),"===")) {
+          listlen = -1;
+          crclist = 0;
+          sPath = null;
+          int posEnd = sLine.indexOf(" ===", 31);
+          if(posEnd < 0){ posEnd = sLine.length(); }
+          sDirlocalNew = sLine.substring(31, posEnd);
+        }
+        else {
+          //line with file new format
+          int posEnd = sLine.indexOf("::");
+          String sPath1 = sLine.substring(27, posEnd).trim();
+          int zPath1 = sPath1.length();
+          if(sPath1.charAt(0)=='\"' && sPath1.charAt(zPath1-1)=='\"'){ sPath1 = sPath1.substring(1, zPath1-1); }
+          sPath = sDirlocal + sPath1;
+          listlen = StringFunctions_C.parseLong(sLine, posEnd+2, 16, 10, null, " .");
+          crclist = (int)StringFunctions_C.parseLong(sLine, posEnd+18, 11, 10, null, " ");
+        }
+        
+        if(sPath !=null) {  //File line found        
+        
+          File file = new File(dir, sPath);
+          if(!file.exists()){
+            args.out.append("FileList - touch, file not exist; ").append(sPath).append("\n"); 
+          } else if(file.isDirectory()){
+            //do nothing for a directory.
+          } else {
+            long lastModify = file.lastModified();
+            if(file.length() == listlen){
+              if(Math.abs(listtime - lastModify) > 10000){ //round effect of seconds to 10!
+                //the time stamp is false, the length is equal.
+                //check crc to determine whether the file may be the same.
+                crcCalculator.reset();
+                InputStream inp = new FileInputStream(file);
+                byte[] buffer = new byte[4096];
+                int bytes;
+                while((bytes = inp.read(buffer)) >0){
+                  crcCalculator.update(buffer, 0, bytes);
+                }
+                inp.close();
+                int crc = (int)crcCalculator.getValue();
+                if(crc == crclist){
+                  file.setLastModified(listtime);
+                  args.out.append("FileList - touching; ").append(sPath).append("\n"); 
+                } else {
+                  args.out.append("FileList - touch, file with same length is changed; ").append(sPath).append("\n"); 
+                }
+              } else {
+                //file may not be changed, has the correct timestamp
+              }
+            } else {
+              args.out.append("FileList - touch, file is changed; ").append(sPath).append("\n"); 
+            }
+          }
+        }
+      }
+      //System.out.println(filetime.toGMTString() + " " + sPath);
+    } catch (IOException e) {
+      e.printStackTrace();
+    } catch (ParseException e) {
+      e.printStackTrace();
+    }
+    return sDirlocalNew;
+  }
+  
+  
+  private void XXXreadOneLine(String sLine, File dir){
     Date filetime;
     String sPath;
     try {

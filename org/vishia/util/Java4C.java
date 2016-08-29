@@ -285,6 +285,10 @@ public interface Java4C {
    * The thread context can store only one element*/
   public @interface ReturnInThreadCxt{}
   
+  /**Marks that this is returned to support concatenation.
+   */
+  public @interface ReturnThis{}
+  
   
   
   public @interface ReturnNew{}

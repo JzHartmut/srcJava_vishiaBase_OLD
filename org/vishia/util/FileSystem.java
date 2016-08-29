@@ -1238,7 +1238,7 @@ public class FileSystem
         if(posBehind >0){
           String sPathDir = sPath.substring(posDir, posBehind);  //with ending '/'
   
-          filterDir = new FilepathFilter(sPathDir); 
+          filterDir = new FilepathFilter(sPath); //Dir); 
           bAllTree = sPathDir.equals("**");
           if(filterDir.bAllTree){
             filterAlldir = filterDir;

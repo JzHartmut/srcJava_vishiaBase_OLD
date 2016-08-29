@@ -6,6 +6,9 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +23,10 @@ public class CmdExecuter implements Closeable
 {
   /**Version and History:
    * <ul>
+   * <li>2016-08-26 Hartmut new: {@link #splitArgs(String, String[], String[])} with pre- and post-arguments. 
+   *   Therewith both the invocation of a batch in Windows with "cmd.exe" can be organized as a Linux cmd with "sh.exe" can be invoked.
+   *   The possibility {@link #execute(String, String, Appendable, Appendable, boolean)} with "useShell=true" is not the favor
+   *   because it is only one of the necessities. Nevertheless it works now with initial setting of {@link #sConsoleInvocation}. 
    * <li>2015-07-18 Hartmut chg: Now on {@link #execute(String[], String, Appendable, Appendable)} etc. the error can be the same
    *   as the output. It is equate to error=null, only one output instance is used.
    * <li>2013-07-12 Hartmut new: {@link #execute(String[], boolean, String, List, List)} now with donotwait
@@ -50,7 +57,7 @@ public class CmdExecuter implements Closeable
    * <li>older: TODO
    * </ul>
    */
-  public static final String version = "2015-07-18";
+  public static final String version = "2016-08-26";
 
   
   /**Composite instance of the java.lang.ProcessBuilder. */
@@ -83,7 +90,7 @@ public class CmdExecuter implements Closeable
   final Thread threadExecIn;
   final Thread threadExecError;
   
-  String[] sConsoleInvocation;
+  String[] sConsoleInvocation = {"cmd.exe", "/C"};  //default for window.
   
   /**Constructs the class and starts the threads to getting output and error stream
    * and putting the input stream to a process. This three threads runs anytime unless the class
@@ -114,6 +121,13 @@ public class CmdExecuter implements Closeable
   }
   
   
+  /**Returns the environment map for the internal {@link ProcessBuilder}. The returned Map can be modified,
+   * its modified content will be used on the next execute(...) invocation. The modification is valid for all following executes.
+   * <br>
+   * Internal:  {@link ProcessBuilder#environment()} will be called. 
+   * 
+   * @return the environment of the following executes, able to explore, able to change.
+   */
   public Map<String,String> environment(){
     return processBuilder.environment();
   }
@@ -143,6 +157,8 @@ public class CmdExecuter implements Closeable
   
   
   /**Executes a command with arguments and waits for its finishing.
+   * This routine is intent to open a shell window. It is not ready yet. On windows it should invoke cmd.exe,
+   * on linux maybe console. It should be configured for this instance. see {@link #setConsoleInvocation(String)}.
    * @param cmdLine The command and its arguments in one line. 
    *        To separate the command and its argument the method {@link #splitArgs(String)} is used.
    * @param input The input stream of the command. TODO not used yet.
@@ -156,7 +172,8 @@ public class CmdExecuter implements Closeable
   , Appendable error
   , boolean useShell
   )
-  { String[] cmdArgs = splitArgs(cmdLine);
+  { String[] preArgs = useShell ? sConsoleInvocation : null;
+    String[] cmdArgs = splitArgs(cmdLine, preArgs, null);
     return execute(cmdArgs, input, output, error);
   }
   
@@ -257,7 +274,9 @@ public class CmdExecuter implements Closeable
         synchronized(outThread){ outThread.notify(); }  //wake up to work!
       }
       if(input !=null){
-        //processIn = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
+        OutputStream sinput = process.getOutputStream();
+        sinput.write(input.getBytes());
+        //Writer processIn = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
       }
       //
       //wait for
@@ -347,6 +366,12 @@ public class CmdExecuter implements Closeable
     return destroyed;
   }
   
+
+
+  /**Splits command line arguments. See {@link #splitArgs(String, String[], String[])}, without preArgs and postArgs.
+   */
+  public static String[] splitArgs(String line) { return splitArgs(line, null, null); }
+
   
   
   /**Splits command line arguments.
@@ -355,9 +380,11 @@ public class CmdExecuter implements Closeable
    * The line can be a text with more as one line, for example one line per argument.
    * If a "##" is contained, the text until the end of line is ignored.
    * @param line The line or more as one line with arguments
+   * @param preArgs maybe null, some arguments before them from line.
+   * @param postArgs maybe null, some arguments after them from line.
    * @return All arguments written in one String per element.
    */
-  public static String[] splitArgs(String line)
+  public static String[] splitArgs(String line, String[] preArgs, String[] postArgs)
   {
     StringPart spLine = new StringPart(line);
     spLine.setIgnoreWhitespaces(true);
@@ -388,10 +415,20 @@ public class CmdExecuter implements Closeable
       posArgs[++ixArg] = posArg + length;
       spLine.fromEnd();
     }
-    String[] ret = new String[(ixArg+1)/2];
+    int nArgs = (ixArg+1)/2;
+    if(preArgs !=null) { nArgs += preArgs.length; }
+    if(postArgs !=null) { nArgs += postArgs.length; }
+    String[] ret = new String[nArgs];
+    int ixRet = 0;
+    if(preArgs !=null) {
+      for(String preArg: preArgs){ ret[ixRet++] = preArg; }
+    }
     ixArg = -1;
-    for(int ixRet = 0; ixRet < ret.length; ++ixRet){
+    for(ixRet = ixRet; ixRet < ret.length; ++ixRet){
       ret[ixRet] = line.substring(posArgs[++ixArg], posArgs[++ixArg]);
+    }
+    if(postArgs !=null) {
+      for(String preArg: preArgs){ ret[ixRet++] = preArg; }
     }
     return ret;
   }

@@ -1188,7 +1188,8 @@ public class DataAccess {
       .append(element.ident) .append("(");
       if(element.fnArgs !=null) {
         for(Object args: element.fnArgs) {
-          msg.append(args.getClass()).append(", ");
+          if(args == null) msg.append("null, ");
+          else msg.append(args.getClass()).append(", ");
       } }
       msg.append(")|, ");
       CharSequence stackInfo = Assert.stackInfo(msg, 3, 5);
@@ -1537,7 +1538,7 @@ public class DataAccess {
       , Dst dst) 
   throws NoSuchFieldException, IllegalAccessException
   {
-    if(name.equals("cell"))
+    if(name.equals("cellx"))
       Debugutil.stop();
     Object data1 = null;
     if(name.equals("[]")) {

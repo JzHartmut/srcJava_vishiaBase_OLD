@@ -555,12 +555,12 @@ public class StringFunctions {
    *   but it is an ASCII control character.  
    * @return The first position in sq of one of the character in sChars or -1 if not found in the given range.
    */
-  public static int indexOfAnyChar(CharSequence sq, int begin, int end, String sChars)
+  public static int indexOfAnyChar(CharSequence sq, int begin, int end, CharSequence sChars)
   { int pos = begin-1;  //pre-increment
     if(end == Integer.MAX_VALUE){ end = sq.length(); }
-    while(++pos < end && sChars.indexOf(sq.charAt(pos)) < 0){ }  //while any of char in sChars not found:
+    while(++pos < end && indexOf(sChars, sq.charAt(pos)) < 0){ }  //while any of char in sChars not found:
     if(pos < end 
-      || (pos == end && sChars.indexOf(cEndOfText) >= 0)
+      || (pos == end && indexOf(sChars, cEndOfText) >= 0)
       )
     { return pos;
     }
@@ -612,11 +612,11 @@ public class StringFunctions {
    * @return -1 if not found, elsewhere the position inside sq, >=fromIndex and < to 
    * @throws IndexOutOfBoundsException if from < 0 or to < 0
    */
-  public static int lastIndexOfAnyChar(CharSequence sq, int from, int to, String chars){
+  public static int lastIndexOfAnyChar(CharSequence sq, int from, int to, CharSequence chars){
     int zsq = sq.length();
     int ii = to > zsq ? zsq : to;
     if(from <0) throw new IndexOutOfBoundsException("StringFunctions.lastIndexOfAnyChar - form <0; " + from);
-    while(--ii >= from && chars.indexOf(sq.charAt(ii))<0) {} //pre-decrement.
+    while(--ii >= from && indexOf(chars, sq.charAt(ii))<0) {} //pre-decrement.
     return ii >= from? ii+1 : -1;  //not found;
   }
   
