@@ -597,7 +597,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
     this.ixEnd = bExpand ? this.ixBegin + this.sizeHead : this.ixBegin + lengthData;
     { //@Java4C.Exclude
       if(ixEnd > data.length)
-      { @Java4C.StringBuilderInThreadCxt String msg = "not enough data bytes, requested=" + ixEnd + ", buffer-length=" + data.length;
+      { @Java4C.StringBuilderInThreadCxt(sign="ByteDataAccess-error reset") String msg = "not enough data bytes, requested=" + ixEnd + ", buffer-length=" + data.length;
         throw new IllegalArgumentException(msg);
       }
     }
@@ -1868,7 +1868,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
 
 
   private final void throwexc(String text, int idxArray){
-    @Java4C.StringBuilderInThreadCxt String textExc = text + idxArray; 
+    @Java4C.StringBuilderInThreadCxt(sign="ByteDataAccess-exception") String textExc = text + idxArray; 
     throw new IndexOutOfBoundsException(textExc);
   }
   

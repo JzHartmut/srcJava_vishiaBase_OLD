@@ -33,8 +33,11 @@ import java.lang.annotation.RetentionPolicy;
 public interface Java4C {
   
   /**Version, history and license.
-   * <ul>2014-09-05 Hartmut new some enhancements for thread context etc.
-   * <ul>2014-09-05 Hartmut chg all annotation written beginning with upper case letters.
+   * <ul>
+   * <li>2016-09-03 Hartmut chg: {@link InThCxtLocal} and {@link InThCxtRet} requires a String argument which is used as sign-argument 
+   *   for the getUserBuffer_ThreadContextFw(...).  
+   * <li>2014-09-05 Hartmut new some enhancements for thread context etc.
+   * <li>2014-09-05 Hartmut chg all annotation written beginning with upper case letters.
    * <li>2012-08-22 Hartmut new {@link exclude} for elements and classes which should not be generated in C
    * <li>2011-01-05 Hartmut created: It is better to use java language annotations instead annotations in comment,
    *   because an selection/auto completion is available for them for example in Eclipse environment.
@@ -63,7 +66,7 @@ public interface Java4C {
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
-  public final static String sVersion = "2014-01-12"; 
+  public final static String sVersion = "2016-09-03"; 
 
 
   /**Only a help for forcing a Java2C parsing error especially for sophisticated Java2XMI conversion behaviour, only for test. */ 
@@ -242,7 +245,7 @@ public interface Java4C {
   /**The String is designated as non-persistent, especially located in ThreadContext. */
   public @interface ToStringNonPersist{}
   
-  public @interface StringBuilderInThreadCxt{}
+  public @interface StringBuilderInThreadCxt{ String sign(); }
 
   public @interface StringBuilderInStack{ int value();}
   
@@ -276,9 +279,12 @@ public interface Java4C {
   
   
   /**Marks that reference which's instance created with new Type().. is located in C in the thread context. 
-   * That reference must not be propagated to other references except return with #ReturnInThreadCxt - marked sub routine. */
+   * That reference must not be propagated to other references, only used locally. */
+  public @interface InThCxtLocal{String sign();}
   
-  public @interface InThreadCxt{}
+  /**Marks that reference which's instance created with new Type().. is located in C in the thread context. 
+   * That reference must not be propagated to other references, only used locally and then returned with #ReturnInThreadCxt - marked sub routine. */
+  public @interface InThCxtRet{String sign();}
   
   /**Marks that the returned instance is located in the thread context. For C translation it is used immediately and then no more necessary
    * or it should be copied in an existing object outside the thread context per assignment to an embedded instance. 

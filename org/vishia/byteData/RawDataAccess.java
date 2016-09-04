@@ -103,7 +103,7 @@ public class RawDataAccess  extends ByteDataAccessBase
   { //call of the protected super method.
     /** @Java4C.StringBuilderInThreadCxt*/
     if(idx < 0){ 
-      @Java4C.StringBuilderInThreadCxt String msg = "setDoubleVal:" + idx; 
+      @Java4C.StringBuilderInThreadCxt(sign="setDoubleValue-error") String msg = "setDoubleVal:" + idx; 
       throw new IndexOutOfBoundsException(msg); 
     }
     super.setDouble(idx, value);

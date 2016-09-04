@@ -447,7 +447,7 @@ import org.vishia.util.Java4C;
     //lengthData is inclusively head. Other variants are calling problems.
     idxEnd = bExpand ? idxFirstChild : /*idxFirstChild + */ idxBegin + lengthData;
     if(idxEnd > data.length)
-    { @Java4C.StringBuilderInThreadCxt String msg = "not enough data bytes, requested=" + idxEnd + ", buffer-length=" + data.length;
+    { @Java4C.StringBuilderInThreadCxt(sign="ByteDataAccess-error reset") String msg = "not enough data bytes, requested=" + idxEnd + ", buffer-length=" + data.length;
       throw new IllegalArgumentException(msg);
     }
     
@@ -887,14 +887,14 @@ import org.vishia.util.Java4C;
   throws IllegalArgumentException
   { if(bExpand)
     { if(data.length < idxCurrentChild + nrofBytes)
-      { @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
+      { @Java4C.StringBuilderInThreadCxt(sign="ByteDataAccess-error reset") String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
         throw new IllegalArgumentException(msg);
       }
     }
     else
     { if(idxEnd < idxCurrentChildEnd)
       { //not expand, but the nrof data are to few
-        @Java4C.StringBuilderInThreadCxt String msg = "to few user data:"+ (idxCurrentChild + nrofBytes);
+        @Java4C.StringBuilderInThreadCxt(sign="ByteDataAccess-error reset") String msg = "to few user data:"+ (idxCurrentChild + nrofBytes);
         throw new IllegalArgumentException(msg);
       }
     }
@@ -1046,7 +1046,7 @@ import org.vishia.util.Java4C;
   throws IllegalArgumentException
   { setIdxtoNextCurrentChild();
     if(data.length < idxCurrentChild + nrofBytes){
-      @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
+      @Java4C.StringBuilderInThreadCxt(sign="ByteDataAccess-error reset") String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
       throw new IllegalArgumentException(msg);
     }
     //NOTE: there is no instance for this child, but it is the current child anyway.
@@ -1066,7 +1066,7 @@ import org.vishia.util.Java4C;
   throws IllegalArgumentException
   { setIdxtoNextCurrentChild();
     if(data.length < idxCurrentChild + 4){
-      @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + 4);
+      @Java4C.StringBuilderInThreadCxt(sign="ByteDataAccess-error reset") String msg = "data length to small:"+ (idxCurrentChild + 4);
       throw new IllegalArgumentException(msg);
     }
     //NOTE: there is no instance for this child, but it is the current child anyway.
@@ -1114,7 +1114,7 @@ import org.vishia.util.Java4C;
   { setIdxtoNextCurrentChild();
     int nrofBytes = value.length();
     if(data.length < idxCurrentChild + nrofBytes){
-      @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
+      @Java4C.StringBuilderInThreadCxt(sign="ByteDataAccess-error reset") String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
       throw new IllegalArgumentException(msg);
     }
     //NOTE: there is no instance for this child, but it is the current child anyway.
@@ -1136,7 +1136,7 @@ import org.vishia.util.Java4C;
   { setIdxtoNextCurrentChild();
     int nrofBytes = valueCs.length();
     if(data.length < idxCurrentChild + nrofBytes){
-      @Java4C.StringBuilderInThreadCxt String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
+      @Java4C.StringBuilderInThreadCxt(sign="ByteDataAccess-error reset") String msg = "data length to small:"+ (idxCurrentChild + nrofBytes);
       throw new IllegalArgumentException(msg);
     }
     //NOTE: there is no instance for this child, but it is the current child anyway.

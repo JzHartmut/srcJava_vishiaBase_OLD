@@ -4,7 +4,7 @@
 
 if test -z "$JAVA_JDK";  then
   if test -d /usr/share/JDK; then export JAVA_JDK="/usr/share/JDK"; fi
-  if test -d /d/Programs/JAVA/jdk1.6.0_21; then export JAVA_JDK="/d/Programs/JAVA/jdk1.7.0_65"; fi
+  if test -d /d/Programs/JAVA/jdk1.8.0_92; then export JAVA_JDK="/d/Programs/JAVA/jdk1.8.0_92"; fi
 fi
 echo JAVA_JDK=$JAVA_JDK
 echo genJavadoc: $DSTDIR$DST

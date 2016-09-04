@@ -79,7 +79,7 @@ import java.io.Closeable;
  * <li>seek: changes the start position of the actual (current) string part, do not change the end of the actual part,
  *   from there, seek changes the length. Seek returns this, so concatenation of method calls is possible.
  *   <ul>
- *   <li>{@link #seekPos(int)}, {@link #seekBack(int)}: Seek with given number of chars, for example seek(1) to skip over one character
+ *   <li>{@link #seekPos(int)}, {@link #seekPosBack(int)}: Seek with given number of chars, for example seek(1) to skip over one character
  *   <li>{@link #seek(char, int)}, {@link #seek(CharSequence, int)}: Searches a character or a CharSequence
  *   <li>{@link #seekAnyChar(CharSequence)},  {@link #seekBackToAnyChar(CharSequence)}: Searches any of some given characters.
  *   <li>{@link #seek(CharSequence, int)}, {@link #seekBackward(CharSequence)}: Searches any of some given characters.
@@ -120,6 +120,9 @@ public class StringPart implements CharSequence, Comparable<CharSequence>, Close
 {
   /**Version, history and license.
    * <ul>
+   * <li>2016-09-04 Hartmut chg: {@link #seekPosBack(int)} instead new method seekBack, better name, there was a name clash in Java2C-translation with constant definition {@link #seekBack}.
+   * <li>2016-09-04 Hartmut chg: {@link #checkCharAt(int, String)} should be written with only one return statement for Java2C as define inline.
+   * <li>2016-09-04 Hartmut adapt: using of {@link Java4C.InThCxtRet}  
    * <li>2016-08-28 Hartmut new: {@link #firstlineMaxpart()}, {@link #nextlineMaxpart()} as new and important mechanism for line to line scanning. 
    * <li>2016-08-28 Hartmut chg: {@link #setParttoMax()} returns this. 
    * <li>2016-08-28 Hartmut new: {@link #checkCharAt(int, String)} as replacement or additional to {@link #charAt(int)} and comparison, without exception.  
@@ -184,7 +187,7 @@ public class StringPart implements CharSequence, Comparable<CharSequence>, Close
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
-  public final static String sVersion = "2016-08-28";
+  public final static String sVersion = "2016-09-04";
   
    
   /** The actual start position of the valid part.*/
@@ -586,7 +589,6 @@ abcdefghijklmnopqrstuvwxyz  The associated String
 
   /**Sets the full range of available text.
    * begin is set to 0, end is set to the length() of the content.
-   * @java2c=return-this
    */
   @Java4C.Inline
   @Java4C.ReturnThis 
@@ -630,11 +632,8 @@ public final char charAt(int index){
 
 
   @Java4C.Inline public final boolean checkCharAt(int pos, String chars){
-    if(begin + pos >=end) return false;
-    else {
-      char cc = charAt(pos);
-      return chars.indexOf(cc) >=0;  //char found.
-    }
+    return (begin + pos >=end) ? false
+    : chars.indexOf(charAt(pos)) >=0;  //char found.
   }
 
 
@@ -657,7 +656,7 @@ public final char charAt(int index){
     throwSubSeqFaulty(from, to);
     return null;  //It is used for Java2C without throw mechanism.
   }
-  @Java4C.ReturnInThreadCxt Part ret = new Part(begin+from, begin+to);
+  @Java4C.InThCxtRet(sign="StringPart.subSequence") Part ret = new Part(begin+from, begin+to);
   return ret;
 } 
 
@@ -948,6 +947,7 @@ private final void throwSubSeqFaulty(int from, int to)
    */
   @Java4C.ReturnThis public final StringPart nextlineMaxpart(){
     begiMin = begin = endMax;
+    char test111 = charAt(0);
     endMax = end = content.length();
     if(begiMin == endMax) {
       bFound = false;
@@ -1044,7 +1044,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
    * @param nr >=0 the number of character from end for the new begin.
    * @return this
    */
-  public final StringPart seekBack(int nr)
+  public final StringPart seekPosBack(int nr)
   {
     int begin1 = end -nr;
     if(begin1 > end || begin1 < begiMin) {
@@ -2261,7 +2261,7 @@ else return pos - begin;
     else
     { posend = posendP;
     }
-    @Java4C.ReturnInThreadCxt
+    @Java4C.InThCxtRet(sign="StringPart.subString")
     Part ret = new Part(pos+begiMin, posend); //content.substring(pos+begiMin, posend); 
     return ret;
   }
@@ -2325,7 +2325,7 @@ else return pos - begin;
    */
   @Java4C.ReturnInThreadCxt
   public final Part getCurrentPart()
-  { @Java4C.ReturnInThreadCxt final Part ret_1;
+  { @Java4C.InThCxtRet(sign="StringPart.getCurrentPart") final Part ret_1;
     if(end > begin) ret_1 = new Part(begin, end);
     else            ret_1 = new Part(begin, begin);
     return ret_1 ;
@@ -2338,7 +2338,7 @@ else return pos - begin;
   @Java4C.ReturnInThreadCxt
   public final CharSequence getLastPart()
   { if(begin > beginLast) { 
-      @Java4C.ReturnInThreadCxt Part ret = new Part(beginLast, begin); return ret; 
+      @Java4C.InThCxtRet(sign="StringPart.getLastPart") Part ret = new Part(beginLast, begin); return ret; 
     } 
     else return "";
   }
@@ -2350,7 +2350,7 @@ else return pos - begin;
   public final CharSequence getCurrentPart(int maxLength)
   { int max = (end - begin) <  maxLength ? end : begin + maxLength ;
     if(end > begin) {  
-      @Java4C.ReturnInThreadCxt
+      @Java4C.InThCxtRet(sign="StringPart.getCurrentPart")
       final Part ret = new Part(begin, max);
       return ret;
     }
@@ -2376,7 +2376,7 @@ else return pos - begin;
   @Java4C.ReturnInThreadCxt
   public final StringPart.Part getPart(int fromPos, int nrofChars){
     final int nChars1 =  (endMax - fromPos) < nrofChars ? endMax - fromPos : nrofChars;  //maybe reduced nr of chars
-    @Java4C.ReturnInThreadCxt Part ret = new Part(fromPos, fromPos + nChars1);
+    @Java4C.InThCxtRet(sign="StringPart.Part.getPart") Part ret = new Part(fromPos, fromPos + nChars1);
     return ret;
   }
 
@@ -2419,8 +2419,8 @@ else return pos - begin;
    */
   @Java4C.ReturnInThreadCxt
   @Override public String toString(){ 
-    @Java4C.InThreadCxt CharSequence currentPart = getCurrentPart();
-    @Java4C.ReturnInThreadCxt String ret = currentPart.toString();
+    @Java4C.InThCxtLocal(sign="toString_StringPart") CharSequence currentPart = getCurrentPart();
+    @Java4C.InThCxtRet(sign="StringPart.toString.ret") String ret = currentPart.toString();
     return ret;
   }
 
@@ -2552,7 +2552,7 @@ public final String debugString()
     @Override
     @Java4C.ReturnInThreadCxt
     public final CharSequence subSequence(int from, int end)
-    { @Java4C.ReturnInThreadCxt Part ret = new Part(b1 + from, b1 + end);
+    { @Java4C.InThCxtRet(sign="StringPart.Part.subSequence") Part ret = new Part(b1 + from, b1 + end);
       return ret;
     }
   
@@ -2570,7 +2570,7 @@ public final String debugString()
       int b2 = b1; int e2 = e1;
       while(b2 < e2 && " \r\n\t".indexOf(content.charAt(b2)) >=0){ b2 +=1; }
       while(e2 > b2 && " \r\n".indexOf(content.charAt(e2-1)) >=0){ e2 -=1; }
-      @Java4C.ReturnInThreadCxt Part ret = new Part(b2, e2);
+      @Java4C.InThCxtRet(sign="StringPart.Part.subSequence") Part ret = new Part(b2, e2);
       return ret;
     }
     

@@ -902,6 +902,7 @@ public class StringFunctions {
    */
   //why excluded ? JcHartmut 2016-02-14 yet problems with CharSequence 
   @Java4C.Exclude
+  @Java4C.ReturnInThreadCxt
   public static CharSequence convertTransliteration(CharSequence src, char transcriptChar)
   { CharSequence sResult;
     int posSwitch = indexOf(src,0, src.length(), transcriptChar);
@@ -910,7 +911,7 @@ public class StringFunctions {
     }
     else
     { //escape character is found before end
-      @Java4C.StringBuilderInThreadCxt
+      @Java4C.StringBuilderInThreadCxt(sign="StringFunctions.convertTransliteration")
       StringBuilder sbReturn = new StringBuilder(src);
       while(posSwitch >=0)
       { if(posSwitch < sbReturn.length()-1)

@@ -6,6 +6,7 @@ public interface ReplaceAlias_ifc
 {
   /**Version, history and license.
    * <ul>
+   * <li>2016-09-02 Hartmut new: {@link #searchAliasForValue(String)} as revers routine to {@link #replaceDataPathPrefix(String)} 
    * <li>2014-04-28 Hartmut created: The methods were used inside {@link org.vishia.gral.ifc.GralMngBuild_ifc}
    *   as one method of the interface. But the capability was necessary outside the Graphic, therefore
    *   this interface was created.
@@ -60,5 +61,11 @@ public interface ReplaceAlias_ifc
   String replaceDataPathPrefix(final String path);
 
   
+  /**Try to replace the start of path with a given alias. 
+   * 
+   * @param path
+   * @return path if no alias was found, elsewhere the path starting with the alias.
+   */
+  String searchAliasForValue(final String path);
 
 }
