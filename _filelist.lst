@@ -1,14 +1,15 @@
 2013-04-17 09:24:01  x     _bzr.bat                                 ::           .250 -1444284239 
 2016-06-20 18:17:37  x     _bzr_version.txt                         ::           .177 -0519660115 
-2016-08-29 11:22:01  x     _filelist.lst                            ::           .  0  0000000000 
+2016-09-18 22:16:11  x     _filelist.lst                            ::           .  0  0000000000 
 
-2015-09-29 10:24:32 Dx     === _make/ =============================================================
+2016-09-04 19:26:46 Dx     === _make/ =============================================================
 2012-08-12 22:29:02  x     +genDownload.sh                          ::           .966 -1047256477 
 2015-09-29 10:24:32  x     +genjavadocbase.bat                      ::          2.139 -0071783145 
-2014-08-17 10:49:14  x     +genjavadocbase.sh                       ::          1.252 -0725740110 
+2016-08-29 18:23:07  x     +genjavadocbase.sh                       ::          1.252 -1326024890 
 2014-11-18 13:08:13  x     +javacjarbase.bat                        ::          4.355  0297259157 
 2012-03-26 12:21:00  x     +javacjarbase.sh                         ::          3.255 -1553126320 
 2012-08-18 22:19:44  x     _bzr_version.txt                         ::           .175  0473110466 
+2016-09-04 19:26:46  x     _filelist.lst                            ::          1.683  0468627112 
 2014-06-05 09:19:31  x     _makejar_vishiaBase.bat                  ::          1.520 -2040742808 
 2013-02-05 07:23:18  x     _makejar_vishiaBase.sh                   ::          1.587  1699435763 
 2012-08-12 22:29:02  x     genDownload.sh                           ::           . 80  0566205481 
@@ -55,8 +56,8 @@
 2012-03-17 08:57:20  x     package-info.java                        ::           .521  2072844694 
 
 2015-03-06 23:21:44 Dx     === org/vishia/byteData/ ================================================
-2015-02-20 23:46:30  x     ByteDataAccess.java                      ::         83.032 -1036919025 
-2016-06-25 22:17:07  x     ByteDataAccessBase.java                  ::         87.994 -0001232156 
+2016-09-03 22:21:48  x     ByteDataAccess.java                      ::         83.277  0134436295 
+2016-09-03 22:22:22  x     ByteDataAccessBase.java                  ::         88.062 -1985286927 
 2015-02-18 22:32:02  x     ByteDataAccessDbg.java                   ::          1.468  0435534164 
 2015-02-18 22:33:00  x     ByteDataAccessOld.java                   ::         77.706 -1790232315 
 2014-11-13 20:50:24  x     ByteDataAccessSimple.java                ::          5.120  1799153449 
@@ -67,7 +68,7 @@
 2015-04-12 18:15:20  x     ObjectArray_Jc.java                      ::          3.420  0186309066 
 2015-04-12 18:15:20  x     Object_Jc.java                           ::          8.338 -1010306512 
 2012-12-23 20:43:36  x     PositionElementInStruct.java             ::          2.793  0818954365 
-2014-11-13 20:24:57  x     RawDataAccess.java                       ::          3.738 -1048608880 
+2016-09-03 22:22:47  x     RawDataAccess.java                       ::          3.767 -1123481164 
 2013-12-10 09:54:37  x     VariableAccessArray_ifc.java             ::          6.165  0115301257 
 2016-01-23 22:17:31  x     VariableAccessWithBitmask.java           ::          6.370  0738802326 
 2016-01-23 22:17:46  x     VariableAccessWithIdx.java               ::          7.634 -0449515952 
@@ -86,14 +87,14 @@
 2015-04-12 17:59:34  x     TestInspcDatagram.java                   ::           . 79 -1925730693 
 
 2014-07-31 19:44:06 Dx     === org/vishia/cmd/ =====================================================
-2016-08-29 09:43:23  x     CmdExecuter.java                         ::         22.516  0216220382 
+2016-09-18 22:13:03  x     CmdExecuter.java                         ::         28.077  0857231983 
 2011-11-04 09:48:12  x     CmdGetFileArgs_ifc.java                  ::          1.448 -0598442082 
-2016-01-06 20:16:55  x     CmdQueue.java                            ::         12.772  0908172372 
+2016-09-18 22:04:27  x     CmdQueue.java                            ::         13.628 -0580049331 
 2015-05-15 22:33:14  x     CmdStore.java                            ::         11.196 -0758741548 
 2013-02-11 20:02:26  x     Filecmd.java                             ::          7.182  0296091865 
 2014-06-23 08:26:46  x     JZcmdAccessFileset.java                  ::          5.258  1149002636 
 2014-06-10 11:51:24  x     JZcmdEngine.java                         ::          3.121 -1315088107 
-2016-07-17 21:19:47  x     JZcmdExecuter.java                       ::        159.358 -0279245327 
+2016-09-16 21:55:44  x     JZcmdExecuter.java                       ::        159.364 -1357893119 
 2015-03-24 09:29:06  x     JZcmdFilepath.java                       ::         16.206  0960047149 
 2015-03-24 09:16:31  x     JZcmdFileset.java                        ::          5.394  0097384298 
 2016-03-14 08:46:03  x     JZcmdScript.java                         ::         99.820 -0089367089 
@@ -236,7 +237,7 @@
 2015-03-08 12:13:05  x     InfoFormattedAppend.java                 ::          2.330 -2122956066 
 2014-05-23 11:32:14  x     IntegerBlockArray.java                   ::          6.115 -1633935975 
 2013-12-01 14:57:42  x     IterableIterator.java                    ::           .445  0451977562 
-2016-08-17 14:37:54  x     Java4C.java                              ::         15.587 -1254586924 
+2016-09-04 19:16:06  x     Java4C.java                              ::         16.082  0479589728 
 2015-07-20 22:20:43  x     JgitFactory_ifc.java                     ::           .803  1558733751 
 2015-07-20 22:22:04  x     Jgit_ifc.java                            ::           .427 -1173385296 
 2015-10-30 19:10:55  x     KeyCode.java                             ::         12.692  0729595176 
@@ -252,7 +253,7 @@
 2014-01-05 11:55:23  x     PipeRingBuffer.java                      ::          6.868 -1766035494 
 2011-02-26 21:31:28  x     ReadChars3Stream.java                    ::          4.740 -1050317933 
 2012-01-13 20:41:04  x     Removeable.java                          ::          1.095  0388858606 
-2014-04-28 16:33:27  x     ReplaceAlias_ifc.java                    ::          2.667 -0308511831 
+2016-09-04 19:23:22  x     ReplaceAlias_ifc.java                    ::          3.027  2081028153 
 2015-08-09 15:53:12  x     RetOrException.java                      ::           .594 -0114585109 
 2013-09-05 10:11:28  x     SelectMask.java                          ::          2.622  0990793746 
 2015-04-25 22:34:23  x     SetLineColumn_ifc.java                   ::          1.045 -1658129807 
@@ -266,10 +267,10 @@
 2016-06-25 22:56:43  x     SpecialCharStrings.java                  ::          5.405 -1790184353 
 2011-02-26 15:36:54  x     StdHexFormatWriter.java                  ::          4.376  0697421476 
 2016-08-19 23:18:57  x     StringFormatter.java                     ::         47.781  1949578030 
-2016-07-24 13:49:02  x     StringFunctions.java                     ::         41.459 -0431457257 
+2016-09-03 22:24:00  x     StringFunctions.java                     ::         41.534  2001399027 
 2016-05-08 22:17:29  x     StringFunctions_B.java                   ::          7.555  1441342943 
-2016-08-20 07:58:31  x     StringFunctions_C.java                   ::         12.057 -0246156581 
-2016-08-29 11:18:06  x     StringPart.java                          ::        109.857  2080848707 
+2016-09-06 16:47:57  x     StringFunctions_C.java                   ::         12.197 -1008546238 
+2016-09-04 19:30:08  x     StringPart.java                          ::        110.493  0435889394 
 2014-06-14 12:02:17  x     StringPartAppend.java                    ::          5.482 -1907437228 
 2015-09-30 08:42:27  x     StringPartFromFile.java                  ::          2.812  0877476463 
 2015-10-24 11:09:03  x     StringPartFromFileLines.java             ::         13.558  1382246793 

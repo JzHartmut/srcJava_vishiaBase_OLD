@@ -55,7 +55,8 @@ public class StringFunctions_C
    * known as hexa numbers A..F or a..f. 
    * @param srcP The String, non 0-terminated, see ,,size,,.
    * @param pos The position in src to start.
-   * @param size The number of chars of the String.
+   * @param sizeP The maximal number of chars to parse. If it is more as the length of the String, no error. 
+   *   One can use {@link Integer#MAX_VALUE} to parse till the end of the String
    * @param radix The radix of the number, typical 2, 10 or 16, max 36.
    * @param parsedChars number of chars which is used to parse the integer. The pointer may be null if not necessary. @pjava2c=simpleVariableRef. 
    * @param spaceChars maybe null, some characters which are skipped by reading the digits. It is especially ". '" to skip over a dot, or spaces or '

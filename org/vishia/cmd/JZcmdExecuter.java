@@ -2278,7 +2278,7 @@ throws ScriptException //Throwable
       //
       String[] sArgs = new String[args.size()]; 
       args.toArray(sArgs);
-      this.cmdErrorlevel = cmdExecuter.execute(sArgs, statement.bShouldNotWait, null, outCmd, null);
+      this.cmdErrorlevel = cmdExecuter.execute(sArgs, statement.bShouldNotWait, null, outCmd, null, null);
       //
       //close
       //

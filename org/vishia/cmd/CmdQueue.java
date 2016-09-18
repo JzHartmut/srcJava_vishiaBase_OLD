@@ -17,7 +17,7 @@ import org.vishia.util.Assert;
 import org.vishia.util.DataAccess;
 
 /**This class stores some prepared commands for execution and executes it one after another.
- * The commands can contain placeholder for files.
+ * The commands can contain placeholder for files. The commands may be operation system commands or {@link JZcmdExecuter} invocation of sub routines.
  * @author hartmut Schorrig
  *
  */
@@ -26,6 +26,7 @@ public class CmdQueue implements Closeable
   
   /**Version, history and license.
    * <ul>
+   * <li>2016-09-18 Hartmut chg: ctor with null as log, don't use log and JZcmd for simple applications. 
    * <li>2015-07-18 Hartmut chg: Now associated to an Appendable instead a PrintStream for error alive and error messages.
    *   A System.out is an Appendable too, for this kind the application is unchanged. Other output channels may support
    *   an Appendable rather than an PrintStream because it is more simple and substantial. 
@@ -145,11 +146,24 @@ public class CmdQueue implements Closeable
   
   private Appendable cmdError = System.err;
   
+  /**Constructs an executer which can process {@link JZcmdExecuter} subroutines too.
+   * @param log Log output used for {@link JZcmdExecuter}.
+   */
   public CmdQueue(Appendable log)
   {
     this.log = log;
     MainCmdLoggingStream logMainCmd = new MainCmdLoggingStream("MMM-dd HH:mm:ss.SSS: ", log, MainCmdLogging_ifc.info);
     jzcmdExecuter = new JZcmdExecuter(logMainCmd);
+  }
+  
+
+  /**Constructs an executer which can process {@link JZcmdExecuter} subroutines too.
+   * @param log Log output used for {@link JZcmdExecuter}.
+   */
+  public CmdQueue()
+  {
+    this.log = null;
+    jzcmdExecuter = null;
   }
   
 
@@ -274,26 +288,27 @@ public class CmdQueue implements Closeable
               }
               cmdOutput.append("\n");
             }
-            log.append(sCmdShow).append('\n');
+            if(log !=null) { log.append(sCmdShow).append('\n'); }
             //mainCmd.writeInfoln(sCmdShow.toString());
             
             int exitCode = executer.execute(sCmd, null, cmdOutput, cmdError);
             if(exitCode == 0){ cmdOutput.append("\nJavaCmd: cmd execution successfull\n"); }
             else {cmdOutput.append("\nJavaCmd: cmd execution errorlevel = " + exitCode + "\n"); }
           } else if(kindOfExecution == '&'){
-            log.append(sCmdShow).append('\n');;
+            if(log !=null) { log.append(sCmdShow).append('\n'); }
             //mainCmd.writeInfoln(sCmdShow.toString());
             if(outStatus !=null){ outStatus.append("&" + sCmd[0]); }
             try{
-              executer.execute(sCmd, true, null, null, null);  //don't wait for execution.
+              executer.execute(sCmd, true, null, null, null, null);  //don't wait for execution.
             } catch(Exception exc){
-              log.append("\nCmdQueue - execution exception; " + exc.getMessage()).append('\n');
+              if(log !=null) { log.append("\nCmdQueue - execution exception; " + exc.getMessage()).append('\n'); }
+              else { System.err.println("\nCmdQueue - execution exception; " + exc.getMessage()); }
             }
             //cmdOutput.append("JavaCmd; started; " + sCmd + "\n");
           } else {
             //mainCmd.writeInfoln("CmdQueue - unexpected kind of execution; " + kindOfExecution);
-            log.append("\nCmdQueue - unexpected kind of execution; " + kindOfExecution).append('\n');;
-            
+            if(log !=null) { log.append("\nCmdQueue - unexpected kind of execution; " + kindOfExecution).append('\n'); }
+            else { System.err.println("\nCmdQueue - unexpected kind of execution; " + kindOfExecution);}
           }
         }
       } catch(Throwable exc){ 

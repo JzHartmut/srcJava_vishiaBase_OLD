@@ -12,7 +12,9 @@ import java.io.Writer;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.vishia.util.Debugutil;
 import org.vishia.util.StringPart;
 
 /**This class organizes the execution of commands with thread-parallel getting of the process outputs.
@@ -21,8 +23,13 @@ import org.vishia.util.StringPart;
  */
 public class CmdExecuter implements Closeable
 {
-  /**Version and History:
+  /**Version, License and History:
    * <ul>
+   * <li>2016-09-18 Hartmut new: {@link #addCmd(String[], String, List, List, File, ExecuteAfterFinish)} and {@link #executeCmdQueue(boolean)}.
+   *   That is a new feature to store simple system commands. The class {@link CmdQueue} may be over-engineered for some applications. 
+   * <li>2016-09-17 Hartmut new: {@link #execute(String[], boolean, String, List, List, ExecuteAfterFinish)} have the argument {@link ExecuteAfterFinish}.
+   *   This method is executed in the {@link #outThread} after finishing the command and can evaluate the output of the command with a Java routine.
+   *   The interface {@link ExecuteAfterFinish} can be overridden in any application for that appoach.   
    * <li>2016-08-26 Hartmut new: {@link #splitArgs(String, String[], String[])} with pre- and post-arguments. 
    *   Therewith both the invocation of a batch in Windows with "cmd.exe" can be organized as a Linux cmd with "sh.exe" can be invoked.
    *   The possibility {@link #execute(String, String, Appendable, Appendable, boolean)} with "useShell=true" is not the favor
@@ -52,12 +59,33 @@ public class CmdExecuter implements Closeable
    *   The outputs should presented while the process runs, not only if it is finished. It is because
    *   the user should be informed why a process blocks or waits for something etc. This fact is implemented already
    *   in {@link org.vishia.mainCmd.MainCmd#executeCmdLine(String[], ProcessBuilder, int, Appendable, String)}.
-   * <li>TODO handling input pipe.
-   * <li>TODO non waiting process.  
-   * <li>older: TODO
    * </ul>
+   * 
+   * <b>Copyright/Copyleft</b>:
+   * For this source the LGPL Lesser General Public License,
+   * published by the Free Software Foundation is valid.
+   * It means:
+   * <ol>
+   * <li> You can use this source without any restriction for any desired purpose.
+   * <li> You can redistribute copies of this source to everybody.
+   * <li> Every user of this source, also the user of redistribute copies
+   *    with or without payment, must accept this license for further using.
+   * <li> But the LPGL is not appropriate for a whole software product,
+   *    if this source is only a part of them. It means, the user
+   *    must publish this part of source,
+   *    but don't need to publish the whole source of the own product.
+   * <li> You can study and modify (improve) this source
+   *    for own using or for redistribution, but you have to license the
+   *    modified sources likewise under this LGPL Lesser General Public License.
+   *    You mustn't delete this Copyright/Copyleft inscription in this source file.
+   * </ol>
+   * If you are intent to use this sources without publishing its usage, you can get
+   * a second license subscribing a special contract with the author. 
+   * 
+   * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
+   * 
    */
-  public static final String version = "2016-08-26";
+  public static final String version = "2016-09-18";
 
   
   /**Composite instance of the java.lang.ProcessBuilder. */
@@ -66,12 +94,15 @@ public class CmdExecuter implements Closeable
   /**The running process or null. Note that this class supports only running of one process at one time. */
   private Process process;
   
+  /**Set with an execute invocation, set to null if it was processed. */
+  private ExecuteAfterFinish executeAfterCmd;
+  
   /**True for ever so long this class is used, it maybe so long this application runs. */
   boolean bRunThreads;
   
   /**Both thread instances runs for ever so long bRunThreads is true.
    * They handle the output and error output if a process runs, and waits elsewhere. */
-  private final OutThread outThread = new OutThread(), errThread = new OutThread();
+  private final OutThread outThread = new OutThread(true), errThread = new OutThread(false);
   
   
   /**True if a process is started, false if it is finished. */
@@ -89,6 +120,8 @@ public class CmdExecuter implements Closeable
   final Thread threadExecOut;
   final Thread threadExecIn;
   final Thread threadExecError;
+  
+  ConcurrentLinkedQueue<CmdQueueEntry> cmdQueue;
   
   String[] sConsoleInvocation = {"cmd.exe", "/C"};  //default for window.
   
@@ -133,9 +166,68 @@ public class CmdExecuter implements Closeable
   }
   
   
-  public void setConsoleInvocation(String cmd){
+  public void specifyConsoleInvocation(String cmd){
     sConsoleInvocation = splitArgs(cmd);
   }
+  
+  
+  
+  public void addCmd(String[] cmdArgs
+      , String input
+      , List<Appendable> outputs
+      , List<Appendable> errors
+      , File currentDir
+      , ExecuteAfterFinish executeAfterCmd
+      )
+  { if(cmdQueue == null) { cmdQueue = new ConcurrentLinkedQueue<CmdQueueEntry>(); }
+    CmdQueueEntry e = new CmdQueueEntry();
+    e.cmd = cmdArgs;
+    e.input = input;
+    e.out = outputs;
+    e.err = errors;
+    e.currentDir = currentDir;
+    e.executeAfterFinish = executeAfterCmd;
+    cmdQueue.offer(e);
+  }
+  
+  
+  
+  
+  public void clearCmdQueue(){
+    if(cmdQueue !=null) { cmdQueue.clear(); }
+  }
+  
+  
+  /**Executes the commands stored with {@link #addCmd(String[], String, List, List, ExecuteAfterFinish)}.
+   * This can be invoked in a specific thread with the following pattern: <pre>
+  Thread cmdThread = new Thread("gitGui-Cmd") {
+    @Override public void run() {
+      do {
+        cmd.executeCmdQueue(true);
+        try {
+          wait(1000);
+        } catch (InterruptedException e) { }
+      } while (!bCmdThreadClose);
+    }
+  };
+   * </pre>
+   * @param abortOnError stops execution if a command does not return 0.
+   * @return the last executed entry if an error occurs and 'abortOnError'==true. Elsewhere null
+   */
+  public CmdQueueEntry executeCmdQueue(boolean abortOnError)
+  { CmdQueueEntry e = null;
+    while( cmdQueue !=null && (e = cmdQueue.poll())!=null) {
+      if(e.currentDir !=null) {
+        setCurrentDir(e.currentDir);
+      }
+      e.errorCmd = execute(e.cmd, false, e.input, e.out, e.err, e.executeAfterFinish);
+      if(e.errorCmd !=0 && abortOnError) {
+        break;
+      }
+    }
+    return e;  //it is null if all cmds are processed.
+  }
+  
   
   
   /**Executes a command with arguments and waits for its finishing.
@@ -211,7 +303,7 @@ public class CmdExecuter implements Closeable
     } else {
       errors = null;
     }
-    return execute(cmdArgs, donotwait, input, outputs, errors);
+    return execute(cmdArgs, donotwait, input, outputs, errors, null);
   }
   
   
@@ -228,7 +320,7 @@ public class CmdExecuter implements Closeable
       , List<Appendable> outputs
       , List<Appendable> errors
       )
-  { return execute(cmdArgs, outputs == null && errors == null, input, outputs, errors);
+  { return execute(cmdArgs, outputs == null && errors == null, input, outputs, errors, null);
   }
   
   /**Executes a command with arguments and maybe waits for its finishing.
@@ -243,6 +335,7 @@ public class CmdExecuter implements Closeable
    *        But in this case error should not be ==null because errors of command invocation are written there.
    * @param errors Will be filled with the error output of the command. 
    *        Maybe null, then the error output will be written to output
+   * @param executeAfterCmd maybe null, will be executing if given. If the process waits it waits on end of this method.        
    * @return exit code if it is waiting for execution, elsewhere 0.       
    */
   public int execute(String[] cmdArgs
@@ -250,8 +343,10 @@ public class CmdExecuter implements Closeable
   , String input
   , List<Appendable> outputs
   , List<Appendable> errors
+  , ExecuteAfterFinish executeAfterCmd
   )
   { int exitCode;
+    this.executeAfterCmd = executeAfterCmd;
     processBuilder.command(cmdArgs);
     if(errors == null){ //merge errors in the output stream. It is a feature of ProcessBuilder.
       processBuilder.redirectErrorStream(true); 
@@ -438,6 +533,36 @@ public class CmdExecuter implements Closeable
   
   
   
+  
+  public static class CmdQueueEntry
+  {
+    public String[] cmd;
+    public String input;
+    public List<Appendable> out;
+    public List<Appendable> err;
+    public File currentDir;
+    public ExecuteAfterFinish executeAfterFinish;
+    public int errorCmd;
+  }
+  
+  
+  
+  
+  /**An implementation of this interface can be evaluate the output of the process after finish.
+   */
+  public interface ExecuteAfterFinish
+  {
+    /**Gets the Appendable given by the execute invocation. The Appendable may be instances
+     *   which allows read out. For example StringBuilder.
+     * @param out contains the process output. null if the output was not captured.
+     * @param err contains the process error output. null if the output was not captured.
+     */
+    void exec(int errorcode, Appendable out, Appendable err);
+  
+  };
+  
+  
+  
   class OutThread implements Runnable
   {
     /**Output or ErrorOutput from process. */
@@ -445,11 +570,16 @@ public class CmdExecuter implements Closeable
     
     /**Output to write.*/
     List<Appendable> outs;
+  
+    private final boolean isOutThread;
     
     char state = '.';
     
     /**Set to true before a process is started, set to false if the process has finished. */
     boolean bProcessIsRunning;
+    
+    
+    OutThread(boolean isOutThread){ this.isOutThread = isOutThread; }
     
     @Override public void run()
     { state = 'r';
@@ -475,6 +605,15 @@ public class CmdExecuter implements Closeable
               //yet no output available. The process may be run still, but doesn't produce output.
               //The process may be finished.
               if(!bProcessIsRunning){
+                if(isOutThread && executeAfterCmd !=null) {
+                  try {
+                    int exitValue = process.exitValue();
+                    executeAfterCmd.exec(exitValue, outs == null? null : outs.get(0), errThread == null || errThread.outs ==null ? null : errThread.outs.get(0));
+                  } catch (Exception exc) {
+                    System.err.println("CmdExecuter - exception in executeAfterCmd");
+                  }
+                  executeAfterCmd = null; //is done.
+                }
                 outs = null;  
               } else {
                 Thread.sleep(100);
@@ -495,7 +634,7 @@ public class CmdExecuter implements Closeable
             //}
           }
         } catch(Exception exc){
-          
+          Debugutil.stop();
         }
       }
       state = 'x';

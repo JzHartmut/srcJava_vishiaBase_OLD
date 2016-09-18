@@ -947,7 +947,7 @@ private final void throwSubSeqFaulty(int from, int to)
    */
   @Java4C.ReturnThis public final StringPart nextlineMaxpart(){
     begiMin = begin = endMax;
-    char test111 = charAt(0);
+    //char test111 = charAt(0);
     endMax = end = content.length();
     if(begiMin == endMax) {
       bFound = false;
