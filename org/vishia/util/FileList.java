@@ -201,7 +201,7 @@ public class FileList
         File file = entry.getValue();
         if( file.isDirectory()) {
           String name = file.getName();
-          if(name.charAt(0) !='.'){
+          if(name.charAt(0) !='.' && !name.equals(args.sFileList)){
             writeOneFile(out, file, localDir, name);  //the directory entry
             CharSequence path = FileSystem.normalizePath(file);
             CharSequence localDirSub = path.subSequence(posLocalPath, path.length());

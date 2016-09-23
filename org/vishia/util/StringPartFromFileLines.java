@@ -30,9 +30,12 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 //import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
+
+import com.sun.swing.internal.plaf.basic.resources.basic_zh_HK;
 
 public class StringPartFromFileLines extends StringPartScan
 {
@@ -96,11 +99,14 @@ public class StringPartFromFileLines extends StringPartScan
   /** The reader maybe with correct charset.
    * 
    */
-  final BufferedReader readIn;
+  BufferedReader readIn;
 
   IntegerBlockArray linePositions = new IntegerBlockArray(1000);
   
   int maxIxLinePosition;
+  
+  
+  String sNewline = "\n";
   
   
   /**Fills a StringPart from a File. If the file is less than the maxBuffer size,
@@ -180,20 +186,31 @@ public class StringPartFromFileLines extends StringPartScan
     bEof = false;
     buffer = new StringBuilder(sizeBuffer);  //to large file
     linePositions.set(++maxIxLinePosition, 0);  //start entry: After position 0 is line 1  
-    if(input.markSupported() && sEncodingDetect !=null){  //TODO read char per char, don't use mark!
-      input.mark(260);
+    boolean bom = false;;
+    if(/*input.markSupported() && */sEncodingDetect !=null){  //TODO read char per char, don't use mark!
+      //input.mark(260);
       if(sEncodingDetect != null)
       { //test the first line to detect a charset, maybe the charset exceptions.
         byte[] inBuffer = new byte[256];
         int nrofFirstChars = input.read(inBuffer);
-        String sFirstLine = new String(inBuffer, 0, nrofFirstChars);
-        int posNewline = sFirstLine.indexOf('\n'); 
+        //TODO check BOM
+        int startPos = 0;
+        if(inBuffer[0] == -1 && inBuffer[1] == -2) {  //0xfffe
+          bom = true;
+          startPos = 2;
+        } else if(inBuffer[0] == -2 && inBuffer[1] == -1) { //0xfeff
+          bom = true;
+          startPos = 2;
+        } 
+        //the sLine is used as first content for readnextContentFromFile() too, the start text.
+        sLine = new String(inBuffer, startPos, nrofFirstChars);  
+        int posNewline = sLine.indexOf('\n'); 
         //@chg:JcHartmut-2010-0912: test 2 lines instead of the first only, because in a bash-shell script it can't be the first line!
         if(posNewline >= 0 && posNewline < nrofFirstChars){    //= nrofFirstBytes, then an IndexOutOfBoundsException is thrown because
-          posNewline = sFirstLine.indexOf('\n', posNewline +1); //from the second line. 
+          posNewline = sLine.indexOf('\n', posNewline +1); //from the second line. 
         }
         if(posNewline < 0) posNewline = nrofFirstChars;
-        StringPartScan spFirstLine = new StringPartScan(sFirstLine.substring(0, posNewline));
+        StringPartScan spFirstLine = new StringPartScan(sLine.substring(0, posNewline));
         spFirstLine.setIgnoreWhitespaces(true);
         /**Check whether the encoding keyword is found: */
         if(spFirstLine.seek(sEncodingDetect, StringPartScan.seekEnd).found()
@@ -212,26 +229,25 @@ public class StringPartFromFileLines extends StringPartScan
           { //the charset is defined in the first line:
             charset = Charset.forName(sCharset);  //replace the current charset
           }
+          //re-read the string with the correct charset
+          sLine = new String(inBuffer, startPos, nrofFirstChars, charset);
         }
+        nLine = sLine.length();
       }
-      input.reset();
     }
+    final Reader readIn1;
     if(charset != null)
-    { readIn = new BufferedReader(new InputStreamReader(input, charset));
+    { readIn1 = new InputStreamReader(input, charset);
     }
     else
-    { readIn = new BufferedReader(new InputStreamReader(input)); //new FileReader(fromFile));
+    { readIn1 = new InputStreamReader(input); //new FileReader(fromFile));
     }
-    boolean notAllContent = readnextContentFromFile();
-    if(buffer.length() >0 && buffer.charAt(0) == '\ufeff')
-    { /**ignore a BOM Byte Order Mark.*/
-      assign(buffer.substring(1));
-    }
-    else
-    { assign(buffer);
-    }
-    if(!notAllContent){
+    readIn = new BufferedReader(readIn1);
+    boolean notAllContent = readnextContentFromFile(0);   //read the start content.
+    assign(buffer);
+    if(bEof){
       readIn.close();
+      readIn = null;
     }
   }
 
@@ -263,39 +279,87 @@ public class StringPartFromFileLines extends StringPartScan
 
   
   
-  boolean readnextContentFromFile()
+  public boolean readnextContentFromFile(int size)
   throws IOException
-  { {
-      boolean bBufferFull = false;
-      while(!bEof && !bBufferFull)
-      { int zBuffer = buffer.length();  //length before add the line. Start with 0
-        int nRestBytes = buffer.capacity() - zBuffer;
-        if(nRestBytes >= nLine)
-        { if(sLine != null) //only null on start
-          { //stores position in Buffer to the line number. Pre-increment, maxIxLinePosition is the line number
-            if(nLine > 0){ buffer.append(sLine.substring(0, nLine)); }
-            buffer.append('\n');
+  { boolean bBufferFull = false;
+    int zBuffer = buffer.length();  //length before add the line. Start with 0
+    int nRestBytes = buffer.capacity() - zBuffer;
+    //check, shift only the buffer if necessary, to save calculation time. Prevent unnecessary shift.
+    if(nRestBytes < size && super.begin >0) {
+      int sh = super.begin;
+      //shift the content from begin to the start of the buffer.
+      buffer.delete(0, sh);  //this shifts the content.
+      super.begin = 0;
+      super.begiMin = 0;
+      super.beginLast = 0;
+      super.beginScan = 0;
+      super.end -=sh;
+      super.endLast -=sh;
+      super.endMax -=sh;
+    }
+    boolean bFirstsLinewithhalfnl = false;
+    while(!bEof && !bBufferFull)
+    { if(nRestBytes >= nLine)
+      { if(sLine != null) //only null on start
+        { //stores position in Buffer to the line number. Pre-increment, maxIxLinePosition is the line number
+          if(nLine > 0){ buffer.append(sLine.substring(0, nLine)); }
+          int posNl =0;
+          boolean appendNlAftersLine = true;
+          while( (posNl = StringFunctions.indexOfAnyChar(sLine, posNl, Integer.MAX_VALUE, "\r\n")) >=0) {
+            appendNlAftersLine = false;  //only in the first content newline characters can occur. Then the end is not a simple line.
+            if(sLine.length() > posNl +2) {
+              if( sLine.charAt(posNl) == '\r' && sLine.charAt(posNl+1) == '\n') {
+                sNewline = "\r\n";
+                posNl +=2;
+              } else if( sLine.charAt(posNl) == '\n' && sLine.charAt(posNl+1) == '\r' ) {
+                sNewline = "\r\n";
+                posNl +=2;
+              } else {
+                sNewline = "" + sLine.charAt(posNl);
+                posNl +=1;
+              }
+              linePositions.set(++maxIxLinePosition, posNl);
+            } else {
+              posNl +=1;
+              //no character after the detected \n
+              bFirstsLinewithhalfnl = sNewline.length() >1; 
+              if(bFirstsLinewithhalfnl) {
+                buffer.append(sNewline.charAt(1));  //append only after a readLine().
+                linePositions.set(++maxIxLinePosition, posNl+1);
+              } else {
+                linePositions.set(++maxIxLinePosition, posNl);
+              }
+            }
+            //the only one problem yet is: \r as last character in sLine, \n is the first character of the next line.  
+          }
+          if(appendNlAftersLine) {
+            buffer.append('\n');  //append only after a readLine().
             linePositions.set(++maxIxLinePosition, buffer.length());  
           }
-          //read the next lines and try to fill in
-          sLine = readIn.readLine();
-          if(sLine == null)
-          { bEof = true;
-            nLine = 0;
-          }
-          else
-          { int idxSpaceTest = sLine.length()-1;
-            while(idxSpaceTest >= 0 && sLine.charAt(idxSpaceTest) == ' '){ idxSpaceTest -=1; }
-            nLine = idxSpaceTest +1;
-          }
+        }
+        //read the next lines and try to fill in
+        sLine = readIn.readLine();
+        if(sLine == null)
+        { bEof = true;
+          nLine = 0;
+        }
+        else if(bFirstsLinewithhalfnl && sLine.length() ==0) {
+          //it is the empty line between \r and \n
+          bFirstsLinewithhalfnl = false;
+          sLine = null; //not used.
         }
         else
-        { //keep the next content in sLine, fill in later.
-          bBufferFull = true;
+        { int idxSpaceTest = sLine.length()-1;
+          while(idxSpaceTest >= 0 && sLine.charAt(idxSpaceTest) == ' '){ idxSpaceTest -=1; }
+          nLine = idxSpaceTest +1;
         }
       }
+      else
+      { //keep the next content in sLine, fill in later.
+        bBufferFull = true;
+      }
     }
-    return false;
+    return !bBufferFull;
   }
 
 
@@ -303,7 +367,7 @@ public class StringPartFromFileLines extends StringPartScan
   public void close(){
     if(readIn != null){
       try{ readIn.close(); } catch(IOException exc){}
-      //readIn = null;
+      readIn = null;
     }
     nLineCt = 0;
     super.close();
