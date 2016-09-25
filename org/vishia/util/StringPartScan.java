@@ -50,6 +50,7 @@ public class StringPartScan extends StringPart
 {
   /**Version, history and license.
    * <ul>
+   * <li>2016-09-25 Hartmut chg: {@link #scan()} now invokes {@link #scanStart()} automatically, it is the common use case.
    * <li>2016-02-13 Hartmut bugfix: {@link #scanFractionalNumber(long, boolean)} has had a problem with negative numbers. 
    *   Therefore {@link #scanFractionalNumber(long, boolean)} with bNegative as argument. Used in {@link CalculatorExpr} too.
    *   new {@link #getLastScannedIntegerSign()} to check whether "-0" was scanned which may be "-0.123" as a negative number.  
@@ -149,7 +150,12 @@ public class StringPartScan extends StringPart
     return this;
   }
 
-
+  /**Invocation of scan() for a {@link StringPart} is the same than scanStart().
+   * @see org.vishia.util.StringPart#scan()
+   */
+  @Java4C.Retinline @Override public final StringPartScan scan()
+  { return scanStart();
+  }
   
   
   
@@ -267,7 +273,8 @@ public class StringPartScan extends StringPart
       if(bCurrentOk)
       { //TODO ...ToEndString, now use only 1 char in sQuotionMarkEnd
         if(sResult != null) sResult[0] = getCurrentPart().toString();
-        fromEnd().seek(sQuotionMarkEnd.length());
+        else this.sLastString = getCurrentPart();
+        fromEnd().seekPos(sQuotionMarkEnd.length());
       }
       else bCurrentOk = false; 
     }

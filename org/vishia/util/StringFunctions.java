@@ -13,6 +13,7 @@ public class StringFunctions {
 
   /**Version, history and license.
    * <ul>
+   * <li>2016-09-25 Hartmut new: {@link #nrofBytesUTF8(byte)} used in {@link StringPartFromFileLines} 
    * <li>2016-05-22 Hartmut chg: {@link #indexOfAnyString(CharSequence, int, int, CharSequence[], int[], String[])}: Algorithm from StringPart
    *   copied to here. It is common. temporary instance in StrinPart prevented. 
    * <li>2015-11-07 Hartmut chg: Now the number conversion routines are moved to {@link StringFunctions_C}. 
@@ -971,6 +972,92 @@ public class StringFunctions {
   }
   
   
+  public static int nrofBytesUTF8(byte b) {
+    if( b >=0) return 1;
+    if((b & 0xe0)==0xc0) return 2;
+    if((b & 0xf0)==0xe0) return 3;
+    if((b & 0xf8)==0xf0) return 4;
+    if((b & 0xfc)==0xf8) return 5;
+    if((b & 0xfe)==0xfc) return 6;
+    if( b == 0xfe) return 7;
+    if( b == 0xff) return 8;
+    else return 0;  //all codes 80..BF = 10xxxxxx
+  }
   
+  
+  
+  
+  
+  
+  /**Converts the current bytes in a byte[] from UTF-8 in a character (which is UTF-16 internally).
+   * <br>
+   * Special code error situations: 
+   * <ul>
+   * <li>The first byte does not have the bits 10xx xxxx (range 0x80..0xbf). Then return 0, the ixSrc[0] will not be incremented. 
+   * <li>The following bytes must have the bits 10xx xxxx. If not, then return 0 with the ixSrc[0] on the position of the errorneous byte.
+   * <li>Characters outside UTF16: The character '\ufffd' is returned, but the bytes are correctly skipped, 
+   *   so the next character start byte is referred by the ixSrc[0].
+   * </ul>
+   * If that error occurs, the routine returns 0 and the ixDst[0] refers the faulty byte. With comparison 
+   * with the start index before invocation, the error can be ...TODO
+   *   
+   * @param src any byte array
+   * @param ixSrc [0] The current position in this byte array. It should refer the first byte of a UTF-8-coded character.
+   *   The ixSrc[0] will be incremented by the processed bytes for this one character. If the routine does not return 0,
+   *   than the ixSrc[0] refers the first byte of the next UTF8 character, or the end of the array.  
+   * @return the character from the read UTF-8 code bytes. 
+   *   Special cases: return 0 if byte[ixSrc[0]] does not contain a valid UTF-8 code sequence. 
+   *   
+   */
+  public static char byte2UTF8(byte[] src, int[] ixSrc)
+  { byte b = src[ixSrc[0]];
+    if(b >=0) { return (char) b; }
+    //
+    if( (b & 0xc0) == 0x80) return 0;
+    //
+    byte b2 = src[ixSrc[0]];
+    if( (b2 & 0xc0) != 0x80) return 0;
+    ixSrc[0] +=1;
+    int cc = b; cc <<=6; cc |= b2 & 0x3f;
+    if((b & 0xe0)==0xc0) { 
+      return (char)(cc & 0x7ff);  //remove 3 MSB from b.
+    }
+    //
+    byte b3 = src[ixSrc[0]];
+    if( (b3 & 0xc0) != 0x80) return 0;
+    ixSrc[0] +=1;
+    cc <<=6; cc |= b3 & 0x3f;
+    if((b & 0xf0)==0xe0) { 
+      return (char)(cc & 0xffff);  //remove 3 MSB from b.
+    }
+    //
+    //That is an higher UTF character than UTF16-range:
+    //returns '?' but skip over that bytes. 
+    byte b4 = src[ixSrc[0]];
+    if( (b4 & 0xc0) != 0x80) return 0;
+    ixSrc[0] +=1;
+    if((b & 0xf8)==0xf0) { return '\ufffd'; }
+    //    
+    byte b5 = src[ixSrc[0]];
+    ixSrc[0] +=1;
+    if( (b5 & 0xc0) != 0x80) return 0;
+    if((b & 0xfc)==0xf8) { return '\ufffd'; }
+    //    
+    byte b6 = src[ixSrc[0]];
+    if( (b6 & 0xc0) != 0x80) return 0;
+    ixSrc[0] +=1;
+    if((b & 0xfe)==0xfc) { return '\ufffd'; }
+    //    
+    byte b7 = src[ixSrc[0]];
+    if( (b7 & 0xc0) != 0x80) return 0;
+    ixSrc[0] +=1;
+    if((b & 0xff)==0xfe) { return '\ufffd'; }
+    //    
+    assert(b == 0xff);
+    byte b8 = src[ixSrc[0]++];
+    if( (b8 & 0xc0) != 0x80) return 0;
+    ixSrc[0] +=1;
+    return '\ufffd';
+  }
   
 }

@@ -2212,7 +2212,7 @@ else return pos - begin;
     * @return this
     * @throws ClassCastException if the instance is not a StringPartScan. That is an internal software error.
     */
-   @Java4C.Exclude public final StringPartScan scan()
+   @Java4C.Exclude public StringPartScan scan()
    { return (StringPartScan)this;
    }
 

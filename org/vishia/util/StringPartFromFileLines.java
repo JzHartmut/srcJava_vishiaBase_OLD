@@ -24,18 +24,19 @@ package org.vishia.util;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.BufferedReader;
 import java.io.InputStream;
 //import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CoderResult;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
 
-import com.sun.swing.internal.plaf.basic.resources.basic_zh_HK;
 
 public class StringPartFromFileLines extends StringPartScan
 {
@@ -43,6 +44,7 @@ public class StringPartFromFileLines extends StringPartScan
   /**Version, history and license.
    * list of changes:
    * <ul>
+   * <li>2016-09-25 Hartmut now works with lesser buffer.
    * <li>2015-10-24 Hartmut new: {@link StringPartFromFileLines#StringPartFromFileLines(InputStream, String, int, String, Charset)}
    *   to use with <code>ClassLoader.getSystemClassLoader().getResourceAsStream("path");   
    * <li>2015-06-07 Hartmut chg: {@link #getLineAndColumn(int[])}: column counts from 1 on leftest position.
@@ -79,27 +81,54 @@ public class StringPartFromFileLines extends StringPartScan
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
 
    */
-  public static final String version = "2015-10-24";
+  public static final String version = "2016-09-25";
   
-  final StringBuilder buffer;
+  //final StringBuilder buffer;
   //char[] fileBuffer = new char[1024];
   //int nCharsFileBuffer = 0;
   
+  final char[] cBuffer;
+  
+  //final ByteBuffer byteBuffer;
+  
+  
+  //final CharBuffer chBuffer;
+  
+  /**Nr of characters in buffer. */
+  int zBuffer;
+  
+  //final CharsetDecoder charDecoder;
+  
+  final Charset charset;
+  
+  char cExpectedNl;
+  
   /** A readed line from file.*/
-  String sLine = null;
+  //String sLine = null;
   
   /** Nr of chars in line without trailing spaces.*/
-  int nLine = 0;
+  //int nLine = 0;
   
   /**Current line. */
   int nLineCt = 0;
   
   boolean bEof;
   
+  boolean bLesserReadAsExpected;
+  
   /** The reader maybe with correct charset.
    * 
    */
-  BufferedReader readIn;
+  //Reader readIn;
+  
+  
+  //InputStream inp;
+  
+  Reader inpr;
+  
+  //final FileChannel fileChn;
+
+  int nrFirstLineInPositions;
 
   IntegerBlockArray linePositions = new IntegerBlockArray(1000);
   
@@ -148,19 +177,28 @@ public class StringPartFromFileLines extends StringPartScan
    * @throws FileNotFoundException If the file is not found
    * @throws IOException If any other exception is thrown
    */
+  @SuppressWarnings("resource")  //NOTE: It will be closed by check bLesserReadAsExpected. It will be closed by close().
   public StringPartFromFileLines(File fromFile, int maxBuffer, String sEncodingDetect, Charset charset)
   throws FileNotFoundException, IOException, IllegalCharsetNameException, UnsupportedCharsetException
   {
     this( new FileInputStream(fromFile)
         , FileSystem.normalizePath(fromFile).toString()
-        , maxBuffer <= 0 || fromFile.length() < maxBuffer -10 ? (int)fromFile.length() : maxBuffer
-        , sEncodingDetect, charset);    
+        ,    maxBuffer <= 0 
+          || fromFile.length() < maxBuffer +10  //if the file length is given, use +1 to detect bLesserReadAsExpected, since 2016-09  
+            ? (int)fromFile.length() +1 
+            : maxBuffer                         //use exactly maxBuffer if the file is longer than 10 bytes as maxBuffer
+        , sEncodingDetect, charset);   
+    if(this.bLesserReadAsExpected){
+      inpr.close();
+      inpr = null;
+    }
   }
   
   
   /**Fills a StringPart from a opened Stream. It can be used for example with 
    * <code>ClassLoader.getSystemClassLoader().getResourceAsStream("path"); </code>.
    * It is the core method called in the other constructors using a File input.
+   * This is the core routine called from all other constructors. All capabilities described on the other constructors are here.
    * 
    * @param input Any input stream, maybe a ClassLoader getRessourceAsStream<br>
    * 
@@ -179,76 +217,104 @@ public class StringPartFromFileLines extends StringPartScan
    *        
    * @TODO read char per char for sEncodingDetect, don't use mark and reset()!
    */
-  public StringPartFromFileLines(InputStream input, String sInputPath, int sizeBuffer, String sEncodingDetect, Charset charset)
+  public StringPartFromFileLines(InputStream input, String sInputPath, int sizeBuffer, String sEncodingDetect, Charset charsetDefault)
   throws IOException, IllegalCharsetNameException, UnsupportedCharsetException
   { super();
     setInputfile(sInputPath);
+    //this.inp = input;
     bEof = false;
-    buffer = new StringBuilder(sizeBuffer);  //to large file
+    //buffer = new StringBuilder(sizeBuffer);  //to large file
+    cBuffer = new char[sizeBuffer];
+    //byteBuffer = ByteBuffer.allocate(sizeBuffer/10*4);
+    //inBuffer = byteBuffer.array();
+    final byte[] inBuffer = new byte[200+7];
     linePositions.set(++maxIxLinePosition, 0);  //start entry: After position 0 is line 1  
     boolean bom = false;;
-    if(/*input.markSupported() && */sEncodingDetect !=null){  //TODO read char per char, don't use mark!
-      //input.mark(260);
-      if(sEncodingDetect != null)
-      { //test the first line to detect a charset, maybe the charset exceptions.
-        byte[] inBuffer = new byte[256];
-        int nrofFirstChars = input.read(inBuffer);
-        //TODO check BOM
-        int startPos = 0;
-        if(inBuffer[0] == -1 && inBuffer[1] == -2) {  //0xfffe
-          bom = true;
-          startPos = 2;
-        } else if(inBuffer[0] == -2 && inBuffer[1] == -1) { //0xfeff
-          bom = true;
-          startPos = 2;
-        } 
-        //the sLine is used as first content for readnextContentFromFile() too, the start text.
-        sLine = new String(inBuffer, startPos, nrofFirstChars);  
-        int posNewline = sLine.indexOf('\n'); 
-        //@chg:JcHartmut-2010-0912: test 2 lines instead of the first only, because in a bash-shell script it can't be the first line!
-        if(posNewline >= 0 && posNewline < nrofFirstChars){    //= nrofFirstBytes, then an IndexOutOfBoundsException is thrown because
-          posNewline = sLine.indexOf('\n', posNewline +1); //from the second line. 
+    int nrofFirstBytes = input.read(inBuffer, 0, inBuffer.length-7);  //enough space for missing bytes for UTF-8
+    //TODO check BOM
+    int startPos = 0;
+    if(inBuffer[0] == -1 && inBuffer[1] == -2) {  //0xfffe
+      bom = true;
+      startPos = 2;
+    } else if(inBuffer[0] == -2 && inBuffer[1] == -1) { //0xfeff
+      bom = true;
+      startPos = 2;
+    } 
+    //the sLine is used as first content for readnextContentFromFile() too, the start text.
+    if(sEncodingDetect != null)
+    { String sLine = new String(inBuffer, startPos, nrofFirstBytes);  //Uses the default charset, expected are characters only 00..7F  
+      int posNewline = sLine.indexOf('\n'); 
+      //@chg:JcHartmut-2010-0912: test 2 lines instead of the first only, because in a bash-shell script it can't be the first line!
+      if(posNewline >= 0 && posNewline < nrofFirstBytes){    //= nrofFirstBytes, then an IndexOutOfBoundsException is thrown because
+        posNewline = sLine.indexOf('\n', posNewline +1); //from the second line. 
+      }
+      if(posNewline < 0) posNewline = nrofFirstBytes;
+      //test the first line to detect a charset, maybe the charset exceptions.
+      StringPartScan spFirstLine = new StringPartScan(sLine.substring(0, posNewline));
+      spFirstLine.setIgnoreWhitespaces(true);
+      /**Check whether the encoding keyword is found: */
+      if(spFirstLine.seek(sEncodingDetect, StringPartScan.seekEnd).found()
+        && spFirstLine.scan("=").scanOk() 
+        )
+      { String sCharset;
+        spFirstLine.seekNoWhitespace();
+        if(spFirstLine.getCurrentChar() == '\"')
+        { sCharset = spFirstLine.seek(1).lentoQuotionEnd('\"', 100).getCurrentPart().toString();
+          if(sCharset.length()>0) sCharset = sCharset.substring(0, sCharset.length()-1);
         }
-        if(posNewline < 0) posNewline = nrofFirstChars;
-        StringPartScan spFirstLine = new StringPartScan(sLine.substring(0, posNewline));
-        spFirstLine.setIgnoreWhitespaces(true);
-        /**Check whether the encoding keyword is found: */
-        if(spFirstLine.seek(sEncodingDetect, StringPartScan.seekEnd).found()
-          && spFirstLine.scan("=").scanOk() 
-          )
-        { String sCharset;
-          spFirstLine.seekNoWhitespace();
-          if(spFirstLine.getCurrentChar() == '\"')
-          { sCharset = spFirstLine.seek(1).lentoQuotionEnd('\"', 100).getCurrentPart().toString();
-            if(sCharset.length()>0) sCharset = sCharset.substring(0, sCharset.length()-1);
-          }
-          else
-          { sCharset = spFirstLine.lentoIdentifier(null, "-").getCurrentPart().toString();
-          }
-          if(sCharset.length() > 0)
-          { //the charset is defined in the first line:
-            charset = Charset.forName(sCharset);  //replace the current charset
-          }
-          //re-read the string with the correct charset
-          sLine = new String(inBuffer, startPos, nrofFirstChars, charset);
+        else
+        { sCharset = spFirstLine.lentoIdentifier(null, "-").getCurrentPart().toString();
         }
-        nLine = sLine.length();
+        if(sCharset.length() > 0)
+        { //the charset is defined in the first line:
+          this.charset = Charset.forName(sCharset);  //replace the current charset
+        }
+        else throw new IllegalArgumentException("charset requested with \"" + sEncodingDetect + "\", this String was found but the encoding name found in file is faulty");  
+        //sLine = new String(inBuffer, startPos, nrofFirstChars, charset);
+      } else {
+        //charset not found in file or syntax faulty.
+        this.charset = charsetDefault == null ? Charset.defaultCharset() : charsetDefault;
       }
     }
-    final Reader readIn1;
-    if(charset != null)
-    { readIn1 = new InputStreamReader(input, charset);
+    else {
+      this.charset = charsetDefault == null ? Charset.defaultCharset() : charsetDefault;
+    } 
+    inpr = new InputStreamReader(input, this.charset);
+    //re-read the string with the correct charset
+    if(charset.equals(Charset.forName("UTF-8"))) {
+      int ix1 = nrofFirstBytes -1;
+      while( (inBuffer[ix1] & 0xc0 ) == 0x80) ix1-=1; //return to the first character of an UTF-8 sequence
+      int nrofBytesForChar = StringFunctions.nrofBytesUTF8(inBuffer[ix1]);
+      int missingBytes = ix1 + nrofBytesForChar - nrofFirstBytes;
+      if(missingBytes > 0) {
+        int nRead =  input.read(inBuffer, nrofFirstBytes, missingBytes);
+        if(nRead != missingBytes) {
+          Debugutil.stop(); //File content error.
+        }
+        nrofFirstBytes += nRead;
+      }
     }
-    else
-    { readIn1 = new InputStreamReader(input); //new FileReader(fromFile));
+    { //Use the java.nio.CharBuffer for encoding. Other variant: Build a temporary String.
+      //NOTE: if the inBuffer contains a malformed last character, the built string contains a '\ufffd' as the last character
+      //and an error is not produced.
+      String start = new String(inBuffer, startPos, nrofFirstBytes - startPos, charset);
+      this.zBuffer = start.length();
+      for(int ix = 0; ix < this.zBuffer; ++ix){
+        cBuffer[ix] = start.charAt(ix);
+      }
+      
+      //Tested variant with CharBuffer does work too, it is commented yet.
+      /*
+      CharsetDecoder charDecoder = this.charset.newDecoder();
+      CharBuffer chBuffer = CharBuffer.wrap(cBuffer, 0, cBuffer.length);
+      ByteBuffer byteBuffer = ByteBuffer.wrap(inBuffer, startPos, nrofFirstBytes - startPos);
+      CoderResult result = charDecoder.decode(byteBuffer, chBuffer, true);
+      this.zBuffer = chBuffer.position();
+      */
     }
-    readIn = new BufferedReader(readIn1);
-    boolean notAllContent = readnextContentFromFile(0);   //read the start content.
-    assign(buffer);
-    if(bEof){
-      readIn.close();
-      readIn = null;
-    }
+    evalLineIndices(0, zBuffer);
+    readnextContentFromFile(10);   //read the start content.
+    assign(new CharSq(0, -1));
   }
 
 
@@ -274,21 +340,53 @@ public class StringPartFromFileLines extends StringPartScan
       int posLineStart = linePositions.get(line);
       column[0] = this.begin - posLineStart +1; 
     }
-    return line;
+    return line + nrFirstLineInPositions;
   }
 
   
   
-  public boolean readnextContentFromFile(int size)
+  
+  private void evalLineIndices(int from, int to) 
+  {
+    int ii = from; 
+    while(ii < to) {
+      char cc = cBuffer[ii++];
+      if(cExpectedNl !=0) {
+        if(cc == cExpectedNl) { 
+          linePositions.set(++maxIxLinePosition, ii);  //after xExpectedNl
+          cc = 0;  //don't check it as newline character.
+        } else { 
+          linePositions.set(++maxIxLinePosition, ii-1); //cc is the first char of the next line.
+        } 
+        cExpectedNl = 0;
+      }
+      if(cc == '\r') { cExpectedNl = '\n'; }
+      else if(cc == '\n') { cExpectedNl = '\r'; }
+    }
+  }
+  
+  
+  
+  
+  
+  
+  /**
+   * @param minSizeForAction
+   * @return true if eof is possible because lesser bytes than expected are read.
+   * @throws IOException
+   */
+  public boolean readnextContentFromFile(int minSizeForAction)
   throws IOException
   { boolean bBufferFull = false;
-    int zBuffer = buffer.length();  //length before add the line. Start with 0
-    int nRestBytes = buffer.capacity() - zBuffer;
     //check, shift only the buffer if necessary, to save calculation time. Prevent unnecessary shift.
-    if(nRestBytes < size && super.begin >0) {
+    //if(nRestBytes < size && super.begin >0) {
+    if(super.begin >= minSizeForAction) {
       int sh = super.begin;
       //shift the content from begin to the start of the buffer.
-      buffer.delete(0, sh);  //this shifts the content.
+      int zChars = zBuffer - sh;
+      for(int ii = 0; ii < zChars; ++ii) {
+        cBuffer[ii] = cBuffer[ii + sh];
+      }
       super.begin = 0;
       super.begiMin = 0;
       super.beginLast = 0;
@@ -296,81 +394,78 @@ public class StringPartFromFileLines extends StringPartScan
       super.end -=sh;
       super.endLast -=sh;
       super.endMax -=sh;
-    }
-    boolean bFirstsLinewithhalfnl = false;
-    while(!bEof && !bBufferFull)
-    { if(nRestBytes >= nLine)
-      { if(sLine != null) //only null on start
-        { //stores position in Buffer to the line number. Pre-increment, maxIxLinePosition is the line number
-          if(nLine > 0){ buffer.append(sLine.substring(0, nLine)); }
-          int posNl =0;
-          boolean appendNlAftersLine = true;
-          while( (posNl = StringFunctions.indexOfAnyChar(sLine, posNl, Integer.MAX_VALUE, "\r\n")) >=0) {
-            appendNlAftersLine = false;  //only in the first content newline characters can occur. Then the end is not a simple line.
-            if(sLine.length() > posNl +2) {
-              if( sLine.charAt(posNl) == '\r' && sLine.charAt(posNl+1) == '\n') {
-                sNewline = "\r\n";
-                posNl +=2;
-              } else if( sLine.charAt(posNl) == '\n' && sLine.charAt(posNl+1) == '\r' ) {
-                sNewline = "\r\n";
-                posNl +=2;
-              } else {
-                sNewline = "" + sLine.charAt(posNl);
-                posNl +=1;
-              }
-              linePositions.set(++maxIxLinePosition, posNl);
-            } else {
-              posNl +=1;
-              //no character after the detected \n
-              bFirstsLinewithhalfnl = sNewline.length() >1; 
-              if(bFirstsLinewithhalfnl) {
-                buffer.append(sNewline.charAt(1));  //append only after a readLine().
-                linePositions.set(++maxIxLinePosition, posNl+1);
-              } else {
-                linePositions.set(++maxIxLinePosition, posNl);
-              }
-            }
-            //the only one problem yet is: \r as last character in sLine, \n is the first character of the next line.  
-          }
-          if(appendNlAftersLine) {
-            buffer.append('\n');  //append only after a readLine().
-            linePositions.set(++maxIxLinePosition, buffer.length());  
-          }
-        }
-        //read the next lines and try to fill in
-        sLine = readIn.readLine();
-        if(sLine == null)
-        { bEof = true;
-          nLine = 0;
-        }
-        else if(bFirstsLinewithhalfnl && sLine.length() ==0) {
-          //it is the empty line between \r and \n
-          bFirstsLinewithhalfnl = false;
-          sLine = null; //not used.
-        }
-        else
-        { int idxSpaceTest = sLine.length()-1;
-          while(idxSpaceTest >= 0 && sLine.charAt(idxSpaceTest) == ' '){ idxSpaceTest -=1; }
-          nLine = idxSpaceTest +1;
+      zBuffer -= sh;
+      //shift the linePositions.
+      int idst = 0;
+      for(int ix = 0; ix < maxIxLinePosition; ++ix)
+      {
+        int pos = linePositions.get(ix);
+        if(pos < sh) {
+          nrFirstLineInPositions +=1;    //
+        } else {
+          pos -= sh;
+          linePositions.set(idst++, pos);
         }
       }
-      else
-      { //keep the next content in sLine, fill in later.
-        bBufferFull = true;
-      }
+      maxIxLinePosition = idst;  //no more positions yet.
     }
-    return !bBufferFull;
+    int nRestBytes;  //rest length from filled position till end.
+    if( (nRestBytes = cBuffer.length - zBuffer) >= minSizeForAction) {
+      int nrofChars = inpr.read(cBuffer, zBuffer, nRestBytes);
+      if(nrofChars >0) {
+        evalLineIndices(zBuffer,  zBuffer + nrofChars);
+        zBuffer += nrofChars;
+        super.end = super.endMax = super.endLast = this.zBuffer;
+        bLesserReadAsExpected = nrofChars < nRestBytes;
+        if(bLesserReadAsExpected)
+          Debugutil.stop();
+      }
+      else {
+        bLesserReadAsExpected = true;
+        bEof = nrofChars <0;
+      }
+      return bLesserReadAsExpected;  //eof possible.
+    } else {
+      return false; //not eof, because nothing was read.
+    }
   }
 
 
   @Override
   public void close(){
-    if(readIn != null){
-      try{ readIn.close(); } catch(IOException exc){}
-      readIn = null;
+    if(inpr != null){
+      try{ inpr.close(); } catch(IOException exc){}
+      inpr = null;
     }
     nLineCt = 0;
     super.close();
   }
+  
+  
+  
+  private class CharSq implements CharSequence
+  {
+    int pos0, end;
+  
+    CharSq(int pos0, int end) { this.pos0 = pos0; this.end = end;}
+  
+    @Override public int length() { return end == -1 ? zBuffer : end - pos0; }
+
+    @Override public char charAt(int index){ return cBuffer[index + pos0]; }
+    
+    /**Returns null because it is never used in StringPart. */
+    @Override public CharSequence subSequence(int start, int end) { 
+      return new CharSq(start, end); 
+    }
+    
+    @Override public String toString() {
+      String ret = new String(cBuffer, pos0, length());
+      return ret;
+    }
+    
+  }
+  
+  
+  
   
 }

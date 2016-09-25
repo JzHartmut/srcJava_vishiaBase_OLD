@@ -1070,7 +1070,7 @@ public class DataAccess {
   , boolean bNoExceptionifNotFound
   ) throws InvocationTargetException, NoSuchMethodException, Exception {
     Object data1 = null;
-    Class<?> clazz1 = clazz;
+    Class<?> clazz1 = clazz == null ? obj.getClass() : clazz;
     if(element.ident.equals("execX"))
       Assert.stop();
     boolean bOk = false;
