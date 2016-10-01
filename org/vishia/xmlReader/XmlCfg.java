@@ -43,12 +43,25 @@ public class XmlCfg
   public static final String version = "2016-09-25";
 
 
-  Map<String, String> xmlnsAssign = new IndexMultiTable<String, String>(IndexMultiTable.providerString);
+  /**Assignment between nameSpace-value and nameSpace-alias gotten from the xmlns:ns="value" declaration in the read cfg.XML file. 
+   * If this table is null than the config file is read yet. */
+  Map<String, String> xmlnsAssign;
 
-  Map<String, String> elements = new IndexMultiTable<String, String>(IndexMultiTable.providerString);
+
+  XmlNode rootNode = new XmlNode(this, "root");
 
 
-  XmlNode rootNode = new XmlNode();
+
+  void transferNamespaceAssignment(Map<String, String> src) {
+    xmlnsAssign = new IndexMultiTable<String, String>(IndexMultiTable.providerString);
+    for(Map.Entry<String, String > ens: src.entrySet()) {
+      String nsKey = ens.getKey();
+      String nsPath = ens.getValue();
+      xmlnsAssign.put(nsPath, nsKey);  //translate the found path in the XML source to the nameSpace key used in the config.xml 
+    }
+    src.clear();
+    
+  }
 
   /**This class describes one node as pattern how the content of a parsed xml file should be stored. 
    * @author hartmut
@@ -61,15 +74,15 @@ public class XmlCfg
      * If a map is found the key is stored as key in that map too.
      * 
      */
-    DataAccess.DatapathElement new_Node;
+    DataAccess.DatapathElement elementStorePath;
   
     /**Key (attribute name with xmlns:name) and reflection path to store the attribute value.
      * Attributes of the read input which are not found here are not stored.
      */
-    Map<String, String> attribs;
+    Map<String, DataAccess.DatapathElement> attribs;
     
     /**If set, the attrib dst for not found attributes to store in a common way. */
-    String attribsUnspec;
+    DataAccess.DatapathElement attribsUnspec;
     
     /**Key (tag name with xmlns:name) and configuration for a sub node.
      * Nodes of the read input which are not found here are not stored.
@@ -82,9 +95,26 @@ public class XmlCfg
     /**Reflection path to store the content as String. If null than the content won't be stored. */
     String content;
   
-    void addAttrib(String key, String dstPath) {
-      if(attribs == null) { attribs = new IndexMultiTable<String, String>(IndexMultiTable.providerString); }
-      attribs.put(key, dstPath);
+    final XmlCfg cfg;
+    
+    final String tag;
+  
+    XmlNode(XmlCfg cfg, String tag){ this.cfg = cfg; this.tag = tag; }
+  
+    /**Sets the path for the "new element" invocation.
+     * @param dstPath either a method or an access to a field.
+     */
+    public void setNewElementPath(String dstPath) {
+      elementStorePath = new DataAccess.DatapathElement(dstPath);
+    }
+  
+    /**This method is invoked from the xml configuration reader to create a new attribute entry for the found attribute.
+     * @param key ns:name of the found attribute in the cfg.xml 
+     * @param dstPath datapath which is found as value in the cfg.xml. The datapath is used for the user.xml to store the attribute value. 
+     */
+    public void addAttribStorePath(String key, String dstPath) {
+      if(attribs == null) { attribs = new IndexMultiTable<String, DataAccess.DatapathElement>(IndexMultiTable.providerString); }
+      attribs.put(key, new DataAccess.DatapathElement(dstPath));
     }
 
     void addSubnode(String key, XmlNode node) {
@@ -93,14 +123,24 @@ public class XmlCfg
     }
   
   
-    /**This method is invoked from the xml configuration reader to define a sub node.
-     * @return
+    /**This method is invoked from the xml configuration reader to create a new subNode for a found elmeent.
+     * @param name ns:tag of the found element in the cfg.xml 
+     * @return the sub node
      */
-    XmlNode newSubnode(CharSequence name) {
-      XmlNode subNode = new XmlNode();
-      addSubnode(name.toString(), subNode);
+    XmlNode newElement(CharSequence name) {
+      String sname = name.toString();
+      XmlNode subNode = new XmlNode(cfg, sname);  //A sub node for the config.
+      //subNode.elementStorePath = this.elementStorePath;  //the same routine to create the next sub node.
+      //subNode.subNodeUnspec = this.subNodeUnspec;
+      //subNode.attribsUnspec = this.attribsUnspec;
+      //subNode.attribs = this.attribs;
+      addSubnode(sname, subNode);
       return subNode;
     }
+  
+  
+  
+  
   
   }
 

@@ -4,15 +4,17 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
-import java.util.IllegalFormatException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
+import org.vishia.util.Assert;
 import org.vishia.util.DataAccess;
 import org.vishia.util.Debugutil;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPartFromFileLines;
-import org.vishia.util.StringPartScan;
+
 
 /**This is the main class to read an XML file.
  * A configuration file, written in XML too, contains the data path for the XML elements which should be stored in Java data.
@@ -68,16 +70,19 @@ public class XmlReader
   int sizeBuffer = 2000;
   
   
-  Map<String, String> namespaces = new IndexMultiTable<String, String>(IndexMultiTable.providerString);
+  /**Assignment between nameSpace-alias and nameSpace-value gotten from the xmlns:ns="value" declaration in the read XML file. */
+   Map<String, String> namespaces = new IndexMultiTable<String, String>(IndexMultiTable.providerString);
    
    
-  XmlReader() {
-    cfgcfg.xmlnsAssign.put("org.vishia.xmlReader-V1.0", "xmlinput");
-    XmlCfg.XmlNode nodes = new XmlCfg.XmlNode();
+  public XmlReader() {
+    //cfgcfg.xmlnsAssign.put("org.vishia.xmlReader-V1.0", "xmlinput");
+    XmlCfg.XmlNode nodes = new XmlCfg.XmlNode(cfgcfg, "xfgRoot");
     nodes.subNodeUnspec = nodes;  //recursively, all children are unspec.
-    nodes.new_Node = new DataAccess.DatapathElement("newSubnode()");
-    cfgcfg.rootNode.addSubnode("xmlinput:main", nodes);
-     
+    nodes.setNewElementPath("newElement(tag)");
+    nodes.addAttribStorePath("xmlinput:data", "setNewElementPath(value)");
+    nodes.attribsUnspec = new DataAccess.DatapathElement("addAttribStorePath(name, value)");  //use addAttributeStorePath in the dst node to add.
+    cfgcfg.rootNode.subNodeUnspec = nodes;  //accept all nodes in the cfg.xml,  
+    //cfgcfg.rootNode.addSubnode("xmlinput:main", nodes);
   }   
    
    
@@ -92,9 +97,9 @@ public class XmlReader
 
   
   public void readXml(File input, Object output, XmlCfg xmlCfg) {
-  
+    StringPartFromFileLines inp = null;
     try {
-      StringPartFromFileLines inp = new StringPartFromFileLines(input, sizeBuffer, "encoding", null);
+      inp = new StringPartFromFileLines(input, sizeBuffer, "encoding", null);
       readXml(inp, output, xmlCfg);
     } catch (IllegalCharsetNameException | UnsupportedCharsetException | IOException e) {
       // TODO Auto-generated catch block
@@ -102,6 +107,8 @@ public class XmlReader
     } catch(Exception exc) {
       exc.printStackTrace();
       Debugutil.stop();
+    } finally {
+      if(inp !=null) { inp.close(); }
     }
   }
   
@@ -139,50 +146,38 @@ public class XmlReader
   throws Exception
   {
     if(!inp.scanIdentifier(null, "-:").scanOk()) throw new IllegalArgumentException("tag name expected");
+    //
+    //The tag name of the element:
     CharSequence sTag = inp.getLastScannedString();
-    
-    XmlCfg.XmlNode subCfgNode = cfgNode.subnodes == null ? null : cfgNode.subnodes.get(sTag);
-    if(subCfgNode == null) { subCfgNode = cfgNode.subNodeUnspec; }
+    //TODO replace alias.
+    //
+    //search the tag name in the cfg:
+    //
     final Object subOutput;
-    if(subCfgNode !=null) {
-      subCfgNode.new_Node.setActualArguments(sTag);
-      subOutput = DataAccess.invokeMethod(subCfgNode.new_Node, null, output, true, false);  //create method for a new node.
-      //subOutput = subCfgNode.dstNode.access(output, true, false);  //create method for a new node.
+    XmlCfg.XmlNode subCfgNode;
+    if(cfgNode == null) {
+      subOutput = null;     //this element should not be evaluated.
+      subCfgNode = null;
     } else {
-      subOutput = null; //don't store output. 
+      Assert.check(output !=null);
+      subCfgNode = cfgNode.subnodes == null ? null : cfgNode.subnodes.get(sTag);
+      if(subCfgNode == null) { subCfgNode = cfgNode.subNodeUnspec; }
+      if(subCfgNode !=null) { //the tag was found, the xml element is expected.
+        subOutput = getDataForTheElement(output, subCfgNode, sTag);
+        //
+        if(subOutput == null) {
+          Debugutil.stop();
+        }
+        //
+      } else {
+        subOutput = null; //don't store output. 
+      }
     }
     //
-    //read all attributes:
-    while(inp.scanIdentifier(null, "-:").scan("=").scanOk()) {
-      CharSequence sAttrName = inp.getLastScannedString();
-      if(!inp.scanQuotion("\"", "\"", null).scanOk()) throw new IllegalArgumentException("attr value expected");
-      CharSequence sAttrValue = inp.getLastScannedString();
-      int posNs = StringFunctions.indexOf(sAttrName, ':');
-      if(posNs >=0) {
-        //Namespace
-        CharSequence ns = sAttrName.subSequence(0, posNs);
-        sAttrName = sAttrName.subSequence(posNs+1, sAttrName.length());
-        String nsName = sAttrName.toString();
-        if(StringFunctions.equals(ns, "xmlns")){
-          String nsValue = sAttrValue.toString();
-          namespaces.put(nsName, nsValue);
-          sAttrName = null;
-        } else {
-          String nsValue = namespaces.get(nsName);
-          //Todo search defined name in cfg for the namespace.
-          sAttrName = nsValue + ":" + sAttrName;
-        }
-      }
-      if(sAttrName !=null) {
-        String dstPath = cfgNode.attribs == null ? null : cfgNode.attribs.get(sAttrName);
-        if(dstPath == null) { dstPath = cfgNode.attribsUnspec; }
-        if(dstPath !=null) {
-          setOutputAttr(output, dstPath, sAttrName, sAttrValue);
-        }
-      }
-      inp.readnextContentFromFile(sizeBuffer/2);
-    }
+    parseAttributes(inp, subOutput, subCfgNode);
+    //
     //check content.
+    //
     if(inp.scan("/").scan(">").scanOk()) {
       //end of element
     }
@@ -210,8 +205,150 @@ public class XmlReader
 
 
 
+
+
+
+
+
+
+
+  private void parseAttributes(StringPartFromFileLines inp, Object output, XmlCfg.XmlNode cfgNode) 
+  throws Exception
+  {
+    //read all attributes:
+    while(inp.scanIdentifier(null, "-:").scan("=").scanOk()) {
+      final CharSequence sAttrNsNameRaw = inp.getLastScannedString();
+      if(!inp.scanQuotion("\"", "\"", null).scanOk()) throw new IllegalArgumentException("attr value expected");
+      if(cfgNode !=null && output !=null) {
+        CharSequence sAttrValue = inp.getLastScannedString();
+        int posNs = StringFunctions.indexOf(sAttrNsNameRaw, ':');
+        final CharSequence sAttrNsName;
+        if(posNs >=0) {
+          //Namespace
+          CharSequence ns = sAttrNsNameRaw.subSequence(0, posNs);
+          final CharSequence sAttrName = sAttrNsNameRaw.subSequence(posNs+1, sAttrNsNameRaw.length());
+          //String nsName = sAttrName.toString();
+          if(StringFunctions.equals(ns, "xmlns")){
+            String nsValue = sAttrValue.toString();
+            namespaces.put(sAttrName.toString(), nsValue);
+            sAttrNsName = null;
+          } else {
+            String nsValue = namespaces.get(ns);  //defined in this read xml file.
+            if(nsValue == null) {
+              sAttrNsName = null;  //Namespace not registered in the input file, especially "xml".
+            } else if(cfgNode.cfg.xmlnsAssign !=null) {
+              String nsCfg = cfgNode.cfg.xmlnsAssign.get(nsValue);
+              //Todo search defined name in cfg for the nameSpace.
+              if(nsCfg == null) { 
+                sAttrNsName = null;  //Namespace not in cfg registered. 
+              } else {
+                sAttrNsName = nsCfg + ":" + sAttrName; //nameSpace alias from cfg file. Unified.
+              }
+            } else {
+              //read the config file, here the xmlnsAssign is null, use the attribute name as given.
+              sAttrNsName = sAttrNsNameRaw;
+            }
+          }
+        }
+        else {
+          sAttrNsName = sAttrNsNameRaw;
+        }
+        if(sAttrNsName !=null) {
+          DataAccess.DatapathElement dstPath = cfgNode.attribs == null ? null : cfgNode.attribs.get(sAttrNsName);
+          if(dstPath == null) { dstPath = cfgNode.attribsUnspec; }
+          if(dstPath !=null) {
+            storeAttrData(output, dstPath, sAttrNsName, sAttrValue);
+          }
+        }
+      }
+      inp.readnextContentFromFile(sizeBuffer/2);
+    } //while
+  }
+
+
+
+
+
+  /**Invokes the associated method to get/create the appropriate data instance for the element.
+   * @param output
+   * @param subCfgNode
+   * @param sTag
+   * @return
+   * @throws Exception
+   */
   @SuppressWarnings("static-method")
-  private void setOutputAttr(Object output, String dstPath, CharSequence name, CharSequence value)
+  Object getDataForTheElement( Object output, XmlCfg.XmlNode subCfgNode, CharSequence sTag) 
+  {
+    Object subOutput;
+    if(subCfgNode.elementStorePath == null) { //no attribute xmlinput.data="pathNewElement" is given:
+      subOutput = output; //use the same output. No new element in data.
+    }
+    else {
+      try{ 
+        int nrArgs = subCfgNode.elementStorePath.nrArgNames();
+        Object[] args;
+        if(nrArgs >0) {
+          args = new Object[nrArgs]; 
+          for(int ix = 0; ix < nrArgs; ++ix) {
+            String argName = subCfgNode.elementStorePath.argName(ix);
+            if(argName.equals("tag")) { args[ix] = sTag; }
+            else throw new IllegalArgumentException("argname");
+          }
+          subOutput = DataAccess.invokeMethod(subCfgNode.elementStorePath, null, output, true, true, args);
+        } else {
+          subOutput = DataAccess.access(subCfgNode.elementStorePath, output, true, false, false, null);
+        }
+        if(subOutput == null) {
+          System.err.println("getDataForTheElement returns null");
+        }
+      } catch(Exception exc) {
+        subOutput = null;
+        System.err.println("getDataForTheElement");
+      }
+    }
+    return subOutput;
+  }
+
+
+
+  /**Invokes the associated method to store the attribute value.
+   * <ul>
+   * <li> This method is invoked while reading the cfg.xml to store the attribute value with XmlNode#addAttributeStorePath().
+   * <li> This method is invoked while reading the user.xml to store the users attribute value in the users data.
+   * </ul>
+   * @param output It is an instance of {@link XmlNode} while reading the cfg.xml, it is an user instance while reading the user.xml
+   * @param dstPath The dataAccess which should be executed.
+   * @param sAttrNsName
+   * @param sAttrValue
+   */
+  @SuppressWarnings("static-method")
+  void storeAttrData( Object output, DataAccess.DatapathElement dstPath, CharSequence sAttrNsName, CharSequence sAttrValue) 
+  {
+    try{ 
+      int nrArgs = dstPath.nrArgNames();
+      Object[] args;
+      if(nrArgs >0) {
+        args = new Object[nrArgs]; 
+        for(int ix = 0; ix < nrArgs; ++ix) {
+          String argName = dstPath.argName(ix);
+          if(argName.equals("name")) { args[ix] = sAttrNsName; }
+          else if(argName.equals("value")) { args[ix] = sAttrValue; }
+          else throw new IllegalArgumentException("argname");
+        }
+        DataAccess.invokeMethod(dstPath, null, output, true, true, args);
+      } else {
+        DataAccess.storeValue(dstPath, output, sAttrValue, true);
+      }
+    } catch(Exception exc) {
+      System.err.println("storeAttrData");
+    }
+  }
+
+
+
+
+  @SuppressWarnings("static-method")
+  private void setOutputAttr(Object output, DataAccess.DatapathElement dstPath, CharSequence name, CharSequence value)
   {
     if(dstPath.equals("@") && output instanceof Map) {
       @SuppressWarnings("unchecked")
@@ -238,13 +375,19 @@ public class XmlReader
     
   }
 
-  public static void main(String[] args)
-  { XmlReader main = new XmlReader();
-    
-    main.readXml(new File("D:\\vishia\\graphDesign\\draw.tplxml"), main.cfg.rootNode, main.cfgcfg);
-    //main.readXml(new File("D:\\vishia\\graphDesign\\test1.fodg"), null, null);
-    Debugutil.stop();
+  public void readCfg(File file) {
+    readXml(new File("D:\\vishia\\graphDesign\\draw.tplxml"), this.cfg.rootNode, this.cfgcfg);
+    cfg.transferNamespaceAssignment(this.namespaces);
   }
+
+
+
+  public void readXml(File file, Object dst) {
+    this.readXml(file, dst, this.cfg);
+  }  
+    
+  
+
 
 
 }
