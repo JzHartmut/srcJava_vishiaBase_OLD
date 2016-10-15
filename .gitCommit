@@ -1,13 +1,9 @@
-XmlReader works, example FromOfficeDraw, some enhancements in DataAccess.
-* org.vishia.util.DataAccess: new: {@link #storeValue(DatapathElement, Object, Object, boolean)} 
-  and {@link #access(DatapathElement, Object, boolean, boolean, boolean, Dst)}
-  only with an datapath element, more simple. 
-* org.vishia.util.DataAccess:  new: {@link #invokeMethod(DatapathElement, Class, Object, boolean, boolean, Object[])} 
-  with the arguments of the method. 
-  The {@link DatapathElement#argNames} contains names of the arguments which are given with {@link DatapathElement#set(String)}.
-  With that concept it is possible to define a method call in a script with control which values in the script are used as parameters.
-  It is used for the {@link org.vishia.xmlReader.XmlReader}. 
-* org.vishia.xmlReader now works.
-* org.vishia.blockConnect: New package for processing blocks and connections from graphic. 
-  The FromOfficeDraw.java is the first test class for the XmlReader.
+Bugfix org.vishia.util.IndexMultiTable, org.vishia.util.StringFunctions_C.parseFloat
+* IndexMultiTable: check whether a table is not instanceof IndexMultiTable itself.
+* IndexMultiTable: The usage of <code>IndexMultiTable.super</code> works in Oracle-Java version 8.102, but not in a lesser version.
+  To save compatibility it is avoided. Sometimes a typed meta variable is the better solution in any case.
+* StringFunctions: byte2UTF8 returns short than char because of usage in C.
+* StringFunctions_C: bugfix: {@link #parseFloat(CharSequence, int, int, char, int[])} has had a problem with 1 digit after decimal point.
+* XmlReader: now reads from a zip file.
+* LogMessageFile, ByteDataAccessBase: non functional change for Java2C
 

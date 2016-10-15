@@ -31,7 +31,9 @@ REM  The setJAVA_JDK.bat may be existing in the user's path.
 
 if not "%JAVA_JDK%" == "" goto :JavaOK
 REM call a batch which sets the environment variable JAVA_JDK and expands the path to a proper JAVA-JDK
+echo on
 call setJAVA_JDK.bat
+echo off
 if exist %JAVA_JDK% goto :JavaOK
 
 REM if setJAVA_JDK.bat is not found or its content is faulty.
@@ -82,6 +84,8 @@ if ERRORLEVEL 1 (
 REM  The jar works only correct, if the current directory contains the classfile tree:
 REM  Store the actual directory to submit restoring on end
 set ENTRYDIR=%CD%
+echo ENTRYDIR=%ENTRYDIR%
+:: pause
 cd /D %TMP_JAVAC%\bin
 echo === SUCCESS compiling, generate jar: %ENTRYDIR%\%OUTDIR_JAVAC%\%JAR_JAVAC%
 echo TMP_JAVAC=%CD%
@@ -104,3 +108,4 @@ cd /D %ENTRYDIR%
 echo === SUCCESS making %JAR_JAVAC% in %OUTDIR_JAVAC%.
 
 if "%NOPAUSE%" == "" pause
+

@@ -42,7 +42,7 @@ class IndexMultiTable_Table<Key extends Comparable<Key>, Type>
    * 
    * 
    */
-  static final public String sVersion = "2016-09-25";
+  static final public String sVersion = "2016-10-15";
 
   
   
@@ -430,8 +430,9 @@ class IndexMultiTable_Table<Key extends Comparable<Key>, Type>
       sizeBlock +=1;
       setKeyValue(ix, sortkey, value);
       //if(value instanceof IndexMultiTable<?, ?>){
-      if(value instanceof IndexMultiTable_Table){  //a sub table is either an instance of IndexMultiTable.IndexMultiTable_Table or any other Object
-         @SuppressWarnings("unchecked")
+      if(value instanceof IndexMultiTable_Table && !(value instanceof IndexMultiTable)){  //a sub table is either an instance of IndexMultiTable_Table or any other Object
+        //a sub table was sorted in
+        @SuppressWarnings("unchecked")
         IndexMultiTable_Table<Key,Type> childTable = (IndexMultiTable_Table<Key,Type>)value;
         childTable.ixInParent = ix;
         childTable.parent = this;
@@ -473,7 +474,7 @@ class IndexMultiTable_Table<Key extends Comparable<Key>, Type>
       sibling.sizeBlock = sizeBlock - ixSplit +1;
       this.sizeBlock = ixSplit;
       this.sizeAll -= sibling.sizeAll; //The elements in sibling.
-      if(obj1 instanceof IndexMultiTable_Table){
+      if(obj1 instanceof IndexMultiTable_Table && !(obj1 instanceof IndexMultiTable)){
         @SuppressWarnings("unchecked")
         IndexMultiTable_Table<Key,Type> childTable = (IndexMultiTable_Table<Key,Type>)obj1;
         childTable.ixInParent = ixInSibling;
@@ -481,7 +482,7 @@ class IndexMultiTable_Table<Key extends Comparable<Key>, Type>
       }
       clearRestArray(this);
       parent.sortin(sibling.ixInParent, sibling.aKeys[0], sibling);  //sortin the empty table in parent.      
-      if(!(obj1 instanceof IndexMultiTable_Table)){//add a leaf
+      if(!(obj1 instanceof IndexMultiTable_Table && !(obj1 instanceof IndexMultiTable))){//add a leaf
         sibling.addSizeAll(1); //the new element. Add leaf only on ready structure
       }
       //parent.check();
@@ -496,7 +497,7 @@ class IndexMultiTable_Table<Key extends Comparable<Key>, Type>
         sizeBlock = ixSplit +1;
         sizeAll = sizeAll - sibling.sizeAll;
         setKeyValue(ix, key1, obj1);
-        if(obj1 instanceof IndexMultiTable_Table){
+        if(obj1 instanceof IndexMultiTable_Table&& !(obj1 instanceof IndexMultiTable)){
           @SuppressWarnings("unchecked")
           IndexMultiTable_Table<Key,Type> childTable = (IndexMultiTable_Table<Key,Type>)obj1;
           childTable.ixInParent = ix;
@@ -508,7 +509,7 @@ class IndexMultiTable_Table<Key extends Comparable<Key>, Type>
       }
       clearRestArray(this);
       parent.sortin(sibling.ixInParent, sibling.aKeys[0], sibling);  //sortin the empty table in parent.      
-      if(ix >=0  && !(obj1 instanceof IndexMultiTable_Table)){ //has add a leaf
+      if(ix >=0  && !(obj1 instanceof IndexMultiTable_Table&& !(obj1 instanceof IndexMultiTable))){ //has add a leaf
         this.addSizeAll(1); //the new element. Add leaf only on ready structure
       }
       //parent.check();
@@ -544,7 +545,7 @@ class IndexMultiTable_Table<Key extends Comparable<Key>, Type>
       ix1Src = ixSrc;
       ix1Dst = ixDst;
     }
-    boolean bHypertable = nrof >0 && (src.aValues[ixSrc] instanceof IndexMultiTable_Table<?,?>);
+    boolean bHypertable = nrof >0 && (src.aValues[ixSrc] instanceof IndexMultiTable_Table && !(src.aValues[ixSrc] instanceof IndexMultiTable));
     while(--ct1 >=0) {
     //for(int ix1 = ixSrc + nrof-1; ix1 >= ixSrc; --ix1){
       Object value = src.aValues[ix1Src];
@@ -761,34 +762,48 @@ class IndexMultiTable_Table<Key extends Comparable<Key>, Type>
   int check()
   { int sizeAllCheck = 0; 
     if(parent!=null){
-      rootIdxTable.assert1(parent.aValues[ixInParent] == this);
+      assert1(parent.aValues[ixInParent] == this);
     }
-    //if(sizeBlock >=1){ rootIdxTable.assert1(aValues[0] != null); }  //2015-07-10: removed a value can be null
+    //if(sizeBlock >=1){ assert1(aValues[0] != null); }  //2015-07-10: removed a value can be null
     for(int ii=1; ii < sizeBlock; ii++)
-    { rootIdxTable.assert1(compare(aKeys[ii-1],aKeys[ii]) <= 0);
-      //rootIdxTable.assert1(aValues[ii] != null);  //2015-07-10: removed a value can be null
+    { assert1(compare(aKeys[ii-1],aKeys[ii]) <= 0);
+      //assert1(aValues[ii] != null);  //2015-07-10: removed a value can be null
       if(aValues[ii] == null)
         rootIdxTable.stop();
     }
     if(isHyperBlock)
     { for(int ii=0; ii < sizeBlock; ii++)
-      { rootIdxTable.assert1(aValues[ii] instanceof IndexMultiTable_Table);
+      { assert1(aValues[ii] instanceof IndexMultiTable_Table && !(aValues[ii] instanceof IndexMultiTable));
         IndexMultiTable_Table<Key, Type> childtable = (IndexMultiTable_Table<Key, Type>)aValues[ii]; 
-        rootIdxTable.assert1(aKeys[ii].equals(childtable.aKeys[0])); //check start key is equal first key in sub table.
-        rootIdxTable.assert1(childtable.ixInParent == ii);           //check same index in sub table.
+        assert1(aKeys[ii].equals(childtable.aKeys[0])); //check start key is equal first key in sub table.
+        assert1(childtable.ixInParent == ii);           //check same index in sub table.
         sizeAllCheck += childtable.check();  //recursively call of check.
       }
     } else {
       sizeAllCheck = this.sizeBlock; //elements to return..
     }
-    rootIdxTable.assert1(sizeAllCheck == this.sizeAll);
+    assert1(sizeAllCheck == this.sizeAll);  //regarded to this (sub-) table.
     for(int ii=sizeBlock; ii < maxBlock; ii++) //check rest of table is empty.
-    { rootIdxTable.assert1(aKeys[ii] == rootIdxTable.maxKey__);
-      rootIdxTable.assert1(aValues[ii] == null);
+    { assert1(aKeys[ii] == rootIdxTable.maxKey__);
+      assert1(aValues[ii] == null);
     }
     return sizeAllCheck;
   }
 
+
+
+
+
+  private static void assert1(boolean cond)
+  {
+    if(!cond)
+    { Debugutil.stop();
+      throw new RuntimeException("IndexMultiTable - is corrupted;");
+    }  
+  }
+
+  
+  
 
 
   /**Checks the consistency of the table. This method is only proper for test of the algorithm
@@ -801,24 +816,24 @@ class IndexMultiTable_Table<Key extends Comparable<Key>, Type>
    */
   Key checkTable(IndexMultiTable_Table<Key, Type> parentP, Key keyParentP, int ixInParentP, Key keylastP){
     Key keylast = keylastP;
-    rootIdxTable.assert1(parentP == null || keyParentP.equals(aKeys[0]));
-    rootIdxTable.assert1(this.parent == parentP);
-    rootIdxTable.assert1(this.ixInParent == ixInParentP);
+    assert1(parentP == null || keyParentP.equals(aKeys[0]));
+    assert1(this.parent == parentP);
+    assert1(this.ixInParent == ixInParentP);
     for(int ix = 0; ix < sizeBlock; ++ix){
-      rootIdxTable.assert1(compare(aKeys[ix], keylast) >= 0);
+      assert1(compare(aKeys[ix], keylast) >= 0);
       if(isHyperBlock){
-        rootIdxTable.assert1(aValues[ix] instanceof IndexMultiTable_Table);
+        assert1(aValues[ix] instanceof IndexMultiTable_Table && !(aValues[ix] instanceof IndexMultiTable));
         @SuppressWarnings("unchecked")
         IndexMultiTable_Table<Key,Type> childTable = (IndexMultiTable_Table<Key,Type>)aValues[ix];
         keylast = childTable.checkTable(this, aKeys[ix], ix, keylast);
       } else {
-        rootIdxTable.assert1(!(aValues[ix] instanceof IndexMultiTable_Table));
+        assert1(!(aValues[ix] instanceof IndexMultiTable_Table && !(aValues[ix] instanceof IndexMultiTable)));
         keylast = aKeys[ix];
       }
     }
     for(int ix=sizeBlock; ix < maxBlock; ix++)
-    { rootIdxTable.assert1(aKeys[ix] == rootIdxTable.maxKey__);
-      rootIdxTable.assert1(aValues[ix] == null);
+    { assert1(aKeys[ix] == rootIdxTable.maxKey__);
+      assert1(aValues[ix] == null);
     }
     return keylast;
   }

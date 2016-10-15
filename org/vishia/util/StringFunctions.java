@@ -972,6 +972,23 @@ public class StringFunctions {
   }
   
   
+  /**Returns the number of bytes to the UTF start byte.
+   * <ul>
+   * <li>0x00..0x7f: 1 byte UTF8. First byte contains 7 bit. Result 7 bit.
+   * <li>0x80..0xbf: It is any second byte of a UTF8 stream. This routine returns 0. Any following byte contains 6 bit.
+   * <li>0xc0..0xdf: 2 byte UTF8. First byte contains 5 bit. Result 11 bit. 0x07ff..0x0
+   * <li>0xef..0xe0: 3 byte UTF8. First byte contains 4 bit. Result 16 bit  0xffff..0, This it the range of UTF-16
+   * <li>0xf7..0xf0: 4 byte UTF8. First byte contains 3 bit. Result 21 bit   
+   * <li>0xfb..0xf8: 5 byte UTF8. First byte contains 2 bit. Result 26 bit   
+   * <li>0xfd..0xfc: 6 byte UTF8. First byte contains 1 bit. Result 31 bit   
+   * <li>0xfe:       7 byte UTF8. First byte contains 0 bit. Result 36 bit   
+   * <li>0xff:       8 byte UTF8. First byte contains 0 bit. Result 42 bit   
+   * <li>
+   * <li>The first byte does not have the bits 10xx xxxx (range 0x80..0xbf). Then return 0, the ixSrc[0] will not be incremented. 
+   * </ul>
+   * @param b any byte of a UTF8 stream.
+   * @return 1..8 for a valid UTF8 start character. 0 for a character which is not a start character. 
+   */
   public static int nrofBytesUTF8(byte b) {
     if( b >=0) return 1;
     if((b & 0xe0)==0xc0) return 2;
@@ -989,13 +1006,13 @@ public class StringFunctions {
   
   
   
-  /**Converts the current bytes in a byte[] from UTF-8 in a character (which is UTF-16 internally).
+  /**Converts the current bytes in a byte[] from UTF-8 in a UTF16-character.
    * <br>
    * Special code error situations: 
    * <ul>
    * <li>The first byte does not have the bits 10xx xxxx (range 0x80..0xbf). Then return 0, the ixSrc[0] will not be incremented. 
    * <li>The following bytes must have the bits 10xx xxxx. If not, then return 0 with the ixSrc[0] on the position of the errorneous byte.
-   * <li>Characters outside UTF16: The character '\ufffd' is returned, but the bytes are correctly skipped, 
+   * <li>Characters outside UTF16: The character (short)(0xfffd) is returned, but the bytes are correctly skipped, 
    *   so the next character start byte is referred by the ixSrc[0].
    * </ul>
    * If that error occurs, the routine returns 0 and the ixDst[0] refers the faulty byte. With comparison 
@@ -1005,13 +1022,14 @@ public class StringFunctions {
    * @param ixSrc [0] The current position in this byte array. It should refer the first byte of a UTF-8-coded character.
    *   The ixSrc[0] will be incremented by the processed bytes for this one character. If the routine does not return 0,
    *   than the ixSrc[0] refers the first byte of the next UTF8 character, or the end of the array.  
-   * @return the character from the read UTF-8 code bytes. 
+   * @return the character from the read UTF-8 code bytes. It is returned as short (or int16 in C). It can be casted to char
+   *   for Java applications. For C programming the handling of UTF16 is a special case.
    *   Special cases: return 0 if byte[ixSrc[0]] does not contain a valid UTF-8 code sequence. 
    *   
    */
-  public static char byte2UTF8(byte[] src, int[] ixSrc)
+  public static short byte2UTF8(byte[] src, int[] ixSrc)
   { byte b = src[ixSrc[0]];
-    if(b >=0) { return (char) b; }
+    if(b >=0) { return (short) b; }
     //
     if( (b & 0xc0) == 0x80) return 0;
     //
@@ -1020,7 +1038,7 @@ public class StringFunctions {
     ixSrc[0] +=1;
     int cc = b; cc <<=6; cc |= b2 & 0x3f;
     if((b & 0xe0)==0xc0) { 
-      return (char)(cc & 0x7ff);  //remove 3 MSB from b.
+      return (short)(cc & 0x7ff);  //remove 3 MSB from b.
     }
     //
     byte b3 = src[ixSrc[0]];
@@ -1028,7 +1046,7 @@ public class StringFunctions {
     ixSrc[0] +=1;
     cc <<=6; cc |= b3 & 0x3f;
     if((b & 0xf0)==0xe0) { 
-      return (char)(cc & 0xffff);  //remove 3 MSB from b.
+      return (short)(cc & 0xffff);  //remove 3 MSB from b.
     }
     //
     //That is an higher UTF character than UTF16-range:
@@ -1036,28 +1054,28 @@ public class StringFunctions {
     byte b4 = src[ixSrc[0]];
     if( (b4 & 0xc0) != 0x80) return 0;
     ixSrc[0] +=1;
-    if((b & 0xf8)==0xf0) { return '\ufffd'; }
+    if((b & 0xf8)==0xf0) { return (short)(0xfffd); }
     //    
     byte b5 = src[ixSrc[0]];
     ixSrc[0] +=1;
     if( (b5 & 0xc0) != 0x80) return 0;
-    if((b & 0xfc)==0xf8) { return '\ufffd'; }
+    if((b & 0xfc)==0xf8) { return (short)(0xfffd); }
     //    
     byte b6 = src[ixSrc[0]];
     if( (b6 & 0xc0) != 0x80) return 0;
     ixSrc[0] +=1;
-    if((b & 0xfe)==0xfc) { return '\ufffd'; }
+    if((b & 0xfe)==0xfc) { return (short)(0xfffd); }
     //    
     byte b7 = src[ixSrc[0]];
     if( (b7 & 0xc0) != 0x80) return 0;
     ixSrc[0] +=1;
-    if((b & 0xff)==0xfe) { return '\ufffd'; }
+    if((b & 0xff)==0xfe) { return (short)(0xfffd); }
     //    
     assert(b == 0xff);
     byte b8 = src[ixSrc[0]++];
     if( (b8 & 0xc0) != 0x80) return 0;
     ixSrc[0] +=1;
-    return '\ufffd';
+    return (short)(0xfffd);
   }
   
 }

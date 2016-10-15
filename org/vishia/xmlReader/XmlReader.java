@@ -1,19 +1,26 @@
 package org.vishia.xmlReader;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import org.vishia.util.Assert;
 import org.vishia.util.DataAccess;
 import org.vishia.util.Debugutil;
+import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPartFromFileLines;
+import org.vishia.util.StringPartScan;
 
 
 /**This is the main class to read an XML file.
@@ -95,11 +102,61 @@ public class XmlReader
   public void readXml(File input, Object output, CharSequence xmlCfg) {
   }
 
+
+  public String readXml(File input, Object output, XmlCfg xmlCfg) {
+    String error = null;
+    InputStream sInput = null; 
+    try{ 
+      sInput = new FileInputStream(input);
+      String sPathInput = FileSystem.normalizePath(input.getAbsoluteFile()).toString();
+      error = readXml(sInput, sPathInput, output, xmlCfg);
+      sInput.close();
+    } catch(IOException exc) {
+      error = "XmlReader.readXml(...) file not found: " + input.getAbsolutePath();
+    }
+    return error;
+  }
+
+
+
+
+  public String readZipXml(File zipInput, String pathInZip, Object output) {
+    String error = null;
+    try {
+      ZipFile zipFile = new ZipFile(zipInput);
+      ZipEntry zipEntry = zipFile.getEntry(pathInZip);
+      InputStream sInput = zipFile.getInputStream(zipEntry);
+      String sInputPath = zipInput.getAbsolutePath() + ":" + pathInZip;
+      error = readXml(sInput, sInputPath, output, cfg);
+      sInput.close();
+      zipFile.close();
+    } catch(Exception exc) {
+      error = exc.getMessage();
+    } 
+    return error;
+  }
+
+
+
   
-  public void readXml(File input, Object output, XmlCfg xmlCfg) {
+  /**Reads the xml content from an opened stream.
+   * The stream is firstly tested whether the first line contains a encoding hint. This is obligate in XML.
+   * Then the input is read into a character buffer using the {@link StringPartFromFileLines} class. 
+   * The {@link StringPartScan} scans the XML syntax. 
+   * <br>
+   * The xmlCfg determines which elements, attributes and textual content is transferred to the output data.
+   * See Description of {@link XmlReader}.
+   * @param input any opened InputStream. Typically it is an FileInputStream or InputStream from a {@link ZipEntry}.
+   * @param sInputPath The path to the input stream, used for error hints while parsing.
+   * @param output Any output data. The structure should match to the xmlCfg.
+   * @param xmlCfg A configuration. It can be gotten via {@link #readCfg(File)}.
+   * @return null if no error. Elsewhere an error message, instead of throwing.
+   */
+  public String readXml(InputStream input, String sInputPath, Object output, XmlCfg xmlCfg) {
+    String error = null;
     StringPartFromFileLines inp = null;
     try {
-      inp = new StringPartFromFileLines(input, sizeBuffer, "encoding", null);
+      inp = new StringPartFromFileLines(input, sInputPath, sizeBuffer, "encoding", null);
       readXml(inp, output, xmlCfg);
     } catch (IllegalCharsetNameException | UnsupportedCharsetException | IOException e) {
       // TODO Auto-generated catch block
@@ -110,10 +167,17 @@ public class XmlReader
     } finally {
       if(inp !=null) { inp.close(); }
     }
+    return error;
   }
   
   
   
+  /**Core routine to read in whole XML stream.
+   * @param inp
+   * @param output
+   * @param cfg1
+   * @throws Exception
+   */
   private void readXml(StringPartFromFileLines inp, Object output, XmlCfg cfg1) 
   throws Exception
   { inp.setIgnoreWhitespaces(true);

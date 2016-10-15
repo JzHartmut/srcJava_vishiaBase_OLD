@@ -87,6 +87,14 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   /**Version, history and license.
    * <ul>
+   * <li>2016-10-15 Hartmut bugfix: because of the root table is instanceof {@link IndexMultiTable}, a value in {@link IndexMultiTable_Table#aValues} 
+   *   which is type of {@link IndexMultiTable} has failed. It was recognized as a sub table with the simple check 
+   *   <code>tableStart.aValues[idx] instanceof IndexMultiTable_Table</code> etc. Now it is checked whether the value is not an instance of IndexMultitable itself.
+   *   The root table is not the point of quest but a sub table. That is not an instance of IndexMultiTable. 
+   *   On the other hand a sub table is never a user value because {@link IndexMultiTable_Table} is package private and not free for usage.
+   *   
+   * <li>2016-10-15 Hartmut bugfix: The usage of <code>IndexMultiTable.super</code> works in Oracle-Java version 8.102, but not in a lesser version.
+   *   To save compatibility it is avoided. Sometimes a typed meta variable is the better solution in any case.    
    * <li>2016-09-25 Hartmut chg: The root element is removed, instead this class extends a Table which is the root table.
    *   Only one advantage: 1 level lesser for debug-show of the data. But that may be proper for deep nested trees.
    *   For the change: The inner class Table is moved to an own {@link IndexMultiTable_Table} class.
@@ -159,7 +167,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final String sVersion = "2016-09-25";
+  public static final String sVersion = "2016-10-15";
 
   enum KindofAdd{ addOptimized, addLast, addBefore, replace};
   
@@ -217,27 +225,21 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     Key lastKey; Type lastValue;
     
     
-    //private Type lastReturnedElement;
-    
     /**Creates the iterator before the first element. 
      * @param firstTable
      */
     IteratorImpl()
     { this.modcount = IndexMultiTable.this.modcount;
       helperNext = new IteratorHelper<Key, Type>(false);
-      helperNext.table = IndexMultiTable.super;
+      helperNext.table = IndexMultiTable.this;  //.super;  //Note: super is correct, but does not compile for Java 8 lesser versions. 
       helperNext.idx = 0;
       helperNext.checkHyperTable();  //maybe create sub tables.
-      //lastkeyNext = bHasNext ? helperNext.table.aKeys[helperNext.idx] : null;
-      
+      //
       helperPrev = new IteratorHelper<Key, Type>(true);
-      helperPrev.table = IndexMultiTable.super;
+      helperPrev.table = IndexMultiTable.this;  //.super;  //Note: super is correct, but does not compile for Java 8 lesser versions.
       helperPrev.idx = -1;
       helperPrev.currKey = null;
       helperPrev.currValue = null;
-      //bHasPrev = false;  //the first left.
-      //lastkeyNext = null;
-      //lastkeyPrev = null;
     }
     
     
@@ -252,7 +254,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
      */
     IteratorImpl(Key startKey)
     { this.modcount = IndexMultiTable.this.modcount;
-      IndexMultiTable_Table<Key, Type> tableStart = IndexMultiTable.super;
+      IndexMultiTable_Table<Key, Type> tableStart = IndexMultiTable.this;  //.super  //Note: super is correct, but does not compile for Java 8 lesser versions.;
       while(tableStart.isHyperBlock)
       { //call it recursively with sub index.
         int idx = tableStart.binarySearchFirstKey(tableStart.aKeys, 0, tableStart.sizeBlock, startKey); //, sizeBlock, key1);
@@ -262,7 +264,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
            */
           idx = -idx-1; //insertion point is index of previous
         }
-        assert(tableStart.aValues[idx] instanceof IndexMultiTable_Table);
+        assert(tableStart.aValues[idx] instanceof IndexMultiTable_Table && !(aValues[idx] instanceof IndexMultiTable));
         @SuppressWarnings("unchecked") 
         IndexMultiTable_Table<Key, Type> tableNext = (IndexMultiTable_Table)tableStart.aValues[idx];
         tableStart = tableNext;
@@ -890,16 +892,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   public void checkTable(){ super.checkTable(null, null, -1, provider.getMinSortKey() );}
   
   
-  void assert1(boolean cond)
-  {
-    if(!cond)
-    { stop();
-      throw new RuntimeException("IndexMultiTable - is corrupted;");
-    }  
-  }
 
-  
-  
+
   @Override
   public synchronized void putAll(Map<? extends Key, ? extends Type> m)
   {
@@ -917,23 +911,25 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
    * @param obj1
    */
   void splitTopLevel(int idx, Key key1, Object obj1){
+    assert(key1 == null && obj1 == null); //TODO remove this args. It is only called with null.
     IndexMultiTable_Table<Key, Type> left = new IndexMultiTable_Table<Key, Type>(this);
     IndexMultiTable_Table<Key, Type> right = new IndexMultiTable_Table<Key, Type>(this);
-    left.parent = right.parent=IndexMultiTable.super;
+    left.parent = right.parent=IndexMultiTable.this;  //.super;  //Note: super is correct, but does not compile for Java 8 lesser versions.
     left.isHyperBlock = right.isHyperBlock = super.isHyperBlock;
     left.ixInParent = 0;
     right.ixInParent = 1;
     //the current block is now a hyper block.
     super.isHyperBlock = true;
     int newSize = super.sizeBlock/2;
+    IndexMultiTable_Table<Key, Type> rootTable = this;  //NOTE: better to use a type-exact meta variable than 'super' for the root table.
     if(idx > newSize){  //new object to the right table
-      left.sizeAll = super.movein(IndexMultiTable.super, left, 0, 0, newSize);
+      left.sizeAll = super.movein(rootTable, left, 0, 0, newSize);
       left.sizeBlock = newSize;
-      right.sizeAll = super.movein(IndexMultiTable.super, right, newSize, 0, idx - newSize);
+      right.sizeAll = super.movein(rootTable, right, newSize, 0, idx - newSize);
       int ix1 = idx - newSize;
       right.aKeys[ix1] = key1;
       right.aValues[ix1] = obj1;
-      if(obj1 instanceof IndexMultiTable_Table){ //insert a table.
+      if(obj1 instanceof IndexMultiTable_Table && !(obj1 instanceof IndexMultiTable)){ //insert a table.
         @SuppressWarnings("unchecked")
         IndexMultiTable_Table<Key,Type> childTable = (IndexMultiTable_Table<Key,Type>)obj1;
         right.sizeAll += childTable.sizeAll;    //don't change sizeAll of parent because there are not new leafs.
@@ -942,7 +938,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       } else { //simple element.
         right.addSizeAll(1);
       }
-      right.sizeAll += super.movein(IndexMultiTable.super, right, idx, ix1+1, super.sizeBlock - idx);
+      right.sizeAll += super.movein(rootTable, right, idx, ix1+1, super.sizeBlock - idx);
       right.sizeBlock = super.sizeBlock - newSize +1;
       super.aValues[0] = left;
       super.aValues[1] = right;
@@ -950,23 +946,23 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       right.check();
     } else { //new object to the left table.
       if(idx >=0){
-        left.sizeAll = super.movein(IndexMultiTable.super, left, 0, 0, idx);
+        left.sizeAll = super.movein(rootTable, left, 0, 0, idx);
         left.aKeys[idx] = key1;
         left.aValues[idx] = obj1;
-        if(obj1 instanceof IndexMultiTable_Table){
+        if(obj1 instanceof IndexMultiTable_Table && !(obj1 instanceof IndexMultiTable)){
           @SuppressWarnings("unchecked")
           IndexMultiTable_Table<Key,Type> childTable = (IndexMultiTable_Table<Key,Type>)obj1;
           childTable.ixInParent = idx;
           childTable.parent = left;
         }
         left.addSizeAll(1);
-        left.sizeAll += super.movein(IndexMultiTable.super, left, idx, idx+1, newSize - idx);
+        left.sizeAll += super.movein(rootTable, left, idx, idx+1, newSize - idx);
         left.sizeBlock = newSize +1;
       } else {
-        left.sizeAll = super.movein(IndexMultiTable.super, left, 0, 0, newSize);
+        left.sizeAll = super.movein(rootTable, left, 0, 0, newSize);
         left.sizeBlock = newSize;
       }
-      right.sizeAll = super.movein(IndexMultiTable.super, right, newSize, 0, super.sizeBlock - newSize);
+      right.sizeAll = super.movein(rootTable, right, newSize, 0, super.sizeBlock - newSize);
       right.sizeBlock = super.sizeBlock - newSize;
       super.aValues[0] = left;
       super.aValues[1] = right;
@@ -976,7 +972,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
     super.aKeys[0] = left.aKeys[0]; //minKey__;  //because it is possible to sort in lesser keys.
     super.aKeys[1] = right.aKeys[0];
     super.sizeBlock = 2;
-    super.clearRestArray(IndexMultiTable.super);
+    super.clearRestArray(rootTable);
     if(shouldCheck) { super.check(); }
   }
 

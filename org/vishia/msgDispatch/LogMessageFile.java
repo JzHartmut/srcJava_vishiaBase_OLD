@@ -124,7 +124,7 @@ public class LogMessageFile implements LogMessage
   final FieldPosition formatField = new FieldPosition(SimpleDateFormat.DATE_FIELD);
   
   //@Java4C.SimpleArray 
-  final char[] charsFormatTimestampFilename = new char[32];
+  final char[] charsFormatTimestampFilename;
   
   //final StringBuilder charsFormatTimestampFilename = new StringBuilder(32); 
   
@@ -259,6 +259,7 @@ public class LogMessageFile implements LogMessage
     } else {
     	this.localization = localization;
     }
+    this.charsFormatTimestampFilename = new char[32];
     this.timeZone = timeZoneP == null ? TimeZone.getTimeZone("GMT") : timeZoneP;
     dateFormat.setTimeZone(this.timeZone);
     formatTimestamp.setTimeZone(this.timeZone);

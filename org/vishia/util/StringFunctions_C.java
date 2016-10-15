@@ -10,6 +10,7 @@ public class StringFunctions_C
 {
   /**Version, history and license.
    * <ul>
+   * <li>2016-10-14 Hartmut bugfix: {@link #parseFloat(CharSequence, int, int, char, int[])} has had a problem with 1 digit after decimal point. 
    * <li>2016-02-07 Hartmut bugfix: {@link #parseFloat(String, int, int, char, int[])} has had a problem with negative numbers. 
    * <li>2015-11-07 Hartmut chg: Now the number conversion routines are moved to {@link StringFunctions_C}. 
    *   Reason: Dispersing the content because for some embedded applications a fine tuning of used sources is necessary.
@@ -251,7 +252,8 @@ public class StringFunctions_C
     ret = parseIntRadix(src, poscurr, restlen, 10, zParsed, null);  //parses only a positive number.
     poscurr += zParsed[0];   //maybe 0 if .123 is written
     restlen -= zParsed[0];
-    if(poscurr < (restlen+pos) && src.charAt(poscurr)==decimalpoint){
+    //if(poscurr < (restlen+pos) && src.charAt(poscurr)==decimalpoint){
+    if(restlen >0 && src.charAt(poscurr)==decimalpoint){
       float fracPart = parseIntRadix(src, poscurr +1, restlen-1, 10, zParsed);
       if(zParsed[0] >0){
         switch(zParsed[0]){

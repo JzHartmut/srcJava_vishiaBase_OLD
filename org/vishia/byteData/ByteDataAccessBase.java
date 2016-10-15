@@ -362,6 +362,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * @return the long value in range adequate nrof bytes.
    * @since 2009-09-30: regards negative nrofBytesAndSign. Prior Versions: returns a signed value always.
    * */
+  @Java4C.NoStackTrace 
   protected final long _getLong(final int idxInChild, final int nrofBytesAndSign)
   { long val = 0;
     int idxStep;
@@ -415,6 +416,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * @return the long value in range adequate nrof bytes.
    * @since 2009-09-30: regards negative nrofBytesAndSign. Prior Versions: returns a signed value always.
    * */
+  @Java4C.NoStackTrace 
   protected final int _getInt(final int idxInChild, final int nrofBytesAndSign)
   { int val = 0;
     int idxStep;
@@ -465,6 +467,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * @param nrofBytes The number of bytes of the value. 
    * @param val the long value in range adequate nrof bytes.
    * */
+  @Java4C.NoStackTrace 
   protected final void _setLong(int idx, int nrofBytes, long val)
   { int idx1, nrofBytes1 = nrofBytes; long val1 = val;  //prevent change of parameters, use register internally.
     int idxStep;
@@ -494,6 +497,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * @param nrofBytes The number of bytes of the value. 
    * @param val the long value in range adequate nrof bytes.
    * */
+  @Java4C.NoStackTrace 
   protected final void _setInt(int idx, int nrofBytes, int val)
   { int idx1, nrofBytes1 = nrofBytes, val1 = val;  //prevent change of parameters, use register internally.
     int idxStep;
@@ -1553,7 +1557,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * according to the IEEE 754 floating-point "single format" bit layout, preserving Not-a-Number (NaN) values,
    * like converted from java.lang.Float.intBitsToFloat().
    */
-  @Java4C.Retinline
+  @Java4C.Retinline @Java4C.NoStackTrace
   protected final float getFloat(int idx)
   {
     int intRepresentation = getInt32(idx);
@@ -1561,7 +1565,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
     return value;
   }
   
-  @Java4C.Retinline
+  @Java4C.Retinline @Java4C.NoStackTrace
   protected final double getDouble(int idx)
   {
     long intRepresentation = _getLong(idx,8);
@@ -1569,7 +1573,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    
   }
   
-  @Java4C.Retinline
+  @Java4C.Retinline @Java4C.NoStackTrace
   protected final long getInt64(int idx)
   { int nLo,nHi;
     if(bBigEndian)
@@ -1592,6 +1596,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    *            This is not the absolute position in data, idxBegin is added.<br/>
    * @return the integer value in range from -2147483648 and 2147483647
    * */
+  @Java4C.NoStackTrace
   protected final int getInt32(int idx)
   { int val;
     if(bBigEndian)
@@ -1611,6 +1616,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
 
   
   @Java4C.Retinline
+  @Java4C.NoStackTrace
   protected final int getUint32(int idx)
   { return getInt32(idx);
   }
@@ -1622,6 +1628,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    *            This is not the absolute position in data, idxBegin is added.<br/>
    * @return the integer value in range from -32768 to 32767
    * */
+  @Java4C.NoStackTrace
   protected final int getUint16(int idx)
   { int val;
     if(bBigEndian)
@@ -1641,6 +1648,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    *            This is not the absolute position in data, idxBegin is added.<br/>
    * @return the integer value in range from -32768 to 32767
    * */
+  @Java4C.NoStackTrace
   protected final short getInt16(int idx)
   { int val;
     if(bBigEndian)
@@ -1661,6 +1669,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    *            This is not the absolute position in data, idxBegin is added.<br/>
    * @return the ASCII value
    * */
+  @Java4C.NoStackTrace
   protected final char getChar(int idx)
   { char val;
     val = (char) data[ixBegin + idx];
@@ -1674,6 +1683,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    *            This is not the absolute position in data, idxBegin is added.<br/>
    * @return the integer value in range from -32768 to 32767
    * */
+  @Java4C.NoStackTrace
   protected final byte getInt8(int idx)
   { byte val;
     val = data[ixBegin + idx];
@@ -1688,6 +1698,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    *            This is not the absolute position in data, idxBegin is added.<br/>
    * @return the integer value in range from -32768 to 32767
    * */
+  @Java4C.NoStackTrace
   protected final short getUint8(int idx)
   { short val;
     val = data[ixBegin + idx];
