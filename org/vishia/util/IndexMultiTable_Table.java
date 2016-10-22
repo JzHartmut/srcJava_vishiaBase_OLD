@@ -4,7 +4,7 @@ import java.util.Arrays;
 
 import org.vishia.bridgeC.AllocInBlock;
 
-/**One Table for a {@link IndexMultiTable}
+/**One Table for a {@link IndexMultiTable}. This is a package-private class only used in {@link IndexMultiTable}.
  * @author hartmut Schorrig
  *
  * @param <Key>
@@ -189,7 +189,8 @@ class IndexMultiTable_Table<Key extends Comparable<Key>, Type>
           return sibling.putOrAdd(sortKey, value, valueNext, kind);
         }
       } else {
-        rootIdxTable.splitTopLevel(-1, null, null);
+        //it is the top level table:
+        splitTopLevel(-1, null, null);
       }
     }
     //check();
@@ -415,9 +416,9 @@ class IndexMultiTable_Table<Key extends Comparable<Key>, Type>
         //check();
       }
       else
-      { //The top level block, it can be splitted only.
+      { //It is the top level block, it can be splitted only.
         //divide the content of the current block in 2 blocks.
-        rootIdxTable.splitTopLevel(ix, sortkey, value);
+        splitTopLevel(ix, sortkey, value);
         //check();
       }
     }
@@ -445,12 +446,86 @@ class IndexMultiTable_Table<Key extends Comparable<Key>, Type>
 
 
 
-  /**
+  /**Splits the top level into 2 child tables and inserts the given element. The top level will refer this 2 tables after them.
+   * Note: Splitting of sub tables creates 2 tables from one given, another algorithm.
+   * @param idx
+   * @param key1
+   * @param obj1
+   */
+  private void splitTopLevel(int idx, Key key1, Object obj1){
+    IndexMultiTable_Table<Key, Type> left = new IndexMultiTable_Table<Key, Type>(rootIdxTable);
+    IndexMultiTable_Table<Key, Type> right = new IndexMultiTable_Table<Key, Type>(rootIdxTable);
+    left.parent = right.parent= this;  //.super;  //Note: super is correct, but does not compile for Java 8 lesser versions.
+    left.isHyperBlock = right.isHyperBlock = this.isHyperBlock;
+    left.ixInParent = 0;
+    right.ixInParent = 1;
+    //the current block is now a hyper block.
+    this.isHyperBlock = true;
+    int newSize = this.sizeBlock/2;
+    IndexMultiTable_Table<Key, Type> rootTable = this;  //NOTE: better to use a type-exact meta variable than 'super' for the root table.
+    if(idx > newSize){  //new object to the right table
+      left.sizeAll = this.movein(rootTable, left, 0, 0, newSize);
+      left.sizeBlock = newSize;
+      right.sizeAll = this.movein(rootTable, right, newSize, 0, idx - newSize);
+      int ix1 = idx - newSize;
+      right.aKeys[ix1] = key1;
+      right.aValues[ix1] = obj1;
+      if(obj1 instanceof IndexMultiTable_Table && !(obj1 instanceof IndexMultiTable)){ //insert a table.
+        @SuppressWarnings("unchecked")
+        IndexMultiTable_Table<Key,Type> childTable = (IndexMultiTable_Table<Key,Type>)obj1;
+        right.sizeAll += childTable.sizeAll;    //don't change sizeAll of parent because there are not new leafs.
+        childTable.ixInParent = ix1;
+        childTable.parent = right;
+      } else { //simple element.
+        right.addSizeAll(1);
+      }
+      right.sizeAll += this.movein(rootTable, right, idx, ix1+1, this.sizeBlock - idx);
+      right.sizeBlock = this.sizeBlock - newSize +1;
+      this.aValues[0] = left;
+      this.aValues[1] = right;
+      left.check();
+      right.check();
+    } else { //new object to the left table.
+      if(idx >=0){
+        left.sizeAll = this.movein(rootTable, left, 0, 0, idx);
+        left.aKeys[idx] = key1;
+        left.aValues[idx] = obj1;
+        if(obj1 instanceof IndexMultiTable_Table && !(obj1 instanceof IndexMultiTable)){
+          @SuppressWarnings("unchecked")
+          IndexMultiTable_Table<Key,Type> childTable = (IndexMultiTable_Table<Key,Type>)obj1;
+          childTable.ixInParent = idx;
+          childTable.parent = left;
+        }
+        left.addSizeAll(1);
+        left.sizeAll += this.movein(rootTable, left, idx, idx+1, newSize - idx);
+        left.sizeBlock = newSize +1;
+      } else {
+        left.sizeAll = this.movein(rootTable, left, 0, 0, newSize);
+        left.sizeBlock = newSize;
+      }
+      right.sizeAll = this.movein(rootTable, right, newSize, 0, this.sizeBlock - newSize);
+      right.sizeBlock = this.sizeBlock - newSize;
+      this.aValues[0] = left;
+      this.aValues[1] = right;
+      //left.check();
+      //right.check();
+    }
+    this.aKeys[0] = left.aKeys[0]; //minKey__;  //because it is possible to sort in lesser keys.
+    this.aKeys[1] = right.aKeys[0];
+    this.sizeBlock = 2;
+    this.clearRestArray(rootTable);
+    if(rootIdxTable.shouldCheck) { this.check(); }
+  }
+
+  
+  
+  
+  /**Split this table in 2 tables referred from the parent table. This is not applicable for the root table.
    * @param ix if <0 then do not sortin a key, obj1
    * @param key1
    * @param obj1
    */
-  IndexMultiTable_Table<Key, Type> splitIntoSibling(final int ix, Key key1, Object obj1){
+  private IndexMultiTable_Table<Key, Type> splitIntoSibling(final int ix, Key key1, Object obj1){
     IndexMultiTable_Table<Key, Type> sibling = new IndexMultiTable_Table<Key, Type>(rootIdxTable);
     //@SuppressWarnings("unused") int sizeall1 = parent.check();
     sibling.parent = parent;
@@ -725,7 +800,7 @@ class IndexMultiTable_Table<Key extends Comparable<Key>, Type>
   /**Change the size in this table and in all parents.
    * @param add usual +1 or -1 for add and delete.
    */
-  void addSizeAll(int add){
+  private void addSizeAll(int add){
     this.sizeAll += add;
     if(parent !=null) {
       parent.addSizeAll(add);

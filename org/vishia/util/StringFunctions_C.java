@@ -11,6 +11,7 @@ public class StringFunctions_C
   /**Version, history and license.
    * <ul>
    * <li>2016-10-14 Hartmut bugfix: {@link #parseFloat(CharSequence, int, int, char, int[])} has had a problem with 1 digit after decimal point. 
+   *   This bug was not present in older versions. maybe forced with the last change on 2016-02-07.
    * <li>2016-02-07 Hartmut bugfix: {@link #parseFloat(String, int, int, char, int[])} has had a problem with negative numbers. 
    * <li>2015-11-07 Hartmut chg: Now the number conversion routines are moved to {@link StringFunctions_C}. 
    *   Reason: Dispersing the content because for some embedded applications a fine tuning of used sources is necessary.
@@ -246,9 +247,10 @@ public class StringFunctions_C
     if(restlen > 0 && src.charAt(poscurr) == '-') { 
       poscurr+=1; restlen -=1; bNegative = true; 
     }
-    else { bNegative = false; }
-    
-    @Java4C.SimpleVariableRef int[] zParsed = new int[1];
+    else { 
+      bNegative = false; 
+    }
+    @Java4C.StackInstance @Java4C.SimpleArray int[] zParsed = new int[1];
     ret = parseIntRadix(src, poscurr, restlen, 10, zParsed, null);  //parses only a positive number.
     poscurr += zParsed[0];   //maybe 0 if .123 is written
     restlen -= zParsed[0];

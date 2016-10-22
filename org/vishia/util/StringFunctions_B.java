@@ -38,6 +38,23 @@ public class StringFunctions_B
   public static final String sWhiteSpaces = " \r\n\t\f";
   
 
+
+
+
+  /**Returns the first line of any text.
+   * @param src if null then returns "" (empty String)
+   * @return returns src exclusive a "\r" or "\n"
+   */
+  public static String firstLine(CharSequence src) {
+    if(src == null) return "";
+    int pos = StringFunctions.indexOfAnyChar(src, 0, Integer.MAX_VALUE, "\n\r");
+    if(pos <0) { pos = src.length(); }
+    return src.subSequence(0, pos).toString();
+  }
+
+
+
+
   
   /**Cleans a text which may be parsed or such, remove undesired indentation and replace the line end characters. 
    * @param src Any source String with indentation

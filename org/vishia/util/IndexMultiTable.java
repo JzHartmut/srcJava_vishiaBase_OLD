@@ -551,7 +551,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
 
   final Provide<Key> provider;
 
-  private boolean shouldCheck = true;
+  boolean shouldCheck = true;
 
   //private final IndexMultiTable_Table<Key, Type> super;
 
@@ -901,81 +901,6 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
       put(e.getKey(), e.getValue());
     }
   }
-  
-  
-  
-  /**Splits the top level into 2 child tables and inserts the given element. The top level will refer this 2 tables after them.
-   * Note: Splitting of sub tables creates 2 tables from one given, another algorithm.
-   * @param idx
-   * @param key1
-   * @param obj1
-   */
-  void splitTopLevel(int idx, Key key1, Object obj1){
-    assert(key1 == null && obj1 == null); //TODO remove this args. It is only called with null.
-    IndexMultiTable_Table<Key, Type> left = new IndexMultiTable_Table<Key, Type>(this);
-    IndexMultiTable_Table<Key, Type> right = new IndexMultiTable_Table<Key, Type>(this);
-    left.parent = right.parent=IndexMultiTable.this;  //.super;  //Note: super is correct, but does not compile for Java 8 lesser versions.
-    left.isHyperBlock = right.isHyperBlock = super.isHyperBlock;
-    left.ixInParent = 0;
-    right.ixInParent = 1;
-    //the current block is now a hyper block.
-    super.isHyperBlock = true;
-    int newSize = super.sizeBlock/2;
-    IndexMultiTable_Table<Key, Type> rootTable = this;  //NOTE: better to use a type-exact meta variable than 'super' for the root table.
-    if(idx > newSize){  //new object to the right table
-      left.sizeAll = super.movein(rootTable, left, 0, 0, newSize);
-      left.sizeBlock = newSize;
-      right.sizeAll = super.movein(rootTable, right, newSize, 0, idx - newSize);
-      int ix1 = idx - newSize;
-      right.aKeys[ix1] = key1;
-      right.aValues[ix1] = obj1;
-      if(obj1 instanceof IndexMultiTable_Table && !(obj1 instanceof IndexMultiTable)){ //insert a table.
-        @SuppressWarnings("unchecked")
-        IndexMultiTable_Table<Key,Type> childTable = (IndexMultiTable_Table<Key,Type>)obj1;
-        right.sizeAll += childTable.sizeAll;    //don't change sizeAll of parent because there are not new leafs.
-        childTable.ixInParent = ix1;
-        childTable.parent = right;
-      } else { //simple element.
-        right.addSizeAll(1);
-      }
-      right.sizeAll += super.movein(rootTable, right, idx, ix1+1, super.sizeBlock - idx);
-      right.sizeBlock = super.sizeBlock - newSize +1;
-      super.aValues[0] = left;
-      super.aValues[1] = right;
-      left.check();
-      right.check();
-    } else { //new object to the left table.
-      if(idx >=0){
-        left.sizeAll = super.movein(rootTable, left, 0, 0, idx);
-        left.aKeys[idx] = key1;
-        left.aValues[idx] = obj1;
-        if(obj1 instanceof IndexMultiTable_Table && !(obj1 instanceof IndexMultiTable)){
-          @SuppressWarnings("unchecked")
-          IndexMultiTable_Table<Key,Type> childTable = (IndexMultiTable_Table<Key,Type>)obj1;
-          childTable.ixInParent = idx;
-          childTable.parent = left;
-        }
-        left.addSizeAll(1);
-        left.sizeAll += super.movein(rootTable, left, idx, idx+1, newSize - idx);
-        left.sizeBlock = newSize +1;
-      } else {
-        left.sizeAll = super.movein(rootTable, left, 0, 0, newSize);
-        left.sizeBlock = newSize;
-      }
-      right.sizeAll = super.movein(rootTable, right, newSize, 0, super.sizeBlock - newSize);
-      right.sizeBlock = super.sizeBlock - newSize;
-      super.aValues[0] = left;
-      super.aValues[1] = right;
-      //left.check();
-      //right.check();
-    }
-    super.aKeys[0] = left.aKeys[0]; //minKey__;  //because it is possible to sort in lesser keys.
-    super.aKeys[1] = right.aKeys[0];
-    super.sizeBlock = 2;
-    super.clearRestArray(rootTable);
-    if(shouldCheck) { super.check(); }
-  }
-
   
   
   

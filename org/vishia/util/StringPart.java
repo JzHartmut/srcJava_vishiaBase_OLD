@@ -1822,16 +1822,16 @@ public final StringPart lentoAnyString(CharSequence[] strings, int maxToTest)
 public final StringPart lentoAnyString(CharSequence[] strings, int maxToTest, int mode)
 //public StringPartBase lentoAnyString(List<String> strings, int maxToTest, int mode)
 { endLast = end;
- @Java4C.SimpleVariableRef String[] foundString = new String[1];
- int pos = indexOfAnyString(strings, 0, maxToTest, null, foundString);
- if(pos < 0){ end = begin; bFound = false; }
- else       
- { if( (mode & seekEnd) != 0)
-   { pos += foundString[0].length();
-   }
-   end = begin + pos; bFound = true; 
- } 
- return this;
+  @Java4C.StackInstance @Java4C.SimpleArray String[] foundString = new String[1];
+  int pos = indexOfAnyString(strings, 0, maxToTest, null, foundString);
+  if(pos < 0){ end = begin; bFound = false; }
+  else       
+  { if( (mode & seekEnd) != 0)
+    { pos += foundString[0].length();
+    }
+    end = begin + pos; bFound = true; 
+  } 
+  return this;
 }
 
 
@@ -2495,7 +2495,7 @@ public final String debugString()
     int posPatternStart = 0;
     int posPattern;
     do
-    { @Java4C.SimpleVariableRef int[] type = new int[1];
+    { @Java4C.StackInstance @Java4C.SimpleArray int[] type = new int[1];
       posPattern = StringFunctions.indexOfAnyString(src, posPatternStart, src.length(), placeholder, type, null);
       if(posPattern >=0){
         dst.append(src.subSequence(posPatternStart, posPattern));  //characters from previous placeholder-end till next placeholder

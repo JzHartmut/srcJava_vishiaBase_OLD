@@ -203,11 +203,17 @@ public interface Java4C {
    */
   public @interface ConstThis{ }
     
-  /**Sets the following array as simple reference. An byte[] in Java is a int8* in C. */
+  /**Sets the following array as simple reference. An byte[] in Java is a int8* in C. 
+   * <br>
+   * This annotation should only be used if a simple array reference without the knowledge of the array length is explicitly expected in the C environment. */
   public @interface SimpleArrayRef{  }
     
   /**Sets the following array as simple reference. An byte[] in Java is a int8* in C. 
-   * It is the same as SimpleArrayRef. But in Java only array[0] should be used as referenced type. */
+   * It is the same as SimpleArrayRef. But in Java only array[0] should be used as referenced type. 
+   * This annotation should especially be used for arguments of methods. 
+   * <br>
+   * It is the possibility to use <code>dst[0] = value;</code> for return values in Java, 
+   * in C the dst is a simple reference to the destination variable, used: <code>*dst = value;</code> */
   public @interface SimpleVariableRef{  }
   
   
