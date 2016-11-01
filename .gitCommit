@@ -1,9 +1,1 @@
-Bugfix org.vishia.util.IndexMultiTable, org.vishia.util.StringFunctions_C.parseFloat
-* IndexMultiTable: check whether a table is not instanceof IndexMultiTable itself.
-* IndexMultiTable: The usage of <code>IndexMultiTable.super</code> works in Oracle-Java version 8.102, but not in a lesser version.
-  To save compatibility it is avoided. Sometimes a typed meta variable is the better solution in any case.
-* StringFunctions: byte2UTF8 returns short than char because of usage in C.
-* StringFunctions_C: bugfix: {@link #parseFloat(CharSequence, int, int, char, int[])} has had a problem with 1 digit after decimal point.
-* XmlReader: now reads from a zip file.
-* LogMessageFile, ByteDataAccessBase: non functional change for Java2C
-
+WikistyleTextToSimpleXml.java refactored, in progress

@@ -38,6 +38,7 @@ import java.util.TreeMap;
 
 import org.vishia.xmlSimple.XmlException;
 import org.vishia.xmlSimple.XmlNode;
+import org.vishia.util.Debugutil;
 import org.vishia.util.SpecialCharStrings;
 
 import org.vishia.mainCmd.Report;
@@ -220,22 +221,29 @@ public class WikistyleTextToSimpleXml
   /** The end of the last line, starts with -1, the position before 0.*/
   int end = -1;
   
+  /**The start of the next line. */
+  int startNext = 0;
+  
+  char cnl1 = '\n', cnl2 = '\r';
+  
   /** The start of the actual line.*/
   int start = 0;
   
   /** A list if list items are present. Its an array for nested lists.*/
   XmlNode[] xmlNesting = new XmlNode[20];
 
+  XmlNode currElem;
+
   /** A list item is present.*/
   //XmlNode[] xmlNestingItem = new XmlNode[6];
   
   ListIterator iterBaseElement; XmlNode dstElement; String dstNamespace;
   
-  /** The iterator for the List to add something*/
-  XmlNode xmlChild = null;
-  
   /** The index of xmlNesting if the conversion is inside a structure with end label (table). */
-  int idxNesting = -1;
+  int ixChild = -1;
+  
+  /**If ** was written before, it is 2: List in list. */
+  int deepnessList;
   
   /** The content of the class attributes for nesting levels. In the first level
    * it is equal to the sClass attribute.
@@ -404,45 +412,50 @@ public class WikistyleTextToSimpleXml
   { 
     iterBaseElement = iter; 
     this.dstElement = dstElement;
-
     sClassNesting = sClass; //may be setted from previous call.
     
     start = 0; end = -1;
-    idxNesting = -1;
-    xmlChild = initNesting();
+    if(dstElement !=null) {
+      this.ixChild = 0;
+      currElem = xmlNesting[ixChild] = dstElement;
+    } else {
+      ixChild = -1;
+    }
     elementsWithAttrib = null;
     xmlPre = null;
     
     if(dstElement != null){ dstNamespace = dstElement.getNamespaceKey(); }
     else{ dstNamespace = null; }
     
-    xmlChild = initNesting();  
     
     
     /** Searches in the given text paragraphs.*/
     while(start < (sInput.length()))
     { //String sLine;
       char cFirst = sInput.charAt(start);
-      if(xmlPre !=null && cFirst == '\n' || cFirst == '\r') { //empty line inside pre-block
+      if(xmlPre !=null && (cFirst == '\n' || cFirst == '\r')) { //empty line inside pre-block
+        //empty line inside a pre block. count it and add it to the pre block if lines are following
         preEmptylines +=1;
         end = sInput.indexOf("\n", start);
-        start = end+1;
+        if(end <0) { start = sInput.length(); } //break, no \n on end found.
+        else { start = end+1; }
       }
-      else if(cFirst == ' ' || cFirst == '\t' || cFirst == ',')
-      { /**If the line starts with a space it is translated to a <pre>..</pre>*/
+      else if(cFirst == ' ' || cFirst == '\t' || cFirst == ',') { 
+        //<pre>
+        /**If the line starts with a space it is translated to a <pre>..</pre>*/
         end = sInput.indexOf("\n", start);
         if(end <0){ end = sInput.length(); }   //last line is empty
         //while(++start == ' ' && start < end);  //skip over spaces.
         if(start < end)
         { String sLineTest = sInput.substring(start, end);
           String sLine = replaceTabs(sLineTest);
+          if(sLine.contains("METHOD_C int XmyMethod(int args);"))
+            Debugutil.stop();
           start = end+1;
           //pre Format
-          xmlChild = initNesting(); 
-          if(xmlPre == null)
-          { xmlPre = dstElement.createNode("pre", dstNamespace); //new XmlNode("pre", dstNamespace);
+          if(xmlPre == null) {
+            this.xmlPre = newChild("pre");
             if(iter != null){ iter.add(xmlPre);}
-            if(xmlChild != null){ xmlChild.addContent(xmlPre); }
             if(elementsWithAttrib != null)
             { TreeMap attribs = (TreeMap)elementsWithAttrib.get("pre");
               if(attribs != null)
@@ -453,18 +466,23 @@ public class WikistyleTextToSimpleXml
                   xmlPre.setAttribute(sAttrib, value);
             } } }
           }
-          else
-          { while(preEmptylines > 0){
-              //xmlPre.addContent("&x0a;");
-              xmlPre.addContent("\n");
-              preEmptylines-=1;
-            }
+          while(preEmptylines > 0){
+            //xmlPre.addContent("&x0a;");
+            xmlPre.addContent("\n");
+            preEmptylines-=1;
           }
           xmlPre.addContent(sLine.substring(1)+"\n");
         } //if(start < end), else it is an empty line.  
       } //cFirst == ' ' || cFirst == ','
-      else
-      { String sLineTest = getLineSpecial(sInput); //reads more as one line or until special || and !!
+      else {
+        //not a pre block, not empty lines. 
+        String sLineTest = getLineSpecial(sInput); //reads more as one line or until special || and !!
+        if(sLineTest.contains("Man soll also statt dem in C++ speziell"))
+          Debugutil.stop();
+        if(this.xmlPre !=null) {
+          closeChild(); xmlPre = null; //end of a pre text.  
+          preEmptylines = 0;
+        }
         if(sLineTest.length()>0)
         { String sLine = replaceTabs(sLineTest);
           while(sLine !=null) {
@@ -486,13 +504,13 @@ public class WikistyleTextToSimpleXml
             switch(cFirst)
             { case '*': case ';': case '#': case ':': case '>': case '{': case '|': case '!':
               { //any nested block
-                sLine = nestingLevel(sLine, idxNesting+1, iter, dstElement, dstNamespace, sClass); //##1
+                sLine = nestingLevel(cFirst, sLine, iter, dstElement, dstNamespace, sClass); //##1
                 if(sLine.length()>0)
-                { if(xmlChild.getName().equals("dt"))
-                  { convertLine(sLine, xmlChild, dstNamespace, sLabelOwn);
+                { if(currElem.getName().equals("dt"))
+                  { convertLine(sLine, currElem, dstNamespace, sLabelOwn);
                   }
                   else
-                  { writeParagraphInElement(sLine, xmlChild, dstNamespace, attributes, sClassNesting == null ? null : sClassNesting, sLabelOwn); // + "_p");
+                  { writeParagraphInElement(sLine, currElem, dstNamespace, attributes, sClassNesting == null ? null : sClassNesting, sLabelOwn); // + "_p");
                   }
                 }
                 sLine = null;
@@ -502,10 +520,10 @@ public class WikistyleTextToSimpleXml
               } break;
               default:
               { //a new line not beginning with a special char, it is a paragraph at basic level. 
-                xmlChild = initNesting();
-                xmlPre = null;
-                preEmptylines = 0; //don't regard empty line after a pre block
-                writeParagraphInIter(sLine, iter, xmlChild, dstNamespace, attributes, sClass, sLabelOwn);
+                while(deepnessList >0 && ixChild >=2) { closeChild(); closeChild(); deepnessList -=1; } //close the list.
+                if(sLine.contains("Man soll also statt dem in C++ speziell"))
+                  Debugutil.stop();
+                writeParagraphInIter(sLine, iter, currElem, dstNamespace, attributes, sClass, sLabelOwn);
                 sLine = null;
               }          //special char at start of paragraphs line:
             }//switch
@@ -514,17 +532,44 @@ public class WikistyleTextToSimpleXml
       }  
     }//while end
     { //clear all aggregations
-      idxNesting = -1;
-      initNesting();
-      xmlChild = null;
+      while(ixChild >=0) {
+        xmlNesting[ixChild--] = null;
+      }
+      currElem = null;
       elementsWithAttrib = null;
       iterBaseElement = null;
-      dstElement = null;
+      this.dstElement = null;
       xmlPre = null;
     }   
 
   }
 
+  
+  
+  
+  
+  /**It sets end and startNext.
+   * @param sLine
+   */
+  private void endline(String sLine) {
+  
+    end = sLine.indexOf(cnl1, start);
+    if(cnl2 != '\0'){
+      int end2 = sLine.indexOf(cnl2, start);
+      if(end2 == -1) { cnl2 = '\0';  }  //there is not a combination of \r \n
+      else if(end2 == end -1) { startNext = end+1; end = end2; }   // \r\n
+      else if(end2 == end +1) { startNext = end2+1; }   // \n\r
+      else if (end == -1 && end2 >=0) { cnl1 = cnl2; cnl2 = '\0'; end = end2; startNext = end2 +1; }  //found \r not \n
+    } else {
+      startNext = end+1; //only 1 separation character.
+    }
+  }
+  
+  
+  
+  
+  
+  
   
   
   /**Replace tabs in the line with 2 spaces.
@@ -846,6 +891,7 @@ public class WikistyleTextToSimpleXml
     while(!bSpecialEnd && continuationParagraphInNextline)
     {      
       end = sInput.indexOf("\n", start);
+      
       int end2 = sInput.indexOf("!!", start);  //table: some th in 1 line
       int end3 = sInput.indexOf("||", start);  //table: some td in 1 line
       if(end < 0)
@@ -899,16 +945,15 @@ public class WikistyleTextToSimpleXml
    *        On recursive call it is not the first char of the absolute line, but the second, third, ...
    *        adequate to the level.
    * @param level The level, the user should set always 0. Only incremented if recursively called here. 
-   * @param iterBaseElement If not null, the base level to insert level 0.
-   * @param dstElement If not null, the base level to insert level 0.
+   * @param iterBaseElement_a If not null, the base level to insert level 0.
+   * @param dstElement_a If not null, the base level to insert level 0.
    * @return The string after the last "*" or a followed ":" or some followed spaces,
    *         that is the content of the paragraph in < li>. It may be beginn 
    *         with ":", that is a indentation inside the < li>-Block.
    * @throws XmlException 
    */
-  private String nestingLevel(String sLine, int level, ListIterator iterBaseElement, XmlNode dstElement, String dstNamespace, String sClass) throws XmlException
-  { char cFirst = sLine.charAt(0);
-    char cNext = sLine.length()>=2 ? sLine.charAt(1) : ' ';
+  private String nestingLevel(char cFirst, String sLine, ListIterator iterBaseElement_a, XmlNode dstElement_a, String dstNamespace_a, String sClass) throws XmlException
+  { char cNext = sLine.length()>=2 ? sLine.charAt(1) : ' ';
     int nrofPreChars = 1;
     { //new list item
       String sTagNesting = null, sTagListItem = null; 
@@ -920,13 +965,13 @@ public class WikistyleTextToSimpleXml
         case ':': sTagNesting = "dl"; sTagListItem = "dd"; break;
         case '>': 
         { sTagNesting = null; sTagListItem = null;
-          nrofPreChars = checkInsertNesting_div(sLine, level, sClass);
+          nrofPreChars = checkInsertNesting_div(sLine, sClass);
         } break;
         case '{': 
         { if(cNext=='|')
-          { idxNesting = level;
-            nrofPreChars = 2;
+          { nrofPreChars = 2;
             newChild("table");
+            newChild("tr");
           }
           else{ sTagListItem=null; }
         } break;
@@ -934,97 +979,79 @@ public class WikistyleTextToSimpleXml
         { if(cNext=='-')
           { sTagListItem = null; 
             nrofPreChars = 2;
-            if(getTagNesting(idxNesting -1).equals("tr"))
-            { //td was before
-              idxNesting -=1;
+            if(checkCurrelem("td") || checkCurrelem("th")) {
+              closeChild();
             }
-            else if(getTagNesting(idxNesting).equals("table"))
-            { //td was before
-              idxNesting +=1;
-            }
-            newChild("tr");
+            newSibling("tr");
           }
           else if(cNext=='}')
           { sTagListItem = null; 
             nrofPreChars = 2;
-            boolean bSearchTableLevel = true;
-            for(int idx = idxNesting; bSearchTableLevel && idx >= (idxNesting-2); idx--)
-            { if(getTagNesting(idx).equals("table"))
-              { idxNesting = idx -1;  //before table, close it
-                bSearchTableLevel = false;
-                xmlChild = initNesting();
-              }
+            if(checkCurrelem("td") || checkCurrelem("th")) {
+              closeChild();
             }
-            level = idxNesting;  //table end.
+            if(checkCurrelem("tr")) {
+              closeChild();
+            }
+            if(checkCurrelem("table")) {
+              closeChild();
+            }
           }
           else
           { 
-            if(getTagNesting(idxNesting).equals("table"))
-            { idxNesting +=1;
-              newChild("tr");
-              idxNesting +=1;
+            if(checkCurrelem("td") || checkCurrelem("th")) {
+              closeChild();
             }
-            else if(getTagNesting(idxNesting).equals("tr"))
-            { idxNesting +=1;
-            }
-            if(idxNesting >=0)
-            {
-              newChild(cFirst == '!' ? "th" : "td"); 
-            }
+            newChild(cFirst == '!' ? "th" : "td"); 
           }
         } break;
         default:  sTagListItem = "xdiv"; break;
       }  
-      if(sTagNesting != null)
-      { boolean bNewListType = checkInsertNestingTag(sTagNesting, level, sClass);
-            if( sTagListItem != null)
-        { level += 1; //need 2 level. 
-          if( bNewListType     //first item of a list or such
-            || (xmlNesting[level] == null)  
-            || ("*#;:+>".indexOf(cNext) <0)  //new item, because new text at this level, no further nesting or additional text to last item (+).
-            )  
-          { //second ary element
-            xmlChild = xmlNesting[level] = dstElement.createNode(sTagListItem, dstNamespace);
-            addToParentList(level-1, xmlNesting[level]);
-            if(sClass != null)
-            { sClassNesting = sClass; // + "_" + sTagListItem;
-              xmlChild.setAttribute("class", sClassNesting);
-            }
-            if(elementsWithAttrib != null)
-            { TreeMap attribs = (TreeMap)elementsWithAttrib.get(sTagListItem);
-              if(attribs != null)
-              { Iterator iter = attribs.keySet().iterator();
-                while(iter.hasNext())
-                { String sAttrib = (String)iter.next();
-                  String value = (String)attribs.get(sAttrib);
-                  xmlChild.setAttribute(sAttrib, value);
-                  if(sAttrib.equals("class"))
-                  { sClassNesting = value;
-                  }
-            } } }
+      if(sTagNesting != null) {
+        int deepnessList1 = 1;
+        XmlNode newChild = null;;
+        while(sLine.length() > deepnessList1 && sLine.charAt(deepnessList1) == cFirst) { deepnessList1 +=1; }
+        while(deepnessList > deepnessList1){
+          closeChild();
+          closeChild();
+          deepnessList -=1;
+        }
+        if(deepnessList == deepnessList1) {
+          if(sLine.length() > deepnessList1 && sLine.charAt(deepnessList1) != '+') { //new paragraph in this list
+            newChild = newSibling(sTagListItem);
           }
-          xmlChild = xmlNesting[level];
+        }
+        else { 
+          while(deepnessList < deepnessList1) {
+            newChild(sTagNesting);
+            newChild = newChild(sTagListItem);
+            deepnessList +=1;
+        } }
+        if(newChild !=null) {
+          if(sClass != null)
+          { sClassNesting = sClass; // + "_" + sTagListItem;
+            newChild.setAttribute("class", sClassNesting);
+          }
+          if(elementsWithAttrib != null)
+          { TreeMap attribs = (TreeMap)elementsWithAttrib.get(sTagListItem);
+            if(attribs != null)
+            { Iterator iter = attribs.keySet().iterator();
+              while(iter.hasNext())
+              { String sAttrib = (String)iter.next();
+                String value = (String)attribs.get(sAttrib);
+                newChild.setAttribute(sAttrib, value);
+                if(sAttrib.equals("class"))
+                { sClassNesting = value;
+                }
+          } } }
         }  
       }
     }
     
-    if("*#;:".indexOf(cNext)>=0 && level < 6)
-    { //a next list level, nested list
-      return nestingLevel(sLine.substring(1), level+1, iterBaseElement, dstElement, dstNamespace, sClassNesting);
+    while(sLine.length() > nrofPreChars && sLine.charAt(nrofPreChars) == ' ')
+    { nrofPreChars +=1;
     }
-    else
-    { //the level of list nesting is reached. clear deeper list levels.
-      for(int ii = level+1; ii < xmlNesting.length; ii++)
-      { xmlNesting[ii] = null; 
-        xmlPre = null;
-      }
-
-      if(cNext == '+'){ nrofPreChars +=1; }
-      while(sLine.length() > nrofPreChars && sLine.charAt(nrofPreChars) == ' ')
-      { nrofPreChars +=1;
-      }
-      return sLine.substring(nrofPreChars);
-    }
+    return sLine.substring(nrofPreChars);
   }  
 
   
@@ -1042,23 +1069,21 @@ public class WikistyleTextToSimpleXml
    * @param sClass
    * @throws XmlException
    */
-  boolean checkInsertNestingTag(String sTagNesting, int level, String sClass) 
+  XmlNode checkInsertNestingTag(String sTagNesting, String sClass) 
   throws XmlException
   {
-    boolean bNewListType = (xmlNesting[level] == null)  //no outer Tag, it is the first list item 
-      || !(xmlNesting[level].getName().equals(sTagNesting)); 
+    boolean bNewListType = (ixChild < 0)  //no outer Tag, it is the first list item 
+      || !(xmlNesting[ixChild].getName().equals(sTagNesting)); 
     if( bNewListType)  //another tag type
     { //the first element in this list, create the < ul>-XmlNode.
-    XmlNode xmlContainer = dstElement.createNode(sTagNesting, dstNamespace); 
-    //add it to the previous level, first to iterBaseElement.
-    addToParentList(level-1, xmlContainer);
-    if(sClass != null)
-    { sClassNesting = sClass; // + "_" + sTagNesting;
-    xmlContainer.setAttribute("class", sClassNesting);
+      
+      XmlNode xmlContainer = newChild(sTagNesting);
+      if(sClass != null)
+      { sClassNesting = sClass; // + "_" + sTagNesting;
+      xmlContainer.setAttribute("class", sClassNesting);
+      }
     }
-    xmlNesting[level] = xmlContainer;
-    }
-    return bNewListType;
+    return xmlNesting[ixChild];
   }
   
   
@@ -1069,11 +1094,10 @@ public class WikistyleTextToSimpleXml
    * @return
    * @throws XmlException 
    */
-  int checkInsertNesting_div(String sLine, int level, String sClass) 
+  int checkInsertNesting_div(String sLine, String sClass) 
   throws XmlException
   {
-    checkInsertNestingTag("div", level, sClass);
-    XmlNode xmlDiv = xmlNesting[level];
+    XmlNode xmlDiv = checkInsertNestingTag("div", sClass);
     int posContent = 1;
     int lengthLine = sLine.length();
     if(sLine.startsWith(">@")){
@@ -1104,12 +1128,41 @@ public class WikistyleTextToSimpleXml
   }
   
   
-  private void newChild(String sTag) throws XmlException
-  { xmlChild = dstElement.createNode(sTag, dstNamespace);
-    xmlNesting[idxNesting] = xmlChild;
-    addToParentList(idxNesting -1, xmlChild);
-    initNesting();
+  private XmlNode newChild(String sTag) throws XmlException
+  { XmlNode xmlChild = dstElement.createNode(sTag, dstNamespace);
+    xmlNesting[++ixChild] = xmlChild;
+    addToParentList(ixChild -1, xmlChild);
+    return currElem = xmlChild;
   }
+  
+  
+  private XmlNode newSibling(String sTag) throws XmlException
+  { XmlNode xmlChild = dstElement.createNode(sTag, dstNamespace);
+    xmlNesting[ixChild] = xmlChild;
+    addToParentList(ixChild -1, xmlChild);
+    return currElem = xmlChild;
+  }
+  
+  
+  private XmlNode closeChild()
+  { xmlNesting[ixChild] = null;
+    ixChild -=1;
+    return currElem = (ixChild >=0 ? xmlNesting[ixChild] : null);
+  }
+  
+  
+  private XmlNode currElement(){ return xmlNesting[ixChild]; }
+  
+  
+  private boolean checkCurrelem(String tag) {
+    return ixChild >=0 && xmlNesting[ixChild].getName().equals(tag); 
+  }
+  
+  
+  private boolean checkParentelem(String tag) {
+    return ixChild >=1 && xmlNesting[ixChild-1].getName().equals(tag); 
+  }
+  
   
   
   /**Adds either into the iterator or in the topLevel element if the level is <0
@@ -1246,17 +1299,6 @@ public class WikistyleTextToSimpleXml
   
   
   
-  /** Sets all variables for assignment to nested levels after idxNesting to null,
-   * no nesting is existing yet.
-   * @xmlTopLevel the toplevel element for output if the decision is to toplevel.
-   * @return the actual element. NOTE: It may be always set to xmlChild, but the management of xmlChild is no job of this method.
-   */
-  private XmlNode initNesting()
-  { for(int ii = idxNesting+1; ii < xmlNesting.length; ii++)
-    { xmlNesting[ii] = null;
-    }
-    return idxNesting < 0 ? dstElement : xmlNesting[idxNesting];
-  }
   
   
   private void writeParagraphInIter(String sLine, ListIterator iterParent, XmlNode dstElement

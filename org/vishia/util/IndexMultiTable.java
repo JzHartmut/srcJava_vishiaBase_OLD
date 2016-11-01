@@ -1,6 +1,5 @@
 package org.vishia.util;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
@@ -8,7 +7,6 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 
-import org.vishia.bridgeC.AllocInBlock;
 
 
 
