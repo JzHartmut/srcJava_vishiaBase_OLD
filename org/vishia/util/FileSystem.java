@@ -559,13 +559,18 @@ public class FileSystem
    */
   public static boolean cleandir(File dir){
     boolean bOk = true;
-    if(!dir.isDirectory()){ dir = getDir(dir); }
-    File[] files = dir.listFiles();
-    for(File file: files){
-      if(file.isDirectory()){
-        bOk = bOk && rmdir(file);
-      } else {
-        bOk = bOk && file.delete();
+    if(!dir.exists()) {
+      bOk = dir.mkdirs();
+    }
+    if(bOk) {
+      if(!dir.isDirectory()){ dir = getDir(dir); }
+      File[] files = dir.listFiles();
+      for(File file: files){
+        if(file.isDirectory()){
+          bOk = bOk && rmdir(file);
+        } else {
+          bOk = bOk && file.delete();
+        }
       }
     }
     return bOk;

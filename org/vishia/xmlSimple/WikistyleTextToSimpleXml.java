@@ -172,6 +172,9 @@ public class WikistyleTextToSimpleXml
   
     /**Version and history.
    * <ul>
+   * <li>2016-11-06 Hartmut: new Now writes paragraphs in 2 or more  columns of a table if "..............." is found on start of line.
+   *   The end is "^^^^^^^^^^^^^^^^^^^^^^^^" 
+   * <li>2016-11-06 Hartmut: chg Gardening of the algorithm. Line ending with \r\n or only \r are supported too, see {@link #endline(String)}  
    * <li>2015-09-29 Hartmut: chg An attribute like <code>@p.class="style"</code> can contained at start of a line with more content now.
    *   Note that a line in this meaning can consist of more as one line with one carriage return inside in the source. It was a problem
    *   writing an attribute with only one carriage return following with a text. Now you can write:
@@ -244,6 +247,8 @@ public class WikistyleTextToSimpleXml
   
   /**If ** was written before, it is 2: List in list. */
   int deepnessList;
+  
+  char kindList;
   
   /** The content of the class attributes for nesting levels. In the first level
    * it is equal to the sClass attribute.
@@ -353,6 +358,7 @@ public class WikistyleTextToSimpleXml
   public void setWikistyleFormat(String sInput, XmlNode dstElement, Map attributes, String sClass) 
   throws XmlException
   {
+    cnl1 = '\n'; cnl2 = '\r';
     insertAndConvertText(sInput, null, dstElement, attributes, sClass, null);
   }
   
@@ -436,22 +442,16 @@ public class WikistyleTextToSimpleXml
       if(xmlPre !=null && (cFirst == '\n' || cFirst == '\r')) { //empty line inside pre-block
         //empty line inside a pre block. count it and add it to the pre block if lines are following
         preEmptylines +=1;
-        end = sInput.indexOf("\n", start);
-        if(end <0) { start = sInput.length(); } //break, no \n on end found.
-        else { start = end+1; }
+        endline(sInput);
+        start = startNext;
       }
       else if(cFirst == ' ' || cFirst == '\t' || cFirst == ',') { 
-        //<pre>
-        /**If the line starts with a space it is translated to a <pre>..</pre>*/
-        end = sInput.indexOf("\n", start);
-        if(end <0){ end = sInput.length(); }   //last line is empty
-        //while(++start == ' ' && start < end);  //skip over spaces.
+        //<pre>, the line starts with a space it is translated to a <pre>..</pre>*/
+        endline(sInput);
         if(start < end)
         { String sLineTest = sInput.substring(start, end);
           String sLine = replaceTabs(sLineTest);
-          if(sLine.contains("METHOD_C int XmyMethod(int args);"))
-            Debugutil.stop();
-          start = end+1;
+          start = startNext;
           //pre Format
           if(xmlPre == null) {
             this.xmlPre = newChild("pre");
@@ -472,13 +472,15 @@ public class WikistyleTextToSimpleXml
             preEmptylines-=1;
           }
           xmlPre.addContent(sLine.substring(1)+"\n");
-        } //if(start < end), else it is an empty line.  
+        } else { //empty line.
+          start = startNext;
+        }  
       } //cFirst == ' ' || cFirst == ','
       else {
         //not a pre block, not empty lines. 
         String sLineTest = getLineSpecial(sInput); //reads more as one line or until special || and !!
-        if(sLineTest.contains("Man soll also statt dem in C++ speziell"))
-          Debugutil.stop();
+        //if(sLineTest.contains("Man soll also statt dem in C++ speziell"))
+        //  Debugutil.stop();
         if(this.xmlPre !=null) {
           closeChild(); xmlPre = null; //end of a pre text.  
           preEmptylines = 0;
@@ -502,8 +504,13 @@ public class WikistyleTextToSimpleXml
              * 
              */
             switch(cFirst)
-            { case '*': case ';': case '#': case ':': case '>': case '{': case '|': case '!':
+            { case '*': case ';': case '#': case ':': case '>': case '{': case '.': case '/': case '^': case '|': case '!':
               { //any nested block
+                if(cFirst != kindList) {
+                  //end of list or another list
+                  while(deepnessList >0 && ixChild >=2) { closeChild(); closeChild(); deepnessList -=1; } //close the list.
+                  kindList = '\0';
+                }
                 sLine = nestingLevel(cFirst, sLine, iter, dstElement, dstNamespace, sClass); //##1
                 if(sLine.length()>0)
                 { if(currElem.getName().equals("dt"))
@@ -521,6 +528,7 @@ public class WikistyleTextToSimpleXml
               default:
               { //a new line not beginning with a special char, it is a paragraph at basic level. 
                 while(deepnessList >0 && ixChild >=2) { closeChild(); closeChild(); deepnessList -=1; } //close the list.
+                kindList = '\0';
                 if(sLine.contains("Man soll also statt dem in C++ speziell"))
                   Debugutil.stop();
                 writeParagraphInIter(sLine, iter, currElem, dstNamespace, attributes, sClass, sLabelOwn);
@@ -556,13 +564,17 @@ public class WikistyleTextToSimpleXml
     end = sLine.indexOf(cnl1, start);
     if(cnl2 != '\0'){
       int end2 = sLine.indexOf(cnl2, start);
-      if(end2 == -1) { cnl2 = '\0';  }  //there is not a combination of \r \n
+      if(end2 == -1) { cnl2 = '\0';  startNext = end +1; }  //there is not a combination of \r \n
       else if(end2 == end -1) { startNext = end+1; end = end2; }   // \r\n
       else if(end2 == end +1) { startNext = end2+1; }   // \n\r
       else if (end == -1 && end2 >=0) { cnl1 = cnl2; cnl2 = '\0'; end = end2; startNext = end2 +1; }  //found \r not \n
+    } else if(end <0) {
+      end = sLine.length();
+      startNext = end;
     } else {
       startNext = end+1; //only 1 separation character.
     }
+    while(end > start && " \t\f".indexOf(sLine.charAt(end-1)) >=0) { end -=1; }   //remove trailing white spaces. 
   }
   
   
@@ -888,35 +900,29 @@ public class WikistyleTextToSimpleXml
     String sLine = "";
     boolean continuationParagraphInNextline = true;
     boolean bSpecialEnd = false;
-    while(!bSpecialEnd && continuationParagraphInNextline)
-    {      
-      end = sInput.indexOf("\n", start);
+    while(continuationParagraphInNextline)
+    { endline(sInput);     
       
       int end2 = sInput.indexOf("!!", start);  //table: some th in 1 line
       int end3 = sInput.indexOf("||", start);  //table: some td in 1 line
-      if(end < 0)
-      { end = sInput.length();
-        continuationParagraphInNextline = false;
-      }
-      if(end2 >= 0 && end2 < end){ end = end2; bSpecialEnd = true; }
-      if(end3 >= 0 && end3 < end){ end = end3; bSpecialEnd = true; }
-      { /*Searches the end of text in the actual line, considers white spaces on end.*/
+      if(end2 >= 0 && end2 < end){ end = end2; bSpecialEnd = true; startNext = end +2; }
+      if(end3 >= 0 && end3 < end){ end = end3; bSpecialEnd = true; startNext = end +2; }
+      if(end > start) {
+        /*Searches the end of text in the actual line, considers white spaces on end.*/
         int lineEnd = end;
-        while(lineEnd > 0 && " \t\r".indexOf(sInput.charAt(lineEnd-1)) >= 0){ lineEnd -=1; }
-        if(sLine.length()>0){ sLine += " ";}  //1 space instead new line before append next text
+        while(lineEnd > start && " \t\r".indexOf(sInput.charAt(lineEnd-1)) >= 0){ lineEnd -=1; }  //without spaces on end.
         sLine += sInput.substring(start, lineEnd);  //the text exclusively appended white spaces.
-      }  
-      if(bSpecialEnd)
-      { end +=1;
-        start = end; //NOTE: bSpecialEnd: the next text info starts at 1 ! or |, not at both.
       }
-      else 
-      { start = end +1;
-      }
+      start = startNext;  
       continuationParagraphInNextline
-       =  start < sInput.length()                  //there is a next line
-       && " \t,>+*#;:@{!|\r\n".indexOf(sInput.charAt(start)) < 0  //it doesn't start with this chars.
-       ;  
+       =  !bSpecialEnd
+       && sLine.length() >0 
+       && start < sInput.length()                  //there is a next line
+       && " \t,>+*#;:@{!|./^\r\n".indexOf(sInput.charAt(start)) < 0  //it doesn't start with this chars.
+       ;
+      if(continuationParagraphInNextline) {
+        sLine += ' ';  //instead linefeed insert one space.
+      }
     }  
     return sLine;    
   }
@@ -959,13 +965,50 @@ public class WikistyleTextToSimpleXml
       String sTagNesting = null, sTagListItem = null; 
       String sTagAttribSetting = null;  //TODO: use it.
       switch(cFirst)
-      { case '*': sTagNesting = "ul"; sTagListItem = "li"; break;
-        case '#': sTagNesting = "ol"; sTagListItem = "li"; break;
-        case ';': sTagNesting = "dl"; sTagListItem = "dt"; break;
-        case ':': sTagNesting = "dl"; sTagListItem = "dd"; break;
+      { case '*': sTagNesting = "ul"; sTagListItem = "li"; kindList = cFirst; break;
+        case '#': sTagNesting = "ol"; sTagListItem = "li"; kindList = cFirst; break;
+        case ';': sTagNesting = "dl"; sTagListItem = "dt"; kindList = cFirst; break;
+        case ':': sTagNesting = "dl"; sTagListItem = "dd"; kindList = cFirst; break;
         case '>': 
         { sTagNesting = null; sTagListItem = null;
           nrofPreChars = checkInsertNesting_div(sLine, sClass);
+        } break;
+        case '.': {
+          if(cNext == '.') {
+            nrofPreChars = 2;
+            while(sLine.length() > nrofPreChars && sLine.charAt(nrofPreChars) == '.') { nrofPreChars +=1; }
+            if(checkCurrelem("td")){
+              newSibling("td");
+            } else {
+              XmlNode table = newChild("table");
+              table.setAttribute("class", "textColumns");
+              newChild("tr");
+              newChild("td");
+            }
+          }
+        } break;
+        case '/': {
+          if(cNext == '.') {
+            if(checkCurrelem("td")){
+              closeChild();  //td
+              closeChild("tr");  //tr
+              closeChild("table");  //table
+            }
+          } else {
+            Debugutil.stop();
+          }
+        } break;
+        case '^': {
+          if(cNext == '^') {
+            while(sLine.length() > nrofPreChars && sLine.charAt(nrofPreChars) == '^') { nrofPreChars +=1; }
+            if(checkCurrelem("td")){
+              closeChild();  //td
+              closeChild("tr");  //tr
+              closeChild("table");  //table
+            } else {
+              Debugutil.stop();
+            }
+          }
         } break;
         case '{': 
         { if(cNext=='|')
@@ -1147,6 +1190,16 @@ public class WikistyleTextToSimpleXml
   private XmlNode closeChild()
   { xmlNesting[ixChild] = null;
     ixChild -=1;
+    return currElem = (ixChild >=0 ? xmlNesting[ixChild] : null);
+  }
+  
+  private XmlNode closeChild(String sTag)
+  { if(xmlNesting[ixChild].getName().equals(sTag)) {
+      xmlNesting[ixChild] = null;
+      ixChild -=1;
+    } else {
+      Debugutil.stop();
+    }
     return currElem = (ixChild >=0 ? xmlNesting[ixChild] : null);
   }
   

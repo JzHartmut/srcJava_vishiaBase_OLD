@@ -38,6 +38,8 @@ public class FileList
 
   /**Version, history and license.
    * <ul>
+   * <li>2016-11-13 Hartmut new: touch only one file from a given list possible. 
+   * <li>2016-11-13 Hartmut chg: The directory line does not contain a date up to now.
    * <li>2016-08-20 Hartmut chg: Other format, better able to read, used for restoring time stamps after git-revert.
    * <li>2014-01-14 Hartmut chg: round up and down to 10 seconds, to ignore second differences on writing.
    * <li>2013-08-09 Hartmut created: The FileList was written by me in 1992..2001 in C++-Language.
@@ -81,7 +83,7 @@ public class FileList
     
     public String sMask;
     
-    /**Any output for operation. One line per file. */
+    /**Any output for operation. One line per file. Maybe null to prevent output. */
     public Appendable out;
     
     //public String sDateFormat = "yyyy-MM-dd_HH:mm:ss";
@@ -202,7 +204,7 @@ public class FileList
         if( file.isDirectory()) {
           String name = file.getName();
           if(name.charAt(0) !='.' && !name.equals(args.sFileList)){
-            writeOneFile(out, file, localDir, name);  //the directory entry
+            writeDirectoryLine(out, file, localDir, name);  //the directory entry
             CharSequence path = FileSystem.normalizePath(file);
             CharSequence localDirSub = path.subSequence(posLocalPath, path.length());
             list(file, posLocalPath, localDirSub, out, recurs+1);
@@ -302,6 +304,22 @@ public class FileList
   
   
   
+  
+  
+  @SuppressWarnings("boxing")
+  private void writeDirectoryLine(Writer out, File file, CharSequence localDir, String name) throws IOException
+  {
+    out.append("\n============================== ").append(localDir);
+    if(localDir.length() >0){ out.append('/'); }
+    out.append(name).append("/ ===");
+    int zDir = localDir.length() + name.length() +1;
+    if(zDir < 64) { out.append("================================================================================".subSequence(0,  64-zDir)); }
+  
+    out.append("\n");
+  }
+  
+  
+  
   @SuppressWarnings("boxing")
   private void xxxwriteOneFile(Writer out, File file, CharSequence localPath) throws IOException
   {
@@ -345,13 +363,14 @@ public class FileList
   
   
   
-  /**Static method to create a list from any directory maybe with selected files.
+  /**Static method to touch all files form a given list.
    * @param dir path to any directory.
    * @param mask Use "*" to select all files.
+   * @param sFile file with local path, if given only that file will be touched, null: all files to touch.
    * @param sFilelist Name of the file list relative to the dir, can contain a relative path.
    * @throws IOException
    */
-  public static void touch(String dir, String sFilelist, Appendable out) throws IOException
+  public static void touch(String dir, String sFilelist, String sFile, Appendable out) throws IOException
   {
     FileList.Args args = new FileList.Args();
     args.out = out;
@@ -370,14 +389,24 @@ public class FileList
     args.crc = true;
     args.sMask = "*";
     FileList main = new FileList(args);
-    main.touch();
+    main.touch(sFile);
   }
   
-  
+
+  /**Static method to touch all files form a given list.
+   * @param dir path to any directory.
+   * @param mask Use "*" to select all files.
+   * @param sFilelist Name of the file list relative to the dir, can contain a relative path.
+   * @throws IOException
+   */
+  public static void touch(String dir, String sFilelist, Appendable out) throws IOException
+  { touch(dir, sFilelist, out); }
 
   
+  public void touch() { touch(null); }
   
-  public void touch(){
+  
+  public void touch(String sFile){
     BufferedReader inp = null;
     File dir = new File(args.sDirectory);
     String sDirlocal = "";
@@ -385,7 +414,7 @@ public class FileList
       inp = new BufferedReader(new FileReader(args.sFileList));
       String sLine;
       while((sLine = inp.readLine())!=null){
-        sDirlocal = readOneLine(sLine, dir, sDirlocal);  
+        sDirlocal = touchOneLine(sLine, dir, sDirlocal, sFile);  
       }
     } catch (IOException e) {
       // TODO Auto-generated catch block
@@ -395,7 +424,7 @@ public class FileList
   }
   
   
-  private String readOneLine(String sLine, File dir, String sDirlocal){
+  private String touchOneLine(String sLine, File dir, String sDirlocal, String sFile){
     Date filetime;
     String sPath;
     String sDirlocalNew = sDirlocal;
@@ -434,11 +463,12 @@ public class FileList
           crclist = (int)StringFunctions_C.parseLong(sLine, posEnd+18, 11, 10, null, " ");
         }
         
-        if(sPath !=null) {  //File line found        
+        if(sPath !=null
+          && (sFile == null || sFile.equals(sPath))) {  //File line found        
         
           File file = new File(dir, sPath);
           if(!file.exists()){
-            args.out.append("FileList - touch, file not exist; ").append(sPath).append("\n"); 
+            if(args.out !=null) { args.out.append("FileList - touch, file not exist; ").append(sPath).append("\n"); } 
           } else if(file.isDirectory()){
             //do nothing for a directory.
           } else {
@@ -458,15 +488,15 @@ public class FileList
                 int crc = (int)crcCalculator.getValue();
                 if(crc == crclist){
                   file.setLastModified(listtime);
-                  args.out.append("FileList - touching; ").append(sPath).append("\n"); 
+                  if(args.out !=null) { args.out.append("FileList - touching; ").append(sPath).append("\n"); } 
                 } else {
-                  args.out.append("FileList - touch, file with same length is changed; ").append(sPath).append("\n"); 
+                  if(args.out !=null) { args.out.append("FileList - touch, file with same length is changed; ").append(sPath).append("\n"); } 
                 }
               } else {
                 //file may not be changed, has the correct timestamp
               }
             } else {
-              args.out.append("FileList - touch, file is changed; ").append(sPath).append("\n"); 
+              if(args.out !=null) { args.out.append("FileList - touch, file is changed; ").append(sPath).append("\n"); }
             }
           }
         }
