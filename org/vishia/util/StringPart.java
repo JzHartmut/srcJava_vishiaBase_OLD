@@ -1,6 +1,5 @@
 package org.vishia.util;
 
-import java.io.Closeable;
 
 
 /* This is an alternative to the {@link java.lang.String} which uses a shared reference to the char sequence.
@@ -116,7 +115,7 @@ import java.io.Closeable;
  */
 
 
-public class StringPart implements CharSequence, Comparable<CharSequence>, Closeable
+public class StringPart implements CharSequence, Comparable<CharSequence>
 {
   /**Version, history and license.
    * <ul>
@@ -2466,6 +2465,9 @@ public final String debugString()
    * The associated String is released. It can be recycled by garbage collector.
    * If this method is overridden, it should used to close a associated file which is opened 
    * for this String processing. The overridden method should call super->close() too.
+   * <br>
+   * Note: if only this class is instantiated and the instance will be garbaged, close is not necessary.
+   * A warning or error "Resource leak" can be switched off. Therefore the interface {@link java.io.Closeable} is not used here.
    */
   public void close()
   {

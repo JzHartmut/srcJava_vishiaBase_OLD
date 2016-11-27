@@ -400,7 +400,7 @@ public class FileList
    * @throws IOException
    */
   public static void touch(String dir, String sFilelist, Appendable out) throws IOException
-  { touch(dir, sFilelist, out); }
+  { touch(dir, sFilelist, null, out); }
 
   
   public void touch() { touch(null); }
@@ -431,7 +431,14 @@ public class FileList
     long listlen;
     int crclist;
     try {
-      if(sLine.length() > 20) {
+      if(sLine.startsWith("===================")) {
+        //a directory line
+        int posStart = sLine.indexOf(' ') +1;
+        int posEnd = sLine.indexOf("================", posStart) -1;  //one space before ======
+        if(posStart > 0 && posEnd > posStart) {
+          sDirlocalNew = sLine.substring(posStart, posEnd);
+        }
+      } else if(sLine.length() > 20) {
         
         filetime = (sLine.charAt(10)=='_') ? date_Format.parse(sLine) : dateFormat.parse(sLine);
         long listtime = filetime.getTime();

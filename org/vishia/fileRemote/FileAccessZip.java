@@ -320,19 +320,22 @@ public class FileAccessZip extends FileRemoteAccessor // extends FileRemoteAcces
   @Override public OutputStream openOutputStream(FileRemote file, long passPhase){
     FileZipData data = (FileZipData)file.oFile;
     ///
+    ZipFile fileZip = null;
     try{ 
       //if(data.zipFile == null){
         //data.zipFile = new ZipFile(data.theFile);
       //}
-      ZipFile fileZip = new ZipFile(data.theFile);
+      fileZip = new ZipFile(data.theFile);
       //OutputStream stream = fileZip.getOutputStream(data.zipEntry);
+      fileZip.close();
       throw new IllegalArgumentException("FileAccessZip.openOutputStream - not supported yet.");
       //FileZipOutputStream ret = new ZipOutputStream(stream, fileZip);
       //return ret;
     } catch(IOException exc){
-      return null;
     }
-    
+    if(fileZip !=null) { try{ fileZip.close(); } catch(IOException exc1) {}}
+    return null;
+      
   }
   
 

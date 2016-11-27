@@ -106,8 +106,8 @@ public class ObjectId
     }
     int hash = data.hashCode();
     Integer instanceId = instancesOfType.mapInstances.get(hash);
-    boolean bNewInstance;
-    if(bNewInstance = (instanceId == null)) {
+    boolean bNewInstance = (instanceId == null);
+    if(bNewInstance ) {
       instanceId = new Integer(++instancesOfType.nextInstanceId);
       instancesOfType.mapInstances.put(hash, instanceId);
     }

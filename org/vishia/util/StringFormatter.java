@@ -756,6 +756,7 @@ public StringFormatter addReplaceLinefeed(CharSequence str, CharSequence replace
       buffer.reset();
       idx = idxLineEnd;
     }
+    try{ buffer.close();} catch(IOException exc) { /*close not handled*/ }
     return strRet;
   }    
 

@@ -44,6 +44,7 @@ public class RunJavaBatch {
           bStart = sLine.contains("exit");
         }
       }
+      reader.close();
     } catch(IOException exc){}
   }
   

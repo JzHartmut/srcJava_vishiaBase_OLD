@@ -510,6 +510,7 @@ public class CmdExecuter implements Closeable
       posArgs[++ixArg] = posArg + length;
       spLine.fromEnd();
     }
+    spLine.close();
     int nArgs = (ixArg+1)/2;
     if(preArgs !=null) { nArgs += preArgs.length; }
     if(postArgs !=null) { nArgs += postArgs.length; }
@@ -714,6 +715,7 @@ public class CmdExecuter implements Closeable
   {
     CmdExecuter main = new CmdExecuter();
     main.execute("cmd /C", null, null, null);
+    main.close();
     main.finalize();
   }
   

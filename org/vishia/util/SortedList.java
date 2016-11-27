@@ -283,6 +283,7 @@ abstract public class SortedList implements List
       String sLine = item.toString();
       fOut.write((sLine + "\n").getBytes());
     }
+    fOut.close();
   }
 
   /**
@@ -307,11 +308,15 @@ abstract public class SortedList implements List
       { Object item = null;
         try
         { item = (typeElement.newInstance());  //cloneItem.getBlankCopy();  //get a copy
-        } catch(Exception exception){ throw new RuntimeException("addTextFile: InstantiationException"); }
+        } catch(Exception exception){ 
+          fIn.close();
+          throw new RuntimeException("addTextFile: InstantiationException"); 
+        }
         //TODO item.setFromStringLine(sLine);
         addNew(item);
       }
     }
+    fIn.close();
   }
 
 

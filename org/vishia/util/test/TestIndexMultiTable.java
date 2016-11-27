@@ -163,6 +163,7 @@ public class TestIndexMultiTable
       }
       long timeend = System.nanoTime();
       timediff = (timeend - timestart)/1000000.0f;
+      rd.close();
     } catch(IOException exc){
       System.err.println("TestIndexMultiTable - IOException; "+ exc);
       timediff = -1;

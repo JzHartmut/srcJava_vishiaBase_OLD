@@ -605,6 +605,7 @@ public class LogMessageFile implements LogMessage
       } catch(Exception exc){
   		  bufferFormat.append("error-unknown in text format: ").append(text);
   	  }
+      formatter.close();
       formattedText = bufferFormat;  //XX
     } else {
       formattedText = text;   //without args, don't try to format! The text may contain format characters.    

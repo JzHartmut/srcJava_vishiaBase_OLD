@@ -38,12 +38,13 @@ public class PrintStreamAdapter extends PrintStream
   
    final String pre;
     
-   final Appendable out;
-    //StringBuilder uLine = new StringBuilder();
+   final Appendable outAppend;
+   
     
-    public PrintStreamAdapter(String pre, Appendable out) {
-      super(new OutStream(out));
-      this.out = out;
+   @SuppressWarnings("resource") //the argument of PrintStream(arg) will be closed on PrintStream.close.
+   public PrintStreamAdapter(String pre, Appendable outAppend) {
+      super(new OutStream(outAppend));  //the argument of PrintStream(arg) will be closed on PrintStream.close.
+      this.outAppend = outAppend;
       this.pre = pre;
     }
     
@@ -64,7 +65,7 @@ public class PrintStreamAdapter extends PrintStream
      * @see java.io.PrintStream#print(java.lang.String)
      */
     @Override public PrintStream append(CharSequence s) { 
-      try{ out.append(s); } catch (IOException exc){}
+      try{ outAppend.append(s); } catch (IOException exc){}
       return this;
     }
     
@@ -73,7 +74,7 @@ public class PrintStreamAdapter extends PrintStream
      * @see java.io.PrintStream#println(java.lang.String)
      */
     @Override public void println(Object o) { 
-      try{ out.append(o.toString()).append("\n"); } catch (IOException exc){}
+      try{ outAppend.append(o.toString()).append("\n"); } catch (IOException exc){}
     }
 
     
@@ -82,13 +83,15 @@ public class PrintStreamAdapter extends PrintStream
      * @see java.io.PrintStream#println(java.lang.String)
      */
     @Override public void println(String s) { 
-      try{ out.append(s).append("\n"); } catch (IOException exc){}
+      try{ outAppend.append(s).append("\n"); } catch (IOException exc){}
     }
 
     @Override public PrintStream printf(String s, Object... args) { 
-      try{ out.append(s).append("TODO args").append("\n"); } catch (IOException exc){}
+      try{ outAppend.append(s).append("TODO args").append("\n"); } catch (IOException exc){}
       return this;
     }
     
+    
+    @Override public void close() { super.close();} //closes the PrintStread of ctor too.
   
 }

@@ -2623,6 +2623,7 @@ throws ScriptException //Throwable
             } break;
             case 'U': {
               assert(dst instanceof StringPartAppend);            
+              @SuppressWarnings("resource") //it will/should be closed on script level.
               StringPartAppend u = (StringPartAppend) dst;
               u.clear();
               Object ocVal = oVal == null ? "--null--" : oVal;
@@ -2694,6 +2695,7 @@ throws ScriptException //Throwable
               val = new StringPartAppend();
             } else {
               CharSequence init1 = init instanceof CharSequence ? (CharSequence)init : init.toString();
+              @SuppressWarnings("resource") //it will/should be closed on script level.
               StringPartAppend u = new StringPartAppend();
               u.append(init1);
               val = u;

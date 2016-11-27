@@ -15,6 +15,7 @@ public class TestStringPart
     StringPartScan sp = new StringPartScan("y\\<\\:arg\\><textExpr?argExpr>");
     sp.seek(1);
     String res = sp.getCircumScriptionToAnyChar("<?").toString();
+    sp.close();
     Assert.check(res.equals("\\<\\:arg\\>"));
   }
 

@@ -1,5 +1,4 @@
-* FileList: touch only one file from a given list possible. The directory line does not contain a date up to now.
-* WikistyleTextToSimpleXml.java : new Now writes paragraphs in 2 or more  columns of a table 
-  if "..............." is found on start of line. The end is "^^^^^^^^^^^^^^^^^^^^^^^^" .
-  Gardening of the algorithm. Line ending with \r\n or only \r are supported too, see {@link #endline(String)}
-  
+FileList.java: bugfix, does not process sub directories on touch.
+Some warnings with ressource leak (close).
+
+

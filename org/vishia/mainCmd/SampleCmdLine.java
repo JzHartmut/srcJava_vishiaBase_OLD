@@ -345,6 +345,7 @@ public static class UserMain
     catch(IOException exception)
     { console.writeError("can't open " + cmdLineArgs.sFileIn, exception);
       console.setExitErrorLevel(MainCmd_ifc.exitWithFileProblems);
+      if(reader !=null) { reader.close();}
       throw new IOException("executeFiles");  //commonly exception of this routine.
     }
 
@@ -352,6 +353,8 @@ public static class UserMain
     catch(IOException exception)
     { console.writeError("can't create " + cmdLineArgs.sFileOut, exception);
       console.setExitErrorLevel(MainCmd_ifc.exitWithFileProblems);
+      if(reader !=null) { reader.close();}
+      if(writer !=null) { writer.close(); }
       throw exception;  //it's also able to forward the exception
     }
 

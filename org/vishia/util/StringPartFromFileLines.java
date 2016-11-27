@@ -269,12 +269,16 @@ public class StringPartFromFileLines extends StringPartScan
         { //the charset is defined in the first line:
           this.charset = Charset.forName(sCharset);  //replace the current charset
         }
-        else throw new IllegalArgumentException("charset requested with \"" + sEncodingDetect + "\", this String was found but the encoding name found in file is faulty");  
+        else {
+          spFirstLine.close();
+          throw new IllegalArgumentException("charset requested with \"" + sEncodingDetect + "\", this String was found but the encoding name found in file is faulty");  
+        }
         //sLine = new String(inBuffer, startPos, nrofFirstChars, charset);
       } else {
         //charset not found in file or syntax faulty.
         this.charset = charsetDefault == null ? Charset.defaultCharset() : charsetDefault;
       }
+      spFirstLine.close();
     }
     else {
       this.charset = charsetDefault == null ? Charset.defaultCharset() : charsetDefault;

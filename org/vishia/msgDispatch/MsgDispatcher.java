@@ -484,6 +484,7 @@ public static final int version = 0x20120302;
       /**Prevent Buffer expansion, use rest size. */
       errorBuffer.append(sError).append(" at:").append(spCtrl.getCurrent(nrofCharsRest));
     }
+    spCtrl.close();
     return sError; 
   }
   

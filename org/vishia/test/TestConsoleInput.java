@@ -24,6 +24,7 @@ public class TestConsoleInput
       switch(key){
         case 'A': case 'a': System.out.println("typed A");
       }
+      scan.close();
 
     } catch (Exception e) {
       // TODO Auto-generated catch block

@@ -646,6 +646,7 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
           if(pathchild.length() ==0){
             bCont = false;
           }
+          pathchild.close();
           pathchild = null;   //ends.
         } 
       } else {

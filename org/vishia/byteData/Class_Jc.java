@@ -199,8 +199,9 @@ public class Class_Jc extends Object_Jc
   
   public String report()
   { 
-      String sRet = "";
-      Iterator<Class_Jc> i = null; //allClasses.iterator();
+    String sRet = "";
+    Iterator<Class_Jc> i = null; //allClasses.iterator();
+    if(i !=null) {
       while (i.hasNext())
       { 
         Class_Jc aktClass = i.next();
@@ -208,6 +209,7 @@ public class Class_Jc extends Object_Jc
                 + "\t ReflectionClass 0x" + Integer.toHexString(aktClass.getReflectionClass()) + "\n";
         
       }      
+    }
     return sRet;      
   }
     

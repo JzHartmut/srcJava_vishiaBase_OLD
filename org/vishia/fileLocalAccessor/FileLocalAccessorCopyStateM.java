@@ -123,8 +123,8 @@ public class FileLocalAccessorCopyStateM implements EventConsumer
      * The other one may in use yet. */
     public boolean sendInternalEvent(CmdIntern cmd, boolean requested) {
       final EventInternal ev;
-      boolean bOk;                  //evSrc from outer class.
-      if(bOk = this.occupy(evSrc, false)) {
+      boolean bOk = this.occupy(evSrc, false);
+      if(bOk) {
         ev = this;
       } else {                      //if this is in use:
         ev = this.getOpponent();    //the opponent should be able to occupy.

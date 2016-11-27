@@ -331,6 +331,7 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
   
   @Override public ReadableByteChannel openRead(FileRemote file, long passPhase)
   { try{ 
+      @SuppressWarnings("resource") //will be closed on ReadableByteChannel.close();
       FileInputStream stream = new FileInputStream(file);
       return stream.getChannel();
     } catch(FileNotFoundException exc){
@@ -365,6 +366,7 @@ public class FileAccessorLocalJava6 extends FileRemoteAccessor
 
   @Override public WritableByteChannel openWrite(FileRemote file, long passPhase)
   { try{ 
+    @SuppressWarnings("resource") //will be closed on WriteableByteChannel.close();
     FileOutputStream stream = new FileOutputStream(file);
     return stream.getChannel();
     } catch(FileNotFoundException exc){

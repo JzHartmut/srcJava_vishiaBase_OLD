@@ -530,11 +530,13 @@ public abstract class MainCmd implements MainCmd_ifc
   /** prints the help info to the console output. This Method may be overloaded in MainCmdWin to show the contents in a window.
   */
   public void writeHelpInfo(File outfile)
-  { Appendable out;
+  { Appendable out= null;
+    FileWriter wr = null;
     boolean shouldClose = outfile !=null;
     if(outfile !=null){
-      try{ out = new FileWriter(outfile);
-      
+      try{ 
+        wr = new FileWriter(outfile);
+        out = wr;
       } catch(IOException exc){
         out = System.out;
         shouldClose = false;
@@ -556,6 +558,8 @@ public abstract class MainCmd implements MainCmd_ifc
       try{ ((Writer)out).close();
       }catch(IOException exc){ System.err.println("MainCmd.writeAboutInfo - ERROR unexpected IOException; "); }
     }
+    if(wr !=null) { try{ wr.close();} catch(Exception exc) {/*do nothing if close fails*/}}
+  
     bHelpIswritten = true;
   }
 
@@ -1047,16 +1051,17 @@ public abstract class MainCmd implements MainCmd_ifc
       reportln(MainCmdLogging_ifc.debug, "MainCmd.executeCmdLine():" + sOut);
       writeInfoln("execute>" + sOut.toString());
     }
+    BufferedReader outputReader = null, errorReader = null;
     try
     { Process process = Runtime.getRuntime().exec(cmd);
       InputStream processOutput = process.getInputStream();  //reads the output from exec.
       InputStream processError  = process.getErrorStream();  //reads the error from exec.
 
-      Runnable cmdOutput = new ShowCmdOutput(output, nReportLevel, new BufferedReader(new InputStreamReader(processOutput) ));
+      Runnable cmdOutput = new ShowCmdOutput(output, nReportLevel, outputReader = new BufferedReader(new InputStreamReader(processOutput) ));
       Thread threadOutput = new Thread(cmdOutput,"cmdline-out");
       threadOutput.start();  //the thread reads the processOutput and disposes it to the infoln
 
-      Runnable cmdError = new ShowCmdOutput(null, nReportLevel < 0 ? -MainCmdLogging_ifc.error: MainCmdLogging_ifc.error, new BufferedReader(new InputStreamReader(processError) ));
+      Runnable cmdError = new ShowCmdOutput(null, nReportLevel < 0 ? -MainCmdLogging_ifc.error: MainCmdLogging_ifc.error, errorReader = new BufferedReader(new InputStreamReader(processError) ));
       Thread threadError = new Thread(cmdError,"cmdline-error");
       threadError.start();   //the thread reads the processError and disposes it to the infoln
       writeInfoln("process ...");
@@ -1065,13 +1070,19 @@ public abstract class MainCmd implements MainCmd_ifc
     }
     catch(IOException exception)
     { writeInfoln( "Problem \n" + exception);
+      if(errorReader !=null) { try{ errorReader.close();} catch(Exception exc) {/*do nothing if close fails*/}}
+      if(outputReader !=null) { try{ outputReader.close();} catch(Exception exc) {/*do nothing if close fails*/}}
       throw new RuntimeException("IOException on commandline");
     }
     catch ( InterruptedException ie )
     {
       writeInfoln( ie.toString() );
+      if(errorReader !=null) { try{ errorReader.close();} catch(Exception exc) {/*do nothing if close fails*/}}
+      if(outputReader !=null) { try{ outputReader.close();} catch(Exception exc) {/*do nothing if close fails*/}}
       throw new RuntimeException("cmdline interrupted");
     }
+    if(errorReader !=null) { try{ errorReader.close();} catch(Exception exc) {/*do nothing if close fails*/}}
+    if(outputReader !=null) { try{ outputReader.close();} catch(Exception exc) {/*do nothing if close fails*/}}
     return exitErrorLevel;
   }
 
@@ -1168,18 +1179,18 @@ public abstract class MainCmd implements MainCmd_ifc
       , Appendable errOut
   )
   { int exitErrorLevel;
+  BufferedReader outputReader = null, errorReader = null;
   try
   {
     processBuilder.command(cmd);
     Process process = processBuilder.start();
     InputStream processOutput = process.getInputStream();  //reads the output from exec.
     InputStream processError  = process.getErrorStream();  //reads the error from exec.
-
-    Runnable cmdOutput = new ShowCmdOutput(output, nReportLevel, new BufferedReader(new InputStreamReader(processOutput) ));
+    Runnable cmdOutput = new ShowCmdOutput(output, nReportLevel, outputReader = new BufferedReader(new InputStreamReader(processOutput) ));
     Thread threadOutput = new Thread(cmdOutput,"cmdline-out");
     threadOutput.start();  //the thread reads the processOutput and disposes it to the infoln
 
-    Runnable cmdError = new ShowCmdOutput(errOut, nReportLevel, new BufferedReader(new InputStreamReader(processError) ));
+    Runnable cmdError = new ShowCmdOutput(errOut, nReportLevel, errorReader = new BufferedReader(new InputStreamReader(processError) ));
     Thread threadError = new Thread(cmdError,"cmdline-error");
     threadError.start();   //the thread reads the processError and disposes it to the infoln
     //boolean bCont = true;
@@ -1212,6 +1223,8 @@ public abstract class MainCmd implements MainCmd_ifc
     exitErrorLevel = 255;
     //throw new RuntimeException("cmdline interrupted");
   }
+  if(errorReader !=null) { try{ errorReader.close();} catch(Exception exc) {/*do nothing if close fails*/}}
+  if(outputReader !=null) { try{ outputReader.close();} catch(Exception exc) {/*do nothing if close fails*/}}
   return exitErrorLevel;
   }
   

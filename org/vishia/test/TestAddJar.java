@@ -1,6 +1,7 @@
 package org.vishia.test;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -21,6 +22,7 @@ public class TestAddJar
   
   
   
+  @SuppressWarnings("unused")
   void execute() throws MalformedURLException, ClassNotFoundException, InstantiationException, IllegalAccessException{
     //it is false! 
     //System.loadLibrary("D:/Programme/Eclipse3_5/plugins/org.apache.ant_1.7.1.v20090120-1145/lib/ant-swing.jar");
@@ -39,6 +41,7 @@ public class TestAddJar
     System.out.println(clazz.getName());
     
     //does not work:  Object test = new org.apache.tools.ant.taskdefs.optional.splash.SplashScreen();
+    try{ child.close();} catch(IOException exc) { /*close not handled*/ }
     Object test = clazz.newInstance();
     
   }
