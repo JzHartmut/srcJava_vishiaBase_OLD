@@ -646,7 +646,6 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
           if(pathchild.length() ==0){
             bCont = false;
           }
-          pathchild.close();
           pathchild = null;   //ends.
         } 
       } else {
@@ -2180,8 +2179,8 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
 
   
   /**Copies all files which are checked before. 
-   * <code>this</code> is the dir or file as root of the sources. If this is a file, it is the only one to copy.
-   * If this is a directory, the files to copy are marked in this directory.
+   * <code>this</code> is the dir or file as root for copy to the given pathDst. 
+   * The files to copy are marked in this directory or it is this file.
    * <br><br>
    * The copying process is interactive. It is possible to ask whether files should be override etc, the progress is shown.
    * For that the {@link FileRemoteProgressTimeOrder} is used. This timeOrder should be created as overridden time order

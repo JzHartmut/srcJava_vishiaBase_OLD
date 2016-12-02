@@ -1,4 +1,5 @@
-FileList.java: bugfix, does not process sub directories on touch.
-Some warnings with ressource leak (close).
-
+bugfixes and comment, new: StringFunctions.cNoCidentifier
+* FileRemote: the StringPart.close() was fatal because that StringPart was used after them.  
+* StringPartScan, StringFunctions.cNoCidentifier: It is a special character which checks a non-identifier character at end of a scanned text.
+* SpecialCharStrings, StringFunctions, StringPart: the definition of cStartOfText and cEndOfText is defined only one time.
 

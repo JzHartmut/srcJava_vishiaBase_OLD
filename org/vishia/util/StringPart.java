@@ -304,12 +304,6 @@ abcdefghijklmnopqrstuvwxyz  Sample of the whole associated String
    /** The string defined the start of comment to end of line*/
    String sCommentToEol = "//";
    
-  /** The char used to code start of text. */  
-  public static final char cStartOfText = (char)(0x2);
-  
-  /** The char used to code end of text. */  
-  public static final char cEndOfText = (char)(0x3);
-
   /** Creates a new empty StringPart without an associated String. See method set() to assign a String.*/
   public StringPart()
   { this.content = null; begiMin = begin = beginLast= 0; endLast = endMax = end = 0;
@@ -1545,7 +1539,7 @@ public final int indexOfAnyChar(CharSequence sChars, final int fromWhere, final 
    }
  }
  if(bNotFound){
-   if(StringFunctions.indexOf(sChars, cEndOfText) >= 0) return pos - begin;  // it is found because cEndOfText is searched too.
+   if(StringFunctions.indexOf(sChars, StringFunctions.cEndOfText) >= 0) return pos - begin;  // it is found because cEndOfText is searched too.
    else return -1;
  }
  else return (pos - begin);
@@ -2191,7 +2185,7 @@ else return pos - begin;
     * @param sCmp The text to compare.
    */
    public final boolean startsWith(CharSequence sCmp)
-   { int pos_cEndOfText = StringFunctions.indexOf(sCmp, cEndOfText, 0); //sCmp.indexOf(cEndOfText);
+   { int pos_cEndOfText = StringFunctions.indexOf(sCmp, StringFunctions.cEndOfText, 0); //sCmp.indexOf(cEndOfText);
      
      if(pos_cEndOfText >=0)
      { if(pos_cEndOfText ==0)
@@ -2484,10 +2478,13 @@ public final String debugString()
    * @param placeholder An array of strings, any string of them may be found in the src. 
    * @param value An array of strings appropriate to the placeholder. Any found placeholder 
    *        will be substitute with that string. 
-   * @param dst A given StringBuilder-instance. If null, then a StringBuilder will be created here
-   * @return The changed string contained in dst or a created StringBuilder.
+   * @param dst A given StringBuilder-instance maybe with a start content. If null, then a StringBuilder will be created here
+   * @return dst if given, src will be appended to it, or a created StringBuilder with result.
+   *   TODO don't create a StringBuilder but return src if src does not contain anything to replace.
+   * @since 2016-11: returns a CharSequence instead String, it is more optimized, does not need an extra maybe unnecessary buffer.
+   *   For older usages you should add toString() after the result of this routine to preserve compatibility. 
    */
-  public static String replace(CharSequence src, CharSequence[] placeholder, CharSequence[] value, StringBuilder dst)
+  public static CharSequence replace(CharSequence src, CharSequence[] placeholder, CharSequence[] value, StringBuilder dst)
   { final int len = src.length();
     int ixPos = 0;
     int nrofToken = placeholder.length;
@@ -2509,7 +2506,7 @@ public final String debugString()
         posPatternStart = -1;  //mark end
       }
     }while(posPatternStart >=0);
-    return dst.toString()  ;
+    return dst;
   }
   
 

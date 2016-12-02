@@ -13,6 +13,7 @@ public class StringFunctions {
 
   /**Version, history and license.
    * <ul>
+   * <li>2016-12-02 Hartmut new: {@value #cNoCidentifier} 
    * <li>2016-09-25 Hartmut new: {@link #nrofBytesUTF8(byte)} used in {@link StringPartFromFileLines} 
    * <li>2016-05-22 Hartmut chg: {@link #indexOfAnyString(CharSequence, int, int, CharSequence[], int[], String[])}: Algorithm from StringPart
    *   copied to here. It is common. temporary instance in StrinPart prevented. 
@@ -82,6 +83,16 @@ public class StringFunctions {
   /** The char used to code end of text. It is defined in ASCII as EOT. 
    * In Unicode it is the same like {@value Character#TITLECASE_LETTER}, another meaning. */  
   public static final char cEndOfText = (char)(0x3);
+
+  /** The char used to code start of text. */  
+  public static final char cStartOfText = (char)(0x2);
+  
+  /**The char used to coding any char which is not an identifier character
+   * usual in programming languages like C, Java: A..Z a..z 0..9 _. */  
+  public static final char cNoCidentifier = (char)(0x4);
+
+
+
 
   public static int indexWhitespace(CharSequence src, int start, int endMax){
     int pos = start;
@@ -929,11 +940,14 @@ public class StringFunctions {
         }
         else if( cNext == 'a')
         { // \a means end of file, coded inside with 4 = EOT (end of transmission).
-          sbReturn.setCharAt(posSwitch, SpecialCharStrings.cStartOfText);
+          sbReturn.setCharAt(posSwitch, cStartOfText);
         }
         else if( cNext == 'e')
         { // \e means end of file, coded inside with 4 = EOT (end of transmission).
-          sbReturn.setCharAt(posSwitch, SpecialCharStrings.cEndOfText);
+          sbReturn.setCharAt(posSwitch, cEndOfText);
+        } else if( cNext == 'W')
+        { // \W means a non-word character like in regulare expressions.
+          sbReturn.setCharAt(posSwitch, cNoCidentifier);
         }
         else
         { //the char after cEscape is valid and not changed!

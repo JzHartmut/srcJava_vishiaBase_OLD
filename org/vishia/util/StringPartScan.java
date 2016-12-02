@@ -226,15 +226,27 @@ public class StringPartScan extends StringPart
     {                //      but the sTestP may contain only cEndOfText. end of text will be okay than.
       seekNoWhitespaceOrComments();
       CharSequence sTest;
-      int len = StringFunctions.indexOf(sTestP,cEndOfText,0);
+      int len = StringFunctions.indexOf(sTestP,StringFunctions.cEndOfText,0);
+      int len2 = StringFunctions.indexOf(sTestP,StringFunctions.cNoCidentifier,0);
+      boolean bTestToNoCidentifier = (len2 >=0);
       boolean bTestToEndOfText = (len >=0);
-      if(bTestToEndOfText){ sTest = sTestP.subSequence(0, len); }
+      if(bTestToNoCidentifier){ 
+        sTest = sTestP.subSequence(0, len2); 
+        len = len2;
+      }
+      else if(bTestToEndOfText){ 
+        sTest = sTestP.subSequence(0, len); 
+      }  //only one of the end symbols.
       else { len = sTestP.length(); sTest = sTestP; }
+      char cc;
       if(  (begin + len) <= endMax //content.length()
         && StringFunctions.equals(content, begin, begin+len, sTest)
-        && (  !bTestToEndOfText 
-           || begin + len == end
-           )
+        && ( bTestToEndOfText ? begin + len == end  //should be the exact length
+           : (bTestToNoCidentifier ? 
+             (begin + len == end)   //either end of text
+               || (   (cc = content.charAt(begin + len)) != '_'   //or not an identifier character.
+                   && !(cc >= '0' && cc <='9') && !(cc >= 'A' && cc <='Z') && !(cc >= 'a' && cc <='z')) 
+           : true))     
         )
       { begin += len;
       }

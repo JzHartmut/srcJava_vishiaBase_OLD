@@ -1,4 +1,4 @@
-2016-11-27 21:52:17  x     _filelist.lst                            ::           .  0  0000000000 
+2016-12-02 22:55:47  x     _filelist.lst                            ::           .  0  0000000000 
 
 ============================== _make/ =============================================================
 2012-08-12 22:29:02  x     +genDownload.sh                          ::           .966 -1047256477 
@@ -132,7 +132,7 @@
 2016-11-27 20:58:05  x     FileAccessZip.java                       ::         16.702 -1596485066 
 2016-01-19 22:50:19  x     FileCluster.java                         ::         20.621  0570043045 
 2015-09-09 21:35:41  x     FileMark.java                            ::          9.055 -1189575623 
-2016-11-27 21:10:45  x     FileRemote.java                          ::        147.690 -2138277421 
+2015-12-06 22:55:22  x     FileRemote.java                          ::        147.625  2021680241 
 2015-05-31 08:35:14  x     FileRemoteAccessor.java                  ::         13.357  1291194227 
 2014-12-23 15:50:28  x     FileRemoteCallback.java                  ::           .522  1716092114 
 2015-09-05 21:14:16  x     FileRemoteCallbackCmp.java               ::         18.518  0411929384 
@@ -258,17 +258,17 @@
 2012-11-05 22:07:50  x     SortedTree.java                          ::          3.791 -1851397039 
 2015-05-26 22:42:28  x     SortedTreeNode.java                      ::          5.875 -0445045828 
 2015-09-04 22:46:04  x     SortedTreeWalkerCallback.java            ::          5.474 -1471683679 
-2016-06-25 22:56:43  x     SpecialCharStrings.java                  ::          5.405 -1790184353 
+2016-12-02 16:00:10  x     SpecialCharStrings.java                  ::          5.407 -1661090385 
 2011-02-26 15:36:54  x     StdHexFormatWriter.java                  ::          4.376  0697421476 
 2016-11-27 20:49:44  x     StringFormatter.java                     ::         47.857 -1978745428 
-2016-10-03 21:32:22  x     StringFunctions.java                     ::         46.109  1281576074 
+2016-12-02 22:53:11  x     StringFunctions.java                     ::         46.608 -1316028884 
 2016-10-17 14:03:55  x     StringFunctions_B.java                   ::          7.986  1494278515 
 2016-10-16 22:15:12  x     StringFunctions_C.java                   ::         12.529  2058273911 
-2016-11-27 21:35:06  x     StringPart.java                          ::        110.738  2047618623 
+2016-12-02 16:01:32  x     StringPart.java                          ::        110.942  1663594159 
 2014-06-14 12:02:17  x     StringPartAppend.java                    ::          5.482 -1907437228 
 2015-09-30 08:42:27  x     StringPartFromFile.java                  ::          2.812  0877476463 
 2016-11-27 21:19:33  x     StringPartFromFileLines.java             ::         19.011  0922244198 
-2016-11-27 21:35:33  x     StringPartScan.java                      ::         35.495  0274526885 
+2016-12-02 16:51:39  x     StringPartScan.java                      ::         36.157 -1640774476 
 2014-01-14 08:55:20  x     StringSeq.java                           ::          6.617 -1883922442 
 2011-02-26 21:31:28  x     ThreadContext.java                       ::          2.353 -1963738349 
 2016-01-24 19:42:52  x     ThreadRun.java                           ::          9.693  1605710614 

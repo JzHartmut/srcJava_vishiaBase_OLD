@@ -40,12 +40,6 @@ package org.vishia.util;
  */
 public class SpecialCharStrings 
 {
-  /** The char used to code start of text. */  
-  public static final char cStartOfText = (char)(0x2);
-  
-  /** The char used to code end of text. */  
-  public static final char cEndOfText = (char)(0x3);
-
   /**Resolves the given String containing some switch chars in form of backslash 
    * to a string with the appropriate character codes.
    * In the result String all char-pairs beginning with backslash are replaced by
@@ -95,11 +89,14 @@ public class SpecialCharStrings
         }
         else if( cNext == 'a')
         { // \a means end of file, coded inside with 4 = EOT (end of transmission).
-          sbReturn.setCharAt(posSwitch, cStartOfText);
+          sbReturn.setCharAt(posSwitch, StringFunctions.cStartOfText);
         }
         else if( cNext == 'e')
         { // \e means end of file, coded inside with 4 = EOT (end of transmission).
-          sbReturn.setCharAt(posSwitch, cEndOfText);
+          sbReturn.setCharAt(posSwitch, StringFunctions.cEndOfText);
+        } else if( cNext == 'W')
+        { // \W means a non-word character like in regulare expressions.
+          sbReturn.setCharAt(posSwitch, StringFunctions.cNoCidentifier);
         }
         else
         { //the char after cEscape is valid and not changed!
