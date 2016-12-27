@@ -82,6 +82,7 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2016-12-27 Hartmut new: {@link #abortCmdExecution()} necessary if an execution hangs. 
    * <li>2016-12-27 Hartmut new: class {@link JZcmdMain} renamed from JZcmd and set package private. Because possible confusion with {@link org.vishia.zcmd.JZcmd} 
    * <li>2016-03-06 Hartmut new: 
    *   <ul><li>Create a codeBlock variable with {@link ExecuteLevel#exec_DefCodeblockVariable(Map, org.vishia.cmd.JZcmdScript.Subroutine, boolean) on statement <code>Subtext name = ...</code>,
@@ -322,6 +323,8 @@ public class JZcmdExecuter {
     
     /**The java prepared generation script. */
     private JZcmdScript jzcmdScript;
+    
+    Queue<CmdExecuter> runningCmdExecuter = new ConcurrentLinkedQueue<CmdExecuter>();
     
     
     public final Queue<JZcmdThread> threads = new ConcurrentLinkedQueue<JZcmdThread>();
@@ -666,6 +669,19 @@ public ExecuteLevel execute_Scriptclass(JZcmdScript.JZcmdClass clazz) throws Scr
   }
   
   
+  /**Aborts all {@link CmdExecuter} for operation system calls in all threads of this.
+   * @return true if at least one was aborted.
+   */
+  public boolean abortCmdExecution() {
+    boolean bAborted = false;
+    for(CmdExecuter cmd: acc.runningCmdExecuter) {
+      if(cmd.abortCmd()) {
+        bAborted = true;
+      }
+    }
+    return bAborted;
+  }
+  
   /**Executes the given script.
    * @param genScriptP The script. It sets the {@link #jzcmdScript} internal variable which is used
    *   to search sub routines. 
@@ -967,6 +983,7 @@ throws ScriptException //Throwable
     
     
     /**Initialize firstly on demand. Don't close to speed up following cmd invocations.
+     * It is necessary to have one executer per level because different environment variables.
      */
     public CmdExecuter cmdExecuter;
 
@@ -2259,9 +2276,11 @@ throws ScriptException //Throwable
       //
       String[] sArgs = new String[args.size()]; 
       args.toArray(sArgs);
+      jzcmdMain.runningCmdExecuter.offer(cmdExecuter);
       this.cmdErrorlevel = cmdExecuter.execute(sArgs, statement.bShouldNotWait, null, outCmd, null, null);
+      jzcmdMain.runningCmdExecuter.remove(cmdExecuter);
       //
-      //close
+      //don't close for following commands.
       //
     }
     

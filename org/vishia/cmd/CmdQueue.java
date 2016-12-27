@@ -428,7 +428,10 @@ public class CmdQueue implements Closeable
    */
   public boolean abortCmd()
   { pendingCmds.clear();
-    return executer.abortCmd();
+    boolean bAborted = false;
+    if(executer.abortCmd()) bAborted = true;
+    if(jzcmdExecuter.abortCmdExecution()) bAborted = true;
+    return bAborted;
   }
   
   
