@@ -1,5 +1,14 @@
-bugfixes and comment, new: StringFunctions.cNoCidentifier
-* FileRemote: the StringPart.close() was fatal because that StringPart was used after them.  
-* StringPartScan, StringFunctions.cNoCidentifier: It is a special character which checks a non-identifier character at end of a scanned text.
-* SpecialCharStrings, StringFunctions, StringPart: the definition of cStartOfText and cEndOfText is defined only one time.
-
+CmdQueue: new interface CmdGetterArguments. org.vishia.fileRemote.FileRemoteCallbackCmp bugfix.
+CmdQueue: The old org.vishia.cmd.PrepareCmd should be eliminated 
+because the JZcmd is the better one solution to execute commands with complex arguments meanwhile. That should be done because
+the arguments for JZcmd should be more complex for the application the.File.commander: List of files should be used too.
+For that the interface org.vishia.cmd.CmdGetFileArgs_ifc is not sufficient. 
+This interface is common for JZcmd and the older 'PrepareCmd' yet now, but not for future. 
+Because it will be incompatible, the maintenance of the older PrepareCmd is not efficient and the older class is unnecessary.
+* org.vishia.cmd.CmdGetterArguments: new interface
+* org.vishia.cmd.PrepareCommand and ~.CmdGetFileArgs_ifc: now deprecated.
+* org.vishia.cmd.CmdQueue: new method addCommand(..., CmdGetterArguments) and addCommand(cmdString, ...)
+* org.vishia.cmd.CmdStore: addSubOfJZcmdClass(...) changed.
+* org.vishia.fileRemote.FileRemoteCallbackCmp bugfix
+* org.vishia.msgDispatch.MsgDispatcher: some changes for Java2C
+* org.vishia.util.StringPart: some changes for Java2C

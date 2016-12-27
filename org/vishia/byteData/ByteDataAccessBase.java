@@ -227,7 +227,7 @@ public class ByteDataAccessBase implements InfoFormattedAppend
    * 
    * 
    */
-  public final static String version = "2015-03-08";
+  public final static String version = "2016-01-24";
   
   
   

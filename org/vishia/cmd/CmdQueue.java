@@ -3,8 +3,6 @@ package org.vishia.cmd;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -26,6 +24,10 @@ public class CmdQueue implements Closeable
   
   /**Version, history and license.
    * <ul>
+   * <li>2016-09-18 Hartmut new: {@link #addCmd(CmdBlock, CmdGetterArguments)} new concept supports only {@link JZcmdExecuter}
+   *   The {@link #addCmd(String, File, boolean)} and {@link #addCmd(String[], File, boolean)} is newly designed for simple operation system
+   *   command execution without JZcmd concept. The {@link #addCmd(CmdBlock, File[], File)} which prepares file parts is designated as deprecated.
+   *   Instead the JZcmdExecuter with more capability should be used. 
    * <li>2016-09-18 Hartmut chg: ctor with null as log, don't use log and JZcmd for simple applications. 
    * <li>2015-07-18 Hartmut chg: Now associated to an Appendable instead a PrintStream for error alive and error messages.
    *   A System.out is an Appendable too, for this kind the application is unchanged. Other output channels may support
@@ -66,18 +68,24 @@ public class CmdQueue implements Closeable
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
-  public static final String version = "2015-07-18";
+  public static final String version = "2016-12-27";
   
   private static class PendingCmd implements CmdGetFileArgs_ifc
   {
     //final CmdStore.CmdBlock cmdBlock;
     //public final List<PrepareCmd> listCmds;
-    public final PrepareCmd cmd;
+    @Deprecated final PrepareCmd cmd;
     
-    public final JZcmdScript.Subroutine jbat;
+    final String[] cmdAndArgs;
     
-    final File[] files;
+    final boolean bSilent;
+    
+    final JZcmdScript.Subroutine jbat;
+    
+    @Deprecated final File[] files;
+    
     final Map<String, DataAccess.Variable<Object>> args;
+    
     File currentDir;
     
     /**Constructs a cmd which is added to a queue to execute in another thread.
@@ -88,12 +96,14 @@ public class CmdQueue implements Closeable
      *   should be referenced.CmdGetFileArgs_ifc
      * @param currentDir
      */
-    public PendingCmd(PrepareCmd cmd, File[] files, File currentDir)
+    PendingCmd(PrepareCmd cmd, File[] files, File currentDir)
     { this.cmd = cmd;
       this.jbat = null;
       this.files = files;
       this.args = null;
+      this.cmdAndArgs = null;
       this.currentDir = currentDir;
+      bSilent = false;
     }
 
     /**Constructs a cmd which is added to a queue to execute in another thread.
@@ -104,12 +114,32 @@ public class CmdQueue implements Closeable
      *   should be referenced.CmdGetFileArgs_ifc
      * @param currentDir
      */
-    public PendingCmd(JZcmdScript.Subroutine cmd, Map<String, DataAccess.Variable<Object>> args, File currentDir)
+    PendingCmd(String[] cmd, File currentDir, boolean silent)
     { this.cmd = null;
+      this.cmdAndArgs = cmd;
+      this.jbat = null;
+      this.files = null;
+      this.args = null;
+      this.currentDir = currentDir;
+      this.bSilent = silent;
+    }
+
+    /**Constructs a cmd which is added to a queue to execute in another thread.
+     * @param cmd The prepared cmd
+     * @param files Some files which may be used by the command.
+     *   Note that a reference to another {@link CmdGetFileArgs_ifc} can't be used
+     *   if that selection is valid only on calling time. Therefore the yet selected files
+     *   should be referenced.CmdGetFileArgs_ifc
+     * @param currentDir
+     */
+    PendingCmd(JZcmdScript.Subroutine cmd, Map<String, DataAccess.Variable<Object>> args, File currentDir)
+    { this.cmd = null;
+      this.cmdAndArgs = null;
       this.jbat = cmd;
       this.files = null;
       this.args = args;
       this.currentDir = currentDir;
+      bSilent = false; //not used.
     }
 
     @Override public void  prepareFileSelection()
@@ -191,7 +221,8 @@ public class CmdQueue implements Closeable
    */
   @Deprecated
   public void setWorkingDir(File file)
-  { final File dir;
+  { @SuppressWarnings("unused")
+    final File dir;
     if(!file.isDirectory()){
       dir = file.getParentFile();
     } else {
@@ -202,15 +233,61 @@ public class CmdQueue implements Closeable
   
 
   
-  /**Adds a command to execute later. The execution may be done in another thread.
+  /**Adds a command to the queue to execute in {@link #execCmds(Appendable)}. The execution may be done in another thread.
+   * The adding is thread-safe and a cheap operation. It uses a ConcurrentListQueue. 
+   * @param cmd An operation system command as line with spaces to separate arguments. 
+   * @param currentDir directory as current to execute the operation system command.
+   * @param silent Execution without waiting and without output. The next command, if given, is started parallel with an own process.
+   * @return Number of members in queue pending for execution. It is a hint whether the list maybe jam-packed because the execution hangs. 
+   */
+  public int addCmd(String cmd, File currentDir, boolean silent)
+  {
+    pendingCmds.add(new PendingCmd(cmd.split(" "), currentDir, silent));  //to execute.
+    return pendingCmds.size();
+  }
+
+  
+  /**Adds a command to the queue to execute in {@link #execCmds(Appendable)}. The execution may be done in another thread.
+   * The adding is thread-safe and a cheap operation. It uses a ConcurrentListQueue. 
+   * @param cmd An operation system command, cmd[0] is the command, cmd[1...] are arguments.
+   * @param currentDir directory as current to execute the operation system command.
+   * @param silent Execution without waiting and without output. The next command, if given, is started parallel with an own process.
+   * @return Number of members in queue pending for execution. It is a hint whether the list maybe jam-packed because the execution hangs. 
+   */
+  public int addCmd(String[] cmd, File currentDir, boolean silent)
+  {
+    pendingCmds.add(new PendingCmd(cmd, currentDir, silent));  //to execute.
+    return pendingCmds.size();
+  }
+
+  
+  /**Adds a command to the queue to execute in {@link #execCmds(Appendable)}. The execution may be done in another thread.
    * The adding is thread-safe and a cheap operation. It uses a ConcurrentListQueue. 
    * @param cmdBlock The command block
-   * @param files Some files
-   * @return Number of members in queue pending for execution.
+   * @param args Some arguments especially for {@link JZcmdExecuter#execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)}
+   *   but maybe by a line command too.
+   * @param currentDir directory as current to execute the operation system command.
+   * @return Number of members in queue pending for execution. It is a hint whether the list maybe jam-packed because the execution hangs. 
    */
   public int addCmd(CmdBlock cmdBlock, Map<String, DataAccess.Variable<Object>> args, File currentDir)
   {
-    pendingCmds.add(new PendingCmd(cmdBlock.zgenSub, args, currentDir));  //to execute.
+    pendingCmds.add(new PendingCmd(cmdBlock.getJZcmd(), args, currentDir));  //to execute.
+    return pendingCmds.size();
+  }
+
+  
+  /**Adds a command to the queue to execute in {@link #execCmds(Appendable)}. The execution may be done in another thread.
+   * The adding is thread-safe and a cheap operation. It uses a ConcurrentListQueue. 
+   * @param cmdBlock The command block
+   * @param getterArguments Instance which implements getting arguments from any application. 
+   * @param currentDir directory as current to execute the operation system command.
+   * @return Number of members in queue pending for execution. It is a hint whether the list maybe jam-packed because the execution hangs. 
+   */
+  public int addCmd(CmdBlock cmdBlock, CmdGetterArguments getterArguments)
+  {
+    Map<String, DataAccess.Variable<Object>> args = getterArguments.getArguments(cmdBlock);
+    File currDir = getterArguments.getCurrDir();
+    pendingCmds.add(new PendingCmd(cmdBlock.getJZcmd(), args, currDir));  //to execute.
     return pendingCmds.size();
   }
 
@@ -221,7 +298,7 @@ public class CmdQueue implements Closeable
    * @param files Some files
    * @return Number of members in queue pending for execution.
    */
-  public int addCmd(CmdBlock cmdBlock, File[] args, File currentDir)
+  @Deprecated public int addCmd(CmdBlock cmdBlock, File[] args, File currentDir)
   {
     for(PrepareCmd cmd: cmdBlock.getCmds()){
       pendingCmds.add(new PendingCmd(cmd, args, currentDir));  //to execute.
@@ -237,7 +314,7 @@ public class CmdQueue implements Closeable
    * @param kindOfExecution See {@link PrepareCmd#PrepareCmd(char)}
    * @return number of pending commands.
    */
-  public int addCmd(String sCmd, File[] files, File currentDir, char kindOfExecution)
+  @Deprecated public int addCmd(String sCmd, File[] files, File currentDir, char kindOfExecution)
   {
     PrepareCmd cmd = new PrepareCmd(kindOfExecution);
     cmd.set_cmd(sCmd);
@@ -251,6 +328,13 @@ public class CmdQueue implements Closeable
   /**Executes the pending commands.
    * This method should be called in a specified user thread. It returns if the command queue is empty.
    * It should be called cyclically or the thread should be woken up after a {@link #addCmd(CmdBlock, File[], File)}.
+   * <br>
+   * It checks {@link #pendingCmds}. An instance of a cmd is {@link PendingCmd}. It can contain either an operation system command entry
+   * or an {@link JZcmdScript.Subroutine} start point for {@link #jzcmdExecuter}.
+   * <br>
+   * The command was added to the {@link #pendingCmds} either with {@link #addCmd(CmdBlock, File[], File)}, {@link #addCmd(CmdBlock, Map, File)}
+   * or {@link #addCmd(String, File[], File, char)}. The {@link CmdBlock} can be created as 'possibility' for a command for example
+   * to select it from a list or created on demand.  
    * @param outStatus A channel to write the execution status for example for a GUI-notification.
    *   A '\0' will be append to it if the queue is empty after execution.
    */
@@ -273,11 +357,23 @@ public class CmdQueue implements Closeable
           jzcmdExecuter.execSub(cmd1.jbat, cmd1.args, false, cmdOutput, cmd1.currentDir);
         } else {
           //a operation system command:
-          String[] sCmd = cmd1.cmd.prepareCmd(cmd1);
+          String[] sCmd;
+          char kindOfExecution;
+          if(cmd1.cmdAndArgs !=null) {
+            sCmd = cmd1.cmdAndArgs;
+            if(sCmd[0].charAt(0) == '&') {
+              kindOfExecution = '&';
+              sCmd[0] = sCmd[0].substring(1);
+            } else {
+              kindOfExecution = cmd1.bSilent ? '&' : '>';
+            }
+          } else {
+            sCmd = cmd1.cmd.prepareCmd(cmd1);
+            kindOfExecution = cmd1.cmd.getKindOfExecution();
+          }
           for(String s1: sCmd){
             sCmdShow.append(s1).append(" ");
           }
-          char kindOfExecution = cmd1.cmd.getKindOfExecution();
           if(">%".indexOf(kindOfExecution) >=0){
             if(outStatus !=null){ outStatus.append(">" + sCmd[0]); }
             if(cmdOutput !=null){
@@ -325,10 +421,10 @@ public class CmdQueue implements Closeable
   }
 
 
-  /**Aborts a running cmd and clears the queue. Old: If the cmd queue contains any further cmd, it is started yet.
+  /**Aborts a running cmd and clears the queue. 
    * The clearing of the command queue is a good idea, because while a program execution hangs, some unnecessary requests
-   * may be initiated.
-   * @return true if any cmd is aborted.
+   * may be initiated. Therefore all is cleared.
+   * @return true if any cmd was aborted.
    */
   public boolean abortCmd()
   { pendingCmds.clear();
@@ -336,6 +432,10 @@ public class CmdQueue implements Closeable
   }
   
   
+  /**Returns true if the execution is running. 
+   * Does not return true if any command was stored but the execution with {@link #execCmds(Appendable)} is not started.
+   * @return
+   */
   public boolean isBusy(){ return busy; }
   
   

@@ -1,6 +1,7 @@
 package org.vishia.cmd;
 
 import java.io.File;
+import java.util.List;
 
 /**Gets file arguments from the environment to build a command line.
  * <br><br>
@@ -17,11 +18,20 @@ import java.io.File;
  * should convert namepart.replace('\\','/') before the name part is processed anywhere. 
  *  
  * @author Hartmut Schorrig
+ * @deprecated new concept is {@link CmdGetterArguments}. This class is too restricted.
  *
  */
 public interface CmdGetFileArgs_ifc
 {
+  /**Invokes the preparation of the file situation to get the files after them.
+   * That should be invoked firstly before get...().
+   */
+  void prepareFileSelection();
   /**Gets a file which is the first one. */ 
+
+  /**Gets the selected file. */
+  File getFileSelect();
+  
   File getFile1();
   
   /**Gets a file which is the second one. */ 
@@ -29,9 +39,5 @@ public interface CmdGetFileArgs_ifc
   
   /**Gets a file which is the third one. */ 
   File getFile3();
-  
-  /**Gets the selected file. */
-  File getFileSelect();
-  
-  void prepareFileSelection();
+
 }

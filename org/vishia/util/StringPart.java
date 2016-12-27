@@ -1,6 +1,6 @@
 package org.vishia.util;
 
-
+import org.vishia.bridgeC.IllegalArgumentExceptionJc;
 
 /* This is an alternative to the {@link java.lang.String} which uses a shared reference to the char sequence.
  * This class is able to use if String processing is done in a closed thread. This class must not be used 
@@ -356,6 +356,8 @@ abcdefghijklmnopqrstuvwxyz  The associated String
   @param content The content.
   @return <code>this</code> to concatenate some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
+  @Java4C.Retinline
+  @Java4C.ReturnThis 
   public final StringPart assign(CharSequence ref)
   { 
     content = ref;
@@ -572,6 +574,9 @@ abcdefghijklmnopqrstuvwxyz  The associated String
     @param src The given StringPart.
     @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
+  @Java4C.Retinline
+  @Java4C.ReturnThis 
+  @Java4C.NoStackTrace
   public final StringPart setBeginMaxPart()
   { begiMin = begin;
     return this;
@@ -583,7 +588,7 @@ abcdefghijklmnopqrstuvwxyz  The associated String
   /**Sets the full range of available text.
    * begin is set to 0, end is set to the length() of the content.
    */
-  @Java4C.Inline
+  @Java4C.Retinline
   @Java4C.ReturnThis 
   public final StringPart setParttoMax(){
     begiMin = beginLast = begin = 0;
@@ -605,6 +610,9 @@ abcdefghijklmnopqrstuvwxyz  The associated String
     @java2c=return-this.
     @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
   */
+  @Java4C.Retinline
+  @Java4C.ReturnThis 
+  @Java4C.NoStackTrace
   public final StringPart fromEnd()
   {
     beginLast = begin;
@@ -619,15 +627,17 @@ abcdefghijklmnopqrstuvwxyz  The associated String
  * @see java.lang.CharSequence#charAt(int)
  */
 @Override
+@Java4C.Retinline
 public final char charAt(int index){ 
   return absCharAt(begin + index);
 }
 
 
-  @Java4C.Inline public final boolean checkCharAt(int pos, String chars){
-    return (begin + pos >=end) ? false
-    : chars.indexOf(charAt(pos)) >=0;  //char found.
-  }
+@Java4C.Retinline 
+public final boolean checkCharAt(int pos, String chars){
+  return (begin + pos >=end) ? false
+  : chars.indexOf(charAt(pos)) >=0;  //char found.
+}
 
 
 /**Returns a volatile CharSequence from the range inside the current part.
@@ -670,6 +680,8 @@ private final void throwSubSeqFaulty(int from, int to)
   /**Returns the lenght of the maximal part from current position. Returns also 0 if no string is valid.
      @return number of chars from current position to end of maximal part.
    */
+  @Java4C.Retinline
+  @Java4C.NoStackTrace
   public final int lengthMaxPart()
   { if(endMax > begin) return endMax - begin;
     else return 0;
@@ -750,6 +762,8 @@ private final void throwSubSeqFaulty(int from, int to)
       @param ss string to determine the exclusively end char.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
     */
+  @Java4C.Retinline
+  @Java4C.ReturnThis 
   public final StringPart lento(CharSequence ss)
   { return lento(ss, seekNormal);
   }
@@ -792,6 +806,8 @@ private final void throwSubSeqFaulty(int from, int to)
       @java2c=return-this.
       @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
     */
+  @Java4C.Retinline
+  @Java4C.ReturnThis 
   public final StringPart lentoIdentifier()
   {
     return lentoIdentifier(null, null);
@@ -2379,7 +2395,7 @@ else return pos - begin;
   protected final char absCharAt(int index){
     int pos = index;
     if(pos >=0 && pos < endMax) return content.charAt(pos);
-    else { throw new IllegalArgumentException("StringPartBase.charAt - faulty; " + index); }
+    else { throwIllegalArgumentException("StringPartBase.charAt - faulty; ",index); return 0; }
   }
 
   /**Returns a String from absolute range.
@@ -2400,7 +2416,7 @@ else return pos - begin;
       CharSequence cs1 = content.subSequence(pos, pos + len) ; 
       return cs1.toString(); 
     }
-    else { throw new IllegalArgumentException("StringPartBase.subSequence - faulty; " + from); }
+    else { throwIllegalArgumentException("StringPartBase.subSequence - faulty; ",from); return ""; }
   }
 
   
@@ -2453,6 +2469,11 @@ public final String debugString()
   }
 
 
+  
+  private static final void throwIllegalArgumentException(String msg, int value)
+  {
+    throw new IllegalArgumentExceptionJc(msg, value);
+  }
 
   /**Closes the work. This routine should be called if the StringPart is never used, 
    * but it may be kept because it is part of class data or part of a statement block which runs.
@@ -2488,7 +2509,8 @@ public final String debugString()
   { final int len = src.length();
     int ixPos = 0;
     int nrofToken = placeholder.length;
-    if(nrofToken != value.length) { throw new IllegalArgumentException("token and value should have same size, lesser 20"); }
+    if(nrofToken != value.length) {
+      throwIllegalArgumentException("token and value should have same size, lesser 20", nrofToken); return src; }
     if(dst == null){ dst = new StringBuilder(len + 100); }//calculate about 53 chars for identifier
     //@Java4C.StackInstance final StringPart spPattern = new StringPart(src);
     int posPatternStart = 0;

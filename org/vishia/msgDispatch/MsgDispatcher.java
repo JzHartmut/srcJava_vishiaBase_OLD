@@ -34,7 +34,6 @@ import java.util.Arrays;
 //import java.util.Date;
 
 import org.vishia.bridgeC.ConcurrentLinkedQueue;
-import org.vishia.bridgeC.OS_TimeStamp;
 import org.vishia.util.FileWriter;
 import org.vishia.util.StringPartScan;
 
@@ -374,7 +373,7 @@ public static final int version = 0x20120302;
    *        or as substring from ctrl. 
    * @return null if all ok, otherwise an error hint. The errorBuffer contains an particularly text. 
    */
-  public final String setOutputFromString(String ctrl, StringBuffer errorBuffer)
+  public final String setOutputFromString(String ctrl, StringBuilder errorBuffer)
   {
     String sError = null;
     if(errorBuffer != null)
@@ -491,7 +490,7 @@ public static final int version = 0x20120302;
   
   
   /**Writes the msg dispatching outputs in file. 
-   * The form is the same which are used for {@link #setOutputFromString(String, StringBuffer)}.
+   * The form is the same which are used for {@link #setOutputFromString(String, StringBuilder)}.
    * @param file The file should be opened already.
    *        Hint: A simple writer isn't used because Java2C don't able to translate it yet. (Version 0.84)
    * @return true if no error.       
@@ -499,11 +498,7 @@ public static final int version = 0x20120302;
   public final boolean reportOutput(FileWriter file)
   { boolean bOk = true;
     try
-    { /**A temporary buffer, in C in Stack. Do not use String concatenating, because no dynamically mem!
-       * @java2c=fixStringBuffer, stackInstance.
-       */
-      
-      file.write("//Syntax-Example\n");
+    { file.write("//Syntax-Example\n");
       file.write("//  1200..1257: +File +qCON -CON;\n");
       file.write("//  4567:File;\n");
       file.write("//Ident number from..to or only one ident number.\n");
@@ -515,8 +510,10 @@ public static final int version = 0x20120302;
       file.write("//1234:-File;  \n");
       file.write("\n//All existing dst (destinations):\n");
     
-      /** @java2c=stackInstance.*/
-      StringBuffer line = new StringBuffer(200);
+      /*A temporary buffer, in C in Stack. Do not use String concatenating, because no dynamically mem!
+       * @java2c=fixStringBuilder, stackInstance.
+       */
+      StringBuilder line = new StringBuilder(200);
       
       for(int ii = 0; ii < maxDst; ii++)
       { line.setLength(0);

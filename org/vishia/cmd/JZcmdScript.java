@@ -44,6 +44,9 @@ public class JZcmdScript extends CompiledScript
   /**Version, history and license.
    * 
    * <ul>
+   * <li>2016-12-27 Hartmut adapt: {@link JZcmdExecuter.ExecuteLevel#jzcmdMain}
+   * <li>2016-12-26 Hartmut adapt: {@link JZcmdClass#listClassesAndSubroutines}  
+   * <li>2016-12-18 Hartmut new: {@link Subroutine#new_List()} necessary in any zbnf syntax (where...). 
    * <li>2016-01-09 Hartmut new: {@link DefContainerVariable}: A List is accepted as container for constant elements now, changed in {@link org.vishia.zcmd.JZcmdSyntax}.
    *   DefSubtext now supported.
    * <li>2015-12-12 Hartmut chg: {@link StatementList#new_hasNext()} returns a {@link StatementList} instead {@link JZcmditem}
@@ -148,7 +151,7 @@ public class JZcmdScript extends CompiledScript
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String sVersion = "2014-07-07";
+  static final public String version = "2016-12-27";
 
   final MainCmdLogging_ifc console;
 
@@ -162,6 +165,7 @@ public class JZcmdScript extends CompiledScript
   final JZcmdEngine scriptEngine;
   
   
+  /**All subroutines of this script with name class.sub in alphabetic order to search. */
   final Map<String, Subroutine> subroutinesAll = new TreeMap<String, Subroutine>();
   
   final Map<String, JZcmdClass> classesAll = new IndexMultiTable<String, JZcmdClass>(IndexMultiTable.providerString);
@@ -209,7 +213,7 @@ public class JZcmdScript extends CompiledScript
     if(context instanceof JZcmdExecuter.ExecuteLevel){
       JZcmdExecuter.ExecuteLevel level = (JZcmdExecuter.ExecuteLevel) context;
       try{ 
-        level.jzcmd.jzCmdExecuter.initialize(this, false, null, null);
+        level.jzcmdMain.jzCmdExecuter.initialize(this, false, null, null);
         Subroutine main = getMain();
         level.exec_Subroutine(main, null, null, 0);
       } catch(Throwable exc){ 
@@ -1140,7 +1144,7 @@ public class JZcmdScript extends CompiledScript
      * Returns name.name for more levels.
      * @return
      */
-    String getVariableIdent(){
+    public String getVariableIdent(){
       final String name; 
       List<DataAccess.DatapathElement> path = defVariable.datapath();
       int zpath = path.size();
@@ -1689,6 +1693,17 @@ public class JZcmdScript extends CompiledScript
       formalArgs.add(val);
     }
 
+    /**Defines a variable which is able to use as container.
+     */
+    public DefContainerVariable new_List(){ 
+      return new DefContainerVariable(parentList, 'L'); 
+    } 
+
+    public void add_List(DefContainerVariable val){ 
+      if(formalArgs == null){ formalArgs = new ArrayList<DefVariable>(); }
+      formalArgs.add(val);
+    }
+    
     public DefVariable new_ClassObjVar(){
       return new DefVariable(parentList, 'C'); 
     }
@@ -2769,6 +2784,9 @@ public class JZcmdScript extends CompiledScript
     /**All subroutines of this class. */
     final Map<String, JZcmdScript.Subroutine> subroutines = new TreeMap<String, JZcmdScript.Subroutine>();
     
+    /**All classes and subroutines in order of the script to present it in a list for choice. */
+    final List<Object> listClassesAndSubroutines = new ArrayList<Object>();
+   
     protected JZcmdClass(JZscriptSettings jzScriptSettings){
       super(/*JZcmdScript.this.*/jzScriptSettings);
     }
@@ -2778,11 +2796,14 @@ public class JZcmdScript extends CompiledScript
     
     public final Map<String, JZcmdScript.Subroutine> subroutines(){ return subroutines; }
     
+    public final List<Object> listClassesAndSubroutines(){ return listClassesAndSubroutines; }
+    
     public JZcmdClass new_subClass(){ return new JZcmdClass(jzScriptSettings); }
     
     public void add_subClass(JZcmdClass val){ 
       if(classes == null){ classes = new ArrayList<JZcmdClass>(); }
       classes.add(val); 
+      listClassesAndSubroutines.add(val);
       String sName = val.cmpnName;
       String nameGlobal = cmpnName == null ? sName : cmpnName + "." + sName;
       classesAll.put(nameGlobal, val); 
@@ -2797,6 +2818,7 @@ public class JZcmdScript extends CompiledScript
       }
       String sName = val.name.toString();
       subroutines.put(sName, val); 
+      listClassesAndSubroutines.add(val);
       String nameGlobal = cmpnName == null ? sName : cmpnName + "." + sName;
       subroutinesAll.put(nameGlobal, val); 
     }

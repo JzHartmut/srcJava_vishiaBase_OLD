@@ -7,8 +7,6 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.vishia.event.TimeOrder;
-import org.vishia.event.EventTimerThread;
 import org.vishia.util.Assert;
 import org.vishia.util.Debugutil;
 import org.vishia.util.FileSystem;
@@ -24,6 +22,8 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
   
   /**Version, history and license.
    * <ul>
+   * <li>2016-12-20 Hartmut bugfix: {@link #readIgnoreComment(BufferedReader)}: The second line after //line is ignored too. In a rarely case
+   *   it was the only one line which was different, and the comparison has failed. 
    * <li>2014-12-12 Hartmut bugfix: {@link #compareFileContent(FileRemote, FileRemote)}: if the 2. file is longer, it is a difference!  
    * <li>2014-12-12 Hartmut new: {@link CompareCtrl}: Comparison with suppressed parts especially comments. 
    * <li>2013-09-19 created. Comparison in callback routine of walkThroughFiles instead in the graphic thread.
@@ -55,7 +55,7 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String sVersion = "2015-08-02";
+  static final public String sVersion = "2016-12-27";
   
   class CompareCtrl {
     
@@ -258,12 +258,18 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
   int compareFile(FileRemote file1, FileRemote file2)
   {
 
+    
+    @SuppressWarnings("unused")
     boolean equal, lenEqual;
+    @SuppressWarnings("unused")
     boolean equalDaylightSaved = false;
+    @SuppressWarnings("unused")
     boolean contentEqual;
+    @SuppressWarnings("unused")
     boolean contentEqualWithoutEndline;
+    @SuppressWarnings("unused")
     boolean readProblems;
-
+    
     mode = cmp_withoutLineend;
 
     if(file1.getName().equals("ReleaseNotes.topic"))
@@ -418,8 +424,8 @@ public class FileRemoteCallbackCmp implements FileRemoteCallback
         for(String sEol: cmpCtrl.ignoreCommentline) {
           if(line.startsWith(sEol)){
             //ignore it, read next.
-            line = reader.readLine();
-            cont = true;  //test this line.
+            //faulty: line = reader.readLine();
+            cont = true;  //read the next line in loop.
             break; //break the for
           }
         }

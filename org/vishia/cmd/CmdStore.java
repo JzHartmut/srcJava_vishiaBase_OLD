@@ -16,13 +16,20 @@ import org.vishia.util.StringPart;
 
 /**This class stores some prepared commands. The input of the store is a file, 
  * which contains the assembling of command lines maybe with placeholder for files.
+ * <br>
+ * The commands are only stored. There are not intent to execute in this context.
+ * Some arguments can be given by placeholder here. The arguments are replaced by the actual values for the arguments
+ * before execution. The execution is invoked with the {@link CmdQueue#addCmd(CmdBlock, File[], File)}
+ * or {@link CmdQueue#addCmd(CmdBlock, Map, File)}. The last form is for a {@link JZcmdScript.Subroutine}.
  * <br><br>
- * Simple UML diagram:
+ * UML diagram, see {@link org.vishia.util.Docu_UML_simpleNotation}:
  * <pre>
- * 
- * CmdStore ------*> PrepareCmd
+ *                            |--->{@link JZcmdScript.Subroutine}
+ * CmdStore ------*> CmdBlock |--*>{@link PrepareCmd}
+ *                      ^     |
+ *                      +-----|  (tree of CmdBlock)
  * </pre>
- * (See {@link org.vishia.util.Docu_UML_simpleNotation})
+ * 
  * 
  * @author Hartmut Schorrig
  *
@@ -32,6 +39,9 @@ public class CmdStore
 
   /**Version, history and license.
    * <ul>
+   * <li>2016-12-26 Hartmut new: {@link #addSubOfJZcmdClass(org.vishia.cmd.JZcmdScript.JZcmdClass)}: now adds classes 
+   *   and subroutines in the order of the source, not in alphabetic order with separation classes and sub like before. 
+   *   Therewith the script determines the order in a choice list {@link org.vishia.gral.widget.GralCommandSelector }
    * <li>2013-09-08 Hartmut chg: {@link #addSubOfJZcmdClass(org.vishia.cmd.JZcmdScript.JZcmdClass, int)} now public
    *   because readCmdCfg(...) removed to {@link org.vishia.commander.FcmdExecuter}. It has dependencies
    *   to the Zbnf package {@link org.vishia.zcmd.JZcmd} which is not visible in this component by standalone compilation.
@@ -67,7 +77,7 @@ public class CmdStore
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
-  public static int version = 20120609;
+  public static String version = "2016-12-27";
   
   /**Description of one command.
    */
@@ -86,15 +96,13 @@ public class CmdStore
     public final int level;
     
     /**Some commands of this block. */
-    public final List<PrepareCmd> listBlockCmds = new LinkedList<PrepareCmd>();
+    @Deprecated private final List<PrepareCmd> listBlockCmds = new LinkedList<PrepareCmd>();
 
-    /**Any JZcmd subroutine which should be invoked instead of the {@link #listBlockCmds}. */
-    protected final JZcmdScript.Subroutine zgenSub;
+    /**Any JZcmd subroutine which should be invoked instead of the {@link #listBlockCmds}. 
+     * The execution is forced with {@link CmdQueue#addCmd(CmdBlock, Map, File)}. */
+    private final JZcmdScript.Subroutine zgenSub;
     
     
-    /**Contains all commands read from the configuration file in the read order. */
-    protected List<CmdBlock> listSubCmds;
-
     
     public CmdBlock(){
       zgenSub = null;
@@ -112,6 +120,7 @@ public class CmdStore
      * @param getterFiles Access to given files.
      * @return Variable container with the requeste arguments.
      * @throws IllegalAccessException 
+     * @deprecated: new concept with JZcmdExecuter 
      */
     public Map<String, DataAccess.Variable<Object>> getArguments(CmdGetFileArgs_ifc getterFiles) {
       if(zgenSub !=null){
@@ -144,14 +153,21 @@ public class CmdStore
     
     
     /**Possible call from {@link org.vishia.zbnf.ZbnfJavaOutput}. Adds the instance of command */
-    public void add_cmd(PrepareCmd cmd)
+    @Deprecated public void add_cmd(PrepareCmd cmd)
     { cmd.prepareListCmdReplace();
       listBlockCmds.add(cmd); 
       
     }
     
     /**Returns all commands which are contained in this CmdBlock. */
-    public final List<PrepareCmd> getCmds(){ return listBlockCmds; }
+    @Deprecated public final List<PrepareCmd> getCmds(){ return listBlockCmds; }
+    
+    
+    /**Returns null if this is an operation system command or returns a stored JZcmd subroutine.
+     * for the {@link JZcmdExecuter#execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)}.
+     * @return
+     */
+    public final JZcmdScript.Subroutine getJZcmd() { return zgenSub; }
     
     @Override public String toString(){ return name + listBlockCmds; }
     
@@ -163,6 +179,7 @@ public class CmdStore
   /**Contains all commands read from the configuration file in the read order. */
   private final Map<String, CmdBlock> idxCmd = new TreeMap<String, CmdBlock>();
 
+  @SuppressWarnings("unused")
   private final String XXXsyntaxCmd = "Cmds::={ <cmd> }\\e. "
     + "cmd::= <* :?name> : { <*\\n?cmd> \\n } ."; 
 
@@ -173,30 +190,52 @@ public class CmdStore
   
   
   
-  /**Possible call from {@link org.vishia.zbnf.ZbnfJavaOutput}. Creates an instance of one command block */
+  /**Possible call from {@link org.vishia.zbnf.ZbnfJavaOutput}. Creates an instance of one command block 
+   * @deprecated use {@link JZcmdScript} and {@link #addSubOfJZcmdClass(org.vishia.cmd.JZcmdScript.JZcmdClass, int)}*/
   public CmdBlock new_CmdBlock(){ return new CmdBlock(); }
   
-  /**Possible call from {@link org.vishia.zbnf.ZbnfJavaOutput}. Adds the instance of command block. */
+  /**Possible call from {@link org.vishia.zbnf.ZbnfJavaOutput}. Adds the instance of command block. 
+   * @deprecated use {@link JZcmdScript} and {@link #addSubOfJZcmdClass(org.vishia.cmd.JZcmdScript.JZcmdClass, int)}*/
+  @Deprecated
   public void add_CmdBlock(CmdBlock value){ listCmds.add(value); idxCmd.put(value.name, value); }
 
   
+
   
+  /**Adds the content of a given JZcmd class (after translation of the JZcmd script) to this CmdStore. 
+   * The {@link #getListCmds()} is filled. recursive classes are designated with {@link CmdBlock#level} >1.
+   * The deeper levels are contained in the list in the list order, not as tree. They can be stored as tree
+   * in the invocation organization, see {@link org.vishia.gral.widget.GralCommandSelector}. 
+   * The translation of the script is done with the ZBNF parser in the srcJava_Zbnf component, see {@link org.vishia.zcmd.JZcmd}.
+   * @param jzcmdClass For first call use the {@link JZcmdScript#scriptClass()}. The content of Subclasses automatically added
+   *   by a recursively call of this.
+   */
+  public void addSubOfJZcmdClass(JZcmdScript.JZcmdClass jzcmdClass){
+    addSubOfJZcmdClass(jzcmdClass, 1);  
+  }
   
-  public void addSubOfJZcmdClass(JZcmdScript.JZcmdClass jzcmdClass, int level){
-    if(jzcmdClass.classes !=null) for(JZcmdScript.JZcmdClass zgenClassSub : jzcmdClass.classes){
-      CmdBlock cmdBlock = new CmdBlock();
-      listCmds.add(cmdBlock); 
-      cmdBlock.name = zgenClassSub.cmpnName;
-      //cmdBlock.listSubCmds = new ArrayList<CmdBlock>();
-      //addSubOfZgenclass(cmdBlock.listSubCmds, zgenClassSub, level+1);
-      addSubOfJZcmdClass(zgenClassSub, level+1);
-    }
-    if(jzcmdClass.subroutines !=null) for(Map.Entry<String, JZcmdScript.Subroutine> e: jzcmdClass.subroutines.entrySet()){
-      JZcmdScript.Subroutine subRoutine = e.getValue();
-      if(!subRoutine.name.startsWith("_")) { //ignore internal subroutines!
-        CmdBlock cmdBlock = new CmdBlock(subRoutine, level);
-        listCmds.add(cmdBlock); 
-        idxCmd.put(cmdBlock.name, cmdBlock);
+  /**Core and recursively called routine.
+   * @param jzcmdClass firstly the script class, nested the sub classes.
+   * @param level firstly 1, nested 2...
+   */
+  private void addSubOfJZcmdClass(JZcmdScript.JZcmdClass jzcmdClass, int level){
+    for(Object classOrSub: jzcmdClass.listClassesAndSubroutines()) { // = e.getValue();
+      if(classOrSub instanceof JZcmdScript.Subroutine) {
+        JZcmdScript.Subroutine subRoutine = (JZcmdScript.Subroutine) classOrSub;
+        if(!subRoutine.name.startsWith("_")) { //ignore internal subroutines!
+          CmdBlock cmdBlock = new CmdBlock(subRoutine, level);
+          listCmds.add(cmdBlock); 
+          idxCmd.put(cmdBlock.name, cmdBlock);
+        }
+      } else {
+        assert(classOrSub instanceof JZcmdScript.JZcmdClass);  //what else!
+        JZcmdScript.JZcmdClass jzCmdclass = (JZcmdScript.JZcmdClass) classOrSub;
+        CmdBlock cmdBlock = new CmdBlock();
+        listCmds.add(cmdBlock); //selectNode.
+        cmdBlock.name = jzCmdclass.cmpnName;
+        //call recursive for content of class.
+        addSubOfJZcmdClass(jzCmdclass, level+1);
+        
       }
     }
   }
@@ -205,7 +244,7 @@ public class CmdStore
   
   
   
-  public String readCmdCfgOld(File cfgFile)
+  @Deprecated public String readCmdCfgOld(File cfgFile)
   { 
     //if(cfgFile.getName().endsWith(".jbat.cfg")){
     //  return readCmdCfgJbat(cfgFile, null);
@@ -274,7 +313,7 @@ public class CmdStore
    */
   public CmdBlock getCmd(String name){ return idxCmd.get(name); }
   
-  /**Gets a contained commands for example to present in a selection list.
+  /**Gets all contained commands for example to present in a selection list.
    * @return The list.
    */
   public final List<CmdBlock> getListCmds(){ return listCmds; }

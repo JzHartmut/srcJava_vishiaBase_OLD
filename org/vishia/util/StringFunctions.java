@@ -77,7 +77,7 @@ public class StringFunctions {
    * 
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    */
-  public final static String version = "2015-11-07"; 
+  public final static String version = "2016-12-02"; 
   
   
   /** The char used to code end of text. It is defined in ASCII as EOT. 
@@ -315,7 +315,7 @@ public class StringFunctions {
     int z1 = s1.length();
     int z2 = s2.length();
     if(nrofChars ==0) return 0; //NOTE: following while compares at least one char
-    int zChars =  nrofChars >=0 ? Math.min(nrofChars, Math.min(z1- i1, z2-i2)) : Math.min(z1-i1, z2-i2);
+    int zChars =  nrofChars >= 0 ? Math.min(nrofChars, Math.min(z1- i1, z2-i2)) : Math.min(z1-i1, z2-i2);
     //z1 -=1; z2 -=1;  //compare before increment then.
     char c1, c2;
     do {
@@ -415,6 +415,9 @@ public class StringFunctions {
    * @return true if all chars equals or both null.
    */
   public static boolean equals(CharSequence s1, int from, int to, CharSequence s2){
+    //Test possibility:
+    //if((s1 instanceof StringSeq) && contains(((StringSeq)s1).cs, "hide"))
+    //  Debugutil.stop();
     int z1 = s1.length();
     if(s1 == null || s2 == null){ return s1 == null && s2 == null; }  //equals is both null, else not equal
     int zz = to < 0 || to > z1 ? z1 - from : to - from;
@@ -450,7 +453,12 @@ public class StringFunctions {
     return s1 == null ? s2 == null : equals(s1, 0, s1.length(), s2);
   }
 
-  
+  /**Returns true if s2 is contained in s1. 
+   * It invokes {@link #indexOf(CharSequence, int, int, CharSequence)}.
+   */
+  public static boolean contains(CharSequence s1, CharSequence s2) {
+    return indexOf(s1, 0, Integer.MAX_VALUE, s2) >=0; 
+  }
   
   /**Checks whether the given CharSequence starts with a CharSequence.
    * It is the adequate functionality like {@link java.lang.String#startsWith(String)}
