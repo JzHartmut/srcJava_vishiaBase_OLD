@@ -7,9 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.vishia.cmd.CmdStore.CmdBlock;
-//import org.vishia.mainCmd.MainCmd_ifc;
-//import org.vishia.mainCmd.Report;
 import org.vishia.mainCmd.MainCmdLoggingStream;
 import org.vishia.mainCmd.MainCmdLogging_ifc;
 import org.vishia.util.Assert;
@@ -263,37 +260,7 @@ public class CmdQueue implements Closeable
   }
 
   
-  /**Adds a command to the queue to execute in {@link #execCmds(Appendable)}. The execution may be done in another thread.
-   * The adding is thread-safe and a cheap operation. It uses a ConcurrentListQueue. 
-   * @param cmdBlock The command block
-   * @param args Some arguments especially for {@link JZcmdExecuter#execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)}
-   *   but maybe by a line command too.
-   * @param currentDir directory as current to execute the operation system command.
-   * @return Number of members in queue pending for execution. It is a hint whether the list maybe jam-packed because the execution hangs. 
-   */
-  public int addCmd(CmdBlock cmdBlock, List<DataAccess.Variable<Object>> args, File currentDir)
-  {
-    pendingCmds.add(new PendingCmd(cmdBlock.getJZcmd(), args, currentDir));  //to execute.
-    return pendingCmds.size();
-  }
-
   
-  /**Adds a command to the queue to execute in {@link #execCmds(Appendable)}. The execution may be done in another thread.
-   * The adding is thread-safe and a cheap operation. It uses a ConcurrentListQueue. 
-   * @param cmdBlock The command block
-   * @param getterArguments Instance which implements getting arguments from any application. 
-   * @param currentDir directory as current to execute the operation system command.
-   * @return Number of members in queue pending for execution. It is a hint whether the list maybe jam-packed because the execution hangs. 
-   */
-  public int addCmd(CmdBlock cmdBlock, CmdGetterArguments getterArguments)
-  {
-    List<DataAccess.Variable<Object>> args = getterArguments.getArguments(cmdBlock);
-    File currDir = getterArguments.getCurrDir();
-    pendingCmds.add(new PendingCmd(cmdBlock.getJZcmd(), args, currDir));  //to execute.
-    return pendingCmds.size();
-  }
-
-
   
   /**Adds a command to the queue to execute in {@link #execCmds(Appendable)}. The execution may be done in another thread.
    * The adding is thread-safe and a cheap operation. It uses a ConcurrentListQueue. 
@@ -309,19 +276,6 @@ public class CmdQueue implements Closeable
   }
 
 
-  /**Adds a command to execute later. The execution may be done in another thread.
-   * The adding is thread-safe and a cheap operation. It uses a ConcurrentListQueue. 
-   * @param cmdBlock The command block
-   * @param files Some files
-   * @return Number of members in queue pending for execution.
-   */
-  @Deprecated public int addCmd(CmdBlock cmdBlock, File[] args, File currentDir)
-  {
-    for(PrepareCmd cmd: cmdBlock.getCmds()){
-      pendingCmds.add(new PendingCmd(cmd, args, currentDir));  //to execute.
-    }
-    return pendingCmds.size();
-  }
 
   
   /**Adds a command to the queue which should be executed in another thread.

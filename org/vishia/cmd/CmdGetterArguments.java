@@ -47,7 +47,7 @@ public interface CmdGetterArguments
    * in the implementation routine.
    * @return filled Map with the argument values with its names as key.
    */
-  List<DataAccess.Variable<Object>> getArguments(CmdStore.CmdBlock cmd);
+  List<DataAccess.Variable<Object>> getArguments(JZcmdScript.Subroutine jzsub);
   
   /**Gets the current directory as excution environment. */
   File getCurrDir();

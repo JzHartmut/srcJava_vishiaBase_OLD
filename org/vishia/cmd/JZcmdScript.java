@@ -258,6 +258,46 @@ public class JZcmdScript extends CompiledScript
   
   
   
+  public static interface AddSub2List {
+    void clear();
+    void add2List(Subroutine jzsub, int level);
+    void add2List(JZcmdClass jzclass, int level);
+  }
+  
+  /**Adds the content of the translated script to any list or map which contains all subroutines of the script,
+   * maybe a list for selection. 
+   */
+  public void addContentToSelectContainer(AddSub2List list){
+    addSubOfJZcmdClass(scriptClass, list, 1);  
+  }
+  
+  /**Core and recursively called routine.
+   * @param jzcmdClass firstly the script class, nested the sub classes.
+   * @param level firstly 1, nested 2...
+   */
+  private void addSubOfJZcmdClass(JZcmdScript.JZcmdClass jzcmdClass, AddSub2List list, int level){
+    for(Object classOrSub: jzcmdClass.listClassesAndSubroutines()) { // = e.getValue();
+      if(classOrSub instanceof JZcmdScript.Subroutine) {
+        JZcmdScript.Subroutine subRoutine = (JZcmdScript.Subroutine) classOrSub;
+        if(!subRoutine.name.startsWith("_")) { //ignore internal subroutines!
+          list.add2List(subRoutine, level);
+        }
+      } else {
+        assert(classOrSub instanceof JZcmdScript.JZcmdClass);  //what else!
+        JZcmdScript.JZcmdClass jzCmdclass = (JZcmdScript.JZcmdClass) classOrSub;
+        list.add2List((JZcmdScript.JZcmdClass)classOrSub, level);
+        //call recursive for content of class.
+        addSubOfJZcmdClass(jzCmdclass, list, level+1);
+        
+      }
+    }
+  }
+  
+  
+ 
+  
+  
+  
   public static class JZscriptSettings
   {
     String sLinefeed = "\r\n";
@@ -793,7 +833,7 @@ public class JZcmdScript extends CompiledScript
     public void writeStruct(int indent, Appendable out) throws IOException {
       out.append(ident).append(':').append(whatisit);
       if(fnArgsExpr!=null){
-        String sep = "(";
+        //String sep = "(";
         for(JZcmditem arg: fnArgsExpr){
           arg.writeStruct(indent+1, out);
         }

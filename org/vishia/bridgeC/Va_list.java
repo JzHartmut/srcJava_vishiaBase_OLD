@@ -1,8 +1,6 @@
 package org.vishia.bridgeC;
 
-import java.io.File;
 
-import org.vishia.cmd.CmdStore.CmdBlock;
 
 
 /**Represents a Java-complement to a C-struct which contains va_list reference from stdarg.h. 

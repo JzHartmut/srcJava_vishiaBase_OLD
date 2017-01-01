@@ -1,2 +1,1 @@
-JZcmdExecuter.execSub(...) now works with a List of arguments instead Map. It tests argument types.
-Thus argument type conversion is done especially argument type {@link FilePath} for the.File.commander - execution.
+CmdStore is now obsolete. The content is removed.
