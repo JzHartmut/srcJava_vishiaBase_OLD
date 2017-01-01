@@ -8,6 +8,7 @@ if "" == "%DST_priv%" set DST_priv=%DST%_priv
 echo +genJavadocbase.bat: %DSTDIR%%DST%
 
 echo +genjavadocbase.bat: JAVA_JDK=%JAVA_JDK%
+if  "" == "%DST_priv%" goto :error
 
 ::goto :zip
 if exist %DSTDIR%%DST% rmdir /Q /S %DSTDIR%%DST% >NUL
@@ -16,15 +17,15 @@ if exist %DSTDIR%%DST_priv% rmdir /Q /S %DSTDIR%%DST_priv% >NUL
 if not exist %DSTDIR%%DST% mkdir %DSTDIR%%DST%
 if not exist %DSTDIR%%DST_priv% mkdir %DSTDIR%%DST_priv%
 
-echo javadoc -d %DSTDIR%%DST% -linksource -notimestamp -nodeprecated %LINKPATH% %CLASSPATH% -sourcepath %SRCPATH%
+echo javadoc -d %DSTDIR%%DST% -linksource -notimestamp -nodeprecated %LINKPATH% -classpath %CLASSPATH% -sourcepath %SRCPATH%
 echo on
-%JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST% -protected -linksource -notimestamp -nodeprecated %LINKPATH% %CLASSPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST%\javadoc.rpt 2>%DSTDIR%%DST%\javadoc.err
+%JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST% -protected -linksource -notimestamp -nodeprecated %LINKPATH% -classpath %CLASSPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST%\javadoc.rpt 2>%DSTDIR%%DST%\javadoc.err
 if errorlevel 1 goto :error
 echo off
 copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DSTDIR%%DST%\stylesheet.css >NUL
 
 echo javadoc -d %DSTDIR%%DST_priv% -private -linksource -notimestamp %LINKPATH% %CLASSPATH% -sourcepath %SRCPATH%
-%JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST_priv% -private -linksource -notimestamp %LINKPATH% %CLASSPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST_priv%\javadoc.rpt 2>%DSTDIR%%DST_priv%\javadoc.err
+%JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST_priv% -private -linksource -notimestamp %LINKPATH% -classpath %CLASSPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST_priv%\javadoc.rpt 2>%DSTDIR%%DST_priv%\javadoc.err
 if errorlevel 1 goto :error
 copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DSTDIR%%DST_priv%\stylesheet.css >NUL
 
@@ -59,6 +60,7 @@ goto :ende
 
 :error
 echo ===ERROR===
+notepad.exe %DSTDIR%%DST%\javadoc.err
 pause
 :ende
 

@@ -3,6 +3,7 @@ package org.vishia.cmd;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -24,6 +25,7 @@ public class CmdQueue implements Closeable
   
   /**Version, history and license.
    * <ul>
+   * <li>2016-12-31 Hartmut new: {@link #addCmd(org.vishia.cmd.JZcmdScript.Subroutine, List, File)} 
    * <li>2016-09-18 Hartmut new: {@link #addCmd(CmdBlock, CmdGetterArguments)} new concept supports only {@link JZcmdExecuter}
    *   The {@link #addCmd(String, File, boolean)} and {@link #addCmd(String[], File, boolean)} is newly designed for simple operation system
    *   command execution without JZcmd concept. The {@link #addCmd(CmdBlock, File[], File)} which prepares file parts is designated as deprecated.
@@ -84,7 +86,7 @@ public class CmdQueue implements Closeable
     
     @Deprecated final File[] files;
     
-    final Map<String, DataAccess.Variable<Object>> args;
+    final List<DataAccess.Variable<Object>> args;
     
     File currentDir;
     
@@ -132,7 +134,7 @@ public class CmdQueue implements Closeable
      *   should be referenced.CmdGetFileArgs_ifc
      * @param currentDir
      */
-    PendingCmd(JZcmdScript.Subroutine cmd, Map<String, DataAccess.Variable<Object>> args, File currentDir)
+    PendingCmd(JZcmdScript.Subroutine cmd, List<DataAccess.Variable<Object>> args, File currentDir)
     { this.cmd = null;
       this.cmdAndArgs = null;
       this.jbat = cmd;
@@ -269,7 +271,7 @@ public class CmdQueue implements Closeable
    * @param currentDir directory as current to execute the operation system command.
    * @return Number of members in queue pending for execution. It is a hint whether the list maybe jam-packed because the execution hangs. 
    */
-  public int addCmd(CmdBlock cmdBlock, Map<String, DataAccess.Variable<Object>> args, File currentDir)
+  public int addCmd(CmdBlock cmdBlock, List<DataAccess.Variable<Object>> args, File currentDir)
   {
     pendingCmds.add(new PendingCmd(cmdBlock.getJZcmd(), args, currentDir));  //to execute.
     return pendingCmds.size();
@@ -285,13 +287,28 @@ public class CmdQueue implements Closeable
    */
   public int addCmd(CmdBlock cmdBlock, CmdGetterArguments getterArguments)
   {
-    Map<String, DataAccess.Variable<Object>> args = getterArguments.getArguments(cmdBlock);
+    List<DataAccess.Variable<Object>> args = getterArguments.getArguments(cmdBlock);
     File currDir = getterArguments.getCurrDir();
     pendingCmds.add(new PendingCmd(cmdBlock.getJZcmd(), args, currDir));  //to execute.
     return pendingCmds.size();
   }
 
+
   
+  /**Adds a command to the queue to execute in {@link #execCmds(Appendable)}. The execution may be done in another thread.
+   * The adding is thread-safe and a cheap operation. It uses a ConcurrentListQueue. 
+   * @param cmdBlock The command block
+   * @param getterArguments Instance which implements getting arguments from any application. 
+   * @param currentDir directory as current to execute the operation system command.
+   * @return Number of members in queue pending for execution. It is a hint whether the list maybe jam-packed because the execution hangs. 
+   */
+  public int addCmd(JZcmdScript.Subroutine jzsub, List<DataAccess.Variable<Object>> args, File currDir)
+  {
+    pendingCmds.add(new PendingCmd(jzsub, args, currDir));  //to execute.
+    return pendingCmds.size();
+  }
+
+
   /**Adds a command to execute later. The execution may be done in another thread.
    * The adding is thread-safe and a cheap operation. It uses a ConcurrentListQueue. 
    * @param cmdBlock The command block

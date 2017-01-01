@@ -1,12 +1,13 @@
 package org.vishia.cmd;
 
 import java.io.File;
+import java.util.List;
 import java.util.Map;
 
 import org.vishia.util.DataAccess;
 
 /**This interface is used to get arguments for {@link CmdQueue#addCmd(org.vishia.cmd.CmdStore.CmdBlock, CmdGetterArguments)}
- * to invoke a {@link JZcmdExecuter#execSub(JZcmdScript, String, Map, boolean, Appendable, File)} with the Map of actual arguments.
+ * to invoke a {@link JZcmdExecuter#execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)} with the Map of actual arguments.
  */
 public interface CmdGetterArguments
 {
@@ -46,7 +47,7 @@ public interface CmdGetterArguments
    * in the implementation routine.
    * @return filled Map with the argument values with its names as key.
    */
-  Map<String, DataAccess.Variable<Object>> getArguments(CmdStore.CmdBlock cmd);
+  List<DataAccess.Variable<Object>> getArguments(CmdStore.CmdBlock cmd);
   
   /**Gets the current directory as excution environment. */
   File getCurrDir();

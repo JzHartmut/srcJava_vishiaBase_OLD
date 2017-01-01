@@ -82,6 +82,14 @@ public class JZcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2016-12-27 Hartmut chg: {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, List, boolean, Appendable, File)} now works 
+   *   with a List of arguments instead Map. The arguments are checked 
+   *   in {@link ExecuteLevel#exec_Subroutine(org.vishia.cmd.JZcmdScript.Subroutine, ExecuteLevel, List, List, StringFormatter, int, int).}  
+   *   Thus argument type conversion is done especially argument type {@link FilePath} for the.File.commander - execution.
+   *   The {@link #execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)} 
+   *   with Map supports a Variable Map, but it is not necessary for example for the.File:commander execution. 
+   *   The {@link ExecuteLevel#levelForSubroutine(org.vishia.cmd.JZcmdScript.Subroutine)} now 
+   *   centralizes getting a new level (gardening, before more a one time the adquate algorithm). 
    * <li>2016-12-27 Hartmut new: {@link #abortCmdExecution()} necessary if an execution hangs. 
    * <li>2016-12-27 Hartmut new: class {@link JZcmdMain} renamed from JZcmd and set package private. Because possible confusion with {@link org.vishia.zcmd.JZcmd} 
    * <li>2016-03-06 Hartmut new: 
@@ -868,25 +876,52 @@ throws ScriptException //Throwable
    * @throws IOException
    */
   public Map<String, DataAccess.Variable<Object>> execSub(JZcmdScript.Subroutine statement, Map<String, DataAccess.Variable<Object>> args
-      , boolean accessPrivate, Appendable out, File currdir) 
+      , boolean accessPrivate, Appendable out, File currdir) ////
+  throws ScriptException //Throwable
+  {
+    final List<DataAccess.Variable<Object>> arglist;
+    if(args !=null){
+      arglist = new LinkedList<DataAccess.Variable<Object>>();
+      for(Map.Entry<String, DataAccess.Variable<Object>> entry: args.entrySet()){
+        arglist.add(entry.getValue());
+      }
+    } else {
+      arglist = null;
+    }
+    return execSub(statement, arglist, accessPrivate, out, currdir);
+  }
+  
+  
+  
+  
+  /**Executes the given sub routine invoked from any user application. 
+   * The script variables are used from a {@link #initialize(JZcmdScript, boolean)}
+   * or one of the last {@link #execute(JZcmdScript, boolean, boolean, Appendable)}.
+   * The {@link ExecuteLevel}, the subroutine's context, is created below the script level. 
+   * All of the script variables are known in the subroutine. Additional the args are given.
+   * The time measurements {@link #startmilli} and {@link #startnano} starts newly.
+   * @param statement The subroutine in the script.
+   * @param args Some variables which are stored as argument values. Use {@link #useScriptLevel} to advertise that no extra level should be used.
+   *   Then all changed and created variables are part of the script level.
+   * @param accessPrivate
+   * @param out Any output for text generation using <code><+>text output<.>. 
+   *   It is used also for direct text output <:>text<.>.
+   * @param currdir if not null, then this directory is used as {@link ExecuteLevel#changeCurrDir(CharSequence)} for this subroutine.
+   * @return the variables which are stored in a definition of return variables in the sub routine, or null if no such variables were built.
+   * @throws Throwable 
+   * @throws IOException
+   */
+  public Map<String, DataAccess.Variable<Object>> execSub(JZcmdScript.Subroutine statement, List<DataAccess.Variable<Object>> arglist
+      , boolean accessPrivate, Appendable out, File currdir) ////
   throws ScriptException //Throwable
   {
     if(acc.jzcmdScript == null) throw new IllegalArgumentException("jzcmdScript missing, you should invoke \"initialize(script, false, null, null);\" before call execSub(...)");
+    final ExecuteLevel level = acc.scriptLevel.levelForSubroutine(statement);  //uses the script variable if subroutine uses the locals. //new ExecuteLevel(acc, acc.jzcmdScript.scriptClass, acc.scriptThread, acc.scriptLevel, null);
     if(out !=null) {
       StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
       acc.textline = outFormatter;
       try{ acc.setScriptVariable("text", 'A', out, true);
       } catch(IllegalAccessException exc) { throw new ScriptException(exc); }
-    }
-    final ExecuteLevel level;
-    if(args == useScriptLevel) {
-      level = acc.scriptLevel;
-    } else {
-      level = new ExecuteLevel(acc, acc.jzcmdScript.scriptClass, acc.scriptThread, acc.scriptLevel, null);
-      //The args should be added to the localVariables of the subroutines level:
-      if(args !=null) {
-        level.localVariables.putAll(args);
-      }
     }
     if(currdir !=null){
       try { level.changeCurrDir(currdir.getPath());
@@ -895,7 +930,12 @@ throws ScriptException //Throwable
     //Executes the statements of the sub routine:
     acc.startmilli = System.currentTimeMillis();
     acc.startnano = System.nanoTime();
-    short ret = level.execute(statement.statementlist, acc.textline, 0, level.localVariables, -1);
+    short ret;
+    try{ 
+      ret = acc.scriptLevel.exec_Subroutine(statement, level, null, arglist, acc.textline, 1, 0);
+    } catch(Exception exc) {
+      throw new ScriptException(exc.getMessage(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
+    }
     if(acc.textline !=null) {
       try{ acc.textline.close(); } 
       catch(IOException exc){ throw new RuntimeException("unexpected exception on close", exc); }
@@ -916,7 +956,6 @@ throws ScriptException //Throwable
       return null;  //no return statement.
     }
   }
-  
   
   
   
@@ -1199,7 +1238,7 @@ throws ScriptException //Throwable
               exec_DefVariable(newVariables, (JZcmdScript.DefVariable)statement, 'Q', cond, false);
             }
           } break;
-          case '{': {  //a Subtext or codeblock variable:  ////
+          case '{': {  //a Subtext or codeblock variable:  
             //don't evaluate the statements of the variable yet. 
             //JZcmdScript.DefVariable statementDef = (JZcmdScript.DefVariable)statement;
             //exec_DefVariable(newVariables, statementDef, '{', statementDef.statementlist, false);
@@ -1880,7 +1919,7 @@ throws ScriptException //Throwable
         } else if(o instanceof DataAccess.Variable && ((DataAccess.Variable<?>)o).type() == 'X'){ 
           //This possibility is not full tested yet, <:subtext:&variable>
           nameSubtext = null; 
-          subroutine = null;  ////
+          subroutine = null;  
           @SuppressWarnings("unchecked") 
           DataAccess.Variable<JZcmdScript.StatementList> var = (DataAccess.Variable<JZcmdScript.StatementList>)o;
           JZcmdScript.StatementList statements = var.value();
@@ -1908,13 +1947,7 @@ throws ScriptException //Throwable
           throw new NoSuchElementException("JZcmdExecuter - subroutine not found; " + nameSubtext);
       } else {  //subroutine !=null)  
         //TODO use execSubroutine, same code!
-        final ExecuteLevel sublevel;
-        JZcmdScript.JZcmdClass subClass = (JZcmdScript.JZcmdClass)subroutine.parentList;
-        if(subroutine.useLocals) {  //TODO check whether the subClass == this.jzclass 
-          sublevel = this; 
-        } else { 
-          sublevel = new ExecuteLevel(jzcmdMain, subClass, threadData, this, subroutine.useLocals ? localVariables : null); 
-        }
+        final ExecuteLevel sublevel = levelForSubroutine(subroutine);
         success = exec_Subroutine(subroutine, sublevel, callStatement.actualArgs, additionalArgs, out, indentOut, nDebug);
         if(success == kSuccess){
           if(callStatement.variable !=null || callStatement.assignObjs !=null){
@@ -1960,10 +1993,14 @@ throws ScriptException //Throwable
     
     
     
-    /**Executes a subroutine invoked from outside of this class.
-     * It calls the private {@link #exec_Subroutine(org.vishia.cmd.JZcmdScript.Subroutine, ExecuteLevel, List, List, StringFormatter, int, int)}.
+    /**Executes a subroutine invoked from user space, with given {@link ExecuteLevel} as this.
+     * This routine should be used if args are given as Map of Variable.
+     * The routine creates an own level to execute the sub routine unless the subroutine is marked with {@link JZcmdScript.Subroutine#useLocals}.
+     * It calls {@link #levelForSubroutine(org.vishia.cmd.JZcmdScript.Subroutine)} therefore.
+     * Internally the private {@link #exec_Subroutine(org.vishia.cmd.JZcmdScript.Subroutine, ExecuteLevel, List, List, StringFormatter, int, int)} is called.
      * @param substatement Statement of the subroutine
-     * @param args Any given arguments in form of a map.
+     * @param args Any given arguments in form of a map. It is proper to build a Map with JZcmd script features better than a list.
+     *   The execution needs a List of Variables, the Variables of the map are copied to a temporary List instance.
      * @param out output
      * @param indentOut
      * @return null on success, an error message on parameter error
@@ -1974,13 +2011,6 @@ throws ScriptException //Throwable
         , StringFormatter out, int indentOut
     )  
     {
-      final ExecuteLevel sublevel;
-      JZcmdScript.JZcmdClass subClass = (JZcmdScript.JZcmdClass)subroutine.parentList;
-      if(subroutine.useLocals) {  //TODO check whether the subClass == this.jzclass 
-        sublevel = this; 
-      } else { 
-        sublevel = new ExecuteLevel(jzcmdMain, subClass, threadData, this, subroutine.useLocals ? localVariables : null); 
-      }
       final List<DataAccess.Variable<Object>> arglist;
       if(args !=null){
         arglist = new LinkedList<DataAccess.Variable<Object>>();
@@ -1991,6 +2021,7 @@ throws ScriptException //Throwable
         arglist = null;
       }
       short success;
+      final ExecuteLevel sublevel = levelForSubroutine(subroutine);
       try{
         success = exec_Subroutine(subroutine, sublevel, null, arglist, out, indentOut, -1);
       } catch(Exception exc){
@@ -2000,8 +2031,31 @@ throws ScriptException //Throwable
     }
     
     
+    
+    /**Creates a new level for the subroutine with this given level. 
+     * If the subroutine designates {@link JZcmdScript.Subroutine#useLocals} then a new level is not created,
+     * instead this is returned.
+     * @param subroutine
+     * @return
+     */
+    public final ExecuteLevel levelForSubroutine(JZcmdScript.Subroutine subroutine) {
+      final ExecuteLevel sublevel;
+      JZcmdScript.JZcmdClass subClass = (JZcmdScript.JZcmdClass)subroutine.parentList;
+      if(subroutine.useLocals) {  //TODO check whether the subClass == this.jzclass 
+        sublevel = this; 
+      } else { 
+        sublevel = new ExecuteLevel(jzcmdMain, subClass, threadData, this, null); 
+      }
+      return sublevel;
+    }
+    
+    
+    
+    
+    
+    
     /**Core routine to execute a sub routine.
-     * @param subtextScript
+     * @param statement
      * @param sublevel
      * @param actualArgs
      * @param additionalArgs
@@ -2011,21 +2065,21 @@ throws ScriptException //Throwable
      * @return
      * @throws Exception
      */
-    private short exec_Subroutine(JZcmdScript.Subroutine subtextScript
+    private short exec_Subroutine(JZcmdScript.Subroutine statement
         , ExecuteLevel sublevel
         , List<JZcmdScript.Argument> actualArgs
         , List<DataAccess.Variable<Object>> additionalArgs
-        , StringFormatter out, int indentOut, int nDebug
+        , StringFormatter out, int indentOut, int nDebug  ////
     ) throws Exception
     {
       //String error = null;
       short success = kSuccess;
-      if(subtextScript.formalArgs !=null){
+      if(statement.formalArgs !=null){
         //
         //build a Map temporary to check which arguments are used:
         //
         TreeMap<String, JZcmdScript.DefVariable> check = new TreeMap<String, JZcmdScript.DefVariable>();
-        for(JZcmdScript.DefVariable formalArg: subtextScript.formalArgs) {
+        for(JZcmdScript.DefVariable formalArg: statement.formalArgs) {
           check.put(formalArg.getVariableIdent(), formalArg);
         }
         //
@@ -2042,7 +2096,7 @@ throws ScriptException //Throwable
               char cType = checkArg.elementType();
               //creates the argument variable with given actual value and the requested type in the sub level.
               switch(cType){
-                case 'F': ref = convert2FilePath(ref); 
+                case 'F': ref = convert2FilePath(ref); break;
               }
               DataAccess.createOrReplaceVariable(sublevel.localVariables, actualArg.identArgJbat, cType, ref, false);
             }
@@ -2060,7 +2114,13 @@ throws ScriptException //Throwable
             } else {
               char cType = checkArg.elementType();
               //creates the argument variable with given actual value and the requested type in the sub level.
-              DataAccess.createOrReplaceVariable(sublevel.localVariables, name, cType, arg.value(), false);
+              Object argVal = arg.value();
+              switch(cType){
+                case 'F': argVal = convert2FilePath(argVal); break;
+                default: argVal = arg.value();
+              }
+              //creates the argument variable with given actual value and the requested type in the sub level.
+              DataAccess.createOrReplaceVariable(sublevel.localVariables, name, cType, argVal, false);
             }
           }
         }
@@ -2081,7 +2141,7 @@ throws ScriptException //Throwable
       } else if(actualArgs !=null){
         throw new IllegalArgumentException("execSubroutine -  not expected arguments");
       }
-      success = sublevel.execute(subtextScript.statementlist, out, indentOut, sublevel.localVariables, nDebug);
+      success = sublevel.execute(statement.statementlist, out, indentOut, sublevel.localVariables, nDebug);
       return success;
     }
     
@@ -2430,14 +2490,19 @@ throws ScriptException //Throwable
         } else if(obj instanceof DataAccess.Variable) {
           DataAccess.Variable<?> variable = (DataAccess.Variable<?>) obj;
           if(variable.type() == 'X') { 
-            //a Subtext or Statement block  ////
+            //a Subtext or Statement block  
             @SuppressWarnings("unchecked") 
             DataAccess.Variable<JZcmdScript.Subroutine> var = (DataAccess.Variable<JZcmdScript.Subroutine>)obj;
             JZcmdScript.Subroutine subroutine = var.value();
             if(!subroutine.useLocals) {
               throw new IllegalArgumentException("Subroutine as <&dataText> can only used without arguments.");
             }
-            success = exec_Subroutine(subroutine, null, out, indentOut);
+            final ExecuteLevel sublevel = levelForSubroutine(subroutine);
+            try{
+              success = exec_Subroutine(subroutine, sublevel, null, null, out, indentOut, -1);
+            } catch(Exception exc){
+              success = kException;
+            }
             //executes the statement of the Subtext and appends the content to out.
             //success = execute(statements, out, indentOut, localVariables, nDebug);
             text = null; //because it is appended already, text = null.
@@ -3121,7 +3186,10 @@ throws ScriptException //Throwable
      */
     JZcmdFilepath convert2FilePath(Object osrc)
     { JZcmdFilepath ret;
-      if(osrc instanceof JZcmdFilepath){
+      if(osrc == null){
+        ret = null;
+      }
+      else if(osrc instanceof JZcmdFilepath){
         ret = (JZcmdFilepath)osrc;
       } else {
         String src = osrc.toString();

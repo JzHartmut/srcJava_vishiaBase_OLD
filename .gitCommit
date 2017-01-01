@@ -1,1 +1,2 @@
-CmdQueue, JZcmdExecuter: now aborts all CmdExecuter from JZcmd too. If one from them hangs, elsewhere no solution.
+JZcmdExecuter.execSub(...) now works with a List of arguments instead Map. It tests argument types.
+Thus argument type conversion is done especially argument type {@link FilePath} for the.File.commander - execution.

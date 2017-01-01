@@ -44,6 +44,7 @@ public class JZcmdScript extends CompiledScript
   /**Version, history and license.
    * 
    * <ul>
+   * <li>2016-12-31 Hartmut chg:  
    * <li>2016-12-27 Hartmut adapt: {@link JZcmdExecuter.ExecuteLevel#jzcmdMain}
    * <li>2016-12-26 Hartmut adapt: {@link JZcmdClass#listClassesAndSubroutines}  
    * <li>2016-12-18 Hartmut new: {@link Subroutine#new_List()} necessary in any zbnf syntax (where...). 

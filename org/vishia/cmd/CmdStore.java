@@ -199,7 +199,7 @@ public class CmdStore
   @Deprecated
   public void add_CmdBlock(CmdBlock value){ listCmds.add(value); idxCmd.put(value.name, value); }
 
-  
+  public void clear(){ listCmds.clear(); }
 
   
   /**Adds the content of a given JZcmd class (after translation of the JZcmd script) to this CmdStore. 
