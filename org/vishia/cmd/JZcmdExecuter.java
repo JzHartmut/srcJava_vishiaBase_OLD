@@ -888,7 +888,7 @@ throws ScriptException //Throwable
     } else {
       arglist = null;
     }
-    return execSub(statement, arglist, accessPrivate, out, currdir);
+    return execSub(statement, arglist, accessPrivate, out, currdir, null);
   }
   
   
@@ -912,11 +912,14 @@ throws ScriptException //Throwable
    * @throws IOException
    */
   public Map<String, DataAccess.Variable<Object>> execSub(JZcmdScript.Subroutine statement, List<DataAccess.Variable<Object>> arglist
-      , boolean accessPrivate, Appendable out, File currdir) ////
+      , boolean accessPrivate, Appendable out, File currdir, CmdExecuter cmdExecuter) ////
   throws ScriptException //Throwable
   {
     if(acc.jzcmdScript == null) throw new IllegalArgumentException("jzcmdScript missing, you should invoke \"initialize(script, false, null, null);\" before call execSub(...)");
     final ExecuteLevel level = acc.scriptLevel.levelForSubroutine(statement);  //uses the script variable if subroutine uses the locals. //new ExecuteLevel(acc, acc.jzcmdScript.scriptClass, acc.scriptThread, acc.scriptLevel, null);
+    if(cmdExecuter !=null) {
+      level.setCmdExecuter(cmdExecuter);
+    }
     if(out !=null) {
       StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
       acc.textline = outFormatter;
@@ -1104,6 +1107,16 @@ throws ScriptException //Throwable
      */
     protected ExecuteLevel(JZcmdMain acc, JZcmdThread threadData)
     { this(acc, null, threadData, null, null);
+    }
+    
+    
+    /**Use the given CmdExecuter especially for a {@link JZcmdExecuter#execSub(org.vishia.cmd.JZcmdScript.Subroutine, List, boolean, Appendable, File)}
+     * after {@link #levelForSubroutine(org.vishia.cmd.JZcmdScript.Subroutine)}.
+     * @param executer may be opened, should not be in process, will be used then.
+     */
+    public void setCmdExecuter(CmdExecuter executer) {
+      if(this.cmdExecuter !=null) { this.cmdExecuter.abortCmd(); this.cmdExecuter.close(); }
+      this.cmdExecuter = executer;
     }
 
     public JZcmdMain executer(){ return jzcmdMain; }

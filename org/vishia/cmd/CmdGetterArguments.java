@@ -6,8 +6,9 @@ import java.util.Map;
 
 import org.vishia.util.DataAccess;
 
-/**This interface is used to get arguments for {@link CmdQueue#addCmd(org.vishia.cmd.CmdStore.CmdBlock, CmdGetterArguments)}
- * to invoke a {@link JZcmdExecuter#execSub(org.vishia.cmd.JZcmdScript.Subroutine, Map, boolean, Appendable, File)} with the Map of actual arguments.
+/**This interface is used to get arguments for {@link CmdExecuter#addCmd(org.vishia.cmd.JZcmdScript.Subroutine, List, Appendable, File)}.
+ * to invoke a {@link JZcmdExecuter#execSub(org.vishia.cmd.JZcmdScript.Subroutine, List, boolean, Appendable, File)} with the Map of actual arguments.
+ * It should be implemented in environments to build the argument. See {@link org.vishia.gral.widget.GralCommandSelector}
  */
 public interface CmdGetterArguments
 {

@@ -1,1 +1,2 @@
-CmdStore is now obsolete. The content is removed.
+Now CmdQueue is obsolete too. The CmdExecuter has a queue. It runs in the.File.commander.
+

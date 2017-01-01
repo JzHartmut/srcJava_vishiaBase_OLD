@@ -7,13 +7,15 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import javax.script.ScriptException;
+
+import org.vishia.mainCmd.MainCmdLogging_ifc;
+import org.vishia.util.DataAccess;
 import org.vishia.util.Debugutil;
 import org.vishia.util.StringPart;
 
@@ -25,6 +27,9 @@ public class CmdExecuter implements Closeable
 {
   /**Version, License and History:
    * <ul>
+   * <li>2017-01-01 Hartmut new: now alternatively to the command process the {@link JZcmdExecuter#execSub(org.vishia.cmd.JZcmdScript.Subroutine, List, boolean, Appendable, File)}
+   *   can be invoked by a #add  The JZcmdExecuter may invoke an command process and uses this CmdExecuter too in the main thread. Therefore it is proper
+   *   to join both invocation variants. The old class org.vishia.cmd.CmdQueue is obsolete then. 
    * <li>2016-09-18 Hartmut new: {@link #addCmd(String[], String, List, List, File, ExecuteAfterFinish)} and {@link #executeCmdQueue(boolean)}.
    *   That is a new feature to store simple system commands. The class {@link CmdQueue} may be over-engineered for some applications. 
    * <li>2016-09-17 Hartmut new: {@link #execute(String[], boolean, String, List, List, ExecuteAfterFinish)} have the argument {@link ExecuteAfterFinish}.
@@ -43,7 +48,7 @@ public class CmdExecuter implements Closeable
    * <li>2012-11-19 Hartmut bug: Command line arguments in "": now regarded in {@link #splitArgs(String)}.
    * <li>2012-02-02 Hartmut bug: Calling {@link #abortCmd()}: There was a situation were in {@link OutThread#run()} readline() hangs,
    *   though the {@link #process} was destroyed. It isn't solved yet. Test whether it may be better
-   *   to read the InputStread direct without wrapping with an BufferedReader. 
+   *   to read the InputStream direct without wrapping with an BufferedReader. 
    * <li>2011-12-31 Hartmut bugfix: The OutThread doesn't realize that the process was finished,
    *   because BufferedReader.ready() returns false and the buffer was not checked. So 'end of file'
    *   was not detected. Therefore {@link OutThread#bProcessIsRunning} set to false to abort waiting.
@@ -123,6 +128,13 @@ public class CmdExecuter implements Closeable
   
   ConcurrentLinkedQueue<CmdQueueEntry> cmdQueue;
   
+  /**For {@link JZcmdScript.Subroutine}. It is created on demand if necessity.
+   * 
+   */
+  private JZcmdExecuter jzcmdExecuter;
+  
+
+  
   String[] sConsoleInvocation = {"cmd.exe", "/C"};  //default for window.
   
   /**Constructs the class and starts the threads to getting output and error stream
@@ -144,6 +156,18 @@ public class CmdExecuter implements Closeable
     threadExecError.start();
     //threadExecIn.start();
   }
+  
+  
+  
+  
+  public void initJZcmdExecuter(JZcmdScript script, String sCurrdir, MainCmdLogging_ifc log) throws Throwable
+  { if(jzcmdExecuter == null) {
+      jzcmdExecuter = new JZcmdExecuter(log);
+    }
+    jzcmdExecuter.initialize(script, false, null, sCurrdir);
+  }
+  
+
   
   /**Sets the current directory for the next execution.
    * @param dir any directory in the users file system.
@@ -170,6 +194,17 @@ public class CmdExecuter implements Closeable
     sConsoleInvocation = splitArgs(cmd);
   }
   
+  public void addCmd(String cmdline
+      , String input
+      , Appendable output
+      , File currentDir
+      , ExecuteAfterFinish executeAfterCmd
+      ) {
+    String[] cmdArgs = splitArgs(cmdline);
+    List<Appendable> outputs = new LinkedList<Appendable>();
+    outputs.add(output);
+    addCmd(cmdArgs, input, outputs, null, currentDir, executeAfterCmd);
+  }
   
   
   public void addCmd(String[] cmdArgs
@@ -189,6 +224,29 @@ public class CmdExecuter implements Closeable
     e.executeAfterFinish = executeAfterCmd;
     cmdQueue.offer(e);
   }
+  
+  
+  
+  
+  
+  public void addCmd( JZcmdScript.Subroutine jzsub
+  , List<DataAccess.Variable<Object>> args
+  , Appendable out
+  , File currDir
+  ) {
+    if(jzcmdExecuter == null) throw new IllegalArgumentException("The CmdExecuter should be initiaized with initJZcmdExecuter(script,...)");
+    if(cmdQueue == null) { cmdQueue = new ConcurrentLinkedQueue<CmdQueueEntry>(); }
+    CmdQueueEntry e = new CmdQueueEntry();
+    e.jzsub = jzsub;
+    e.args = args;
+    e.out1 = out;
+    e.out = new LinkedList<Appendable>();
+    e.out.add(out);
+    e.currentDir = currDir;
+    cmdQueue.offer(e);
+  }
+  
+  
   
   
   
@@ -217,12 +275,20 @@ public class CmdExecuter implements Closeable
   public CmdQueueEntry executeCmdQueue(boolean abortOnError)
   { CmdQueueEntry e = null;
     while( cmdQueue !=null && (e = cmdQueue.poll())!=null) {
-      if(e.currentDir !=null) {
-        setCurrentDir(e.currentDir);
-      }
-      e.errorCmd = execute(e.cmd, false, e.input, e.out, e.err, e.executeAfterFinish);
-      if(e.errorCmd !=0 && abortOnError) {
-        break;
+      if(e.jzsub !=null) {
+        try{ jzcmdExecuter.execSub(e.jzsub, e.args, true, e.out1, e.currentDir, CmdExecuter.this);
+        } catch(ScriptException exc){ 
+          String text = "execute JZsub, scriptexception, " + exc.getMessage();
+          try{ e.out1.append(text); } catch(IOException exc1){}
+        }
+      } else {
+        if(e.currentDir !=null) {
+          setCurrentDir(e.currentDir);
+        }
+        e.errorCmd = execute(e.cmd, false, e.input, e.out, e.err, e.executeAfterFinish);
+        if(e.errorCmd !=0 && abortOnError) {
+          break;
+        }
       }
     }
     return e;  //it is null if all cmds are processed.
@@ -462,6 +528,12 @@ public class CmdExecuter implements Closeable
   }
   
 
+  
+  public boolean abortAllCmds()
+  {
+    cmdQueue.clear();
+    return abortCmd();
+  }
 
   /**Splits command line arguments. See {@link #splitArgs(String, String[], String[])}, without preArgs and postArgs.
    */
@@ -538,7 +610,11 @@ public class CmdExecuter implements Closeable
   public static class CmdQueueEntry
   {
     public String[] cmd;
+    /**If given this subroutine should be executed. cmd is not used then. */
+    public JZcmdScript.Subroutine jzsub;
+    List<DataAccess.Variable<Object>> args;
     public String input;
+    Appendable out1;
     public List<Appendable> out;
     public List<Appendable> err;
     public File currentDir;
@@ -659,7 +735,7 @@ public class CmdExecuter implements Closeable
     @Override public void run()
     { while(bRunThreads){
         if(bRunExec){
-          String sLine;
+          //String sLine;
           boolean bFinished = true;
           try{
             if( (processIn.append("")) !=null){
