@@ -4,13 +4,6 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
-import org.vishia.mainCmd.MainCmdLoggingStream;
-import org.vishia.mainCmd.MainCmdLogging_ifc;
-import org.vishia.util.Assert;
-import org.vishia.util.DataAccess;
 
 /**This class stores some prepared commands for execution and executes it one after another.
  * The commands can contain placeholder for files. The commands may be operation system commands or {@link JZcmdExecuter} invocation of sub routines.

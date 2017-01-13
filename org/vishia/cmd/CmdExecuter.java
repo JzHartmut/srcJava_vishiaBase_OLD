@@ -164,7 +164,7 @@ public class CmdExecuter implements Closeable
   { if(jzcmdExecuter == null) {
       jzcmdExecuter = new JZcmdExecuter(log);
     }
-    jzcmdExecuter.initialize(script, false, null, sCurrdir);
+    jzcmdExecuter.initialize(script, false, sCurrdir);
   }
   
 

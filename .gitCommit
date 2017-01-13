@@ -1,2 +1,5 @@
-Now CmdQueue is obsolete too. The CmdExecuter has a queue. It runs in the.File.commander.
-
+JZcmdExecuter, JZcmdScript: chg: On any call of execute(...) or execSub(..) the given script will be used as current and replaces an old one. 
+ If it is another script as the last one, the new script will be established. 
+ It means, the existing script variables are deleted and the script variables of the new given script are calculated and stored.
+ If the script is the same, the variables won't be replaced. It is a spare of time, but also additional variables will be kept.
+ The new rule is: the JZcmdExecuter can be used for several scripts one after another (in one thread). The current script wins.

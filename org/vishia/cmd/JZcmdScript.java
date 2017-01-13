@@ -44,7 +44,8 @@ public class JZcmdScript extends CompiledScript
   /**Version, history and license.
    * 
    * <ul>
-   * <li>2016-12-31 Hartmut chg:  
+   * <li>2017-01-13 Hartmut chg: A {@link Subroutine} now has the reference {@link Subroutine#theScript} to get the script 
+   *   for a {@link JZcmdExecuter#execSub(Subroutine, List, boolean, Appendable, File, CmdExecuter)} invocation.  
    * <li>2016-12-27 Hartmut adapt: {@link JZcmdExecuter.ExecuteLevel#jzcmdMain}
    * <li>2016-12-26 Hartmut adapt: {@link JZcmdClass#listClassesAndSubroutines}  
    * <li>2016-12-18 Hartmut new: {@link Subroutine#new_List()} necessary in any zbnf syntax (where...). 
@@ -214,7 +215,6 @@ public class JZcmdScript extends CompiledScript
     if(context instanceof JZcmdExecuter.ExecuteLevel){
       JZcmdExecuter.ExecuteLevel level = (JZcmdExecuter.ExecuteLevel) context;
       try{ 
-        level.jzcmdMain.jzCmdExecuter.initialize(this, false, null, null);
         Subroutine main = getMain();
         level.exec_Subroutine(main, null, null, 0);
       } catch(Throwable exc){ 
@@ -369,6 +369,8 @@ public class JZcmdScript extends CompiledScript
     int srcLine, srcColumn;
     
     String srcFile = "";
+    
+    
     
     /**Necessary for throwing exceptions with the {@link StatementList#srcFile} in its text. */
     final StatementList parentList;
@@ -1705,13 +1707,14 @@ public class JZcmdScript extends CompiledScript
     
     public List<DefVariable> formalArgs;
     
-    //char type;
+    final JZcmdScript theScript;
     
     /**
      * @param parentList It is neccessary that parentList is instanceof JZcmdClass, for {@link JZcmdExecuter}
      */
     Subroutine(JZcmdClass parentList) {
       super(parentList, 'X');
+      this.theScript = parentList.theScript;
     }
     
     public void set_name(String name){ this.name = name; }
@@ -2816,9 +2819,8 @@ public class JZcmdScript extends CompiledScript
    * The class can contain statements, which are variable definitions of the class variable. 
    * Therefore this class extends the StatementList.
    */
-  public class JZcmdClass extends StatementList
+  public static class JZcmdClass extends StatementList
   {
-    
     /**Sub classes of this class. */
     List<JZcmdClass> classes;
     
@@ -2828,8 +2830,11 @@ public class JZcmdScript extends CompiledScript
     /**All classes and subroutines in order of the script to present it in a list for choice. */
     final List<Object> listClassesAndSubroutines = new ArrayList<Object>();
    
-    protected JZcmdClass(JZscriptSettings jzScriptSettings){
+    final JZcmdScript theScript;
+    
+    protected JZcmdClass(JZcmdScript theScript, JZscriptSettings jzScriptSettings){
       super(/*JZcmdScript.this.*/jzScriptSettings);
+      this.theScript = theScript;
     }
     
     
@@ -2839,7 +2844,7 @@ public class JZcmdScript extends CompiledScript
     
     public final List<Object> listClassesAndSubroutines(){ return listClassesAndSubroutines; }
     
-    public JZcmdClass new_subClass(){ return new JZcmdClass(jzScriptSettings); }
+    public JZcmdClass new_subClass(){ return new JZcmdClass(theScript, theScript.jzScriptSettings); }
     
     public void add_subClass(JZcmdClass val){ 
       if(classes == null){ classes = new ArrayList<JZcmdClass>(); }
@@ -2847,7 +2852,7 @@ public class JZcmdScript extends CompiledScript
       listClassesAndSubroutines.add(val);
       String sName = val.cmpnName;
       String nameGlobal = cmpnName == null ? sName : cmpnName + "." + sName;
-      classesAll.put(nameGlobal, val); 
+      theScript.classesAll.put(nameGlobal, val); 
    
     }
     
@@ -2861,7 +2866,7 @@ public class JZcmdScript extends CompiledScript
       subroutines.put(sName, val); 
       listClassesAndSubroutines.add(val);
       String nameGlobal = cmpnName == null ? sName : cmpnName + "." + sName;
-      subroutinesAll.put(nameGlobal, val); 
+      theScript.subroutinesAll.put(nameGlobal, val); 
     }
     
     
@@ -2919,7 +2924,7 @@ public class JZcmdScript extends CompiledScript
     public Scriptfile scriptfile;    
     
     public ZbnfJZcmdScript(JZcmdScript compiledScript){
-      compiledScript.super(compiledScript.jzScriptSettings);   //JZcmdClass is non-static, enclosing is outer.
+      super(compiledScript, compiledScript.jzScriptSettings);   //JZcmdClass is non-static, enclosing is outer.
       this.compiledScript = compiledScript;
       compiledScript.scriptClass = this; //outer.new JZcmdClass();
     }
