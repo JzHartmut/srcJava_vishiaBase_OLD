@@ -12,30 +12,30 @@ import org.vishia.util.FileSystem;
 /**This class describes a Filepath instance in an executer level of JZcmd. The file entity can contain wild cards.
  * It can refer to a variable which contains the base path.
  * It may be a absolute or a relative path. It can have a base path and a local path part.
- * This class contains the reference to the {@link JZcmdExecuter.ExecuteLevel} where this variable is located
- * and a reference to the {@link JZcmdScript.Filepath}. The last one contains all information about the
+ * This class contains the reference to the {@link JZtExecuter.ExecuteLevel} where this variable is located
+ * and a reference to the {@link JZtScript.Filepath}. The last one contains all information about the
  * file entity. This class is used to get all presentation possibilities of the file. Therefore the current directory
  * should be known which is given in the JZcmd executer level. 
  * <br><br>
  * <br><br>
  */
-public final class JZcmdFilepath {
+public final class JZtFilepath {
 
   
   
   /**Version, history and license.
    * <ul>   
    * <li>2014-06-10 Hartmut chg: {@link ExecuteLevel} implements {@link FilePath.FilePathEnvAccess} now
-   *   instead this, therewith a {@link JZcmdFileset#listFiles(List, JZcmdFilepath, boolean, org.vishia.util.FilePath.FilePathEnvAccess)}
+   *   instead this, therewith a {@link JZtFileset#listFiles(List, JZtFilepath, boolean, org.vishia.util.FilePath.FilePathEnvAccess)}
    *   does not need an accessPath, it may be empty respectively null.
    * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined here. Only one concept!
    *   This file was copied from srcJava_Zbnf/org/vishia/zmake/Userfilepath.
    *   The data of a file are referenced with {@link #data}. The original fields are contained in
-   *   {@link JZcmdScript.Filepath}. Both are separated because the parts in JZcmdScript are set completely
+   *   {@link JZtScript.Filepath}. Both are separated because the parts in JZcmdScript are set completely
    *   by parsing the script. This class contains the access methods which uses the reference {@link #zgenlevel}.
    * <li>2013-03-10 Hartmut new: {@link FileSystem#normalizePath(CharSequence)} called in {@link #absbasepath(CharSequence)}
    *   offers the normalize path for all absolute file paths. 
-   * <li>2013-03-10 Hartmut new: Replace wildcards: {@link #absfile(JZcmdFilepath)} (TODO for some more access methods)
+   * <li>2013-03-10 Hartmut new: Replace wildcards: {@link #absfile(JZtFilepath)} (TODO for some more access methods)
    * <li>2013-02-12 Hartmut chg: dissolved from inner class in {@link ZmakeUserScript}
    * </ul>
    * <b>Copyright/Copyleft</b>:
@@ -78,7 +78,7 @@ public final class JZcmdFilepath {
    */
   //private final UserFileset itsFileset;
   
-  private final JZcmdExecuter.ExecuteLevel zgenlevel;
+  private final JZtExecuter.ExecuteLevel zgenlevel;
   
 
   final FilePath data;
@@ -90,7 +90,7 @@ public final class JZcmdFilepath {
    * @param zgenlevel
    * @param filepath given data
    */
-  JZcmdFilepath(JZcmdExecuter.ExecuteLevel zgenlevel, FilePath filepath){
+  JZtFilepath(JZtExecuter.ExecuteLevel zgenlevel, FilePath filepath){
     this.zgenlevel = zgenlevel;
     this.data = filepath;
   }
@@ -99,7 +99,7 @@ public final class JZcmdFilepath {
    * @param zgenlevel
    * @param filepath given data
    */
-  JZcmdFilepath(JZcmdExecuter.ExecuteLevel zgenlevel, String filepath){
+  JZtFilepath(JZtExecuter.ExecuteLevel zgenlevel, String filepath){
     this.zgenlevel = zgenlevel;
     this.data = new FilePath(filepath);
   }
@@ -115,7 +115,7 @@ public final class JZcmdFilepath {
    * @throws NoSuchFieldException if the basepath contains a scriptvariable and this scriptvariable was not found. 
    *  
    */
-  JZcmdFilepath(JZcmdExecuter.ExecuteLevel zgenlevel, JZcmdFilepath src, JZcmdFilepath commonPath, JZcmdFilepath accessPath) throws NoSuchFieldException {
+  JZtFilepath(JZtExecuter.ExecuteLevel zgenlevel, JZtFilepath src, JZtFilepath commonPath, JZtFilepath accessPath) throws NoSuchFieldException {
     this.zgenlevel = zgenlevel;
     FilePath fcommonPath = commonPath == null ? null : commonPath.data;
     FilePath faccessPath = accessPath == null ? null : accessPath.data;
@@ -291,7 +291,7 @@ public final class JZcmdFilepath {
     return data.absfileReplwildcard(replWildc, zgenlevel);
   }
   
-  public CharSequence localfileReplwildcard(StringBuilder uRet, JZcmdFilepath replWildc){ 
+  public CharSequence localfileReplwildcard(StringBuilder uRet, JZtFilepath replWildc){ 
     return data.localfileReplwildcard(uRet, replWildc.data);
   }
 

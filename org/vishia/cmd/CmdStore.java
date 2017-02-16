@@ -4,7 +4,7 @@ package org.vishia.cmd;
 
 /**Obsolete because the JZcmdScript is better.
  *   Use Map<String, JZcmdScript.Subroutine> or other to store the subroutines of a script.
- *   Use {@link JZcmdScript#addContentToSelectContainer(org.vishia.cmd.JZcmdScript.AddSub2List)} to add the content.
+ *   Use {@link JZtScript#addContentToSelectContainer(org.vishia.cmd.JZtScript.AddSub2List)} to add the content.
  *   The content of this class is now removed.
  * @author Hartmut Schorrig
  *
@@ -15,15 +15,15 @@ public class CmdStore
   /**Version, history and license.
    * <ul>2017-01-01 Hartmut now obsolete because the JZcmdScript is better.
    *   Use Map<String, JZcmdScript.Subroutine> or other to store the subroutines of a script.
-   *   Use {@link JZcmdScript#addContentToSelectContainer(org.vishia.cmd.JZcmdScript.AddSub2List)} to add the content.
+   *   Use {@link JZtScript#addContentToSelectContainer(org.vishia.cmd.JZtScript.AddSub2List)} to add the content.
    *   The content of this class is now removed.
-   * <li>2016-12-26 Hartmut new: {@link #addSubOfJZcmdClass(org.vishia.cmd.JZcmdScript.JZcmdClass)}: now adds classes 
+   * <li>2016-12-26 Hartmut new: {@link #addSubOfJZcmdClass(org.vishia.cmd.JZtScript.JZcmdClass)}: now adds classes 
    *   and subroutines in the order of the source, not in alphabetic order with separation classes and sub like before. 
    *   Therewith the script determines the order in a choice list {@link org.vishia.gral.widget.GralCommandSelector }
-   * <li>2013-09-08 Hartmut chg: {@link #addSubOfJZcmdClass(org.vishia.cmd.JZcmdScript.JZcmdClass, int)} now public
+   * <li>2013-09-08 Hartmut chg: {@link #addSubOfJZcmdClass(org.vishia.cmd.JZtScript.JZcmdClass, int)} now public
    *   because readCmdCfg(...) removed to {@link org.vishia.commander.FcmdExecuter}. It has dependencies
    *   to the Zbnf package {@link org.vishia.zcmd.JZcmd} which is not visible in this component by standalone compilation.
-   *   The problem is: The {@link JZcmdScript} is visible here, but the used translator for the JZcmdScript needs ZBNF 
+   *   The problem is: The {@link JZtScript} is visible here, but the used translator for the JZcmdScript needs ZBNF 
    * <li>2013-09-08 Hartmut new: {@link CmdBlock#zgenSub} may replace the {@link CmdBlock#listBlockCmds}
    *   and may replace the {@link PrepareCmd} in future, first test. 
    * <li>2012-02-19 Hartmut chg: {@link #readCmdCfg(File)} accepts $ENV, comment lines with // and #

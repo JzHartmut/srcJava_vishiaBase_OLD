@@ -17,13 +17,13 @@ import org.vishia.util.Debugutil;
 import org.vishia.util.StringFunctions;
 import org.vishia.xmlSimple.SimpleXmlOutputter;
 
-public class JZcmdTester
+public class JZtTester
 {
 
 
   /**Version, history and license.
    * <ul>
-   * <li>2014-06-29 Hartmut chg now all methods are static and part of {@link JZcmdTester}.
+   * <li>2014-06-29 Hartmut chg now all methods are static and part of {@link JZtTester}.
    * <li>2013-07-28 Hartmut chg/new: dataTree now writes XML
    * <li>2013-03-10 Hartmut chg/new: dataTree supports superclass content.
    * <li>2012-12-00 Hartmut improved: dataTree circular references with @ 1234 (address) to mark it.
@@ -157,7 +157,7 @@ public class JZcmdTester
    * @throws IOException on file system error
    * @throws NoSuchFieldException if the JZcmdFilepath access an internal variable which is not given. It is not expected usual.
    */
-  public static void dataHtml(Object data, JZcmdFilepath file) throws IOException, NoSuchFieldException 
+  public static void dataHtml(Object data, JZtFilepath file) throws IOException, NoSuchFieldException 
   { Writer out = new FileWriter(file.absfile().toString());
     DataShow.outHtml(data, out);
     out.close();

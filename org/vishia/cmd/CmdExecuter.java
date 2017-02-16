@@ -27,7 +27,7 @@ public class CmdExecuter implements Closeable
 {
   /**Version, License and History:
    * <ul>
-   * <li>2017-01-01 Hartmut new: now alternatively to the command process the {@link JZcmdExecuter#execSub(org.vishia.cmd.JZcmdScript.Subroutine, List, boolean, Appendable, File)}
+   * <li>2017-01-01 Hartmut new: now alternatively to the command process the {@link JZtExecuter#execSub(org.vishia.cmd.JZtScript.Subroutine, List, boolean, Appendable, File)}
    *   can be invoked by a #add  The JZcmdExecuter may invoke an command process and uses this CmdExecuter too in the main thread. Therefore it is proper
    *   to join both invocation variants. The old class org.vishia.cmd.CmdQueue is obsolete then. 
    * <li>2016-09-18 Hartmut new: {@link #addCmd(String[], String, List, List, File, ExecuteAfterFinish)} and {@link #executeCmdQueue(boolean)}.
@@ -128,10 +128,10 @@ public class CmdExecuter implements Closeable
   
   ConcurrentLinkedQueue<CmdQueueEntry> cmdQueue;
   
-  /**For {@link JZcmdScript.Subroutine}. It is created on demand if necessity.
+  /**For {@link JZtScript.Subroutine}. It is created on demand if necessity.
    * 
    */
-  private JZcmdExecuter jzcmdExecuter;
+  private JZtExecuter jzcmdExecuter;
   
 
   
@@ -160,9 +160,9 @@ public class CmdExecuter implements Closeable
   
   
   
-  public void initJZcmdExecuter(JZcmdScript script, String sCurrdir, MainCmdLogging_ifc log) throws Throwable
+  public void initJZcmdExecuter(JZtScript script, String sCurrdir, MainCmdLogging_ifc log) throws Throwable
   { if(jzcmdExecuter == null) {
-      jzcmdExecuter = new JZcmdExecuter(log);
+      jzcmdExecuter = new JZtExecuter(log);
     }
     jzcmdExecuter.initialize(script, false, sCurrdir);
   }
@@ -229,7 +229,7 @@ public class CmdExecuter implements Closeable
   
   
   
-  public void addCmd( JZcmdScript.Subroutine jzsub
+  public void addCmd( JZtScript.Subroutine jzsub
   , List<DataAccess.Variable<Object>> args
   , Appendable out
   , File currDir
@@ -611,7 +611,7 @@ public class CmdExecuter implements Closeable
   {
     public String[] cmd;
     /**If given this subroutine should be executed. cmd is not used then. */
-    public JZcmdScript.Subroutine jzsub;
+    public JZtScript.Subroutine jzsub;
     List<DataAccess.Variable<Object>> args;
     public String input;
     Appendable out1;

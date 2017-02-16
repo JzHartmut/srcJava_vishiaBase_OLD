@@ -807,7 +807,7 @@ public class FileSystem
       }
       posSepRefNext = posSepRefNext2 + 1;
     }
-    final String sOutput = sBack + sOutput1.substring(posSep+1); //posSep may be 0, than its the same.
+    final String sOutput = sBack + (posSep +1 < sOutput1.length() ? sOutput1.substring(posSep+1) : ""); //posSep may be 0, than its the same.
     return sOutput;
   }
   

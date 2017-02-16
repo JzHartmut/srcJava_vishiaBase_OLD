@@ -68,6 +68,18 @@ public class SimpleXmlOutputter
   static final public int version = 20121130;
 
 
+  enum ModeBits {
+    writeNl(0x1)
+  , writeNlAftertext(0x2);  
+    
+    final int maskbit;
+    ModeBits(int value){ maskbit = value; }
+  }
+  
+  
+  int mode;
+  
+  
   
   String newline = "\r\n";
   

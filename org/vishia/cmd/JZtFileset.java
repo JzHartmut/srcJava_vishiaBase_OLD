@@ -19,17 +19,17 @@ import org.vishia.util.FilePath;
  * fileset::= { basepath = <file?basepath> | <file> ? , }.
  * </pre>
  * It refers a {@link FileSet}.
- * @see {@link JZcmdAccessFileset}. That class refers this and contains an access path, used as argument in a zmake call
+ * @see {@link JZtAccessFileset}. That class refers this and contains an access path, used as argument in a zmake call
  *   or as Argument build with <code>call ...( name = Fileset accesspath&FilesetVariable)</code> in a JZcmd script.
  */
-public class JZcmdFileset
+public class JZtFileset
 {
   
   /**Version, history and license.
    * <ul>
    * <li>2014-06-22 Hartmut chg: creation of {@link FileSet} as extra class. 
    * <li>2014-06-14 Hartmut chg: {@link ExecuteLevel} implements {@link FilePath.FilePathEnvAccess} now,
-   *   therewith a {@link #listFiles(List, JZcmdFilepath, boolean, org.vishia.util.FilePath.FilePathEnvAccess)}
+   *   therewith a {@link #listFiles(List, JZtFilepath, boolean, org.vishia.util.FilePath.FilePathEnvAccess)}
    *   does not need an accessPath, it may be empty respectively null.
    * <li>2014-03-07 created. From srcJava_Zbnf/org/vishia/zmake/ZmakeUserScript.UserFileset.
    * </ul>
@@ -62,28 +62,28 @@ public class JZcmdFileset
   //@SuppressWarnings("hiding")
   static final public String sVersion = "2014-06-22";
 
-  final JZcmdExecuter.ExecuteLevel zgenlevel;
-  final JZcmdScript.UserFileset data;
+  final JZtExecuter.ExecuteLevel zgenlevel;
+  final JZtScript.UserFileset data;
   
-  public JZcmdFileset(JZcmdExecuter.ExecuteLevel zgenlevel, JZcmdScript.UserFileset data){
+  public JZtFileset(JZtExecuter.ExecuteLevel zgenlevel, JZtScript.UserFileset data){
     this.zgenlevel = zgenlevel;
     this.data = data;
   }
   
   
   
-  void listFiles(List<JZcmdFilepath> files, JZcmdFilepath zgenAccesspath, boolean expandFiles) throws NoSuchFieldException {  ////
+  void listFiles(List<JZtFilepath> files, JZtFilepath zgenAccesspath, boolean expandFiles) throws NoSuchFieldException {  ////
     List<FilePath> files1 = new LinkedList<FilePath>();
     FilePath accesspath = zgenAccesspath == null ? null : zgenAccesspath.data;
     data.fileset.listFiles(files1, accesspath, zgenlevel, expandFiles);
     //wrap all FilePath in JZcmdFilepath
     for(FilePath file: files1){
-      JZcmdFilepath jzfile = new JZcmdFilepath(zgenlevel, file);
+      JZtFilepath jzfile = new JZtFilepath(zgenlevel, file);
       files.add(jzfile);
     }
   }
 
-  /**Returns a new list of all {@link JZcmdFilepath} with all files which are found in the file system
+  /**Returns a new list of all {@link JZtFilepath} with all files which are found in the file system
    *   in the given environment. The base path and local path is build from the members of the fileset
    *   and the {@link #accesspath} in that kind, that the shortest given local path is valid.
    * @param accesspath The access path to the members of this fileset.
@@ -91,29 +91,29 @@ public class JZcmdFileset
    * @return
    * @throws NoSuchFieldException
    */
-  public List<JZcmdFilepath> listFiles(JZcmdFilepath accesspath, boolean expandFiles) throws NoSuchFieldException { 
-    List<JZcmdFilepath> files = new ArrayList<JZcmdFilepath>();
+  public List<JZtFilepath> listFiles(JZtFilepath accesspath, boolean expandFiles) throws NoSuchFieldException { 
+    List<JZtFilepath> files = new ArrayList<JZtFilepath>();
     listFiles(files, accesspath, expandFiles);
     return files;
   }
   
   
-  /**Returns a new list of all {@link JZcmdFilepath} with all files which are found in the file system
+  /**Returns a new list of all {@link JZtFilepath} with all files which are found in the file system
    *   in the given environment. The base path and local path is build from the members of the fileset
    *   in that kind, that the shortest given local path is valid.
    * @return
    * @throws NoSuchFieldException
    */
-  public List<JZcmdFilepath> listFiles() throws NoSuchFieldException { return listFiles(null, false); }
+  public List<JZtFilepath> listFiles() throws NoSuchFieldException { return listFiles(null, false); }
 
     
-  /**Returns a new list of all {@link JZcmdFilepath} with all files which are found in the file system
+  /**Returns a new list of all {@link JZtFilepath} with all files which are found in the file system
    *   in the given environment. The base path and local path is build from the members of the fileset
    *   in that kind, that the shortest given local path is valid.
    * @return
    * @throws NoSuchFieldException
    */
-  public List<JZcmdFilepath> listFilesExpanded() throws NoSuchFieldException { return listFiles(null, true); }
+  public List<JZtFilepath> listFilesExpanded() throws NoSuchFieldException { return listFiles(null, true); }
 
     
     

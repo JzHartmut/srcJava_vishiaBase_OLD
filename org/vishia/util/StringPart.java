@@ -125,7 +125,7 @@ public class StringPart implements CharSequence, Comparable<CharSequence>
    * <li>2016-08-28 Hartmut new: {@link #firstlineMaxpart()}, {@link #nextlineMaxpart()} as new and important mechanism for line to line scanning. 
    * <li>2016-08-28 Hartmut chg: {@link #setParttoMax()} returns this. 
    * <li>2016-08-28 Hartmut new: {@link #checkCharAt(int, String)} as replacement or additional to {@link #charAt(int)} and comparison, without exception.  
-   * <li>2016-08-28 Hartmut chg: {@link #lentoPos(int)} instead {@link #lento(int)} because it is ambiguous with {@link #lento(char)} especially for {@link org.vishia.cmd.JZcmdExecuter} interpretation. 
+   * <li>2016-08-28 Hartmut chg: {@link #lentoPos(int)} instead {@link #lento(int)} because it is ambiguous with {@link #lento(char)} especially for {@link org.vishia.cmd.JZtExecuter} interpretation. 
    * <li>2016-08-28 Hartmut chg: {@link #lento(CharSequence)} instead String argument. May changes CharSequence instead String without changing the implementation. It has worked with a CharSequence already. 
    * <li>2016-08-28 Hartmut new: {@link #seekPos(int)} instead {@link #seek(int)} but it seeks backward from end with negative number. Sets {@link #found()} instead exception. 
    * <li>2016-05-22 Hartmut chg: now translated to C with some changes.

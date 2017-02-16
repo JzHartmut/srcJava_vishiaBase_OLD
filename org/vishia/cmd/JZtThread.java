@@ -5,18 +5,18 @@ import org.vishia.util.MessageQueue;
 import org.vishia.util.StringFormatter;
 
 /**This class is uses as Data base for all threads in a JZcmd execution environment.
- * One instance is aggregated in {@link JZcmdExecuter#scriptThread}. Any user created thread (in a script)
+ * One instance is aggregated in {@link JZtExecuter#scriptThread}. Any user created thread (in a script)
  * creates an instance of this. 
  * @author Hartmut Schorrig
  *
  */
-public class JZcmdThread implements Runnable
+public class JZtThread implements Runnable
 {
   
   /**Version, history and license.
    * <ul>
    * <li>2014-04-24 Hartmut chg: {@link #sendcmd(String, Object)} etc. uses 2 arguments, internally {@link MsgItem} is stored.
-   * <li>2014-04-24 Hartmut created from 2 inner classes of {@link JZcmdExecuter}: JZcmdThread and ThreadData.
+   * <li>2014-04-24 Hartmut created from 2 inner classes of {@link JZtExecuter}: JZcmdThread and ThreadData.
    *   Both class are joined.  
    * </ul>
    * 
@@ -60,10 +60,10 @@ public class JZcmdThread implements Runnable
   }
   
   /**Used only for starting the thread. */
-  private JZcmdExecuter.ExecuteLevel executeLevel;
+  private JZtExecuter.ExecuteLevel executeLevel;
 
   /**Used only for starting the thread. */
-  private JZcmdScript.ThreadBlock statement;
+  private JZtScript.ThreadBlock statement;
   
 
 
@@ -75,7 +75,7 @@ public class JZcmdThread implements Runnable
   /**The exception with them the thread was finished or null. */
   Throwable exception;
   
-  JZcmdScript.JZcmditem excStatement;
+  JZtScript.JZcmditem excStatement;
   
   int excLine, excColumn;
   
@@ -89,12 +89,12 @@ public class JZcmdThread implements Runnable
   private MessageQueue<MsgItem> msg1, cmd1;
   
   
-  public JZcmdThread()
+  public JZtThread()
   {
   }
 
-  protected void startThread(String name, JZcmdExecuter.ExecuteLevel startLevel
-      , JZcmdScript.ThreadBlock statementArg) {
+  protected void startThread(String name, JZtExecuter.ExecuteLevel startLevel
+      , JZtScript.ThreadBlock statementArg) {
     this.executeLevel = startLevel;
     this.statement = statementArg;
     Thread threadmng = new Thread(this, name);

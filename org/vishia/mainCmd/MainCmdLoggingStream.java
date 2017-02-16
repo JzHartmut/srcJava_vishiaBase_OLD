@@ -17,7 +17,7 @@ import org.vishia.util.Writer_Appendable;
 /**This class is a mainCmd logging output with adequate features as the {@link MainCmd} class,
  * but independent of that. It is intent to use if the logging features are other than in the 
  * main routine given, or if {@link MainCmd} is not used for the originally invocation of a Java program.
- * Especially it can be used for logging output inside a {@link org.vishia.cmd.JZcmdExecuter} for some
+ * Especially it can be used for logging output inside a {@link org.vishia.cmd.JZtExecuter} for some
  * special routines.
  * @author Hartmut Schorrig
  *
