@@ -8,13 +8,13 @@ import org.vishia.util.DataAccess;
 import org.vishia.util.FilePath;
 
 /**This class contains a reference to the access path and the reference to the Fileset which is accessed.
- * That objects contains a reference to the {@link JZtExecuter.ExecuteLevel} which contains the
+ * That objects contains a reference to the {@link JzTcExecuter.ExecuteLevel} which contains the
  * maybe used variables.
  * Use as Parameter for JZcmd call(..., name= Fileset access&fileset) and for Zmake inputs.
  * @author Hartmut Schorrig
  *
  */
-public class JZtAccessFileset
+public class JzTcAccessFileset
 {
   /**Version, history and license.
    * <ul>
@@ -50,8 +50,8 @@ public class JZtAccessFileset
   static final public String sVersion = "2014-05-04";
   
   
-  private final JZtFilepath accesspath;
-  private final JZtFileset fileset;
+  private final JzTcFilepath accesspath;
+  private final JzTcFileset fileset;
 
   
   
@@ -64,7 +64,7 @@ public class JZtAccessFileset
    * @return the instance
    * @throws Exception 
    */
-  public JZtAccessFileset(JZtScript.AccessFilesetname statement, String sFilesetVariable, JZtExecuter.ExecuteLevel jzlevel) 
+  public JzTcAccessFileset(JzTcScript.AccessFilesetname statement, String sFilesetVariable, JzTcExecuter.ExecuteLevel jzlevel) 
   throws Exception
   {
     
@@ -79,24 +79,24 @@ public class JZtAccessFileset
     DataAccess.Variable<Object> filesetV = jzlevel.localVariables.get(sFilesetVariable);
     if(filesetV == null) throw new NoSuchFieldException("JZcmdAccessFileset - fileset not found;" + sFilesetVariable);
     Object filesetO = filesetV.value();
-    if(!(filesetO instanceof JZtFileset)) throw new NoSuchFieldException("JZcmd.execZmake - fileset faulty type;" + sFilesetVariable);
+    if(!(filesetO instanceof JzTcFileset)) throw new NoSuchFieldException("JZcmd.execZmake - fileset faulty type;" + sFilesetVariable);
     //store the file set and the path before:
-    this.fileset = (JZtFileset) filesetO;
+    this.fileset = (JzTcFileset) filesetO;
     if(accessPath !=null){
-      this.accesspath = new JZtFilepath(jzlevel, accessPath);
+      this.accesspath = new JzTcFilepath(jzlevel, accessPath);
     } else {
       this.accesspath = null;
     }
   }
   
   
-  /**Returns a new list of all {@link JZtFilepath} whith all files which are found in the file system
+  /**Returns a new list of all {@link JzTcFilepath} whith all files which are found in the file system
    *   in the given environment. The base path and local path is build from the members of the fileset
    *   and the {@link #accesspath} in that kind, that the shortest given local path is valid.
    * @return
    * @throws NoSuchFieldException
    */
-  public List<JZtFilepath> listFilesExpanded() throws NoSuchFieldException { 
+  public List<JzTcFilepath> listFilesExpanded() throws NoSuchFieldException { 
     return fileset.listFiles(accesspath, true); 
   }
 
@@ -109,7 +109,7 @@ public class JZtAccessFileset
    *   false then return a FilePath with wildcards.
    * @throws NoSuchFieldException If a variable is not found.
    */
-  public void listFiles(List<JZtFilepath> files, final JZtExecuter.ExecuteLevel zgenlevel, boolean expandFiles) 
+  public void listFiles(List<JzTcFilepath> files, final JzTcExecuter.ExecuteLevel zgenlevel, boolean expandFiles) 
   throws NoSuchFieldException{
     if(this.fileset !=null){
       this.fileset.listFiles(files, this.accesspath, expandFiles);
@@ -119,11 +119,11 @@ public class JZtAccessFileset
         List<FilePath> files1 = new LinkedList<FilePath>();
         this.accesspath.data.expandFiles(files1, null, null, zgenlevel);
         for(FilePath file: files1){
-          JZtFilepath zgenFile = new JZtFilepath(zgenlevel, file);
+          JzTcFilepath zgenFile = new JzTcFilepath(zgenlevel, file);
           files.add(zgenFile);
         }
       } else {
-        JZtFilepath targetsrc = new JZtFilepath(zgenlevel, this.accesspath, null, null);
+        JzTcFilepath targetsrc = new JzTcFilepath(zgenlevel, this.accesspath, null, null);
         files.add(targetsrc);  
       }
     } else { 

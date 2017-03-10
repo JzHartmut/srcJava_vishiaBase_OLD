@@ -123,13 +123,13 @@ public class FilePath
    * <li>2014-04-05 Hartmut dissolved from {@link org/vishia/cmd/JZcmdFilepath}, usage more universal.     
    * <li>2014-03-07 Hartmut new: All capabilities from Zmake are joined in JZcmd. Only one concept!
    *   The file {@link org/vishia/cmd/JZcmdFilepath} was copied from former <code>srcJava_Zbnf/org/vishia/zmake/Userfilepath</code>.
-   *   The data of a file in the JZcmd context are referenced with {@link org.vishia.cmd.JZtFilepath#zgenlevel}. 
+   *   The data of a file in the JZcmd context are referenced with {@link org.vishia.cmd.JzTcFilepath#zgenlevel}. 
    *   The original fields are contained in this class. Both are separated because the parts in JZcmdScript are set completely
    *   by parsing the script. This class contains the access methods which uses the reference to {@link FilePathEnvAccess}
    *   as parameter.
    * <li>2013-03-10 Hartmut new: {@link FileSystem#normalizePath(CharSequence)} called in {@link #absbasepath(CharSequence)}
    *   offers the normalize path for all absolute file paths. 
-   * <li>2013-03-10 Hartmut new: Replace wildcard: {@link #absfile(JZtFilepath)} (TODO for some more access methods)
+   * <li>2013-03-10 Hartmut new: Replace wildcard: {@link #absfile(JzTcFilepath)} (TODO for some more access methods)
    * <li>2013-02-12 Hartmut chg: dissolved from inner class in {@nolink ZmakeUserScript}
    * <li>2012-12-29 Hartmut chg: A {@link FilePath} is independent from a target and describes a non-completely relative path usually.
    *   The path is completed, usual as absolute path, if the {UserFileSet} is used in a target. The {TargetInput} of a target
@@ -344,7 +344,7 @@ public class FilePath
    * with common and access paths and maybe variables. The variables are resolved all
    * and the relation between base and local parts in all components are resolved too,
    * so the new FilePath is simple to access.
-   * This method is used in {@link org.vishia.cmd.JZtFileset#listFiles(org.vishia.cmd.JZtFilepath, boolean)}.
+   * This method is used in {@link org.vishia.cmd.JzTcFileset#listFiles(org.vishia.cmd.JzTcFilepath, boolean)}.
    * 
    * @param src Any given FilePath, usual member of a Fileset
    * @param commonPath A common path of this FilePath enhances the local or given base part of FilePath
@@ -1436,7 +1436,7 @@ public class FilePath
   /**This class is used only temporary while processing the parse result into a instance of {@link FilePath}
    * while running {@link ZbnfJavaOutput}. 
    * @deprecated This is the only one reason that the fields of FilePath are fine graduated. It saves calculation time
-   * if a better algorithm is used. This class will be removed if the {@link org.vishia.zcmd.JZtScript} and its syntax
+   * if a better algorithm is used. This class will be removed if the {@link org.vishia.zcmd.JzTcScript} and its syntax
    * does not need it anymore.
    */
   @Deprecated public static class ZbnfFilepath{

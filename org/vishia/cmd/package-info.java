@@ -4,8 +4,8 @@
  * <br><br>
  * The second content is the execution environment of JZcmd:
  * <ul>
- * <li>{@link JZtExecuter}: The executer
- * <li>{@link org.vishia.cmd.JZtScript}: The container for the compiled script.
+ * <li>{@link JzTcExecuter}: The executer
+ * <li>{@link org.vishia.cmd.JzTcScript}: The container for the compiled script.
  * <li>{@link JZmdFilepath}: Holds information for a file
  * <li>{@link JZmdFileset}: Holds information for a set of files
  * <li>{@link ZmakeTarget}: One Zmake line

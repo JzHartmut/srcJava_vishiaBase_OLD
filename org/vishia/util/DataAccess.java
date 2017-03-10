@@ -97,7 +97,7 @@ public class DataAccess {
    *   With that concept it is possible to define a method call in a script with control which values in the script are used as parameters.
    *   It is used for the {@link org.vishia.xmlReader.XmlReader}. 
    * <li>2016-01-17 Hartmut new: Now an element can be an array, which is accessed with indices: {@link SetDatapathElement#set_index(int)} 
-   *   and {@link DatapathElement#indices}. Syntax for JZcmd adapted ({@link org.vishia.zcmd.JZcmdSyntax}).  
+   *   and {@link DatapathElement#indices}. Syntax for JZcmd adapted ({@link org.vishia.jzTc.JzTcSyntax}).  
    * <li>2016-01-09 Hartmut bugfix: {@link #access(CharSequence, Object, boolean, boolean, boolean, Dst)} has dissolved a {@link Variable} twice,
    *   problem if a variable contains a Variable as value. The access <&myVariable.name> was faulty. Not it works. 
    * <li>2015-05-17 Hartmut new: conversion routines {@link #shortFromUnsignedByte(byte)} and {@link #intFromUnsignedShort(short)}.
@@ -132,7 +132,7 @@ public class DataAccess {
    *   That feature is used in conclusion with <code>JZcmd Class myClass = package.path.Class;</code> 
    * <li>2014-03-08 Hartmut new: {@link #debugIdent(String)} sets an identifier on which debug() was called, to set manual breakpoint while debugging. 
    * <li>2014-01-26 Hartmut chg: The element <code>fnArgsExpr</code> of {@link DatapathElement} is removed from here. 
-   *   It is now located in {@link org.vishia.cmd.JZtScript.JZcmdDatapathElement} because it is necessary
+   *   It is now located in {@link org.vishia.cmd.JzTcScript.JZcmdDatapathElement} because it is necessary
    *   only for the JZcmd usage. This class is more simple in its functionality.
    * <li>2014-01-25 Hartmut chg: some methods of {@link DataAccessSet} are final now. Nobody overrides.  
    * <li>2013-12-26 Hartmut chg: {@link #createOrReplaceVariable(Map, String, char, Object, boolean)} instead setVariable(...)
@@ -146,7 +146,7 @@ public class DataAccess {
    *   {@link DataAccess#storeValue(List, Map, Object, boolean)} with special designation in {@link DataAccess.DatapathElement#whatisit}
    *   with 'new Variable' designation.
    * <li>2013-10-20 Hartmut new/chg: The start-variables are all of type {@link Variable} up to now. This concept is changed
-   *   in {@link org.vishia.cmd.JZtExecuter} originally. Any other application of this class have to wrapped its data
+   *   in {@link org.vishia.cmd.JzTcExecuter} originally. Any other application of this class have to wrapped its data
    *   in such an instance {@link Variable}, it is a low-cost effort. 
    * <li>2013-10-09 Hartmut new: {@link #storeValue(List, Map, Object, boolean)} put in a map, replaces the value.
    * <li>2013-09-14 Hartmut new: support of null as Argument.
@@ -2496,8 +2496,8 @@ public class DataAccess {
    * <br><br>
    * A variable is member of a 
    * container <code>Map< String, DataAccess.Variable></code> which is used to access in the {@link DataAccess}
-   * class and which is used especially for variables in the {@link org.vishia.cmd.JZtExecuter#setScriptVariable(String, Object)}
-   * and {@link org.vishia.cmd.JZtExecuter.ExecuteLevel#setLocalVariable(String, Object)}
+   * class and which is used especially for variables in the {@link org.vishia.cmd.JzTcExecuter#setScriptVariable(String, Object)}
+   * and {@link org.vishia.cmd.JzTcExecuter.ExecuteLevel#setLocalVariable(String, Object)}
    * which are accessed with the {@link DataAccess} class while setting and evaluating.
    * A user can build a datapool independently of the JZcmd approach writing the code:
    * <pre>

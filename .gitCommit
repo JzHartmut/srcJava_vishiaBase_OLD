@@ -1,2 +1,2 @@
-Renaming JZcmd to JZt because it was a text generator more than a cmd executer. The executer is part of the Name JZtExecuter already.
-
+jzTc nochmal umbenannt aus vormals jzCmd
+jzTcExecuter: inner class JzTcMain is public, access from a jzTc-Script necessary.

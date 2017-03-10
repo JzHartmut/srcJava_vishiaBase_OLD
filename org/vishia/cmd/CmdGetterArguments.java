@@ -6,8 +6,8 @@ import java.util.Map;
 
 import org.vishia.util.DataAccess;
 
-/**This interface is used to get arguments for {@link CmdExecuter#addCmd(org.vishia.cmd.JZtScript.Subroutine, List, Appendable, File)}.
- * to invoke a {@link JZtExecuter#execSub(org.vishia.cmd.JZtScript.Subroutine, List, boolean, Appendable, File)} with the Map of actual arguments.
+/**This interface is used to get arguments for {@link CmdExecuter#addCmd(org.vishia.cmd.JzTcScript.Subroutine, List, Appendable, File)}.
+ * to invoke a {@link JzTcExecuter#execSub(org.vishia.cmd.JzTcScript.Subroutine, List, boolean, Appendable, File)} with the Map of actual arguments.
  * It should be implemented in environments to build the argument. See {@link org.vishia.gral.widget.GralCommandSelector}
  */
 public interface CmdGetterArguments
@@ -48,7 +48,7 @@ public interface CmdGetterArguments
    * in the implementation routine.
    * @return filled Map with the argument values with its names as key.
    */
-  List<DataAccess.Variable<Object>> getArguments(JZtScript.Subroutine jzsub);
+  List<DataAccess.Variable<Object>> getArguments(JzTcScript.Subroutine jzsub);
   
   /**Gets the current directory as excution environment. */
   File getCurrDir();

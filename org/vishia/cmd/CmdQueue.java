@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.List;
 
 /**This class stores some prepared commands for execution and executes it one after another.
- * The commands can contain placeholder for files. The commands may be operation system commands or {@link JZtExecuter} invocation of sub routines.
+ * The commands can contain placeholder for files. The commands may be operation system commands or {@link JzTcExecuter} invocation of sub routines.
  * @author hartmut Schorrig
  *
  */
@@ -17,7 +17,7 @@ public class CmdQueue
    * <ul>
    * <li>2017-01-01 Hartmut now obsolete, the {@link CmdExecuter} has a queue too. Because CmdStore is obsolete. Content is removed. 
    * <li>2016-12-31 Hartmut new: {@link #addCmd(org.vishia.cmd.JZcmdScript.Subroutine, List, File)} 
-   * <li>2016-09-18 Hartmut new: {@link #addCmd(CmdBlock, CmdGetterArguments)} new concept supports only {@link JZtExecuter}
+   * <li>2016-09-18 Hartmut new: {@link #addCmd(CmdBlock, CmdGetterArguments)} new concept supports only {@link JzTcExecuter}
    *   The {@link #addCmd(String, File, boolean)} and {@link #addCmd(String[], File, boolean)} is newly designed for simple operation system
    *   command execution without JZcmd concept. The {@link #addCmd(CmdBlock, File[], File)} which prepares file parts is designated as deprecated.
    *   Instead the JZcmdExecuter with more capability should be used. 
