@@ -25,6 +25,7 @@ import org.vishia.util.SetLineColumn_ifc;
 import org.vishia.util.StringFunctions;
 import org.vishia.util.StringFunctions_B;
 import org.vishia.xmlSimple.XmlNode;
+import org.vishia.zbnf.ZbnfParseResultItem;
 
 
 
@@ -44,6 +45,8 @@ public class JzTcScript extends CompiledScript
   /**Version, history and license.
    * 
    * <ul>
+   * <li>2017-03-25 Hartmut chg: Handling of indentation improved with {@link org.vishia.zbnf.ZbnfParser} capability for define attributes on a syntax item
+   *   and the capability of {@link StatementList#new_textExpr(ZbnfParseResultItem)} with the result item. 
    * <li>2017-01-13 Hartmut chg: A {@link Subroutine} now has the reference {@link Subroutine#theScript} to get the script 
    *   for a {@link JzTcExecuter#execSub(Subroutine, List, boolean, Appendable, File, CmdExecuter)} invocation.  
    * <li>2016-12-27 Hartmut adapt: {@link JzTcExecuter.ExecuteLevel#jzcmdMain}
@@ -153,7 +156,7 @@ public class JzTcScript extends CompiledScript
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String version = "2016-12-27";
+  static final public String version = "2017-03-25";
 
   final MainCmdLogging_ifc console;
 
@@ -302,6 +305,7 @@ public class JzTcScript extends CompiledScript
   {
     String sLinefeed = "\r\n";
     int srcTabsize = 8;
+    //boolean bOldIndentBefore2017;
   }
   
   JZscriptSettings jzScriptSettings = new JZscriptSettings();
@@ -2099,7 +2103,7 @@ public class JzTcScript extends CompiledScript
     String srcFile = "srcFile-yet-unknown";
     
     /**For debug and error message, set by compiler. */
-    int srcLine;
+    int srcLine, srcColumn;
     
     /**Only used for debug, to see which is the parent. */
     final JZcmditem parentStatement;
@@ -2137,6 +2141,14 @@ public class JzTcScript extends CompiledScript
     
     final JZscriptSettings jzSettings;
     
+    /**Number of indent whitespace characters which should be skipped for an text expression.
+     * If not set, it is -1 to designate, not set.
+     */
+    int nIndentInScript = 0;
+    
+    /**indent characters which should be skipped for an text expression.*/
+    String sIndentChars = "=+:";
+    
     
     /**Scripts for some local variable. This scripts where executed with current data on start of processing this genContent.
      * The generator stores the results in a Map<String, String> localVariable. 
@@ -2156,8 +2168,13 @@ public class JzTcScript extends CompiledScript
         
     public StatementList(JZcmditem parentStatement)
     { this.parentStatement = parentStatement;
-      this.jzSettings = parentStatement == null || parentStatement.parentList == null ? null : parentStatement.parentList.jzSettings;
-      //this.isContentForInput = false;
+      if(parentStatement == null || parentStatement.parentList == null){
+        this.jzSettings = null;
+      } else {
+        this.jzSettings = parentStatement.parentList.jzSettings;
+        this.nIndentInScript = parentStatement.parentList.nIndentInScript;  //default value, can be changed in expression.
+        this.sIndentChars = parentStatement.parentList.sIndentChars;
+      }
     }
         
     public JZcmditem new_createTextOut(){
@@ -2186,7 +2203,7 @@ public class JzTcScript extends CompiledScript
 
     
     @Override public void setLineColumnFile(int line, int column, String sFile){
-      srcLine = line; /*src = column -1;*/ srcFile = sFile; 
+      srcLine = line; srcColumn = column; srcFile = sFile; 
     }
 
     /**Returns wheter only the line or only the column should be set.
@@ -2249,16 +2266,60 @@ public class JzTcScript extends CompiledScript
       statements.add(val); 
     } 
     
+    
+    public void set_nIndent(long value){ nIndentInScript= (int)value; }
+    
+    public void set_cIndent(String value){ sIndentChars= value; }  //it has only one character.
+    
+    
+    
+    
+    
     /**Gathers a text which is assigned to the out-instance
      */
-    public StatementList new_textExpr(){ 
+    public StatementList new_textExpr(ZbnfParseResultItem zbnfItem){ 
+      if(zbnfItem.syntaxItem().bDebugParsing){
+        Debugutil.stop();
+      }
+      JZcmditem textExpr = new JZcmditem(this, ':');
+      statements.add(textExpr);
+      textExpr.statementlist = new StatementList(textExpr);
+      //The input column counts from 1 for left. identDiff for ex. -3 ist from syntax <syntax?semantic|-3>
+      String sIndentDiff = zbnfItem.syntaxItem().getAttribute("indent");
+      int indent;
+      if(sIndentDiff !=null && sIndentDiff.length() >0) {
+        try{ 
+          if(sIndentDiff.charAt(0) == '-') {
+            int indentDiff = Integer.parseInt(sIndentDiff.substring(1));
+            indent = zbnfItem.getInputColumn() -1 - indentDiff;
+          } else if(sIndentDiff.charAt(0) == '+') {
+            int indentDiff = Integer.parseInt(sIndentDiff.substring(1));
+            indent = zbnfItem.getInputColumn() -1 + indentDiff;
+          } else {
+            indent = Integer.parseInt(sIndentDiff);
+          }
+        } catch(NumberFormatException exc) {
+          throw new RuntimeException("faulty number for indentdiff", exc);
+        }
+      } else {
+        indent = zbnfItem.getInputColumn() -1;
+      }
+      textExpr.statementlist.nIndentInScript = indent;
+      return textExpr.statementlist;
+    }
+
+    public void add_textExpr(StatementList val){ } 
+    
+    /**Gathers a text which is assigned to the out-instance
+     */
+    public StatementList new_textExprTEST(ZbnfParseResultItem zbnfItem){ 
       JZcmditem textExpr = new JZcmditem(this, ':');
       statements.add(textExpr);
       textExpr.statementlist = new StatementList(textExpr);
       return textExpr.statementlist;
     }
 
-    public void add_textExpr(StatementList val){ } 
+    public void add_textExprTEST(StatementList val){ } 
     
     /**Defines a variable with initial value. <= <variableAssign?textVariable> \<\.=\>
      */
@@ -2493,14 +2554,18 @@ public class JzTcScript extends CompiledScript
      */
     public void set_plainText(String text){
       if(text.length() >0){
-        if(text.contains("::::  /**Contains the state"))
+        if(text.startsWith("<indent:6=>"))
           Debugutil.stop();
         JZcmditem statement = new JZcmditem(this, 't');
         //if(parentStatement instanceof TextOut) {
           //TextOut textOut = (TextOut)parentStatement;
         if(jzSettings !=null) {
+          final String sIndentChars1;
+          final int nIndentScript1;
+          sIndentChars1 = this.sIndentChars;
+          nIndentScript1 = this.nIndentInScript;
           CharSequence text1 = StringFunctions_B.removeIndentReplaceNewline(text
-              , parentStatement.srcColumn -1, ":+=", jzSettings.srcTabsize, jzSettings.sLinefeed, this.bSetSkipSpaces);
+              , nIndentScript1, sIndentChars1, jzSettings.srcTabsize, jzSettings.sLinefeed, this.bSetSkipSpaces);
           statement.textArg = text1.toString();
           this.bSetSkipSpaces = false;  //it is valid for the following text only, it is used.
         } else {

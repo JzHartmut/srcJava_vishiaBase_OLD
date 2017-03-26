@@ -1,2 +1,2 @@
-jzTc nochmal umbenannt aus vormals jzCmd
-jzTcExecuter: inner class JzTcMain is public, access from a jzTc-Script necessary.
+JzTcScript: Handling of indentation improved with {@link org.vishia.zbnf.ZbnfParser} capability for 
+  define attributes on a syntax item and the capability of new_textExpr(ZbnfParseResultItem) with the result item. 
