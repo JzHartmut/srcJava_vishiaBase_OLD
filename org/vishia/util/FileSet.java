@@ -30,7 +30,7 @@ public final class FileSet
   
   /**Version, history and license.
    * <ul>
-   * <li>2014-06-22 Hartmut chg: creation of {@link FileSet} as extra class from {@link org.vishia.cmd.JzTcFileset}. 
+   * <li>2014-06-22 Hartmut chg: creation of {@link FileSet} as extra class from {@link org.vishia.cmd.JZtxtcmdFileset}. 
    * <li>2014-03-07 created. From srcJava_Zbnf/org/vishia/zmake/ZmakeUserScript.UserFileset.
    * </ul>
    * 

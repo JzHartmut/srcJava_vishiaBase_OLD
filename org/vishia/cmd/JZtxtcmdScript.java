@@ -30,7 +30,7 @@ import org.vishia.zbnf.ZbnfParseResultItem;
 
 
 /**This class contains the internal representation of a JZcmd script. 
- * The translator is contained in {@link org.vishia.jzTc.JzTc} in the srcJava_Zbnf source package. 
+ * The translator is contained in {@link org.vishia.jztxtcmd.JZtxtcmd} in the srcJava_Zbnf source package. 
  * This class is independent of ZBNF. It is used for working in srcJava_vishiaBase environment.
  * It means, without the srcJava_Zbnf source package all sources of that are able to compile, but
  * this class have not data, respectively it is not instantiated. It may be possible to instantiate
@@ -40,7 +40,7 @@ import org.vishia.zbnf.ZbnfParseResultItem;
  * @author Hartmut Schorrig
  *
  */
-public class JzTcScript extends CompiledScript 
+public class JZtxtcmdScript extends CompiledScript 
 {
   /**Version, history and license.
    * 
@@ -48,14 +48,14 @@ public class JzTcScript extends CompiledScript
    * <li>2017-03-25 Hartmut chg: Handling of indentation improved with {@link org.vishia.zbnf.ZbnfParser} capability for define attributes on a syntax item
    *   and the capability of {@link StatementList#new_textExpr(ZbnfParseResultItem)} with the result item. 
    * <li>2017-01-13 Hartmut chg: A {@link Subroutine} now has the reference {@link Subroutine#theScript} to get the script 
-   *   for a {@link JzTcExecuter#execSub(Subroutine, List, boolean, Appendable, File, CmdExecuter)} invocation.  
-   * <li>2016-12-27 Hartmut adapt: {@link JzTcExecuter.ExecuteLevel#jzcmdMain}
+   *   for a {@link JZtxtcmdExecuter#execSub(Subroutine, List, boolean, Appendable, File, CmdExecuter)} invocation.  
+   * <li>2016-12-27 Hartmut adapt: {@link JZtxtcmdExecuter.ExecuteLevel#jzcmdMain}
    * <li>2016-12-26 Hartmut adapt: {@link JZcmdClass#listClassesAndSubroutines}  
    * <li>2016-12-18 Hartmut new: {@link Subroutine#new_List()} necessary in any zbnf syntax (where...). 
-   * <li>2016-01-09 Hartmut new: {@link DefContainerVariable}: A List is accepted as container for constant elements now, changed in {@link org.vishia.jzTc.JzTcSyntax}.
+   * <li>2016-01-09 Hartmut new: {@link DefContainerVariable}: A List is accepted as container for constant elements now, changed in {@link org.vishia.jztxtcmd.JZtxtcmdSyntax}.
    *   DefSubtext now supported.
    * <li>2015-12-12 Hartmut chg: {@link StatementList#new_hasNext()} returns a {@link StatementList} instead {@link JZcmditem}
-   *   because there may be not only one const text element between <:hasNext>...<.hasNext>. No change in the {@link JzTcExecuter} necessary. 
+   *   because there may be not only one const text element between <:hasNext>...<.hasNext>. No change in the {@link JZtxtcmdExecuter} necessary. 
    * <li>2015-08-30 Hartmut chg: The functionality to remove indentation is moved from JZcmdExecuter 
    *   to {@link StatementList#set_plainText(String)} because it is done only one time on preparation of the script, not more as one in any loop of execution.
    *   It is changed in functionality: <code><:s></code> to skip over white spaces and the next line indentation.
@@ -64,7 +64,7 @@ public class JzTcScript extends CompiledScript
    * <li>2015-05-24 Hartmut chg: copy, move, del with options, uses {@link FileOpArg} 
    * <li>2015-05-17 Hartmut new: syntax "File : <textValue>" is now able as start path of a DataPath.
    *   Therefore it's possible to write <code>File: "myFile".exists()</code> or adequate. A relative filename
-   *   is related to the {@link JzTcExecuter.ExecuteLevel#currdir()}. 
+   *   is related to the {@link JZtxtcmdExecuter.ExecuteLevel#currdir()}. 
    * <li>2015-05-17 Hartmut new: mkdir
    * <li>2015-05-17 Hartmut new: <code>text = path/to/output</code> is able to set in the script yet too.
    * <li>2014-12-14 Hartmut adapt: uses GetTypeToUse, adapted to changed ZbnfJavaOutput.
@@ -93,7 +93,7 @@ public class JzTcScript extends CompiledScript
    * <li>2013-12-26 Hartmut re-engineering: Now the Statement class is obsolete. Instead all statements have the base class
    *   {@link JZcmditem}. That class contains only elements which are necessary for all statements. Some special statements
    *   have its own class with some more elements, especially for the ZBNF parse result. Compare it with the syntax
-   *   in {@link org.vishia.jzTc.JzTcSyntax}.    
+   *   in {@link org.vishia.jztxtcmd.JZtxtcmdSyntax}.    
    * <li>2013-07-30 Hartmut chg {@link #translateAndSetGenCtrl(File)} returns void.
    * <li>2013-07-20 Hartmut chg Some syntactical changes.
    * <li>2013-07-14 Hartmut tree traverse enable because {@link Argument#parentList} and {@link StatementList#parentStatement}
@@ -167,7 +167,7 @@ public class JzTcScript extends CompiledScript
   
   /**The JSR-223-conform engine for this script. 
    * It is used for {@link #getEngine()}. */
-  final JzTcEngine scriptEngine;
+  final JZtxtcmdEngine scriptEngine;
   
   
   /**All subroutines of this script with name class.sub in alphabetic order to search. */
@@ -202,7 +202,7 @@ public class JzTcScript extends CompiledScript
    *   to exist.
 
    */
-  public JzTcScript(MainCmdLogging_ifc console, File fileScript, JzTcEngine scriptEngine)
+  public JZtxtcmdScript(MainCmdLogging_ifc console, File fileScript, JZtxtcmdEngine scriptEngine)
   { this.console = console;
     this.fileScript = fileScript;
     this.scriptEngine = scriptEngine;
@@ -215,8 +215,8 @@ public class JzTcScript extends CompiledScript
   @Override
   public Object eval(ScriptContext context) throws ScriptException
   {
-    if(context instanceof JzTcExecuter.ExecuteLevel){
-      JzTcExecuter.ExecuteLevel level = (JzTcExecuter.ExecuteLevel) context;
+    if(context instanceof JZtxtcmdExecuter.ExecuteLevel){
+      JZtxtcmdExecuter.ExecuteLevel level = (JZtxtcmdExecuter.ExecuteLevel) context;
       try{ 
         Subroutine main = getMain();
         level.exec_Subroutine(main, null, null, 0);
@@ -237,7 +237,7 @@ public class JzTcScript extends CompiledScript
   /* (non-Javadoc)
    * @see javax.script.CompiledScript#getEngine()
    */
-  @Override public JzTcEngine getEngine() { return scriptEngine; }
+  @Override public JZtxtcmdEngine getEngine() { return scriptEngine; }
   
   
 
@@ -278,17 +278,17 @@ public class JzTcScript extends CompiledScript
    * @param jzcmdClass firstly the script class, nested the sub classes.
    * @param level firstly 1, nested 2...
    */
-  private void addSubOfJZcmdClass(JzTcScript.JZcmdClass jzcmdClass, AddSub2List list, int level){
+  private void addSubOfJZcmdClass(JZtxtcmdScript.JZcmdClass jzcmdClass, AddSub2List list, int level){
     for(Object classOrSub: jzcmdClass.listClassesAndSubroutines()) { // = e.getValue();
-      if(classOrSub instanceof JzTcScript.Subroutine) {
-        JzTcScript.Subroutine subRoutine = (JzTcScript.Subroutine) classOrSub;
+      if(classOrSub instanceof JZtxtcmdScript.Subroutine) {
+        JZtxtcmdScript.Subroutine subRoutine = (JZtxtcmdScript.Subroutine) classOrSub;
         if(!subRoutine.name.startsWith("_")) { //ignore internal subroutines!
           list.add2List(subRoutine, level);
         }
       } else {
-        assert(classOrSub instanceof JzTcScript.JZcmdClass);  //what else!
-        JzTcScript.JZcmdClass jzCmdclass = (JzTcScript.JZcmdClass) classOrSub;
-        list.add2List((JzTcScript.JZcmdClass)classOrSub, level);
+        assert(classOrSub instanceof JZtxtcmdScript.JZcmdClass);  //what else!
+        JZtxtcmdScript.JZcmdClass jzCmdclass = (JZtxtcmdScript.JZcmdClass) classOrSub;
+        list.add2List((JZtxtcmdScript.JZcmdClass)classOrSub, level);
         //call recursive for content of class.
         addSubOfJZcmdClass(jzCmdclass, list, level+1);
         
@@ -964,11 +964,11 @@ public class JzTcScript extends CompiledScript
   public static class UserFileset extends DefVariable
   {
     
-    final JzTcScript script;
+    final JZtxtcmdScript script;
     
     final FileSet fileset = new FileSet();
     
-    UserFileset(StatementList parentList, JzTcScript script){
+    UserFileset(StatementList parentList, JZtxtcmdScript script){
       super(parentList, 'G');
       this.script = script;
     }
@@ -1057,12 +1057,12 @@ public class JzTcScript extends CompiledScript
   
   
   /**This class contains the fileset-variable name and maybe an FilePath as accessPath.
-   * The class is similar like {@link JzTcAccessFileset} but this class 
+   * The class is similar like {@link JZtxtcmdAccessFileset} but this class 
    * contains the name of the fileset instead the fileset-reference itself
-   * and it contains a {@link FilePath} instead a {@link JzTcFilepath}. 
+   * and it contains a {@link FilePath} instead a {@link JZtxtcmdFilepath}. 
    * It is the form which is gotten from a textual script by translating the script.
-   * The {@link JzTcAccessFileset} is build on running time in the adequate execution level 
-   * of the @link {@link JzTcExecuter.ExecuteLevel}
+   * The {@link JZtxtcmdAccessFileset} is build on running time in the adequate execution level 
+   * of the @link {@link JZtxtcmdExecuter.ExecuteLevel}
    */
   public static class AccessFilesetname extends JZcmditem{
     
@@ -1711,10 +1711,10 @@ public class JzTcScript extends CompiledScript
     
     public List<DefVariable> formalArgs;
     
-    final JzTcScript theScript;
+    final JZtxtcmdScript theScript;
     
     /**
-     * @param parentList It is neccessary that parentList is instanceof JZcmdClass, for {@link JzTcExecuter}
+     * @param parentList It is neccessary that parentList is instanceof JZcmdClass, for {@link JZtxtcmdExecuter}
      */
     Subroutine(JZcmdClass parentList) {
       super(parentList, 'X');
@@ -2070,7 +2070,7 @@ public class JzTcScript extends CompiledScript
     }
     
     /**Sets the statement to a cmd error execution.
-     * See {@link JzTcExecuter.ExecuteLevel#execCmdError(Onerror)}.
+     * See {@link JZtxtcmdExecuter.ExecuteLevel#execCmdError(Onerror)}.
      * This method is called in {@link StatementList#add_onerror(Onerror)}.
      */
     void setCmdError(){ elementType = '#'; }
@@ -2890,14 +2890,14 @@ public class JzTcScript extends CompiledScript
     List<JZcmdClass> classes;
     
     /**All subroutines of this class. */
-    final Map<String, JzTcScript.Subroutine> subroutines = new TreeMap<String, JzTcScript.Subroutine>();
+    final Map<String, JZtxtcmdScript.Subroutine> subroutines = new TreeMap<String, JZtxtcmdScript.Subroutine>();
     
     /**All classes and subroutines in order of the script to present it in a list for choice. */
     final List<Object> listClassesAndSubroutines = new ArrayList<Object>();
    
-    final JzTcScript theScript;
+    final JZtxtcmdScript theScript;
     
-    protected JZcmdClass(JzTcScript theScript, JZscriptSettings jzScriptSettings){
+    protected JZcmdClass(JZtxtcmdScript theScript, JZscriptSettings jzScriptSettings){
       super(/*JZcmdScript.this.*/jzScriptSettings);
       this.theScript = theScript;
     }
@@ -2905,7 +2905,7 @@ public class JzTcScript extends CompiledScript
     
     public final List<JZcmdClass> classes(){ return classes; }
     
-    public final Map<String, JzTcScript.Subroutine> subroutines(){ return subroutines; }
+    public final Map<String, JZtxtcmdScript.Subroutine> subroutines(){ return subroutines; }
     
     public final List<Object> listClassesAndSubroutines(){ return listClassesAndSubroutines; }
     
@@ -2984,11 +2984,11 @@ public class JzTcScript extends CompiledScript
   public final static class ZbnfJZcmdScript extends JZcmdClass
   {
 
-    private final JzTcScript compiledScript;
+    private final JZtxtcmdScript compiledScript;
     
     public Scriptfile scriptfile;    
     
-    public ZbnfJZcmdScript(JzTcScript compiledScript){
+    public ZbnfJZcmdScript(JZtxtcmdScript compiledScript){
       super(compiledScript, compiledScript.jzScriptSettings);   //JZcmdClass is non-static, enclosing is outer.
       this.compiledScript = compiledScript;
       compiledScript.scriptClass = this; //outer.new JZcmdClass();
@@ -3005,7 +3005,7 @@ public class JzTcScript extends CompiledScript
     
     
     /**Any script file gets its own mainRoutine because the {@link #scriptfile} is one instance per parsed script file.
-     * The lastly valid {@link JzTcScript#scriptFile} is set from the last processes file.
+     * The lastly valid {@link JZtxtcmdScript#scriptFile} is set from the last processes file.
      * @return
      */
     public StatementList new_mainRoutine(){ 

@@ -49,24 +49,24 @@ public class ZmakeTarget
   
  
   
-  List<JzTcAccessFileset> inputs;
+  List<JZtxtcmdAccessFileset> inputs;
   
   /**The output file of the target in the ready-to-use form in a JZcmd Script.
    * One can invoke for example 'target.output.absdirW()' to get the absolute directory path with backslash.
    */
-  public JzTcFilepath output;
+  public JZtxtcmdFilepath output;
   
   public final String name;
   
-  private final JzTcExecuter.ExecuteLevel zgenlevel;
+  private final JZtxtcmdExecuter.ExecuteLevel zgenlevel;
   
   
-  public ZmakeTarget(JzTcExecuter.ExecuteLevel zgenlevel, String name){
+  public ZmakeTarget(JZtxtcmdExecuter.ExecuteLevel zgenlevel, String name){
     this.zgenlevel = zgenlevel;
     this.name = name;
   }
   
-  public List<JzTcFilepath> allInputFiles() throws NoSuchFieldException{
+  public List<JZtxtcmdFilepath> allInputFiles() throws NoSuchFieldException{
     return prepareFiles(inputs, false);
   }
   
@@ -80,10 +80,10 @@ public class ZmakeTarget
    * </pre>
    * All files and members of a fileset of this parameter are combined in one List 
    * which can be used as container for JZcmd script.
-   * @return A list of {@link JzTcFilepath} independent of a special {@link JzTcFileset}.
+   * @return A list of {@link JZtxtcmdFilepath} independent of a special {@link JZtxtcmdFileset}.
    * @throws NoSuchFieldException If a Filepath uses a variable and this variable is not found.
    */
-  public List<JzTcFilepath> allInputFilesExpanded() throws NoSuchFieldException{
+  public List<JZtxtcmdFilepath> allInputFilesExpanded() throws NoSuchFieldException{
     return prepareFiles(inputs, true);
   }
 
@@ -94,14 +94,14 @@ public class ZmakeTarget
    * @return A list of files.
    * @throws NoSuchFieldException If a Filepath has a variable, and that is not found. 
    */
-  private List<JzTcFilepath> prepareFiles( List<JzTcAccessFileset> filesOrFilesets, boolean expandFiles) throws NoSuchFieldException {
+  private List<JZtxtcmdFilepath> prepareFiles( List<JZtxtcmdAccessFileset> filesOrFilesets, boolean expandFiles) throws NoSuchFieldException {
     //
     if(filesOrFilesets == null) throw new IllegalArgumentException("no files given");
     //check whether the target has a parameter srcpath=... or commonpath = ....
     //JZcmdFilepath commonPathTarget = null;
-    List<JzTcFilepath> files = new LinkedList<JzTcFilepath>();
+    List<JZtxtcmdFilepath> files = new LinkedList<JZtxtcmdFilepath>();
     //UserFileset inputfileset = null; 
-    for(JzTcAccessFileset targetInputParam: filesOrFilesets){
+    for(JZtxtcmdAccessFileset targetInputParam: filesOrFilesets){
       { //expand file or fileset:
         //
         targetInputParam.listFiles(files, zgenlevel, expandFiles);

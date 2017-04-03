@@ -70,13 +70,13 @@ public class CalculatorExpr
    * <li>2014-01-26 Hartmut chg: To add a datapath now {@link SetExpr#new_datapath()} is offered, all details of a datapath
    *   are handled in {@link DataAccess.DataAccessSet}. To support more complex {@link DataAccess.DatapathElement} especially
    *   with expressions or datapath as arguments, the method {@link SetExpr#newDataAccessSet()} supports overriding
-   *   in a derived class of {@link SetExpr}, see {@link org.vishia.cmd.JzTcScript.JZcmdCalculatorExpr}. 
+   *   in a derived class of {@link SetExpr}, see {@link org.vishia.cmd.JZtxtcmdScript.JZcmdCalculatorExpr}. 
    * <li>2013-10-19 Hartmut new: {@link SetExpr} should know all possibilities of {@link DataAccess.DataAccessSet}
    *   too because an expression may be an DataAccess only. Yet only {@link SetExpr#new_newJavaClass()} realized.
    * <li>2013-10-19 Hartmut new: The CalculatorExpr gets the capability to generate String expressions
-   *   using the {@link JzTcExecuter} class. This is because some arguments of methods may be a String.
+   *   using the {@link JZtxtcmdExecuter} class. This is because some arguments of methods may be a String.
    *   If the {@link #genString} is set, the CalculatorExpr is a String expression.
-   *   Now this class, the {@link DataAccess} and the {@link JzTcExecuter} are one cluster of functionality.
+   *   Now this class, the {@link DataAccess} and the {@link JZtxtcmdExecuter} are one cluster of functionality.
    * <li>2013-09-02 Hartmut new: {@link CalculatorExpr.SetExpr} to set from a ZbnfParseResult using {@link org.vishia.zbnf.ZbnfJavaOutput}.
    *   This class can be invoked without ZbnfParser too, it is independent of it. But it isn't practicable. 
    * <li>2013-09-02 Hartmut new: CalculatorExpr: now supports unary ( expression in parenthesis ). 

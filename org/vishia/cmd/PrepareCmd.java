@@ -31,7 +31,7 @@ import org.vishia.util.FileSystem;
  * </ul>
  * 
  * @author Hartmut Schorrig
- * @deprecated since 2016-12. Use the {@link JzTcExecuter} instead. It has more capability.
+ * @deprecated since 2016-12. Use the {@link JZtxtcmdExecuter} instead. It has more capability.
  *
  */
 public final class PrepareCmd
@@ -40,7 +40,7 @@ public final class PrepareCmd
   
   /**Version, history and license:
    * <ul>
-   * <li>2016-12-27 Hartmut deprecated. Use the {@link JzTcExecuter} instead. It has more capability.
+   * <li>2016-12-27 Hartmut deprecated. Use the {@link JZtxtcmdExecuter} instead. It has more capability.
    * <li>2012-06-09 Hartmut bugfix the detection of <*file1> 2 or 3 may be erroneous.
    * <li>2012-06-09 Hartmut new or bugfix for windows: Now the slashs are converted to backslash in file paths, see {@link #checkIsWindows()}.
    *   The environment variabls "os" will be tested whether it starts with "windows" (converted non-case sensitive).

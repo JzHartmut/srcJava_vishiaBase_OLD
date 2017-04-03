@@ -15,11 +15,11 @@ import org.vishia.util.DataAccess;
  * @author Hartmut Schorrig
  *
  */
-public interface JzTcEngine extends ScriptEngine
+public interface JZtxtcmdEngine extends ScriptEngine
 {
   /**Version, history and license.
    * <ul>
-   * <li>2014-06-10 created. The access from the {@link JzTcExecuter} to the ScriptEngine is necessary.
+   * <li>2014-06-10 created. The access from the {@link JZtxtcmdExecuter} to the ScriptEngine is necessary.
    * </ul>
    * 
    * <b>Copyright/Copyleft</b>:
@@ -70,7 +70,7 @@ public interface JzTcEngine extends ScriptEngine
    */
   public Object evalSub(File fileScript, String subroutine
       , Map<String, DataAccess.Variable<Object>> args
-      , JzTcExecuter.ExecuteLevel execLevel)
+      , JZtxtcmdExecuter.ExecuteLevel execLevel)
   throws ScriptException;
 
 }
