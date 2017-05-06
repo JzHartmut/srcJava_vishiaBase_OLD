@@ -170,8 +170,12 @@ but itsn't worse as using the html tags &lt;table>&lt;tr> and so on.
 public class WikistyleTextToSimpleXml
 {
   
-    /**Version and history.
+    /**Version history and license.
    * <ul>
+   * <li>2017-05-06 bugfix  
+   *   bug: if an chapter ends with a list item, the next usage of this instance was damaged.
+   *   reason: {@link #deepnessList} was not reseted, was 1 for next usage.
+   *   fix: cleanup improved. 
    * <li>2016-11-06 Hartmut: new Now writes paragraphs in 2 or more  columns of a table if "..............." is found on start of line.
    *   The end is "^^^^^^^^^^^^^^^^^^^^^^^^" 
    * <li>2016-11-06 Hartmut: chg Gardening of the algorithm. Line ending with \r\n or only \r are supported too, see {@link #endline(String)}  
@@ -217,7 +221,7 @@ public class WikistyleTextToSimpleXml
    * 
    * 
    */
-  public final static String version = "2015-09-29";
+  public final static String version = "2017-05-06";
 
   final Report report;
   
@@ -416,6 +420,7 @@ public class WikistyleTextToSimpleXml
       , Map attributes, String sClass, String sLabelOwn
       ) throws XmlException
   { 
+    cleanup(); 
     iterBaseElement = iter; 
     this.dstElement = dstElement;
     sClassNesting = sClass; //may be setted from previous call.
@@ -425,7 +430,7 @@ public class WikistyleTextToSimpleXml
       this.ixChild = 0;
       currElem = xmlNesting[ixChild] = dstElement;
     } else {
-      ixChild = -1;
+      assert(ixChild == -1);
     }
     elementsWithAttrib = null;
     xmlPre = null;
@@ -527,7 +532,12 @@ public class WikistyleTextToSimpleXml
               } break;
               default:
               { //a new line not beginning with a special char, it is a paragraph at basic level. 
-                while(deepnessList >0 && ixChild >=2) { closeChild(); closeChild(); deepnessList -=1; } //close the list.
+                while(deepnessList >0) {  //not a list item, then close the list.
+                  if(ixChild >=2) {       //it should be! assert(ixChild >=2)
+                    closeChild(); closeChild(); deepnessList -=1;  //close the list.
+                  }
+                  else break;
+                }
                 kindList = '\0';
                 if(sLine.contains("Man soll also statt dem in C++ speziell"))
                   Debugutil.stop();
@@ -539,20 +549,26 @@ public class WikistyleTextToSimpleXml
         }
       }  
     }//while end
-    { //clear all aggregations
-      while(ixChild >=0) {
-        xmlNesting[ixChild--] = null;
-      }
-      currElem = null;
-      elementsWithAttrib = null;
-      iterBaseElement = null;
-      this.dstElement = null;
-      xmlPre = null;
-    }   
+    cleanup();  //cleanup for next usage:
 
   }
 
   
+  
+  
+  private void cleanup()
+  {
+    while(ixChild >=0) {
+      xmlNesting[ixChild--] = null;
+    }
+    deepnessList = 0;  //it is not 0 if the last line is a list item.
+    currElem = null;
+    elementsWithAttrib = null;
+    iterBaseElement = null;
+    this.dstElement = null;
+    xmlPre = null;
+    
+  }
   
   
   
@@ -965,7 +981,8 @@ public class WikistyleTextToSimpleXml
       String sTagNesting = null, sTagListItem = null; 
       String sTagAttribSetting = null;  //TODO: use it.
       switch(cFirst)
-      { case '*': sTagNesting = "ul"; sTagListItem = "li"; kindList = cFirst; break;
+      { case '*': 
+          sTagNesting = "ul"; sTagListItem = "li"; kindList = cFirst; break;
         case '#': sTagNesting = "ol"; sTagListItem = "li"; kindList = cFirst; break;
         case ';': sTagNesting = "dl"; sTagListItem = "dt"; kindList = cFirst; break;
         case ':': sTagNesting = "dl"; sTagListItem = "dd"; kindList = cFirst; break;
@@ -1054,7 +1071,7 @@ public class WikistyleTextToSimpleXml
         int deepnessList1 = 1;
         XmlNode newChild = null;;
         while(sLine.length() > deepnessList1 && sLine.charAt(deepnessList1) == cFirst) { deepnessList1 +=1; }
-        while(deepnessList > deepnessList1){
+        while(deepnessList > deepnessList1){ //deepnessList is the current one. close it if deeper
           closeChild();
           closeChild();
           deepnessList -=1;

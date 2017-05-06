@@ -245,6 +245,6 @@ public class TestIndexMultiTable
   public static void main(String[] args){
     TestIndexMultiTable main = new TestIndexMultiTable();
     main.test();
-    main.testFile(new File("D:/vishia/ZBNF/sf/ZBNF/examples_XML/DocuGenerationViaXML/docuSrc/ZGen.topic")); //any text file to test
+    main.testFile(new File("D:/vishia/ZBNF/examples_XML/DocuGenerationViaXML/docuSrc/ZGen.topic")); //any text file to test
   }
 }

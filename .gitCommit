@@ -1,2 +1,2 @@
-The JZcmd is now named JZtxtcmd instead JzTc. It is more consistent.
-
+bugfix in WikistyleTextToSimpleXml.java, for Documentation generation, if an chapter ends with an list item, the next was disturbed.
+Jgit is not use any more. git is invoked with command line anytime. removed.
