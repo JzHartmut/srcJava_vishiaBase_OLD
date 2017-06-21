@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ public class CmdExecuter implements Closeable
 {
   /**Version, License and History:
    * <ul>
+   * <li>2017-10-05 Hartmut new: {@link #setCharsetForOutput(String)}: git outputs its status etc. in UTF-8.  
    * <li>2017-01-01 Hartmut new: now alternatively to the command process the {@link JZtxtcmdExecuter#execSub(org.vishia.cmd.JZtxtcmdScript.Subroutine, List, boolean, Appendable, File)}
    *   can be invoked by a #add  The JZcmdExecuter may invoke an command process and uses this CmdExecuter too in the main thread. Therefore it is proper
    *   to join both invocation variants. The old class org.vishia.cmd.CmdQueue is obsolete then. 
@@ -102,6 +104,11 @@ public class CmdExecuter implements Closeable
   /**Set with an execute invocation, set to null if it was processed. */
   private ExecuteAfterFinish executeAfterCmd;
   
+  /**A maybe special charset for Input and output stream. Hint: git uses UTF-8
+   * 
+   */
+  private Charset charsetCmd = Charset.defaultCharset();
+  
   /**True for ever so long this class is used, it maybe so long this application runs. */
   boolean bRunThreads;
   
@@ -176,6 +183,13 @@ public class CmdExecuter implements Closeable
   {
     processBuilder.directory(dir);
   }
+  
+  
+  public void setCharsetForOutput(String nameCharset)
+  {
+    this.charsetCmd = Charset.forName(nameCharset);
+  }
+  
   
   
   /**Returns the environment map for the internal {@link ProcessBuilder}. The returned Map can be modified,
@@ -285,7 +299,7 @@ public class CmdExecuter implements Closeable
         if(e.currentDir !=null) {
           setCurrentDir(e.currentDir);
         }
-        e.errorCmd = execute(e.cmd, false, e.input, e.out, e.err, e.executeAfterFinish);
+        e.errorCmd = execute(e.cmd, false, e.input, e.out, e.err, e.executeAfterFinish);  //invokes executeAfterFinis if given, after command.
         if(e.errorCmd !=0 && abortOnError) {
           break;
         }
@@ -423,14 +437,14 @@ public class CmdExecuter implements Closeable
       //
       if(errors !=null){                     //it follows immediately: capture the error output from the process
         errThread.bProcessIsRunning = true;  //in the error thread.
-        errThread.processOut = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+        errThread.processOut = new BufferedReader(new InputStreamReader(process.getErrorStream(), this.charsetCmd));
         errThread.outs = errors;             
         synchronized(errThread){ errThread.notify(); }  //wake up to work!
         //processIn = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
       }
       if(outputs !=null){                    //it follows immediately: capture the output from the process
         outThread.bProcessIsRunning = true;  //in the output thread.
-        outThread.processOut = new BufferedReader(new InputStreamReader(process.getInputStream()));
+        outThread.processOut = new BufferedReader(new InputStreamReader(process.getInputStream(), this.charsetCmd));
         outThread.outs = outputs;
         synchronized(outThread){ outThread.notify(); }  //wake up to work!
       }

@@ -1,2 +1,3 @@
-bugfix in WikistyleTextToSimpleXml.java, for Documentation generation, if an chapter ends with an list item, the next was disturbed.
-Jgit is not use any more. git is invoked with command line anytime. removed.
+CmdExecuter: setCharsetForOutput(String)}: git outputs its status etc. in UTF-8
+JZtxtcmdExecuter: for(entry: numvalue) works now for 0 to numvalue-1, especially for array indices
+genjavadoc adapted

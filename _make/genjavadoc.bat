@@ -9,7 +9,7 @@ set DST_priv=docuSrcJavaPriv_vishiaBase
 
 set SRC=-subpackages org.vishia
 set SRCPATH=..
-
+set CLASSPATH=xxxxx
 set LINKPATH=
 
 

@@ -83,6 +83,7 @@ public class JZtxtcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2017-06-13 Hartmut chg: for(entry: numvalue) works now for 0 to numvalue-1, especially for array indices. 
    * <li>2017-01-13 Hartmut chg: On any call of execute(...) or execSub(..) the given script will be used as current and replaces an old one. 
    *   If it is another script as the last one, the new script will be established. 
    *   It means, the existing script variables are deleted and the script variables of the new given script are calculated and stored.
@@ -1815,7 +1816,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
       //creates the for-variable in the executer level. Use an existing variable and set it to null.
       DataAccess.Variable<Object> forVariable = DataAccess.createOrReplaceVariable(forExecuter.localVariables, statement.forVariable, 'O', null, false);
       //a new level for the for... statements. It contains the foreachData and maybe some more variables.
-      Object container = dataAccess(statement.forContainer, localVariables, jzcmdMain.bAccessPrivate, true, false, null);
+      Object container = dataAccess(statement.forContainer, localVariables, jzcmdMain.bAccessPrivate, false, false, null);
       //Object container = statement.forContainer.getDataObj(localVariables, bAccessPrivate, true);
       //DataAccess.Dst dst = new DataAccess.Dst();
       //DataAccess.access(statement.defVariable.datapath(), null, localVariables, bAccessPrivate,false, true, dst);
@@ -1870,6 +1871,26 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
           } else if(subContent !=null) {
             cont = forExecuter.execute(subContent, out, indentOut, forExecuter.localVariables, nDebug);
           }
+        }
+      }
+      else if(container instanceof CalculatorExpr.Value) {
+        int endValue = (int)((CalculatorExpr.Value)container).longValue();
+        for(int ix = 0; ix < endValue; ++ix) {
+          forVariable.setValue(new CalculatorExpr.Value(ix));
+          if(statement.condition !=null && ! evalCondition(statement.condition)) {
+            cont = kBreak;
+          } else if(subContent !=null) {
+            cont = forExecuter.execute(subContent, out, indentOut, forExecuter.localVariables, nDebug);
+          }
+          
+        }
+      }
+      else if(container !=null) { //only for the simple variable:
+        forVariable.setValue(container);
+        if(statement.condition !=null && ! evalCondition(statement.condition)) {
+          cont = kBreak;
+        } else if(subContent !=null) {
+          cont = forExecuter.execute(subContent, out, indentOut, forExecuter.localVariables, nDebug);
         }
       }
       if(cont == kSuccess && !bForHasNext) {  //on break it is not completed. 
@@ -3334,6 +3355,8 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
           value = new Value(((Byte)obj).byteValue());
         } else if(obj instanceof Boolean){
           value = new Value(((Boolean)obj).booleanValue());
+        } else if(obj instanceof CalculatorExpr.Value) {
+          value = (CalculatorExpr.Value) obj;  //the obj itself is the value.
         } else {
           value = new Value(obj);
         }

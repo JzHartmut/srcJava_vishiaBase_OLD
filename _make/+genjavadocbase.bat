@@ -1,10 +1,13 @@
 echo %0
 ::pause
-
+echo on
 if "" == "%JAVA_JDK%" call setJAVA_JDK.bat
 if "" == "%JAVA_JDK%" call ..\..\srcJava_vishiaBase\_make\+findJAVA_JDK.bat
 if "" == "%DST_priv%" set DST_priv=%DST%_priv
+echo JAVA_JDK=%JAVA_JDK% 
+pause
 
+echo off
 echo +genJavadocbase.bat: %DSTDIR%%DST%
 
 echo +genjavadocbase.bat: JAVA_JDK=%JAVA_JDK%
