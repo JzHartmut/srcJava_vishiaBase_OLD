@@ -89,6 +89,8 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2017-07-02 Hartmut new: {@link #debugMethod(String)} can be invoked with "". Then it invokes {@link #debug()} on the next found method
+   *   and removes the settings after them. It is usual in a JZtxtcmd Script to stop on the next method.
    * <li>2016-10-01 Hartmut new: {@link #storeValue(DatapathElement, Object, Object, boolean)} and {@link #access(DatapathElement, Object, boolean, boolean, boolean, Dst)}
    *   only with an datapath element, more simple. 
    * <li>2016-10-01 Hartmut new: {@link #invokeMethod(DatapathElement, Class, Object, boolean, boolean, Object[])} 
@@ -1151,8 +1153,13 @@ public class DataAccess {
         for(Method method: methods){
           bOk = false;
           if(method.getName().equals(element.ident)){
-            if(debugMethod !=null && debugMethod.equals(element.ident)){
-              debug();
+            if(debugMethod !=null) {
+              if(debugMethod.equals(element.ident) || debugMethod.equals("")){
+                debug();
+                if(debugMethod.equals("")){
+                  debugMethod = null; //only one time after set.
+                }
+              }
             }
             methodFound = true;
             method.setAccessible(accessPrivate);
@@ -1192,8 +1199,12 @@ public class DataAccess {
           msg.append(arg.getClass()).append(", ");
         }
       }
-     msg.append(");, stackInfo: ");
-     CharSequence stackInfo = Assert.stackInfo(msg, 3, 5);
+      msg.append(");, stackInfo: ");
+      CharSequence stackInfo = Assert.stackInfo(msg, 3, 5);
+      if(debugMethod !=null && debugMethod.equals("")){
+        debug();
+        debugMethod = null; //only one time after set.
+      }
       throw new NoSuchMethodException(stackInfo.toString());
     }
     //Method method = clazz.getDeclaredMethod(element.ident);
@@ -1231,8 +1242,13 @@ public class DataAccess {
       bOk = false;
       String sMethodName = method.getName();
       if(sMethodName.equals(sMethod)){
-        if(debugMethod !=null && debugMethod.equals(sMethod)){
-          debug();
+        if(debugMethod !=null) {
+          if(debugMethod.equals(element.ident) || debugMethod.equals("")){
+            debug();
+            if(debugMethod.equals("")){
+              debugMethod = null; //only one time after set.
+            }
+          }
         }
         Class<?>[] paramTypes = method.getParameterTypes();
         
@@ -1264,6 +1280,11 @@ public class DataAccess {
       } }
       msg.append(")|, ");
       CharSequence stackInfo = Assert.stackInfo(msg, 3, 5);
+      if(debugMethod !=null && debugMethod.equals("")){
+        debug();
+        debugMethod = null; //only one time after set.
+      }
+
       throw new NoSuchMethodException(stackInfo.toString());
     }
     //} catch 
@@ -1728,6 +1749,7 @@ public class DataAccess {
       }
     }
     if(bSearchSuperOuter){
+      //Note: this exception occurs often in JZcmd if a variable will be used which is not existing in a condition. The condition is false after catch!
       throw new NoSuchFieldException(name + " ;in class ;" + clazz.getCanonicalName() );
     }
     return ret;

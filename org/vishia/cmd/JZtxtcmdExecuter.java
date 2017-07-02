@@ -625,7 +625,7 @@ throws ScriptException //, IllegalAccessException
     } else if(sCurrdirArg !=null) {
       scriptLevel.changeCurrDir(sCurrdirArg);
     }
-    File filescript = script.fileScript;
+    File filescript = script == null ? null : script.fileScript; //script may be null on initializing.
     if(filescript !=null) { 
       String scriptfile = filescript.getName();
       CharSequence scriptdir = FileSystem.normalizePath(FileSystem.getDir(filescript));

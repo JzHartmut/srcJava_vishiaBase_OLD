@@ -119,6 +119,7 @@ public class StringPart implements CharSequence, Comparable<CharSequence>
 {
   /**Version, history and license.
    * <ul>
+   * <li>2017-07-02 Hartmut new: {@link #getCurrentPart(int)} invoked with -1 returns the whole current part.
    * <li>2016-09-04 Hartmut chg: {@link #seekPosBack(int)} instead new method seekBack, better name, there was a name clash in Java2C-translation with constant definition {@link #seekBack}.
    * <li>2016-09-04 Hartmut chg: {@link #checkCharAt(int, String)} should be written with only one return statement for Java2C as define inline.
    * <li>2016-09-04 Hartmut adapt: using of {@link Java4C.InThCxtRet}  
@@ -2354,13 +2355,16 @@ else return pos - begin;
   
 
   /** Returns the actual part of the string.
+   * @param maxLength if <0 (especially -1) then use the given length without limitation.
+   *   elsewhere it is a limitation of characters, maybe necessary if a buffer or space to display is limited.
+   *   0 : take 0 characters.
    */
   @Java4C.ReturnInThreadCxt
   public final CharSequence getCurrentPart(int maxLength)
-  { int max = (end - begin) <  maxLength ? end : begin + maxLength ;
+  { int end1 = maxLength <0 ? end : (end - begin) <  maxLength ? end : begin + maxLength ;
     if(end > begin) {  
       @Java4C.InThCxtRet(sign="StringPart.getCurrentPart")
-      final Part ret = new Part(begin, max);
+      final Part ret = new Part(begin, end1);
       return ret;
     }
     else return ""; 

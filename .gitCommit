@@ -1,3 +1,4 @@
-CmdExecuter: setCharsetForOutput(String)}: git outputs its status etc. in UTF-8
-JZtxtcmdExecuter: for(entry: numvalue) works now for 0 to numvalue-1, especially for array indices
-genjavadoc adapted
+Some news, DataAccess.debugMethod("") and StringPartScan.scanStart(true)
+* DataAccess: {@link #debugMethod(String)} can be invoked with "". Then it invokes {@link #debug()} on the next found method
+  and removes the settings after them. It is usual in a JZtxtcmd Script to stop on the next method.
+* StringPartScan: {@link #scanStart(boolean)} possible to switch on bSkipWhitepaces. More simple for invocation.

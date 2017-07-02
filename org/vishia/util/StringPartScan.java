@@ -50,6 +50,7 @@ public class StringPartScan extends StringPart
 {
   /**Version, history and license.
    * <ul>
+   * <li>2017-07-02 Hartmut new: {@link #scanStart(boolean)} possible to switch on bSkipWhitepaces. More simple for invocation.
    * <li>2016-09-25 Hartmut chg: {@link #scan()} now invokes {@link #scanStart()} automatically, it is the common use case.
    * <li>2016-02-13 Hartmut bugfix: {@link #scanFractionalNumber(long, boolean)} has had a problem with negative numbers. 
    *   Therefore {@link #scanFractionalNumber(long, boolean)} with bNegative as argument. Used in {@link CalculatorExpr} too.
@@ -140,7 +141,20 @@ public class StringPartScan extends StringPart
     return this;
   }
   
-  /**
+  /**Starts the scan at current position
+   * @param bSkipWhitepaces invokes {@link #setIgnoreWhitespaces(boolean)} with this argument.
+   *   If true then whitespaces will be skipped by the next scan invocations.
+   * @java2c=return-this.
+   * @return this
+   */
+  public final StringPartScan scanStart(boolean bSkipWhitepaces)
+  { setIgnoreWhitespaces(bSkipWhitepaces);
+    bCurrentOk = true;
+    scanOk();  //turn all indicees to ok
+    return this;
+  }
+
+  /**Starts the scan at current position
    * @java2c=return-this.
    * @return
    */
