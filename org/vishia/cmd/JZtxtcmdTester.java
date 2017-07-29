@@ -23,6 +23,8 @@ public class JZtxtcmdTester
 
   /**Version, history and license.
    * <ul>
+   * <li>2017-07-29 Hartmut new: {@link #dataHtml(Object, JZtxtcmdFilepath, boolean)} can decide whether the true hash code is shown 
+   *   (for search the instance proper to a Object.toString()-output with @hash or a unique hash is shown for compare ability of 2 html files.j 
    * <li>2014-06-29 Hartmut chg now all methods are static and part of {@link JZtxtcmdTester}.
    * <li>2013-07-28 Hartmut chg/new: dataTree now writes XML
    * <li>2013-03-10 Hartmut chg/new: dataTree supports superclass content.
@@ -55,7 +57,7 @@ public class JZtxtcmdTester
    * 
    * 
    */
-  static final public String sVersion = "2014-06-29";
+  static final public String sVersion = "2017-07-29";
 
   
   
@@ -154,17 +156,22 @@ public class JZtxtcmdTester
    * to adapt a given File path in a JZcmd environment. The file is created or overwritten and closed after them.
    * @param data Any instance
    * @param file The description of the file
+   * @param bNoHash true than a @ hash from toString() will be replaced by the internal id to save compare ability.
    * @throws IOException on file system error
    * @throws NoSuchFieldException if the JZcmdFilepath access an internal variable which is not given. It is not expected usual.
    */
-  public static void dataHtml(Object data, JZtxtcmdFilepath file) throws IOException, NoSuchFieldException 
+  public static void dataHtml(Object data, JZtxtcmdFilepath file, boolean bNoHash) throws IOException, NoSuchFieldException 
   { Writer out = new FileWriter(file.absfile().toString());
-    DataShow.outHtml(data, out);
+    DataShow.outHtml(data, out, bNoHash);
     out.close();
   }
   
   
-
+  /**Same as {@link #dataHtml(Object, JZtxtcmdFilepath, boolean)} but with default arg bNoHash = true.
+   * standard behavior: replace the hash with a unique id to save compare ability. 
+   */
+  public static void dataHtml(Object data, JZtxtcmdFilepath file) throws IOException, NoSuchFieldException 
+  { dataHtml(data, file, true); }
   
   /**Generates a html file which contains the description of all data contained in referred in the given data instance.
    * See {@link DataShow#outHtml(Object, Appendable)} - that capability is used. This is only a wrapper method
@@ -172,13 +179,20 @@ public class JZtxtcmdTester
    * Note: a variant with a String given path is not supported because they may dubieties with the current directory.
    * @param data Any instance
    * @param path An usual absolute file path in a File object
+   * @param bNoHash true than a @ hash from toString() will be replaced by the internal id to save compare ability.
    * @throws IOException
    */
-  public static void dataHtml(Object data, File path) throws IOException 
+  public static void dataHtml(Object data, File path, boolean bNoHash) throws IOException 
   { Writer out = new FileWriter(path);
-    DataShow.outHtml(data, out);
+    DataShow.outHtml(data, out, bNoHash);
     out.close();
   }
+  
+  /**Same as {@link #dataHtml(Object, File, boolean)} but with default arg bNoHash = true.
+   * standard behavior: replace the hash with a unique id to save compareability. 
+   */
+  public static void dataHtml(Object data, File file) throws IOException, NoSuchFieldException 
+  { dataHtml(data, file, true); }
   
   
 

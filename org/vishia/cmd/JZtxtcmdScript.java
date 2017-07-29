@@ -45,6 +45,7 @@ public class JZtxtcmdScript extends CompiledScript
   /**Version, history and license.
    * 
    * <ul>
+   * <li>2017-07-12 Hartmut new: debugOp
    * <li>2017-03-25 Hartmut chg: Handling of indentation improved with {@link org.vishia.zbnf.ZbnfParser} capability for define attributes on a syntax item
    *   and the capability of {@link StatementList#new_textExpr(ZbnfParseResultItem)} with the result item. 
    * <li>2017-01-13 Hartmut chg: A {@link Subroutine} now has the reference {@link Subroutine#theScript} to get the script 
@@ -156,7 +157,7 @@ public class JZtxtcmdScript extends CompiledScript
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String version = "2017-03-25";
+  static final public String version = "2017-07-12";
 
   final MainCmdLogging_ifc console;
 
@@ -352,6 +353,8 @@ public class JZtxtcmdScript extends CompiledScript
      * <tr><td>w</td><td>while(cond) {@link #statementlist} contains build.script for any list element,</td></tr>
      * <tr><td>b</td><td>break</td></tr>
      * <tr><td>?</td><td><:if:...?gt> compare-operation in if</td></tr>
+     * <tr><td>D</td><td>debug: break at a defined break point in {@link JZtxtcmdExecuter}</td></tr>
+     * <tr><td>H</td><td>debugOp: break on invocation of an operation (method) in {@link DataAccess} before evaluating the arguments or if operation not found.</td></tr>
      * 
      * <tr><td>Z</td><td>a target,</td></tr>
      * <tr><td>Y</td><td>the file</td></tr>
@@ -646,6 +649,7 @@ public class JZtxtcmdScript extends CompiledScript
           case 'E': u.append(" else "); break;
           case 'F': u.append(" Filepath "); break;
           case 'G': u.append(" Fileset "); break;
+          case 'H': u.append(" debugOp"); break;
           case 'I': u.append(" (?forInput?)...(/?)"); break;
           case 'M': u.append(" Map "); break;
           case 'N': u.append(" <:hasNext> content <.hasNext>"); break;
@@ -1565,15 +1569,24 @@ public class JZtxtcmdScript extends CompiledScript
      */
     CalculatorExpr minSpaces;
     
+    JZcmdDataAccess minSpacesDataAccess;
     
     TextColumn(StatementList parentList)
     { super(parentList, '@');
     }
 
     
-    public CalculatorExpr new_minSpaces(){ return minSpaces = new CalculatorExpr(); }
+    public JZcmdCalculatorExpr new_minSpaces(){ return new JZcmdCalculatorExpr(this); }
     
-    public void add_minSpaces(){}
+    public void add_minSpaces(JZcmdCalculatorExpr val){ 
+      DataAccess dataAccess1 = val.onlyDataAccess();
+      if(dataAccess1 !=null){
+        this.minSpacesDataAccess = (JZcmdDataAccess)dataAccess1;
+      } else {
+        val.closeExprPreparation();
+        this.minSpaces = val.expr(); 
+      }
+    }
     
     
     @Override
@@ -2226,6 +2239,21 @@ public class JZtxtcmdScript extends CompiledScript
     
 
     
+    
+    /**Defines or changes an environment variable with value. set NAME = TEXT;
+     * Handle in the same kind like a String variable
+     */
+    public JZcmditem new_debugOp(){
+      return new JZcmditem(this, 'H'); 
+    } 
+
+    /**Defines or changes an environment variable with value. set NAME = TEXT;
+     * Handle in the same kind like a String variable but appends a '$' to the first name.
+     */
+    public void add_debugOp(JZcmditem val){ 
+      statements.add(val); 
+      onerrorAccu = null; withoutOnerror.add(val);
+    } 
     
     /**Defines or changes an environment variable with value. set NAME = TEXT;
      * Handle in the same kind like a String variable

@@ -88,7 +88,7 @@ public class ObjectId
   /**Returns a unique identification String for this instance.
    * The identification string is unique for a run session which uses this instance and method to get it.
    * The identification string is the same if this method was invoked in different sessions but with the same order of instances,
-   * especially if an application with the same data runs twice.
+   * especially if an application with the same data runs twice. This is important for compare-ability.
    *  
    * @param data The instance
    * @return identification String for this instance.

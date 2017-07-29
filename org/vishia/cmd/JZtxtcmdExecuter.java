@@ -83,6 +83,7 @@ public class JZtxtcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2017-07-12 Hartmut new: debugOp
    * <li>2017-06-13 Hartmut chg: for(entry: numvalue) works now for 0 to numvalue-1, especially for array indices. 
    * <li>2017-01-13 Hartmut chg: On any call of execute(...) or execSub(..) the given script will be used as current and replaces an old one. 
    *   If it is another script as the last one, the new script will be established. 
@@ -261,7 +262,7 @@ public class JZtxtcmdExecuter {
    * <li>2012-10-19 Hartmut chg: <:if...> works.
    * <li>2012-10-10 Usage of {@link ZbatchGenScript}.
    * <li>2012-10-03 created. Backgorund was the {@link org.vishia.zmake.Zmake} generator, but that is special for make problems.
-   *   A generator which converts ZBNF-parsed data from an Java data context to output texts in several form, documenation, C-sources
+   *   A generator which converts ZBNF-parsed data from a Java data context to output texts in several form, documentation, C-sources
    *   was need.
    * </ul>
    * 
@@ -291,7 +292,7 @@ public class JZtxtcmdExecuter {
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String version = "2017-01-13";
+  static final public String version = "2017-07-29";
 
   /**This class is the jzcmd main level from a script.
    * @author Hartmut Schorrig
@@ -625,7 +626,7 @@ throws ScriptException //, IllegalAccessException
     } else if(sCurrdirArg !=null) {
       scriptLevel.changeCurrDir(sCurrdirArg);
     }
-    File filescript = script == null ? null : script.fileScript; //script may be null on initializing.
+    File filescript = script == null ? null : script.fileScript;
     if(filescript !=null) { 
       String scriptfile = filescript.getName();
       CharSequence scriptdir = FileSystem.normalizePath(FileSystem.getDir(filescript));
@@ -637,10 +638,13 @@ throws ScriptException //, IllegalAccessException
     //if(scriptLevel.localVariables.get("error") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "error", 'A', accessError, true); }
     if(scriptLevel.localVariables.get("console") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "console", 'O', acc.log, true); }
     //DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nrElementInContainer", 'O', null);
+    //Note: "text" will be replaced by the text output if given, argument -t:FILE
+    if(scriptLevel.localVariables.get("text") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "text", 'A', System.out, true); }
     if(scriptLevel.localVariables.get("out") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "out", 'A', System.out, true); }
     if(scriptLevel.localVariables.get("err") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "err", 'A', System.err, true); }
     if(scriptLevel.localVariables.get("null") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
     if(scriptLevel.localVariables.get("jzcmd") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jzcmd", 'O', acc, true); }
+    if(scriptLevel.localVariables.get("jztc") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jztc", 'O', acc, true); }
     //if(scriptLevel.localVariables.get("file") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "file", 'O', new FileSystem(), true); }
     if(scriptLevel.localVariables.get("test") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new JZtxtcmdTester(), true); }
     if(scriptLevel.localVariables.get("conv") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "conv", 'O', new Conversion(), true); }
@@ -1477,6 +1481,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
           case 'q': ret = exec_OpenTextOut(statement, true); break;
           case 'Z': ret = exec_zmake((JZtxtcmdScript.Zmake) statement, out, indentOut, --nDebug1); break;
           case 'D': break; // a second debug statement one after another or debug on end is ignored.
+          case 'H': exec_DebugOp(statement); break; // debugOp
           default: throw new IllegalArgumentException("JZcmd.execute - unknown statement; ");
           }//switch
           
@@ -1598,6 +1603,10 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
     void exec_SetColumn(JZtxtcmdScript.TextColumn statement, StringFormatter out) throws Exception{
       int column = -1;
       int minChars = -1;
+      if(statement.minSpaces !=null) {
+        CalculatorExpr.Value value = calculateExpression(statement.minSpaces); //.calcDataAccess(localVariables);
+        minChars = value.intValue();
+      }
       if(statement.expression !=null) {
         CalculatorExpr.Value value = calculateExpression(statement.expression); //.calcDataAccess(localVariables);
         column = value.intValue();
@@ -2572,6 +2581,16 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
       short ret = 0;
       if(this.cmdErrorlevel >= statement.errorLevel){
         ret = execute(statement.statementlist, out, indentOut, localVariables, -1);
+      }
+      return ret;
+    }
+
+
+    short exec_DebugOp(JZtxtcmdScript.JZcmditem statement) throws Exception {
+      short ret = 0;
+      Object val = evalObject(statement, false);
+      if(val instanceof String) {
+        DataAccess.debugMethod((String)val);
       }
       return ret;
     }

@@ -1750,7 +1750,7 @@ public class DataAccess {
     }
     if(bSearchSuperOuter){
       //Note: this exception occurs often in JZcmd if a variable will be used which is not existing in a condition. The condition is false after catch!
-      throw new NoSuchFieldException(name + " ;in class ;" + clazz.getCanonicalName() );
+      throw new NoSuchFieldException(name + " ;in class ;" + clazz.getCanonicalName()  + ", data," + (obj==null ? "" : obj.toString()));
     }
     return ret;
   }

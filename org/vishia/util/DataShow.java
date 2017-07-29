@@ -23,6 +23,8 @@ public class DataShow extends ObjectId
 {
   /**Version, history and license.
    * <ul>
+   * <li>2017-07-29 Hartmut new: {@link #outData(Object, Appendable, boolean)} can decide whether the true hash code is shown 
+   *   (for search the instance proper to a Object.toString()-output with @hash or a unique hash is shown for compare ability of 2 html files.j 
    * <li>2015-11-03 Hartmut new: possibility of hyperlink to any instance via toString-anchor. 
    * <li>2015-08-01 Hartmut chg: Instead hash-code as link label use the {@link #instanceId(Object)}. The advantage:
    *   If the same data are used in a second session (repeated invocation of the same for example conversion process)
@@ -64,7 +66,7 @@ public class DataShow extends ObjectId
    * 
    * 
    */
-  static final public String sVersion = "2015-11-03";
+  static final public String sVersion = "2017-07-29";
 
   /**If a Field is designated with this annotation then the content is not shown.
    * This is for example for a Hash map because the key values may be hash codes which are abbreviated between several runs.
@@ -312,6 +314,18 @@ public class DataShow extends ObjectId
    * @throws IOException
    */
   public static void outHtml(Object data, Appendable out)
+  throws IOException { outHtml(data, out, true); }
+
+
+
+  /**Same as {@link #outHtml(Object, Appendable)} but content with or without hash is able to control
+   * 
+   * @param data
+   * @param out
+   * @param bNoHash true than a @ hash from toString() will be replaced by the internal id to save compare ability.
+   * @throws IOException
+   */
+  public static void outHtml(Object data, Appendable out, boolean bNoHash)
   throws IOException
   {
     DataShow dataShow = new DataShow();
@@ -328,7 +342,7 @@ public class DataShow extends ObjectId
     Object refData;
     while( (refData = dataShow.newInstances.poll()) !=null) { //show all instances which are found as reference.
       //while outData is invoked, newInstances is filld with other new instances. 
-      dataShow.outData(refData, out);  //may add further referenced data.
+      dataShow.outData(refData, out, bNoHash);  //may add further referenced data.
     }
     out.append("\n</body>\n</html>\n");
     
@@ -370,13 +384,13 @@ public class DataShow extends ObjectId
    * @throws IOException
    * @return true: one line data, end with "/ >", false: more as one line.
    */
-  private void outData(Object data, Appendable out) throws IOException {
+  private void outData(Object data, Appendable out, boolean bNoHash) throws IOException {
     //Note: don't use the hash code. it may be the best, but the hash produce another content
     //for the same data. Older and newer files are not comparable.
     //faulty: String hash = Integer.toHexString(data.hashCode());
     String hash = instanceId(data, newInstances);
     Class<?> clazz = data.getClass();
-    String content = toStringNoHash(data);
+    String content = bNoHash ? toStringNoHash(data) : data.toString();
     out.append("\n<a name=\"obj-").append(hash).append("\"/>");
     //anchor for hyperlink from outside for documentation. Use the toString().output.
     if(content !=null && content.indexOf('\"')<0){

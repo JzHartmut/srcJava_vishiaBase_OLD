@@ -1,16 +1,16 @@
-2017-07-02 23:18:48  x     _filelist.lst                            ::           .  0  0000000000 
+2017-07-29 15:19:45  x     _filelist.lst                            ::           .  0  0000000000 
 2016-12-27 20:49:01  x     gitCommit.bat                            ::           .126  0154841974 
 
 ============================== _make/ =============================================================
 2012-08-12 22:29:02  x     +genDownload.sh                          ::           .966 -1047256477 
-2017-06-20 23:37:11  x     +genjavadocbase.bat                      ::          2.298  1611431233 
+2017-07-29 09:53:48  x     +genjavadocbase.bat                      ::          2.452  1385412720 
 2016-08-29 18:23:07  x     +genjavadocbase.sh                       ::          1.252 -1326024890 
 2016-10-15 08:58:56  x     +javacjarbase.bat                        ::          4.407  1369922616 
 2012-03-26 12:21:00  x     +javacjarbase.sh                         ::          3.255 -1553126320 
 2014-06-05 09:19:31  x     _makejar_vishiaBase.bat                  ::          1.520 -2040742808 
 2013-02-05 07:23:18  x     _makejar_vishiaBase.sh                   ::          1.587  1699435763 
 2012-08-12 22:29:02  x     genDownload.sh                           ::           . 80  0566205481 
-2017-06-20 23:45:37  x     genjavadoc.bat                           ::           .319  0133386585 
+2017-07-28 23:05:57  x     genjavadoc.bat                           ::           .338  1279083262 
 2014-08-17 10:41:08  x     genjavadoc.sh                            ::           .311  2030599451 
 2014-06-11 22:03:56  x     readme_javac.txt                         ::          2.335 -0109610946 
 2014-12-14 19:18:32  x     setJAVA_JDK_template.bat                 ::           .307  1124999818 
@@ -72,7 +72,7 @@
 2013-12-10 09:54:37  x     VariableAccessArray_ifc.java             ::          6.165  0115301257 
 2016-01-23 22:17:31  x     VariableAccessWithBitmask.java           ::          6.370  0738802326 
 2016-01-23 22:17:46  x     VariableAccessWithIdx.java               ::          7.634 -0449515952 
-2016-01-23 22:19:41  x     VariableAccess_ifc.java                  ::         10.237 -1745803295 
+2017-07-12 05:26:25  x     VariableAccess_ifc.java                  ::         10.295  0311598980 
 2015-03-21 23:42:36  x     VariableContainer_ifc.java               ::          5.307  1000203022 
 2012-03-03 11:16:26  x     package-info.java                        ::           .155  1770849139 
 
@@ -95,11 +95,11 @@
 2013-02-11 20:02:26  x     Filecmd.java                             ::          7.182  0296091865 
 2017-04-03 21:47:59  x     JZtxtcmdAccessFileset.java               ::          5.312  1699229706 
 2017-04-03 21:47:42  x     JZtxtcmdEngine.java                      ::          3.130  1916959976 
-2017-07-02 23:07:45  x     JZtxtcmdExecuter.java                    ::        176.685  0594394094 
+2017-07-29 15:07:50  x     JZtxtcmdExecuter.java                    ::        177.611 -1253269861 
 2017-04-03 21:47:32  x     JZtxtcmdFilepath.java                    ::         16.260  1039314487 
 2017-04-03 21:49:12  x     JZtxtcmdFileset.java                     ::          5.464  0960395074 
-2017-04-03 21:49:12  x     JZtxtcmdScript.java                      ::        105.693 -1336028602 
-2017-04-03 21:47:31  x     JZtxtcmdTester.java                      ::          7.180  0195435201 
+2017-07-12 05:20:44  x     JZtxtcmdScript.java                      ::        106.938  0420725287 
+2017-07-29 15:18:15  x     JZtxtcmdTester.java                      ::          8.404 -0011378756 
 2017-04-03 21:47:02  x     JZtxtcmdThread.java                      ::          5.453  1205314875 
 2017-04-03 21:46:02  x     PrepareCmd.java                          ::         19.252 -1764914125 
 2017-04-03 21:47:59  x     ZmakeTarget.java                         ::          4.648  0829538762 
@@ -212,8 +212,8 @@
 2012-04-01 21:53:02  x     CompleteConstructionAndStart.java        ::          1.453  1877574397 
 2014-04-19 23:17:41  x     Conversion.java                          ::          2.375  1227745384 
 2013-02-09 20:40:18  x     Copy.java                                ::           . 51  0836434438 
-2017-07-02 23:13:46  x     DataAccess.java                          ::        111.979  0052285057 
-2015-11-19 21:10:41  x     DataShow.java                            ::         26.623  0268879383 
+2017-07-28 22:02:11  x     DataAccess.java                          ::        112.027  1551496405 
+2017-07-29 15:18:41  x     DataShow.java                            ::         27.380  1152189821 
 2015-01-17 17:32:28  x     DateOrder.java                           ::          4.061  1657283238 
 2016-10-22 20:00:38  x     Debugutil.java                           ::           .868 -1945039312 
 2013-11-24 19:10:50  x     Docu_UML_simpleNotation.java             ::          4.825 -0664458674 
@@ -239,7 +239,7 @@
 2013-09-05 10:44:19  x     MarkMask_ifc.java                        ::          4.507  0438845808 
 2014-04-27 15:00:37  x     MessageQueue.java                        ::          1.713 -1200044568 
 2011-02-26 21:31:28  x     MinMaxTime.java                          ::          3.145  0527527620 
-2016-11-27 20:10:32  x     ObjectId.java                            ::          7.516 -0901797552 
+2017-07-28 22:11:27  x     ObjectId.java                            ::          7.555 -2132877866 
 2012-11-17 19:54:54  x     ObjectValue.java                         ::          1.162 -2009175008 
 2015-02-07 13:01:18  x     OrderForList.java                        ::           .647 -1330679365 
 2015-02-07 12:41:42  x     OrderListExecuter.java                   ::           .350  1985661212 

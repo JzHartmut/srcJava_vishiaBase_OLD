@@ -1,4 +1,2 @@
-Some news, DataAccess.debugMethod("") and StringPartScan.scanStart(true)
-* DataAccess: {@link #debugMethod(String)} can be invoked with "". Then it invokes {@link #debug()} on the next found method
-  and removes the settings after them. It is usual in a JZtxtcmd Script to stop on the next method.
-* StringPartScan: {@link #scanStart(boolean)} possible to switch on bSkipWhitepaces. More simple for invocation.
+JZtxtcmd statement debugOp, there test.dataHtml(...,0) to Output the true hash code, 
+proper to DataAccess:toString() output on error.
