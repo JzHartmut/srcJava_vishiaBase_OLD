@@ -68,7 +68,7 @@ public class FileCluster
   
   /**This index contains the association between paths and its FileRemote instances.
    */
-  IndexMultiTable<String, FileRemote> idxPaths = new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString);
+  protected IndexMultiTable<String, FileRemote> idxPaths = new IndexMultiTable<String, FileRemote>(IndexMultiTable.providerString);
   
 
   /**Number of selected bytes in all selected files. */
@@ -210,7 +210,9 @@ public class FileCluster
   
   
   
-  
+  public ListIterator<FileRemote> listSubdirs(String startDir) {
+    return idxPaths.iterator(startDir);
+  }
   
   
   

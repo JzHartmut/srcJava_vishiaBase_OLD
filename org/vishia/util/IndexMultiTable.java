@@ -85,6 +85,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   /**Version, history and license.
    * <ul>
+   * <li>2017-08-22 Hartmut bugfix: {@link IteratorImpl} has start from the next table instead hyper table with lesser key. Presume it was never tested well.  
    * <li>2016-10-15 Hartmut bugfix: because of the root table is instanceof {@link IndexMultiTable}, a value in {@link IndexMultiTable_Table#aValues} 
    *   which is type of {@link IndexMultiTable} has failed. It was recognized as a sub table with the simple check 
    *   <code>tableStart.aValues[idx] instanceof IndexMultiTable_Table</code> etc. Now it is checked whether the value is not an instance of IndexMultitable itself.
@@ -260,7 +261,7 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
         { /**an non exact found, accept it.
            * use the table with the key lesser than the requested key
            */
-          idx = -idx-1; //insertion point is index of previous
+          idx = -idx-1 -1; //insertion point is .idx-1, but use the previous
         }
         assert(tableStart.aValues[idx] instanceof IndexMultiTable_Table && !(aValues[idx] instanceof IndexMultiTable));
         @SuppressWarnings("unchecked") 
@@ -277,18 +278,17 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
          * start from the element with first key greater than the requested key
          */
         idx = -idx-1;  //it is the position of the next element.
-        helperPrev.idx = idx-1;
-        helperPrev.checkHyperTable();
-        helperNext.idx = idx;
+        //helperPrev left emtpy! will be filled with next()
+        helperNext.idx = idx-1;
+        helperNext.currKey = helperNext.table.aKeys[idx-1];
         helperNext.checkHyperTable();
         
       } else {
         //exact found, it is the previous to add new elements with the given key after that one with the same name.
-        helperPrev.idx = idx;  //it has correct parents, it is not a hyper table.
-        helperPrev.currKey = helperPrev.table.aKeys[idx];
-        helperPrev.checkHyperTable();
-        helperNext.idx = idx+1;
-        helperNext.checkHyperTable();  //may be a hyper table, search the first not hyper.
+      //helperPrev left emtpy! will be filled with next()
+        helperNext.idx = idx;  //it has correct parents, it is not a hyper table.
+        helperNext.currKey = helperNext.table.aKeys[idx];
+        helperNext.checkHyperTable();
         
       }
     }

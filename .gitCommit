@@ -1,2 +1,1 @@
-JZtxtcmd statement debugOp, there test.dataHtml(...,0) to Output the true hash code, 
-proper to DataAccess:toString() output on error.
+util.IndexMultiTable: bugfix: {@link IteratorImpl} has start from the next table instead hyper table with lesser key. Presume it was never tested well
