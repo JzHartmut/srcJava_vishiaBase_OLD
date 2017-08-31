@@ -89,6 +89,7 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2017-08-30 Hartmut new: {@link #istypeof(Object, String)} with String argument, based on {@link #istypeof(Object, Class)}. 
    * <li>2017-07-02 Hartmut new: {@link #debugMethod(String)} can be invoked with "". Then it invokes {@link #debug()} on the next found method
    *   and removes the settings after them. It is usual in a JZtxtcmd Script to stop on the next method.
    * <li>2016-10-01 Hartmut new: {@link #storeValue(DatapathElement, Object, Object, boolean)} and {@link #access(DatapathElement, Object, boolean, boolean, boolean, Dst)}
@@ -1545,6 +1546,15 @@ public class DataAccess {
       return conv;
     }
   }
+  
+  
+  
+  public static final boolean istypeof(Object obj, String sType) 
+  throws ClassNotFoundException {
+    Class<?> type = Class.forName(sType);
+    return istypeof(obj, type);
+  }
+  
   
   
   public static final boolean istypeof(Object obj, Class type){

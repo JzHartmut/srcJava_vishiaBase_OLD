@@ -360,6 +360,13 @@ public class DataShow extends ObjectId
   
   
   
+  /**Output to one element.
+   * 
+   * @param data
+   * @param type
+   * @param out
+   * @throws IOException
+   */
   private void outDataShort(Object data, Class<?> type, Appendable out) throws IOException {
     //Note: don't use the hash code. it may be the best, but the hash produce another content
     //for the same data. Older and newer files are not comparable.

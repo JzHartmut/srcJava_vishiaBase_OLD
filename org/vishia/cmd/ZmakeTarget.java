@@ -49,7 +49,7 @@ public class ZmakeTarget
   
  
   
-  List<JZtxtcmdAccessFileset> inputs;
+  protected List<JZtxtcmdAccessFileset> inputs;
   
   /**The output file of the target in the ready-to-use form in a JZcmd Script.
    * One can invoke for example 'target.output.absdirW()' to get the absolute directory path with backslash.

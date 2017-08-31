@@ -1,1 +1,10 @@
-util.IndexMultiTable: bugfix: {@link IteratorImpl} has start from the next table instead hyper table with lesser key. Presume it was never tested well
+FileCluster: On {@link #getFile(CharSequence, CharSequence, boolean)} only {@link FileSystem#normalizePath(CharSequence)}
+  is invoked. Not {@link FileSystem#getCanonicalPath(File)}: Reason: On this access the operation system's file system must not accessed.
+  Only an existing {@link FileRemote} instance is searched and returned. Especially if a network directory is accessed and the
+  network is not accessible, this invocation must not hang! It is used in the graphic thread in the org.vishia.commander.
+* JZtxtcmdExecuter: new: implementation of the feature <code>Obj name :type = ....</code>, 
+  checking of the type now on assigning of the value. This feature was prepared in syntax but not implemented till now.
+* IndexMultitable: bugfix from prev change. TODO: extensive test.
+* TreeNodeBase, TreeNode_ifc: some enhancements. Plan: documentation about concept and examples.
+* ZmakeTarget: for javadoc the inputs should be protected, to see it in Javadoc.
+                                                                                                             

@@ -1,4 +1,4 @@
-2017-08-22 22:25:06  x     _filelist.lst                            ::           .  0  0000000000 
+2017-08-31 09:25:42  x     _filelist.lst                            ::           .  0  0000000000 
 2016-12-27 20:49:01  x     gitCommit.bat                            ::           .126  0154841974 
 
 ============================== _make/ =============================================================
@@ -95,14 +95,14 @@
 2013-02-11 20:02:26  x     Filecmd.java                             ::          7.182  0296091865 
 2017-04-03 21:47:59  x     JZtxtcmdAccessFileset.java               ::          5.312  1699229706 
 2017-04-03 21:47:42  x     JZtxtcmdEngine.java                      ::          3.130  1916959976 
-2017-07-29 15:07:50  x     JZtxtcmdExecuter.java                    ::        177.611 -1253269861 
+2017-08-31 09:15:13  x     JZtxtcmdExecuter.java                    ::        179.790  1497747829 
 2017-04-03 21:47:32  x     JZtxtcmdFilepath.java                    ::         16.260  1039314487 
 2017-04-03 21:49:12  x     JZtxtcmdFileset.java                     ::          5.464  0960395074 
 2017-07-12 05:20:44  x     JZtxtcmdScript.java                      ::        106.938  0420725287 
 2017-07-29 15:18:15  x     JZtxtcmdTester.java                      ::          8.404 -0011378756 
 2017-04-03 21:47:02  x     JZtxtcmdThread.java                      ::          5.453  1205314875 
 2017-04-03 21:46:02  x     PrepareCmd.java                          ::         19.252 -1764914125 
-2017-04-03 21:47:59  x     ZmakeTarget.java                         ::          4.648  0829538762 
+2017-08-30 11:33:53  x     ZmakeTarget.java                         ::          4.658 -1787231697 
 2017-04-03 21:47:03  x     package-info.java                        ::           .603 -1584113308 
 
 ============================== org/vishia/event/ ===================================================
@@ -132,7 +132,7 @@
 
 ============================== org/vishia/fileRemote/ ==============================================
 2016-11-27 20:58:05  x     FileAccessZip.java                       ::         16.702 -1596485066 
-2017-08-22 21:20:27  x     FileCluster.java                         ::         20.739  1075325051 
+2017-08-31 09:24:56  x     FileCluster.java                         ::         21.411 -0037229769 
 2015-09-09 21:35:41  x     FileMark.java                            ::          9.055 -1189575623 
 2015-12-06 22:55:22  x     FileRemote.java                          ::        147.625  2021680241 
 2015-05-31 08:35:14  x     FileRemoteAccessor.java                  ::         13.357  1291194227 
@@ -212,8 +212,8 @@
 2012-04-01 21:53:02  x     CompleteConstructionAndStart.java        ::          1.453  1877574397 
 2014-04-19 23:17:41  x     Conversion.java                          ::          2.375  1227745384 
 2013-02-09 20:40:18  x     Copy.java                                ::           . 51  0836434438 
-2017-07-28 22:02:11  x     DataAccess.java                          ::        112.027  1551496405 
-2017-07-29 15:18:41  x     DataShow.java                            ::         27.380  1152189821 
+2017-08-31 09:09:12  x     DataAccess.java                          ::        112.350  0567174648 
+2017-08-25 23:14:46  x     DataShow.java                            ::         27.502  0900709432 
 2015-01-17 17:32:28  x     DateOrder.java                           ::          4.061  1657283238 
 2016-10-22 20:00:38  x     Debugutil.java                           ::           .868 -1945039312 
 2013-11-24 19:10:50  x     Docu_UML_simpleNotation.java             ::          4.825 -0664458674 
@@ -226,7 +226,7 @@
 2011-02-26 21:31:28  x     FileWriter.java                          ::          4.163 -1377006717 
 2016-01-17 19:21:50  x     FilepathFilter.java                      ::         14.720  0267132900 
 2015-04-25 22:36:18  x     GetTypeToUse.java                        ::           .621  0946036250 
-2017-08-22 22:24:05  x     IndexMultiTable.java                     ::         44.655  0064904255 
+2017-08-31 09:06:33  x     IndexMultiTable.java                     ::         45.014  0326311714 
 2014-05-23 11:36:29  x     IndexMultiTableInteger.java              ::         31.688 -1699595417 
 2016-10-22 17:32:36  x     IndexMultiTable_Table.java               ::         35.887 -1268341914 
 2015-03-08 11:47:11  x     InfoAppend.java                          ::          3.870  1287281775 
@@ -273,11 +273,12 @@
 2011-02-26 21:31:28  x     ThreadContext.java                       ::          2.353 -1963738349 
 2016-01-24 19:42:52  x     ThreadRun.java                           ::          9.693  1605710614 
 2016-03-13 09:36:36  x     Timeshort.java                           ::          4.646 -0882576216 
-2015-04-05 16:16:44  x     TreeNodeBase.java                        ::         40.027 -1059532107 
+2017-08-31 08:57:53  x     TreeNodeBase.java                        ::         41.424 -1379159204 
 2013-11-05 18:59:10  x     TreeNodeCallback.java                    ::          2.367  1953077598 
+2017-08-26 21:46:22  x     TreeNodeHtmlOutput.java                  ::          5.501  1476653835 
 2015-05-26 22:42:15  x     TreeNodeNamed_ifc.java                   ::           . 91 -1285758015 
 2012-11-05 22:07:50  x     TreeNodeUniqueKey.java                   ::          2.003  0862351950 
-2013-12-01 14:56:33  x     TreeNode_ifc.java                        ::          3.559  1717245875 
+2017-08-31 08:44:51  x     TreeNode_ifc.java                        ::          3.804  1798566168 
 2015-09-04 22:54:53  x     TreeWalkerPathCheck.java                 ::          6.088 -1665237707 
 2013-01-06 16:24:48  x     UnexpectedException.java                 ::           .984 -0050084027 
 2015-07-19 11:30:12  x     Writer_Appendable.java                   ::          1.643  0371808871 

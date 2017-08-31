@@ -83,6 +83,10 @@ public class JZtxtcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2017-08-30 Hartmut new: implementation of the feature <code>Obj name :type = ....</code>, 
+   *   checking of the type now on assigning of the value. This feature was prepared in syntax but not implemented till now.
+   * <li>2017-08-30 Hartmut new: uses {@link JzScriptException} extends {@link ScriptException} only because the line:col should be able to read
+   *   on start of the next line, better able to found on error messages. 
    * <li>2017-07-12 Hartmut new: debugOp
    * <li>2017-06-13 Hartmut chg: for(entry: numvalue) works now for 0 to numvalue-1, especially for array indices. 
    * <li>2017-01-13 Hartmut chg: On any call of execute(...) or execSub(..) the given script will be used as current and replaces an old one. 
@@ -521,7 +525,7 @@ throws ScriptException //, IllegalAccessException
       DataAccess.Variable<Object> var = entry.getValue();
       try{ DataAccess.createOrReplaceVariable(acc.scriptLevel.localVariables, var.name(), var.type(), var.value(), var.isConst());
       } catch(IllegalAccessException exc){
-        throw new ScriptException("JZcmdExecuter.genScriptVariable - IllegalAccessException; " + exc.getMessage());
+        throw new JzScriptException("JZcmdExecuter.genScriptVariable - IllegalAccessException; " + exc.getMessage());
       }
     }
   }
@@ -563,7 +567,7 @@ throws ScriptException //, IllegalAccessException
     for(DataAccess.Variable<Object> var: srcVariables){
       try{ DataAccess.createOrReplaceVariable(acc.scriptLevel.localVariables, var.name(), var.type(), var.value(), var.isConst());
       } catch(IllegalAccessException exc){
-        throw new ScriptException("JZcmdExecuter.genScriptVariable - IllegalAccessException; " + exc.getMessage());
+        throw new JzScriptException("JZcmdExecuter.genScriptVariable - IllegalAccessException; " + exc.getMessage());
       }
     }
   }
@@ -658,9 +662,9 @@ throws ScriptException //, IllegalAccessException
     DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nextnr", 'M', objMethod, true);
     //
   } catch(IllegalAccessException exc){
-    throw new ScriptException("JZcmdExecuter.genScriptVariable - IllegalAccessException; " + exc.getMessage());
+    throw new JzScriptException("JZcmdExecuter.genScriptVariable - IllegalAccessException; " + exc.getMessage());
   } catch(Exception exc){
-    throw new ScriptException("JZcmdExecuter.genScriptVariable - unexpected exception; " + exc.getMessage());
+    throw new JzScriptException("JZcmdExecuter.genScriptVariable - unexpected exception; " + exc.getMessage());
   }
   if(script !=null) {
     //generate all variables in this script:
@@ -688,12 +692,16 @@ public void  executeScriptLevel(JZtxtcmdScript script, CharSequence sCurrdir) th
 { boolean bscriptInitialized = checkInitialize(script, true, sCurrdir);
   if(!bscriptInitialized && sCurrdir !=null) {
     try{ acc.scriptLevel.changeCurrDir(sCurrdir);
-    } catch(IllegalAccessException exc) { throw new ScriptException(exc); }
+    } catch(IllegalAccessException exc) { throw new JzScriptException(exc); }
   }
 
   short ret = acc.scriptLevel.execute(script.scriptClass, null, 0, acc.scriptLevel.localVariables, -1);
   if(ret == kException){
-    throw new ScriptException(acc.scriptThread.exception.getMessage(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
+    Throwable cause = acc.scriptThread.exception.getCause();
+    String sException;
+    if(cause == null) { sException = acc.scriptThread.exception.toString(); }
+    else { sException = cause.toString() + " => s" + acc.scriptThread.exception.toString(); }
+    throw new JzScriptException(sException, acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
   }
 } 
 
@@ -715,7 +723,7 @@ public ExecuteLevel execute_Scriptclass(String sClazz) throws ScriptException
       throw (ScriptException)acc.scriptThread.exception; 
     } else {
       CharSequence text = Assert.exceptionInfo("Exception in the script, ", acc.scriptThread.exception, 0, 20);
-      throw new ScriptException(text.toString(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
+      throw new JzScriptException(text.toString(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
     }
   }
   return level;
@@ -737,7 +745,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
       throw (ScriptException)acc.scriptThread.exception; 
     } else {
       CharSequence text = Assert.exceptionInfo("Exception in the script, ", acc.scriptThread.exception, 0, 20);
-      throw new ScriptException(text.toString(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
+      throw new JzScriptException(text.toString(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
     }
   }
   return level;
@@ -924,11 +932,11 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
       }
       try{
         acc.setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
-      } catch(IllegalAccessException exc){ throw new ScriptException("JZcmd.executer - IllegalAccessException; " + exc.getMessage()); }
+      } catch(IllegalAccessException exc){ throw new JzScriptException("JZcmd.executer - IllegalAccessException; " + exc.getMessage()); }
     }
     if(!bscriptInitialized && sCurrdir !=null) {
       try {acc.scriptLevel.changeCurrDir(sCurrdir);
-      } catch(IllegalAccessException exc) { throw new ScriptException(exc); }
+      } catch(IllegalAccessException exc) { throw new JzScriptException(exc); }
     }
     
     
@@ -938,7 +946,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
     if(acc.jzcmdScript.checkJZcmdXmlFile !=null) {
       CharSequence sFilecheckXml;
       try { sFilecheckXml = acc.scriptLevel.evalString(acc.jzcmdScript.checkJZcmdXmlFile);
-      } catch (Exception exc) { throw new ScriptException("JZcmd.execute - String eval error on checkJZcmd; "
+      } catch (Exception exc) { throw new JzScriptException("JZcmd.execute - String eval error on checkJZcmd; "
           , acc.jzcmdScript.checkJZcmdXmlFile.srcFile, acc.jzcmdScript.checkJZcmdXmlFile.srcLine, acc.jzcmdScript.checkJZcmdXmlFile.srcColumn ); 
       }
       SimpleXmlOutputter xmlOutputter = new SimpleXmlOutputter();
@@ -947,13 +955,13 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
         xmlOutputter.write(xmlWriter, acc.jzcmdScript.xmlSrc);
         xmlWriter.close();
         acc.jzcmdScript.xmlSrc = null;  //can be garbaged.
-      } catch(IOException exc){ throw new ScriptException(exc); }
+      } catch(IOException exc){ throw new JzScriptException(exc); }
       
     }
     if(acc.jzcmdScript.checkJZcmdFile !=null){
       CharSequence sFilecheck;
       try { sFilecheck = execFile.evalString(acc.jzcmdScript.checkJZcmdFile);
-      } catch (Exception exc) { throw new ScriptException("JZcmd.execute - String eval error on checkJZcmd; "
+      } catch (Exception exc) { throw new JzScriptException("JZcmd.execute - String eval error on checkJZcmd; "
           , acc.jzcmdScript.checkJZcmdFile.srcFile, acc.jzcmdScript.checkJZcmdFile.srcLine, acc.jzcmdScript.checkJZcmdFile.srcColumn ); 
       }
       File filecheck = new File(sFilecheck.toString());
@@ -961,7 +969,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
         Writer writer = new FileWriter(filecheck);
         acc.jzcmdScript.writeStruct(writer);
         writer.close();
-      } catch(IOException exc){ throw new ScriptException("JZcmd.execute - File error on checkJZcmd; " + filecheck.getAbsolutePath()); }
+      } catch(IOException exc){ throw new JzScriptException("JZcmd.execute - File error on checkJZcmd; " + filecheck.getAbsolutePath()); }
     }
     JZtxtcmdScript.Subroutine mainRoutine = acc.jzcmdScript.getMain();
     //return execute(execFile, contentScript, true);
@@ -998,7 +1006,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
         throw (ScriptException)acc.scriptThread.exception; 
       } else {
         CharSequence text = Assert.exceptionInfo("Exception in the script, ", acc.scriptThread.exception, 0, 20);
-        throw new ScriptException(text.toString(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
+        throw new JzScriptException(text.toString(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
       }
     }
   }
@@ -1017,7 +1025,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
   throws ScriptException //Throwable
   { checkInitialize(script, true, null, currdir);
     JZtxtcmdScript.Subroutine statement = acc.jzcmdScript.getSubroutine(name);
-    if( statement == null) throw new ScriptException("Subroutine not found: " + name, script.fileScript.getAbsolutePath(), 0); 
+    if( statement == null) throw new JzScriptException("Subroutine not found: " + name, script.fileScript.getAbsolutePath(), 0,0); 
     return execSub(statement, args, accessPrivate, out, currdir);
   }
     
@@ -1036,7 +1044,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
   throws ScriptException //Throwable
   { checkInitialize(script, true, null, currdir);
     JZtxtcmdScript.Subroutine statement = acc.jzcmdScript.getSubroutine(name);
-    if( statement == null) throw new ScriptException("Subroutine not found: " + name, script.fileScript.getAbsolutePath(), 0); 
+    if( statement == null) throw new JzScriptException("Subroutine not found: " + name, script.fileScript.getAbsolutePath(), 0,0); 
     return execSub(statement, args, accessPrivate, out, currdir, null);
   }
     
@@ -1101,11 +1109,11 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
       StringFormatter outFormatter = new StringFormatter(out, out instanceof Closeable, "\n", 200);
       acc.textline = outFormatter;
       try{ acc.setScriptVariable("text", 'A', out, true);
-      } catch(IllegalAccessException exc) { throw new ScriptException(exc); }
+      } catch(IllegalAccessException exc) { throw new JzScriptException(exc); }
     }
     if(!bscriptInitialized && currdir !=null){
       try { level.changeCurrDir(currdir.getPath());
-      } catch(IllegalAccessException exc) { throw new ScriptException(exc); }
+      } catch(IllegalAccessException exc) { throw new JzScriptException(exc); }
     }
     //Executes the statements of the sub routine:
     acc.startmilli = System.currentTimeMillis();
@@ -1114,7 +1122,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
     try{ 
       ret = acc.scriptLevel.exec_Subroutine(statement, level, null, arglist, acc.textline, 1, 0);
     } catch(Exception exc) {
-      throw new ScriptException(exc.getMessage(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
+      throw new JzScriptException(exc.getMessage(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
     }
     if(acc.textline !=null) {
       try{ acc.textline.close(); } 
@@ -1125,7 +1133,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
       //The primary exception is not the point of interest because a script is executed.
       //To get the detail message set a breakpoint here.
       //wrong: throw acc.scriptThread.exception;
-      throw new ScriptException(acc.scriptThread.exception.getMessage(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
+      throw new JzScriptException(acc.scriptThread.exception.getMessage(), acc.scriptThread.excSrcfile, acc.scriptThread.excLine, acc.scriptThread.excColumn);
     }
     DataAccess.Variable<Object> ret2 = level.localVariables.get("return");
     if(ret2 !=null && ret2.value() instanceof Map) {
@@ -1627,8 +1635,10 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
      */
     void exec_DefVariable(Map<String, DataAccess.Variable<Object>> newVariables, JZtxtcmdScript.DefVariable statement, char type, Object value, boolean isConst) 
     throws Exception {
-      if(statement.typeVariable !=null){
-        Debugutil.stop();
+      if(statement.typeVariable !=null) {
+        if(!DataAccess.istypeof(value, statement.typeVariable)) {
+          throw new IllegalArgumentException("execSubroutine - argument type faulty, " + value.getClass().getName() + " ");
+        }
       }
       if(statement.defVariable.datapath().get(0).ident().equals("return") && !newVariables.containsKey("return")) {
         //
@@ -2215,10 +2225,10 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
         //executer.execute(genScript, true, bWaitForThreads, null, null);
         //zgenExecuteLevel.execute(genScript.getMain().subContent, u, false);
       } catch (Exception exc) {
-        throw new ScriptException(exc);
+        throw new JzScriptException(exc);
       }
       if(ok != JZtxtcmdExecuter.kSuccess){
-        throw new ScriptException(threadData.exception.getMessage(), threadData.excSrcfile, threadData.excLine, threadData.excColumn);
+        throw new JzScriptException(threadData.exception.getMessage(), threadData.excSrcfile, threadData.excLine, threadData.excColumn);
       }
       return null;
     }    
@@ -2325,6 +2335,11 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
             if(checkArg == null){
               throw new IllegalArgumentException("execSubroutine - unexpected argument; "  + actualArg.identArgJbat);
             } else {
+              if(checkArg.typeVariable !=null) {
+                if(!DataAccess.istypeof(ref, checkArg.typeVariable)) {
+                  throw new IllegalArgumentException("execSubroutine - argument type faulty, " +ref.getClass().getName() + " "  + actualArg.identArgJbat);
+                }
+              }
               char cType = checkArg.elementType();
               //creates the argument variable with given actual value and the requested type in the sub level.
               switch(cType){
@@ -2344,6 +2359,11 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
             if(checkArg == null){
               throw new IllegalArgumentException("execSubroutine - unexpected additial argument; "  + name);
             } else {
+              if(checkArg.typeVariable !=null) {
+                if(!DataAccess.istypeof(arg.value(), checkArg.typeVariable)) {
+                  throw new IllegalArgumentException("execSubroutine - argument type faulty, " +arg.getClass().getName() + " "  + arg.name());
+                }
+              }
               char cType = checkArg.elementType();
               //creates the argument variable with given actual value and the requested type in the sub level.
               Object argVal = arg.value();
@@ -3757,6 +3777,26 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
     }
   }
   
+  
+  
+  protected static class JzScriptException extends ScriptException
+  {
+    JzScriptException( String message, String fileName, int lineNumber, int columnNumber) 
+    { super(message, fileName, lineNumber, columnNumber); }
+  
+    JzScriptException( Exception exc) 
+    { super(exc); }
+  
+    JzScriptException( String exc) 
+    { super(exc); }
+  
+    public final String getMessage(){
+      String sMessage = super.getMessage(); //hint: toString() causes recursion.
+      sMessage += "\n@line:col " + super.getLineNumber() + ':' + super.getColumnNumber() + " in " + super.getFileName();
+      return sMessage;
+    }
+  
+  }
   
   
   

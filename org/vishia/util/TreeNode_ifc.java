@@ -1,6 +1,7 @@
 package org.vishia.util;
 
 import java.util.Iterator;
+import java.util.List;
 
 /**Interface for instances, which are organized with the {@link TreeNodeBase} class.
  * This interface can be used as super interface of an interface of such instances.
@@ -14,10 +15,12 @@ public interface TreeNode_ifc
 , Data
 //, IfcType extends SortedTree<IfcType> 
 > 
+//extends SortedTree<TreeNode_ifc>
 {
   
   /**Version, history and license.
    * <ul>
+   * <li>2017-08-27 Hartmut enhanced: {@link #iteratorChildren()} for all children in given order
    * <li>2013-11-11 Hartmut created. The class {@link TreeNodeBase} was existing already.
    *   The reason for this interface:
    *   <ul>
@@ -50,7 +53,7 @@ public interface TreeNode_ifc
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de, www.vishia.org
    * 
    */
-  public static final int version = 20131111;
+  public static final String version = "2017-08-27";
 
   
   
@@ -119,4 +122,11 @@ public interface TreeNode_ifc
   IterableIterator<DerivedNode> iteratorChildren(String keyP);
   
 
+  /**Returns an iterator through the list of all children of the node.
+   * 
+   * @return The iterator or null if there isn't any children.
+   */
+  IterableIterator<DerivedNode> iteratorChildren();
+  
+  
 }

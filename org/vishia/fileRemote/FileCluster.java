@@ -25,6 +25,10 @@ public class FileCluster
 {
   /**Version, history and license.
    * <ul>
+   * <li>2017-08-27 Hartmut chg: On {@link #getFile(CharSequence, CharSequence, boolean)} only {@link FileSystem#normalizePath(CharSequence)}
+   *   is invoked. Not {@link FileSystem#getCanonicalPath(File)}: Reason: On this access the operation system's file system must not accessed.
+   *   Only an existing {@link FileRemote} instance is searched and returned. Especially if a network directory is accessed and the
+   *   network is not accessible, this invocation must not hang! It is used in the graphic thread in the org.vishia.commander.  
    * <li>2014-12-30 Hartmut chg: Now all parent directories till the root are stored in the table. Therefore the searching algorithm 
    *   is simplified. Backward search is unnecessary because the parent path is found or it is not stored. Now all as possible directory
    *   instances are stored, the tables are greater. The searching is more simple.
@@ -64,7 +68,7 @@ public class FileCluster
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final int version = 20130505;
+  public static final String version = "2017-08-30";
   
   /**This index contains the association between paths and its FileRemote instances.
    */
@@ -124,7 +128,9 @@ public class FileCluster
    */
 
   FileRemote getFile( final CharSequence sDirP, final CharSequence sName, boolean assumeChild){
-    String sDir1 = FileSystem.getCanonicalPath(new File(sDirP.toString()));  //FileSystem.normalizePath(sDirP); //sPath.replace('\\', '/');
+    //File file1 = new File(sDirP.toString());
+    //String sDir1 = FileSystem.getCanonicalPath(file1); //problem: it accesses to the file system. not expected here. 
+    CharSequence sDir1 = FileSystem.normalizePath(sDirP); //sPath.replace('\\', '/');
     if(!FileSystem.isAbsolutePath(sDir1)) {
       throw new IllegalArgumentException("absolute path expected, " + sDir1);
     }

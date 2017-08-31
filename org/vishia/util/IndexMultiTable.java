@@ -85,6 +85,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
   
   /**Version, history and license.
    * <ul>
+   * <li>2017-08-27 Hartmut bugfix: last change ... but if a key was searched which is lesser as the lesses first key, 
+   *   then the aValues[0] should be used as start.  
    * <li>2017-08-22 Hartmut bugfix: {@link IteratorImpl} has start from the next table instead hyper table with lesser key. Presume it was never tested well.  
    * <li>2016-10-15 Hartmut bugfix: because of the root table is instanceof {@link IndexMultiTable}, a value in {@link IndexMultiTable_Table#aValues} 
    *   which is type of {@link IndexMultiTable} has failed. It was recognized as a sub table with the simple check 
@@ -263,6 +265,9 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
            */
           idx = -idx-1 -1; //insertion point is .idx-1, but use the previous
         }
+        if(idx < 0){
+          idx = 0;   //only if the key is lesser, then start with the next table.
+        }
         assert(tableStart.aValues[idx] instanceof IndexMultiTable_Table && !(aValues[idx] instanceof IndexMultiTable));
         @SuppressWarnings("unchecked") 
         IndexMultiTable_Table<Key, Type> tableNext = (IndexMultiTable_Table)tableStart.aValues[idx];
@@ -279,8 +284,8 @@ implements Map<Key,Type>, Iterable<Type>  //TODO: , NavigableMap<Key, Type>
          */
         idx = -idx-1;  //it is the position of the next element.
         //helperPrev left emtpy! will be filled with next()
-        helperNext.idx = idx-1;
-        helperNext.currKey = helperNext.table.aKeys[idx-1];
+        helperNext.idx = idx;  //start with the next element which is the first greater then the key
+        helperNext.currKey = helperNext.table.aKeys[idx];
         helperNext.checkHyperTable();
         
       } else {

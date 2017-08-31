@@ -135,6 +135,9 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
 
   /**Version, history and license.
    * <ul>
+   * <li>2017-08-27 Hartmut new: Implementation of {@link #iteratorChildren()} but with {@link IteratorDerivedImpl}
+   *   which returns the next() as user type node 
+   *   TODO: {@link #iteratorChildren(String)} gardening with documentation and test.  
    * <li>2014-02-09 Hartmut preparing new methods: {@link #movetoSiblingNext(TreeNodeBase)}, {@link #swap(TreeNodeBase)}
    * <li>2013-11-03 Hartmut bugfix: Problem on {@link #removeChildren()} if an exception was before.
    * <li>2013-11-03 Hartmut bugfix: {@link #iterChildren()} have to be return null, see its interface-definition.
@@ -784,6 +787,15 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
 
 
   @Override
+  public IterableIterator<DerivedNode> iteratorChildren()
+  { 
+    //@SuppressWarnings("unchecked")
+    IterableIterator<DerivedNode> ret = firstChild == null ? null :  new IteratorDerivedImpl();
+    return ret;
+  }
+
+
+  @Override
   public Iterator<IfcType> iterChildren(String sKey)
   { List<IfcType> listChildren = listChildren(sKey);
     return listChildren==null ? null : listChildren.iterator();
@@ -1017,6 +1029,50 @@ implements TreeNode_ifc<DerivedNode, Data>, SortedTree<IfcType>, Iterable<Derive
     { if(currentNode ==null) throw new IllegalStateException("");
       currentNode.detach();
       currentNode = null;
+    }
+    
+  }
+  
+  
+  
+  
+  
+  /**It is similar like {@link IteratorImpl} but with DerivedNode as return. 
+   * 
+   */
+  protected class IteratorDerivedImpl implements IterableIterator<DerivedNode>
+  {
+    DerivedNode currentNode, nextNode;
+
+    protected IteratorDerivedImpl(){
+      currentNode = null;
+      nextNode = firstChild;
+    }
+    
+    @Override
+    public boolean hasNext()
+    { return nextNode !=null;
+    }
+
+    @Override
+    public DerivedNode next()
+    { currentNode = this.nextNode;
+      nextNode = nextNode.next;  //maybe null then.
+      @SuppressWarnings("unchecked")
+      DerivedNode ret = (DerivedNode)currentNode;
+      return ret;
+    }
+
+    @Override
+    public void remove()
+    { if(currentNode ==null) throw new IllegalStateException("");
+      currentNode.detach();
+      currentNode = null;
+    }
+
+    @Override
+    public Iterator<DerivedNode> iterator()
+    { return this;
     }
     
   }
