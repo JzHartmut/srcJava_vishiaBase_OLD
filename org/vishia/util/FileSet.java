@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.vishia.cmd.JZtxtcmdFileset;
+import org.vishia.util.FilePath.FilePathEnvAccess;
+
 
 /**A Fileset instance contains some {@link FilePath} maybe with a common path.
  * The method {@link #listFiles(List, FilePath, org.vishia.util.FilePath.FilePathEnvAccess, boolean)}
@@ -30,6 +33,10 @@ public final class FileSet
   
   /**Version, history and license.
    * <ul>
+   * <li>2017-09-01 Hartmut new: A FilePath can refer a {@link FileSet} variable or especially a {@link JZtxtcmdFileset} variable.
+   *   Then it is not a FileSet but it is a reference to an included FileSet. On {@link FileSet#listFiles(List, FilePath, FilePathEnvAccess, boolean)}
+   *   it will be recognized and unpacked. It is on runtime. Note: On script compilation time the variable content may not existent yet.
+   *   The variable is only given as String.    
    * <li>2014-06-22 Hartmut chg: creation of {@link FileSet} as extra class from {@link org.vishia.cmd.JZtxtcmdFileset}. 
    * <li>2014-03-07 created. From srcJava_Zbnf/org/vishia/zmake/ZmakeUserScript.UserFileset.
    * </ul>
@@ -60,7 +67,7 @@ public final class FileSet
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String sVersion = "2014-06-22";
+  static final public String sVersion = "2017-09-01";
 
   
   /**From ZBNF basepath = <""?!prepSrcpath>. It is a part of the base path anyway. It may be absolute, but usually relative. 
@@ -88,6 +95,10 @@ public final class FileSet
   
   
   public void listFiles(List<FilePath> files, FilePath accesspath, FilePath.FilePathEnvAccess env, boolean expandFiles) throws NoSuchFieldException {
+    listFiles(files, accesspath, env, expandFiles, 0);
+  }
+  
+  public void listFiles(List<FilePath> files, FilePath accesspath, FilePath.FilePathEnvAccess env, boolean expandFiles, int recursionCount) throws NoSuchFieldException {
     for(FilePath filepath: filesOfFileset){
       if(expandFiles && (filepath.someFiles() || filepath.allTree())){
         List<FilePath> files1 = new LinkedList<FilePath>();
@@ -95,7 +106,13 @@ public final class FileSet
       } else {
         //clone and resolve common and access path
         FilePath targetsrc = new FilePath(filepath, commonPath, accesspath, env);
-        files.add(targetsrc);
+        FileSet addFileSet = targetsrc.isFileSet();
+        if(addFileSet !=null) {
+          if(recursionCount >=100) throw new IllegalArgumentException("too many recurions, may be faulty: " + filepath.toString());
+          addFileSet.listFiles(files, accesspath, env, expandFiles, recursionCount +1);  //add its files.
+        } else {
+          files.add(targetsrc);
+        }
       }
     }
   }

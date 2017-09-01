@@ -970,7 +970,7 @@ public class JZtxtcmdScript extends CompiledScript
     
     final JZtxtcmdScript script;
     
-    final FileSet fileset = new FileSet();
+    public final FileSet fileset = new FileSet();
     
     UserFileset(StatementList parentList, JZtxtcmdScript script){
       super(parentList, 'G');
@@ -1002,6 +1002,7 @@ public class JZtxtcmdScript extends CompiledScript
     
     public void set_filePath(String val){ fileset.add_filePath(val); }
     
+    public void add_addFileset(String val) { }
     
   }
   

@@ -3,6 +3,8 @@ package org.vishia.util;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.vishia.cmd.JZtxtcmdFileset;
+
 
 
 /**This class holds a path to a file with its parts: base path, directory path, name, extension, drive letter etc
@@ -107,6 +109,10 @@ public class FilePath
 {
   /**Version, history and license.
    * <ul>   
+   * <li>2017-09-01 Hartmut new: A FilePath can refer a {@link FileSet} variable or especially a {@link JZtxtcmdFileset} variable.
+   *   Then it is not a FileSet but it is a reference to an included FileSet. On {@link FileSet#listFiles(List, FilePath, FilePathEnvAccess, boolean)}
+   *   it will be recognized and unpacked. It is on runtime. Note: On script compilation time the variable content may not existent yet.
+   *   The variable is only given as String.    
    * <li>2014-06-22 Hartmut note: The possibility of wildcard in the local path (not only "/** /" for allTree) 
    *   is not described, designed and tested completely. 
    * <li>2014-06-22 Hartmut chg: Set all fields private. The fine fragmentation to drive, ... name, ext was done
@@ -176,7 +182,7 @@ public class FilePath
     * 
     * 
     */
-   static final public String sVersion = "2014-06-22";
+   static final public String sVersion = "2017-09-01";
 
   /**An implementation of this interface should be provided by the user if absolute paths and script variables should be used. 
    * It may be a short simple implementation if that features are unused. See the {@link org.vishia.util.test.Test_FilePath}. 
@@ -202,7 +208,22 @@ public class FilePath
   
   /**If given, then the basePath() starts with it. 
    */
-  private String scriptVariable;
+  private final String scriptVariable;
+  
+  /**Only for running instance created with {@link FilePath#FilePath(FilePath, FilePath, FilePath, FilePathEnvAccess)}:
+   * Another Filepath which acts as basepath. The {@link #scriptVariable} is null. It is the content of the scriptVariable on runtime.
+   */
+  private final FilePath varFilePath;
+  
+  /**Only for running instance created with {@link FilePath#FilePath(FilePath, FilePath, FilePath, FilePathEnvAccess)}:
+   * A charSequence as basepath. The {@link #scriptVariable} is null. It is the content of the scriptVariable on runtime.
+   */
+  private final CharSequence varChars;
+  
+  /**Only for running instance created with {@link FilePath#FilePath(FilePath, FilePath, FilePath, FilePathEnvAccess)}:
+   * Another Fileset instead an single FilePath. The {@link #scriptVariable} is null. It is the content of the scriptVariable on runtime.
+   */
+  private final FileSet varFileset;
   
   /**The drive letter if a drive is given. */
   private String drive;
@@ -238,7 +259,9 @@ public class FilePath
 
   /**Empty instance. Set the parts manually. Used in {@link ZbnfFilepath}. 
    * @deprecated because it is only used in {@link ZbnfFilepath}. In the future: all data of this class should be set final. */
-  @Deprecated public FilePath(){}
+  @Deprecated public FilePath(){
+    scriptVariable = null; varFilePath = null; varChars = null; varFileset = null;
+  }
   
 
   
@@ -280,7 +303,8 @@ public class FilePath
     int pos1;
     if(zpath >=1 && path.charAt(0) == '&'){ //starts with a script variable:
       int pos9 = posColon > 0 && (posColon < pos1slash || pos1slash < 0) ? posColon : pos1slash > 0 ? pos1slash : zpath;
-      this.scriptVariable = path.substring(1, pos9);
+      this.scriptVariable = path.substring(1, pos9); //access it on runtime, not on preparation time.
+      varFilePath = null; varChars = null; varFileset = null;  //set only in the running version.
       absPath = false;  //hint: it may be an absolute path depending of content of scriptVariable 
       if(pos9 == pos1slash){
         pos1 = pos9 +1;   //rest of path starts after slash as separator. A colon may be found behind.
@@ -292,9 +316,11 @@ public class FilePath
       posColon = path.indexOf(':', 2);
       absPath = pos1slash == 2;
       pos1 = absPath ? 3 : 2;
+      scriptVariable = null; varFilePath = null; varChars = null; varFileset = null;
     } else { //no variable, no drive
       absPath = pos1slash == 0;
       pos1 = absPath ? 1 : 0;
+      scriptVariable = null; varFilePath = null; varChars = null; varFileset = null;
     }
     if(posColon >0){
       posbase = pos1;
@@ -354,24 +380,52 @@ public class FilePath
    */
   public FilePath(FilePath src, FilePath commonPath, FilePath accessPath, FilePathEnvAccess env) 
   throws NoSuchFieldException {
-    FilePath commonFilePath = commonPath !=null ? commonPath : null;
-    FilePath accessFilePath = accessPath !=null ? accessPath : null;
-    CharSequence basePath = src.basepath(null, commonFilePath, accessFilePath, env);
-    CharSequence localDir = src.localdir(null, commonFilePath, accessFilePath, env);
-    int posbase = FilePath.isRootpath(basePath);
-    drive = posbase >=2 ? Character.toString(basePath.charAt(0)) : null;
-    absPath = posbase == 1 || posbase == 3;
-    basepath = basePath.subSequence(posbase, basePath.length()).toString();
-    localdir = localDir.toString();
-    if(!localdir.endsWith("/"))
-      Assert.stop();
-    else
-      Assert.stop();
-    name = src.name;
-    ext = src.ext;
-    allTree = localdir.indexOf('*') >=0;
-    someFiles = src.someFiles;
-
+    if(src.scriptVariable !=null){
+      Object oValue = env.getValue(src.scriptVariable);
+      if(oValue == null) throw new NoSuchFieldException("FilePath.basepath - scriptVariable not found; "+ src.scriptVariable);
+      if(oValue instanceof FilePath){
+        varFilePath = (FilePath)oValue;
+        varChars = null; varFileset = null;
+      } else if(oValue instanceof CharSequence){
+        varChars = (CharSequence)oValue;
+        varFilePath = null; varFileset = null;
+      } else if(oValue instanceof FileSet){
+        varFileset = (FileSet)oValue;
+        varFilePath = null; varChars = null; 
+      } else if(oValue instanceof JZtxtcmdFileset) {
+        varFileset = ((JZtxtcmdFileset)oValue).data.fileset;
+        varFilePath = null; varChars = null; 
+      } else {
+        throw new  NoSuchFieldException("FilePath.basepath - scriptVariable faulty type; "+ src.scriptVariable + ";" + oValue.getClass().getSimpleName());
+      }
+      this.scriptVariable = null; //access is done already.
+    } else { 
+      //src.scriptVariable not set:
+      scriptVariable = null; varFilePath = null; varChars = null; varFileset = null;
+    }
+    if(varFileset !=null) {
+      drive = null; absPath = false; basepath = null; localdir = null; name = null; ext = null; allTree = false; someFiles = false;
+    }
+    else {
+    
+      FilePath commonFilePath = commonPath !=null ? commonPath : null;
+      FilePath accessFilePath = accessPath !=null ? accessPath : null;
+      CharSequence basePath = src.basepath(null, commonFilePath, accessFilePath, env);
+      CharSequence localDir = src.localdir(null, commonFilePath, accessFilePath, env);
+      int posbase = FilePath.isRootpath(basePath);
+      drive = posbase >=2 ? Character.toString(basePath.charAt(0)) : null;
+      absPath = posbase == 1 || posbase == 3;
+      basepath = basePath.subSequence(posbase, basePath.length()).toString();
+      localdir = localDir.toString();
+      if(!localdir.endsWith("/"))
+        Assert.stop();
+      else
+        Assert.stop();
+      name = src.name;
+      ext = src.ext;
+      allTree = localdir.indexOf('*') >=0;
+      someFiles = src.someFiles;
+    }
   }
   
   
@@ -386,9 +440,18 @@ public class FilePath
    */
   public boolean isNotEmpty(){
     return basepath !=null || localdir.length() >0 || name.length() >0 || drive !=null
-    || scriptVariable !=null;
+    || scriptVariable !=null || varFilePath !=null || varChars !=null ;
       
   }
+  
+  
+  
+  /**Special case: a FilePath contains a scriptVariable which refers a FileSet.
+   * This operation is only sensible if the instance was construct with {@link FilePath#FilePath(FilePath, FilePath, FilePath, FilePathEnvAccess)}
+   * specially used in {@link FileSet#listFiles(List, FilePath, FilePathEnvAccess, boolean)}.
+   * @return null or the FileSet.
+   */
+  public FileSet isFileSet() { return varFileset; }
   
   
   /**It should return the input String of {@link #FilePath(String)}. Only used for debug view.
@@ -406,6 +469,7 @@ public class FilePath
   }
   
 
+  
   
   
   /**Returns the local directory path part. This method is usefully if another file path should be built 
@@ -965,7 +1029,7 @@ public class FilePath
         throw new  NoSuchFieldException("FilePath.basepath - scriptVariable faulty type; "+ this.scriptVariable + ";" + oValue.getClass().getSimpleName());
       }
     } else {
-      varfile = null; varpath = null;  //not given.
+      varfile = this.varFilePath; varpath = this.varChars;  //may be given already expanded..
     }
     /*
     if((this.basepath !=null || returnFileIfNoBasepath !=null && returnFileIfNoBasepath[0]) && this.scriptVariable !=null){
@@ -1203,28 +1267,43 @@ public class FilePath
         return uRetP;
       }
     }
-    else { //this does not contain a basepath, therefore the localDir can be defined in :
+    else { 
+      //this does not contain a basepath, therefore the localDir can be defined in :
       assert(this.basepath == null);
       //use a StringBuilder to concatenate anyway.
       StringBuilder uRet = (uRetP == null)? new StringBuilder() : uRetP; //it is necessary. Build it if null.
       //NOTE: appends localDir on end.
       //Firstly get localFile from scriptVariable, commonPath, accessPath as prefix.
       //If one of that has a basePath, return its localDir/file.ext.
+      final FilePath varfile;
+      final CharSequence varpath;
       if(this.scriptVariable !=null){
         Object oValue = env.getValue(this.scriptVariable);
+        if(oValue == null) throw new NoSuchFieldException("FilePath.basepath - scriptVariable not found; "+ this.scriptVariable);
         if(oValue instanceof FilePath){
-          FilePath valfile = (FilePath)oValue;
-          //get the localFile from the scriptVariable, not only the localDir because it is the dir.
-          if(valfile.someFiles){  //but use only the dir if some files.
-            valfile.localdir(uRet, commonPath, accessPath, env); //append localDir of variable 
-          } else {
-            valfile.localfile(uRet, commonPath, accessPath, env); //append localDir of variable 
-          }
+          varfile = (FilePath)oValue;
+          varpath = null;
         } else if(oValue instanceof CharSequence){
-          uRet.append((CharSequence)oValue);
+          varpath = (CharSequence)oValue;
+          varfile = null;
         } else {
-          uRet.append(oValue);
+          throw new  NoSuchFieldException("FilePath.basepath - scriptVariable faulty type; "+ this.scriptVariable + ";" + oValue.getClass().getSimpleName());
         }
+      } else {
+        varfile = this.varFilePath; varpath = this.varChars;  //may be given already expanded..
+      }
+      if(varfile !=null) {
+        //get the localFile from the scriptVariable or varfile, not only the localDir because it is the dir.
+        if(varfile.someFiles){  //but use only the dir if some files.
+          //insert localdir from varfile firstly
+          varfile.localdir(uRet, commonPath, accessPath, env); //append localDir of variable 
+        } else {
+          //insert localfile from varfile firstly, assume it is a directory.
+          varfile.localfile(uRet, commonPath, accessPath, env); //append localDir of variable 
+        }
+      } else if(varChars !=null) {
+        //insert the content of the scriptvariable firstly.
+        uRet.append(varChars);
       }
       else if(commonPath !=null){
         commonPath.localfile(uRet, null, accessPath, env);
@@ -1439,13 +1518,13 @@ public class FilePath
    * if a better algorithm is used. This class will be removed if the {@link org.vishia.zcmd.JZtxtcmdScript} and its syntax
    * does not need it anymore.
    */
-  @Deprecated public static class ZbnfFilepath{
+  @Deprecated public static class XXXZbnfFilepath{
     
     /**The instance which are filled with the components content. It is used for the user's data tree. */
     public final FilePath filepath;
     
     
-    public ZbnfFilepath(){
+    public XXXZbnfFilepath(){
       filepath = new FilePath();
     }
     
@@ -1457,7 +1536,7 @@ public class FilePath
     public void set_absPath(){ filepath.absPath = true; }
     
     /**FromZbnf. */
-    public void set_scriptVariable(String val){ filepath.scriptVariable = val; }
+    public void set_scriptVariable(String val){ System.err.println("not supported"); }
     
 
     

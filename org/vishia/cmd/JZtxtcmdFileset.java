@@ -63,7 +63,7 @@ public class JZtxtcmdFileset
   static final public String sVersion = "2014-06-22";
 
   final JZtxtcmdExecuter.ExecuteLevel zgenlevel;
-  final JZtxtcmdScript.UserFileset data;
+  public final JZtxtcmdScript.UserFileset data;
   
   public JZtxtcmdFileset(JZtxtcmdExecuter.ExecuteLevel zgenlevel, JZtxtcmdScript.UserFileset data){
     this.zgenlevel = zgenlevel;

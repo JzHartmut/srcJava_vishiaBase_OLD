@@ -1,4 +1,4 @@
-2017-08-31 09:25:42  x     _filelist.lst                            ::           .  0  0000000000 
+2017-09-01 23:39:36  x     _filelist.lst                            ::           .  0  0000000000 
 2016-12-27 20:49:01  x     gitCommit.bat                            ::           .126  0154841974 
 
 ============================== _make/ =============================================================
@@ -97,8 +97,8 @@
 2017-04-03 21:47:42  x     JZtxtcmdEngine.java                      ::          3.130  1916959976 
 2017-08-31 09:15:13  x     JZtxtcmdExecuter.java                    ::        179.790  1497747829 
 2017-04-03 21:47:32  x     JZtxtcmdFilepath.java                    ::         16.260  1039314487 
-2017-04-03 21:49:12  x     JZtxtcmdFileset.java                     ::          5.464  0960395074 
-2017-07-12 05:20:44  x     JZtxtcmdScript.java                      ::        106.938  0420725287 
+2017-09-01 23:12:21  x     JZtxtcmdFileset.java                     ::          5.471  1655555857 
+2017-09-01 23:13:25  x     JZtxtcmdScript.java                      ::        106.993  0661045407 
 2017-07-29 15:18:15  x     JZtxtcmdTester.java                      ::          8.404 -0011378756 
 2017-04-03 21:47:02  x     JZtxtcmdThread.java                      ::          5.453  1205314875 
 2017-04-03 21:46:02  x     PrepareCmd.java                          ::         19.252 -1764914125 
@@ -219,9 +219,9 @@
 2013-11-24 19:10:50  x     Docu_UML_simpleNotation.java             ::          4.825 -0664458674 
 2013-06-27 19:28:00  x     FileCompare.java                         ::         13.113 -1366728653 
 2016-11-23 09:32:49  x     FileList.java                            ::         25.226 -0519890922 
-2017-04-03 21:47:30  x     FilePath.java                            ::         76.143 -1968672740 
+2017-09-01 23:33:33  x     FilePath.java                            ::         80.685  0050089940 
 2013-09-07 09:52:46  x     FileSelectWildcard.topic                 ::          1.573  1579396188 
-2017-04-03 21:47:17  x     FileSet.java                             ::          4.514 -0485269977 
+2017-09-01 23:33:41  x     FileSet.java                             ::          5.673 -2027065883 
 2017-01-14 21:31:18  x     FileSystem.java                          ::         66.447 -1233789536 
 2011-02-26 21:31:28  x     FileWriter.java                          ::          4.163 -1377006717 
 2016-01-17 19:21:50  x     FilepathFilter.java                      ::         14.720  0267132900 
@@ -306,7 +306,7 @@
 ============================== org/vishia/xmlSimple/ ===============================================
 2017-01-25 22:47:08  x     SimpleXmlOutputter.java                  ::          9.407 -0486975206 
 2017-01-25 23:02:51  x     SimpleXmlOutputter_Test.java             ::           .737  0464495945 
-2017-05-06 09:26:10  x     WikistyleTextToSimpleXml.java            ::         60.006 -0709669786 
+2017-08-31 22:21:47  x     WikistyleTextToSimpleXml.java            ::         60.271  1365271118 
 2016-11-01 00:06:56  x     WikistyleTextToSimpleXml_old.java        ::         57.152 -0721767767 
 2012-12-26 20:03:22  x     XmlException.java                        ::          1.656 -0761622632 
 2014-01-12 18:35:30  x     XmlNode.java                             ::          6.401 -1852577345 

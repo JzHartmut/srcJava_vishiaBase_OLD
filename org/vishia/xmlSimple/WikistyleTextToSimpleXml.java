@@ -172,6 +172,7 @@ public class WikistyleTextToSimpleXml
   
     /**Version history and license.
    * <ul>
+   * <li>2017-08-31 bugfix table short form was not recognized.
    * <li>2017-05-06 bugfix  
    *   bug: if an chapter ends with a list item, the next usage of this instance was damaged.
    *   reason: {@link #deepnessList} was not reseted, was 1 for next usage.
@@ -921,8 +922,12 @@ public class WikistyleTextToSimpleXml
       
       int end2 = sInput.indexOf("!!", start);  //table: some th in 1 line
       int end3 = sInput.indexOf("||", start);  //table: some td in 1 line
-      if(end2 >= 0 && end2 < end){ end = end2; bSpecialEnd = true; startNext = end +2; }
-      if(end3 >= 0 && end3 < end){ end = end3; bSpecialEnd = true; startNext = end +2; }
+      if(end2 >= 0 && end2 < end) { 
+        end = end2; bSpecialEnd = true; startNext = end +1;  //+2  //A !! is a separation for table col instead ! at begin of a line. 
+      }                                                      //start the next line with on ! (not 2)
+      if(end3 >= 0 && end3 < end) { 
+        end = end3; bSpecialEnd = true; startNext = end +1; 
+      }
       if(end > start) {
         /*Searches the end of text in the actual line, considers white spaces on end.*/
         int lineEnd = end;
