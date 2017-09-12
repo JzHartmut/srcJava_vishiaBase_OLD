@@ -83,6 +83,14 @@ public class JZtxtcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2017-09-09 Hartmut chg: The zmake uses a datapath yet instead a String-named Fileset variable. It is more universal in application
+   *   and more clear in syntax. There may be used 2 datapath, 1 for the accessPath and the Fileset. If only one datapath is used, 
+   *   the type of the gotten instance decides whether it is only one file given with access path (not a Fileset) 
+   *   or the only one datapath is the Fileset. Writing <code>&access.path&myfileset</code> or <code>&access.onefile</code> or <code>&myFileset</code>
+   *   The older scripts are running unregarded of this change. The description in 
+   *   <a href="http://www.vishia.org/docuZBNF/JZtxtcmd.html#Topic.JZtxtcmd.statements.zmake.">www.vishia.org/.../JZtxtcmd.html</a> is renewed.
+   * <li>2017-09-04 Hartmut bugfix: {@link ExecuteLevel#evalCondition(org.vishia.cmd.JZtxtcmdScript.JZcmditem)}: A Integer value will be convert
+   *   to bool now. Before: Bool val = 0 is interpret as true because 0 is an Integer object which exists. Now Integer.intValue() !=0 is checked. 
    * <li>2017-08-30 Hartmut new: implementation of the feature <code>Obj name :type = ....</code>, 
    *   checking of the type now on assigning of the value. This feature was prepared in syntax but not implemented till now.
    * <li>2017-08-30 Hartmut new: uses {@link JzScriptException} extends {@link ScriptException} only because the line:col should be able to read
@@ -296,7 +304,7 @@ public class JZtxtcmdExecuter {
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String version = "2017-07-29";
+  static final public String version = "2017-09-09";
 
   /**This class is the jzcmd main level from a script.
    * @author Hartmut Schorrig
@@ -1298,6 +1306,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
       try{ 
         //create a new variable to refer jzcmdsub:
         DataAccess.createOrReplaceVariable(localVariables,  "jzcmdsub", 'O', this, true);
+        DataAccess.createOrReplaceVariable(localVariables,  "jztcsub", 'O', this, true);
         //use the existent variable threadData.error to refer here:
         localVariables.put("error", threadData.error);
       } catch(IllegalAccessException exc){ throw new RuntimeException(exc); }
@@ -1769,8 +1778,8 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
     throws Exception {
       List<File> filesjar = new LinkedList<File>();
       for(JZtxtcmdScript.AccessFilesetname fileset: statement.jarpaths){
-        if(fileset.filesetVariableName !=null){  //fileset variable
-          JZtxtcmdAccessFileset zjars = new JZtxtcmdAccessFileset(fileset, fileset.filesetVariableName, this);
+        if(fileset.filesetVariable !=null){  //fileset variable
+          JZtxtcmdAccessFileset zjars = new JZtxtcmdAccessFileset(fileset, this);
           List<JZtxtcmdFilepath> jars = zjars.listFilesExpanded();
           for(JZtxtcmdFilepath jfilejar: jars){
             File filejar = new File(jfilejar.absfile().toString());
@@ -2414,7 +2423,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
       target.output = convert2FilePath(oOutput); 
       //target.output = new JZcmdFilepath(this, statement.output);  //prepare to ready-to-use form.
       for(JZtxtcmdScript.AccessFilesetname input: statement.input){
-        JZtxtcmdAccessFileset zinput = new JZtxtcmdAccessFileset(input, input.filesetVariableName, this);
+        JZtxtcmdAccessFileset zinput = new JZtxtcmdAccessFileset(input, this);
         if(target.inputs ==null){ target.inputs = new ArrayList<JZtxtcmdAccessFileset>(); }
         target.inputs.add(zinput);
       }
@@ -3357,7 +3366,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
           case 'G': {
             assert(arg.subitem instanceof JZtxtcmdScript.AccessFilesetname);
             JZtxtcmdScript.AccessFilesetname arg1 = (JZtxtcmdScript.AccessFilesetname) arg.subitem;
-            obj = new JZtxtcmdAccessFileset(arg1, arg1.filesetVariableName, this);
+            obj = new JZtxtcmdAccessFileset(arg1, this);
           } break;
           default: assert(false);
         }
@@ -3419,10 +3428,12 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
           //if(obj instanceof Number){
           //  ret = ((Number)obj).intValue() !=0;
           //} else 
-          if(obj instanceof Boolean){
+          if(obj instanceof Boolean) {
             ret = ((Boolean)obj).booleanValue();
+          } else if(obj instanceof Integer) {  //conversion from int to boolean
+            ret = ((Integer)obj).intValue() != 0;
           } else {
-            ret = obj !=null;
+            ret = obj !=null;          //else: conversion null or not null to boolean
           }
         } catch(NoSuchElementException exc){
           ret = false;

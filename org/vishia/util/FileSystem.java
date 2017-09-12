@@ -55,6 +55,7 @@ public class FileSystem
   /**Version, history and license.
    * Changes:
    * <ul>
+   * <li>2017-09-09 Hartmut new: {@link #cleandirForced(File)}, {@link #copyDir(File, File)} 
    * <li>2016-01-17 Hartmut new: {@link #getFirstFileWildcard(File)}   
    * <li>2015-09-06 JcHartmut chg: instead inner class WildcardFilter the new {@link FilepathFilter} used.    
    * <li>2015-05-25 new {@link #copyFile(File, File, boolean, boolean, boolean)}   
@@ -554,10 +555,11 @@ public class FileSystem
 
   /**Removes all files inside the directory and all sub directories with its files.
    * The dir itself will be remain.
-   * @param dir A directory or any file inside the directory.
+   * @param dir_file A directory or any file inside the directory.
    * @return true if all files are deleted. If false then the deletion process was aborted.
    */
-  public static boolean cleandir(File dir){
+  public static boolean cleandir(File dir_file){
+    File dir = dir_file;
     boolean bOk = true;
     if(!dir.exists()) {
       bOk = dir.mkdirs();
@@ -567,9 +569,66 @@ public class FileSystem
       File[] files = dir.listFiles();
       for(File file: files){
         if(file.isDirectory()){
-          bOk = bOk && rmdir(file);
-        } else {
-          bOk = bOk && file.delete();
+          bOk = bOk && cleandir(file);
+        } 
+        bOk = bOk && file.delete(); //maybe the directory.
+      }
+    }
+    return bOk;
+  }
+  
+
+  /**Removes all files inside the directory and all sub directories with its files.
+   * The dir itself will be remain.
+   * If files or directories inside cannot be deleted, they will be remain 
+   * but the other files or directories will be tried to delete nevertherless.
+   * It is in opposite to {@link #cleandir(File)}, the last one aborts if one file cannot delete. 
+   * @param dir_file A directory or any file inside the directory.
+   * @return true if all files are deleted. If false then at least one file or directory cannot delete. 
+   */
+  public static boolean cleandirForced(File dir_file){
+    File dir = dir_file;
+    boolean bOk = true;
+    if(!dir.exists()) {
+      bOk = dir.mkdirs();
+    }
+    if(!dir.isDirectory()){ dir = getDir(dir); }
+    File[] files = dir.listFiles();
+    for(File file: files){
+      if(file.isDirectory()){
+        bOk &= cleandirForced(file);
+      }
+      bOk &= file.delete(); //maybe the directory.
+    }
+    return bOk;
+  }
+  
+
+  /**Removes all files inside the directory and all sub directories with its files.
+   * The dir itself will be remain.
+   * If files or directories inside cannot be deleted, they will be remain 
+   * but the other files or directories will be tried to delete nevertherless.
+   * It is in opposite to {@link #cleandir(File)}, the last one aborts if one file cannot delete. 
+   * @param dir_file A directory or any file inside the directory.
+   * @return true if all files are deleted. If false then at least one file or directory cannot delete. 
+   */
+  public static boolean copyDir(File src, File dst){
+    boolean bOk = true;
+    if(!dst.exists()) {
+      bOk = dst.mkdirs();
+    }
+    File[] files = src.listFiles();
+    for(File file: files){
+      if(file.isDirectory()){
+        File srcChild = new File(src, file.getName());
+        File dstChild = new File(dst, file.getName());
+        bOk &= copyDir(srcChild, dstChild);
+      }
+      else {
+        try { 
+          bOk &= (copyFile(file, new File(dst, file.getName())) >=0); //maybe the directory.
+        } catch(IOException exc) {
+          bOk = false;
         }
       }
     }

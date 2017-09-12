@@ -1072,7 +1072,10 @@ public class JZtxtcmdScript extends CompiledScript
   public static class AccessFilesetname extends JZcmditem{
     
     /**From Zbnf, if null then {@link #zmakeFilepathName} may be the fileset. */
-    String filesetVariableName;
+    String XXXfilesetVariableName;
+    
+    
+    JZcmdDataAccess filesetVariable;
     
     /**The filepath for the fileset. */
     //FilePath accessPath;
@@ -1092,6 +1095,7 @@ public class JZtxtcmdScript extends CompiledScript
 
     /**For ZbnfJavaOutput: The first occurrence of &name is checked whether it is a accesspath or a fileset.
      */
+    /*
     public void set_accessPathOrFilesetVariable(String val){ 
       if(val.startsWith("&") && StringFunctions.indexOfAnyChar(val, 0, val.length(), "\\/:") <0){
         //contains only &name
@@ -1101,24 +1105,35 @@ public class JZtxtcmdScript extends CompiledScript
         //accessPath = new FilePath(val);  //prepare it with its parts.
       }
     }
-
+    */
     
     /**For ZbnfJavaOutput. The second occurrence of &name is supposed as the fileset anyway.
      * An accessPath is really an accessPath. If the {@link #filesetVariableName} is set already,
      * it is an accessPath with a variable.
      * @param val
      */
-    public void set_zmakeFilesetVariable(String val){
-      if(filesetVariableName !=null){
+    public void XXXset_zmakeFilesetVariable(String val){
+      if(XXXfilesetVariableName !=null){
         //assert(accessPath == null);
         //a simple accessPath "&name" was recognized as the filesetVariablebame,
         //but it is an accessPath really.
-        textArg = "&" + filesetVariableName;
+        textArg = "&" + XXXfilesetVariableName;
         //accessPath = new FilePath("&" + filesetVariableName);  //create afterward.
       }
-      this.filesetVariableName = val; 
+      this.XXXfilesetVariableName = val; 
     }
     
+    
+    
+    public JZcmdDataAccess new_zmakeFilesetVariable() { 
+      return new JZcmdDataAccess(); 
+    }
+    
+    public void add_zmakeFilesetVariable(JZcmdDataAccess val){ 
+      this.filesetVariable = val; 
+    }
+    
+
   }
   
   

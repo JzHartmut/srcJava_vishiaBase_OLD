@@ -18,6 +18,12 @@ public class JZtxtcmdAccessFileset
 {
   /**Version, history and license.
    * <ul>
+   * <li>2017-09-09 Hartmut chg: The zmake uses a datapath yet instead a String-named Fileset variable. It is more universal in application
+   *   and more clear in syntax. There may be used 2 datapath, 1 for the accessPath and the Fileset. If only one datapath is used, 
+   *   the type of the gotten instance decides whether it is only one file given with access path (not a Fileset) 
+   *   or the only one datapath is the Fileset. Writing <code>&access.path&myfileset</code> or <code>&access.onefile</code> or <code>&myFileset</code>
+   *   The older scripts are running unregarded of this change. The description in 
+   *   <a href="http://www.vishia.org/docuZBNF/JZtxtcmd.html#Topic.JZtxtcmd.statements.zmake.">www.vishia.org/.../JZtxtcmd.html</a> is renewed.
    * <li>2014-05-04 created. From srcJava_Zbnf/org/vishia/zmake/ZmakeUserScript.UserFileset.
    * </ul>
    * 
@@ -47,7 +53,7 @@ public class JZtxtcmdAccessFileset
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String sVersion = "2014-05-04";
+  static final public String version = "2017-09-09";
   
   
   private final JZtxtcmdFilepath accesspath;
@@ -58,34 +64,46 @@ public class JZtxtcmdAccessFileset
   
   
   /**Creates an instance from given inputs.
-   * @param accessPath
-   * @param sFilesetVariable
-   * @param jzlevel
-   * @return the instance
+   * @param statement The statement for first argument of zmake
+   * @param sFilesetVariable maybe null, than the accessPath is the only one file.
+   * @param jzTclevel
    * @throws Exception 
    */
-  public JZtxtcmdAccessFileset(JZtxtcmdScript.AccessFilesetname statement, String sFilesetVariable, JZtxtcmdExecuter.ExecuteLevel jzlevel) 
+  public JZtxtcmdAccessFileset(JZtxtcmdScript.AccessFilesetname statement, JZtxtcmdExecuter.ExecuteLevel jzTclevel) 
   throws Exception
   {
     
     final FilePath accessPath;
-    //if(statement.accessPath ==null){
-      CharSequence sAccesspath = jzlevel.evalString(statement);
-      accessPath = new FilePath(sAccesspath.toString());
-    //} else {
-    //  accessPath = statement.accessPath;
-    //}
-    //search the named file set. It is stored in a ready-to-use form in any variable.
-    DataAccess.Variable<Object> filesetV = jzlevel.localVariables.get(sFilesetVariable);
-    if(filesetV == null) throw new NoSuchFieldException("JZcmdAccessFileset - fileset not found;" + sFilesetVariable);
-    Object filesetO = filesetV.value();
-    if(!(filesetO instanceof JZtxtcmdFileset)) throw new NoSuchFieldException("JZcmd.execZmake - fileset faulty type;" + sFilesetVariable);
-    //store the file set and the path before:
-    this.fileset = (JZtxtcmdFileset) filesetO;
-    if(accessPath !=null){
-      this.accesspath = new JZtxtcmdFilepath(jzlevel, accessPath);
-    } else {
+    //
+    //CharSequence sAccesspath = jzTclevel.evalString(statement);  //The statements of the super class JZtxtcmdScript.JZcmditem
+    //The accesspath may be given as Text expression with <:>...<.>, as datapath starting with & or as immediate text "" or till ...&
+    Object oAccessPath = jzTclevel.evalObject(statement, false);
+    if(oAccessPath instanceof JZtxtcmdFileset && statement.filesetVariable == null) {
+      //If the filesetVariable is not given, and this is a Fileset, this is the Fileset.
+      this.fileset = (JZtxtcmdFileset) oAccessPath; //The accessPath accesses really the fileset .
       this.accesspath = null;
+    } else {
+      //Accesspath is really the accesspath because it is not instanceof Fileset: 
+      if(oAccessPath !=null) {
+        accessPath = new FilePath(oAccessPath.toString());
+      } else {
+        accessPath = null;
+      }
+      if(statement.filesetVariable !=null) {
+        Object oFileset = jzTclevel.dataAccess(statement.filesetVariable, jzTclevel.localVariables, true, false, false, null);
+        if(oFileset instanceof JZtxtcmdFileset) {
+          this.fileset = (JZtxtcmdFileset) oFileset;
+        } else {
+          throw new NoSuchFieldException("JZcmdAccessFileset - fileset not found;" + statement.filesetVariable);
+        }
+      } else { // only the accessPath is accepted as file too.
+        this.fileset = null;
+      }
+      if(accessPath !=null){
+        this.accesspath = new JZtxtcmdFilepath(jzTclevel, accessPath);
+      } else {
+        this.accesspath = null;
+      }
     }
   }
   
