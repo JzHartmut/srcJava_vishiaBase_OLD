@@ -2059,6 +2059,15 @@ public final StringPart len0end()
     else bFound = true;
     return this;
   }
+  
+  /**Trims all trailing whitespaces within the part.
+   * @java2c=return-this.
+   * @return <code>this</code> to concat some operations, like <code>part.set(src).seek(sKey).lento(';').len0end();</code>
+   */
+  public final StringPart lenBacktoNoWhiteSpaces()
+  {
+    return lenBacktoNoChar(" \t\n\r");
+  }
 
   /** Trims all leading and trailing whitespaces within the part.
       A Comment begins with "//".

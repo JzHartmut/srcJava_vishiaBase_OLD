@@ -14,7 +14,7 @@ import org.vishia.cmd.JZtxtcmdFileset;
  * For building the absolute path or using script variables the user should provide an implementation 
  * of the {@link FilePathEnvAccess}
  * which supports access to String-given variables and the current directory of the user's environment.
- * This interface is implemented in the JZcmd environment.
+ * This interface is implemented in the {@link org.vishia.cmd.JZtxtcmdExecuter} environment.
  * <br><br>
  * <b>The local path</b>:<br>
  * If you write <code>any/Path:local/path/file.ext</code> then <code>any/Path</code> is the so named base path 
@@ -108,7 +108,10 @@ import org.vishia.cmd.JZtxtcmdFileset;
 public class FilePath
 {
   /**Version, history and license.
-   * <ul>   
+   * <ul>
+   * <li>2017-09-01 Hartmut chg: {@link #expandFiles(List, FilePath, FilePath, FilePathEnvAccess)} now builds a relative path 
+   *   if a relative path is given in this. Before: An absolute path was build if wildcards are present. Note: The absolute path
+   *   can be gotten by {@link #absfile(FilePathEnvAccess)} etc. on the result Filepaths.
    * <li>2017-09-01 Hartmut new: A FilePath can refer a {@link FileSet} variable or especially a {@link JZtxtcmdFileset} variable.
    *   Then it is not a FileSet but it is a reference to an included FileSet. On {@link FileSet#listFiles(List, FilePath, FilePathEnvAccess, boolean)}
    *   it will be recognized and unpacked. It is on runtime. Note: On script compilation time the variable content may not existent yet.
@@ -257,9 +260,8 @@ public class FilePath
   
 
 
-  /**Empty instance. Set the parts manually. Used in {@link ZbnfFilepath}. 
-   * @deprecated because it is only used in {@link ZbnfFilepath}. In the future: all data of this class should be set final. */
-  @Deprecated public FilePath(){
+  /**Empty instance. */
+  private FilePath(){
     scriptVariable = null; varFilePath = null; varChars = null; varFileset = null;
   }
   
@@ -384,24 +386,24 @@ public class FilePath
       Object oValue = env.getValue(src.scriptVariable);
       if(oValue == null) throw new NoSuchFieldException("FilePath.basepath - scriptVariable not found; "+ src.scriptVariable);
       if(oValue instanceof FilePath){
-        varFilePath = (FilePath)oValue;
-        varChars = null; varFileset = null;
+        this.varFilePath = (FilePath)oValue;
+        this.varChars = null; varFileset = null;
       } else if(oValue instanceof CharSequence){
-        varChars = (CharSequence)oValue;
-        varFilePath = null; varFileset = null;
+        this.varChars = (CharSequence)oValue;
+        this.varFilePath = null; varFileset = null;
       } else if(oValue instanceof FileSet){
-        varFileset = (FileSet)oValue;
-        varFilePath = null; varChars = null; 
+        this.varFileset = (FileSet)oValue;
+        this.varFilePath = null; varChars = null; 
       } else if(oValue instanceof JZtxtcmdFileset) {
-        varFileset = ((JZtxtcmdFileset)oValue).data.fileset;
-        varFilePath = null; varChars = null; 
+        this.varFileset = ((JZtxtcmdFileset)oValue).data.fileset;
+        this.varFilePath = null; varChars = null; 
       } else {
         throw new  NoSuchFieldException("FilePath.basepath - scriptVariable faulty type; "+ src.scriptVariable + ";" + oValue.getClass().getSimpleName());
       }
       this.scriptVariable = null; //access is done already.
     } else { 
       //src.scriptVariable not set:
-      scriptVariable = null; varFilePath = null; varChars = null; varFileset = null;
+      this.scriptVariable = null; this.varFilePath = null; this.varChars = null; this.varFileset = null;
     }
     if(varFileset !=null) {
       drive = null; absPath = false; basepath = null; localdir = null; name = null; ext = null; allTree = false; someFiles = false;
@@ -413,18 +415,18 @@ public class FilePath
       CharSequence basePath = src.basepath(null, commonFilePath, accessFilePath, env);
       CharSequence localDir = src.localdir(null, commonFilePath, accessFilePath, env);
       int posbase = FilePath.isRootpath(basePath);
-      drive = posbase >=2 ? Character.toString(basePath.charAt(0)) : null;
-      absPath = posbase == 1 || posbase == 3;
-      basepath = basePath.subSequence(posbase, basePath.length()).toString();
-      localdir = localDir.toString();
+      this.drive = posbase >=2 ? Character.toString(basePath.charAt(0)) : null;
+      this.absPath = posbase == 1 || posbase == 3;
+      this.basepath = basePath.subSequence(posbase, basePath.length()).toString();
+      this.localdir = localDir.toString();
       if(!localdir.endsWith("/"))
         Assert.stop();
       else
         Assert.stop();
-      name = src.name;
-      ext = src.ext;
-      allTree = localdir.indexOf('*') >=0;
-      someFiles = src.someFiles;
+      this.name = src.name;
+      this.ext = src.ext;
+      this.allTree = localdir.indexOf('*') >=0;
+      this.someFiles = src.someFiles;
     }
   }
   
@@ -809,8 +811,12 @@ public class FilePath
     }
   }
   
-  /**Builds non-wildcard instances for any found file and add all these instances to the given list
-   * for all files, which are selected by this instance maybe with wild-cards and the given commonPath and accessPath.
+  /**Builds non-wildcard instances for any found file, add the given common and access path. 
+   * Adds all these instances to the given list.
+   * If a file without wildcards is given, it is added always independent of its existing on the file system.
+   * This may be usefully because the absolute path can be checked to evaluate why instances with wildcards may not able to found.
+   * If a file with wildcards is given the file system is used to get all instances. If a proper instance is not found,
+   * nothing will be added.
    * The expansion with wild-cards is a capability of {@link FileSystem#addFilesWithBasePath(File, String, List)}
    * which is used here as core routine.
    * <br><br>
@@ -833,10 +839,34 @@ public class FilePath
    * @throws NoSuchFieldException 
    */
   public void expandFiles(List<FilePath> listToadd, FilePath commonPath, FilePath accessPath, FilePathEnvAccess env) throws NoSuchFieldException{
+    final CharSequence basePathChildren;
+    final CharSequence localfilePath = this.localfile(null, commonPath, accessPath, env); //getPartsFromFilepath(file, null, "file").toString();
     final String driveChildren;
-    CharSequence basePathChildren = basepath(new StringBuilder(), commonPath, accessPath, env);
-    final CharSequence absBasepath = absbasepath(basePathChildren, env);
+    final boolean absPathChildren;
     final String sBasePathChildren;  
+    final String sPathSearch;
+    int posLocalPath = isRootpath(localfilePath);
+    if(posLocalPath ==1 || posLocalPath ==3) {  //absolute Path given in localPath
+      driveChildren = posLocalPath == 1 ? "" : String.valueOf(localfilePath.charAt(0));
+      absPathChildren = true;
+      sBasePathChildren = "";  //it is not relevant, maybe given.
+      sPathSearch = absbasepath(localfilePath, env).toString();
+    } else {
+      basePathChildren = basepath(new StringBuilder(), commonPath, accessPath, env);
+      int posBasePath = isRootpath(basePathChildren);
+      absPathChildren = (posBasePath ==1 || posBasePath ==3);  //absolute Path given in basePath
+      if(posLocalPath >= 2) {
+        driveChildren = String.valueOf(localfilePath.charAt(0));  //drive in localpath determines.
+      } else {
+        driveChildren = "";
+      }
+      sBasePathChildren = basePathChildren.subSequence(posBasePath, basePathChildren.length()).toString();
+      sPathSearch = absbasepath(basePathChildren, env) + ":" + localfilePath;
+    }
+    //
+   
+    /*
+    absPathChildren = true;
     if(absBasepath.charAt(1)==':'){
       driveChildren = String.valueOf(absBasepath.charAt(0));
       sBasePathChildren = absBasepath.subSequence(3, absBasepath.length()).toString();
@@ -845,10 +875,9 @@ public class FilePath
       driveChildren = null;  
       sBasePathChildren = absBasepath.subSequence(1, absBasepath.length()).toString();
     }
+    */
     //
     List<FileSystem.FileAndBasePath> listFiles = new LinkedList<FileSystem.FileAndBasePath>();
-    final CharSequence localfilePath = this.localfile(null, commonPath, accessPath, env); //getPartsFromFilepath(file, null, "file").toString();
-    final String sPathSearch = absBasepath + ":" + localfilePath;
     try{ FileSystem.addFilesWithBasePath(null, sPathSearch, listFiles);
     } catch(Exception exc){
       //let it empty. Files may not be found.
@@ -858,7 +887,7 @@ public class FilePath
       //with the same structure like the given input paths.
       //
       FilePath filepath2 = new FilePath();  //new instance for found file.
-      filepath2.absPath = true;
+      filepath2.absPath = absPathChildren;
       filepath2.drive = driveChildren;
       filepath2.basepath = sBasePathChildren;  //it is the same. Maybe null
       int posName = file1.localPath.lastIndexOf('/') +1;  //if not found, set to 0
@@ -1238,6 +1267,10 @@ public class FilePath
    * Elsewhere the {@link #localfile(StringBuilder, FilePath, FilePath, FilePathEnvAccess)} is evaluated from it.
    * 
    * <pre>
+   *  accessPath / commonPath / scriptVariable / basepath : localDir
+   *                  :                                    ^-----This localDir is the local
+   *                  ^----another base path is not regarded.
+   * 
    *   accessPath / commonPath / scriptVariable / localDir
    *                     :
    *                     ^---anywhere of that may have a basePath. All other are act as localDir.                    
@@ -1256,7 +1289,7 @@ public class FilePath
   throws NoSuchFieldException {
     ///
     if(  this.basepath !=null     //if a basepath is given, then only this localpath is valid.
-      || scriptVariable == null && commonPath == null && accessPath == null //nothing else is given:  
+      || scriptVariable == null && commonPath == null && accessPath == null //nothing else is given: The given path is local.  
       ){  //Then only the local dir of this is used.
       if(uRetP == null){
         return localdir;
@@ -1322,6 +1355,10 @@ public class FilePath
       return uRet;
     }
   }
+  
+    
+  
+  
   
   
   /**Builds the <code>localDir/name.ext</code>.

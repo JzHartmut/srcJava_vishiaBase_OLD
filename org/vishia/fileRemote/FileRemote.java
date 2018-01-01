@@ -666,6 +666,9 @@ public class FileRemote extends File implements MarkMask_ifc, TreeNodeNamed_ifc
    */
   public Map<String,FileRemote> children() { return children; }
   
+ 
+  /**Cleans the children list. The children should be refreshed from the file system. */
+  public void cleanChildren() { children = null; flags |= mShouldRefresh; }
   
   //private Map<String, FileRemote> createChildrenList(){ return new TreeMap<String, FileRemote>(); } 
   

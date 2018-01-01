@@ -89,6 +89,7 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2017-12-20 Hartmut improve: {@link #invokeMethod(DatapathElement, Class, Object, boolean, boolean)}: Show used class on error.
    * <li>2017-08-30 Hartmut new: {@link #istypeof(Object, String)} with String argument, based on {@link #istypeof(Object, Class)}. 
    * <li>2017-07-02 Hartmut new: {@link #debugMethod(String)} can be invoked with "". Then it invokes {@link #debug()} on the next found method
    *   and removes the settings after them. It is usual in a JZtxtcmd Script to stop on the next method.
@@ -1144,13 +1145,14 @@ public class DataAccess {
   ) throws InvocationTargetException, NoSuchMethodException, Exception {
     Object data1 = null;
     Class<?> clazz1 = clazz == null ? obj.getClass() : clazz;
+    Class<?> clazzcheck = clazz1;   //in loop superclass checked etc.
     if(element.ident.equals("execX"))
       Assert.stop();
     boolean bOk = false;
     boolean methodFound = false;
     do{
-      if(accessPrivate || (clazz1.getModifiers() & Modifier.PUBLIC) !=0){
-        Method[] methods = accessPrivate ? clazz1.getDeclaredMethods() : clazz1.getMethods();
+      if(accessPrivate || (clazzcheck.getModifiers() & Modifier.PUBLIC) !=0){
+        Method[] methods = accessPrivate ? clazzcheck.getDeclaredMethods() : clazzcheck.getMethods();
         for(Method method: methods){
           bOk = false;
           if(method.getName().equals(element.ident)){
@@ -1173,7 +1175,7 @@ public class DataAccess {
                 data1 = method.invoke(obj, actArgs);
               } catch(IllegalAccessException exc){
                 CharSequence stackInfo = Assert.stackInfo(" called ", 3, 5);
-                throw new NoSuchMethodException("DataAccess - method access problem: " + clazz1.getName() + "." + element.ident + "(...)" + stackInfo);
+                throw new NoSuchMethodException("DataAccess - method access problem: " + clazzcheck.getName() + "." + element.ident + "(...)" + stackInfo);
               } catch(InvocationTargetException exc){
                 Assert.stop();
                 throw exc;
@@ -1186,7 +1188,7 @@ public class DataAccess {
           }
         }
       }
-    } while(!bOk && (clazz1 = clazz1.getSuperclass()) !=null);
+    } while(!bOk && (clazzcheck = clazzcheck.getSuperclass()) !=null);
     if(!bOk && !bNoExceptionifNotFound) {
       StringBuilder msg = new StringBuilder(1000);
       if(methodFound){
@@ -1194,7 +1196,7 @@ public class DataAccess {
       } else {
         msg.append("DataAccess - method not found in class, ");
       }
-      msg.append(clazz.getName()).append(", ") .append(element.ident) .append("(");
+      msg.append(clazz1.getName()).append(", ") .append(element.ident) .append("(");
       if(element.fnArgs !=null) {
         for(Object arg: element.fnArgs) {
           msg.append(arg.getClass()).append(", ");

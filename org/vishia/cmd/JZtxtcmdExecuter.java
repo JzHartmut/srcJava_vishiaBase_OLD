@@ -1512,7 +1512,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
             threadData.exception = exc;
           }
           threadData.excStatement = statement;
-          threadData.excLine = statement.srcLine;
+          threadData.excLine = statement.srcLine;          //TODO: prepare all calling levels!
           threadData.excColumn = statement.srcColumn;
           threadData.excSrcfile = statement.srcFile;
           StringBuilder u = new StringBuilder(1000); 

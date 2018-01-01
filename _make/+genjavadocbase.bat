@@ -2,9 +2,11 @@ echo %0
 ::pause
 REM may use a different JDK/JRE for Javadoc. Therefore a batch setJAVA_Javadoc.bat may found in the PATH in users space.
 REM template see TODO
-echo off
+echo on
 if "" == "%JAVA_JDK%" call setJAVA_Javadoc.bat
 if "" == "%JAVA_JDK%" call ..\..\srcJava_vishiaBase\_make\+findJAVA_Javadoc.bat
+echo off
+pause
 if "" == "%DST_priv%" set DST_priv=%DST%_priv
 echo JAVA_JDK=%JAVA_JDK% 
 pause

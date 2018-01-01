@@ -3,6 +3,7 @@ package org.vishia.util;
 import java.text.ParseException;
 
 
+
 /**This class extends the capability of StringPartBase for scanning capability.
  * In opposite to the {@link StringPart#seek(int)} functionality with several conditions 
  * the scan methods does not search till a requested char or string but test the string
@@ -50,6 +51,7 @@ public class StringPartScan extends StringPart
 {
   /**Version, history and license.
    * <ul>
+   * <li>2017-12-30 Hartmut new: {@link #getLastScannedPart()}
    * <li>2017-07-02 Hartmut new: {@link #scanStart(boolean)} possible to switch on bSkipWhitepaces. More simple for invocation.
    * <li>2016-09-25 Hartmut chg: {@link #scan()} now invokes {@link #scanStart()} automatically, it is the common use case.
    * <li>2016-02-13 Hartmut bugfix: {@link #scanFractionalNumber(long, boolean)} has had a problem with negative numbers. 
@@ -94,6 +96,10 @@ public class StringPartScan extends StringPart
   
   /**Position of scanStart() or after scanOk() as begin of next scan operations. */
   protected int beginScan;
+  
+  /**Position of last scanStart() after scanOk().
+   * The last scanned part is from beginScanLast till beginScan. */
+  protected int beginScanLast;
   
   /**Buffer for last scanned integer numbers.*/
   protected final long[] nLastIntegerNumber = new long[5];
@@ -209,7 +215,8 @@ public class StringPartScan extends StringPart
 
   public final boolean scanOk()
   { if(bCurrentOk) 
-    { beginScan =  beginLast = begin;    //the scanOk-position is the begin of maximal part.
+    { beginScanLast = beginScan;
+      beginScan =  beginLast = begin;    //the scanOk-position is the begin of maximal part.
       bStartScan = true;   //set all idxLast... to 0
     }
     else           
@@ -718,6 +725,18 @@ public class StringPartScan extends StringPart
   }
   
 
+  
+  /**Returns the last scanned part between {@link #scanOk()} or {@link #scanStart()} and the following positive scanOk()
+   * Note: The {@link StringPart#getLastPart()} returns between {@link StringPart#beginLast} and the begin position.
+   * It is not the same but lightweigth equal for seek operations.
+   * @return "" if the last {@link #scanOk()} has returned false. Elsewhere the proper {@link StringPart.Part};
+   */
+  public final CharSequence getLastScannedPart()
+  { final int nChars1 =  beginScan - beginScanLast;  
+    if(nChars1 <=0) return "";
+    else return( new Part(beginScanLast, beginScan));
+  }
+  
   
   /*=================================================================================================================*/
   /*=================================================================================================================*/

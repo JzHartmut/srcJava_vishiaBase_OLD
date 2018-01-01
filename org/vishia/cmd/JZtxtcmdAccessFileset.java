@@ -133,6 +133,7 @@ public class JZtxtcmdAccessFileset
       this.fileset.listFiles(files, this.accesspath, expandFiles);
     }
     else if(this.accesspath !=null){ //fileset is null, only this one file.
+      //no fileset given, only the access path
       if(expandFiles){
         List<FilePath> files1 = new LinkedList<FilePath>();
         this.accesspath.data.expandFiles(files1, null, null, zgenlevel);

@@ -197,7 +197,10 @@ public class FileMark extends SelectMask
     FileRemote lastDirParent = itsFile;
     if((selectMask & markRoot) ==0){
       while( (parent = parent.getParentFile()) !=null){  //break inside!
-        if(parent.mark !=null && (parent.mark.selectMask & (FileMark.markDir | FileMark.markRoot))!=0){
+        if(parent.mark== null) {
+          parent.mark = new FileMark(parent);  //it is not the root of marking. Any directory between this and root.
+        }
+        //if(parent.mark !=null && (parent.mark.selectMask & (FileMark.markDir | FileMark.markRoot))!=0){
           lastDirParent = parent;
           parent.mark.selectMask |= mask;
           if(count){
@@ -207,10 +210,10 @@ public class FileMark extends SelectMask
           if((parent.mark.selectMask & FileMark.markRoot)!=0){
             break;
           }
-        } else {
-          if(parents == null){ parents = new LinkedList<FileRemote>(); }
-          parents.add(parent);  //in case of found a markRoot, mark all that with markDir
-        }
+        //} else {
+        //  if(parents == null){ parents = new LinkedList<FileRemote>(); }
+        //  parents.add(parent);  //in case of found a markRoot, mark all that with markDir
+        //}
       }
       if(parent !=null){ //any markRoot found
         if(parents !=null){ //but not all markDir existing:

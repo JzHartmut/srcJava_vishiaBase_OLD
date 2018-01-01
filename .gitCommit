@@ -1,9 +1,7 @@
-Zmake capability
-* JZtxtcmdExecuter, JZtxtcmdAccessFileset, JZtxtcmdScrip:
-  The zmake uses a datapath yet instead a String-named Fileset variable. It is more universal in application
-  and more clear in syntax. There may be used 2 datapath, 1 for the accessPath and the Fileset. If only one datapath is used, 
-  the type of the gotten instance decides whether it is only one file given with access path (not a Fileset) 
-  or the only one datapath is the Fileset. Writing <code>&access.path&myfileset</code> or <code>&access.onefile</code> or <code>&myFileset</code>
-  The older scripts are running unregarded of this change. The description in   
-* util/FileSystem: new {@link #cleandirForced(File)}, {@link #copyDir(File, File)} 
-                                                                                                                
+XmlReader as new capability of this component.
+* XmlReader: firstly used version
+* StringPartScan: new: {@link #getLastScannedPart()}
+* DataAccess: better error message
+* FileCluster.java: improve creating new FileRemote, it may be existing, creating twice is a bug.
+* CalculatorExpr.java: exception on cmp operation with {@link #variableNotFoundExpr}
+* Filepath: expandFiles(...) now builds a relative path

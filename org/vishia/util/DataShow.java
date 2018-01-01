@@ -338,11 +338,15 @@ public class DataShow extends ObjectId
     out.append("\n<p>You will find any element usual in the form:</p>\n");
     out.append("\n<ul><li>name : type = value</li></ul>\n");
     out.append("\n<p>Container and arrays are listed with their elements.</p>\n");
-    dataShow.instanceId(data, dataShow.newInstances);  //registers the top level instance, fill newInstances therewith
-    Object refData;
-    while( (refData = dataShow.newInstances.poll()) !=null) { //show all instances which are found as reference.
-      //while outData is invoked, newInstances is filld with other new instances. 
-      dataShow.outData(refData, out, bNoHash);  //may add further referenced data.
+    if(data == null) {
+      out.append("\n<p>null</p>");
+    } else {
+      dataShow.instanceId(data, dataShow.newInstances);  //registers the top level instance, fill newInstances therewith
+      Object refData;
+      while( (refData = dataShow.newInstances.poll()) !=null) { //show all instances which are found as reference.
+        //while outData is invoked, newInstances is filld with other new instances. 
+        dataShow.outData(refData, out, bNoHash);  //may add further referenced data.
+      }
     }
     out.append("\n</body>\n</html>\n");
     

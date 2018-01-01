@@ -30,6 +30,7 @@ import java.util.TreeMap;
  * If the expression works with simple variable or constant values, it is fast. For example it is able to use
  * in a higher frequently graphic application to scale values.
  * <br><br>
+ * <br><br>
  * To test the capability and the correctness use {@link org.vishia.util.test.TestCalculatorExpr}. 
  * @author Hartmut Schorrig
  *
@@ -39,6 +40,7 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
+   * <li>2017-10-27 Hartmut exception on cmp operation with {@link #variableNotFoundExpr}
    * <li>2016-02-13 Hartmut bugfix: {@link StringPartScan#scanFractionalNumber(long, boolean)} has had a problem with negative numbers. 
    *   fixed there, adapted here.
    * <li>2015-07-05 Hartmut bugfix: On parenthesis expression there was an error if the {@link ExpressionType} in parenthesis was another 
@@ -61,9 +63,9 @@ public class CalculatorExpr
    *   The older solution: It checks whether the next operation is an AND or OR. But that does not recognize  a boolean operation in parenthesis which may follow.
    *   because the AND or OR follows after the calculation of the parenthesis content only.
    * <li>2014-11-15 Hartmut new: instanceof as compare operator.   
-   * <li>2014-08-10 Hartmut bugfix: on push to stack operation the type of the new level should start with {@value #startExpr} already
+   * <li>2014-08-10 Hartmut bugfix: on push to stack operation the type of the new level should start with {@value #startExpr} always
    *   because the new level is a new start type. The operation with the pushed value is done later, the adjusting of types should be done later too! 
-   * <li>2014-02-22 Hartmut chg: now string >= string2 tests 'startswith' instead alphabetiv comparison. 
+   * <li>2014-02-22 Hartmut chg: now string >= string2 tests 'startswith' instead alphabetic comparison. 
    * <li>2014-02-22 Hartmut new: {@link #calcDataAccess(Map, Object...)} accepts {@link Value} as return of dataAccess.
    *   A Value is stored for Num variables in JZcmd especially.
    * <li>2014-01-26 Hartmut bugfix: and-expression with !val && val did not work.  
@@ -334,7 +336,7 @@ public class CalculatorExpr
         case 'F': return new Float(doubleVal);
         case 'Z': return new Boolean(boolVal);
         case 't': return stringVal;
-        case 'o': return oVal;
+        case 'e': case 'o': return oVal;
         default:  return "?" + type;
       }//switch
     }
@@ -389,7 +391,7 @@ public class CalculatorExpr
   /**Common interface to check and maybe change the type of expression.
    * All instances of Expression type implements this interface to check and maybe change the arguments adequate to the given or higher type.
    */
-  protected interface ExpressionType{
+  protected interface ExpressionType {
     abstract char typeChar();
     
     /**Checks the second argument whether it is matching to the current expression type 
@@ -423,14 +425,13 @@ public class CalculatorExpr
         case 'Z': accu.etype = booleanExpr; break; 
         case 't': accu.etype = stringExpr; break; 
         case 'o': accu.etype = objExpr; break;   //first operand is any object type. 
-        case 'e': accu.etype = objExpr; break;   //first operand is any object type. May be converted to false or throws an exception if not used as boolean.
+        case 'e': accu.etype = variableNotFoundExpr; break;   //first operand is any object type. 
         default: throw new IllegalArgumentException("src type");
       } //switch  
       return accu.etype;
     }
 
     @Override public String toString(){ return "Type=!"; }
-
   };
   
   /**The current expression type is int. 
@@ -670,16 +671,16 @@ public class CalculatorExpr
      */
     @Override public ExpressionType checkArgument(Value accu, Value val2) throws Exception {
       if(accu.type == '?'){
-      	//assert(false);   //should never true because if accu.type=='?' the type of expression should be set to startExpr
-      	accu.type = val2.type;
-      	switch(val2.type){
-      		case 'Z': return accu.etype = booleanExpr;
-      		case 'D': return accu.etype = doubleExpr;
-      		case 'F': return accu.etype = floatExpr;
-      		case 'I': return accu.etype = intExpr;
-      		case 'J': return accu.etype = longExpr;
-      		case 'o': return accu.etype = objExpr;
-      		case 'e': return accu.etype = objExpr;  //may test it.
+        //assert(false);   //should never true because if accu.type=='?' the type of expression should be set to startExpr
+        accu.type = val2.type;
+        switch(val2.type){
+          case 'Z': return accu.etype = booleanExpr;
+          case 'D': return accu.etype = doubleExpr;
+          case 'F': return accu.etype = floatExpr;
+          case 'I': return accu.etype = intExpr;
+          case 'J': return accu.etype = longExpr;
+          case 'o': return accu.etype = objExpr;
+          case 'e': return accu.etype = objExpr;  //may test it.
           case 't': return accu.etype = stringExpr; 
           case '?': throw new IllegalArgumentException("the type is not determined while operation.");
           default: throw new IllegalArgumentException("unknown type char: " + val2.type);
@@ -705,6 +706,35 @@ public class CalculatorExpr
   
 
 
+  /**Only used for the first and only one operand.
+   * 
+   */
+  protected static final ExpressionType variableNotFoundExpr = new ExpressionType(){
+    
+    @Override public char typeChar() { return 'e'; }
+    
+    /**If the accu is clear, sets the accu from val2 and returns the type of val2, elsewhere converts both operands to strings and returns stringExpression.
+     * First one is on set operation, the second for string concatenation.
+     * @see org.vishia.util.CalculatorExpr.ExpressionType#checkArgument(org.vishia.util.CalculatorExpr.Value, org.vishia.util.CalculatorExpr.Value)
+     */
+    @Override public ExpressionType checkArgument(Value accu, Value val2) throws Exception {
+      if(accu.type == '?'){
+        accu.type = 'e';
+      }
+      return accu.etype = this;
+    }
+
+    @Override public String toString(){ return "Type=e"; }
+
+
+  };
+  
+
+
+  
+  
+  
+  
   
   
   
@@ -714,7 +744,7 @@ public class CalculatorExpr
    * The operation are such as a set operation (set the arg to accu), add, subtract, negate, boolean operators etc or standard maths routines.
    * Instances of this class are defined in the {@link CalculatorExpr}.
    */
-  public abstract static class Operator{
+  public abstract static class Operator {
     protected final String name; 
     protected Operator(String name){ this.name = name; }
     
@@ -754,33 +784,6 @@ public class CalculatorExpr
    */
   protected static class Operators
   {
-  
-  /**Sets the given value to the accu.*/
-  protected static final Operator setOperation = new Operator("!set"){
-    @Override public void operate(Value accu, Value arg) {
-      accu.type = arg.type;
-      accu.etype = arg.etype;
-      accu.oVal = arg.oVal;  //if given, copy it always
-      switch(accu.type){
-        case 'B': case 'S': 
-        case 'C': case 'I': accu.intVal = arg.intVal; break;
-        case 'J': accu.longVal = arg.longVal; break;
-        case 'F': accu.floatVal = arg.floatVal; break;
-        case 'D': accu.doubleVal = arg.doubleVal; break;
-        case 'Z': accu.boolVal = arg.boolVal; break;
-        case 't': accu.stringVal = arg.stringVal; break;
-        case 'o': CalculatorExpr.convertObj(accu, arg.oVal); break; //maybe a numeric type Object.
-        case 'e': break;  //oVal 
-        default: throw new IllegalArgumentException("unknown type" + arg.etype.toString());
-      }
-    }
-    @Override public boolean isUnary(){ return false; }
-    @Override public boolean isBoolCheck(){ return false; }
-  };
-  
-   
-
-  
   
   /**Converts the accu (val) to a boolean. Does not use val2. */
   protected static final Operator boolOperation = new Operator("bool "){
@@ -833,7 +836,7 @@ public class CalculatorExpr
    * throws an {@link IllegalArgumentException} "unknown Type" on String or Object types.
    */
   protected static final Operator negOperation = new Operator("-u"){
-    @Override public void operate(Value accu, Value val2) {
+    @Override public void operate(Value accu, Value val2) throws Exception{
       switch(accu.etype.typeChar()){
         case 'B': case 'S': 
         case 'C': case 'I': accu.intVal = -accu.intVal; break;
@@ -841,6 +844,7 @@ public class CalculatorExpr
         case 'D': accu.doubleVal = -accu.doubleVal; break;
         case 'F': accu.floatVal = -accu.floatVal; break;
         case 'Z': accu.boolVal = !accu.boolVal; break;
+        case 'e': throw (Exception)accu.oVal;
         //case 't': accu.stringVal = accu.stringVal; break;
         //case 'o': accu.oVal = accu.oVal; break;
         default: throw new IllegalArgumentException("unknown type" + accu.etype.toString());
@@ -855,13 +859,14 @@ public class CalculatorExpr
    * throws an {@link IllegalArgumentException} "unknown Type" on String or Object types.
    */
   protected static final Operator addOperation = new Operator("+"){
-    @Override public void operate(Value accu, Value arg) {
+    @Override public void operate(Value accu, Value arg) throws Exception{
       switch(accu.etype.typeChar()){
         case 'I': case 'S': case 'B': accu.intVal += arg.intVal; break;
         case 'J': accu.longVal += arg.longVal; break;
         case 'D': accu.doubleVal += arg.doubleVal; break;
         case 'F': accu.floatVal += arg.floatVal; break;
         case 'Z': accu.boolVal |= arg.boolVal; break;
+        case 'e': throw (Exception)accu.oVal;
         default: throw new IllegalArgumentException("unknown type" + accu.etype.toString());
       }
     }
@@ -874,12 +879,13 @@ public class CalculatorExpr
    * throws an {@link IllegalArgumentException} "unknown Type" on Boolean, String or Object types.
    */
   protected static final Operator subOperation = new Operator("-"){
-    @Override public void operate(Value accu, Value arg) {
+    @Override public void operate(Value accu, Value arg) throws Exception{
       switch(accu.etype.typeChar()){
         case 'I': accu.intVal -= arg.intVal; break;
         case 'J': accu.longVal -= arg.longVal; break;
         case 'D': accu.doubleVal -= arg.doubleVal; break;
         case 'F': accu.floatVal -= arg.floatVal; break;
+        case 'e': throw (Exception)accu.oVal;
         default: throw new IllegalArgumentException("unknown type" + accu.etype.toString());
       }
     }
@@ -892,13 +898,14 @@ public class CalculatorExpr
    * throws an {@link IllegalArgumentException} "unknown Type" on String or Object types.
    */
   protected static final Operator mulOperation = new Operator("*"){
-    @Override public void operate(Value accu, Value arg) {
+    @Override public void operate(Value accu, Value arg) throws Exception{
       switch(accu.etype.typeChar()){
         case 'I': accu.intVal *= arg.intVal; break;
         case 'J': accu.longVal *= arg.longVal; break;
         case 'D': accu.doubleVal *= arg.doubleVal; break;
         case 'F': accu.floatVal *= arg.floatVal; break;
         case 'Z': accu.boolVal &= arg.boolVal; break;
+        case 'e': throw (Exception)accu.oVal;
         default: throw new IllegalArgumentException("unknown type" + accu.etype.toString());
       }
     }
@@ -911,13 +918,14 @@ public class CalculatorExpr
    * throws an {@link IllegalArgumentException} "unknown Type" on Boolean, String or Object types.
    */
   protected static final Operator divOperation = new Operator("/"){
-    @Override public void operate(Value accu, Value arg) {
+    @Override public void operate(Value accu, Value arg) throws Exception{
       switch(accu.etype.typeChar()){
         case 'I': accu.intVal /= arg.intVal; break;
         case 'J': accu.longVal /= arg.longVal; break;
         case 'D': accu.doubleVal /= arg.doubleVal; break;
         case 'F': accu.floatVal /= arg.floatVal; break;
         case 'Z': accu.doubleVal /= arg.doubleVal; break;
+        case 'e': throw (Exception)accu.oVal;
         default: throw new IllegalArgumentException("unknown type" + accu.etype.toString());
       }
     }
@@ -939,7 +947,7 @@ public class CalculatorExpr
         case 'Z': accu.boolVal = accu.boolVal == arg.boolVal; break;
         case 't': accu.boolVal = StringFunctions.equals(accu.stringVal, arg.stringVal); break;
         case 'o': accu.boolVal = accu.oVal == null && arg.oVal == null || (accu.oVal !=null && arg.oVal !=null && accu.oVal.equals(arg.oVal)); break;
-        case 'e': throw (Exception)accu.oVal; 
+        case 'e': throw (Exception)accu.oVal;
         default: throw new IllegalArgumentException("unknown type" + accu.etype.toString());
       }
       accu.type = 'Z';
@@ -954,7 +962,7 @@ public class CalculatorExpr
    * throws an {@link IllegalArgumentException} "unknown Type" on String or Object types.
    */
   protected static final Operator cmpNeOperation = new Operator("!="){
-    @Override public void operate(Value accu, Value arg) {
+    @Override public void operate(Value accu, Value arg) throws Exception{
       switch(accu.etype.typeChar()){
         case 'I': accu.boolVal = accu.intVal != arg.intVal; break;
         case 'J': accu.boolVal = accu.longVal != arg.longVal; break;
@@ -963,7 +971,7 @@ public class CalculatorExpr
         case 'Z': accu.boolVal = accu.boolVal != arg.boolVal; break;
         case 't': accu.boolVal = !StringFunctions.equals(accu.stringVal, arg.stringVal); break;
         case 'o': accu.boolVal = !(accu.oVal == null && arg.oVal == null) || (accu.oVal !=null && arg.oVal !=null && !accu.oVal.equals(arg.oVal)); break;
-        case 'e': accu.boolVal = false;
+        case 'e': throw (Exception)accu.oVal;
         default: throw new IllegalArgumentException("unknown type" + accu.etype.toString());
       }
       accu.type = 'Z';
@@ -988,7 +996,7 @@ public class CalculatorExpr
         case 'Z': accu.boolVal = !accu.boolVal && arg.boolVal; break;
         case 't': accu.boolVal = StringFunctions.compare(accu.stringVal, arg.stringVal) < 0; break;
         case 'o': accu.boolVal = accu.oVal instanceof Comparable<?> && arg.oVal instanceof Comparable<?> ? ((Comparable<Object>)accu.oVal).compareTo(arg.oVal) < 0 : false; break;
-        case 'e': throw (Exception)accu.oVal; 
+        case 'e': throw (Exception)accu.oVal;
         default: throw new IllegalArgumentException("unknown type" + accu.etype.toString());
       }
       accu.type = 'Z';
@@ -1013,7 +1021,7 @@ public class CalculatorExpr
         case 'Z': accu.boolVal = true; break;
         case 't': accu.boolVal = StringFunctions.startsWith(accu.stringVal, arg.stringVal); break;
         case 'o': accu.boolVal = accu.oVal instanceof Comparable<?> && arg.oVal instanceof Comparable<?> ? ((Comparable<Object>)accu.oVal).compareTo(arg.oVal) >= 0 : false; break;
-        case 'e': throw (Exception)accu.oVal; 
+        case 'e': throw (Exception)accu.oVal;
         default: throw new IllegalArgumentException("unknown type" + accu.etype.toString());
       }
       accu.type = 'Z';
@@ -1038,8 +1046,7 @@ public class CalculatorExpr
         case 'Z': accu.boolVal = accu.boolVal && !arg.boolVal; break;
         case 't': accu.boolVal = StringFunctions.compare(accu.stringVal, arg.stringVal) > 0; break;
         case 'o': accu.boolVal = accu.oVal instanceof Comparable<?> && arg.oVal instanceof Comparable<?> ? ((Comparable<Object>)accu.oVal).compareTo(arg.oVal) > 0 : false; break;
-        case 'e': throw (Exception)accu.oVal; 
-        default: throw new IllegalArgumentException("unknown type" + accu.etype.toString());
+        case 'e': throw (Exception)accu.oVal;
       }
       accu.type = 'Z';
       accu.etype = booleanExpr;
@@ -1063,7 +1070,7 @@ public class CalculatorExpr
         case 'Z': accu.boolVal = true; break;
         case 't': accu.boolVal = StringFunctions.compare(accu.stringVal, arg.stringVal) <= 0; break;
         case 'o': accu.boolVal = accu.oVal instanceof Comparable<?> && arg.oVal instanceof Comparable<?> ? ((Comparable<Object>)accu.oVal).compareTo(arg.oVal) <= 0 : false; break;
-        case 'e': throw (Exception)accu.oVal; 
+        case 'e': throw (Exception)accu.oVal;
         default: throw new IllegalArgumentException("unknown type" + accu.etype.toString());
       }
       accu.type = 'Z';
@@ -1168,9 +1175,34 @@ public class CalculatorExpr
   
   
   
-  }
-
   
+  /**Sets the given value to the accu.*/
+  protected static final Operator setOperation = new Operator("!set"){
+    @Override public void operate(Value accu, Value arg) {
+      accu.type = arg.type;
+      accu.etype = arg.etype;
+      accu.oVal = arg.oVal;  //if given, copy it always
+      switch(accu.type){
+        case 'B': case 'S': 
+        case 'C': case 'I': accu.intVal = arg.intVal; break;
+        case 'J': accu.longVal = arg.longVal; break;
+        case 'F': accu.floatVal = arg.floatVal; break;
+        case 'D': accu.doubleVal = arg.doubleVal; break;
+        case 'Z': accu.boolVal = arg.boolVal; break;
+        case 't': accu.stringVal = arg.stringVal; break;
+        case 'o': CalculatorExpr.convertObj(accu, arg.oVal); break; //maybe a numeric type Object.
+        case 'e': break;  //oVal 
+        default: throw new IllegalArgumentException("unknown type" + arg.etype.toString());
+      }
+    }
+    @Override public boolean isUnary(){ return false; }
+    @Override public boolean isBoolCheck(){ return false; }
+  };
+
+
+  } //class Operators
+
+
   /**An Operation in the list of operations. It contains the operator and maybe a operand.
    * <ul>
    * <li>The {@link Operation#operator} operates with the {@link CalculatorExpr#accu}, the {@link Operation#value}
@@ -2310,6 +2342,7 @@ public class CalculatorExpr
         //Get the operand either from args or from Operation
         if(!oper.operator.isBoolCheck() && oper.ixVariable >=0){ 
           Object oval2 = args[oper.ixVariable];   //may throw ArrayOutOfBoundsException if less arguments
+          //assert(oval2 !=null);
           convertObj(val2jar, oval2);
           val2 = val2jar;
         }  //an input value
@@ -2326,7 +2359,7 @@ public class CalculatorExpr
           } catch(Exception exc){
             //get data does not found data or returns null:
             val2jar.type = 'e'; val2jar.oVal = exc;  //throw the exception if the oVal is need not for boolean or instanceof
-            val2jar.etype = objExpr;
+            val2jar.etype = variableNotFoundExpr;
             val2 = val2jar;
           }
         }
@@ -2348,7 +2381,7 @@ public class CalculatorExpr
         //
         //executes the operation:
         if(oper.unaryOperator !=null){
-          if(val2 != val2jar) {
+          if(val2 !=null && val2 != val2jar) {
             //a constant value is referred, don't change it:
             val2jar.copy(val2);
             val2 = val2jar;
@@ -2356,7 +2389,7 @@ public class CalculatorExpr
           oper.unaryOperator.operate(val2, null);   //change the right value
         }
         else if(oper.unaryOperators !=null){
-          if(val2 != val2jar) {
+          if(val2 !=null && val2 != val2jar) {
             //a constant value is referred, don't change it:
             val2jar.copy(val2);
             val2 = val2jar;

@@ -96,6 +96,8 @@ public final class JZtxtcmdFilepath {
   }
   
   /**Creates an instance with given data.
+   * Note: it is package private because only used from {@link JZtxtcmdExecuter}. 
+   * Use there the construct <code>Filepath: < stringexpression></code>
    * @param zgenlevel
    * @param filepath given data
    */

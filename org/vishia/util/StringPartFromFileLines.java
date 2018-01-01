@@ -44,6 +44,7 @@ public class StringPartFromFileLines extends StringPartScan
   /**Version, history and license.
    * list of changes:
    * <ul>
+   * <li>2017-12-25 Hartmut only renaming. 
    * <li>2016-09-25 Hartmut now works with lesser buffer.
    * <li>2015-10-24 Hartmut new: {@link StringPartFromFileLines#StringPartFromFileLines(InputStream, String, int, String, Charset)}
    *   to use with <code>ClassLoader.getSystemClassLoader().getResourceAsStream("path");   
@@ -101,7 +102,10 @@ public class StringPartFromFileLines extends StringPartScan
   
   final Charset charset;
   
-  char cExpectedNl;
+  /**The second newline character set if the first nl was read. 
+   * It is a member variable because its possible that the buffer was filled exactly between 1. and 2. newline character.
+   */
+  private char cExpectedSesoncNl;
   
   /** A readed line from file.*/
   //String sLine = null;
@@ -132,7 +136,8 @@ public class StringPartFromFileLines extends StringPartScan
 
   IntegerBlockArray linePositions = new IntegerBlockArray(1000);
   
-  int maxIxLinePosition;
+  /**After the last used position in the {@link #linePositions} array. */
+  int endIxLinePosition;
   
   
   String sNewline = "\n";
@@ -228,7 +233,7 @@ public class StringPartFromFileLines extends StringPartScan
     //byteBuffer = ByteBuffer.allocate(sizeBuffer/10*4);
     //inBuffer = byteBuffer.array();
     final byte[] inBuffer = new byte[200+7];
-    linePositions.set(++maxIxLinePosition, 0);  //start entry: After position 0 is line 1  
+    linePositions.set(++endIxLinePosition, 0);  //start entry: After position 0 is line 1  
     boolean bom = false;;
     int nrofFirstBytes = input.read(inBuffer, 0, inBuffer.length-7);  //enough space for missing bytes for UTF-8
     //TODO check BOM
@@ -333,7 +338,7 @@ public class StringPartFromFileLines extends StringPartScan
    * @see org.vishia.util.StringPart#getLineAndColumn(int[])
    */
   @Override public int getLineAndColumn(int[] column){ 
-    int line = linePositions.binarySearch(this.begin, maxIxLinePosition); 
+    int line = linePositions.binarySearch(this.begin, endIxLinePosition); 
     if(line <0){ 
       //usual negative if not found exactly.
       //The binarySearch returns the 'insertion point', it is the next line start position.
@@ -355,17 +360,17 @@ public class StringPartFromFileLines extends StringPartScan
     int ii = from; 
     while(ii < to) {
       char cc = cBuffer[ii++];
-      if(cExpectedNl !=0) {
-        if(cc == cExpectedNl) { 
-          linePositions.set(++maxIxLinePosition, ii);  //after xExpectedNl
+      if(cExpectedSesoncNl !=0) {  //newline with 2 characters, \r \n or \n \r:
+        if(cc == cExpectedSesoncNl) { //if it is the second newline character, the new line starts after them.
+          linePositions.set(++endIxLinePosition, ii);  //after xExpectedNl
           cc = 0;  //don't check it as newline character.
-        } else { 
-          linePositions.set(++maxIxLinePosition, ii-1); //cc is the first char of the next line.
+        } else { //if the 2. newline character don't follow, that is the first character of the new line.
+          linePositions.set(++endIxLinePosition, ii-1); //cc is the first char of the next line.
         } 
-        cExpectedNl = 0;
+        cExpectedSesoncNl = 0;
       }
-      if(cc == '\r') { cExpectedNl = '\n'; }
-      else if(cc == '\n') { cExpectedNl = '\r'; }
+      if(cc == '\r') { cExpectedSesoncNl = '\n'; }
+      else if(cc == '\n') { cExpectedSesoncNl = '\r'; }
     }
   }
   
@@ -401,7 +406,7 @@ public class StringPartFromFileLines extends StringPartScan
       zBuffer -= sh;
       //shift the linePositions.
       int idst = 0;
-      for(int ix = 0; ix < maxIxLinePosition; ++ix)
+      for(int ix = 0; ix < endIxLinePosition; ++ix)
       {
         int pos = linePositions.get(ix);
         if(pos < sh) {
@@ -411,7 +416,7 @@ public class StringPartFromFileLines extends StringPartScan
           linePositions.set(idst++, pos);
         }
       }
-      maxIxLinePosition = idst;  //no more positions yet.
+      endIxLinePosition = idst;  //no more positions yet.
     }
     int nRestBytes;  //rest length from filled position till end.
     if( (nRestBytes = cBuffer.length - zBuffer) >= minSizeForAction) {
