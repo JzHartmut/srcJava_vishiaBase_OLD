@@ -46,6 +46,7 @@ import org.vishia.util.FilePath;
 import org.vishia.util.FileSystem;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.StringFormatter;
+import org.vishia.util.StringFunctions;
 import org.vishia.util.StringPartAppend;
 import org.vishia.util.StringSeq;
 import org.vishia.util.CalculatorExpr.Value;
@@ -83,6 +84,7 @@ public class JZtxtcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2018-01-07 Hartmut new: mkdir with ' at least for path/to/file, see documentation. 
    * <li>2017-09-09 Hartmut chg: The zmake uses a datapath yet instead a String-named Fileset variable. It is more universal in application
    *   and more clear in syntax. There may be used 2 datapath, 1 for the accessPath and the Fileset. If only one datapath is used, 
    *   the type of the gotten instance decides whether it is only one file given with access path (not a Fileset) 
@@ -2654,7 +2656,13 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
         if(!FileSystem.isAbsolutePath(arg)){
           arg = this.currdir() + "/" + arg;
         }
-        FileSystem.mkDirPath(arg + "/");
+        String arg1;
+        if(!StringFunctions.endsWith(arg, "'")) {
+          arg1 = arg.toString();  //mkdirpath ignores a file name 
+        } else {
+          arg1 = arg + "/"; 
+        }
+        FileSystem.mkDirPath(arg1);  //note: if ends with / then it is a directory, else with filename.
         return kSuccess;
       }
     }

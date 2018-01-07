@@ -44,7 +44,8 @@ public class StringPartFromFileLines extends StringPartScan
   /**Version, history and license.
    * list of changes:
    * <ul>
-   * <li>2017-12-25 Hartmut only renaming. 
+   * <li>2018-01-06 Hartmut bugfix, bug: If the file to read was only 201..209 Bytes, the bytes after 200 were not read. 
+   *   fix: readnextContentFromFile(0) instead (10) necessary, to read in any case. 2017-12: Renaming package private maxIxLinePosition vs. endIxLinePosition. 
    * <li>2016-09-25 Hartmut now works with lesser buffer.
    * <li>2015-10-24 Hartmut new: {@link StringPartFromFileLines#StringPartFromFileLines(InputStream, String, int, String, Charset)}
    *   to use with <code>ClassLoader.getSystemClassLoader().getResourceAsStream("path");   
@@ -322,7 +323,7 @@ public class StringPartFromFileLines extends StringPartScan
       */
     }
     evalLineIndices(0, zBuffer);
-    readnextContentFromFile(10);   //read the start content.
+    readnextContentFromFile(0);   //read the start content. Read anytime. Minsize is 0
     assign(new CharSq(0, -1));
   }
 

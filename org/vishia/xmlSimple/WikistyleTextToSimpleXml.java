@@ -166,12 +166,13 @@ but itsn't worse as using the html tags &lt;table>&lt;tr> and so on.
  * 2008..2010 some changes
  * 2010-05-13 Tabs are recognize instead spaces too, but there are converted to 2 spaces. Method {@link #replaceTabs(String)}.
  */ 
-@SuppressWarnings("unchecked")
 public class WikistyleTextToSimpleXml
 {
   
     /**Version history and license.
    * <ul>
+   * <li>2018-01-07 warning free
+   * <li>2018-01-07 bugfix the '+' from "*+" and a second '*' was not removed in the text for *+list item and **deeper list.  
    * <li>2017-08-31 bugfix table short form was not recognized.
    * <li>2017-05-06 bugfix  
    *   bug: if an chapter ends with a list item, the next usage of this instance was damaged.
@@ -245,7 +246,7 @@ public class WikistyleTextToSimpleXml
   /** A list item is present.*/
   //XmlNode[] xmlNestingItem = new XmlNode[6];
   
-  ListIterator iterBaseElement; XmlNode dstElement; String dstNamespace;
+  ListIterator<XmlNode> iterBaseElement; XmlNode dstElement; String dstNamespace;
   
   /** The index of xmlNesting if the conversion is inside a structure with end label (table). */
   int ixChild = -1;
@@ -266,7 +267,7 @@ public class WikistyleTextToSimpleXml
   int preEmptylines = 0;
   
   /** treemap of elements for attributes */
-  TreeMap elementsWithAttrib;
+  TreeMap<String, TreeMap<String, String>> elementsWithAttrib;
   
   /** Constructor only connect the class to a report system.
    * 
@@ -309,7 +310,7 @@ public class WikistyleTextToSimpleXml
     List<XmlNode> listParaElements = xmlTree.listChildren();
     if(listParaElements != null)
     { ListIterator<XmlNode> iterElements = listParaElements.listIterator();
-      int idx = 0;
+      //int idx = 0;
       while(iterElements.hasNext())
       { XmlNode xmlTest = iterElements.next();
         @SuppressWarnings("unused")
@@ -323,7 +324,7 @@ public class WikistyleTextToSimpleXml
             report.reportln(Report.fineInfo, 0, "ConverterWikiStyle:" + sText.substring(0, sMax));
           }
           xmlTest.removeAttribute("expandWikistyle");
-          Map attrib = xmlTest.getAttributes();
+          Map<String, String> attrib = xmlTest.getAttributes();
           attrib = null; 
           String sClass = xmlTest.getAttribute("class");  //the style attribute
           //remove the founded element:
@@ -339,7 +340,7 @@ public class WikistyleTextToSimpleXml
             report.reportln(Report.fineInfo, 0, "ConverterWikiStyle:" + sText.substring(0, sMax));
           }
           xmlTest.removeAttribute("expandWikistyle");
-          Map attrib = xmlTest.getAttributes();
+          Map<String, String> attrib = xmlTest.getAttributes();
           attrib = null; 
           xmlTest.removeChildren();
           String sClass = xmlTest.getAttribute("class");  //the style attribute
@@ -351,7 +352,7 @@ public class WikistyleTextToSimpleXml
         { //call recursively to entry in tree bough
           testXmlTreeAndConvert(xmlTest);
         }
-        idx +=1;
+        //idx +=1;
       }
     }     
   }
@@ -360,7 +361,7 @@ public class WikistyleTextToSimpleXml
   
   
   
-  public void setWikistyleFormat(String sInput, XmlNode dstElement, Map attributes, String sClass) 
+  public void setWikistyleFormat(String sInput, XmlNode dstElement, Map<String, String> attributes, String sClass) 
   throws XmlException
   {
     cnl1 = '\n'; cnl2 = '\r';
@@ -417,8 +418,8 @@ public class WikistyleTextToSimpleXml
    * @throws XmlException 
    *        
    */
-  private void insertAndConvertText(String sInput, ListIterator iter, XmlNode dstElement
-      , Map attributes, String sClass, String sLabelOwn
+  private void insertAndConvertText(String sInput, ListIterator<XmlNode> iter, XmlNode dstElement
+      , Map<String, String> attributes, String sClass, String sLabelOwn
       ) throws XmlException
   { 
     cleanup(); 
@@ -463,9 +464,9 @@ public class WikistyleTextToSimpleXml
             this.xmlPre = newChild("pre");
             if(iter != null){ iter.add(xmlPre);}
             if(elementsWithAttrib != null)
-            { TreeMap attribs = (TreeMap)elementsWithAttrib.get("pre");
+            { TreeMap<String, String> attribs = (TreeMap<String, String>)elementsWithAttrib.get("pre");
               if(attribs != null)
-              { Iterator iterAttr = attribs.keySet().iterator();
+              { Iterator<String> iterAttr = attribs.keySet().iterator();
                 while(iterAttr.hasNext())
                 { String sAttrib = (String)iterAttr.next();
                   String value = (String)attribs.get(sAttrib);
@@ -512,7 +513,7 @@ public class WikistyleTextToSimpleXml
             switch(cFirst)
             { case '*': case ';': case '#': case ':': case '>': case '{': case '.': case '/': case '^': case '|': case '!':
               { //any nested block
-                if(cFirst != kindList) {
+                if(cFirst != kindList) {  ////
                   //end of list or another list
                   while(deepnessList >0 && ixChild >=2) { closeChild(); closeChild(); deepnessList -=1; } //close the list.
                   kindList = '\0';
@@ -979,12 +980,12 @@ public class WikistyleTextToSimpleXml
    *         with ":", that is a indentation inside the < li>-Block.
    * @throws XmlException 
    */
-  private String nestingLevel(char cFirst, String sLine, ListIterator iterBaseElement_a, XmlNode dstElement_a, String dstNamespace_a, String sClass) throws XmlException
+  private String nestingLevel(char cFirst, String sLine, ListIterator<XmlNode> iterBaseElement_a, XmlNode dstElement_a, String dstNamespace_a, String sClass) throws XmlException
   { char cNext = sLine.length()>=2 ? sLine.charAt(1) : ' ';
     int nrofPreChars = 1;
     { //new list item
       String sTagNesting = null, sTagListItem = null; 
-      String sTagAttribSetting = null;  //TODO: use it.
+      //String sTagAttribSetting = null;  //TODO: use it.
       switch(cFirst)
       { case '*': 
           sTagNesting = "ul"; sTagListItem = "li"; kindList = cFirst; break;
@@ -1075,14 +1076,17 @@ public class WikistyleTextToSimpleXml
       if(sTagNesting != null) {
         int deepnessList1 = 1;
         XmlNode newChild = null;;
-        while(sLine.length() > deepnessList1 && sLine.charAt(deepnessList1) == cFirst) { deepnessList1 +=1; }
+        while(sLine.length() > deepnessList1 && sLine.charAt(deepnessList1) == cFirst) { deepnessList1 +=1; nrofPreChars +=1; }
         while(deepnessList > deepnessList1){ //deepnessList is the current one. close it if deeper
           closeChild();
           closeChild();
           deepnessList -=1;
         }
         if(deepnessList == deepnessList1) {
-          if(sLine.length() > deepnessList1 && sLine.charAt(deepnessList1) != '+') { //new paragraph in this list
+          if(sLine.length() > deepnessList1 && sLine.charAt(deepnessList1) == '+') { //new paragraph in this list
+            //+ after List chars, it is not a new list item but an paragraph in this list item.
+            nrofPreChars +=1;  //skip over the '+'
+          } else {
             newChild = newSibling(sTagListItem);
           }
         }
@@ -1098,9 +1102,9 @@ public class WikistyleTextToSimpleXml
             newChild.setAttribute("class", sClassNesting);
           }
           if(elementsWithAttrib != null)
-          { TreeMap attribs = (TreeMap)elementsWithAttrib.get(sTagListItem);
+          { TreeMap<String, String> attribs = (TreeMap<String, String>)elementsWithAttrib.get(sTagListItem);
             if(attribs != null)
-            { Iterator iter = attribs.keySet().iterator();
+            { Iterator<String> iter = attribs.keySet().iterator();
               while(iter.hasNext())
               { String sAttrib = (String)iter.next();
                 String value = (String)attribs.get(sAttrib);
@@ -1180,19 +1184,6 @@ public class WikistyleTextToSimpleXml
   
   
   
-  /**Gets the name of the element or "" to test wether it is*/
-  private String getTagNesting(int idx)
-  { String sTag;
-    if(idx < 0) sTag = "";
-    else
-    { XmlNode xml = xmlNesting[idx];
-      if(xml != null) sTag = xml.getName();
-      else sTag = "";
-    }
-    return sTag;    
-  }
-  
-  
   private XmlNode newChild(String sTag) throws XmlException
   { XmlNode xmlChild = dstElement.createNode(sTag, dstNamespace);
     xmlNesting[++ixChild] = xmlChild;
@@ -1226,16 +1217,8 @@ public class WikistyleTextToSimpleXml
   }
   
   
-  private XmlNode currElement(){ return xmlNesting[ixChild]; }
-  
-  
   private boolean checkCurrelem(String tag) {
     return ixChild >=0 && xmlNesting[ixChild].getName().equals(tag); 
-  }
-  
-  
-  private boolean checkParentelem(String tag) {
-    return ixChild >=1 && xmlNesting[ixChild-1].getName().equals(tag); 
   }
   
   
@@ -1353,11 +1336,11 @@ public class WikistyleTextToSimpleXml
                     : null;
       */
       if(elementsWithAttrib == null)
-      { elementsWithAttrib = new TreeMap();
+      { elementsWithAttrib = new TreeMap<String, TreeMap<String, String>>();
       }
-      TreeMap attrib = (TreeMap)elementsWithAttrib.get(sElement);
+      TreeMap<String, String> attrib = (TreeMap<String, String>)elementsWithAttrib.get(sElement);
       if(attrib == null)
-      { attrib = new TreeMap();
+      { attrib = new TreeMap<String, String>();
         elementsWithAttrib.put(sElement, attrib);
       }
       if(sValue == null){ attrib.remove(sAttribute); }
@@ -1376,8 +1359,8 @@ public class WikistyleTextToSimpleXml
   
   
   
-  private void writeParagraphInIter(String sLine, ListIterator iterParent, XmlNode dstElement
-  , String dstNamespace, Map attributes, String sClass, String sLabelOwn
+  private void writeParagraphInIter(String sLine, ListIterator<XmlNode> iterParent, XmlNode dstElement
+  , String dstNamespace, Map<String, String> attributes, String sClass, String sLabelOwn
   ) throws XmlException  
   { XmlNode xmlParagraph = dstElement.createNode("p", dstNamespace);
     if(iterParent != null){ iterParent.add(xmlParagraph);}
@@ -1398,9 +1381,9 @@ public class WikistyleTextToSimpleXml
     { xmlParagraph.setAttribute("class", sClass);
     }
     if(elementsWithAttrib !=null)
-    { TreeMap attribs = (TreeMap)elementsWithAttrib.get("p");
+    { TreeMap<String, String> attribs = (TreeMap<String, String>)elementsWithAttrib.get("p");
       if(attribs != null)
-      { Iterator iterAttr = attribs.keySet().iterator();
+      { Iterator<String> iterAttr = attribs.keySet().iterator();
         while(iterAttr.hasNext())
         { String sAttrib = (String)iterAttr.next();
           String value = (String)attribs.get(sAttrib);
@@ -1412,7 +1395,7 @@ public class WikistyleTextToSimpleXml
   
   
   private void writeParagraphInElement(String sLine, XmlNode xmlParent, String dstNamespace
-  , Map attributes, String sClass, String sLabelOwn
+  , Map<String, String> attributes, String sClass, String sLabelOwn
   ) throws XmlException  
   { XmlNode xmlParagraph = xmlParent.addNewNode("p", dstNamespace);
     if(attributes != null)

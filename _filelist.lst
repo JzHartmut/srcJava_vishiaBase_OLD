@@ -1,4 +1,4 @@
-2018-01-01 23:01:30  x     _filelist.lst                            ::           .  0  0000000000 
+2018-01-07 22:54:10  x     _filelist.lst                            ::           .  0  0000000000 
 2016-12-27 20:49:01  x     gitCommit.bat                            ::           .126  0154841974 
 
 ============================== _make/ =============================================================
@@ -95,7 +95,7 @@
 2013-02-11 20:02:26  x     Filecmd.java                             ::          7.182  0296091865 
 2017-09-13 08:06:08  x     JZtxtcmdAccessFileset.java               ::          6.650 -2055459211 
 2017-04-03 21:47:42  x     JZtxtcmdEngine.java                      ::          3.130  1916959976 
-2017-10-20 12:57:46  x     JZtxtcmdExecuter.java                    ::        181.094  0883673341 
+2018-01-07 22:27:39  x     JZtxtcmdExecuter.java                    ::        181.492 -0038740465 
 2017-11-06 07:53:12  x     JZtxtcmdFilepath.java                    ::         16.417 -0750038997 
 2017-09-01 23:12:21  x     JZtxtcmdFileset.java                     ::          5.471  1655555857 
 2017-09-11 15:14:11  x     JZtxtcmdScript.java                      ::        107.309 -1195859623 
@@ -269,7 +269,7 @@
 2017-12-22 20:46:34  x     StringPart.java                          ::        112.199  1026714557 
 2014-06-14 12:02:17  x     StringPartAppend.java                    ::          5.482 -1907437228 
 2015-09-30 08:42:27  x     StringPartFromFile.java                  ::          2.812  0877476463 
-2018-01-01 23:00:20  x     StringPartFromFileLines.java             ::         19.572  1741892448 
+2018-01-07 22:35:16  x     StringPartFromFileLines.java             ::         19.836  1239923655 
 2018-01-01 22:39:00  x     StringPartScan.java                      ::         36.775 -1040596723 
 2014-01-14 08:55:20  x     StringSeq.java                           ::          6.617 -1883922442 
 2011-02-26 21:31:28  x     ThreadContext.java                       ::          2.353 -1963738349 
@@ -308,7 +308,7 @@
 ============================== org/vishia/xmlSimple/ ===============================================
 2017-01-25 22:47:08  x     SimpleXmlOutputter.java                  ::          9.407 -0486975206 
 2017-01-25 23:02:51  x     SimpleXmlOutputter_Test.java             ::           .737  0464495945 
-2017-08-31 22:21:47  x     WikistyleTextToSimpleXml.java            ::         60.271  1365271118 
+2018-01-07 22:38:28  x     WikistyleTextToSimpleXml.java            ::         60.467 -0091533971 
 2016-11-01 00:06:56  x     WikistyleTextToSimpleXml_old.java        ::         57.152 -0721767767 
 2012-12-26 20:03:22  x     XmlException.java                        ::          1.656 -0761622632 
 2014-01-12 18:35:30  x     XmlNode.java                             ::          6.401 -1852577345 

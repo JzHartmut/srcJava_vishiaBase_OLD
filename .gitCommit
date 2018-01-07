@@ -1,7 +1,4 @@
-XmlReader as new capability of this component.
-* XmlReader: firstly used version
-* StringPartScan: new: {@link #getLastScannedPart()}
-* DataAccess: better error message
-* FileCluster.java: improve creating new FileRemote, it may be existing, creating twice is a bug.
-* CalculatorExpr.java: exception on cmp operation with {@link #variableNotFoundExpr}
-* Filepath: expandFiles(...) now builds a relative path
+Some small bugfixes, JZtxtcmd: mkdir for path/to/file'
+* StringPartFromFileLines: bugfix: If the file to read was only 201..209 Bytes, the bytes after 200 were not read.
+* JZtxtcmdExecuter: new: mkdir with ' at least for path/to/file, see documentation.
+* WikistyleTextToSimpleXml: bugfix the '+' from "*+" and a second '*' was not removed in the text for *+list item and **deeper list.
