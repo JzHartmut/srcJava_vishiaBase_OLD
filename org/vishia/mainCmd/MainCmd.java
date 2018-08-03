@@ -673,7 +673,10 @@ public abstract class MainCmd implements MainCmd_ifc
             BufferedReader inp = new BufferedReader(new FileReader(fileArg));
             while(inp.ready()){
               String sParam = inp.readLine().trim();  
-              if(sParam.length()>0 && sParam.charAt(0) != '#'){
+              if(sParam.startsWith("==Args==")) {
+                listArgs.clear(); //from this line args starts.
+              }
+              else if(sParam.length()>0 && sParam.charAt(0) != '#'){
                 listArgs.add(sParam);
               }  
             }

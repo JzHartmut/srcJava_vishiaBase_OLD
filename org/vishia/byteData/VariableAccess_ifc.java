@@ -30,7 +30,7 @@ package org.vishia.byteData;
  * <br><br>
  * It is possible to have one list or index with variables which are found in several data storage types,
  * for example in Java-data using <code>org.vishia.reflect.FieldJcVariableAccess (srcJava_vishiaRun)</code> or in data from files.
- * use Container <code>List< VariableAccess_ifc ></code> or <code>Map< String,VariableAccess_ifc ></code>.
+ * use Container <code>List &lt; VariableAccess_ifc ></code> or <code>Map &lt; String,VariableAccess_ifc ></code>.
  * To work as integral whole, this interface supports all of them.
  * <br><br> 
  * Variables may assembled in an array structure. The implementation knows about the array property of any variable.

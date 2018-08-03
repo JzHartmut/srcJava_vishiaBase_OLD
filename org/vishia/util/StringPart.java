@@ -2583,6 +2583,16 @@ public final String debugString()
     { return e1 - b1;
     }
     
+    @Override public final boolean equals(Object cmp) {
+      CharSequence cmp1 = cmp instanceof CharSequence? (CharSequence)cmp : cmp.toString();
+      int z = length();
+      if(cmp1.length() != z) return false;
+      for(int i = 0; i < z; ++i) {
+        if(charAt(i) != cmp1.charAt(i)) return false;
+      }
+      return true;
+    }
+    
     @Override
     @Java4C.ReturnInThreadCxt
     public final CharSequence subSequence(int from, int end)

@@ -5,6 +5,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 import org.vishia.util.DataAccess;
+import org.vishia.util.Debugutil;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.StringFunctions;
 
@@ -326,6 +327,10 @@ public class XmlCfg
 
     void addSubnode(String key, XmlCfgNode node) {
       if(subnodes == null) { subnodes = new IndexMultiTable<String, XmlCfgNode>(IndexMultiTable.providerString); }
+      if(key.startsWith("Object@"))
+        Debugutil.stop();
+      if(key.startsWith("Array@"))
+        Debugutil.stop();
       subnodes.put(key, node);
     }
   
@@ -371,6 +376,10 @@ public class XmlCfg
      */
     void setContentStorePath(String text) {
       if(tag instanceof StringBuilder) { //it is a second node with same tag, but with attributes for check.
+        if(tag.toString().startsWith("Object@"))
+          Debugutil.stop();
+        if(tag.toString().startsWith("Array@"))
+          Debugutil.stop();
         parent.subnodes.put(tag.toString(), this); //put this node in its parent, it is not done yet. 
       }
       if(!text.startsWith("!")) throw new IllegalArgumentException("Any content of a config.xml should start with ! because it is a store path.");

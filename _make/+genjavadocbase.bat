@@ -11,6 +11,11 @@ if "" == "%DST_priv%" set DST_priv=%DST%_priv
 echo JAVA_JDK=%JAVA_JDK% 
 pause
 
+javadoc --help >javadoc.help
+javadoc -help >>javadoc.help
+
+pause
+
 echo off
 echo +genJavadocbase.bat: %DSTDIR%%DST%
 
@@ -26,12 +31,12 @@ if not exist %DSTDIR%%DST_priv% mkdir %DSTDIR%%DST_priv%
 
 echo javadoc -d %DSTDIR%%DST% -linksource -notimestamp -nodeprecated %LINKPATH% -classpath %CLASSPATH% -sourcepath %SRCPATH%
 echo on
-%JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST% -protected -linksource -notimestamp -nodeprecated %LINKPATH% -classpath %CLASSPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST%\javadoc.rpt 2>%DSTDIR%%DST%\javadoc.err
+%JAVA_JDK%\bin\javadoc -Xdoclint:none -d %DSTDIR%%DST% -protected -linksource -notimestamp -nodeprecated %LINKPATH% -classpath %CLASSPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST%\javadoc.rpt 2>%DSTDIR%%DST%\javadoc.err
 if errorlevel 1 goto :error
 echo off
 copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DSTDIR%%DST%\stylesheet.css >NUL
 
-echo javadoc -d %DSTDIR%%DST_priv% -private -linksource -notimestamp %LINKPATH% %CLASSPATH% -sourcepath %SRCPATH%
+echo javadoc -Xdoclint:none -d %DSTDIR%%DST_priv% -private -linksource -notimestamp %LINKPATH% %CLASSPATH% -sourcepath %SRCPATH%
 %JAVA_JDK%\bin\javadoc -d %DSTDIR%%DST_priv% -private -linksource -notimestamp %LINKPATH% -classpath %CLASSPATH% -sourcepath %SRCPATH% %SRC% 1>%DSTDIR%%DST_priv%\javadoc.rpt 2>%DSTDIR%%DST_priv%\javadoc.err
 if errorlevel 1 goto :error
 copy ..\..\srcJava_vishiaBase\_make\stylesheet_javadoc.css %DSTDIR%%DST_priv%\stylesheet.css >NUL

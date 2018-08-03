@@ -4,18 +4,11 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 import org.vishia.util.DataAccess;
 import org.vishia.util.DataShow;
-import org.vishia.util.Debugutil;
 import org.vishia.util.StringFunctions;
-import org.vishia.xmlSimple.SimpleXmlOutputter;
 
 public class JZtxtcmdTester
 {
@@ -197,7 +190,35 @@ public class JZtxtcmdTester
   
 
   
+  /**This method is only intend to set a breakpoint into it.
+   * @return always false to use in an || expression chain.
+   */
+  public boolean debugFalse() {
+    return false;
+  }
   
+  /**This method is only intend to set a breakpoint into it.
+   * @return always true to use in an && expression chain.
+   */
+  public boolean debugTrue() {
+    return true;
+  }
+  
+  
+  /**This method is only intend to set a breakpoint into it.
+   * @return always 1.0 to use in an * expression chain.
+   */
+  public double debugMult1() {
+    return 1.0;
+  }
+  
+  
+  /**This method is only intend to set a breakpoint into it.
+   * @return always 0.0 to use in an + expression chain.
+   */
+  public double debugAdd0() {
+    return 0.0;
+  }
   
   
   

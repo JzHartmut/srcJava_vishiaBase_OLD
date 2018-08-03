@@ -420,7 +420,9 @@ public class StringPartFromFileLines extends StringPartScan
       endIxLinePosition = idst;  //no more positions yet.
     }
     int nRestBytes;  //rest length from filled position till end.
-    if( (nRestBytes = cBuffer.length - zBuffer) >= minSizeForAction) {
+    if(bEof) {
+      return true;
+    } else if( (nRestBytes = cBuffer.length - zBuffer) >= minSizeForAction) {
       int nrofChars = inpr.read(cBuffer, zBuffer, nRestBytes);
       if(nrofChars >0) {
         evalLineIndices(zBuffer,  zBuffer + nrofChars);

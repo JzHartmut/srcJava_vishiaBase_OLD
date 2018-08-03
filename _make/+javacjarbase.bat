@@ -86,6 +86,12 @@ REM  Store the actual directory to submit restoring on end
 set ENTRYDIR=%CD%
 echo ENTRYDIR=%ENTRYDIR%
 :: pause
+echo on
+if not "%COPYJAR%" == "" copy %COPYJAR% 
+if not "%COPYJAR1%" == "" copy %COPYJAR1% 
+if not "%COPYJAR2%" == "" copy %COPYJAR2% 
+if not "%COPYJAR3%" == "" copy %COPYJAR3% 
+echo on
 cd /D %TMP_JAVAC%\bin
 echo === SUCCESS compiling, generate jar: %ENTRYDIR%\%OUTDIR_JAVAC%\%JAR_JAVAC%
 echo TMP_JAVAC=%CD%

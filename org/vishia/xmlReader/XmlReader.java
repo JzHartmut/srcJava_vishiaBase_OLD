@@ -2,8 +2,11 @@ package org.vishia.xmlReader;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.Map;
@@ -25,7 +28,16 @@ import org.vishia.util.StringPartScan;
 /*Test with jztxtcmd: call jztxtcmd with this java file with its full path:
 D:/vishia/ZBNF/srcJava_vishiaBase/org/vishia/xmlReader/XmlReader.java
 ==JZtxtcmd==
-##yet empty, TODO test
+currdir = "D:/vishia/ZBNF/examples_XML/XMLi2reader";
+Obj cfg = File:"readExcel.cfg.xml"; 
+Obj xmlReader = new org.vishia.xmlReader.XmlReader();
+xmlReader.setDebugStop(-1);
+xmlReader.readCfg(cfg);    
+Obj src = File:"testExcel_a.xml";
+Obj data = new org.vishia.xmlReader.ExcelData();
+xmlReader.setDebugStop(-1);
+xmlReader.readXml(src, data);
+
 ==endJZcmd==
  */
 
@@ -211,8 +223,8 @@ public class XmlReader
     while(inp.seekEnd("<").found()) {
       inp.scanOk();
       inp.readnextContentFromFile(sizeBuffer/2);
-      if(inp.scan().scan("---").scanOk()) { //comment line
-       inp.seekEnd("--->");
+      if(inp.scan().scan("!--").scanOk()) { //comment line
+       inp.seekEnd("-->");
       }
       else {
         parseElement(inp, output, cfg1.rootNode);  //the only one root element.
@@ -234,7 +246,7 @@ public class XmlReader
   { 
     if(debugStopLine >=0){
       int line = inp.getLineAndColumn(null);
-      if(line == debugStopLine)
+      if(line >= debugStopLine)
         Debugutil.stop();
     }
     //scan the <tag
@@ -242,6 +254,8 @@ public class XmlReader
     //
     //The tag name of the element:
     CharSequence sTag = inp.getLastScannedString();
+    if(sTag.equals("Object"))
+      Debugutil.stop();
     //TODO replace alias.
     //
     //search the tag name in the cfg:
@@ -253,6 +267,8 @@ public class XmlReader
       subCfgNode = null;
     } else {
       Assert.check(output !=null);
+      if(sTag.toString().startsWith("Object@"))
+        Debugutil.stop();
       subCfgNode = cfgNode.subnodes == null ? null : cfgNode.subnodes.get(sTag);  //search the proper cfgNode for this <tag
       if(subCfgNode == null) { subCfgNode = cfgNode.subNodeUnspec; }
       //
@@ -278,14 +294,26 @@ public class XmlReader
     //get the subOutput after parsing attributes because attribute values may be used to create the sub output:
     if(subCfgNode !=null && !subCfgNode.bStoreAttribsInNewContent) { //the tag was found, the xml element is expected.
       subOutput = getDataForTheElement(output, subCfgNode, sTag, attribs);
+      if(subOutput == null) {
+        Debugutil.stop();
+      }
+    }
+    if(subOutput == null) {
+      Debugutil.stop();
     }
     //
     if(keyResearch==null) {
       subOutput = null;
     } else if(keyResearch.length() >0) {
+//      if(keyResearch.toString().startsWith("Object@"))
+//        Debugutil.stop();
+//      if(keyResearch.toString().startsWith("Array@"))
+//        Debugutil.stop();
       subCfgNode = cfgNode.subnodes == null ? null : cfgNode.subnodes.get(keyResearch);  //search the proper cfgNode for this <tag
       subOutput = subCfgNode == null ? null : getDataForTheElement(output, subCfgNode, keyResearch, attribs);
     }
+    if(subOutput == null && subCfgNode !=null)
+      Debugutil.stop();
     //
     //check content.
     //
@@ -446,11 +474,14 @@ public class XmlReader
           subOutput = DataAccess.access(subCfgNode.elementStorePath, output, true, false, false, null);
         }
         if(subOutput == null) {
-          System.err.println("getDataForTheElement returns null");
+          System.err.println("getDataForTheElement \"" + subCfgNode.elementStorePath + "\" returns null");
         }
       } catch(Exception exc) {
         subOutput = null;
-        System.err.println("error getDataForTheElement: " + exc.getMessage());
+        CharSequence sError = Assert.exceptionInfo("", exc, 1, 30);
+        System.err.println("error getDataForTheElement: " + subCfgNode.elementStorePath);
+        System.err.println("help: ");
+        System.err.println(sError);
       }
     }
     return subOutput;
@@ -515,10 +546,14 @@ public class XmlReader
   { boolean bContReadContent;
     int posAmp = buffer == null ? 0 : buffer.length()-1; //NOTE: possible text between elements, append, start from current length.
     inp.seekNoWhitespace();
+    boolean bEofSupposed = false;
     do { //maybe read a long content in more as one portions.
       inp.lento('<');  //The next "<" is either the end with </tag) or a nested element.
       bContReadContent = !inp.found();
       if(bContReadContent) {
+        if(bEofSupposed) {
+          throw new IllegalArgumentException("Format error in XML file, missing \"<\", file: " + inp.getInputfile());
+        }
         inp.setLengthMax();
       } else {
         inp.lenBacktoNoWhiteSpaces();
@@ -530,7 +565,7 @@ public class XmlReader
         buffer.append(' ');
       }
       if(buffer !=null) { buffer.append(content1); }
-      inp.readnextContentFromFile(sizeBuffer/2);
+      bEofSupposed = inp.readnextContentFromFile(sizeBuffer/2);
     } while(bContReadContent);
     if(buffer !=null) {
       while( (posAmp  = buffer.indexOf("&", posAmp+1)) >=0) {  //replace the subscription of &lt; etc.
@@ -570,6 +605,24 @@ public class XmlReader
 
   public void readCfg(File file) {
     readXml(file, this.cfg.rootNode, this.cfgCfg);
+    cfg.transferNamespaceAssignment(this.namespaces);
+  }
+
+
+
+  /**Read from a resource (file inside jar archive).
+   * TODO not tested, any error. 
+   * @param pathInJar
+   * @throws IOException
+   */
+  public void readCfgFromJar(String pathInJar) throws IOException {
+    String pathMsg = "jar:" + pathInJar;
+    ClassLoader classLoader = ClassLoader.getSystemClassLoader();
+    //classLoader.getResource("slx.cfg.xml");
+    InputStream xmlCfgStream = classLoader.getResourceAsStream(pathInJar);
+    if(xmlCfgStream == null) throw new FileNotFoundException(pathMsg);
+    readXml(xmlCfgStream, pathMsg, this.cfg.rootNode, this.cfgCfg);
+    xmlCfgStream.close();
     cfg.transferNamespaceAssignment(this.namespaces);
   }
 

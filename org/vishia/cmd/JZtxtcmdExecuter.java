@@ -2657,10 +2657,12 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
           arg = this.currdir() + "/" + arg;
         }
         String arg1;
-        if(!StringFunctions.endsWith(arg, "'")) {
-          arg1 = arg.toString();  //mkdirpath ignores a file name 
+        if(StringFunctions.endsWith(arg, "'")) {  //should regard arg as filename, mk the directory of the file
+          arg1 = arg.toString().substring(0,  arg.length()-1);  //mkdirpath ignores a file name 
+        } else if(!StringFunctions.endsWith(arg, "/")){
+          arg1 = arg + "/"; // mkDirPath needs a / on end to regard it as directory.
         } else {
-          arg1 = arg + "/"; 
+          arg1 = arg.toString();  //it has a / on end.
         }
         FileSystem.mkDirPath(arg1);  //note: if ends with / then it is a directory, else with filename.
         return kSuccess;

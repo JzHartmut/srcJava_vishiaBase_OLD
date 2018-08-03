@@ -337,8 +337,8 @@ public class FilepathFilter implements FilenameFilter
   {
     // TODO Auto-generated method stub
     CharSequence sDir = FileSystem.normalizePath(dir);
-    
-    return checkDir(sDir) && checkName(name);
+    if(bAllTree) return true;  //TODO more condition?
+    else return checkDir(sDir) && checkName(name);
   }
   
   

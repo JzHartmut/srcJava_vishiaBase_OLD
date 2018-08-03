@@ -10,7 +10,9 @@ public class Debugutil
     return 0;
   }
   
-  
+  public static int stop(Object toView) {
+    return 0;
+  }
   
   
   /**Use this method in a users software to stop conditionally.
