@@ -48,7 +48,7 @@ xmlReader.readXml(src, data);
  * <br>
  * Application example:
  * <pre>
- * XmlReader xmlReader = new XmlReader;   //instance to work, more as one file one after another
+ * XmlReader xmlReader = new XmlReader(); //instance to work, more as one file one after another
  * xmlReader.setCfg(cfgFile);             //configuration for next xmlRead()
  * AnyClass data = new AnyClass();        //a proper output instance matching to the cfg
  * xmlReader.readXml(xmlInputFile, data); //reads the xml file and stores read data.
@@ -104,9 +104,7 @@ public class XmlReader
   
   
   
-  /**Size of the buffer to hold a part of the xml input file. It should be enough big to hold 1 element (without content).
-   * 
-   */
+  /**Size of the buffer to hold a part of the xml input file. It should be enough large to hold 1 element with attributes (without content). */
   int sizeBuffer = 20000;
   
   int debugStopLine = -1;
@@ -133,11 +131,16 @@ public class XmlReader
   }
   
 
-  public void readXml(File input, Object output, CharSequence xmlCfg) {
-  }
 
-
-  private String readXml(File input, Object output, XmlCfg xmlCfg) {
+  /**Reads an xml file with a given config. 
+   * It does not change the stored config which is gotten by {@link #readCfg(File)} or {@link #readCfgFromJar(String)}.
+   * This operation is used internally in for all read operations too. It is the common entry to read.
+   * @param input
+   * @param output
+   * @param xmlCfg
+   * @return
+   */
+  public String readXml(File input, Object output, XmlCfg xmlCfg) {
     String error = null;
     InputStream sInput = null; 
     try{ 
@@ -154,6 +157,13 @@ public class XmlReader
 
 
 
+  /**Reads an xml File from a zipfile. It uses the given config. 
+   * Either {@link #readXmlCfg(File)} was invoked before or the config will be read itself (with {@link #cfgCfg} as configuration).
+   * @param zipInput The zipfile itself
+   * @param pathInZip The path of a file inside the zip file
+   * @param output destination data
+   * @return
+   */
   public String readZipXml(File zipInput, String pathInZip, Object output) {
     String error = null;
     try {
@@ -269,8 +279,16 @@ public class XmlReader
       Assert.check(output !=null);
       if(sTag.toString().startsWith("Object@"))
         Debugutil.stop();
-      subCfgNode = cfgNode.subnodes == null ? null : cfgNode.subnodes.get(sTag);  //search the proper cfgNode for this <tag
-      if(subCfgNode == null) { subCfgNode = cfgNode.subNodeUnspec; }
+      if(cfgNode.subnodes == null) {
+        subCfgNode = null; //don't read innercontent
+      } else {
+        subCfgNode = cfgNode.subnodes.get(sTag);  //search the proper cfgNode for this <tag
+        if(subCfgNode == null) {
+          subCfgNode = cfgNode.subnodes.get("?");  //check whether it is a node with any unspecified tag name possible. 
+//          subCfgNode = cfgNode.subNodeUnspec; 
+        }
+      }
+      //subCfgNode is null if inner content should not be read.
       //
       //get the subOutput before parsing attributes because attribute values should be stored in the sub output.:
       if(subCfgNode !=null && subCfgNode.bStoreAttribsInNewContent) { //the tag was found, the xml element is expected.

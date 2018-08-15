@@ -1,11 +1,3 @@
-* +genjavadocbase.bat: -Xdoclint:none because with Java8 too much non-important deficiency in comment are reported as error or warning
-* +javacjarbase.bat: COPYJAR.. environment as possibility to distribute jar determined from calling script.
-* JZtxtcmdExecuter.java bugfix mkdir
-* JZtxtcmdTester.java: enhanced
-* MainCmd.java: An argument file can contain lines before, especially it can be a batch file. If 
-==Args== 
-  is detected, the args starts there.
-* FilepathFilter.java: accept, experience.
-* XmlReader.java improved
-
+xmlReader/XmlCfg: improved, more simple, documented, config for read any XML structure.
+xmlReader/test/TestReadMsc15Cfg.java: This is any configuration to read, in test.
 

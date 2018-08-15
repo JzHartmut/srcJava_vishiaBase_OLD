@@ -80,7 +80,15 @@ import org.vishia.util.StringFunctions;
 public class XmlCfg
 {
   /**Version, License and History: See {@link XmlReader}.
+   * <ul>
+   * <li>2018-08-15 element subNodeUnspec removed, instead store key="?" in {@link XmlCfgNode#subnodes}. 
+   * <li>2018-08-15 {@link #newCfgCfg()} more simple. Don't use the root node as config for root node.
+   * <li>2018-08-15 {@link #newCfgReadStruct()} accepts all XML structures, stores the structure of the nodes and attributes.
+   *  
    * 
+   * <li>2017-06 created.
+   * </ul>
+    * 
    * <b>Copyright/Copyleft</b>:
    * For this source the LGPL Lesser General Public License,
    * published by the Free Software Foundation is valid.
@@ -105,14 +113,15 @@ public class XmlCfg
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final String version = "2016-09-25";
+  public static final String version = "2018-08-15";
 
 
   /**Assignment between nameSpace-value and nameSpace-alias gotten from the xmlns:ns="value" declaration in the read cfg.XML file. 
    * If this table is null than the config file is read yet. */
   Map<String, String> xmlnsAssign;
 
-
+  /**Configuration for subtrees which can occur anywhere in the XML file. A subtree have to be determined by a tag name of its root element.
+   * With them it can be found here. */
   Map<String, XmlCfgNode> subtrees;
   
   XmlCfgNode rootNode = new XmlCfgNode(null, this, "root");
@@ -123,13 +132,26 @@ public class XmlCfg
    */
   static XmlCfg newCfgCfg()
   { XmlCfg cfgCfg = new XmlCfg();
-    cfgCfg.rootNode = new XmlCfg.XmlCfgNode(null, cfgCfg, "xmlinput:root");
-    cfgCfg.rootNode.addSubnode(cfgCfg.rootNode.tag.toString(), cfgCfg.rootNode);
-    XmlCfg.XmlCfgNode cfgNode = new XmlCfg.XmlCfgNode(null, cfgCfg, "xmlinput:cfg");
-    cfgCfg.rootNode.addSubnode(cfgNode.tag.toString(), cfgNode);
-    XmlCfg.XmlCfgNode nodes = new XmlCfg.XmlCfgNode(null, cfgCfg, "xfgRoot");
-    cfgNode.subNodeUnspec = nodes; 
-    nodes.subNodeUnspec = nodes;  //recursively, all children are unspec.
+    cfgCfg.rootNode = new XmlCfg.XmlCfgNode(null, cfgCfg, null);  //The rootnode of the cfg is only formalistic.
+    
+    XmlCfg.XmlCfgNode rootNode = new XmlCfg.XmlCfgNode(null, cfgCfg, "xmlinput:root");  //<xmlinput:cfg as node 2. level
+    cfgCfg.rootNode.addSubnode(rootNode.tag.toString(), rootNode);        //The cfg file should start with a <xmlinput:root
+    //because nodes.setNewElementPath(...) is not set, the same rootNode acts as cfg for the 2. level. 
+    //It is possible to add <xmlinput:root...> as 2. level, but it is not do so
+    
+    XmlCfg.XmlCfgNode cfgNode = new XmlCfg.XmlCfgNode(null, cfgCfg, "xmlinput:cfg");  //<xmlinput:cfg as node 2. level
+    rootNode.addSubnode(cfgNode.tag.toString(), cfgNode);    //2. level add to root node too.
+    
+    //The next XmlCfgNode is used for all subnodes of the <xmlinput.cfg...
+    XmlCfg.XmlCfgNode nodes = new XmlCfg.XmlCfgNode(null, cfgCfg, null); //Any unspecific nodes.
+    cfgNode.addSubnode("?", nodes);    //2. level add to root node too.
+    nodes.addSubnode("?", nodes);
+    
+    
+//    cfgNode.subNodeUnspec = nodes; //it is set to use for all nodes with 
+//    nodes.subNodeUnspec = nodes;  //recursively, all children are unspec.
+    
+    
     nodes.setNewElementPath("!newElement(tag)");
     //if the attribute xmlinput:data is read in the input config.xml, then its values hould be used to set the datapath for the element.
     //It is done via invocation of setNewElementPath(...) on the output config.
@@ -138,25 +160,43 @@ public class XmlCfg
     nodes.attribsUnspec = new DataAccess.DatapathElement("addAttribStorePath(name, value)");  //use addAttributeStorePath in the dst node to add.
   
     XmlCfg.XmlCfgNode nodeSub = new XmlCfg.XmlCfgNode(null, cfgCfg, "xmlinput:subtree");
+    rootNode.addSubnode(nodeSub.tag.toString(), nodeSub);
     //nodeSub.attribsForCheck = new IndexMultiTable<String, AttribDstCheck>(IndexMultiTable.providerString); 
     //AttribDstCheck checkName = new AttribDstCheck(true);
     //nodeSub.attribsForCheck.put("name", checkName);
     nodeSub.addAttribStorePath("name", "!@name");  //This attribute value should be used to store locally in name.
     nodeSub.setNewElementPath("!addSubTree(name)");
-    nodeSub.subNodeUnspec = nodes;  //recursively, all children are unspec.
+    nodeSub.addSubnode("?", nodes);
+//    nodeSub.subNodeUnspec = nodes;  //recursively, all children are unspec.
     //nodeSub.addAttribStorePath("xmlinput:data", "!addSubTree(name)");  //This attribute should be used to set the datapath for this element.
     
-    cfgCfg.rootNode.addSubnode(nodeSub.tag.toString(), nodeSub);
     return cfgCfg;
+  }
+
+  
+  /**Creates the configuration to read any xml file to get its structure.
+   * @return instance
+   */
+  public static XmlCfg newCfgReadStruct()
+  { XmlCfg cfgCommon = new XmlCfg();
+    cfgCommon.rootNode = new XmlCfg.XmlCfgNode(null, cfgCommon, null);  //The rootnode of the cfg is only formalistic.
+    
+    XmlCfg.XmlCfgNode rootNode = new XmlCfg.XmlCfgNode(null, cfgCommon, "?");  //<xmlinput:cfg as node 2. level
+    cfgCommon.rootNode.addSubnode(rootNode.tag.toString(), rootNode);        //The cfg file should start with a <xmlinput:root
+    rootNode.addSubnode(rootNode.tag.toString(), rootNode);        //The cfg file should start with a <xmlinput:root
+    
+    rootNode.setNewElementPath("!addElement(tag)");  //executed in the data destination instance.
+    rootNode.addAttribStorePath("?", "!setAttribute(value)"); 
+    return cfgCommon;
   }
 
   
   
   public XmlCfgNode addSubTree(CharSequence name)
   {
-    XmlCfgNode subtreeRoot = new XmlCfgNode(null, this, name);
+    XmlCfgNode subtreeRoot = new XmlCfgNode(null, this, name); //The root for a subtree configuration structure.
     if(subtrees == null) { subtrees = new IndexMultiTable<String, XmlCfgNode>(IndexMultiTable.providerString); }
-    subtrees.put(name.toString(), subtreeRoot);
+    subtrees.put(name.toString(), subtreeRoot);  //config-global types of subtrees
     return subtreeRoot;
   }
   
@@ -252,7 +292,7 @@ public class XmlCfg
     Map<String, XmlCfgNode> subnodes;
     
     /**If set, the subnode for not found elements to store in a common way.. */
-    XmlCfgNode subNodeUnspec;
+    //XmlCfgNode subNodeUnspec;
     
     /**Reflection path to store the content as String. If null than the content won't be stored. */
     DataAccess.DatapathElement contentStorePath;

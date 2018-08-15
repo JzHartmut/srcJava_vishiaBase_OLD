@@ -78,8 +78,9 @@ import org.vishia.bridgeC.IllegalArgumentExceptionJc;
  * <li>seek: changes the start position of the actual (current) string part, do not change the end of the actual part,
  *   from there, seek changes the length. Seek returns this, so concatenation of method calls is possible.
  *   <ul>
- *   <li>{@link #seekPos(int)}, {@link #seekPosBack(int)}: Seek with given number of chars, for example seek(1) to skip over one character
- *   <li>{@link #seek(char, int)}, {@link #seek(CharSequence, int)}: Searches a character or a CharSequence
+ *   <li>{@link #setParttoMax()}: Sets the current part of the String to the whole String. For new search operations.
+ *   <li>{@link #seekPos(int)}, {@link #seekPosBack(int)}: Sets the current part begin forward, for example seek(1) to skip over one character
+ *   <li>{@link #seek(char, int)}, {@link #seek(CharSequence, int)}: Searches a character or a CharSequence, sets the begin of the current part to it.
  *   <li>{@link #seekAnyChar(CharSequence)},  {@link #seekBackToAnyChar(CharSequence)}: Searches any of some given characters.
  *   <li>{@link #seek(CharSequence, int)}, {@link #seekBackward(CharSequence)}: Searches any of some given characters.
  *   <li>{@link #seekAnyString(CharSequence[], int[])}: Searches any of some given character sequences.
