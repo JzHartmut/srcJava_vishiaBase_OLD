@@ -186,7 +186,7 @@ public class XmlCfg
     rootNode.addSubnode(rootNode.tag.toString(), rootNode);        //The cfg file should start with a <xmlinput:root
     
     rootNode.setNewElementPath("!addElement(tag)");  //executed in the data destination instance.
-    rootNode.addAttribStorePath("?", "!setAttribute(value)"); 
+    rootNode.addAttribStorePath("?", "!setAttribute(name)"); 
     return cfgCommon;
   }
 
@@ -332,7 +332,7 @@ public class XmlCfg
         //Because the subnode of cfg should have any content the setContentStorePath(...) is called.
         //There it is added to parent.
       }
-      else {
+      else if(sAttrValue.length() >0) {  //empty attribute value in cfg: ignore attribute.
         if(attribs == null) { attribs = new IndexMultiTable<String, AttribDstCheck>(IndexMultiTable.providerString); }
         AttribDstCheck dPathAccess;
         if(!StringFunctions.startsWith(sAttrValue, "!")) throw new IllegalArgumentException("read config: store path should start with !");

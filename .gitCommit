@@ -1,3 +1,2 @@
-xmlReader/XmlCfg: improved, more simple, documented, config for read any XML structure.
-xmlReader/test/TestReadMsc15Cfg.java: This is any configuration to read, in test.
+tested in xmlReader/test/TestReadMsc15Cfg.java: Any XML file can be readed as structure. The structure can be taken as template for the cfg.xml file for the config reader. With them interesting data of an unknown XML-File can be read into Java data.
 

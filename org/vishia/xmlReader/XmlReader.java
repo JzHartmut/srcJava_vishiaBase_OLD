@@ -92,7 +92,7 @@ public class XmlReader
    * @author Hartmut Schorrig = hartmut.schorrig@vishia.de
    * 
    */
-  public static final String version = "2017-12-25";
+  public static final String version = "2018-08-15";
   
   
   /**To store the read configuration. */
@@ -125,7 +125,7 @@ public class XmlReader
     debugStopLine = line;
   }
    
-  public void readXmlCfg(File input) {
+  public void XXXXreadXmlCfg(File input) {
     cfg = new XmlCfg();
     //read
   }
@@ -432,23 +432,29 @@ public class XmlReader
           sAttrNsName = sAttrNsNameRaw;
         }
         if(sAttrNsName !=null) {
-           XmlCfg.AttribDstCheck cfgAttrib= cfgNode.attribs == null ? null : cfgNode.attribs.get(sAttrNsName);
-           if(cfgAttrib != null) {
-             if(cfgAttrib.bUseForCheck) {
-               if(keyretBuffer == null) { keyretBuffer = new StringBuilder(64); keyretBuffer.append(tag); keyret = keyretBuffer; }
-               keyretBuffer.append("@").append(sAttrNsName).append("=\"").append(sAttrValue).append("\"");
-             }
-             else if(cfgAttrib.daccess !=null) {
-               storeAttrData(output, cfgAttrib.daccess, sAttrNsName, sAttrValue);
-             } else if(cfgAttrib.storeInMap !=null) {
-               if(attribMap[0] == null){ attribMap[0] = new TreeMap<String, String>(); }
-               attribMap[0].put(cfgAttrib.storeInMap, sAttrValue);
-             }
-           } else {
-             if(cfgNode.attribsUnspec !=null) { //it is especially to read the config file itself.
-               storeAttrData(output, cfgNode.attribsUnspec, sAttrNsName, sAttrValue);
-             }
-           }
+          XmlCfg.AttribDstCheck cfgAttrib = null;
+          if(cfgNode.attribs != null) { 
+            cfgAttrib= cfgNode.attribs.get(sAttrNsName);
+            if(cfgAttrib == null) {
+              cfgAttrib= cfgNode.attribs.get("?");  //for all attributes
+            }
+          }
+          if(cfgAttrib != null) {
+            if(cfgAttrib.bUseForCheck) {
+              if(keyretBuffer == null) { keyretBuffer = new StringBuilder(64); keyretBuffer.append(tag); keyret = keyretBuffer; }
+              keyretBuffer.append("@").append(sAttrNsName).append("=\"").append(sAttrValue).append("\"");
+            }
+            else if(cfgAttrib.daccess !=null) {
+              storeAttrData(output, cfgAttrib.daccess, sAttrNsName, sAttrValue);
+            } else if(cfgAttrib.storeInMap !=null) {
+              if(attribMap[0] == null){ attribMap[0] = new TreeMap<String, String>(); }
+              attribMap[0].put(cfgAttrib.storeInMap, sAttrValue);
+            }
+          } else {
+            if(cfgNode.attribsUnspec !=null) { //it is especially to read the config file itself.
+              storeAttrData(output, cfgNode.attribsUnspec, sAttrNsName, sAttrValue);
+            }
+          }
         }
       }
       inp.readnextContentFromFile(sizeBuffer/2);
@@ -484,7 +490,7 @@ public class XmlReader
             String argName = subCfgNode.elementStorePath.argName(ix);
             if(attribs !=null && attribs[0]!=null && (args[ix] = attribs[0].get(argName))!=null){} //content of attribute filled in args[ix]
             else if(argName.equals("tag")) { args[ix] = sTag; }
-            else throw new IllegalArgumentException("argname");
+            else throw new IllegalArgumentException("faulty argnument: " + argName + " in elementStorePath for: " + sTag);
           }
           subOutput = DataAccess.invokeMethod(subCfgNode.elementStorePath, null, output, true, false, args);
         } else {
