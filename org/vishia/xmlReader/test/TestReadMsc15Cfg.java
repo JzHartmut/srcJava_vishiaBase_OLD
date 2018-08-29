@@ -4,15 +4,14 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.vishia.mainCmd.FileWrite;
 import org.vishia.util.Debugutil;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.StringFormatter;
-import org.vishia.xmlReader.TreeContentFromXmlReader;
 import org.vishia.xmlReader.XmlContentCfgWriter;
 import org.vishia.xmlReader.XmlReader;
 
@@ -168,6 +167,7 @@ public class TestReadMsc15Cfg
         wr.write(sf.toString());
       }
       wr.close();
+      sf.close();
     } catch (IOException exc) {
       System.err.println(exc);
     }

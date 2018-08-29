@@ -84,6 +84,10 @@ public class JZtxtcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2018-08-29 Hartmut new: {@link ExecuteLevel#exec_DefVariable(Map, org.vishia.cmd.JZtxtcmdScript.DefVariable, char, Object, boolean)}:
+   *   Converts to Numeric value on a Num variable ('K'). TODO: do same for Bool ('Q') 
+   * <li>2018-08-29 Hartmut new: true, false, Num as script variable. 
+   * <li>2018-08-29 Hartmut new: Conversion Bool to boolean for java operation args, see {@link DataAccess}. 
    * <li>2018-01-07 Hartmut new: mkdir with ' at least for path/to/file, see documentation. 
    * <li>2017-09-09 Hartmut chg: The zmake uses a datapath yet instead a String-named Fileset variable. It is more universal in application
    *   and more clear in syntax. There may be used 2 datapath, 1 for the accessPath and the Fileset. If only one datapath is used, 
@@ -306,7 +310,7 @@ public class JZtxtcmdExecuter {
    * 
    */
   //@SuppressWarnings("hiding")
-  static final public String version = "2017-09-09";
+  static final public String version = "2018-08-29";
 
   /**This class is the jzcmd main level from a script.
    * @author Hartmut Schorrig
@@ -657,12 +661,15 @@ throws ScriptException //, IllegalAccessException
     if(scriptLevel.localVariables.get("out") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "out", 'A', System.out, true); }
     if(scriptLevel.localVariables.get("err") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "err", 'A', System.err, true); }
     if(scriptLevel.localVariables.get("null") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
+    if(scriptLevel.localVariables.get("true") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "true", 'Q', true, true); }
+    if(scriptLevel.localVariables.get("false") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "false", 'Q', false, true); }
     if(scriptLevel.localVariables.get("jzcmd") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jzcmd", 'O', acc, true); }
     if(scriptLevel.localVariables.get("jztc") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "jztc", 'O', acc, true); }
     //if(scriptLevel.localVariables.get("file") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "file", 'O', new FileSystem(), true); }
     if(scriptLevel.localVariables.get("test") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "test", 'O', new JZtxtcmdTester(), true); }
     if(scriptLevel.localVariables.get("conv") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "conv", 'O', new Conversion(), true); }
     DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "Math", 'C', Class.forName("java.lang.Math"), true);
+    DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "Num", 'C', Class.forName("org.vishia.util.Num"), true);
     DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "System", 'C', Class.forName("java.lang.System"), true);
     DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "FileSystem", 'C', Class.forName("org.vishia.util.FileSystem"), true);
     DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "StringFunctions", 'C', Class.forName("org.vishia.util.StringFunctions"), true);
@@ -1644,8 +1651,18 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
      * @param isConst
      * @throws Exception
      */
-    void exec_DefVariable(Map<String, DataAccess.Variable<Object>> newVariables, JZtxtcmdScript.DefVariable statement, char type, Object value, boolean isConst) 
+    void exec_DefVariable(Map<String, DataAccess.Variable<Object>> newVariables, JZtxtcmdScript.DefVariable statement, char type, Object valueArg, boolean isConst) 
     throws Exception {
+      Object value = valueArg; //default: without conversion.
+      CalculatorExpr.Value valueCalc = value instanceof CalculatorExpr.Value ? (CalculatorExpr.Value) valueArg : null;
+      switch(statement.elementType) {
+      case 'K': //numeric Value
+        if(valueCalc !=null) { valueCalc.toNumValue(); }
+        else if(!(value instanceof Number)) { } //TODO convert, improve StringFunctions_C
+        break;
+      default:
+      }
+
       if(statement.typeVariable !=null) {
         if(!DataAccess.istypeof(value, statement.typeVariable)) {
           throw new IllegalArgumentException("execSubroutine - argument type faulty, " + value.getClass().getName() + " ");

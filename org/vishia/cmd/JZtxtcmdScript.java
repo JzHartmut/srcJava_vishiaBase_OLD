@@ -340,6 +340,8 @@ public class JZtxtcmdScript extends CompiledScript
      * <tr><td>P</td><td>Pipe variable, {@link #textArg} contains the name of the variable</td></tr>
      * <tr><td>U</td><td>Buffer variable, {@link #textArg} contains the name of the variable</td></tr>
      * <tr><td>S</td><td>String variable, {@link #textArg} contains the name of the variable</td></tr>
+     * <tr><td>K</td><td>Numeric variable, {@link #textArg} contains the name of the variable</td></tr>
+     * <tr><td>Q</td><td>Bool variable, {@link #textArg} contains the name of the variable</td></tr>
      * <tr><td>L</td><td>Container variable, a list</td></tr>
      * <tr><td>W</td><td>Opened file, a Writer in Java</td></tr>
      * <tr><td>F</td><td>FilePath</td></tr>

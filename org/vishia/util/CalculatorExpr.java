@@ -40,6 +40,7 @@ public class CalculatorExpr
   
   /**Version, history and license.
    * <ul>
+   * <li>2018-08-28 Hartmut new {@link Value#toNumValue()}, conversion especially from String, yet some TODO .
    * <li>2017-10-27 Hartmut exception on cmp operation with {@link #variableNotFoundExpr}
    * <li>2016-02-13 Hartmut bugfix: {@link StringPartScan#scanFractionalNumber(long, boolean)} has had a problem with negative numbers. 
    *   fixed there, adapted here.
@@ -367,6 +368,35 @@ public class CalculatorExpr
       }//switch
       
     }
+    
+    
+    public void toNumValue() {
+      if( "JISBFD".indexOf(type) <0) {
+        String sValue = stringVal !=null ? stringVal.toString() : oVal !=null ? oVal.toString() : "0";
+        int zValue = sValue.length();
+        int[] parsedCharsA = new int[1];
+        long value = StringFunctions_C.parseIntRadix(sValue, 0, 999999, 10, parsedCharsA, " ,'");
+        int parsedChars = parsedCharsA[0];
+        if(parsedChars < zValue) {
+          if(sValue.charAt(parsedChars) =='.') { //a float number
+            long valueFrac = StringFunctions_C.parseIntRadix(sValue.substring(parsedChars+1), 0, 999999, 10, parsedCharsA, " ,'");
+            if(parsedChars + parsedCharsA[0] > 7) {
+              //TODO double
+            } else {
+              //TODO double
+                
+            }
+          }
+          //TODO regard kMGTmuµnp
+          //TODO let the rest of String in stringVal, it may be the unit.
+        } else {
+          if(zValue <=9 ) { intVal = (int)value; type = 'I'; }
+          else { longVal = value; type = 'L'; }
+        }
+      }
+    
+    }
+    
     
     
     @Override public String toString(){ 

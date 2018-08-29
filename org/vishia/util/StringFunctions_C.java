@@ -64,7 +64,7 @@ public class StringFunctions_C
    * @param spaceChars maybe null, some characters which are skipped by reading the digits. It is especially ". '" to skip over a dot, or spaces or '
    * @return the Number.
    * @throws never. All possible digits where scanned, the rest of non-scanable digits are returned.
-   *  At example the String contains "-123.45" it returns -123, and the retSize is 3.
+   *  For example the String contains "-123.45" it returns -123, and the retSize is 3.
    */
   public static int parseIntRadix(final CharSequence srcP, final int pos, final int sizeP, final int radix
       , final int[] parsedChars, final String spaceChars)

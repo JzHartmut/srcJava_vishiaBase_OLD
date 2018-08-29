@@ -89,6 +89,9 @@ import org.vishia.util.TreeNodeBase;
 public class DataAccess {
   /**Version, history and license.
    * <ul>
+   * <li>2018-09-28 Hartmut improve: An dataAccess element now knows {@link DatapathElement#operation}. If that is not set and there are no fnArgs
+   *   then a field (static) is accessed. That were missing. Used for JzTxtCmd.
+   * <li>2018-09-28 Hartmut improve: {@link #initConversion()} accepts boolean from Boolean, important for JzTxtCmd
    * <li>2017-12-20 Hartmut improve: {@link #invokeMethod(DatapathElement, Class, Object, boolean, boolean)}: Show used class on error.
    * <li>2017-08-30 Hartmut new: {@link #istypeof(Object, String)} with String argument, based on {@link #istypeof(Object, Class)}. 
    * <li>2017-07-02 Hartmut new: {@link #debugMethod(String)} can be invoked with "". Then it invokes {@link #debug()} on the next found method
@@ -218,7 +221,7 @@ public class DataAccess {
    * 
    * 
    */
-  static final public String sVersion = "2016-01-17";
+  static final public String sVersion = "2018-08-28";
 
 
   private static final Class<?> ifcMainCmdLogging_ifc = getClass("org.vishia.mainCmd.MainCmdLogging_ifc");
@@ -683,9 +686,9 @@ public class DataAccess {
   /**This method initializes the internal conversion index. It is only public to document
    * which conversions are possible. One can invoke the method and view the result.
    * The keys in the map describe possible conversions <code>fromType:toType</code>.
-   * @return An index for conversion. Used internal.
+   * @return An index table for conversion. Used internal.
    */
-  private static Map<String, Conversion> initConversion(){
+  static Map<String, Conversion> initConversion(){
     Map<String, Conversion> conversion1 = new TreeMap<String, Conversion>();
     conversion1.put("org.vishia.util.CalculatorExpr$Value:int", Conversions.calcValue2int);
     conversion1.put("java.lang.Long:int", Conversions.long2int);
@@ -703,7 +706,8 @@ public class DataAccess {
     conversion1.put("java.lang.Double:float", Conversions.double2float);
     conversion1.put("java.lang.Number:boolean", Conversions.number2bool);
     conversion1.put("java.lang.Number:char", Conversions.number2char);
-    conversion1.put("java.lang.Object:boolean", Conversions.obj2bool);
+    conversion1.put("java.lang.Boolean:boolean", Conversions.obj2obj);  //returns the Boolean itself
+    conversion1.put("java.lang.Object:boolean", Conversions.obj2bool);  //checks src !=null
     conversion1.put("java.lang.CharSequence:char", Conversions.charSeq2char);
     conversion1.put("java.lang.CharSequence:java.lang.String", Conversions.charSequence2String);
     return conversion1;
@@ -982,7 +986,7 @@ public class DataAccess {
         }
         //else: let data1=null, return null
       } break;
-      case '%': { data1 = invokeStaticMethod(element); } break;
+      case '%': { data1 = element.operation || element.argNames !=null || element.fnArgs !=null ? invokeStaticMethod(element) : getStaticValue(element); } break;
       case '$': {
         if((data1 instanceof Map<?,?>)){  //should be Map<String, Variable>
           @SuppressWarnings("unchecked")
@@ -1294,6 +1298,31 @@ public class DataAccess {
     return data1;    
   }
   
+  
+  
+  /**Invokes the static method which is described with the element.
+   * @param element its {@link DatapathElement#whatisit} == '%'.
+   *   The {@link DatapathElement#identArgJbat} should contain the full qualified "packagepath.Class.methodname" separated by dot.
+   * @return the return value of the method
+   * @throws Throwable 
+   */
+  protected static Object getStaticValue( DatapathElement element ) 
+  throws Exception
+  { final Class<?> clazz; 
+    final String sField;
+    if(element instanceof DatapathElementClass && ((DatapathElementClass)element).clazz !=null){
+      clazz = ((DatapathElementClass)element).clazz;
+      sField = element.ident;
+    } else {
+      int posClass = element.ident.lastIndexOf('.');
+      String sClass = element.ident.substring(0, posClass);
+      sField = element.ident.substring(posClass +1);
+      ClassLoader classloader = getClassLoader(element);
+      clazz = classloader.loadClass(sClass);
+    }
+    return getDataFromField(sField, null, false, clazz, null, 0);    
+  }
+  
  
   
   
@@ -1484,7 +1513,7 @@ public class DataAccess {
 
   
   /**Checks whether the given actType with its value arg matches to the given argType. 
-   * It checks all its super and interface types.
+   * It checks all its super and interface types and searches a possible conversion, see {@link #initConversion()}.
    * If actType is an interface, all super interfaces are checked after them.
    * If actType is a class, all interfaces are checked but not the superclass.
    * This routine will be called recursively for the interfaces.
@@ -1503,7 +1532,7 @@ public class DataAccess {
     Conversion conv = null;
     Class<?> supertype = actType;
     while(conv == null && supertype !=null){
-      conv = checkIfcTypes(argType, supertype, arg);
+      conv = checkIfcTypes(argType, supertype, arg);  //this routine searches possible conversions
       if(conv == null){
         supertype = supertype.getSuperclass();
       }
@@ -1515,7 +1544,7 @@ public class DataAccess {
 
     
   private static Conversion checkIfcTypes(Class<?> argType, Class<?> ifcType, Object arg){
-    Conversion conv = checkTypes(argType, ifcType, arg);
+    Conversion conv = checkTypes(argType, ifcType, arg);  //this routine searches possible conversions
     if(conv == null){
       Class<?>[] superIfcs = ifcType.getInterfaces();
       int ix = -1;
@@ -2029,7 +2058,8 @@ public class DataAccess {
    * If the variable exists, its content will be replaced by the new definition.
    * @param map The container for variables.
    * @param name The name of the variable in the container.
-   * @param type one of A O J S U L M V E = Appendable, Object, Object, String, StringBuilder, ListContainer, Map, VariableTree, EnvironmentVariable
+   * @param type one of A O Q J S U L M V E C = Appendable, Object, Boolean, Long, 
+   *        String, StringBuilder, ListContainer, Map, VariableTree, EnvironmentVariable, Class
    * @param content The new value
    * @param isConst true then create a const variable, or change content of a constant variable. 
    *   A const variable is designated by {@link Variable#isConst} boolean element. A const variable can change its content
@@ -2330,6 +2360,9 @@ public class DataAccess {
     private String[] argNames;
     
     int[] indices;
+    
+    /**true then an operation call, false: a variable access. @since 2018-08*/
+    public boolean operation;
     
     /**Creates an empty element.
      * 
