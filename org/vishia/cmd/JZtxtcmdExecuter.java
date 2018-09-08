@@ -2361,7 +2361,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
             ref = evalObject(actualArg, false);
             JZtxtcmdScript.DefVariable checkArg = check.remove(actualArg.getIdent());      //is it a requested argument (per name)?
             if(checkArg == null){
-              throw new IllegalArgumentException("execSubroutine - unexpected argument; "  + actualArg.identArgJbat);
+              throw new IllegalArgumentException("\nError: execSubroutine: " + statement.name + "( ... "  + actualArg.identArgJbat + "=...) - unexpected argument; ");
             } else {
               if(checkArg.typeVariable !=null) {
                 if(!DataAccess.istypeof(ref, checkArg.typeVariable)) {

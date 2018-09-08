@@ -10,7 +10,7 @@ public class Num
   /**Version, history and license.
    * <ul>
    * <li>2018-08-29 Hartmut new:  
-  * </ul>
+   * </ul>
    * 
    * <b>Copyright/Copyleft</b>:
    * For this source the LGPL Lesser General Public License,

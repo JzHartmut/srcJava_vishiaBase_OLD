@@ -124,10 +124,12 @@ public class Class_Jc extends Object_Jc
       kBitPrimitiv_Modifier = 16
     , mPrimitiv_Modifier =             0x000f0000
     , kBitfield_Modifier =             0x00070000
+    , kHandlePtr_Modifier =            0x00090000
     , mStatic_Modifier =               0x00000008 
     , kObjectArrayJc_Modifier =        0x00200000
     , kStaticArray_Modifier  =         0x00800000
     , kEmbedded_Modifier_reflectJc =   0x01000000
+    , kReference_Modifier =            0x02000000
     , mReference_Modifier =            0x02000000
     , kEmbeddedContainer_Modifier =    0x10000000
     , kReferencedContainer_Modifier =  0x20000000
