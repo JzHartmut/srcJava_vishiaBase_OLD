@@ -14,6 +14,7 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
 { 
   /**Version, history and license.
    * <ul>
+   * <li>2018-09-10: Hartmut new: {@link #setAttribute(String, String, String)} with namespace
    * <li>2013-03-21 Hartmut bugfix: store data in {@link XmlNodeSimple#XmlNodeSimple(String, Object)} if given.
    * <li>2013-03-21 Hartmut chg: {@link XmlNodeSimple#XmlNodeSimple(String, Object)} etc. If "namespace:name" is given as parameter name
    *   the namespace is used.
@@ -176,11 +177,22 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
   
   
   @SuppressWarnings("unchecked")
-  public void setAttribute(String name, String value)
+  @Override public void setAttribute(String name, String value)
   { String aname = "@" + name;
     XmlNodeSimple<UserData> attribute = (XmlNodeSimple<UserData>)getChild(aname);
     if(attribute ==null){
       attribute = new XmlNodeSimple<UserData>(aname);
+      addNode(attribute);
+    }
+    attribute.text = value;
+  }
+  
+  @SuppressWarnings("unchecked")
+  public void setAttribute(String name, String namespaceKey, String value)
+  { String aname = namespaceKey + ":@" + name;
+    XmlNodeSimple<UserData> attribute = (XmlNodeSimple<UserData>)getChild(aname);
+    if(attribute ==null){
+      attribute = new XmlNodeSimple<UserData>("@"+name, namespaceKey);
       addNode(attribute);
     }
     attribute.text = value;
@@ -292,6 +304,11 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
     else return null;
   }
 
+  /**Prepares a Map for attributes from given children. 
+   * Invokes {@link #listChildren()} and checks whether the name starts with "@".
+   * @see org.vishia.xmlSimple.XmlNode#getAttributes()
+   * @since 2018-09: regard nameSpace for attributes
+   */
   public Map<String, String> getAttributes()
   {
     Map<String, String> mapAttributes = new TreeMap<String, String>();
@@ -300,7 +317,14 @@ public class XmlNodeSimple<UserData> extends TreeNodeBase<XmlNodeSimple<UserData
       for(XmlNode attrib: attributes){
         String name = attrib.getName();
         if(name.startsWith("@")){
-          mapAttributes.put(name.substring(1), attrib.text());
+          String nameAttr;
+          String namespace = attrib.getNamespaceKey();
+          if( namespace !=null) {
+            nameAttr = namespace + ":" + name.substring(1);
+          } else {
+            nameAttr = name.substring(1);
+          }
+          mapAttributes.put(nameAttr, attrib.text());
         }
       }
     }

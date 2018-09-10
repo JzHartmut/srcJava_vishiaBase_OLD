@@ -102,7 +102,7 @@ public class DataAccess {
    *   with the arguments of the method. 
    *   The {@link DatapathElement#argNames} contains names of the arguments which are given with {@link DatapathElement#set(String)}.
    *   With that concept it is possible to define a method call in a script with control which values in the script are used as parameters.
-   *   It is used for the {@link org.vishia.xmlReader.XmlReader}. 
+   *   It is used for the {@link org.vishia.xmlReader.XmlJzReader}. 
    * <li>2016-01-17 Hartmut new: Now an element can be an array, which is accessed with indices: {@link SetDatapathElement#set_index(int)} 
    *   and {@link DatapathElement#indices}. Syntax for JZcmd adapted ({@link org.vishia.jztxtcmd.JZtxtcmdSyntax}).  
    * <li>2016-01-09 Hartmut bugfix: {@link #access(CharSequence, Object, boolean, boolean, boolean, Dst)} has dissolved a {@link Variable} twice,

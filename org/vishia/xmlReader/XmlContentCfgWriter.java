@@ -21,6 +21,7 @@ public class XmlContentCfgWriter
 {
   /**Version, License and History:
    * <ul>
+   * <li>2018-09-10 writes cfg attributes.
    * <li>2018-08-15 created.
    * </ul>
    * 
@@ -52,20 +53,24 @@ public class XmlContentCfgWriter
 
   
   
-  TreeContentFromXmlReader data = new TreeContentFromXmlReader("root");
   
   
   
   
   public void readXmlStruct_writeCfgTemplate(File fXmlIn, File wrCfg) {
-    XmlReader xmlReader = new XmlReader();
+    XmlJzReader xmlReader = new XmlJzReader();
+    XmlStructureNodeBuilder data = new XmlStructureNodeBuilder("root");  //the root node for reading config
     xmlReader.readXml(fXmlIn, data, XmlCfg.newCfgReadStruct());
     FileWriter writer = null;
     try {
+      //Output it as cfg.xml
       XmlNodeSimple<?> root = new XmlNodeSimple<>("xmlinput:root");
       root.addNamespaceDeclaration("xmlinput", "www.vishia.org/XmlReader-xmlinput");
-      XmlNode node2 = root.addNewNode("cfg", "xmlinput");
-      addWrNode(node2, data, 999);
+      XmlNode node2 = root.addNewNode("cfg", "xmlinput"); //second node "cfg"
+      //
+      //add all nodes from data, recursively called.
+      addWrNode(node2, data, 999);  
+      //
       SimpleXmlOutputter oXml = new SimpleXmlOutputter();
       writer = new FileWriter(wrCfg);
       oXml.write(writer, root);
@@ -83,16 +88,26 @@ public class XmlContentCfgWriter
   }
 
   
-  private void addWrNode(XmlNode xmlNode, TreeContentFromXmlReader node, int recursion) throws XmlException {
+  /**Adds the node and recursively all sub nodes from the configuration 
+   * @param xmlNode The xml node for output to add.
+   * @param node The node from the structure of the read XML file, 
+   * @param recursion decremented, exception on <=0
+   * @throws XmlException on XML error, IllegalArgumentException on recursion error.
+   */
+  private void addWrNode(XmlNode xmlNode, XmlStructureNodeBuilder node, int recursion) throws XmlException {
     if(recursion <0) throw new IllegalArgumentException();
     for(String name: node.attribs) {
-      xmlNode.setAttribute(name, "");
+      xmlNode.setAttribute(name, "!@"+name);
     }
-    for(Map.Entry<String, TreeContentFromXmlReader> e: node.nodes.entrySet()) {
-      TreeContentFromXmlReader subnode = e.getValue();
+    for(Map.Entry<String, XmlStructureNodeBuilder> e: node.nodes.entrySet()) {
+      XmlStructureNodeBuilder subnode = e.getValue();
       String tag = e.getKey();
       XmlNodeSimple<?> xmlNodeSub = new XmlNodeSimple<>(tag);
       xmlNode.addContent(xmlNodeSub);
+      xmlNodeSub.setAttribute("data", "xmlinput", "!add_" + tag + "()");
+      //if(subnode.)
+      //TODO problem with beautification
+      //xmlNodeSub.addContent("!content(text)");
       addWrNode(xmlNodeSub, subnode, recursion-1);
     }
   }

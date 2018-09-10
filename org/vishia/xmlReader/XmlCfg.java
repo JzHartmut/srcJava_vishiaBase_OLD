@@ -10,7 +10,7 @@ import org.vishia.util.IndexMultiTable;
 import org.vishia.util.StringFunctions;
 
 /**This class contains the configuration data to assign xml elements to Java data.
- * It is filled with the {@link XmlReader#readCfg(java.io.File)} from a given xml file.
+ * It is filled with the {@link XmlJzReader#readCfg(java.io.File)} from a given xml file.
  * <br>
  * The configuration xml file (config.xml) should have the same structure as the type of xml files to parse (user.xml).
  * <ul>
@@ -79,7 +79,7 @@ import org.vishia.util.StringFunctions;
  */
 public class XmlCfg
 {
-  /**Version, License and History: See {@link XmlReader}.
+  /**Version, License and History: See {@link XmlJzReader}.
    * <ul>
    * <li>2018-08-15 element subNodeUnspec removed, instead store key="?" in {@link XmlCfgNode#subnodes}. 
    * <li>2018-08-15 {@link #newCfgCfg()} more simple. Don't use the root node as config for root node.

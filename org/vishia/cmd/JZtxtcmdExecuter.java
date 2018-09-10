@@ -84,6 +84,9 @@ public class JZtxtcmdExecuter {
   
   /**Version, history and license.
    * <ul>
+   * <li>2018-09-10 Hartmut bugfix. The script variable text = path/to/textout cannot be set. 
+   *   Now the argument -t=out wins against the script variable, but if -t is not set, the scriptVariable text = ... is used.
+   *   bugfix: setting text = ... in the script should be used immediately after that. Changing of {@link ExecuteLevel#exec_OpenTextOut(org.vishia.cmd.JZtxtcmdScript.JZcmditem, StringFormatter, boolean)}.
    * <li>2018-08-29 Hartmut new: {@link ExecuteLevel#exec_DefVariable(Map, org.vishia.cmd.JZtxtcmdScript.DefVariable, char, Object, boolean)}:
    *   Converts to Numeric value on a Num variable ('K'). TODO: do same for Bool ('Q') 
    * <li>2018-08-29 Hartmut new: true, false, Num as script variable. 
@@ -332,8 +335,18 @@ public class JZtxtcmdExecuter {
      */
     protected Locale locale = Locale.ENGLISH;
     
-    /**The text output, the same for all threads. It refers System.out if an other output was not defined yet. */
-    private StringFormatter textline;
+    /**It is set from argument outside. Used in initialization (execution of script level). Set to null on start of execution. 
+     * If it is set and it is not System.out, the assignment of a <code>text = path/to/textout;</code> is suppressed in script level.
+     * It means, a textout can be set in script level, but a argument -t=textout on invocation wins.
+     * On runtime a <code>text = path/to/newTextOut;</code> can be set because this variable is ==null then.
+     * @since 2018-09*/
+    Appendable outFromCmdlineArg;
+    
+    
+    /**The text output, the same for all threads. It refers System.out if an other output was not defined yet. 
+     * It is a StringFormatter associated with an Appendable. 
+     * @since 2018-09 It is the <code>text</code> script variable */
+    StringFormatter textline;
     
     /**The time stamp from {@link System#currentTimeMillis()} on start of script. */
     public long startmilli;
@@ -657,7 +670,32 @@ throws ScriptException //, IllegalAccessException
     if(scriptLevel.localVariables.get("console") == null){ DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "console", 'O', acc.log, true); }
     //DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "nrElementInContainer", 'O', null);
     //Note: "text" will be replaced by the text output if given, argument -t:FILE
-    if(scriptLevel.localVariables.get("text") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "text", 'A', System.out, true); }
+    
+    
+    { //creates a outText in any case. For harmonic software. It may be unused. Then garbage it. 
+      DataAccess.Variable<Object> outText = scriptLevel.localVariables.get("text");
+      Appendable outTextA = null;
+      if(outText != null)  {
+        Object outTextO = outText.value();
+        if(outTextO instanceof StringFormatter) {
+          acc.textline = (StringFormatter) outTextO;
+        } else if(outTextO instanceof Appendable) {
+          outTextA = (Appendable) outTextO;
+        } else {
+          throw new IllegalArgumentException("a given text variable should be either a StringFormatter or a Appendable");
+        }
+      } else {
+        outTextA = acc.outFromCmdlineArg;
+        if(outTextA == null) { outTextA = System.out; }
+      }
+      if(outTextA !=null) {
+        boolean shouldClose = outTextA != System.out && outTextA instanceof Closeable;
+        acc.textline = new StringFormatter(outTextA, shouldClose, "\n", 200);
+      }
+      DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "text", 'A', acc.textline, true); 
+    }
+    
+    
     if(scriptLevel.localVariables.get("out") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "out", 'A', System.out, true); }
     if(scriptLevel.localVariables.get("err") == null)  {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "err", 'A', System.err, true); }
     if(scriptLevel.localVariables.get("null") == null) {DataAccess.createOrReplaceVariable(scriptLevel.localVariables, "null", 'O', null, true); }
@@ -712,7 +750,7 @@ public void  executeScriptLevel(JZtxtcmdScript script, CharSequence sCurrdir) th
     } catch(IllegalAccessException exc) { throw new JzScriptException(exc); }
   }
 
-  short ret = acc.scriptLevel.execute(script.scriptClass, null, 0, acc.scriptLevel.localVariables, -1);
+  short ret = acc.scriptLevel.execute(script.scriptClass, acc.textline, 0, acc.scriptLevel.localVariables, -1);
   if(ret == kException){
     Throwable cause = acc.scriptThread.exception.getCause();
     String sException;
@@ -854,17 +892,18 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
       JZtxtcmdScript script
       , boolean accessPrivate
       , boolean bWaitForThreads
-      , Appendable out
+      , Appendable outFromCmdlineArg
       , Map<String, DataAccess.Variable<Object>> data
       , String sCurrdir
       ) 
   throws ScriptException //, IllegalAccessException //, Throwable
   { //boolean bScriptLevelShouldExecuted = checkScript(script);
+    acc.outFromCmdlineArg = outFromCmdlineArg;
     boolean bscriptInitialized = acc.jzcmdScript != script;
     if(bscriptInitialized){
       checkInitialize(script, true, data, sCurrdir);
     }
-    execute_i(script, accessPrivate, bWaitForThreads, out, sCurrdir, bscriptInitialized);
+    execute_i(script, accessPrivate, bWaitForThreads, sCurrdir, bscriptInitialized);
   }    
     
  
@@ -877,17 +916,18 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
       JZtxtcmdScript script
       , boolean accessPrivate
       , boolean bWaitForThreads
-      , Appendable out
+      , Appendable outFromCmdlineArg
       , List<DataAccess.Variable<Object>> data
       , String sCurrdir
       ) 
   throws ScriptException //, IllegalAccessException //, Throwable
   { //boolean bScriptLevelShouldExecuted = checkScript(script);
+    acc.outFromCmdlineArg = outFromCmdlineArg;
     boolean bscriptInitialized = acc.jzcmdScript != script;
     if(bscriptInitialized){
       checkInitialize(script, true, data, sCurrdir);
     }
-    execute_i(script, accessPrivate, bWaitForThreads, out, sCurrdir, bscriptInitialized);
+    execute_i(script, accessPrivate, bWaitForThreads, sCurrdir, bscriptInitialized);
   }    
     
   
@@ -909,26 +949,37 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
       JZtxtcmdScript script
       , boolean accessPrivate
       , boolean bWaitForThreads
-      , Appendable out
+      , Appendable outFromCmdlineArg
       , String sCurrdir
       ) 
   throws ScriptException //, IllegalAccessException //, Throwable
   { //boolean bScriptLevelShouldExecuted = checkScript(script);
+    acc.outFromCmdlineArg = outFromCmdlineArg;
     boolean bscriptInitialized = acc.jzcmdScript != script;
     if(bscriptInitialized){
       checkInitialize(script, true, sCurrdir);
     }
-    execute_i(script, accessPrivate, bWaitForThreads, out, sCurrdir, bscriptInitialized);
+    execute_i(script, accessPrivate, bWaitForThreads, sCurrdir, bscriptInitialized);
   }    
     
   
   
   
-  private void execute_i(
+  /**Inner routine to process the execution after initializing the script. This routine is called from all other.
+   * @param script The compiled script.
+   * @param accessPrivate true if private access to any given Java data inside a script.
+   * @param bWaitForThreads true then wait for finish all threads to exit
+   * @param outFromCmdline If {@link System#out} then it can be overridden by internal given <code>text = path/to/file</code>
+   *   It is set by cmd line invocation with -o=file with opend file. 
+   *   If <code>text = path/to/file</code> is given by initializing the script, the given file will be closed and the script determined 
+   * @param sCurrdir
+   * @param bscriptInitialized
+   * @throws ScriptException
+   */
+  void execute_i(
       JZtxtcmdScript script
       , boolean accessPrivate
       , boolean bWaitForThreads
-      , Appendable out
       , String sCurrdir
       , boolean bscriptInitialized
       ) 
@@ -940,16 +991,22 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
     short ret;
     //try
     {
-      if(out !=null) {
-        //create a textline formatter without newline control but with out as output. Default size is 200, will be increased on demand.
-        boolean bShouldClose = !(out == System.out) && out instanceof Closeable;
-        //NOTE: never close System.out.
-        StringFormatter outFormatter = new StringFormatter(out, bShouldClose, null, 200);
+      assert(acc.textline !=null); //because it is handled in initialize
+      if(acc.textline == null) { //that is if a 'text = path' is not part of script variables.
+        //then a 'text = path' is not given in the script variables.
+        if(acc.outFromCmdlineArg == null) {
+          acc.outFromCmdlineArg = System.out; //default
+        }
+        boolean bShouldCloseOutFromCmdline = (acc.outFromCmdlineArg != System.out) && (acc.outFromCmdlineArg instanceof Closeable);
+        StringFormatter outFormatter = new StringFormatter(acc.outFromCmdlineArg, bShouldCloseOutFromCmdline, null, 200);
         acc.textline = outFormatter;
+        try{
+          acc.setScriptVariable("text", 'A', acc.textline, true);  //NOTE: out maybe null
+        } catch(IllegalAccessException exc){ throw new JzScriptException("JZcmd.executer - IllegalAccessException; " + exc.getMessage()); }
+        
       }
-      try{
-        acc.setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
-      } catch(IllegalAccessException exc){ throw new JzScriptException("JZcmd.executer - IllegalAccessException; " + exc.getMessage()); }
+      acc.outFromCmdlineArg = null; //further setting of 'text =' closes the current textline and opens a new one.
+      
     }
     if(!bscriptInitialized && sCurrdir !=null) {
       try {acc.scriptLevel.changeCurrDir(sCurrdir);
@@ -1388,7 +1445,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
 
     /**Processes the statement of the current node in the JZcmditem.
      * @param statementList 
-     * @param out The current output. Either it is a special output channel for <+channel>...<.+>
+     * @param outText The current output. Either it is a special output channel for <+channel>...<.+>
      *   or it is the threadData.out or it is null if threadData.out is not initialized yet.
      * @param indentOutArg The indentation in the script.
      * @param bContainerHasNext Especially for <:for:element:container>SCRIPT<.for> to implement <:hasNext>
@@ -1398,7 +1455,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
      * @return {@link JZtxtcmdExecuter#kSuccess} ==0, {@link JZtxtcmdExecuter#kBreak}, {@link JZtxtcmdExecuter#kReturn} or {@link JZtxtcmdExecuter#kException} 
      * @throws Exception
      */
-    private short execute(JZtxtcmdScript.StatementList statementList, StringFormatter out, int indentOutArg
+    short execute(JZtxtcmdScript.StatementList statementList, StringFormatter outText, int indentOutArg
         , Map<String, DataAccess.Variable<Object>> newVariables, int nDebugP) 
     //throws Exception 
     {
@@ -1429,14 +1486,14 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
         try{    
           switch(statement.elementType()){
           //case ' ': bSetSkipSpaces = true; break;
-          case 't': exec_Text(statement, out, indentOut);break; //<:>...textexpression <.>
-          case '@': exec_SetColumn((JZtxtcmdScript.TextColumn)statement, out);break; //<:@23>
-          case 'n': out.append(jzcmdMain.newline);  break;   //<.n+>
-          case '!': out.flush();  break;   //<.n+>
-          case '_': out.close();  out = null; break;   //<.n+>
-          case '\\': out.append(statement.textArg);  break;   //<:n> transcription
+          case 't': exec_Text(statement, outText, indentOut);break; //<:>...textexpression <.>
+          case '@': exec_SetColumn((JZtxtcmdScript.TextColumn)statement, outText);break; //<:@23>
+          case 'n': outText.append(jzcmdMain.newline);  break;   //<.n+>
+          case '!': outText.flush();  break;   //<.n+>
+          case '_': outText.close();  outText = null; break;   //<.n+>
+          case '\\': outText.append(statement.textArg);  break;   //<:n> transcription
           case 'T': ret = exec_TextAppendToVar((JZtxtcmdScript.TextOut)statement, --nDebug1); break; //<+text>...<.+> 
-          case ':': ret = exec_TextAppendToOut(statement, out, --nDebug1); break; //<+text>...<.+> 
+          case ':': ret = exec_TextAppendToOut(statement, outText, --nDebug1); break; //<+text>...<.+> 
           case 'A': break;  //used for Argument
           //case 'X': break;  //unused for dataStruct in Argument
           case 'U': ret = defineExpr(newVariables, (JZtxtcmdScript.DefVariable)statement); break; //setStringVariable(statement); break; 
@@ -1477,8 +1534,8 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
             //exec_DefVariable(newVariables, statementDef, '{', statementDef.statementlist, false);
             exec_DefCodeblockVariable(newVariables, (JZtxtcmdScript.Subroutine)statement, true); 
           } break;
-          case 'e': ret = exec_Datatext((JZtxtcmdScript.DataText)statement, out, indentOut, --nDebug1); break; 
-          case 's': ret = exec_Call((JZtxtcmdScript.CallStatement)statement, null, out, indentOut, --nDebug1); break;  //sub
+          case 'e': ret = exec_Datatext((JZtxtcmdScript.DataText)statement, outText, indentOut, --nDebug1); break; 
+          case 's': ret = exec_Call((JZtxtcmdScript.CallStatement)statement, null, outText, indentOut, --nDebug1); break;  //sub
           case 'x': ret = exec_Thread(newVariables, (JZtxtcmdScript.ThreadBlock)statement); break;             //thread
           case 'm': exec_Move((JZtxtcmdScript.FileOpArg)statement); break;             //move
           case 'y': exec_Copy((JZtxtcmdScript.FileOpArg)statement); break;             //copy
@@ -1486,12 +1543,12 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
           case 'c': exec_cmdline((JZtxtcmdScript.CmdInvoke)statement); break;              //cmd
           case 'd': ret = exec_ChangeCurrDir(statement); break;                              //cd
           case '9': ret = exec_MkDir(statement); break;                              //mkdir
-          case 'f': ret = exec_forContainer((JZtxtcmdScript.ForStatement)statement, out, indentOut, --nDebug1); break;  //for
-          case 'B': ret = exec_NestedLevel(statement, out, indentOut, --nDebug1); break;              //statementBlock
-          case 'i': ret = exec_IfStatement((JZtxtcmdScript.IfStatement)statement, out, indentOut, --nDebug1); break;
-          case 'w': ret = exec_whileStatement((JZtxtcmdScript.CondStatement)statement, out, indentOut, --nDebug1); break;
-          case 'u': ret = exec_dowhileStatement((JZtxtcmdScript.CondStatement)statement, out, indentOut, --nDebug1); break;
-          case 'N': ret = exec_hasNext(statement, out, indentOut, --nDebug1); break;
+          case 'f': ret = exec_forContainer((JZtxtcmdScript.ForStatement)statement, outText, indentOut, --nDebug1); break;  //for
+          case 'B': ret = exec_NestedLevel(statement, outText, indentOut, --nDebug1); break;              //statementBlock
+          case 'i': ret = exec_IfStatement((JZtxtcmdScript.IfStatement)statement, outText, indentOut, --nDebug1); break;
+          case 'w': ret = exec_whileStatement((JZtxtcmdScript.CondStatement)statement, outText, indentOut, --nDebug1); break;
+          case 'u': ret = exec_dowhileStatement((JZtxtcmdScript.CondStatement)statement, outText, indentOut, --nDebug1); break;
+          case 'N': ret = exec_hasNext(statement, outText, indentOut, --nDebug1); break;
           case '=': ret = assignStatement(statement); break;
           case '+': ret = appendExpr((JZtxtcmdScript.AssignExpr)statement); break;        //+=
           case '?': break;  //don't execute a onerror, skip it.  //onerror
@@ -1500,12 +1557,14 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
           case 'v': exec_Throwonerror((JZtxtcmdScript.Onerror)statement); break;
           case ',': bWriteErrorInOutput = statement.textArg !=null; break;
           case 'b': ret = JZtxtcmdExecuter.kBreak; break;
-          case '#': ret = exec_CmdError((JZtxtcmdScript.Onerror)statement, out, indentOut); break;
+          case '#': ret = exec_CmdError((JZtxtcmdScript.Onerror)statement, outText, indentOut); break;
           case 'F': ret = exec_createFilepath(newVariables, (JZtxtcmdScript.DefVariable) statement); break;
           case 'G': ret = exec_createFileSet(newVariables, (JZtxtcmdScript.UserFileset) statement); break;
-          case 'o': ret = exec_OpenTextOut(statement, false); break;
-          case 'q': ret = exec_OpenTextOut(statement, true); break;
-          case 'Z': ret = exec_zmake((JZtxtcmdScript.Zmake) statement, out, indentOut, --nDebug1); break;
+          case 'o': { StringFormatter outTextnew = exec_OpenTextOut(statement, outText, false); //changes the outText 
+                      if(outTextnew ==null && outText !=null) { ret = kException;} else {ret = kSuccess; outText = outTextnew; } } break;
+          case 'q': { StringFormatter outTextnew = exec_OpenTextOut(statement, outText, true); //changes the outText 
+                      if(outTextnew ==null && outText !=null) { ret = kException;} else {ret = kSuccess; outText = outTextnew; } } break;
+          case 'Z': ret = exec_zmake((JZtxtcmdScript.Zmake) statement, outText, indentOut, --nDebug1); break;
           case 'D': break; // a second debug statement one after another or debug on end is ignored.
           case 'H': exec_DebugOp(statement); break; // debugOp
           default: throw new IllegalArgumentException("JZcmd.execute - unknown statement; ");
@@ -1530,7 +1589,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
           threadData.error.setValue(u);
           errortext = u;
           if(bWriteErrorInOutput){
-            try{ out.append("<?? ").append(errortext).append(" ??>");
+            try{ outText.append("<?? ").append(errortext).append(" ??>");
             } catch(IOException exc1){ throw new RuntimeException(exc1); }
             threadData.error.setValue(null);  //clear for next usage.
             threadData.exception = null;
@@ -1573,7 +1632,7 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
           }
           if(found){ //onerror found:
             assert(onerrorStatement !=null);  //because it is found in while above.
-            ret = execute(onerrorStatement.statementlist, out, indentOut, localVariables, -1);  //executes the onerror block
+            ret = execute(onerrorStatement.statementlist, outText, indentOut, localVariables, -1);  //executes the onerror block
             //maybe throw exception too, Exception in onerror{...}
             if(ret != kException) {
               threadData.error.setValue(null);  //clear for next usage.
@@ -2688,26 +2747,36 @@ public ExecuteLevel execute_Scriptclass(JZtxtcmdScript.JZcmdClass clazz) throws 
 
     
     /**Closes an existing text out and opens a new one with the given name in the current directory.
+     * It is suppressed in initializing phase if another {@link JzTcMain#outFromCmdlineArg} is given than System.out.
+     * Elsewhere it closes the given output and opens the new one if possible.
      * @param statement builds a path
-     * @return
+     * @param outTextprev previously used textOut, it is returned if it is not changed. Because it is used locally in the script execution.
+     * @param bAppend for <code>&lt;+:append>path/to...</code>
+     * @return null on exception of {@link #evalString(org.vishia.cmd.JZtxtcmdScript.JZcmditem)} of the statement.
+     *   elsewhere the new outText or the given outTextprev
      * @throws Exception
+     * @since 2018-09 returns the new outText to use immediately
      */
-    short exec_OpenTextOut(JZtxtcmdScript.JZcmditem statement, boolean bAppend)
+    StringFormatter exec_OpenTextOut(JZtxtcmdScript.JZcmditem statement, StringFormatter outTextprev, boolean bAppend)
     throws Exception
-    {
-      CharSequence arg = evalString(statement);
-      if(arg == JZtxtcmdExecuter.retException){ return kException; }
-      else {
-        if(!FileSystem.isAbsolutePath(arg)){
-          arg = this.currdir() + "/" + arg;
+    { if(jzcmdMain.outFromCmdlineArg != null && jzcmdMain.outFromCmdlineArg != System.out) {
+        System.out.println("Info: exec_OpenTextOut skipped because outFromCmdLine is given.");
+        return outTextprev;     //ignore the setting of textout in the script setting phase.
+      } else {
+        CharSequence arg = evalString(statement);
+        if(arg == JZtxtcmdExecuter.retException){ return null; }
+        else {
+          if(!FileSystem.isAbsolutePath(arg)){
+            arg = this.currdir() + "/" + arg;
+          }
+          Appendable out = new FileWriter(arg.toString(), bAppend);
+          if(jzcmdMain.textline !=null) {
+            jzcmdMain.textline.close();
+          }
+          jzcmdMain.textline =  new StringFormatter(out, true, null, 200);
+          jzcmdMain.setScriptVariable("text", 'A', jzcmdMain.textline, true); 
+          return jzcmdMain.textline;
         }
-        if(jzcmdMain.textline !=null) {
-          jzcmdMain.textline.close();
-        }
-        Appendable out = new FileWriter(arg.toString(), bAppend);
-        jzcmdMain.setScriptVariable("text", 'A', out, true);  //NOTE: out maybe null
-        jzcmdMain.textline =  new StringFormatter(out, true, null, 200);
-        return kSuccess;
       }
     }
     

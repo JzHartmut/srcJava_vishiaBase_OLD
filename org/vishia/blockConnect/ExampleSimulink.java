@@ -3,7 +3,7 @@ package org.vishia.blockConnect;
 import java.io.File;
 
 import org.vishia.util.Debugutil;
-import org.vishia.xmlReader.XmlReader;
+import org.vishia.xmlReader.XmlJzReader;
 
 public class ExampleSimulink
 {
@@ -18,7 +18,7 @@ public class ExampleSimulink
 
   public static void main(String[] args) {
   
-    XmlReader main = new XmlReader();
+    XmlJzReader main = new XmlJzReader();
     main.readCfg(new File("D:\\vishia\\graphDesign\\Smlk\\blockdiagram.cfg.xml"));
     Data data = new Data();
     File slx = new File("D:\\vishia\\graphDesign\\Smlk\\ex_model.slx");

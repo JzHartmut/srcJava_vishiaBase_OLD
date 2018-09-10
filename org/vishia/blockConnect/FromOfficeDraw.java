@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.vishia.util.Debugutil;
-import org.vishia.xmlReader.XmlReader;
+import org.vishia.xmlReader.XmlJzReader;
 
 public class FromOfficeDraw
 {
@@ -61,7 +61,7 @@ public class FromOfficeDraw
 
 
   public static void main(String[] args)
-  { XmlReader main = new XmlReader();
+  { XmlJzReader main = new XmlJzReader();
     main.readCfg(new File("D:\\vishia\\graphDesign\\draw.tplxml"));
     Data data = new Data();    
     main.readXml(new File("D:\\vishia\\graphDesign\\test1.fodg"), data);

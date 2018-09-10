@@ -13,7 +13,7 @@ import org.vishia.util.Debugutil;
 import org.vishia.util.IndexMultiTable;
 import org.vishia.util.StringFormatter;
 import org.vishia.xmlReader.XmlContentCfgWriter;
-import org.vishia.xmlReader.XmlReader;
+import org.vishia.xmlReader.XmlJzReader;
 
 public class TestReadMsc15Cfg
 {
@@ -138,7 +138,7 @@ public class TestReadMsc15Cfg
   
   
   static void readKeys(File fXmlIn) {
-    XmlReader xmlReader = new XmlReader();
+    XmlJzReader xmlReader = new XmlJzReader();
     xmlReader.readCfg(new File("c:/Programs/MSC15_adaptSmlk/settings.cfg.xml"));
     KeyboardShortCuts data = new KeyboardShortCuts();
     xmlReader.readXml(fXmlIn, data);
@@ -179,10 +179,11 @@ public class TestReadMsc15Cfg
   
   public static void main(String args[]) {
     
-    File fXmlIn = new File("c:/Users/hartmut/Documents/Visual Studio 2015/Settings/CurrentSettings.vssettings");
-    //analyzeStruct(fXmlIn);    
+    //File fXmlIn = new File("c:/Users/hartmut/Documents/Visual Studio 2015/Settings/CurrentSettings.vssettings");
+    File fXmlIn = new File("D:/ML/SULtrcCurve/SULtrc.xml");
+    analyzeStruct(fXmlIn);    
 
-    readKeys(fXmlIn);
+    //readKeys(fXmlIn);
     
     
     Debugutil.stop();

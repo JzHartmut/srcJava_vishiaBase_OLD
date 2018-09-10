@@ -21,6 +21,7 @@ import org.vishia.util.SortedTree;
 public interface XmlNode extends SortedTree<XmlNode>
 {  /**Version, history and license.
    * <ul>
+   * <li>2018-09-10: Hartmut new: {@link #setAttribute(String, String, String)} with namespace
    * <li>2012-12-26: Hartmut chg: {@link #text()} instead getText(). It is compatible with XPATH-expressions.
    * <li>2012-10-05: The {@link XmlNodeSimple} is removed as dependency, so this class is the same like in the past.
    * <li>2012-10-04: The mainly usage class {@link XmlNodeSimple} is derived from 
@@ -73,6 +74,13 @@ public interface XmlNode extends SortedTree<XmlNode>
    * @param value
    */
   public void setAttribute(String name, String value);
+  
+  /**Sets an attribute by name.
+   * 
+   * @param name
+   * @param value
+   */
+  public void setAttribute(String name, String namespaceKey, String value) throws XmlException;
   
   /**Adds namespace declaration on the specified node. 
    * 

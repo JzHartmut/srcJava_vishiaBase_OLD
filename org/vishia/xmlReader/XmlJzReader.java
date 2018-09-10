@@ -60,10 +60,12 @@ xmlReader.readXml(src, data);
  * @author Hartmut Schorrig.
  *
  */
-public class XmlReader
+public class XmlJzReader
 {
   /**Version, License and History:
    * <ul>
+   * <li>2018-09-09 Renamed from XmlReader to XmlJzReader, because: It is a special reader. 
+   * It stores Data to Java (J) and works with a configfile which has a semantic (z as reverse 's').
    * <li>2017-12-25 first version which can be used.
    * <li>2017-01 created.
    * </ul>
@@ -113,7 +115,7 @@ public class XmlReader
    Map<String, String> namespaces = new IndexMultiTable<String, String>(IndexMultiTable.providerString);
    
    
-  public XmlReader() {
+  public XmlJzReader() {
     cfgCfg = XmlCfg.newCfgCfg();
   }   
    
@@ -189,7 +191,7 @@ public class XmlReader
    * The {@link StringPartScan} scans the XML syntax. 
    * <br>
    * The xmlCfg determines which elements, attributes and textual content is transferred to the output data.
-   * See Description of {@link XmlReader}.
+   * See Description of {@link XmlJzReader}.
    * @param input any opened InputStream. Typically it is an FileInputStream or InputStream from a {@link ZipEntry}.
    * @param sInputPath The path to the input stream, used for error hints while parsing.
    * @param output Any output data. The structure should match to the xmlCfg.
